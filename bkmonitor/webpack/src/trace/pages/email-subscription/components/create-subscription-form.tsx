@@ -165,18 +165,34 @@ export default defineComponent({
             const subscriberList = enabledList.filter(item => item.subscribers.length);
             console.log('subscriberList', subscriberList);
 
-            let isValid = false;
+            let isInvalid = false;
             // 选中了，但是输入框没有添加任何订阅内容，将选中的输入框都显示提示。
             enabledList.forEach(item => {
               if (!item.subscribers.length) {
                 errorTips[item.channel_name].message = errorTips[item.channel_name].defaultMessage;
                 errorTips[item.channel_name].isShow = true;
-                isValid = true;
+                isInvalid = true;
               } else {
-                errorTips[item.channel_name].isShow = false;
+                if (item.channel_name === 'email') {
+                  // 需要对邮箱格式校验
+                  item.subscribers.forEach(subscriber => {
+                    const result = String(subscriber.id || '')
+                      .toLowerCase()
+                      .match(
+                        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+                      );
+                    if (!result) {
+                      isInvalid = true;
+                      errorTips[item.channel_name].isShow = true;
+                      errorTips[item.channel_name].message = t('邮件格式有误');
+                    }
+                  });
+                } else {
+                  errorTips[item.channel_name].isShow = false;
+                }
               }
             });
-            if (isValid) return false;
+            if (isInvalid) return false;
 
             if (subscriberList.length === 0) return false;
             return true;
@@ -687,6 +703,8 @@ export default defineComponent({
           dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss')
         ];
       }
+      // 展示同比 的 switcher 开关。
+      isShowYOY.value = Boolean(formData.scenario_config.year_on_year_hour);
     }
 
     const isShowExistSubscriptionTips = ref(false);
@@ -1419,7 +1437,8 @@ export default defineComponent({
                     prefix={window.i18n.t('用户ID')}
                     style={{ width: '465px' }}
                   ></Input> */}
-                  <div>
+                  {/* 该自定义属性是用来避免正确的输入框显示警告颜色 */}
+                  <div data-is-show-error-msg={this.errorTips.user.isShow}>
                     <MemberSelect
                       v-model={this.subscriberInput.user}
                       style={{ width: '465px' }}
@@ -1440,28 +1459,32 @@ export default defineComponent({
                       {window.i18n.t('外部邮件')}
                     </Checkbox>
                   </div>
-                  <Popover
-                    trigger='click'
-                    placement='right'
-                    theme='light'
-                    content={window.i18n.t('多个邮箱使用逗号隔开')}
-                  >
-                    <Input
-                      v-model={this.subscriberInput.email}
-                      prefix={window.i18n.t('邮件列表')}
-                      disabled={!this.formData.channels[1].is_enabled}
-                      style={{ width: '465px' }}
-                    ></Input>
-                  </Popover>
-                  <br />
+                  <div data-is-show-error-msg={this.errorTips.email.isShow}>
+                    <Popover
+                      trigger='click'
+                      placement='right'
+                      theme='light'
+                      content={window.i18n.t('多个邮箱使用逗号隔开')}
+                    >
+                      <Input
+                        v-model={this.subscriberInput.email}
+                        prefix={window.i18n.t('邮件列表')}
+                        disabled={!this.formData.channels[1].is_enabled}
+                        style={{ width: '465px' }}
+                        data-is-show-error-msg={this.errorTips.email.isShow}
+                      ></Input>
+                    </Popover>
+                  </div>
                   {/* 后期补上 */}
-                  <Input
-                    v-model={this.formData.channels[1].send_text}
-                    prefix={window.i18n.t('提示文案')}
-                    disabled={!this.formData.channels[1].is_enabled}
-                    placeholder={window.i18n.t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
-                    style={{ width: '465px', marginTop: '10px' }}
-                  ></Input>
+                  <div data-is-show-error-msg={this.errorTips.email.isShow}>
+                    <Input
+                      v-model={this.formData.channels[1].send_text}
+                      prefix={window.i18n.t('提示文案')}
+                      disabled={!this.formData.channels[1].is_enabled}
+                      placeholder={window.i18n.t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
+                      style={{ width: '465px', marginTop: '10px' }}
+                    ></Input>
+                  </div>
                   {this.errorTips.email.isShow && <div class='bk-form-error'>{this.errorTips.email.message}</div>}
 
                   <div style={{ marginTop: '10px' }}>
@@ -1472,32 +1495,34 @@ export default defineComponent({
                       {window.i18n.t('企业微信群')}
                     </Checkbox>
                   </div>
-                  <Popover
-                    trigger='click'
-                    placement='right'
-                    theme='light'
-                    v-slots={{
-                      content: () => {
-                        return (
-                          <div>
-                            {window.i18n.t('获取会话ID方法')}: <br />
-                            {window.i18n.t('1.群聊列表右键添加群机器人: BK-Monitor')}
-                            <br />
-                            {window.i18n.t(`2.手动 @BK-Monitor 并输入关键字'会话ID'`)}
-                            <br />
-                            {window.i18n.t('3.将获取到的会话ID粘贴到输入框,使用逗号分隔')}
-                          </div>
-                        );
-                      }
-                    }}
-                  >
-                    <Input
-                      v-model={this.subscriberInput.wxbot}
-                      prefix={window.i18n.t('群ID')}
-                      disabled={!this.formData.channels[2].is_enabled}
-                      style={{ width: '465px' }}
-                    ></Input>
-                  </Popover>
+                  <div data-is-show-error-msg={this.errorTips.wxbot.isShow}>
+                    <Popover
+                      trigger='click'
+                      placement='right'
+                      theme='light'
+                      v-slots={{
+                        content: () => {
+                          return (
+                            <div>
+                              {window.i18n.t('获取会话ID方法')}: <br />
+                              {window.i18n.t('1.群聊列表右键添加群机器人: BK-Monitor')}
+                              <br />
+                              {window.i18n.t(`2.手动 @BK-Monitor 并输入关键字'会话ID'`)}
+                              <br />
+                              {window.i18n.t('3.将获取到的会话ID粘贴到输入框,使用逗号分隔')}
+                            </div>
+                          );
+                        }
+                      }}
+                    >
+                      <Input
+                        v-model={this.subscriberInput.wxbot}
+                        prefix={window.i18n.t('群ID')}
+                        disabled={!this.formData.channels[2].is_enabled}
+                        style={{ width: '465px' }}
+                      ></Input>
+                    </Popover>
+                  </div>
                   {this.errorTips.wxbot.isShow && <div class='bk-form-error'>{this.errorTips.wxbot.message}</div>}
                 </div>
               )}

@@ -13,6 +13,10 @@
       .icon-mc-add {
         font-size: 22px;
       }
+
+      .bk-radio-button .bk-radio-button-label {
+        line-height: 30px;
+      }
     }
 
     .right-container {
@@ -77,6 +81,7 @@
 
 .dialog-header-info-container {
   display: flex;
+  justify-content: space-between;
 
   .label-container {
     display: flex;
@@ -217,6 +222,9 @@
 }
 
 .test-send-result-dialog {
+  /* stylelint-disable-next-line declaration-no-important */
+  z-index: 4000 !important;
+
   .bk-dialog-header {
     /* stylelint-disable-next-line declaration-no-important */
     padding-bottom: 2px !important;

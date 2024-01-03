@@ -95,6 +95,8 @@ class MySubscription extends tsc<{}> {
 
   handleCancelSubscription(data) {
     this.$bkInfo({
+      extCls: 'cancel-report-dialog',
+      type: 'warning',
       title: this.$t('是否取消 {0} 的订阅?', [data?.name]),
       confirmLoading: true,
       confirmFn: () => {
@@ -178,6 +180,14 @@ class MySubscription extends tsc<{}> {
     let str = '';
     if (!data?.frequency?.type) return '';
     switch (data.frequency.type) {
+      case 1: {
+        str = this.$t('仅一次').toString();
+        break;
+      }
+      case 2: {
+        str = `${this.$t('每月 {0} 号', [data.frequency.day_list.toString()])} ${data.frequency.run_time}`;
+        break;
+      }
       case 3: {
         const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
         const weekStr = weekStrArr.join(', ');
@@ -185,7 +195,7 @@ class MySubscription extends tsc<{}> {
         break;
       }
       case 4: {
-        const dayArr = data.frequency.day_list.map(item => `${item}号`);
+        const dayArr = data.frequency.day_list.map(item => `${item}${this.$t('号')}`);
         const dayStr = dayArr.join(', ');
         str = `${dayStr} ${data.frequency.run_time}`;
         break;
@@ -214,28 +224,6 @@ class MySubscription extends tsc<{}> {
       {
         is_enabled: true,
         channel_name: this.currentTableRowOfSendingRecord.channel_name,
-        // subscribers: this.currentTableRowOfSendingRecord.tempSendResult
-        //   .filter(item => {
-        //     if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
-        //       return item;
-        //     }
-        //     if (
-        //       ['partial_failed', 'failed'].includes(this.currentTableRowOfSendingRecord.send_status) &&
-        //       !item.result
-        //     ) {
-        //       return item;
-        //     }
-        //   })
-        //   .map(item => {
-        //     const o = {
-        //       id: item.id,
-        //       is_enabled: true
-        //     };
-        //     if (item.type) {
-        //       o.type = item.type;
-        //     }
-        //     return o;
-        //   })
         subscribers: this.currentTableRowOfSendingRecord.tempSendResult
           ?.filter(item => {
             return this.currentTableRowOfSendingRecord.selectedTag.includes(item.id);
@@ -343,6 +331,7 @@ class MySubscription extends tsc<{}> {
               v-bkloading={{
                 isLoading: this.sendRecordTable.isLoading
               }}
+              height={400}
               style='margin-top: 16px;'
             >
               <bk-table-column
@@ -622,22 +611,26 @@ class MySubscription extends tsc<{}> {
               count: this.tableData.length,
               limit: this.queryData.page_size
             }}
+            row-auto-height
           >
             <bk-table-column
               label={this.$t('邮件标题')}
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <bk-button
-                      text
-                      title='primary'
-                      onClick={() => {
-                        this.isShowSideslider = true;
-                        this.detailInfo = row;
-                      }}
-                    >
-                      {row?.content_config?.title}
-                    </bk-button>
+                    <div style='padding: 14px 0;'>
+                      <bk-button
+                        text
+                        title='primary'
+                        onClick={() => {
+                          this.isShowSideslider = true;
+                          this.detailInfo = row;
+                        }}
+                        style='height: auto;'
+                      >
+                        {row?.content_config?.title}
+                      </bk-button>
+                    </div>
                   );
                 }
               }}
@@ -699,7 +692,11 @@ class MySubscription extends tsc<{}> {
               prop='last_send_time'
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{row.last_send_time || this.$t('未发送')}</div>;
+                  return (
+                    <div>
+                      {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ss') : this.$t('未发送')}
+                    </div>
+                  );
                 }
               }}
             ></bk-table-column>

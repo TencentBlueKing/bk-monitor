@@ -226,12 +226,15 @@ export default defineComponent({
                 >
                   {window.i18n.t('内部用户')}
                 </span>
-                <span class='subscribers-value'>
+                <span
+                  class='subscribers-value'
+                  style='padding-top: 3px;'
+                >
                   {this.detailInfo?.channels
                     ?.find?.(item => item.channel_name === 'user')
                     ?.subscribers?.map?.(item => {
                       return (
-                        <div style='display: inline-flex;margin-right: 24px;margin-bottom: 10px;align-items: center;'>
+                        <div style='display: inline-flex;margin-right: 24px;margin-bottom: 7px;align-items: center;'>
                           {/* {item.src && (
                             <img
                               src=''
