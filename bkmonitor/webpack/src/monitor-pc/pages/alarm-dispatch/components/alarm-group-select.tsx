@@ -157,6 +157,7 @@ export default class AlarmGroupSelect extends tsc<IProps> {
               {this.loading ? (
                 /* eslint-disable-next-line @typescript-eslint/no-require-imports */
                 <img
+                  alt=''
                   src={require('../../../static/images/svg/spinner.svg')}
                   class='status-loading'
                 ></img>

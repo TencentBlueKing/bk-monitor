@@ -279,7 +279,7 @@ class NavTools extends DocumentLinkMixin {
    * 跳转到paas-host登录页面会自动清除登录cookie
    */
   handleQuit() {
-    location.href = location.origin + "/logout";
+    location.href = `${location.origin}/logout`;
   }
   render() {
     return (
@@ -341,12 +341,14 @@ class NavTools extends DocumentLinkMixin {
             {this.$store.getters.lang === 'en' ? (
               <img
                 class='language-icon'
+                alt='english'
                 src={enIcon}
               ></img>
             ) : (
               <img
                 class='language-icon'
                 src={zhIcon}
+                alt='中文'
               ></img>
             )}
           </div>
@@ -361,6 +363,7 @@ class NavTools extends DocumentLinkMixin {
                   <img
                     class='language-icon'
                     src={item.id === 'en' ? enIcon : zhIcon}
+                    alt='language'
                   ></img>
                   {item.name}
                 </li>

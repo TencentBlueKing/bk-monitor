@@ -1682,6 +1682,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                 >
                   {this.processLoading ? (
                     <img
+                      alt=''
                       // eslint-disable-next-line @typescript-eslint/no-require-imports
                       src={require('../../static/images/svg/spinner.svg')}
                       class='status-loading'

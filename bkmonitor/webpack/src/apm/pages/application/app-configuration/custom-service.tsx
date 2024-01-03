@@ -201,6 +201,7 @@ export default class CustomService extends tsc<IProps> {
             <img
               class='service-icon'
               src={props.row.icon}
+              alt=''
             />
           )}
           {props.row.name ? (

@@ -78,6 +78,7 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
                 <img
                   src={require('../../../static/images/svg/spinner.svg')}
                   class='status-loading'
+                  alt=''
                 ></img>
               );
             }

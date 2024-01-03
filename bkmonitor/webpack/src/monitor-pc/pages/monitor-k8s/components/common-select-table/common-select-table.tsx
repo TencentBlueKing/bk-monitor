@@ -594,7 +594,10 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               class={['overview-title', { 'is-active': this.isOverview }]}
               onClick={e => this.handleOverviewTitle(e)}
             >
-              <img src={this.overviewIcon} />
+              <img
+                src={this.overviewIcon}
+                alt=''
+              />
               <span>{`${this.panel?.title}${this.$t('概览')}`}</span>
             </div>
           )}
