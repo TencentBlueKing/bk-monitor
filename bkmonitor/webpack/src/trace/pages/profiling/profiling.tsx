@@ -139,7 +139,7 @@ export default defineComponent({
 
       if (this.searchState.formData.type === SearchType.Profiling) return <ProfilingRetrievalView />;
 
-      return <UploadRetrievalView />;
+      return <UploadRetrievalView formData={this.searchState.formData} />;
     };
 
     return (
