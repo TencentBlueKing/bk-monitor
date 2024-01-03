@@ -144,6 +144,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="APM应用默认副本数", default=0)),
         ("APM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="APM应用默认索引分片数", default=3)),
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="")),
+        ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
         (
             "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
             slz.IntegerField(label=_("APM应用操作BkdataFlow时拉取运行状态的最大操作次数"), default=10),
@@ -183,9 +184,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         (
             "BK_DATA_MULTIVARIATE_HOST_RT_ID",
-            slz.CharField(
-                label="多指标异常检测通用flow结果输出表", default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate"
-            ),
+            slz.CharField(label="多指标异常检测通用flow结果输出表", default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate"),
         ),
         (
             "BK_DATA_ROBOT_LINK_LIST",
