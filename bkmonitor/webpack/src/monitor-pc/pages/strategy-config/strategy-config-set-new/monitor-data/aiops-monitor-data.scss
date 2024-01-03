@@ -77,6 +77,10 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
         /* stylelint-disable-next-line declaration-no-important */
         margin-left: 0px !important;
       }
+
+      .scene-selector {
+        min-width: 480px;
+      }
     }
 
     .bk-select {
@@ -105,6 +109,10 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
           transform: translateX(-100%);
         }
       }
+    }
+
+    .aiops-metric-select {
+      padding-top: 6px;
     }
   }
 

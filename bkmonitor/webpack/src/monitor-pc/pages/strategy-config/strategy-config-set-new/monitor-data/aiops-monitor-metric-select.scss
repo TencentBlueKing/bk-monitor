@@ -1,7 +1,9 @@
 .aiops-monitor-metric-select-component {
   position: relative;
   display: inline-block;
+  min-width: 480px;
   height: 27px;
+  min-height: 27px;
   padding-right: 24px;
   overflow: hidden;
   cursor: pointer;
@@ -48,12 +50,30 @@
     }
   }
 
-  .icon-arrow-down {
+  .icon-arrow-down,
+  .icon-mc-close-fill {
     position: absolute;
     top: 3px;
     right: 0px;
     font-size: 20px;
+    color: #979ba5;
     transition: .3s transform;
+  }
+
+  .icon-mc-close-fill {
+    right: 3px;
+    display: none;
+    font-size: 14px;
+  }
+
+  &:hover {
+    .icon-arrow-down {
+      display: none;
+    }
+
+    .icon-mc-close-fill {
+      display: block;
+    }
   }
 
   &.show-all {

@@ -355,6 +355,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               <span>{this.scene?.scene_name}</span>
             ) : (
               <Select
+                class='scene-selector'
                 loading={this.isLoading}
                 value={this.formModel.scene}
                 clearable={false}

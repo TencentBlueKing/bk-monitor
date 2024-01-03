@@ -121,6 +121,9 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
       return;
     }
     const tagsEl = tagsWrap.querySelectorAll('.tag-item');
+    if ((tagsWrap as any).offsetHeight < (this.$el as any).offsetHeight) {
+      return;
+    }
     // 容器宽度
     const wrapWidth = (this.$el as any).offsetWidth - 24;
     // 隐藏的数量tag宽度
@@ -131,6 +134,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
     for (let i = 0; i < tagsEl.length; i++) {
       const width = (tagsEl[i] as any).offsetWidth;
       countWidth += width + 4;
+      console.log(countWidth, wrapWidth, countWrapWidth);
       if (countWidth > wrapWidth - countWrapWidth && countWidth !== wrapWidth) {
         if (!insertIndex) {
           insertIndex = i;
@@ -178,6 +182,10 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
     this.$emit('change', this.localValue);
   }
 
+  /**
+   * @description 选中
+   * @param v
+   */
   handleChecked(v: { checked: boolean; id: string }) {
     const fIndex = this.localValue.findIndex(id => v.id === id);
     if (v.checked) {
@@ -186,6 +194,19 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
       fIndex >= 0 && this.localValue.splice(fIndex, 1);
     }
     this.$emit('change', this.localValue);
+    this.handleGetMetricTag();
+    this.$nextTick(() => {
+      this.getOverflowHideCount();
+    });
+  }
+
+  /**
+   * @description 清空所有
+   * @param e
+   */
+  handleClearAll(e: Event) {
+    e.stopPropagation();
+    this.localValue = [];
     this.handleGetMetricTag();
     this.$nextTick(() => {
       this.getOverflowHideCount();
@@ -214,6 +235,10 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
           ))}
         </div>
         <div class='icon-monitor icon-arrow-down'></div>
+        <div
+          class='icon-monitor icon-mc-close-fill'
+          onClick={e => this.handleClearAll(e)}
+        ></div>
         <MetricSelector
           show={this.showSelector}
           targetId={`#${this.selectTargetId}`}
