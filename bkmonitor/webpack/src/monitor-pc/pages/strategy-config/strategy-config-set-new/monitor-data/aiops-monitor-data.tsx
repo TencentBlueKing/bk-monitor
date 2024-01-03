@@ -61,6 +61,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
   @Ref('createForm') createForm: Form;
+  @Ref('tagListRef') tagListRef: HTMLDivElement;
   /** 表单数据 */
   formModel = {
     level: 0,
@@ -92,7 +93,11 @@ export default class AiopsMonitorData extends tsc<IProps> {
       }
     ]
   };
+  // 展开/收起
   tagOpen = false;
+  // 是否展示 展开/收起 按钮
+  showTagOpen = false;
+
   /** 场景列表 */
   scenes = [];
   /* 当前场景 */
@@ -173,7 +178,19 @@ export default class AiopsMonitorData extends tsc<IProps> {
   handleScenSelected(value) {
     this.formModel.scene = value;
     this.scene = this.scenes.find(item => item.scene_id === this.formModel.scene);
+    this.$nextTick(() => {
+      this.handleCalcShowOpenTag();
+    });
     this.handleChange();
+  }
+  /** 计算指标是否存在多行情况 */
+  handleCalcShowOpenTag() {
+    const { height, top: parentTop } = this.tagListRef.getBoundingClientRect();
+    // 单行不展示 展开/收起 按钮
+    this.showTagOpen = Array.from(this.tagListRef.querySelectorAll('.bk-tag')).some(ele => {
+      const { top } = ele.getBoundingClientRect();
+      return top >= height + parentTop;
+    });
   }
   /** 或去场景 */
   multivariateAnomalyScenes() {
@@ -287,21 +304,26 @@ export default class AiopsMonitorData extends tsc<IProps> {
                   </span>
                 </i18n>
                 ：
-                <div class='aiops-tag-list'>
+                <div
+                  class='aiops-tag-list'
+                  ref='tagListRef'
+                >
                   {this.scene.metrics.map(metric => (
                     <Tag>{metric.name}</Tag>
                   ))}
                 </div>
-                <span
-                  class='aiops-tag-toggle nowrap'
-                  onClick={() => (this.tagOpen = !this.tagOpen)}
-                >
-                  <Icon
-                    style='font-size: 18px;'
-                    type={!this.tagOpen ? 'angle-double-down' : 'angle-double-up'}
-                  />
-                  {this.$t(this.tagOpen ? '收起' : '展开')}
-                </span>
+                {this.showTagOpen && (
+                  <span
+                    class='aiops-tag-toggle nowrap'
+                    onClick={() => (this.tagOpen = !this.tagOpen)}
+                  >
+                    <Icon
+                      style='font-size: 18px;'
+                      type={!this.tagOpen ? 'angle-double-down' : 'angle-double-up'}
+                    />
+                    {this.$t(this.tagOpen ? '收起' : '展开')}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -334,12 +356,20 @@ export default class AiopsMonitorData extends tsc<IProps> {
                       {this.target.desc.message}
                       {this.target.desc.subMessage}
                     </span>,
-                    <span
-                      class='ip-wrapper-title'
-                      on-click={this.handleAddTarget}
-                    >
-                      {this.$t(this.readonly ? '查看监控目标' : '修改监控目标')}
-                    </span>
+
+                    this.readonly ? (
+                      <span
+                        class='ip-wrapper-title'
+                        onClick={this.handleAddTarget}
+                      >
+                        {this.$t('查看监控目标')}
+                      </span>
+                    ) : (
+                      <span
+                        class='icon-monitor icon-bianji'
+                        onClick={this.handleAddTarget}
+                      ></span>
+                    )
                   ]}
             </div>
           </FormItem>

@@ -213,7 +213,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
     interval: '', // 通知间隔
     template: '', // 模板
     noise_reduce_config: '', // 降噪设置
-    notice: ''
+    notice: '',
+    upgrade: '' // 通知升级
   };
 
   /* 排除通知方式下拉是否展开 */
@@ -378,6 +379,19 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
         this.errMsg.noise_reduce_config = window.i18n.tc('开启降噪设置必须设置维度且比例值为1-100之间');
         reject();
       }
+      if (this.data.options.upgrade_config.is_enabled) {
+        if (
+          !this.data.options.upgrade_config.upgrade_interval ||
+          !this.data.options.upgrade_config.user_groups.length
+        ) {
+          this.errMsg.upgrade = window.i18n.tc('通知升级必须填写时间间隔以及用户组');
+          reject();
+        }
+        if (this.data.options.upgrade_config.user_groups.some(upgrade => this.data.user_groups.includes(upgrade))) {
+          this.errMsg.upgrade = window.i18n.tc('通知升级的用户组不能包含第一次接收告警的用户组');
+          reject();
+        }
+      }
       resolve(true);
     });
   }
@@ -387,7 +401,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
       interval: '',
       template: '',
       noise_reduce_config: '',
-      notice: ''
+      notice: '',
+      upgrade: ''
     };
   }
 
@@ -680,61 +695,67 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 title={this.$t('通知升级')}
                 show-semicolon
                 style={{
-                  alignItems: this.data.options.upgrade_config.is_enabled ? 'inherit' : 'flex-end'
+                  alignItems: this.data.options.upgrade_config.is_enabled ? 'inherit' : 'flex-end',
+                  marginBottom: this.errMsg.upgrade ? '15px' : 0
                 }}
               >
-                <div class='upgrade-warp'>
-                  <Switcher
-                    theme='primary'
-                    size='small'
-                    v-model={this.data.options.upgrade_config.is_enabled}
-                  ></Switcher>
-                  {this.data.options.upgrade_config.is_enabled && (
-                    <i18n
-                      class='text'
-                      tag='div'
-                      path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
-                    >
-                      <Select
-                        v-model={this.data.options.upgrade_config.upgrade_interval}
-                        behavior='simplicity'
-                        style='width: 78px'
-                        zIndex={99999}
-                        placeholder={this.$t('输入')}
-                        allow-create
-                        allow-enter
-                        class='notice-select'
+                <VerifyItem errorMsg={this.errMsg.upgrade}>
+                  <div class='upgrade-warp'>
+                    <Switcher
+                      theme='primary'
+                      size='small'
+                      v-model={this.data.options.upgrade_config.is_enabled}
+                      onChange={this.clearError}
+                    ></Switcher>
+                    {this.data.options.upgrade_config.is_enabled && (
+                      <i18n
+                        class='text'
+                        tag='div'
+                        path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
                       >
-                        <Option
-                          id={1}
-                          name={1}
-                        />
-                        <Option
-                          id={5}
-                          name={5}
-                        />
-                        <Option
-                          id={10}
-                          name={10}
-                        />
-                        <Option
-                          id={30}
-                          name={30}
-                        />
-                      </Select>
-                    </i18n>
+                        <Select
+                          v-model={this.data.options.upgrade_config.upgrade_interval}
+                          behavior='simplicity'
+                          style='width: 78px'
+                          zIndex={99999}
+                          placeholder={this.$t('输入')}
+                          allow-create
+                          allow-enter
+                          class='notice-select'
+                          onChange={this.clearError}
+                        >
+                          <Option
+                            id={1}
+                            name={1}
+                          />
+                          <Option
+                            id={5}
+                            name={5}
+                          />
+                          <Option
+                            id={10}
+                            name={10}
+                          />
+                          <Option
+                            id={30}
+                            name={30}
+                          />
+                        </Select>
+                      </i18n>
+                    )}
+                  </div>
+                  {this.data.options.upgrade_config.is_enabled && (
+                    <AlarmGroup
+                      v-model={this.data.options.upgrade_config.user_groups}
+                      class='alarm-group'
+                      list={this.userList}
+                      readonly={this.readonly}
+                      showAddTip={false}
+                      strategyId={this.strategyId}
+                      onChange={this.clearError}
+                    ></AlarmGroup>
                   )}
-                </div>
-                {this.data.options.upgrade_config.is_enabled && (
-                  <AlarmGroup
-                    v-model={this.data.options.upgrade_config.user_groups}
-                    class='alarm-group'
-                    list={this.userList}
-                    readonly={this.readonly}
-                    showAddTip={false}
-                    strategyId={this.strategyId}
-                  ></AlarmGroup>
-                )}
+                </VerifyItem>
               </CommonItem>
             </NoticeItem>
           </VerifyItem>

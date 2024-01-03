@@ -1,0 +1,65 @@
+.page-tool-header-component {
+  display: flex;
+  height: 48px;
+  background: #fff;
+  box-shadow: 0 3px 4px 0 #0000000a;
+
+  .append-tools {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    padding-right: 16px;
+  }
+
+  .append-tools-item {
+    display: flex;
+    align-items: center;
+    height: 32px;
+
+    &:first-child {
+      &::before {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        height: 14px;
+        content: '';
+        border-right: 1px solid #dcdee5;
+        transform: translateY(-50%);
+      }
+    }
+
+    &:not(:last-child) {
+      position: relative;
+      margin-right: 6px;
+
+      &::after {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        height: 14px;
+        content: '';
+        border-right: 1px solid #dcdee5;
+        transform: translateY(-50%);
+      }
+    }
+
+    .icon-mc-more-tool {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      margin-left: 8px;
+      overflow: hidden;
+      font-size: 16px;
+      cursor: pointer;
+      background: #f5f7fa;
+      border-radius: 2px;
+
+      &:hover {
+        color: #3a84ff;
+        background-color: #eaf3ff;
+      }
+    }
+  }
+}

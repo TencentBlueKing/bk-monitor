@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception } from 'bk-magic-vue';
 import { HierarchyNode } from 'd3-hierarchy';
-import { addListener, removeListener } from 'resize-detector';
 
 import { Debounce } from '../../../../../monitor-common/utils/utils';
 import MonitorResizeLayout from '../../../../../monitor-pc/components/resize-layout/resize-layout';

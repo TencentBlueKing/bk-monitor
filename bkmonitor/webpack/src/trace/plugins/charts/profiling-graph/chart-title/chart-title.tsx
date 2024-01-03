@@ -44,8 +44,8 @@ export default defineComponent({
     const downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
     const viewModeList: ViewModeItem[] = [
       { id: 'table', icon: 'table' },
-      { id: 'tableAndFlame', icon: 'fenping' },
-      { id: 'flame', icon: 'Flame1' },
+      { id: 'tableAndFlame', icon: 'mc-fenping' },
+      { id: 'flame', icon: 'mc-flame' },
       { id: 'topo', icon: 'Component' }
     ];
 

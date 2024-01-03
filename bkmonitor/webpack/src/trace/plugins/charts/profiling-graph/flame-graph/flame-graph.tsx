@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
-import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { profileQuery } from '../../../../../monitor-api/modules/apm_profile';
