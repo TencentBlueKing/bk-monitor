@@ -13,8 +13,11 @@ ingest_config:
   source_format: json
   multiple_events: true
   events_path: data
-  alert_source: ["TENCENT", "GOOGLE"]
+  alert_sources:
+    - code: TENCENT
+      name: 腾讯云
   is_external: true
+  collect_type: bk_collector
 
 # 清洗配置
 normalization_config:
