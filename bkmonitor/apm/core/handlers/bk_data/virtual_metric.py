@@ -17,6 +17,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from apm import constants
 from apm.core.handlers.bk_data.flow import ApmFlow
+from apm.models import ApmApplication
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.dataflow.task.apm_metrics import APMVirtualMetricTask
 from common.log import logger
@@ -47,6 +48,7 @@ class VirtualMetricFlow:
         self.metric_datasource = metric_datasource
         self.bkbase_operator = settings.APM_APP_BKDATA_OPERATOR
         self.bkbase_project_id = settings.APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID
+        self.application = ApmApplication.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
     @property
     def datasource_name(self):
@@ -198,6 +200,7 @@ class VirtualMetricFlow:
             self.bkbase_operator,
             self.datasource_name,
             self.description,
+            extra_maintainers=[self.application.create_user],
         )
 
         try:

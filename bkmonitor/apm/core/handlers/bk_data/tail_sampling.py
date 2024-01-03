@@ -171,9 +171,9 @@ class TailSamplingFlow(ApmFlow):
         return f"{self.cleans_names}_{self.app_name}"[:50]
 
     @classmethod
-    def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None):
+    def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None, extra_maintainers=None):
         """使用dataId互认方式接入数据源"""
-        maintainers = ",".join(list(set([operator] + cls._BKBASE_MAINTAINER)))
+        maintainers = ",".join(list(set([operator] + cls._BKBASE_MAINTAINER + extra_maintainers or [])))
 
         return {
             "operator": operator,
