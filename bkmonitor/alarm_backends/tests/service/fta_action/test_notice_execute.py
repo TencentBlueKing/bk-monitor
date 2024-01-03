@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 import fakeredis
 import mock
 import pytest
-from dateutil.relativedelta import relativedelta
+import pytz
 from django.conf import settings
 from django.db import IntegrityError
 from django.test import TestCase, TransactionTestCase
@@ -36,7 +36,6 @@ from alarm_backends.core.cache.key import (
     NOISE_REDUCE_ABNORMAL_KEY,
 )
 from alarm_backends.core.context import ActionContext
-from alarm_backends.core.i18n import i18n
 from alarm_backends.service.alert.manager.checker.shield import ShieldStatusChecker
 from alarm_backends.service.converge.processor import ConvergeProcessor
 from alarm_backends.service.converge.shield.shield_obj import AlertShieldObj
@@ -60,10 +59,8 @@ from alarm_backends.service.fta_action.tasks import (
     check_timeout_actions,
     create_actions,
     create_interval_actions,
-    manage_duty_arrange_plan,
-    manage_duty_arrange_snap,
 )
-from alarm_backends.service.fta_action.utils import AlertAssignee, DutyCalendar
+from alarm_backends.service.fta_action.utils import AlertAssignee
 from alarm_backends.service.fta_action.webhook.processor import (
     ActionProcessor as WebhookProcessor,
 )
@@ -71,13 +68,7 @@ from alarm_backends.tests.service.access.data.config import STRATEGY_CONFIG_V3
 from api.cmdb.define import Business, Host
 from bkmonitor.action.serializers import DutyArrange
 from bkmonitor.documents import AlertLog, EventDocument
-from bkmonitor.models import (
-    ActionPlugin,
-    CacheRouter,
-    DutyArrangeSnap,
-    DutyPlan,
-    UserGroup,
-)
+from bkmonitor.models import ActionPlugin, CacheRouter, DutyPlan, UserGroup
 from bkmonitor.models.fta.action import (
     ActionConfig,
     ActionInstance,
@@ -589,7 +580,6 @@ mock.patch("alarm_backends.service.fta_action.tasks.run_action.delay", return_va
 mock.patch("alarm_backends.service.converge.tasks.run_converge.apply_async", return_value=11111).start()
 mock.patch("alarm_backends.service.fta_action.tasks.run_noise_reduce_task.apply_async", return_value=11111).start()
 mock.patch("alarm_backends.service.fta_action.tasks.create_action.need_poll", return_value=True).start()
-mock.patch("alarm_backends.service.fta_action.tasks.manage_duty_arrange_snap.delay", return_value="").start()
 
 
 def converge_actions(instances, action_type=ConvergeType.ACTION, is_enabled=True, alerts=None):
@@ -797,6 +787,8 @@ class TestActionProcessor(TransactionTestCase):
             "desc": "用户组的说明用户组的说明用户组的说明用户组的说明用户组的说明",
             "bk_biz_id": 2,
             "need_duty": True,
+            "duty_rules": [1],
+            "timezone": "Asia/Shanghai",
             "mention_list": [{"type": "group", "id": "all"}, {"type": "user", "id": "admin"}],
             "alert_notice": [  # 告警通知配置
                 {
@@ -839,6 +831,7 @@ class TestActionProcessor(TransactionTestCase):
             "desc": "用户组的说明用户组的说明用户组的说明用户组的说明用户组的说明",
             "bk_biz_id": 2,
             "need_duty": True,
+            "duty_rules": [1],
             "mention_list": [{"type": "group", "id": "all"}],
             "channels": [NoticeChannel.USER, NoticeChannel.WX_BOT, NoticeChannel.BK_CHAT],
             "alert_notice": [  # 告警通知配置
@@ -888,13 +881,16 @@ class TestActionProcessor(TransactionTestCase):
             ],
         }
         self.duty_arranges = []
+        local_timezone = pytz.timezone("Asia/Shanghai")
+        today_begin = time_tools.datetime2str(datetime.now(tz=local_timezone), "%Y-%m-%d 00:00")
+        today_end = time_tools.datetime2str(datetime.now(tz=local_timezone), "%Y-%m-%d 23:59")
         self.duty_plans = [
             {
-                "duty_arrange_id": 123,
-                "is_active": True,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "duty_rule_id": 1,
+                "is_effective": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
+                "finished_time": time_tools.datetime2str(datetime.now(tz=local_timezone) + timedelta(hours=1)),
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "order": 1,
                 "users": [
                     {"id": "admin", "display_name": "admin", "logo": "", "type": "user"},
@@ -902,12 +898,12 @@ class TestActionProcessor(TransactionTestCase):
                 ],
             },
             {
-                "duty_arrange_id": 124,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": None,
-                "is_active": True,
+                "duty_rule_id": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
+                "finished_time": "",
+                "is_effective": 1,
                 "order": 2,
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "users": [{"id": "lisa", "display_name": "xxxxx", "logo": "", "type": "user"}],
             },
         ]
@@ -4091,498 +4087,6 @@ class TestActionProcessor(TransactionTestCase):
         get_alert_patch.stop()
 
 
-class TestDutyArrangePlan(TestCase):
-    def setUp(self):
-        DutyArrange.objects.all().delete()
-        DutyArrangeSnap.objects.all().delete()
-        DutyPlan.objects.all().delete()
-        UserGroup.objects.create(id=1, need_duty=True)
-        register_builtin_plugins()
-
-    def tearDown(self):
-        DutyArrange.objects.all().delete()
-        DutyArrangeSnap.objects.all().delete()
-        DutyPlan.objects.all().delete()
-        UserGroup.objects.all().delete()
-
-    def test_get_weekly_end_time(self):
-        today = datetime.now(tz=timezone.utc)
-        monday = today - timedelta(days=today.weekday())
-        monday = datetime.strptime(monday.strftime("%Y-%m-%d 08:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(timezone.utc)
-
-        wednesday = monday + timedelta(days=2)
-
-        # 分支一， 交接日在周三以后 周五 12：00 交接班
-        handoff_time = {"date": 5, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_weekly_rotation_end_time(wednesday, handoff_time).timestamp()),
-            (wednesday + timedelta(days=2)).strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在周三 且交接时间大于开始时间
-        handoff_time = {"date": 3, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_weekly_rotation_end_time(wednesday, handoff_time).timestamp()),
-            wednesday.strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在周三以前
-        handoff_time = {"date": 2, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_weekly_rotation_end_time(wednesday, handoff_time).timestamp()),
-            (wednesday + timedelta(days=6)).strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在周三 且交接时间小于开始时间
-        handoff_time = {"date": 3, "time": "00:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_weekly_rotation_end_time(wednesday, handoff_time).timestamp()),
-            (wednesday + timedelta(days=7)).strftime("%Y-%m-%d 00:00:00"),
-        )
-
-    def test_get_monthly_end_time(self):
-        today = datetime.now(tz=timezone.utc)
-        begin_day = datetime.strptime(today.strftime("%Y-%m-03 08:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(
-            tz=timezone.utc
-        )
-        next_month_day = begin_day.date() + relativedelta(months=1)
-        next_month_first_day = datetime.strptime(
-            next_month_day.strftime("%Y-%m-01 08:00:00"), "%Y-%m-%d %H:%M:%S"
-        ).astimezone(tz=timezone.utc)
-
-        # 分支一， 交接日期大于开始日期
-        handoff_time = {"date": 28, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            (begin_day + timedelta(days=25)).strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在同一天 且交接时间大于开始时间
-        handoff_time = {"date": 3, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            begin_day.strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在每月3号 且交接时间小于开始时间
-        handoff_time = {"date": 3, "time": "00:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            next_month_first_day.strftime("%Y-%m-03 00:00:00"),
-        )
-
-        # 交接日在每月1日
-        handoff_time = {"date": 1, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            next_month_first_day.strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在每月特殊日期 31日 大月情况
-        handoff_time = {"date": 31, "time": "00:00"}
-
-        march_day = datetime.strptime(today.strftime("%Y-03-31 08:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(
-            tz=timezone.utc
-        )
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(march_day, handoff_time).timestamp()),
-            march_day.strftime("%Y-04-30 00:00:00"),
-        )
-
-        march_day = datetime.strptime(today.strftime("%Y-03-31 00:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(
-            tz=timezone.utc
-        )
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(march_day, handoff_time).timestamp()),
-            march_day.strftime("%Y-04-30 00:00:00"),
-        )
-
-        # 交接日在每月特殊日期 31日， 小月情况
-
-        begin_day = datetime.strptime(today.strftime("%Y-04-30 08:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(
-            tz=timezone.utc
-        )
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            begin_day.strftime("%Y-05-31 00:00:00"),
-        )
-
-        # 交接日在每月特殊日期 31日， 小月情况
-
-        jan_day = datetime.strptime("2023-01-31 08:00:00", "%Y-%m-%d %H:%M:%S").astimezone(tz=timezone.utc)
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(jan_day, handoff_time).timestamp()),
-            jan_day.strftime("2023-02-28 00:00:00"),
-        )
-
-        # 交接日在每月特殊日期 31日， 闰月情况
-        jan_day = datetime.strptime("2024-01-31 08:00:00", "%Y-%m-%d %H:%M:%S").astimezone(tz=timezone.utc)
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(jan_day, handoff_time).timestamp()),
-            jan_day.strftime("2024-02-29 00:00:00"),
-        )
-
-    def test_manage_rotation_duty_snap(self):
-        """
-        需要轮班管理测试
-        :return:
-        """
-        current_time = datetime.now(tz=timezone.utc)
-        current_time = (
-            current_time - timedelta(seconds=current_time.second) - timedelta(microseconds=current_time.microsecond)
-        )
-        effective_time = current_time - timedelta(seconds=current_time.second)
-
-        duty_data = {
-            "user_group_id": 1,
-            "need_rotation": True,
-            "effective_time": effective_time,
-            "handoff_time": {"rotation_type": "weekly", "date": 1, "time": "08:00"},
-            "duty_time": [{"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"}],
-            "backups": [
-                {
-                    "users": [
-                        {
-                            "display_name": "运维人员",
-                            "logo": "",
-                            "id": "bk_biz_maintainer",
-                            "type": "group",
-                            "members": [{"id": "admin", "display_name": "admin"}],
-                        }
-                    ],
-                    "begin_time": "2022-03-11 00:00:00",
-                    "end_time": "2022-03-13 00:00:00",
-                    "duty_time": {"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"},
-                    "exclude_settings": [{"date": "2021-11-09", "time": "10:00--11:00"}],
-                }
-            ],
-            "duty_users": [
-                [
-                    {
-                        "display_name": "运维人员",
-                        "logo": "",
-                        "id": "bk_biz_maintainer",
-                        "type": "group",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                    {"display_name": "admin", "logo": "", "id": "admin", "type": "user"},
-                ],
-                [
-                    {
-                        "display_name": "开发人员",
-                        "logo": "",
-                        "id": "admin",
-                        "type": "bk_biz_developer",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                ],
-            ],
-        }
-        duty_obj = DutyArrange.objects.create(**duty_data)
-        task_time = effective_time + timedelta(minutes=1)
-
-        manage_duty_arrange_snap(task_time, is_delay=False)
-        snap = DutyArrangeSnap.objects.get(duty_arrange_id=duty_obj.id)
-        self.assertEqual(snap.first_effective_time, effective_time)
-        self.assertEqual(snap.next_plan_time, effective_time)
-
-        manage_duty_arrange_plan(current_time, snap.id)
-        snap.refresh_from_db()
-
-        self.assertEqual(DutyPlan.objects.filter(duty_arrange_id=duty_obj.id).count(), 2)
-        plans = DutyPlan.objects.filter(duty_arrange_id=duty_obj.id, is_active=True).order_by("id")
-        self.assertNotEqual(
-            time_tools.strftime_local(plans[1].begin_time), time_tools.strftime_local(plans[1].end_time)
-        )
-        self.assertEqual(time_tools.strftime_local(plans[0].begin_time), time_tools.strftime_local(effective_time))
-
-        self.assertEqual(snap.next_plan_time.isoweekday(), 1)
-
-    def test_manage_rotation_duty_past_snap(self):
-        """
-        需要轮班管理测试
-        :return:
-        """
-        current_time = datetime.now(tz=timezone.utc)
-        current_time = (
-            current_time - timedelta(seconds=current_time.second) - timedelta(microseconds=current_time.microsecond)
-        )
-        effective_time = current_time - timedelta(minutes=2)
-
-        duty_data = {
-            "user_group_id": 1,
-            "need_rotation": True,
-            "effective_time": effective_time,
-            "handoff_time": {"rotation_type": "weekly", "date": 1, "time": "08:00"},
-            "duty_time": [{"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"}],
-            "backups": [
-                {
-                    "users": [
-                        {
-                            "display_name": "运维人员",
-                            "logo": "",
-                            "id": "bk_biz_maintainer",
-                            "type": "group",
-                            "members": [{"id": "admin", "display_name": "admin"}],
-                        }
-                    ],
-                    "begin_time": "2022-03-11 00:00:00",
-                    "end_time": "2022-03-13 00:00:00",
-                    "duty_time": {"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"},
-                    "exclude_settings": [{"date": "2021-11-09", "time": "10:00--11:00"}],
-                }
-            ],
-            "duty_users": [
-                [
-                    {
-                        "display_name": "运维人员",
-                        "logo": "",
-                        "id": "bk_biz_maintainer",
-                        "type": "group",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                    {"display_name": "admin", "logo": "", "id": "admin", "type": "user"},
-                ],
-                [
-                    {
-                        "display_name": "开发人员",
-                        "logo": "",
-                        "id": "admin",
-                        "type": "bk_biz_developer",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                ],
-            ],
-        }
-        duty_obj = DutyArrange.objects.create(**duty_data)
-
-        manage_duty_arrange_snap(current_time + timedelta(minutes=1), is_delay=False)
-        snap = DutyArrangeSnap.objects.get(duty_arrange_id=duty_obj.id)
-        self.assertEqual(snap.first_effective_time, current_time)
-        self.assertEqual(snap.next_plan_time, current_time)
-
-        manage_duty_arrange_plan(current_time, snap.id)
-        snap.refresh_from_db()
-
-        self.assertEqual(DutyPlan.objects.filter(duty_arrange_id=duty_obj.id).count(), 2)
-        plans = DutyPlan.objects.filter(duty_arrange_id=duty_obj.id, is_active=True).order_by("id")
-        self.assertNotEqual(
-            time_tools.strftime_local(plans[1].begin_time), time_tools.strftime_local(plans[1].end_time)
-        )
-        self.assertEqual(time_tools.strftime_local(plans[0].begin_time), time_tools.strftime_local(current_time))
-
-        self.assertEqual(snap.next_plan_time.isoweekday(), 1)
-
-    def test_manage_rotation_duty_future_snap(self):
-        """
-        需要轮班管理测试
-        :return:
-        """
-        current_time = datetime.now(tz=timezone.utc)
-        current_time = (
-            current_time - timedelta(seconds=current_time.second) - timedelta(microseconds=current_time.microsecond)
-        )
-        effective_time = current_time + timedelta(minutes=2)
-
-        duty_data = {
-            "user_group_id": 1,
-            "need_rotation": True,
-            "effective_time": effective_time,
-            "handoff_time": {"rotation_type": "weekly", "date": 1, "time": "08:00"},
-            "duty_time": [{"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"}],
-            "backups": [
-                {
-                    "users": [
-                        {
-                            "display_name": "运维人员",
-                            "logo": "",
-                            "id": "bk_biz_maintainer",
-                            "type": "group",
-                            "members": [{"id": "admin", "display_name": "admin"}],
-                        }
-                    ],
-                    "begin_time": "2022-03-11 00:00:00",
-                    "end_time": "2022-03-13 00:00:00",
-                    "duty_time": {"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"},
-                    "exclude_settings": [{"date": "2021-11-09", "time": "10:00--11:00"}],
-                }
-            ],
-            "duty_users": [
-                [
-                    {
-                        "display_name": "运维人员",
-                        "logo": "",
-                        "id": "bk_biz_maintainer",
-                        "type": "group",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                    {"display_name": "admin", "logo": "", "id": "admin", "type": "user"},
-                ],
-                [
-                    {
-                        "display_name": "开发人员",
-                        "logo": "",
-                        "id": "admin",
-                        "type": "bk_biz_developer",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                ],
-            ],
-        }
-        duty_obj = DutyArrange.objects.create(**duty_data)
-
-        manage_duty_arrange_snap(effective_time, is_delay=False)
-        snap = DutyArrangeSnap.objects.get(duty_arrange_id=duty_obj.id)
-        self.assertEqual(snap.first_effective_time, effective_time)
-        self.assertEqual(snap.next_plan_time, effective_time)
-
-        duty_snap = snap.duty_snap
-        for index, users in enumerate(duty_snap["duty_users"]):
-            DutyPlan.objects.create(
-                user_group_id=snap.user_group_id,
-                duty_arrange_id=snap.duty_arrange_id,
-                duty_time=duty_snap["duty_time"],
-                is_active=True,
-                order=duty_snap["order"],
-                begin_time=current_time,
-                end_time=effective_time + timedelta(days=1) if index > 0 else current_time,
-                users=users,
-            )
-
-        manage_duty_arrange_plan(current_time, snap.id)
-        snap.refresh_from_db()
-
-        self.assertEqual(DutyPlan.objects.filter(duty_arrange_id=duty_obj.id, is_active=True).count(), 3)
-        plans = DutyPlan.objects.filter(
-            duty_arrange_id=duty_obj.id, is_active=True, begin_time__gte=effective_time
-        ).order_by("id")
-
-        self.assertNotEqual(
-            time_tools.strftime_local(plans[1].begin_time), time_tools.strftime_local(plans[1].end_time)
-        )
-        self.assertEqual(time_tools.strftime_local(plans[0].begin_time), time_tools.strftime_local(effective_time))
-
-        self.assertEqual(snap.next_plan_time.isoweekday(), 1)
-
-    def test_manage_no_rotation_duty_snap(self):
-        """
-        不需要轮班测试
-        :return:
-        """
-        now_time = datetime.now(tz=timezone.utc)
-        effective_time = now_time - timedelta(seconds=now_time.second)
-        start_time = time_tools.strftime_local(effective_time, "%H:%M")
-        end_time = time_tools.strftime_local(effective_time + timedelta(hours=6), "%H:%M")
-        duty_data = {
-            "user_group_id": 1,
-            "need_rotation": False,
-            "effective_time": effective_time,
-            "handoff_time": {},
-            "duty_time": [
-                {
-                    "work_type": "weekly",
-                    "work_days": [1, 2, 3, 4, 5],
-                    "work_time": "{}--{}".format(start_time, end_time),
-                }
-            ],
-            "backups": [
-                {
-                    "users": [
-                        {
-                            "display_name": "运维人员",
-                            "logo": "",
-                            "id": "bk_biz_maintainer",
-                            "type": "group",
-                            "members": [{"id": "admin", "display_name": "admin"}],
-                        }
-                    ],
-                    "begin_time": "2022-03-11 00:00:00",
-                    "end_time": "2022-03-13 00:00:00",
-                    "duty_time": {
-                        "work_type": "weekly",
-                        "work_days": [1, 2, 3, 4, 5],
-                        "work_time": "{}--{}".format(start_time, end_time),
-                    },
-                    "exclude_settings": [{"date": "2021-11-09", "time": "10:00--11:00"}],
-                }
-            ],
-            "duty_users": [
-                [
-                    {
-                        "display_name": "运维人员",
-                        "logo": "",
-                        "id": "bk_biz_maintainer",
-                        "type": "group",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                    {"display_name": "admin", "logo": "", "id": "admin", "type": "user"},
-                ]
-            ],
-        }
-        duty_obj = DutyArrange.objects.create(**duty_data)
-        manage_duty_arrange_snap(effective_time, is_delay=False)
-        self.assertEqual(DutyArrangeSnap.objects.filter(duty_arrange_id=duty_obj.id).count(), 1)
-
-        snap = DutyArrangeSnap.objects.get(duty_arrange_id=duty_obj.id)
-
-        manage_duty_arrange_plan(effective_time, snap.id)
-        snap.refresh_from_db()
-
-        self.assertEqual(DutyPlan.objects.filter(duty_arrange_id=duty_obj.id).count(), 1)
-        self.assertIsNone(snap.next_plan_time)
-
-        duty_plan = DutyPlan.objects.get(duty_arrange_id=duty_obj.id)
-        if effective_time.isoweekday() in [6, 7]:
-            self.assertFalse(duty_plan.is_active_plan(effective_time))
-        else:
-            self.assertTrue(duty_plan.is_active_plan(effective_time))
-
-    def test_get_notify_item(self):
-        i18n.set_biz(2)
-        now_time = time_tools.strftime_local(datetime.now(), _format="%H:%M")
-        notice_config = [  # 告警通知配置
-            {
-                "time_range": "00:00:00--{}:59".format(now_time),  # 生效时间段
-                "notify_config": [  # 通知方式配置
-                    {
-                        "level": 3,  # 级别
-                        "type": [  # 通知渠道列表
-                            "mail",
-                            "weixin",
-                            "voice",
-                        ],
-                    },
-                    {"level": 2, "type": ["mail", "voice"]},
-                    {"level": 1, "type": ["mail", "weixin", "voice"]},
-                ],
-            }
-        ]
-        # 时分秒格式测试
-        notify_item = AlertAssignee.get_notify_item(notice_config, 2)
-        self.assertEqual(notify_item, notice_config[0])
-        # 时分测试
-        notice_config[0]["time_range"] = "00:00 -- {}".format(now_time)
-        notify_item = AlertAssignee.get_notify_item(notice_config, 2)
-        self.assertEqual(notify_item, notice_config[0])
-        # 跨天测试
-        notice_config[0]["time_range"] = "{} -- 00:00".format(now_time)
-        notify_item = AlertAssignee.get_notify_item(notice_config, 2)
-        self.assertEqual(notify_item, notice_config[0])
-
-
 class TestNoiseReduce(TestCase):
     def setUp(self):
         redis = fakeredis.FakeRedis(decode_responses=True)
@@ -4693,14 +4197,17 @@ class TestNoiseReduce(TestCase):
             get_alert_patch.stop()
 
         strategy_dict = copy.deepcopy(STRATEGY_CONFIG_V3)
+        timezone = "Asia/Shanghai"
+        today_begin = time_tools.datetime2str(datetime.now(tz=pytz.timezone(timezone)), format="%Y-%m-%d 00:00")
+        today_end = time_tools.datetime2str(datetime.now(), format="%Y-%m-%d 23:59")
 
         duty_plans = [
             {
-                "duty_arrange_id": 123,
-                "is_active": True,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "duty_rule_id": 1,
+                "is_effective": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=pytz.timezone(timezone))),
+                "finished_time": time_tools.datetime2str(datetime.now(tz=pytz.timezone(timezone)) + timedelta(hours=1)),
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "order": 1,
                 "users": [{"id": "admin", "display_name": "admin", "logo": "", "type": "user"}],
             }
@@ -4710,6 +4217,7 @@ class TestNoiseReduce(TestCase):
             "desc": "用户组的说明用户组的说明用户组的说明用户组的说明用户组的说明",
             "bk_biz_id": 2,
             "need_duty": True,
+            "duty_rules": [1],
             "alert_notice": [  # 告警通知配置
                 {
                     "time_range": "00:00:00--23:59:59",  # 生效时间段
@@ -4727,6 +4235,7 @@ class TestNoiseReduce(TestCase):
                     ],
                 }
             ],
+            "timezone": "Asia/Shanghai",
             "action_notice": [  # 执行通知配置
                 {
                     "time_range": "00:00:00--23:59:59",  # 生效时间段
@@ -4783,7 +4292,7 @@ class TestNoiseReduce(TestCase):
             set(ActionInstance.objects.filter(is_parent_action=True).values_list("dimension_hash", flat=True)), {""}
         )
 
-        # 三个子通知
+        # 每波三个子通知，一共6个
         self.assertEqual(ActionInstance.objects.filter(is_parent_action=False).count(), 6)
 
         converge_actions(ActionInstance.objects.filter(is_parent_action=False))

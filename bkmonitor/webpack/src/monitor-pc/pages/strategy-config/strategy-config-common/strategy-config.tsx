@@ -2558,6 +2558,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
                 }
               >
+                <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
               </Button>
               <DropdownMenu

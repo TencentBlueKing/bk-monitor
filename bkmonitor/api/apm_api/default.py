@@ -366,3 +366,30 @@ class QueryBuiltinProfileDatasourceResource(ApmAPIGWResource):
     cache_type = CacheType.APM(60 * 60 * 24)
     action = "/builtin_profile_datasource/"
     method = "GET"
+
+
+class GetBkdataFlowDetail(ApmAPIGWResource):
+    """
+    获取Bkdata flow详情
+    """
+
+    action = "/apm/get_bkdata_flow/"
+    method = "GET"
+
+
+class CreateOrUpdateBkdataFlow(ApmAPIGWResource):
+    """
+    创建/更新计算平台Flow
+    """
+
+    action = "/apm/create_or_update_bkdata_flow/"
+    method = "POST"
+
+
+class OperateApmDataId(ApmAPIGWResource):
+    """
+    恢复/暂停APM中某个DataId的链路
+    """
+
+    action = "/apm/operate_apm_dataid/"
+    method = "POST"
