@@ -14,7 +14,7 @@ from unittest import mock
 
 from django.conf import settings
 from django.test import TestCase
-
+from django.core.files.storage import default_storage
 from bkmonitor.event_plugin.serializers import HttpPullPluginInstSerializer
 from bkmonitor.models import EventPluginInstance, EventPluginV2
 from core.drf_resource.exceptions import CustomException
@@ -287,6 +287,18 @@ class TestEventPluginMigrate(TestCase):
     def tearDown(self) -> None:
         EventPluginV2.objects.all().delete()
         EventPluginInstance.objects.all().delete()
+        self.clear_plugin_storage()
+
+    @classmethod
+    def clear_plugin_storage(cls, path="."):
+        dirs, files = default_storage.listdir(path)
+        for file in files:
+            file_path = os.path.join(path, file)
+            default_storage.delete(file_path)
+        for file_dir in dirs:
+            dir_path = os.path.join(path, file_dir)
+            cls.clear_plugin_storage(dir_path)
+            default_storage.delete(dir_path)
 
     def test_deploy_event_plugin(self):
         plugin_info = get_plugin_info()
@@ -573,5 +585,5 @@ class TestEventPluginMigrate(TestCase):
         plugin_instances = GetEventPluginInstanceResource().request(
             plugin_id=plugin_id, version=version, bk_biz_id=bk_biz_id
         )
-        self.assertEqual(plugin_instances["ingest_config"].get("ingester_host"), "http://ingester.bkfta.service.consul")
+        self.assertEqual(plugin_instances["ingest_config"].get("ingest_host"), "http://ingester.bkfta.service.consul")
         self.assertIsNotNone(plugin_instances["ingest_config"].get("push_url", None))
