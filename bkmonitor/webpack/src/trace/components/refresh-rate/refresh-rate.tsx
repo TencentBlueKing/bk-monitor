@@ -141,7 +141,7 @@ export default defineComponent({
           v-slots={{
             default: item => {
               let triggerText = item?.name || this.list[0].name;
-              if (triggerText === `${window.i18n.t('关闭')}（off）`) {
+              if (triggerText === `${this.$t('关闭')}（off）`) {
                 triggerText = 'off';
               }
 

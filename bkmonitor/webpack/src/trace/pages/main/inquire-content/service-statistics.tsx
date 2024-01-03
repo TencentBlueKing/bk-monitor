@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { Popover, Table } from 'bkui-vue';
 
@@ -55,6 +56,7 @@ export default defineComponent({
   setup(props) {
     const route = useRoute();
     const store = useTraceStore();
+    const { t } = useI18n();
     // 这个 table 比较特别，来源类型 和 接口类型 是基于右上角的选项去控制的，而非 settings 。
     // 所以这里需要通过 computed 返回这个对象，并进行筛选。
     const tableColumn = [
@@ -89,7 +91,7 @@ export default defineComponent({
       // {
       //   label: () => (
       //     <Popover popoverDelay={[500, 0]} content="Service" theme="light" placement="right">
-      //       <span class="th-label">{window.i18n.t('服务类型')}</span>
+      //       <span class="th-label">{t('服务类型')}</span>
       //     </Popover>
       //   ),
       //   field: 'kind',
@@ -108,11 +110,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('服务类型')}
+            content={t('服务类型')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('服务类型')}</span>
+            <span class='th-label'>{t('服务类型')}</span>
           </Popover>
         ),
         field: 'kind',
@@ -131,11 +133,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('Span数量')}
+            content={t('Span数量')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('Span数量')}</span>
+            <span class='th-label'>{t('Span数量')}</span>
           </Popover>
         ),
         field: 'span_count',
@@ -149,11 +151,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('错误数')}
+            content={t('错误数')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('错误数')}</span>
+            <span class='th-label'>{t('错误数')}</span>
           </Popover>
         ),
         field: 'error_count',
@@ -167,11 +169,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('错误率')}
+            content={t('错误率')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('错误率')}</span>
+            <span class='th-label'>{t('错误率')}</span>
           </Popover>
         ),
         field: 'error_rate',
@@ -184,11 +186,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('平均耗时')}
+            content={t('平均耗时')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('平均耗时')}</span>
+            <span class='th-label'>{t('平均耗时')}</span>
           </Popover>
         ),
         field: 'avg_duration',
@@ -207,11 +209,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('P90耗时')}
+            content={t('P90耗时')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('P90耗时')}</span>
+            <span class='th-label'>{t('P90耗时')}</span>
           </Popover>
         ),
         field: 'p90_duration',
@@ -229,11 +231,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('P50耗时')}
+            content={t('P50耗时')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('P50耗时')}</span>
+            <span class='th-label'>{t('P50耗时')}</span>
           </Popover>
         ),
         field: 'p50_duration',
@@ -249,7 +251,7 @@ export default defineComponent({
         )
       },
       {
-        label: window.i18n.t('操作'),
+        label: t('操作'),
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: Record<string, string>; data: any }) => (
           <div style='display: flex;'>
@@ -260,9 +262,9 @@ export default defineComponent({
             >
               <span
                 class='link-text'
-                title={window.i18n.t('检索')}
+                title={t('检索')}
               >
-                {window.i18n.t('检索')}
+                {t('检索')}
               </span>
               <i class='icon-monitor icon-fenxiang'></i>
             </div>
@@ -274,9 +276,9 @@ export default defineComponent({
             >
               <span
                 class='link-text'
-                title={window.i18n.t('去观测')}
+                title={t('去观测')}
               >
-                {window.i18n.t('去观测')}
+                {t('去观测')}
               </span>
               <i class='icon-monitor icon-fenxiang'></i>
             </div>
