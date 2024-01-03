@@ -210,10 +210,10 @@ export async function allKVOptions(
           name: item.display_key
         }))
         .filter(item => item.id !== 'tags');
-      // keys.push({
-      //   id: 'notice_users',
-      //   name: window.i18n.tc('通知人员')
-      // });
+      keys.push({
+        id: NOTICE_USERS_KEY,
+        name: window.i18n.tc('通知人员')
+      });
       setData('keys', '', keys);
       awaitAll();
     })

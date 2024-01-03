@@ -221,6 +221,8 @@ export default class CommonCondition extends tsc<IProps> {
   keyTypeTag = EKeyTags.all;
   /* 是否为通知人员 需要展示远程的人员搜索 */
   isUserKey = false;
+  /* 远程搜索的loading */
+  searchLoading = false;
 
   /* 是否不可点击(只读状态) */
   get canNotClick() {
@@ -524,14 +526,25 @@ export default class CommonCondition extends tsc<IProps> {
   handleSearchChange(v) {
     this.searchValue = v;
     if (this.isUserKey) {
+      this.searchLoading = true;
       listUsersUser({
         app_code: 'bk-magicbox',
         page: 1,
         page_size: 20,
         fuzzy_lookups: this.searchValue
-      }).then(data => {
-        console.log(data);
-      });
+      })
+        .then(data => {
+          this.curList = data.results.map(item => {
+            return {
+              name: item.display_name,
+              id: item.username,
+              isCheck: this.tagList[this.curIndex[0]].condition.value.includes(item.username)
+            };
+          });
+        })
+        .finally(() => {
+          this.searchLoading = false;
+        });
     }
   }
   @Debounce(300)
