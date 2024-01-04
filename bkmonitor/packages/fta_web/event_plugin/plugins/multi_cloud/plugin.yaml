@@ -1,6 +1,6 @@
-plugin_id: multi_cloud_test_alert
+plugin_id: multi_cloud_alert
 version: 1.0.0
-plugin_display_name: 公有云告警测试推送
+plugin_display_name: 公有云告警推送
 plugin_type: http_push
 summary: 推送公有云监控告警
 author: 蓝鲸智云
@@ -21,40 +21,37 @@ ingest_config:
   is_external: true
   collect_type: bk_collector
 
-# 清洗配置
 normalization_config:
   - field: alert_name
-    expr: PolicyName
+    expr: alarmPolicyInfo.policyName
   - field: event_id
-    expr: AlarmId
+    expr: event_id
   - field: description
-    expr: Content
+    expr: "alarmPolicyInfo.conditions.metricShowName && alarmPolicyInfo.conditions.calcType && alarmPolicyInfo.conditions.calcValue && alarmPolicyInfo.conditions.calcUnit && join(' ', [alarmPolicyInfo.conditions.metricShowName, alarmPolicyInfo.conditions.calcType, alarmPolicyInfo.conditions.calcValue, alarmPolicyInfo.conditions.calcUnit]) || alarmPolicyInfo.conditions.productShowName && alarmPolicyInfo.conditions.eventShowName && join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName]) || alarmObjInfo.content"
   - field: metric
-    expr: MetricsInfo[0].MetricName
+    expr: alarmPolicyInfo.conditions.metricName
   - field: category
-    expr: MonitorType
+    expr: category
   - field: assignee
     expr: assignee
   - field: status
-    expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', NO_CONF: 'CLOSED'}, AlarmStatus)"
+    expr: "get_field({1: 'ABNORMAL', 0: 'RECOVERED'}, alarmStatus)"
   - field: target
-    expr: "regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || [AlarmObject] | [0]"
+    expr: target
   - field: target_type
-    expr: "!regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || ['HOST'] | get_field({HOST: 'HOST'}, [0])"
+    expr: target_type
   - field: severity
     expr: "1"
   - field: bk_biz_id
     expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
   - field: tags
-    expr: '{"monitor_type":MonitorType, "namespace": Namespace,"region": Region,"alarm_type":AlarmType, "metrics": to_string(MetricsInfo), "policy_id": PolicyId, "alarm_object": AlarmObject}'
+    expr: "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, unInstanceId: alarmObjInfo.dimensions.unInstanceId, objId: alarmObjInfo.dimensions.objId, content: alarmObjInfo.content, summary: alarmObjInfo.summary}, {Module: alarmObjInfo.tags.Module, alertname: alarmObjInfo.tags.alertname, tcloud_prometheus_instance_id: alarmObjInfo.tags.tcloud_prometheus_instance_id, tcloud_region_name: alarmObjInfo.tags.tcloud_region_name},{alarm_type: alarmType, policyId: alarmPolicyInfo.policyId})"
   - field: time
-    expr: LastOccurTime
+    expr: firstOccurTime
   - field: source_time
-    expr: FirstOccurTime
+    expr: firstOccurTime
   - field: anomaly_time
-    expr: FirstOccurTime
-  - field: dedupe_md5
-    expr: dedupe_md5
+    expr: firstOccurTime
 
 clean_configs:
   # 谷歌云的清洗配置
