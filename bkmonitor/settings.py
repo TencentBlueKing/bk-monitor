@@ -17,7 +17,7 @@ from config.tools.environment import ENVIRONMENT, ROLE
 
 # settings加载顺序 config.default -> blueapps.patch -> config.{env} -> config.role.{role}
 
-patch_module = ['json', 'shutil', 'furl', 're']
+patch_module = ['json', 'shutil', 'furl', 're', 'celery.task']
 patch_target = {_module: None for _module in patch_module}
 
 # patch backend celery beat only
