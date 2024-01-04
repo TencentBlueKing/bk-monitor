@@ -272,7 +272,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                 class='custom-input'
                 v-model={this.localValue[0]}
                 v-bk-tooltips={{
-                  allowHtml: true,
+                  allowHTML: true,
                   theme: 'light',
                   content: '#time-range-desc-left',
                   placement: 'bottom'
@@ -284,7 +284,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                 class='custom-input'
                 v-model={this.localValue[1]}
                 v-bk-tooltips={{
-                  allowHtml: true,
+                  allowHTML: true,
                   theme: 'light',
                   content: '#time-range-desc-right',
                   placement: 'bottom'

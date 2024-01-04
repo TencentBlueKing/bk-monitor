@@ -312,7 +312,8 @@ export default class Aipanel extends tsc<ICommonListProps> {
                 class='ai-panel-list-item'
                 v-bk-tooltips={{
                   content: item.id,
-                  placements: ['left']
+                  placements: ['left'],
+                  allowHTML: false
                 }}
                 onClick={() => this.handleSetMetricIndex(item)}
               >

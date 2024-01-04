@@ -269,7 +269,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                   { name: this.chatTipName }
                 ),
                 boundary: 'window',
-                placements: ['top']
+                placements: ['top'],
+                allowHTML: false
               }}
             ></span>
           ],
