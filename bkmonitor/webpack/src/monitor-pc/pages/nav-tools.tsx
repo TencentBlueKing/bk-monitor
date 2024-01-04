@@ -279,7 +279,7 @@ class NavTools extends DocumentLinkMixin {
    * 跳转到paas-host登录页面会自动清除登录cookie
    */
   handleQuit() {
-    location.href = location.origin + "/logout";
+    location.href = `${location.origin}/logout`;
   }
   render() {
     return (

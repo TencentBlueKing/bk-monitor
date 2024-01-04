@@ -107,6 +107,7 @@ module.exports = async (baseConfig, { production, app }) => {
   }
   const appDirName = transformAppDir(app);
   const appDir = `./src/${appDirName}/`;
+  console.info(app, '---------------------');
   return {
     ...config,
     output: {
@@ -130,6 +131,15 @@ module.exports = async (baseConfig, { production, app }) => {
         '@static': path.resolve('./src/monitor-static/'),
         '@common': path.resolve('./src/monitor-common/'),
       }
-    }
+    },
+    // externals: app === 'apm' ? {
+    //   bkMagicVue: 'bk-magic-vue',
+    //   vueI18n: 'vue-i18n',
+    //   vueRouter: 'vue-router',
+    //   vueClassComponent: "vue-class-component",
+    //   vuePopertyDecorator: "vue-property-decorator",
+    //   vueTsxSupport: "vue-tsx-support",
+    //   vuexModuleDecorators: "vuex-module-decorators",
+    // }: {},
   };
 };

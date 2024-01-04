@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Option, Select } from 'bk-magic-vue';
 
 import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-echarts.vue';
 
@@ -127,7 +126,7 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
             {this.searchType === 'action' ? this.$t('执行趋势') : this.$t('告警趋势')}
             {this.expand && [
               <span class='interval-label'>{this.$t('汇聚周期')}</span>,
-              <Select
+              <bk-select
                 class='interval-select'
                 size='small'
                 behavior='simplicity'
@@ -136,15 +135,15 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
                 onChange={this.handleIntervalChange}
               >
                 {this.intervalList.map(item => (
-                  <Option
+                  <bk-option
                     id={item.id}
                     key={item.id}
                     name={item.name}
                   >
                     {item.name}
-                  </Option>
+                  </bk-option>
                 ))}
-              </Select>
+              </bk-select>
             ]}
           </div>
         </monitor-echarts>

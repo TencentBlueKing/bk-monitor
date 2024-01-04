@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Icon } from 'bk-magic-vue';
 
 import { listStickySpaces } from '../../../../monitor-api/modules/commons';
 import {
@@ -662,7 +661,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 class='search-icon'
                 onClick={this.handleShowSearch}
               >
-                <Icon
+                <bk-icon
                   slot='icon'
                   type='search'
                 />
@@ -674,7 +673,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                   options={this.addOptions}
                   onSelected={this.handleAdd}
                 >
-                  <Icon
+                  <bk-icon
                     slot='icon'
                     class='add-icon'
                     type='plus'

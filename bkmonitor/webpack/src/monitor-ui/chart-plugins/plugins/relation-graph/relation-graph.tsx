@@ -26,7 +26,6 @@
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import G6 from '@antv/g6';
-import { Slider } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import bus from '../../../../monitor-common/utils/event-bus';
@@ -1313,7 +1312,7 @@ export class RelationGraph extends CommonSimpleChart {
                       class='icon-monitor icon-plus-line'
                       onClick={() => this.handleGraphZoom(this.zoomValue + 0.1)}
                     ></span>
-                    <Slider
+                    <bk-slider
                       v-model={this.zoomValue}
                       class='slider-wrap'
                       height='82px'
@@ -1323,7 +1322,7 @@ export class RelationGraph extends CommonSimpleChart {
                       max-value={this.maxZoomVal}
                       step={0.1}
                       onChange={value => this.handleGraphZoom(value)}
-                    ></Slider>
+                    ></bk-slider>
                     <span
                       class='icon-monitor icon-minus-line'
                       onClick={() => this.handleGraphZoom(this.zoomValue - 0.1)}

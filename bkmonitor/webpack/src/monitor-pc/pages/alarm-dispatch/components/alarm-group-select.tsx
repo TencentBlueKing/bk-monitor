@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Option, Select } from 'bk-magic-vue';
 
 import './alarm-group-select.scss';
 
@@ -109,7 +108,7 @@ export default class AlarmGroupSelect extends tsc<IProps> {
   render() {
     return (
       <div class='alarm-dispatch-alarm-group-select-component'>
-        <Select
+        <bk-select
           v-model={this.localValue}
           multiple
           ext-popover-cls={'alarm-dispatch-alarm-group-select-component-pop'}
@@ -166,13 +165,13 @@ export default class AlarmGroupSelect extends tsc<IProps> {
             </div>
           </div>
           {this.options.map(item => (
-            <Option
+            <bk-option
               key={item.id}
               id={item.id}
               name={item.name}
-            ></Option>
+            ></bk-option>
           ))}
-        </Select>
+        </bk-select>
       </div>
     );
   }

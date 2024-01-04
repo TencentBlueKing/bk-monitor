@@ -23,40 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import * as vueClassComponent from 'vue-class-component';
+import * as vueI18n from 'vue-i18n';
+import * as vuePopertyDecorator from 'vue-property-decorator';
+import * as vueRouter from 'vue-router';
+import * as vueTsxSupport from 'vue-tsx-support';
+import * as vuexModuleDecorators from 'vuex-module-decorators';
+import bkMagicVue from 'bk-magic-vue';
 
-import { Component, Emit, Model } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-interface IProps {
-  value?: boolean;
-}
-
-@Component
-export default class DebuggerDialog extends tsc<IProps> {
-  @Model('change', { type: Boolean, default: false }) value: IProps['value'];
-
-  @Emit('change')
-  handleShowChange(val?: boolean) {
-    return val ?? !this.value;
-  }
-
-  handleConfirm() {}
-  handleCancel() {
-    this.handleShowChange(false);
-  }
-
-  render() {
-    return (
-      <bk-dialog
-        value={this.value}
-        title={this.$t('调试')}
-        header-position='left'
-        ext-cls='add-service-dialog'
-        width={640}
-        onValueChange={this.handleShowChange}
-        confirm-fn={this.handleConfirm}
-        onCancel={this.handleCancel}
-      ></bk-dialog>
-    );
-  }
-}
+window.vueClassComponent = vueClassComponent;
+window.vuePopertyDecorator = vuePopertyDecorator;
+window.vueTsxSupport = vueTsxSupport;
+window.vuexModuleDecorators = vuexModuleDecorators;
+window.bkMagicVue = bkMagicVue;
+window.vueI18n = vueI18n;
+window.vueRouter = vueRouter;

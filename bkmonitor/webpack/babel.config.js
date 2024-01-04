@@ -47,12 +47,12 @@ module.exports = function (api) {
   ].filter(Boolean);
   const plugins = [
     '@babel/plugin-transform-runtime',
-    process.env.APP !== 'trace' ? [
-      'babel-plugin-import-bk-magic-vue',
-      {
-        baseLibName: 'bk-magic-vue'
-      }
-    ] : undefined,
+    // process.env.APP !== 'trace' ? [
+    //   'babel-plugin-import-bk-magic-vue',
+    //   {
+    //     baseLibName: 'bk-magic-vue'
+    //   }
+    // ] : undefined,
     process.env.APP === 'pc' ? [
       'component',
       {
