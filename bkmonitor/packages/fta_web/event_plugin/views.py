@@ -18,8 +18,6 @@ from bkstorages.utils import safe_join
 from django.core.files.storage import default_storage
 from django.http import FileResponse, Http404, StreamingHttpResponse
 from django.template import Context, Template
-from fta_web.event_plugin.handler import PackageHandler
-from fta_web.event_plugin.resources import GetEventPluginTokenResource
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum, Permission
@@ -28,6 +26,8 @@ from bkmonitor.models import EventPluginV2
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.errors.iam import PermissionDeniedError
+from fta_web.event_plugin.handler import PackageHandler
+from fta_web.event_plugin.resources import GetEventPluginTokenResource
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ class EventPluginViewSet(ResourceViewSet):
         ),
         ResourceRoute("PUT", resource.event_plugin.update_event_plugin_instance, endpoint="instance", pk_field="id"),
         ResourceRoute("GET", resource.event_plugin.get_event_plugin_token, endpoint="instance/token", pk_field="id"),
+        ResourceRoute("POST", resource.event_plugin.disable_plugin_collect, endpoint="instance/disable_collect"),
     ]
 
 

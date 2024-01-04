@@ -47,6 +47,12 @@ class NormalizationConfig(serializers.Serializer):
     option = serializers.DictField(label="选项", required=False, default={})
 
 
+class CleanConfigSerializer(serializers.Serializer):
+    rules = RuleSerializer(many=True, label="规则参数", default=[])
+    alert_config = AlertConfigSerializer(many=True, label="告警名称清洗规则", default=[])
+    normalization_config = NormalizationConfig(many=True, label="字段清洗规则")
+
+
 class ConfigParamSerializer(serializers.Serializer):
     field = serializers.CharField(label="字段key", required=True)
     name = serializers.CharField(label="字段显示名", required=True)
@@ -66,6 +72,7 @@ class EventPluginBaseSerializer(serializers.ModelSerializer):
     normalization_config = NormalizationConfig(many=True, label="字段清洗规则")
     alert_config = AlertConfigSerializer(many=True, write_only=True, required=False)
     bk_biz_id = serializers.CharField(required=False, default=0, allow_blank=True, label="业务ID")
+    clean_configs = CleanConfigSerializer(many=True, required=False)
 
     @staticmethod
     def render_ingest_config(data):
@@ -224,6 +231,7 @@ class EventPluginSerializer(EventPluginBaseSerializer):
                 "tags",
                 "ingest_config",
                 "normalization_config",
+                "clean_configs",
                 "alert_config",
                 "config_params",
             ]
@@ -241,6 +249,9 @@ class IngestConfigSerializer(serializers.Serializer):
     )
     multiple_events = serializers.BooleanField(label="是否需要拆分事件", default=False)
     events_path = serializers.CharField(label="事件所在路径", default="", allow_blank=True)
+    collect_type = serializers.CharField(label="接收类型", default="bk-ingestor", allow_blank=False)
+    is_external = serializers.BooleanField(label="是否依赖外网服务", default=False)
+    alert_sources = serializers.ListField(label="告警来源", default=list)
 
 
 class HttpPushPluginSerializer(EventPluginSerializer):
@@ -266,6 +277,7 @@ class HttpPushPluginInstSerializer(EventPluginBaseSerializer):
             "version",
             "ingest_config",
             "normalization_config",
+            "clean_configs",
             "config_params",
             "data_id",
             "bk_biz_id",
@@ -325,6 +337,7 @@ class HttpPullPluginInstSerializer(EventPluginBaseSerializer):
             "version",
             "ingest_config",
             "normalization_config",
+            "clean_configs",
             "config_params",
             "data_id",
             "bk_biz_id",
