@@ -137,8 +137,8 @@ class TestBatchCreateResource(TestCase):
     def test_get_action_params_by_config(self):
         # 直接结单测试
         request_url = (
-            "/api/v4/action_instance/get_action_params_by_config/"
-            "?system=hihihi&signature=pi5ERY0tdLsrF2LbdgSwg3Xb1OAYBZDOayQKSBxwZEM="
+            "/api/v4/action_instance/get_action_params_by_config/?"
+            "system=hihihi&signature=pi5ERY0tdLsrF2LbdgSwg3Xb1OAYBZDOayQKSBxwZEM="
         )
         self.start_mock()
         c = Client()
@@ -222,8 +222,8 @@ class TestBatchCreateResource(TestCase):
 
     def test_batch_create_action(self):
         request_url = (
-            "/api/v4/action_instance/batch_create_action/"
-            "?system=hihihi&signature=pi5ERY0tdLsrF2LbdgSwg3Xb1OAYBZDOayQKSBxwZEM="
+            "/api/v4/action_instance/batch_create_action/?"
+            "system=hihihi&signature=pi5ERY0tdLsrF2LbdgSwg3Xb1OAYBZDOayQKSBxwZEM="
         )
         self.start_mock()
         job_config = {
