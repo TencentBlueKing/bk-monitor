@@ -41,6 +41,8 @@ import { CONDITIONS, ICondtionItem } from './index';
 
 /* 通知人员需支持远程搜索 */
 export const NOTICE_USERS_KEY = 'notice_users';
+/* 策略标签 */
+const STRATEGY_LABELS = 'labels';
 
 /* 每个key 包含的value选项数组 */
 export type TValueMap = Map<string, { id: string; name: string }[]>;
@@ -197,23 +199,35 @@ export async function allKVOptions(
   let i = 0;
   const awaitAll = () => {
     i += 1;
-    if (i === 11) {
+    if (i === 12) {
       end?.();
     }
   };
   // 获取key (todo)
   getAssignConditionKeys()
     .then(keyRes => {
+      const keySet = new Set();
       const keys = keyRes
-        .map(item => ({
-          id: item.key,
-          name: item.display_key
-        }))
+        .map(item => {
+          keySet.add(item.key);
+          return {
+            id: item.key,
+            name: item.display_key
+          };
+        })
         .filter(item => item.id !== 'tags');
-      keys.push({
-        id: NOTICE_USERS_KEY,
-        name: window.i18n.tc('通知人员')
-      });
+      if (!keySet.has(NOTICE_USERS_KEY)) {
+        keys.push({
+          id: NOTICE_USERS_KEY,
+          name: window.i18n.tc('通知人员')
+        });
+      }
+      if (!keySet.has(STRATEGY_LABELS)) {
+        keys.push({
+          id: STRATEGY_LABELS,
+          name: window.i18n.tc('策略标签')
+        });
+      }
       setData('keys', '', keys);
       awaitAll();
     })
@@ -419,6 +433,35 @@ export async function allKVOptions(
       awaitAll();
     })
     .catch(() => {
+      awaitAll();
+    });
+  alertTopN({
+    bk_biz_ids: bkBizIds,
+    conditions: [],
+    query_string: '',
+    status: [],
+    fields: ['labels'],
+    size: 10,
+    start_time: startTime,
+    end_time: endTime
+  })
+    .then(data => {
+      const topNData = data?.fields || [];
+      topNData.forEach(t => {
+        if (t.field === STRATEGY_LABELS) {
+          const isChar = t.is_char;
+          setData(
+            'valueMap',
+            STRATEGY_LABELS,
+            t.buckets.map(b => ({
+              id: isChar ? topNDataStrTransform(b.id) : b.id,
+              name: b.name
+            }))
+          );
+        }
+      });
+    })
+    .finally(() => {
       awaitAll();
     });
   // 获取tags
