@@ -543,6 +543,7 @@ export default {
   // 枚举列表-状态、候选值 ，标签状态
 
   未启用: 'Not Enabled',
+  未开启: 'Not Enabled',
   启动中: 'Starting',
   停止中: 'Stopping',
   运行中: 'Running',
@@ -573,6 +574,7 @@ export default {
   已选择: 'Selected',
   已失效: 'Expired',
   已启用: 'Enabled',
+  已开启: 'Enabled',
   已过期: 'Expired',
   已认证: 'Authenticated',
   已反馈: 'Feedback',
@@ -778,6 +780,7 @@ export default {
   应用名: 'App Name',
   应用别名: 'App Alias',
   英文名称: 'English Name',
+  'Tracing 的插件': 'Tracing plugin',
   基础信息: 'Basic Information',
   Apdex设置: 'Apdex Setting',
   采样比例: 'Sampling Ratio',
