@@ -98,7 +98,7 @@ from constants.action import (
 from constants.alert import EventSeverity, EventStatus
 from constants.data_source import KubernetesResultTableLabel
 from core.errors.alarm_backends import EmptyAssigneeError
-from packages.fta_web.action.resources import AlertDocument
+from fta_web.action.resources import AlertDocument
 
 pytestmark = pytest.mark.django_db
 
