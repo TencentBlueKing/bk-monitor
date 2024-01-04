@@ -34,12 +34,18 @@
     flex-direction: column;
     width: 320px;
     height: 100%;
-    overflow-y: hidden;
+    overflow-y: auto;
     background-color: white;
     border-right: 1px solid #dcdee5;
 
+    &::-webkit-scrollbar {
+      width: 0px;
+    }
+
     &:hover {
-      overflow-y: auto;
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
     }
 
     .filter-list {

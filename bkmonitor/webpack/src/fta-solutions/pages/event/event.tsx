@@ -2097,7 +2097,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             />
           </div>
           <MonitorDrag
-            theme={'line-round'}
+            theme={'line'}
+            lineText={''}
             toggleSet={this.toggleSet}
             on-move={this.handleDragFilter}
           />
