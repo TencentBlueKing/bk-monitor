@@ -14,6 +14,7 @@ import os
 import time
 import typing
 from functools import wraps, partial
+from types import MethodType
 
 import django
 import six.moves.urllib.error
@@ -290,7 +291,7 @@ def hack_task(self, *args, **kwargs):
     return wrapper
 
 
-app.task = partial(hack_task, app)
+app.task = MethodType(hack_task, app)
 
 
 TASK_ROOT_MODULES = [
