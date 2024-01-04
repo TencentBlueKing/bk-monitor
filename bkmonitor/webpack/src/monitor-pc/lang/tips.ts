@@ -204,5 +204,6 @@ export default {
   确定重新发送给以下企业微信群: 'Confirm to resend to the following enterprise WeChat groups:',
   确定重新发送给以下失败用户: 'Confirm to resend to the following failed users:',
   确定重新发送给以下失败邮件: 'Confirm to resend to the following failed emails:',
-  确定重新发送给以下失败企业微信群: 'Confirm to resend to the following failed enterprise WeChat groups:'
+  确定重新发送给以下失败企业微信群: 'Confirm to resend to the following failed enterprise WeChat groups:',
+  必需为正整数: 'Must be a positive integer'
 };

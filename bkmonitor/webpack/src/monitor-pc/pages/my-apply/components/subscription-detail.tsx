@@ -191,7 +191,7 @@ export default defineComponent({
           </div>
         </div>
 
-        {/* <div class='title'>{window.i18n.t('邮件配置')}</div>
+        <div class='title'>{window.i18n.t('邮件配置')}</div>
         <div>
           <div class='row'>
             <div class='label'>
@@ -208,11 +208,11 @@ export default defineComponent({
               {this.detailInfo?.content_config?.is_link_enabled ? window.i18n.t('是') : window.i18n.t('否')}
             </span>
           </div>
-        </div> */}
+        </div>
 
         <div class='title'>{window.i18n.t('发送配置')}</div>
         <div>
-          <div class='row'>
+          {/* <div class='row'>
             <div class='label'>
               <span>{window.i18n.t('邮件标题')}</span>
             </div>
@@ -226,7 +226,7 @@ export default defineComponent({
             <span class='value'>
               {this.detailInfo?.content_config?.is_link_enabled ? window.i18n.t('是') : window.i18n.t('否')}
             </span>
-          </div>
+          </div> */}
 
           <div class='row'>
             <div class='label'>

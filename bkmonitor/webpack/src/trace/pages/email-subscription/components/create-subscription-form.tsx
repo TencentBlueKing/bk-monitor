@@ -538,8 +538,13 @@ export default defineComponent({
         refOfSendingConfigurationForm.value?.validate?.()
       ]).then(() => {
         const clonedFormData = deepClone(formData);
-        delete clonedFormData.timerange;
-        return clonedFormData;
+        /* eslint-disable */
+        const {
+          timerange,
+          ...deletedKeyFormData
+        } = clonedFormData;
+        /* eslint-enable */
+        return deletedKeyFormData;
       });
     }
 
@@ -1257,76 +1262,74 @@ export default defineComponent({
           </Form>
         </div>
 
-        {this.mode === 'normal' && (
-          <div class='card-container'>
-            <div class='title'>{window.i18n.t('邮件配置')}</div>
+        <div class='card-container'>
+          <div class='title'>{window.i18n.t('邮件配置')}</div>
 
-            <Form
-              ref='refOfEmailSubscription'
-              model={this.formData}
-              label-width='200'
+          <Form
+            ref='refOfEmailSubscription'
+            model={this.formData}
+            label-width='200'
+          >
+            <Form.FormItem
+              label={window.i18n.t('邮件标题')}
+              property='content_config.title'
+              required
             >
-              <Form.FormItem
-                label={window.i18n.t('邮件标题')}
-                property='content_config.title'
-                required
-              >
-                <Input
-                  v-model={this.formData.content_config.title}
-                  placeholder={window.i18n.t('请输入')}
-                  style={{
-                    width: '465px'
-                  }}
-                ></Input>
+              <Input
+                v-model={this.formData.content_config.title}
+                placeholder={window.i18n.t('请输入')}
+                style={{
+                  width: '465px'
+                }}
+              ></Input>
 
-                <Popover
-                  trigger='click'
-                  placement='bottom-start'
-                  theme='light'
-                  width='420px'
-                  popoverDelay={0}
-                  componentEventDelay={300}
-                  v-slots={{
-                    content: () => {
-                      return (
-                        <div>
-                          <Table
-                            data={this.variableTable.data}
-                            columns={this.variableTable.columns.fields}
-                            stripe
-                          ></Table>
-                        </div>
-                      );
-                    }
-                  }}
+              <Popover
+                trigger='click'
+                placement='bottom-start'
+                theme='light'
+                width='420px'
+                popoverDelay={0}
+                componentEventDelay={300}
+                v-slots={{
+                  content: () => {
+                    return (
+                      <div>
+                        <Table
+                          data={this.variableTable.data}
+                          columns={this.variableTable.columns.fields}
+                          stripe
+                        ></Table>
+                      </div>
+                    );
+                  }
+                }}
+              >
+                <Button
+                  text
+                  theme='primary'
+                  style={{ marginLeft: '16px' }}
                 >
-                  <Button
-                    text
-                    theme='primary'
-                    style={{ marginLeft: '16px' }}
-                  >
-                    <i
-                      class='icon-monitor icon-mc-detail'
-                      style={{ marginRight: '7px' }}
-                    ></i>
-                    {window.i18n.t('变量列表')}
-                  </Button>
-                </Popover>
-              </Form.FormItem>
+                  <i
+                    class='icon-monitor icon-mc-detail'
+                    style={{ marginRight: '7px' }}
+                  ></i>
+                  {window.i18n.t('变量列表')}
+                </Button>
+              </Popover>
+            </Form.FormItem>
 
-              <Form.FormItem
-                label={window.i18n.t('附带链接')}
-                property='content_config.is_link_enabled'
-                required
-              >
-                <Radio.Group v-model={this.formData.content_config.is_link_enabled}>
-                  <Radio label={true}>{window.i18n.t('是')}</Radio>
-                  <Radio label={false}>{window.i18n.t('否')}</Radio>
-                </Radio.Group>
-              </Form.FormItem>
-            </Form>
-          </div>
-        )}
+            <Form.FormItem
+              label={window.i18n.t('附带链接')}
+              property='content_config.is_link_enabled'
+              required
+            >
+              <Radio.Group v-model={this.formData.content_config.is_link_enabled}>
+                <Radio label={true}>{window.i18n.t('是')}</Radio>
+                <Radio label={false}>{window.i18n.t('否')}</Radio>
+              </Radio.Group>
+            </Form.FormItem>
+          </Form>
+        </div>
 
         <div class='card-container'>
           <div class='title'>{window.i18n.t('发送配置')}</div>
@@ -1337,8 +1340,7 @@ export default defineComponent({
             rules={this.formDataRules}
             label-width='200'
           >
-            {this.mode === 'quick' && (
-              // TODO：需要确认一下这个 标题 是否为该 key
+            {/* {this.mode === 'quick' && (
               <Form.FormItem
                 label={window.i18n.t('邮件标题')}
                 property='content_config.title'
@@ -1389,20 +1391,18 @@ export default defineComponent({
                 <br />
                 <Checkbox v-model={this.formData.content_config.is_link_enabled}>{window.i18n.t('附带链接')}</Checkbox>
               </Form.FormItem>
-            )}
+            )} */}
 
-            {this.mode === 'normal' && (
-              <Form.FormItem
-                label={window.i18n.t('订阅名称')}
-                property='name'
-                required
-              >
-                <Input
-                  v-model={this.formData.name}
-                  style={{ width: '465px' }}
-                ></Input>
-              </Form.FormItem>
-            )}
+            <Form.FormItem
+              label={window.i18n.t('订阅名称')}
+              property='name'
+              required
+            >
+              <Input
+                v-model={this.formData.name}
+                style={{ width: '465px' }}
+              ></Input>
+            </Form.FormItem>
 
             {/* 需要自定义校验规则 */}
             <Form.FormItem

@@ -583,7 +583,7 @@ export default {
   提示文案: 'Prompt copy',
   群ID: 'Group ID',
   多个邮箱使用逗号隔开: 'Use commas to separate multiple email addresses',
-  '获取会话ID方法:': 'Get session ID method:',
+  '获取会话ID方法': 'Get session ID method',
   '1.群聊列表右键添加群机器人: BK-Monitor': '1. Right-click on the group chat list to add a group robot: BK-Monitor',
   "2.手动 @BK-Monitor 并输入关键字'会话ID'": "2. Manually @BK-Monitor and enter the keyword 'session ID'",
   '3.将获取到的会话ID粘贴到输入框,使用逗号分隔': '3. Paste the obtained session ID into the input box, separated by commas',
@@ -608,5 +608,13 @@ export default {
   星期日: 'Sunday',
   号: 'th',
   选择通知对象: 'Select notification recipients',
-  邮件格式有误: 'Email format is wrong'
+  邮件格式有误: 'Email format is wrong',
+  '邮件任务已生成, 请一分钟后到邮箱查看': 'The email task has been generated, please check your mailbox in one minute',
+  必需为正整数: 'Must be a positive integer',
+  邮件配置: 'Email configuration',
+  附带链接: 'Attached link',
+  订阅名称: 'Subscription name',
+  观测场景: 'Observations',
+  选择时间范围: 'Select Time Range',
+  '{0}日志聚类统计报表{1}': '{0}Log clustering statistics report{1}'
 };
