@@ -408,6 +408,7 @@ export default {
   进程配置: 'Process Configuration',
   Span检索: 'Span search',
   观测: 'Observe',
+  使用文档: 'Documents',
 
   更新执行历史: 'Update Execution History',
   告警分析: 'Analysis',

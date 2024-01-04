@@ -52,6 +52,7 @@ interface IEditableFormItemProps {
   unitList?: IUnitItme[]; // 单位列表
   authority?: boolean; // 编辑权限
   authorityName?: string; // 权限名称
+  tagTheme?: string;
   updateValue?: (val) => void; // 确认提交
   onEditChange?: (val) => void; // 编辑表单值改变时
   preCheckSwitcher?: (val) => Promise<any>; // Switcher 开关预检查
@@ -78,6 +79,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   @Prop({ type: Array, required: false }) selectList: Array<any>;
   @Prop({ default: '', required: true }) value: any;
   @Prop({ required: false }) selectEditValue: any;
+  @Prop({ default: '', type: String }) tagTheme: string;
   @Prop({ type: Array, default: () => [] }) unitList: IUnitItme[];
   @Prop() validator: (val) => void;
   @Prop() updateValue: (val) => {};
@@ -182,7 +184,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           />
         );
       case 'tag': // 标签
-        return this.value.map(tag => <Tag>{tag}</Tag>);
+        return this.value.map(tag => <Tag theme={this.tagTheme}>{tag}</Tag>);
       case 'expired': // 过期时间
         return <span>{`${this.value}${this.$t('天')}`}</span>;
       case 'password': // 密码

@@ -778,6 +778,7 @@ export default {
   应用名: 'App Name',
   应用别名: 'App Alias',
   英文名称: 'English Name',
+  'Tracing 的插件': 'Tracing plugin',
   基础信息: 'Basic Information',
   Apdex设置: 'Apdex Setting',
   采样比例: 'Sampling Ratio',
