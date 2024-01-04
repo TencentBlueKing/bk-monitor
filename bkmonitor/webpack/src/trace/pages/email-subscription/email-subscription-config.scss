@@ -221,21 +221,6 @@
   position: fixed;
 }
 
-.test-send-result-dialog {
-  /* stylelint-disable-next-line declaration-no-important */
-  z-index: 4000 !important;
-
-  .bk-dialog-header {
-    /* stylelint-disable-next-line declaration-no-important */
-    padding-bottom: 2px !important;
-  }
-
-  .bk-modal-content {
-    /* stylelint-disable-next-line declaration-no-important */
-    min-height: 60px !important;
-  }
-}
-
 .bk-tag-input-popover-content .bk-selector-list .bk-selector-list-item .text {
   display: inline-block;
   width: 236px;
@@ -253,5 +238,15 @@
   .bk-loading-indicator {
     /* stylelint-disable-next-line declaration-no-important */
     z-index: 1005 !important;
+  }
+}
+
+.report-tips-dialog {
+  .bk-dialog-title {
+    /* stylelint-disable-next-line declaration-no-important */
+    height: auto !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    white-space: normal !important;
   }
 }
