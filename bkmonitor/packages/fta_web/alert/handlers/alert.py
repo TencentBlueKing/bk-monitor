@@ -19,19 +19,6 @@ from typing import List
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 from elasticsearch_dsl import Q
-from fta_web.alert.handlers.base import (
-    AlertDimensionFormatter,
-    BaseBizQueryHandler,
-    BaseQueryTransformer,
-    QueryField,
-)
-from fta_web.alert.handlers.translator import (
-    BizTranslator,
-    CategoryTranslator,
-    MetricTranslator,
-    PluginTranslator,
-    StrategyTranslator,
-)
 from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
@@ -55,6 +42,19 @@ from constants.data_source import (
     OthersResultTableLabel,
 )
 from core.drf_resource import resource
+from fta_web.alert.handlers.base import (
+    AlertDimensionFormatter,
+    BaseBizQueryHandler,
+    BaseQueryTransformer,
+    QueryField,
+)
+from fta_web.alert.handlers.translator import (
+    BizTranslator,
+    CategoryTranslator,
+    MetricTranslator,
+    PluginTranslator,
+    StrategyTranslator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("target_type", _lazy("告警目标类型"), es_field="event.target_type", is_char=True),
         QueryField("target", _lazy("告警目标"), es_field="event.target", is_char=True),
         QueryField("category", _lazy("分类"), es_field="event.category"),
-        QueryField("tags", _lazy("标签"), es_field="event.tags", is_char=True),
+        QueryField("tags", _lazy("维度"), es_field="event.tags", is_char=True),
         QueryField("category_display", _lazy("分类名称"), searchable=False),
         QueryField("duration", _lazy("持续时间")),
         QueryField("ack_duration", _lazy("确认时间")),
@@ -135,7 +135,6 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("event_id", _lazy("事件ID"), es_field="event.event_id", is_char=True),
         QueryField("plugin_id", _lazy("告警源"), es_field="event.plugin_id", is_char=True),
         QueryField("plugin_display_name", _lazy("告警源名称"), searchable=False),
-        # TODO: 后续需要改为根据策略名搜索出策略ID，再根据策略ID过滤告警。这里的实现，可能会搜索出第三方告警
         QueryField("strategy_name", _lazy("策略名称"), es_field="alert_name", agg_field="alert_name.raw", is_char=True),
     ]
 
@@ -361,7 +360,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 all_series[status][ts * 1000] = 0
 
         if search_result.aggs:
-
             for time_bucket in search_result.aggs.begin_time.time.buckets:
                 key = int(time_bucket.key_as_string) * 1000
                 if key in all_series[EventStatus.ABNORMAL]:
