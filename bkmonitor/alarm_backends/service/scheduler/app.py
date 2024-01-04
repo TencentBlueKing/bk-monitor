@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 import os
 import time
 import typing
-from functools import wraps
+from functools import wraps, partial
 
 import django
 import six.moves.urllib.error
@@ -290,7 +290,7 @@ def hack_task(self, *args, **kwargs):
     return wrapper
 
 
-app.task = hack_task
+app.task = partial(hack_task, app)
 
 
 TASK_ROOT_MODULES = [
