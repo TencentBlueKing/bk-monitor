@@ -318,7 +318,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.isMultivariateAnomalyDetection) {
       return false;
     }
-    return this.metricQueryData.length > 0;
+    return this.metricQueryData.length > 0 || this.metricQueryData;
   }
 
   deactivated() {
@@ -1022,7 +1022,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 </div>
               )}
             </div>,
-
             this.needDescContent && (
               <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
                 {this.isEventMetric && <div class='desc-title'>{this.$t('系统事件说明')}</div>}
