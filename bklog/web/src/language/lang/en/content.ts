@@ -607,5 +607,6 @@ export default {
   星期六: 'Saturday',
   星期日: 'Sunday',
   号: 'th',
-  选择通知对象: 'Select notification recipients'
+  选择通知对象: 'Select notification recipients',
+  邮件格式有误: 'Email format is wrong'
 };

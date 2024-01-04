@@ -32,6 +32,7 @@ import {
   Button,
   Dialog,
   Dropdown,
+  InfoBox,
   Input,
   Loading,
   Message,
@@ -65,6 +66,9 @@ import './email-subscription-config.scss';
 type TooltipsToggleMapping = {
   [key: number]: boolean;
 };
+
+// 表格字段 显隐设置的配置需要持久化到本地。
+const keyOfTableSettingInLocalStorage = 'report_list_table_settings';
 
 export default defineComponent({
   name: 'EmailSubscriptionConfig',
@@ -193,7 +197,7 @@ export default defineComponent({
                     'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {data.last_send_time || t('未发送')}
+                  {data.last_send_time ? dayjs(data.last_send_time).format('YYYY-MM-DD HH:mm:ss') : t('未发送')}
                 </div>
               );
             }
@@ -281,6 +285,9 @@ export default defineComponent({
             field: 'create_time',
             sort: {
               value: null
+            },
+            render: ({ data }) => {
+              return <div>{dayjs(data.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
             }
           },
           {
@@ -289,7 +296,7 @@ export default defineComponent({
             width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
             render: row => {
               return (
-                <div>
+                <div style='display: flex;align-items: center;'>
                   <Button
                     theme='primary'
                     text
@@ -315,47 +322,65 @@ export default defineComponent({
                   </Button>
 
                   {/* 实现方式有问题，看看有没有其它的实现方式 */}
-                  <Popover
-                    trigger='click'
-                    theme='light'
-                    isShow={toggleMap[row.index] || false}
-                    placement='bottom-start'
-                    extCls='email-subscription-popover'
-                    v-slots={{
-                      content: () => (
-                        <div>
-                          <div
-                            class='popover-item'
-                            onClick={() => {
-                              toggleMap[row.index] = false;
-                              cloneDialog.subscription_id = row.data.id;
-                              cloneDialog.isShow = true;
-                              cloneDialog.name = row.data.name;
-                            }}
-                          >
-                            {t('克隆')}
+                  <div>
+                    <Popover
+                      trigger='click'
+                      theme='light'
+                      isShow={toggleMap[row.index] || false}
+                      placement='bottom-start'
+                      extCls='email-subscription-popover'
+                      v-slots={{
+                        content: () => (
+                          <div>
+                            <div
+                              class='popover-item'
+                              onClick={() => {
+                                toggleMap[row.index] = false;
+                                cloneDialog.subscription_id = row.data.id;
+                                cloneDialog.isShow = true;
+                                cloneDialog.name = row.data.name;
+                              }}
+                            >
+                              {t('克隆')}
+                            </div>
+                            <div
+                              class='popover-item'
+                              onClick={() => {
+                                toggleMap[row.index] = false;
+                                // deleteDialog.subscription_id = row.data.id;
+                                // deleteDialog.isShow = true;
+                                // deleteDialog.name = row.data.name;
+                                InfoBox({
+                                  infoType: 'warning',
+                                  title: t('是否删除 {0} ?', [row.data.name]),
+                                  zIndex: 3000,
+                                  showMask: true,
+                                  onConfirm: () => {
+                                    console.log('onConfirm');
+                                    return handleDeleteRow(row.data.id)
+                                      .then(() => {
+                                        return true;
+                                      })
+                                      .catch(() => {
+                                        return false;
+                                      });
+                                  }
+                                });
+                              }}
+                            >
+                              {t('删除')}
+                            </div>
                           </div>
-                          <div
-                            class='popover-item'
-                            onClick={() => {
-                              toggleMap[row.index] = false;
-                              deleteDialog.subscription_id = row.data.id;
-                              deleteDialog.isShow = true;
-                              deleteDialog.name = row.data.name;
-                            }}
-                          >
-                            {t('删除')}
-                          </div>
-                        </div>
-                      )
-                    }}
-                  >
-                    <i
-                      class='more-btn icon-monitor icon-mc-more'
-                      style='margin-left: 10px;'
-                      onClick={() => (toggleMap[row.index] = true)}
-                    />
-                  </Popover>
+                        )
+                      }}
+                    >
+                      <i
+                        class='more-btn icon-monitor icon-mc-more'
+                        style='margin-left: 10px;'
+                        onClick={() => (toggleMap[row.index] = true)}
+                      />
+                    </Popover>
+                  </div>
                 </div>
               );
             }
@@ -393,7 +418,10 @@ export default defineComponent({
         fields: [
           {
             label: `${t('发送时间')}`,
-            field: 'send_time'
+            field: 'send_time',
+            render: ({ data }) => {
+              return <div>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
+            }
           },
           {
             label: `${t('类型')}`,
@@ -639,10 +667,10 @@ export default defineComponent({
         });
     }
 
-    function handleDeleteRow() {
+    async function handleDeleteRow(report_id) {
       deleteDialog.loading = true;
-      deleteReport({
-        report_id: deleteDialog.subscription_id
+      await deleteReport({
+        report_id
       })
         .then(() => {
           fetchSubscriptionList();
@@ -756,6 +784,14 @@ export default defineComponent({
       let str = '';
       if (!data?.frequency?.type) return '';
       switch (data.frequency.type) {
+        case 1: {
+          str = t('仅一次');
+          break;
+        }
+        case 2: {
+          str = `${t('每月 {0} 号', [data.frequency.day_list.toString()])} ${data.frequency.run_time}`;
+          break;
+        }
         case 3: {
           const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
           const weekStr = weekStrArr.join(', ');
@@ -911,9 +947,17 @@ export default defineComponent({
         });
     }
 
+    function setTableSetting() {
+      const tableSetting = window.localStorage.getItem(keyOfTableSettingInLocalStorage);
+      if (tableSetting) {
+        table.settings.checked = JSON.parse(tableSetting);
+      }
+    }
+
     onMounted(() => {
       checkNeedShowEditSlider();
       fetchSubscriptionList();
+      setTableSetting();
     });
     return {
       t,
@@ -1040,9 +1084,12 @@ export default defineComponent({
               count: this.table.data.length,
               onChange: pageNum => {
                 this.queryData.page = pageNum;
+                this.fetchSubscriptionList();
               },
               onLimitChange: limit => {
+                this.queryData.page = 1;
                 this.queryData.page_size = limit;
+                this.fetchSubscriptionList();
               }
             }}
             onColumnFilter={({ checked, column }) => {
@@ -1078,6 +1125,9 @@ export default defineComponent({
               }
               this.fetchSubscriptionList();
             }}
+            onSettingChange={({ checked }) => {
+              window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
+            }}
           ></Table>
         </Loading>
         <Dialog
@@ -1094,20 +1144,37 @@ export default defineComponent({
         >
           <div>
             <div class='dialog-header-info-container'>
-              <div class='label-container'>
-                <div class='label'>{this.t('发送频率')}:</div>
-                <div class='value'>{this.getSendFrequencyText(this.subscriptionDetail)}</div>
+              <div style='display: flex;'>
+                <div class='label-container'>
+                  <div class='label'>{this.t('发送频率')}:</div>
+                  <div
+                    class='value'
+                    style='max-width: 200px;white-space: normal;word-break: break-all;'
+                  >
+                    {this.getSendFrequencyText(this.subscriptionDetail)}
+                  </div>
+                </div>
+                <div class='label-container'>
+                  <div
+                    class='label'
+                    style='margin-left: 55px;'
+                  >
+                    {this.t('有效时间范围')}:
+                  </div>
+                  <div class='value'>
+                    {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
+                  </div>
+                </div>
               </div>
-              <div class='label-container'>
-                <div
-                  class='label'
-                  style='margin-left: 55px;'
+              <div>
+                <Button
+                  text
+                  theme='primary'
+                  disabled={this.sendRecordTable.isLoading}
+                  onClick={this.getSendingRecordList}
                 >
-                  {this.t('有效时间范围')}:
-                </div>
-                <div class='value'>
-                  {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
-                </div>
+                  {this.t('刷新')}
+                </Button>
               </div>
             </div>
 
@@ -1115,6 +1182,7 @@ export default defineComponent({
               <Table
                 data={this.sendRecordTable.data}
                 columns={this.sendRecordTable.columns.fields as Column[]}
+                height={400}
                 style='margin-top: 16px;'
               />
             </Loading>
@@ -1139,7 +1207,23 @@ export default defineComponent({
                     <Button
                       style='margin-right: 8px;'
                       onClick={() => {
-                        this.sendMyselfDialog.isShow = true;
+                        // this.sendMyselfDialog.isShow = true;
+                        InfoBox({
+                          infoType: 'warning',
+                          title: this.t('是否发送给自己?'),
+                          zIndex: 3000,
+                          showMask: true,
+                          onConfirm: () => {
+                            console.log('onConfirm');
+                            return this.handleSendMyself()
+                              .then(() => {
+                                return true;
+                              })
+                              .catch(() => {
+                                return false;
+                              });
+                          }
+                        });
                       }}
                     >
                       {this.t('发送给自己')}
