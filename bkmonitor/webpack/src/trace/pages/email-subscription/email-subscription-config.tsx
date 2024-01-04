@@ -336,9 +336,16 @@ export default defineComponent({
                               class='popover-item'
                               onClick={() => {
                                 toggleMap[row.index] = false;
-                                cloneDialog.subscription_id = row.data.id;
-                                cloneDialog.isShow = true;
-                                cloneDialog.name = row.data.name;
+                                // cloneDialog.subscription_id = row.data.id;
+                                // cloneDialog.isShow = true;
+                                // cloneDialog.name = row.data.name;
+                                // 将当前数据深拷贝一次，将 name 增加 _clone 后缀，再把 id 的 key 删掉（让接口直接创建新数据）
+                                // 最后赋值到 subscriptionDetail 中，打开编辑抽屉组件让用户进行修改。
+                                const clonedSubscriptionDetail = deepClone(row.data);
+                                delete clonedSubscriptionDetail.id;
+                                clonedSubscriptionDetail.name = `${clonedSubscriptionDetail.name}_clone`;
+                                subscriptionDetail.value = clonedSubscriptionDetail;
+                                isShowEditSideslider.value = true;
                               }}
                             >
                               {t('克隆')}
@@ -356,7 +363,6 @@ export default defineComponent({
                                   zIndex: 3000,
                                   showMask: true,
                                   onConfirm: () => {
-                                    console.log('onConfirm');
                                     return handleDeleteRow(row.data.id)
                                       .then(() => {
                                         return true;
@@ -1281,7 +1287,9 @@ export default defineComponent({
           title={'编辑'}
           width={960}
           ext-cls='edit-subscription-sideslider-container'
-          transfer
+          onHidden={() => {
+            this.isShowDropdownMenu = false;
+          }}
         >
           <Loading
             class='loading-edit-slider'
