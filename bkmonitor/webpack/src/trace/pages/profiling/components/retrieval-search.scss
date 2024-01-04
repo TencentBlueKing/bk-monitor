@@ -42,6 +42,25 @@
           margin-top: 6px;
         }
 
+        &.service {
+          .content {
+            display: flex;
+            align-items: center;
+
+            .detail-btn {
+              width: 32px;
+              height: 32px;
+              margin-left: 4px;
+              line-height: 32px;
+              color: #3a84ff;
+              text-align: center;
+              cursor: pointer;
+              background: #f0f1f5;
+              border-radius: 2px;
+            }
+          }
+        }
+
         &.comparison {
           display: flex;
           align-items: center;
