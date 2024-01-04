@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 
 
 from alarm_backends.core.cache.base import CacheManager
+from core.drf_resource import api
+from metadata.models import TimeSeriesGroup
 
 
 class CustomTSGroupCacheManager(CacheManager):
@@ -32,12 +34,17 @@ class CustomTSGroupCacheManager(CacheManager):
         """
         protocol = cls.cache.get(cls.format_key(bk_data_id))
         if not protocol:
-            return None
+            try:
+                ts_group = TimeSeriesGroup.objects.get(bk_data_id=bk_data_id)
+            except TimeSeriesGroup.DoesNotExist:
+                return None
+            ts_info = api.metadata.custom_time_series_detail(
+                time_series_group_id=ts_group.time_series_group_id, bk_biz_id=ts_group.bk_biz_id, model_only=True
+            )
+            protocol = ts_info["protocol"]
+            cls.set(bk_data_id, protocol)
         return protocol
 
     @classmethod
-    def refresh_all(cls, protocol_dict):
-        data = {}
-        for bk_data_id, protocol in protocol_dict.items():
-            data[cls.format_key(bk_data_id)] = protocol
-        cls.cache.mset(data)
+    def set(cls, bk_data_id, protocol):
+        cls.cache.set(cls.format_key(bk_data_id), protocol)

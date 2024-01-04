@@ -10,8 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 import sys
 
-from alarm_backends.core.cache.models.custom_ts_grouop import CustomTSGroupCacheManager
-
 """
 celery api任务
 """
@@ -131,15 +129,6 @@ def cache_cmdb_resource():
 
 
 @share_lock()
-def cache_custom_ts_group_protocol():
-    from monitor_web.models import CustomTSTable
-
-    ts_info = CustomTSTable.objects.values_list("bk_data_id", "protocol")
-    ts_info = dict(ts_info)
-    CustomTSGroupCacheManager.refresh_all(ts_info)
-
-
-@share_lock()
 def term_api_cron(immediately=False):
     if settings.IS_CONTAINER_MODE:
         self_p = psutil.Process(os.getpid())
@@ -180,7 +169,6 @@ API_CRONTAB = [
     (cache_business, "*/1 * * * *", "global"),
     (cache_cmdb_resource, "*/1 * * * *", "global"),
     (term_api_cron, "*/1 * * * *", "global"),
-    (cache_custom_ts_group_protocol, "*/2 * * * *", "global"),
 ]
 
 
