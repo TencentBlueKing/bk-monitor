@@ -258,7 +258,7 @@ class DslCreateSearchContextBodyCustomField:
             return
 
         # 取优先级最高的字段为范围查询字段
-        range_field = target_fields[0]
+        range_field = sort_fields[0]
         range_field_value: int = params.get(range_field, 0)
 
         body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_ES)
@@ -502,7 +502,7 @@ class DslCreateSearchTailBodyCustomField:
             return
 
         # 取优先级最高的字段为范围查询字段
-        range_field = target_fields[0]
+        range_field = sort_fields[0]
         range_field_value: int = params.get(range_field, 0)
 
         self._body = None
