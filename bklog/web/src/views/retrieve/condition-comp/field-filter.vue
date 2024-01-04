@@ -88,10 +88,27 @@
       </vue-draggable>
       <!-- </ul> -->
     </div>
-    <div v-if="hiddenFields.length" class="fields-container not-selected">
-      <div class="title">{{ $t('可选字段') }}</div>
+    <div v-if="indexSetFields.length" class="fields-container not-selected">
+      <div class="title">{{ $t('索引字段') }}</div>
       <ul class="filed-list">
-        <template v-for="item in hiddenFields">
+        <template v-for="item in indexSetFields">
+          <field-item
+            v-show="item.filterVisible"
+            type="hidden"
+            :retrieve-params="retrieveParams"
+            :key="item.field_name"
+            :field-alias-map="fieldAliasMap"
+            :show-field-alias="showFieldAlias"
+            :statistical-field-data="statisticalFieldsData[item.field_name]"
+            :field-item="item"
+            @toggleItem="handleToggleItem" />
+        </template>
+      </ul>
+    </div>
+    <div v-if="builtInFields.length" class="fields-container not-selected">
+      <div class="title">{{ $t('label-内置字段').replace('label-', '') }}</div>
+      <ul class="filed-list">
+        <template v-for="item in builtInFields">
           <field-item
             v-show="item.filterVisible"
             type="hidden"
@@ -112,6 +129,7 @@
 import FieldItem from './field-item';
 import FieldFilterPopover from './field-filter-popover';
 import VueDraggable from 'vuedraggable';
+import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 
 export default {
   components: {
@@ -177,11 +195,54 @@ export default {
         'ghost-class': 'sortable-ghost-class',
       },
       dragVisibleFields: [],
+      builtInHeaderList: ['log', 'ip', 'utctime', 'path'],
     };
   },
   computed: {
     hiddenFields() { // 可选字段
       return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+    },
+    indexSetFields() {
+      const underlineFieldList = []; // 下划线的字段
+      const otherList = []; // 其他字段
+      const { indexHiddenFields } = this.hiddenFilterFields;
+      indexHiddenFields.forEach((fieldItem) => {
+        if (/^[_]{1,2}/g.test(fieldItem.field_name)) {
+          underlineFieldList.push(fieldItem);
+          return;
+        }
+        otherList.push(fieldItem);
+      });
+      return this.sortHiddenList([otherList, underlineFieldList]);
+    },
+    hiddenFilterFields() {
+      const builtInHiddenFields = [];
+      const indexHiddenFields = [];
+      this.hiddenFields.forEach((item) => {
+        if (item.field_type === '__virtual__' || item.is_built_in) {
+          builtInHiddenFields.push(item);
+          return;
+        }
+        indexHiddenFields.push(item);
+      });
+      return {
+        builtInHiddenFields,
+        indexHiddenFields,
+      };
+    },
+    builtInFields() {
+      const headerList = [];
+      const { builtInHiddenFields } = this.hiddenFilterFields;
+      this.builtInHeaderList.forEach((item) => {
+        builtInHiddenFields.forEach((builtItem) => {
+          if (builtItem.field_name === item) {
+            headerList.push(builtItem);
+          };
+        });
+      });
+      const filterHeaderBuiltFields = builtInHiddenFields
+        .filter(item => !this.builtInHeaderList.includes(item.field_name));
+      return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
     },
     filterTypeCount() { // 过滤的条件数量
       let count = 0;
@@ -270,6 +331,18 @@ export default {
         console.warn(e);
       });
     },
+    sortHiddenList(list) {
+      const sortList = [];
+      list.forEach((item) => {
+        const sortItem = item.sort((a, b) => {
+          const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+          const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+          return sortA.localeCompare(sortB);
+        });
+        sortList.push(...sortItem);
+      });
+      return sortList;
+    },
   },
 };
 </script>
@@ -279,6 +352,10 @@ export default {
     font-size: 12px;
     color: #63656e;
     line-height: 20px;
+
+    .is-selected {
+      border-bottom: 1px solid #e1ecff;
+    }
 
     .form-container {
       display: flex;
@@ -335,7 +412,7 @@ export default {
     }
 
     .fields-container {
-      margin-top: 24px;
+      margin-top: 20px;
 
       .title {
         margin-bottom: 7px;

@@ -150,7 +150,8 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
                       zIndex: 9999,
                       allowHTML: false,
                       boundary: document.body,
-                      appendTo: document.body
+                      appendTo: document.body,
+                      allowHTML: false
                     }}
                     onClick={() => this.handleCommit(item)}
                   >

@@ -27,11 +27,12 @@ from apm.constants import (
     DEFAULT_APM_ES_WARM_RETENTION_RATIO,
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
+from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.utils.es_search import EsSearch
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
-from constants.apm import OtlpKey, SpanKind
+from constants.apm import FlowType, OtlpKey, SpanKind
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
@@ -47,7 +48,7 @@ class ApmDataSourceConfigBase(models.Model):
 
     TABLE_SPACE_PREFIX = "space"
 
-    DATASOURCE_CHOICE = ((TRACE_DATASOURCE, _("Trace")), (METRIC_DATASOURCE, _("指标")))
+    DATASOURCE_CHOICE = ((TRACE_DATASOURCE, "Trace"), (METRIC_DATASOURCE, _("指标")))
 
     DATA_NAME_PREFIX = "bkapm"
 
@@ -694,6 +695,10 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def es_client(self):
         return metadata_models.ESStorage.objects.filter(table_id=self.result_table_id).first().get_client()
 
+    @cached_property
+    def storage(self):
+        return metadata_models.ESStorage.objects.filter(table_id=self.result_table_id).first()
+
     @property
     def index_set(self) -> str:
         return f"{self.table_id.replace('.', '_')}_index_set"
@@ -972,3 +977,34 @@ class DataLink(models.Model):
     @classmethod
     def create_global(cls, **kwargs):
         return cls.objects.create(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, **kwargs)
+
+
+class BkdataFlowConfig(models.Model):
+    """
+    计算平台APM Flow管理
+    以下Flow的配置由此表管理:
+    1. APM尾部采样
+    """
+
+    bk_biz_id = models.IntegerField("监控业务id")
+    app_name = models.CharField("应用名称", max_length=50)
+    is_finished = models.BooleanField("是否已配置完成", default=False)
+    finished_time = models.DateTimeField("配置完成时间", null=True)
+    project_id = models.CharField("project id", null=True, max_length=128)
+    deploy_bk_biz_id = models.IntegerField("计算平台数据源所在的业务ID")
+    deploy_data_id = models.CharField("数据源dataid", null=True, max_length=128)
+    deploy_config = models.JSONField("数据源配置", null=True)
+    databus_clean_id = models.CharField("清洗配置ID", null=True, max_length=128)
+    databus_clean_config = models.JSONField("清洗配置", null=True)
+    databus_clean_result_table_id = models.CharField("清洗输出结果表ID", null=True, max_length=128)
+    flow_id = models.CharField("dataflow id", null=True, max_length=128)
+    status = models.CharField("配置状态", null=True, choices=FlowStatus.choices, max_length=64)
+    process_info = models.JSONField("执行日志", null=True)
+    last_process_time = models.DateTimeField("上次执行时间", null=True)
+    flow_type = models.CharField("Flow类型", choices=FlowType.choices, max_length=32)
+
+    create_at = models.DateTimeField("创建时间", auto_now_add=True)
+    update_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "APM Flow管理表"

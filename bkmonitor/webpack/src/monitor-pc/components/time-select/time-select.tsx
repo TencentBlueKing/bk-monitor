@@ -109,9 +109,10 @@ export default class TimeSelect extends tsc<ITimeSelectProps, IITimeSelectEvent>
                   onKeydown={this.handleKeyDown}
                 />
                 <span
-                  v-bk-tooltips={
-                    this.tip || this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')
-                  }
+                  v-bk-tooltips={{
+                    allowHTML: false,
+                    content: this.tip || this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')
+                  }}
                   class='help-icon icon-monitor icon-mc-help-fill'
                 />
               </span>

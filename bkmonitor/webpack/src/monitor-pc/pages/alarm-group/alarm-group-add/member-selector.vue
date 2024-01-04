@@ -136,7 +136,6 @@ export default class MemberSelector extends Vue {
   }
   // tag提示
   handleTabTips(val) {
-    console.log(val);
     return this.getDefaultUsername(this.groupList, val) || val;
   }
   // 查找display_name

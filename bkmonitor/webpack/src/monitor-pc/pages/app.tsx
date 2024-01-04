@@ -28,7 +28,7 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkPaasLogin from '@blueking/paas-login';
 import { Input, Navigation, NavigationMenu, NavigationMenuGroup, NavigationMenuItem } from 'bk-magic-vue';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
 import { getFooter, listStickySpaces } from '../../monitor-api/modules/commons';
@@ -344,14 +344,14 @@ export default class App extends tsc<{}> {
   async handleMenuItemClick(item) {
     let hasRouteChange = this.$route.path !== item.path;
     const isMicroApp = microRouteNameList.includes(item.id);
-    const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
+    // const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
     // 屏蔽是微应用 需特殊处理
     if (isMicroApp) {
       hasRouteChange = location.hash !== item.href;
     }
     if (hasRouteChange && !!item.href) {
       await this.$nextTick();
-      if (isMicroApp || !(this.$router as any).history.pending || isPeddingMicroApp) {
+      if (!(this.$router as any).history.pending) {
         const route = item.usePath ? { path: item.path } : { name: item.id };
         !item.noCache &&
           this.setUserStoreMenu({
@@ -359,11 +359,11 @@ export default class App extends tsc<{}> {
           });
         if (isMicroApp) {
           location.hash = item.href;
-          setTimeout(() => {
-            (this.$router as any).history.pending = null;
-          }, 2000);
         } else this.$router.push(route);
       }
+      setTimeout(() => {
+        (this.$router as any).history.pending = null;
+      }, 2000);
     }
   }
   /**
@@ -382,6 +382,7 @@ export default class App extends tsc<{}> {
       }
       return false;
     }
+    (this.$router as any).history.pending = null;
     return true;
   }
   // 切换业务
@@ -404,22 +405,34 @@ export default class App extends tsc<{}> {
     // 跳转
     if (navId === 'grafana') {
       this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', 'grafana-home');
-      await this.handleUpdateRoute({ bizId: `${v}` }, promise, '/grafana/home');
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise, '/grafana/home').then(hasAuth => {
+        hasAuth && (this.routeViewKey = random(10));
+      });
       window.requestIdleCallback(() => {
         this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
       });
     } else if (navId !== this.$route.name) {
       // 所有页面的子路由在切换业务的时候都统一返回到父级页面
       const parentRoute = this.$router.options.routes.find(item => item.name === navId);
-      this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
       if (parentRoute) {
-        this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
+        this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
+        const hasAuth = await this.handleUpdateRoute({ bizId: `${v}` }, promise);
+        hasAuth &&
+          this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
+            this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+          });
+        if (!hasAuth) {
           this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
-        });
+        }
+        return;
       }
-      await this.handleUpdateRoute({ bizId: `${v}` }, promise);
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
+        hasAuth && (this.routeViewKey = random(10));
+      });
     } else {
-      await this.handleUpdateRoute({ bizId: `${v}` }, promise);
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
+        hasAuth && (this.routeViewKey = random(10));
+      });
     }
     window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
@@ -455,11 +468,11 @@ export default class App extends tsc<{}> {
             title: '无权限'
           }
         });
-        return;
+        return false;
       }
     }
     await Promise.all(promiseList);
-    this.routeViewKey = random(10);
+    return true;
   }
   handleClickBizSelect() {
     this.showBizList = !this.showBizList;

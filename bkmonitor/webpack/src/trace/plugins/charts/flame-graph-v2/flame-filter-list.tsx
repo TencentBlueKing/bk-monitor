@@ -212,7 +212,7 @@ export default defineComponent({
     return (
       <div>
         <Table
-          rowKey={() => random(10).toString()}
+          rowKey={random(10).toString()}
           showOverflowTooltip={true}
           class='flame-filter-list'
           columns={columns}
