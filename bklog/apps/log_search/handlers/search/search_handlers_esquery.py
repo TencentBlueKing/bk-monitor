@@ -1132,6 +1132,10 @@ class SearchHandler(object):
 
         dsl_params_base = {"indices": context_indice, "scenario_id": self.scenario_id}
 
+        if self.scenario_id == Scenario.ES:
+            # 第三方ES必须带上storage_cluster_id
+            dsl_params_base.update({"storage_cluster_id": self.index_set_obj.storage_cluster_id})
+
         if record_obj:
             dsl_params_base.update({"storage_cluster_id": record_obj.storage_cluster_id})
 
@@ -1162,9 +1166,14 @@ class SearchHandler(object):
             took = result_up["took"] + result_down["took"]
             new_list = result_up["list"] + result_down["list"]
             origin_log_list = result_up["origin_log_list"] + result_down["origin_log_list"]
-            analyze_result_dict: dict = self._analyze_context_result(
-                new_list, mark_gseindex=self.gseindex, mark_gseIndex=self.gseIndex
-            )
+            if self.scenario_id == Scenario.ES:
+                analyze_result_dict: dict = self._analyze_context_result(
+                    new_list, target_fields=self.index_set_obj.target_fields, sort_fields=self.index_set_obj.sort_fields
+                )
+            else:
+                analyze_result_dict: dict = self._analyze_context_result(
+                    new_list, mark_gseindex=self.gseindex, mark_gseIndex=self.gseIndex
+                )
             zero_index: int = analyze_result_dict.get("zero_index", -1)
             count_start: int = analyze_result_dict.get("count_start", -1)
 
@@ -1273,7 +1282,7 @@ class SearchHandler(object):
             body: Dict = {}
 
             target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
-            sort_fields = self.index_set_obj.target_fields if self.index_set_obj else []
+            sort_fields = self.index_set_obj.sort_fields if self.index_set_obj else []
 
             if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
                 body: Dict = DslCreateSearchTailBodyScenarioBkData(
@@ -1315,7 +1324,13 @@ class SearchHandler(object):
                     params=self.search_dict,
                 ).body
 
-            result = BkLogApi.dsl({"indices": tail_indice, "scenario_id": self.scenario_id, "body": body})
+            dsl_params = {"indices": tail_indice, "scenario_id": self.scenario_id, "body": body}
+
+            if self.scenario_id == Scenario.ES:
+                # 第三方ES必须带上storage_cluster_id
+                dsl_params.update({"storage_cluster_id": self.index_set_obj.storage_cluster_id})
+
+            result = BkLogApi.dsl(dsl_params)
 
             result: dict = self._deal_query_result(result)
             if self.zero:
@@ -1791,7 +1806,9 @@ class SearchHandler(object):
         self,
         log_list: List[Dict[str, Any]],
         mark_gseindex: int = None,
-        mark_gseIndex: int = None
+        mark_gseIndex: int = None,
+        target_fields: list = None,
+        sort_fields: list = None,
         # pylint: disable=invalid-name
     ) -> Dict[str, Any]:
         log_list_reversed: list = log_list
@@ -1860,6 +1877,30 @@ class SearchHandler(object):
                     and self.path == path
                     and self.iterationIndex == str(iterationIndex)
                 ):
+                    _index = index
+                    break
+
+        if self.scenario_id == Scenario.ES and target_fields and sort_fields:
+            for index, item in enumerate(log_list):
+                _sort_value = item.get(sort_fields[0])
+                check_value = self.search_dict.get(sort_fields[0])
+                # find the counting range point
+                if _count_start == -1:
+                    _sort_value = item.get(sort_fields[0])
+                    if _sort_value and str(_sort_value) == str(check_value):
+                        _count_start = index
+
+                is_break = True
+
+                for field in target_fields:
+                    _target_value = item.get(field)
+                    if (str(_sort_value) != str(check_value)) or (
+                        _target_value and str(_target_value) != str(self.search_dict.get(field))
+                    ):
+                        is_break = False
+                        break
+
+                if is_break:
                     _index = index
                     break
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
