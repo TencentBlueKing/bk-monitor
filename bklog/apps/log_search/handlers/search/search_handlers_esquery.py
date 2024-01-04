@@ -1168,11 +1168,7 @@ class SearchHandler(object):
             origin_log_list = result_up["origin_log_list"] + result_down["origin_log_list"]
             target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
             sort_fields = self.index_set_obj.sort_fields if self.index_set_obj else []
-            if self.scenario_id == Scenario.ES:
-                analyze_result_dict: dict = self._analyze_context_result(
-                    new_list, target_fields=target_fields, sort_fields=sort_fields
-                )
-            elif self.scenario_id == Scenario.BKDATA and target_fields and sort_fields:
+            if self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
                 analyze_result_dict: dict = self._analyze_context_result(
                     new_list, target_fields=target_fields, sort_fields=sort_fields
                 )
