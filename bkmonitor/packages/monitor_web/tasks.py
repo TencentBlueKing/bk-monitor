@@ -1126,6 +1126,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
         metric_recommend_task.create_flow()
         metric_recommend_task.start_flow(consuming_mode=ConsumingMode.Current)
         metric_recommend.is_enabled = True
+        metric_recommend.result_table_id = metric_recommend_task.node_list[-1].output_table_name
         ai_setting.save()
         # 此处记得从继续启动
     except Exception as e:  # noqa
