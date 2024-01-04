@@ -234,7 +234,8 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
             placement: 'right',
             zIndex: 9999,
             boundary: document.body,
-            appendTo: document.body
+            appendTo: document.body,
+            allowHTML: false
           }}
         >
           {dimension.name}
@@ -359,7 +360,8 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
               trigger: 'mouseenter',
               zIndex: 9999,
               disabled: !item.key,
-              boundary: document.body
+              boundary: document.body,
+              allowHTML: false
             }}
             on-toggle={e => this.handleToggleKey(e, index)}
             value={item.key}

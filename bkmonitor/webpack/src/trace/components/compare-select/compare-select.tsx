@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Button, Form, Input, Message, Popover } from 'bkui-vue';
 
 import {
@@ -85,23 +86,24 @@ export default defineComponent({
     // 常用参照 traceID
     const commonUsedList = ref<ICommonUsedItem[]>([]);
     const compareTraceId = ref('');
+    const { t } = useI18n();
     const rules = computed(() => ({
       traceID: [
         {
           validator: value => value.length,
-          message: window.i18n.t('traceID不能为空'),
+          message: t('traceID不能为空'),
           trigger: 'blur'
         }
       ],
       name: [
         {
           validator: value => value.trim?.().length,
-          message: window.i18n.t('参照名称不能为空'),
+          message: t('参照名称不能为空'),
           trigger: 'blur'
         },
         {
           validator: value => !commonUsedList.value.some(item => item.name === value),
-          message: window.i18n.t('参照名重复'),
+          message: t('参照名重复'),
           trigger: 'blur'
         }
       ]
@@ -182,7 +184,7 @@ export default defineComponent({
             .then(() => {
               Message({
                 theme: 'success',
-                message: window.i18n.t('保存成功'),
+                message: t('保存成功'),
                 width: 200
               });
               handleCloseCommonUsed();
@@ -228,7 +230,7 @@ export default defineComponent({
         .then(() => {
           Message({
             theme: 'success',
-            message: window.i18n.t('删除成功')
+            message: t('删除成功')
           });
           handleCloseCommonUsed();
           getCommomUsedList();

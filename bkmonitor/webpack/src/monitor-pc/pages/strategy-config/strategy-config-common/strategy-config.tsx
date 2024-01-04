@@ -53,6 +53,7 @@ import {
   getTargetDetail,
   updatePartialStrategyV2
 } from '../../../../monitor-api/modules/strategies';
+import { xssFilter } from '../../../../monitor-common/utils/xss';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
@@ -1715,7 +1716,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   // 处理监控项tooltips
   handleDescTips(data) {
     const tips = data.map(item => item.tip).join('');
-    const res = `<div class="item-description">${tips}</div>`;
+    const res = `<div class="item-description">${xssFilter(tips)}</div>`;
     return res;
   }
   // 批量操作下的选项是否不可点击
@@ -1776,7 +1777,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                 content: props.row.strategyName,
                 boundary: 'window',
                 delay: 200,
-                allowHtml: false
+                allowHTML: false
               }}
             >
               <router-link
@@ -1795,7 +1796,12 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             {[
               props.row.isInvalid ? (
                 <i
-                  v-bk-tooltips={{ placements: ['right'], boundary: 'window', content: `${props.row.invalidType}` }}
+                  v-bk-tooltips={{
+                    placements: ['right'],
+                    boundary: 'window',
+                    content: `${props.row.invalidType}`,
+                    allowHTML: false
+                  }}
                   class='icon-monitor icon-shixiao'
                 ></i>
               ) : undefined,
@@ -1805,7 +1811,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   v-bk-tooltips={{
                     placements: ['right'],
                     boundary: 'window',
-                    content: `${this.$t('当前有{n}个未恢复事件', { n: props.row.abnormalAlertCount })}`
+                    content: `${this.$t('当前有{n}个未恢复事件', { n: props.row.abnormalAlertCount })}`,
+                    allowHTML: false
                   }}
                   onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row))}
                 >
@@ -1819,7 +1826,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   v-bk-tooltips={{
                     placements: ['right'],
                     boundary: 'window',
-                    content: `${this.$t('当前有{n}个已屏蔽事件', { n: props.row.shieldAlertCount })}`
+                    content: `${this.$t('当前有{n}个已屏蔽事件', { n: props.row.shieldAlertCount })}`,
+                    allowHTML: false
                   }}
                   onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
                 >
@@ -1859,7 +1867,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             delay: 200,
             boundary: 'window',
             content: '.item-description',
-            allowHtml: true
+            allowHTML: true
           }}
         >
           {props.row.itemDescription.map((item, index) => [
@@ -1902,7 +1910,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               placements: ['top-start'],
               boundary: 'window',
               content: () => customTip || props.row[type].join('、 '),
-              delay: 200
+              delay: 200,
+              allowHTML: false
             }}
           >
             {props.row[type].map((item, index) => (
@@ -1945,7 +1954,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     placements: ['top-start'],
                     boundary: 'window',
                     content: () => props.row.labels.join('、 '),
-                    delay: 200
+                    delay: 200,
+                    allowHTML: false
                   }}
                 >
                   ...
@@ -1969,7 +1979,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               placements: ['top-start'],
               boundary: 'window',
               content: () => props.row.noticeGroupNameList.join('、'),
-              delay: 200
+              delay: 200,
+              allowHTML: false
             }}
           >
             {props.row.noticeGroupNameList.map(item => (
@@ -2054,7 +2065,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             boundary: 'boundary',
             content: () => this.$t('连续{0}个周期内不满足条件表示恢复', [props.row.recovery]),
             disabled: props.row.recovery === '--' /* 兼容关联告警 */,
-            delay: 200
+            delay: 200,
+            allowHTML: false
           }}
         >
           {props.row.recovery}
@@ -2077,7 +2089,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   ])
                 : '',
             disabled: !props.row.triggerConfig,
-            delay: 200
+            delay: 200,
+            allowHTML: false
           }}
         >
           {props.row.trigger}
@@ -2595,7 +2608,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                         boundary: 'window',
                         disabled: !this.isBatchItemDisabled(option),
                         content: () => this.batchItemDisabledTip(option),
-                        delay: 200
+                        delay: 200,
+                        allowHTML: false
                       }}
                       onClick={() =>
                         this.authority.MANAGE_AUTH &&

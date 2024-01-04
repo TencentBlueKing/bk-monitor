@@ -173,7 +173,7 @@
     <span
       class="is-error"
       v-if="errorMsg"
-      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip' }"
+      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip', allowHTML: false }"
     />
     <div
       v-if="hasResize"
@@ -838,12 +838,20 @@ export default class MonitorEcharts extends Vue {
               if (optionData.options.toolbox) {
                 this.initChartAction();
                 this.chart.on('dataZoom', async (event) => {
-                  if (this.showTitleTool) {
-                    this.loading = true;
+                  this.loading = true;
                     const [batch] = event.batch;
                     if (batch.startValue && batch.endValue) {
                       const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-                      const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      if (!this.showTitleTool) {
+                        const dataPoints = this.seriesData?.[0]?.datapoints;
+                        if(dataPoints?.length) {
+                          const maxX = dataPoints[dataPoints.length - 1]?.[1];
+                          if(+batch.endValue.toFixed(0) === maxX) {
+                            timeTo = dayjs().format('YYYY-MM-DD HH:mm');
+                          }
+                        }
+                      }
                       this.timeRange = [timeFrom, timeTo];
                       if (this.getSeriesData) {
                         this.chart.dispatchAction({
@@ -858,11 +866,31 @@ export default class MonitorEcharts extends Vue {
                       this.$emit('data-zoom', this.timeRange);
                     }
                     this.loading = false;
-                  } else {
-                    this.chart.dispatchAction({
-                      type: 'restore'
-                    });
-                  }
+                  // if (this.showTitleTool) {
+                  //   this.loading = true;
+                  //   const [batch] = event.batch;
+                  //   if (batch.startValue && batch.endValue) {
+                  //     const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                  //     const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                  //     this.timeRange = [timeFrom, timeTo];
+                  //     if (this.getSeriesData) {
+                  //       this.chart.dispatchAction({
+                  //         type: 'restore'
+                  //       });
+                  //       if (this.enableSelectionRestoreAll) {
+                  //         this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
+                  //       } else {
+                  //         await this.handleSeriesData(timeFrom, timeTo);
+                  //       }
+                  //     }
+                  //     this.$emit('data-zoom', this.timeRange);
+                  //   }
+                  //   this.loading = false;
+                  // } else {
+                  //   this.chart.dispatchAction({
+                  //     type: 'restore'
+                  //   });
+                  // }
                 });
               }
               this.initChartEvent();
