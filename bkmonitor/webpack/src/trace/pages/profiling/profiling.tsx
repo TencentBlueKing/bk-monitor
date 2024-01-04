@@ -26,6 +26,7 @@
 
 import { defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Form, Sideslider } from 'bkui-vue';
 
 import { debounce } from '../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
@@ -83,14 +84,28 @@ export default defineComponent({
         favoriteState.isShow = status;
       }
     }
+    /**
+     * 顶部左侧工具栏数据改变
+     * @param val 工具栏数据
+     */
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
       handleQueryDebounce();
     }
 
+    /**
+     * 查询表单数据改变
+     * @param val 表单数据
+     */
     function handleSearchFormDataChange(val: SearchState['formData']) {
       searchState.formData = val;
       handleQueryDebounce();
+    }
+
+    const detailShow = ref(false);
+    /** 展示详情侧边栏 */
+    function handleShowDetail() {
+      detailShow.value = true;
     }
 
     function handleAutoQueryChange(val: boolean) {
@@ -115,6 +130,7 @@ export default defineComponent({
       favoriteState,
       searchState,
       toolsFormData,
+      detailShow,
       handleToolFormDataChange,
       handleShowTypeChange,
       handleAutoQueryChange,
@@ -122,7 +138,8 @@ export default defineComponent({
       handleQueryClear,
       handleAddFavorite,
       handleSearchFormDataChange,
-      handleDataTypeChange
+      handleDataTypeChange,
+      handleShowDetail
     };
   },
 
@@ -197,6 +214,7 @@ export default defineComponent({
               <RetrievalSearch
                 formData={this.searchState.formData}
                 onChange={this.handleSearchFormDataChange}
+                onShowDetail={this.handleShowDetail}
               >
                 {{
                   query: () => (
@@ -215,6 +233,46 @@ export default defineComponent({
           )}
           <div class='view-wrap'>{renderView()}</div>
         </div>
+
+        <Sideslider
+          isShow={this.detailShow}
+          onUpdate:isShow={val => (this.detailShow = val)}
+          quick-close
+          width={400}
+          ext-cls='profiling-detail-sideslider'
+        >
+          {{
+            header: () => (
+              <div class='profiling-detail-header'>
+                <span class='title'>{this.t('基础信息')}</span>
+                <span class='jump-link'>
+                  {this.t('Profile 接入文档')}
+                  <i class='icon-monitor icon-fenxiang'></i>
+                </span>
+              </div>
+            ),
+            default: () => (
+              <div class='profiling-detail-content'>
+                <Form labelWidth={144}>
+                  <Form.FormItem label={`${this.t('模块名称')}:`}>rideshare-app-dotnet</Form.FormItem>
+                  <Form.FormItem label={`${this.t('所属应用')}:`}>
+                    rideshare-app
+                    <span class='jump-link'>
+                      {this.t('应用详情')}
+                      <i class='icon-monitor icon-fenxiang'></i>
+                    </span>
+                  </Form.FormItem>
+                  <Form.FormItem label={`${this.t('采样频率')}:`}>99 Hz</Form.FormItem>
+                  <Form.FormItem label={`${this.t('上报数据类型')}:`}>***SDK</Form.FormItem>
+                  <Form.FormItem label={`${this.t('SDK版本')}:`}>1.1.0</Form.FormItem>
+                  <Form.FormItem label={`${this.t('数据语言')}:`}>java</Form.FormItem>
+                  <Form.FormItem label={`${this.t('创建时间')}:`}>2023-10-31 12:49:34</Form.FormItem>
+                  <Form.FormItem label={`${this.t('最近上报时间')}:`}>2023-10-31 12:49:34</Form.FormItem>
+                </Form>
+              </div>
+            )
+          }}
+        </Sideslider>
       </div>
     );
   }

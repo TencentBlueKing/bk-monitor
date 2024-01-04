@@ -45,7 +45,7 @@ export default defineComponent({
       default: () => null
     }
   },
-  emits: ['change'],
+  emits: ['change', 'showDetail'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const retrievalType = [
@@ -80,6 +80,11 @@ export default defineComponent({
       if (localFormData.type === type) return;
       localFormData.type = type;
       handleEmitChange();
+    }
+
+    function handleDetailClick() {
+      // if (!localFormData.server) return;
+      emit('showDetail');
     }
 
     /**
@@ -135,6 +140,7 @@ export default defineComponent({
       localFormData,
       retrievalType,
       handleTypeChange,
+      handleDetailClick,
       handleComparisonChange,
       addCondition,
       handleConditionChange
@@ -163,6 +169,12 @@ export default defineComponent({
                 <div class='label'>{this.t('应用/服务')}</div>
                 <div class='content'>
                   <ApplicationCascade></ApplicationCascade>
+                  <div
+                    class='detail-btn'
+                    onClick={this.handleDetailClick}
+                  >
+                    <i class='icon-monitor icon-mc-detail'></i>
+                  </div>
                 </div>
               </div>
             )}
