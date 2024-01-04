@@ -457,7 +457,7 @@ CELERY_TASK_EXECUTE_TIME = Histogram(
     name="bkmonitor_celery_task_execute_time",
     documentation="celery 任务执行耗时",
     labelnames=("task_name", "queue", "status"),
-    buckets=(1, 3, 5, 10, 30, 60, 300, INF),
+    buckets=(0.1, 0.5, 1, 3, 5, 10, 30, 60, 300, 1800, INF),
 )
 
 TOTAL_TAG = "__total__"
