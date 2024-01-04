@@ -1166,9 +1166,15 @@ class SearchHandler(object):
             took = result_up["took"] + result_down["took"]
             new_list = result_up["list"] + result_down["list"]
             origin_log_list = result_up["origin_log_list"] + result_down["origin_log_list"]
+            target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
+            sort_fields = self.index_set_obj.sort_fields if self.index_set_obj else []
             if self.scenario_id == Scenario.ES:
                 analyze_result_dict: dict = self._analyze_context_result(
-                    new_list, target_fields=self.index_set_obj.target_fields, sort_fields=self.index_set_obj.sort_fields
+                    new_list, target_fields=target_fields, sort_fields=sort_fields
+                )
+            elif self.scenario_id == Scenario.BKDATA and target_fields and sort_fields:
+                analyze_result_dict: dict = self._analyze_context_result(
+                    new_list, target_fields=target_fields, sort_fields=sort_fields
                 )
             else:
                 analyze_result_dict: dict = self._analyze_context_result(
@@ -1818,7 +1824,7 @@ class SearchHandler(object):
         # find the search one
         _index: int = -1
         _count_start: int = -1
-        if self.scenario_id == Scenario.BKDATA:
+        if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
             for index, item in enumerate(log_list):
                 gseindex: str = item.get("gseindex")
                 ip: str = item.get("ip")
@@ -1880,7 +1886,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
-        if self.scenario_id == Scenario.ES and target_fields and sort_fields:
+        if self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
             for index, item in enumerate(log_list):
                 _sort_value = item.get(sort_fields[0])
                 check_value = self.search_dict.get(sort_fields[0])
