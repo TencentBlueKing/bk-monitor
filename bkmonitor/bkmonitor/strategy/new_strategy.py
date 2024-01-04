@@ -2329,7 +2329,7 @@ class Strategy(AbstractConfig):
 
         # 查询关联自愈套餐
         action_config_ids = list(action_config_ids)
-        if len(action_config_ids) > 100:
+        if len(action_config_ids) > 500:
             action_query = ActionConfig.objects.all()
         else:
             action_query = ActionConfig.objects.filter(id__in=action_config_ids)

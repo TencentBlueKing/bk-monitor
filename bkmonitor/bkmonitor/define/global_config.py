@@ -143,7 +143,13 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="APM应用ES索引集默认切分大小", default=500)),
         ("APM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="APM应用默认副本数", default=0)),
         ("APM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="APM应用默认索引分片数", default=3)),
-        ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="")),
+        ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
+        ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
+        (
+            "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
+            slz.IntegerField(label=_("APM应用操作BkdataFlow时拉取运行状态的最大操作次数"), default=10),
+        ),
+        ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label=_("APM尾部采样项目id"), default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),
@@ -257,6 +263,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
         ("INNER_COLLOCTOR_HOST", slz.CharField(label="collector内网域名", default="")),
         ("OUTER_COLLOCTOR_HOST", slz.CharField(label="collector外网域名", default="")),
+        ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
     ]
 )
 

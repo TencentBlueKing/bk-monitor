@@ -736,7 +736,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 <span
                   v-bk-tooltips={{
                     content: item.tips,
-                    extCls: 'garfana-link-tips'
+                    extCls: 'garfana-link-tips',
+                    allowHTML: false
                   }}
                   class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}

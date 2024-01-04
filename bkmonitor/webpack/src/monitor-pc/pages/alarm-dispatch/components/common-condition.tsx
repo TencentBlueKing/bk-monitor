@@ -1287,7 +1287,8 @@ export default class CommonCondition extends tsc<IProps> {
                   class='common-tag tag-key'
                   v-bk-tooltips={{
                     content: item.id,
-                    placements: ['top']
+                    placements: ['top'],
+                    allowHTML: false
                   }}
                   key={`${item.id}_${index}`}
                   onClick={e => this.handleClickKeyTag(e, item, index)}
@@ -1312,7 +1313,8 @@ export default class CommonCondition extends tsc<IProps> {
                     class='common-tag tag-value'
                     v-bk-tooltips={{
                       content: item.id,
-                      placements: ['top']
+                      placements: ['top'],
+                      allowHTML: false
                     }}
                     key={`${item.id}_${index}`}
                     onClick={e => this.handleClickValueTag(e, item, index)}
@@ -1394,7 +1396,8 @@ export default class CommonCondition extends tsc<IProps> {
                       v-bk-tooltips={{
                         content: item.id,
                         placements: ['right'],
-                        disabled: this.isAbsoluteOpts || !!item?.isGroupKey
+                        disabled: this.isAbsoluteOpts || !!item?.isGroupKey,
+                        allowHTML: false
                       }}
                       onClick={() => this.handleOptionClick(item)}
                       onMouseenter={e => this.handleOptionMouseEnter(e, item)}
@@ -1468,7 +1471,8 @@ export default class CommonCondition extends tsc<IProps> {
                     onMousedown={() => this.handleClickSecondKey(item)}
                     v-bk-tooltips={{
                       content: item.id,
-                      placements: ['right']
+                      placements: ['right'],
+                      allowHTML: false
                     }}
                   >
                     <span>{item.name}</span>

@@ -189,6 +189,13 @@ class EventPluginInstance(AbstractRecordModel):
     def event_plugin(self):
         return EventPluginV2.objects.get(plugin_id=self.plugin_id, version=self.version)
 
+    @cached_property
+    def collect_type(self):
+        """
+        接收类型
+        """
+        return self.ingest_config.get("collect_type")
+
     @property
     def updatable(self):
         """
