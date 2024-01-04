@@ -29,11 +29,6 @@ class CustomTSGroupCacheManager(CacheManager):
     def get(cls, bk_data_id):
         """
         根据配置ID获取采集配置
-        :param config_id:
-        :return: dict
-        {
-            "name": "Mysql配置"
-        }
         """
         protocol = cls.cache.get(cls.format_key(bk_data_id))
         if not protocol:
