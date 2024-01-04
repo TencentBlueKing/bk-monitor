@@ -172,7 +172,6 @@ export default {
     return {
       active: 'ignoreNumbers',
       clusterSwitch: false, // 日志聚类开关
-      configID: -1, // 采集项ID
       exhibitAll: false, // 是否显示nav
       isClickFingerNav: false, // 是否点击过数据指纹nav
       globalLoading: false, // 日志聚类大loading
@@ -260,6 +259,9 @@ export default {
     signatureSwitch() { // 数据指纹开关
       return this.configData.extra?.signature_switch;
     },
+    configID() {
+      return this.cleanConfig.extra?.collector_config_id;
+    },
   },
   watch: {
     configData: {
@@ -270,8 +272,7 @@ export default {
         // 日志聚类开关赋值
         this.clusterSwitch = val.is_active;
         // 数据指纹开关赋值
-        this.fingerOperateData.signatureSwitch = val.extra.signature_switch;
-        this.configID = this.cleanConfig.extra?.collector_config_id;
+        this.fingerOperateData.signatureSwitch = this.signatureSwitch;
         this.isClickFingerNav = false;
         // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
         if (this.active === 'dataFingerprint' && this.signatureSwitch) {
@@ -445,7 +446,7 @@ export default {
         return;
       };
       // 无清洗 去清洗
-      if (this.configID && this.configID > 0) {
+      if (!!this.configID) {
         this.$router.push({
           name: 'clean-edit',
           params: { collectorId: this.configID },

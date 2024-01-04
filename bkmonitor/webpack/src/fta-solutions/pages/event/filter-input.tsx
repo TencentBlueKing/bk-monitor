@@ -28,8 +28,8 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Input } from 'bk-magic-vue';
-import { addListener, removeListener } from 'resize-detector';
 
 import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
 import { getEventPaths } from '../../../monitor-pc/utils';
@@ -93,7 +93,12 @@ class FilterText {
   separator = ' ';
   fieldKey: FilterText;
   fieldValue: FilterText;
-  constructor(public text: string, public startOffset: number, public dataType: string, separator?: string) {
+  constructor(
+    public text: string,
+    public startOffset: number,
+    public dataType: string,
+    separator?: string
+  ) {
     this.endOffset = startOffset + text.length;
     this.separator = separator || ' ';
     if (dataType === 'field' && /\./.test(text)) {

@@ -86,6 +86,7 @@ if (window.__BK_WEWEB_APP_KEY__) {
       });
       mergeSpaceList(window.space_list);
       window.username = window.uin;
+      window.user_name = window.uin;
       window.cc_biz_id = +window.bk_biz_id;
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       const bizId = setGlobalBizId();
@@ -120,7 +121,9 @@ if (window.__BK_WEWEB_APP_KEY__) {
             window[key.toLocaleLowerCase()] = data[key];
           });
         });
-      serviceWorker.register();
     })
-    .catch(e => console.error(e));
+    .catch(e => console.error(e))
+    .finally(() => {
+      serviceWorker.immediateRegister();
+    });
 }

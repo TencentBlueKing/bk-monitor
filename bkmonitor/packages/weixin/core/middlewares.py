@@ -60,31 +60,13 @@ def get_bk_user(request):
 
 
 class WeixinProxyPatchMiddleware(MiddlewareMixin):
-    """
-    解决多级nginx代理下遇到的最外层nginx的`X-Forwarded-Host`设置失效问题
-    思路：单独设置一个头，并根据该头覆盖`X-Forwarded-Host`
-
-    # django.http.request +73
-
-    def get_host(self):
-        '''Returns the HTTP host using the environment or request headers.'''
-        # We try three options, in order of decreasing preference.
-        if settings.USE_X_FORWARDED_HOST and (
-                'HTTP_X_FORWARDED_HOST' in self.META):
-            host = self.META['HTTP_X_FORWARDED_HOST']
-            ...
-    """
-
     def process_request(self, request):
-
         # 非微信访问，跳过中间件
         if not weixin_account.is_weixin_visit(request):
             setattr(request, "source", "web")
             setattr(request, "is_weixin", False)
             return None
 
-        # if settings.X_FORWARDED_WEIXIN_HOST in request.META:
-        # request.META['HTTP_X_FORWARDED_HOST'] = request.META[settings.X_FORWARDED_WEIXIN_HOST]
         setattr(request, "is_weixin", True)
         setattr(request, "source", "mobile")
         return None
@@ -92,7 +74,6 @@ class WeixinProxyPatchMiddleware(MiddlewareMixin):
 
 class WeixinAuthenticationMiddleware(MiddlewareMixin):
     def process_request(self, request):
-
         if not getattr(request, "is_weixin", False):
             return None
 

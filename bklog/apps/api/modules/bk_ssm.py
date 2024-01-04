@@ -16,11 +16,12 @@ NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
+from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
+
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
 from config.domains import BK_SSM_ROOT
-from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
 
 
 class _BkSSM:

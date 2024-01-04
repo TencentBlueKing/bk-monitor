@@ -78,6 +78,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Array, default: () => [] }) scenarioList: any;
   /* 自定义参数 */
   @Prop({ type: Boolean, default: false }) isPromql: boolean;
+  /* 默认选择的监控对象 */
+  @Prop({ type: String, default: '' }) defaultScenario: string;
   @Ref() metricScrollWrap: HTMLElement;
 
   loading = false;
@@ -252,7 +254,13 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   initData() {
-    this.checkededValue = {};
+    if (!!this.defaultScenario) {
+      this.checkededValue = {
+        result_table_label: [this.defaultScenario]
+      };
+    } else {
+      this.checkededValue = {};
+    }
     this.metricList = [];
     if (!this.isRefreshSuccess) {
       this.search = '';
@@ -362,9 +370,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   /* 复制指标名 */
-  handleCopyMetricMame(value: string) {
+  handleCopyMetricMame(metric: MetricDetail) {
+    const copyStr = metric.promql_metric;
     let hasErr = false;
-    copyText(value, errMsg => {
+    copyText(copyStr, errMsg => {
       this.$bkMessage({
         message: errMsg,
         theme: 'error'
@@ -728,7 +737,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             }}
             onClick={e => {
               e.stopPropagation();
-              this.handleCopyMetricMame(obj.id);
+              this.handleCopyMetricMame(item);
             }}
           ></span>
           {/* <span class="icon-monitor icon-fenxiang"

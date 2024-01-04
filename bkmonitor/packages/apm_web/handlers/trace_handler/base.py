@@ -30,14 +30,13 @@ from apm_web.constants import (
     EbpfTapSideType,
     SpanSourceCategory,
     Status,
-    TraceWaterFallDisplayKey,
 )
 from apm_web.handlers.trace_handler.display_handler import DisplayHandler
 from apm_web.handlers.trace_handler.virtual_span import VirtualSpanHandler
 from apm_web.icon import TraceIcon, get_icon_url
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import group_by, percentile
-from constants.apm import OtlpKey, SpanKind
+from constants.apm import OtlpKey, SpanKind, TraceWaterFallDisplayKey
 from core.unit import load_unit
 
 
@@ -54,7 +53,7 @@ class ErrorPredicate(AttributePredicate):
 
     @classmethod
     def predicate(cls, attribute_key, attribute_value):
-        if attribute_value == _("ERROR"):
+        if attribute_value == "ERROR":
             return True
         return False
 
@@ -222,12 +221,23 @@ class TraceHandler:
         return display_spans
 
     @classmethod
-    def handle_trace(cls, app_name, trace_data: list, trace_id: str, relation_mapping: dict, displays: list = None):
-        if displays is None:
-            displays = [TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY]
+    def build_new_resource(cls, resource: dict) -> dict:
+        new_resource = {}
+        for k, v in resource.items():
+            if isinstance(v, (list, set)):
+                new_resource[k] = tuple(v)
+            elif isinstance(v, dict):
+                new_resource[k] = cls.build_new_resource(v)
+            else:
+                new_resource[k] = v
+        return new_resource
 
-        if not displays:
-            return {}
+    @classmethod
+    def handle_trace(cls, app_name, trace_data: list, trace_id: str, relation_mapping: dict, displays: list = None):
+        # otel data must be in displays choice
+        displays = displays or []
+        if TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY not in displays:
+            displays.append(TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY)
 
         # 节点隐藏处理
         trace_data = cls.display_filter(trace_data, displays)
@@ -327,7 +337,8 @@ class TraceHandler:
             if service_name:
                 service_span_mapping.setdefault(service_name, []).append(span)
 
-            resource_key = tuple(span[OtlpKey.RESOURCE].items())
+            tem_resource = cls.build_new_resource(span[OtlpKey.RESOURCE])
+            resource_key = tuple(tem_resource.items())
             if resource_key not in resources_set:
                 resources_set.add(resource_key)
                 resources.append(span[OtlpKey.RESOURCE])

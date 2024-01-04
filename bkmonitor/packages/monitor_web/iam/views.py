@@ -12,10 +12,11 @@ import abc
 import operator
 from functools import reduce
 
-from apm_web.models import Application
 from django.db.models import Q
+from iam import DjangoQuerySetConverter
 from iam.resource.provider import ListResult, ResourceProvider
 
+from apm_web.models import Application
 from bk_dataview.api import get_org_by_id, get_org_by_name
 from bk_dataview.models import Dashboard
 from bkm_space.define import SpaceTypeEnum
@@ -23,7 +24,6 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import ResourceEnum
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from iam import DjangoQuerySetConverter
 from metadata.models import Space, SpaceType
 
 
@@ -232,7 +232,6 @@ class SpaceProvider(BaseResourceProvider):
         return ListResult(results=results, count=queryset.count())
 
     def list_instance_by_policy(self, filter, page, **options):
-
         expression = filter.expression
         if not expression:
             return ListResult(results=[], count=0)
@@ -254,7 +253,8 @@ class SpaceProvider(BaseResourceProvider):
 
 class GrafanaDashboardProvider(BaseResourceProvider):
     def list_instance(self, filter, page, **options):
-        queryset = Dashboard.objects.all()
+        queryset = Dashboard.objects.filter(is_folder=False)
+        folder_queryset = Dashboard.objects.filter(is_folder=True)
 
         # 业务过滤
         if filter.parent and filter.parent["id"]:
@@ -262,6 +262,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             if not org:
                 return ListResult(results=[], count=0)
             queryset = queryset.filter(org_id=org["id"])
+            folder_queryset = folder_queryset.filter(org_id=org["id"])
 
         # 关键字搜索
         if filter.search:
@@ -269,10 +270,14 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             if keywords:
                 queryset = queryset.filter(reduce(operator.or_, [Q(title__icontains=keyword) for keyword in keywords]))
 
+        folders = {folder.id: folder.title for folder in folder_queryset}
         results = []
         org_map = {}
         for dashboard in queryset[page.slice_from : page.slice_to]:
-            result = {"id": str(dashboard.uid), "display_name": dashboard.title}
+            result = {
+                "id": f"{dashboard.org_id}|{dashboard.uid}",
+                "display_name": f"{folders.get(dashboard.folder_id, 'General')}/{dashboard.title}",
+            }
 
             # 返回结果需要带上资源拓扑路径信息
             if filter.resource_type_chain:
