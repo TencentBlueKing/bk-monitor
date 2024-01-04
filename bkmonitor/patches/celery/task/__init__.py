@@ -18,50 +18,53 @@ __implements__ = ["task", "periodic_task"]
 
 
 # 函数计时器
-def timer(func: typing.Callable, queue: str = None):
+def timer(queue: str = None) -> typing.Callable[[typing.Callable], typing.Callable]:
     """
     函数计时器
     """
     if not queue:
         queue = "celery"
 
-    def wrapper(*args, **kwargs):
+    def actual_timer(func) -> typing.Callable:
         from core.prometheus import metrics
 
-        result, exception = None, None
-        start_time = time.time()
-        try:
-            result = func(*args, **kwargs)
-        except Exception as e:  # noqa
-            exception = e
+        def wrapper(*args, **kwargs):
+            result, exception = None, None
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+            except Exception as e:  # noqa
+                exception = e
 
-        # 记录函数执行时间
-        metrics.CELERY_TASK_EXECUTE_TIME.labels(
-            task_name=func.__name__,
-            queue=queue,
-            status="failed" if exception else "success",
-        ).observe(time.time() - start_time)
-        metrics.report_all()
+            # 记录函数执行时间
+            metrics.CELERY_TASK_EXECUTE_TIME.labels(
+                task_name=func.__name__,
+                queue=queue,
+                status="failed" if exception else "success",
+            ).observe(time.time() - start_time)
+            metrics.report_all()
 
-        # 如果函数执行失败，抛出异常
-        if exception:
-            raise exception
-        return result
-
-    return wrapper
+            # 如果函数执行失败，抛出异常
+            if exception:
+                raise exception
+            return result
+        return wrapper
+    return actual_timer
 
 
 def task(*args, **kwargs):
     """Deprecated decorator, please use :func:`celery.task`."""
-    if callable(args[0]):
-        args = (timer(args[0], kwargs.get("queue")),) + args[1:]
+    decorator = _task(*args, **kwargs)
 
-    return _task(*args, **kwargs)
+    def wrapper(func):
+        return decorator(timer(queue=kwargs.get("queue"))(func))
+    return wrapper
 
 
 def periodic_task(*args, **options):
     """Deprecated decorator, please use :setting:`beat_schedule`."""
-    if callable(args[0]):
-        args = (timer(args[0], options.get("queue")),) + args[1:]
+    decorator = _periodic_task(*args, **options)
 
-    return _periodic_task(*args, **options)
+    def wrapper(func):
+        return decorator(timer(queue=options.get("queue"))(func))
+    return wrapper
