@@ -536,8 +536,9 @@ export default class AlarmGroup extends tsc<IGroupList> {
           v-bk-tooltips={{
             placements: ['top-start'],
             boundary: 'window',
-            content: () => rules.map(item => item.name).join('、'),
-            delay: 200
+            content: rules.map(item => item.name).join('、'),
+            delay: 200,
+            allowHTML: false
           }}
         >
           {rules.map(item => (
