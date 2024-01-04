@@ -14,6 +14,8 @@ import typing
 from celery.task import periodic_task as _periodic_task
 from celery.task import task as _task
 
+__implements__ = ["task", "periodic_task"]
+
 
 # 函数计时器
 def timer(func: typing.Callable, queue: str = None):
