@@ -10,13 +10,13 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.utils.translation import ugettext as _
-from monitor_web.models.plugin import CollectorPluginMeta
-from monitor_web.plugin.manager import BuiltInPluginManager
-from monitor_web.plugin.serializers import ProcessSerializer
 
 from constants.strategy import DataTarget
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
+from monitor_web.models.plugin import CollectorPluginMeta
+from monitor_web.plugin.manager import BuiltInPluginManager
+from monitor_web.plugin.serializers import ProcessSerializer
 
 
 class BuildInProcessDimension(object):
@@ -54,8 +54,8 @@ class BuildInProcessMetric(object):
         "process.perf.memory_rss_pct": (_("物理内存使用率"), "percentunit"),
         "process.perf.memory_share": (_("共享内存"), "bytes"),
         "process.perf.memory_size": (_("虚拟内存"), "bytes"),
-        "process.perf.fd_limit_hard": (_("fd_limit_hard"), "short"),
-        "process.perf.fd_limit_soft": (_("fd_limit_soft"), "short"),
+        "process.perf.fd_limit_hard": ("fd_limit_hard", "short"),
+        "process.perf.fd_limit_soft": ("fd_limit_soft", "short"),
         "process.perf.fd_open": (_("打开的文件描述符数量"), "short"),
         "process.perf.cpu_system": (_("进程占用系统态时间"), "ms"),
         "process.perf.cpu_total_ticks": (_("整体占用时间"), "ms"),
@@ -150,7 +150,10 @@ class ProcessPluginManager(BuiltInPluginManager):
         for metric_field in self.metric_info[ts_name]["metric_list"]:
             metric_dict = {
                 "field_name": metric_field,
-                "tag_list": self.metric_info[ts_name]["dimensions"] + self.build_in_dimensions,
+                "tag_list": [
+                    {"field_name": dimension, "unit": "none", "type": "string", "description": dimension}
+                    for dimension in self.metric_info[ts_name]["dimensions"] + self.build_in_dimensions
+                ],
             }
             metric_info_list.append(metric_dict)
         return metric_info_list

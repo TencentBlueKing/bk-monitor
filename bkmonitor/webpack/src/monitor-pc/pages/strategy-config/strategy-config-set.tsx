@@ -54,7 +54,7 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
   }
   async beforeRouteLeave(to, from, next) {
     const allowJumpMap = ['alarm-group-add', 'alarm-group-edit', 'strategy-config', 'set-meal-add', 'set-meal-edit'];
-    if (this.needCheck && !allowJumpMap.includes(to.name)) {
+    if (this.needCheck && !allowJumpMap.includes(to.name) && this.$store.getters.bizIdChangePedding !== to.name) {
       const needNext = await this.handleCancel(false);
       if (needNext) {
         destroyTimezone();

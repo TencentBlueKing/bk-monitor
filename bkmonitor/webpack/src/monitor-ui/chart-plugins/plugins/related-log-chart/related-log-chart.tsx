@@ -129,8 +129,6 @@ class RelatedLogChart extends CommonSimpleChart {
     this.unregisterOberver();
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
-    console.log(this.panel.options?.related_log_chart?.defaultKeyword, 2333);
-
     this.keyword = this.panel.options?.related_log_chart?.defaultKeyword ?? this.keyword;
     // 先用 log_predicate 接口判断日志类型 蓝鲸日志平台 or 第三方其他日志
     const predicateLogTarget = this.panel.targets.find(item => item.dataType === 'log_predicate');
@@ -490,7 +488,8 @@ class RelatedLogChart extends CommonSimpleChart {
                     v-bk-tooltips={{
                       content: this.selectedOptionAlias,
                       theme: 'light',
-                      placement: 'top-start'
+                      placement: 'top-start',
+                      allowHTML: false
                     }}
                   >
                     {this.relatedIndexSetList.map(option => (

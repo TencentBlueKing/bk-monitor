@@ -254,6 +254,14 @@ export const getRouteConfig = () => {
               href: '#/alarm-group'
             },
             {
+              name: '轮值',
+              icon: 'icon-monitor icon-lunliu menu-icon',
+              id: 'rotation',
+              path: '/trace/rotation',
+              canStore: true,
+              href: '#/trace/rotation'
+            },
+            {
               name: '指标管理',
               icon: 'icon-monitor icon-mc-custom-scene menu-icon',
               id: 'metrics-manager',
@@ -472,8 +480,8 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             name: '发送历史',
             icon: 'icon-monitor icon-mc-history menu-icon',
             id: 'email-subscriptions-history',
-            path: '/email-subscriptions-history',
-            href: '#/email-subscriptions-history',
+            path: '/email-subscriptions/history',
+            href: '#/email-subscriptions/history',
             hidden: false,
             canStore: true
           }

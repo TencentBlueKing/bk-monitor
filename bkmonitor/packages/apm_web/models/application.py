@@ -32,8 +32,8 @@ from apm_web.constants import (
     DefaultSamplerConfig,
     TraceMode,
 )
-from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
+from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.metric_handler import RequestCountInstance
 from apm_web.utils import group_by
 from bkmonitor.iam import Permission, ResourceEnum
@@ -330,6 +330,14 @@ class Application(AbstractRecordModel):
             raise ValueError("application({}) not found".format(app_name))
 
     @classmethod
+    def get_application_by_app_id(cls, application_id):
+        instance = cls.objects.filter(application_id=application_id).first()
+        if not instance:
+            raise ValueError(f"application(id: {application_id}) not found.")
+
+        return instance
+
+    @classmethod
     @atomic
     def create_application(
         cls,
@@ -530,7 +538,7 @@ class Application(AbstractRecordModel):
         ApmMetaConfig.application_config_setup(self.application_id, self.APDEX_CONFIG_KEY, apdex_value)
 
     def setup_config(self, config, new_config, config_key, override=False):
-        if override:
+        if not override and isinstance(config, dict):
             config.update(new_config)
         else:
             config = new_config

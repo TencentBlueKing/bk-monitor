@@ -139,6 +139,57 @@ export const SPACE_TYPE_MAP = {
   }
 };
 
+export const SPACE_FIRST_CODE_COLOR_MAP = {
+  bkcc: {
+    dark: {
+      backgroundColor: '#3A84FF'
+    },
+    light: {
+      backgroundColor: '#3A84FF'
+    }
+  },
+  default: {
+    dark: {
+      backgroundColor: '#63656E'
+    },
+    light: {
+      backgroundColor: '#63656E'
+    }
+  },
+  bkci: {
+    dark: {
+      backgroundColor: '#FF5656'
+    },
+    light: {
+      backgroundColor: '#FF5656'
+    }
+  },
+  bcs: {
+    dark: {
+      backgroundColor: '#FF9C01'
+    },
+    light: {
+      backgroundColor: '#FF9C01'
+    }
+  },
+  paas: {
+    dark: {
+      backgroundColor: '#2DCB56'
+    },
+    light: {
+      backgroundColor: '#2DCB56'
+    }
+  },
+  bksaas: {
+    dark: {
+      backgroundColor: '#2DCB56'
+    },
+    light: {
+      backgroundColor: '#2DCB56'
+    }
+  }
+};
+
 export const DEFAULT_TIME_RANGE_LIST = [
   {
     name: window.i18n.t('近{n}分钟', { n: 5 }),

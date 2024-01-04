@@ -529,7 +529,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // this.addDefaultAlarmHandling();
   }
   deactivated() {
-    this.isMultivariateAnomalyDetection = false;
     this.clearErrorMsg();
     (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
   }
@@ -885,7 +884,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.baseConfigEl?.clearErrorMsg();
     this.detectionRulesEl?.clearErrorMsg();
     this.alarmHandlingListRef?.clearError();
-    this.noticeConfigRef.clearError();
+    this.noticeConfigRef?.clearError();
     // this.alarmHandlingRef?.clearErrorMsg();
     // this?.alarmHandlingRef?.clearErrorMsg();
   }
@@ -901,6 +900,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     this.loading = true;
     this.strategyId = 0;
+    this.isMultivariateAnomalyDetection = false;
     const promiseList = [];
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
@@ -2639,7 +2639,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 <div
                   v-bk-tooltips={{
                     disabled: this.submitBtnTipDisabled,
-                    content: this.$t('未选择监控数据')
+                    content: this.$t('未选择监控数据'),
+                    allowHTML: false
                   }}
                 >
                   <bk-button

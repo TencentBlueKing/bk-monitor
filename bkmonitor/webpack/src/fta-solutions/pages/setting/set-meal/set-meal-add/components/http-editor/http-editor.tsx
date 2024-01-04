@@ -608,7 +608,10 @@ export default class HttpEditor extends tsc<IHttpEditor> {
         {hideCount ? (
           <div class='handle-hide-defult'>
             <i
-              v-bk-tooltips={this.headerHideTips[`${isHide}`]}
+              v-bk-tooltips={{
+                content: this.headerHideTips[`${isHide}`],
+                allowHTML: false
+              }}
               class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
               onClick={() => (this.curHeaderData.hide = !isHide)}
             ></i>

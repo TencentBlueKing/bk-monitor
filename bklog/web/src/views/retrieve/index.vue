@@ -1350,7 +1350,7 @@ export default {
         // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
         if (columnObj?.[bizId] && columnObj[bizId].indexsetIds?.includes(indexId)) return;
 
-        if (this.tableData.list.length && this.visibleFields.length) {
+        if (this.tableData?.list.length && this.visibleFields.length) {
           this.visibleFields.forEach((field) => {
             field.width = calculateTableColsWidth(field, this.tableData.list);
           });
@@ -1518,9 +1518,9 @@ export default {
         });
     },
     initToolTipsMessage(config) {
-      const { contextAndRealtime, bkmonitor } = config;
+      const { contextAndRealtime, bcsWebConsole } = config;
       return {
-        monitorWeb: bkmonitor.is_active ? this.$t('监控告警') : bkmonitor?.extra.reason,
+        webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra.reason,
         realTimeLog: contextAndRealtime.is_active ? this.$t('实时日志') : contextAndRealtime?.extra.reason,
         contextLog: contextAndRealtime.is_active ? this.$t('上下文') : contextAndRealtime?.extra.reason,
       };

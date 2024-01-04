@@ -267,23 +267,7 @@ export default class SearchComp extends tsc<IProps> {
     if (isHaveIP) {
       this.pushCondition('ip-select', '', ipChooser, chooserSwitch);
     }
-    // 如果初始化时没有路由传过来的条件则默认展示path和log条件
-    if (!addition.length) {
-      // log / path 操作默认展示
-      addition = this.filterFields
-        .filter(item => ['path', 'log'].includes(item.name))
-        .map(item => ({
-          field: item.name,
-          operator: item.operator,
-          value: '',
-          isInclude: true,
-        }));
-    }
-    addition.forEach((el) => {
-      const { field, operator, value, isInclude } = el;
-      this.pushCondition(field, operator, value, isInclude);
-    });
-
+    this.initAdditionDefault(addition);
     this.setRouteParams(isHaveIP ? ipChooser : {});
   }
 
@@ -376,6 +360,25 @@ export default class SearchComp extends tsc<IProps> {
   clearAllCondition() {
     this.conditionList = [];
     this.setRouteParams({}, true);
+  }
+
+  initAdditionDefault(addition = []) {
+    // 如果初始化时没有路由传过来的条件则默认展示path和log条件
+    if (!addition.length) {
+      // log / path 操作默认展示
+      addition = this.filterFields
+        .filter(item => ['path', 'log'].includes(item.name))
+        .map(item => ({
+          field: item.name,
+          operator: item.operator,
+          value: '',
+          isInclude: true,
+        }));
+    }
+    addition.forEach((el) => {
+      const { field, operator, value, isInclude } = el;
+      this.pushCondition(field, operator, value, isInclude);
+    });
   }
 
   /**

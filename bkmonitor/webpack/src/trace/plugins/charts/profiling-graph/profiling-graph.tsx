@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
-import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { profileQuery } from '../../../../monitor-api/modules/apm_profile';
@@ -231,33 +231,33 @@ export default defineComponent({
                   tipDetail.value = {};
                 },
                 onMouseDown: () => {
-                    // function mousemove(e: MouseEvent) {
-                    //   const width = e.pageX - event.pageX;
-                    //   if (width > 0) {
-                    //     zoomRect.value = {
-                    //       left: Math.min(event.pageX - svgRect.x, svgRect.width) + paddingLeft,
-                    //       width: Math.min(width, svgRect.width - event.pageX + svgRect.x)
-                    //     };
-                    //   } else {
-                    //     zoomRect.value = {
-                    //       left: Math.max(e.pageX - svgRect.x, 0) + paddingLeft,
-                    //       width: Math.min(Math.abs(width), event.pageX - svgRect.x)
-                    //     };
-                    //   }
-                    // }
-                    // function mouseup() {
-                    //   initScale();
-                    //   graphInstance.timeZoomGraph(zoomRect.value.left - paddingLeft, zoomRect.value.width);
-                    //   document.removeEventListener('mousemove', mousemove);
-                    //   document.removeEventListener('mouseup', mouseup);
-                    //   zoomRect.value = {
-                    //     left: 0,
-                    //     width: 0
-                    //   };
-                    // }
-                    // document.addEventListener('mousemove', mousemove);
-                    // document.addEventListener('mouseup', mouseup);
-                  }
+                  // function mousemove(e: MouseEvent) {
+                  //   const width = e.pageX - event.pageX;
+                  //   if (width > 0) {
+                  //     zoomRect.value = {
+                  //       left: Math.min(event.pageX - svgRect.x, svgRect.width) + paddingLeft,
+                  //       width: Math.min(width, svgRect.width - event.pageX + svgRect.x)
+                  //     };
+                  //   } else {
+                  //     zoomRect.value = {
+                  //       left: Math.max(e.pageX - svgRect.x, 0) + paddingLeft,
+                  //       width: Math.min(Math.abs(width), event.pageX - svgRect.x)
+                  //     };
+                  //   }
+                  // }
+                  // function mouseup() {
+                  //   initScale();
+                  //   graphInstance.timeZoomGraph(zoomRect.value.left - paddingLeft, zoomRect.value.width);
+                  //   document.removeEventListener('mousemove', mousemove);
+                  //   document.removeEventListener('mouseup', mouseup);
+                  //   zoomRect.value = {
+                  //     left: 0,
+                  //     width: 0
+                  //   };
+                  // }
+                  // document.addEventListener('mousemove', mousemove);
+                  // document.addEventListener('mouseup', mouseup);
+                }
               },
               chartRef.value
             );
@@ -487,22 +487,19 @@ export default defineComponent({
                       {this.diffTraceId && (
                         <thead>
                           <th></th>
-                          <th>{window.i18n.tc('当前')}</th>
-                          {this.tipDetail.id !== RootId && [
-                            <th>{window.i18n.tc('参照')}</th>,
-                            <th>{window.i18n.tc('差异')}</th>
-                          ]}
+                          <th>{this.$t('当前')}</th>
+                          {this.tipDetail.id !== RootId && [<th>{this.$t('参照')}</th>, <th>{this.$t('差异')}</th>]}
                         </thead>
                       )}
                       <tbody>
                         {!this.diffTraceId && (
                           <tr>
-                            <td>{window.i18n.tc('占比')}</td>
+                            <td>{this.$t('占比')}</td>
                             <td>{this.tipDetail.proportion}%</td>
                           </tr>
                         )}
                         <tr>
-                          <td>{window.i18n.tc('耗时')}</td>
+                          <td>{this.$t('耗时')}</td>
                           <td>{this.tipDetail.duration}</td>
                           {this.diffTraceId &&
                             this.tipDetail.id !== RootId && [
@@ -520,7 +517,7 @@ export default defineComponent({
                     </table>,
                     <div class='tips-info'>
                       <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
-                      {window.i18n.tc('鼠标右键有更多菜单')}
+                      {this.$t('鼠标右键有更多菜单')}
                     </div>
                   ]}
                 </div>
