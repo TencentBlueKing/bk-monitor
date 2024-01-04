@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import time
 import typing
+from functools import wraps
 
 from celery.task import periodic_task as _periodic_task
 from celery.task import task as _task
@@ -28,6 +29,7 @@ def timer(queue: str = None) -> typing.Callable[[typing.Callable], typing.Callab
     def actual_timer(func) -> typing.Callable:
         from core.prometheus import metrics
 
+        @wraps(func)
         def wrapper(*args, **kwargs):
             result, exception = None, None
             start_time = time.time()
