@@ -12,6 +12,8 @@ import logging
 from dataclasses import asdict, dataclass, field, fields
 
 from django.conf import settings
+
+from bkmonitor.dataflow.constant import AccessStatus
 from monitor.models import ApplicationConfig
 from monitor_web.aiops.ai_setting.constant import (
     AI_SETTING_APPLICATION_CONFIG_KEY,
@@ -21,8 +23,6 @@ from monitor_web.aiops.ai_setting.constant import (
     METRIC_RECOMMEND,
     MULTIVARIATE_ANOMALY_DETECTION,
 )
-
-from bkmonitor.dataflow.constant import AccessStatus
 
 logger = logging.getLogger("monitor_web")
 
@@ -103,6 +103,7 @@ class DimensionDrill(BaseAnomalyConfig):
 class MetricRecommend(BaseAnomalyConfig):
     # 指标推荐
     is_enabled: bool = field(default=False)
+    result_table_id: str = field(default="")
 
 
 class AiSetting:
