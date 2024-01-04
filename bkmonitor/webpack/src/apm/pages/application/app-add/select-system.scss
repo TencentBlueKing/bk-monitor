@@ -99,34 +99,80 @@
     padding: 24px 32px;
     background-color: #fff;
 
+    .bk-label {
+      font-size: 12px;
+    }
+
     .bk-form-content {
       width: 480px;
     }
 
+    .link-text {
+      margin-left: 4px;
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      .icon-monitor {
+        margin-left: 4px;
+      }
+    }
+
+    .form-item-tips {
+      margin-left: 20px;
+
+      .icon-monitor {
+        margin-right: 4px;
+      }
+    }
+
     .app-add-plugin-radio {
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      padding: 6px 12px;
+      justify-content: space-between;
+      padding: 7px 16px;
       margin-right: 12px;
       cursor: pointer;
-      background-color: #f5f7fa;
-      border: 1px solid #f5f7fa;
+      border: 1px solid #dcdee5;
       border-radius: 2px;
       transition: all .3s;
 
-      &.selected {
-        background-color: #e1ecff;
-        border: 1px solid #3a84ff;
+      &:first-child {
+        margin-bottom: 12px;
+      }
+
+      .plugin-info {
+        display: flex;
+        align-items: center;
+
+        .plugin-name {
+          margin-left: 16px;
+          display: flex;
+          flex-direction: column;
+          font-size: 14px;
+          line-height: 24px;
+
+          .desc {
+            font-size: 12px;
+            color: #979ba5;
+          }
+        }
       }
 
       img {
         width: 24px;
         height: 24px;
       }
+    }
 
-      span {
-        margin-left: 12px;
-        color: #313238;
+    .log2Trace-container {
+      margin: 8px 0 32px 104px;
+      padding: 24px 0;
+      width: 800px;
+      background-color: #f5f7fa;
+
+      .bk-select {
+        background-color: #fff;
       }
     }
 
