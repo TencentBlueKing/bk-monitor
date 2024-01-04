@@ -301,7 +301,6 @@ VARIABLES = [
             {"name": "target.host.bk_bak_operator_string", "desc": _lazy("备份负责人"), "example": "admin,user1"},
             {"name": "target.host.bk_comment", "desc": _lazy("备注信息"), "example": "comment"},
             {"name": "target.host.bk_host_name", "desc": _lazy("主机名"), "example": "VM_1,VM_2"},
-            {"name": "target.host.bk_host_innerips", "desc": _lazy("内网IP"), "example": "127.0.0.1,127.0.0.2"},
             {"name": "target.service_instance.service_instance_id", "desc": _lazy("服务实例ID"), "example": "1"},
             {"name": "target.service_instance.name", "desc": _lazy("服务实例名"), "example": "xxx_127.0.1.11"},
             {"name": "target.service_instances.service_instance_id", "desc": _lazy("服务实例ID"), "example": "1,2"},
