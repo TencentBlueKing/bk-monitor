@@ -1475,23 +1475,30 @@ export default class CommonCondition extends tsc<IProps> {
               {(() => {
                 /* key可选项列表 */
                 if (this.selectType === TypeEnum.key) {
-                  return this.curList.map((item, index) => (
-                    <div
-                      key={index}
-                      class={['list-item', { mt1: !!item?.isGroupKey }]}
-                      // v-bk-tooltips={{
-                      //   content: item.id,
-                      //   placements: ['right'],
-                      //   disabled: !!item?.isGroupKey,
-                      //   delay: [300, 0]
-                      // }}
-                      onMousedown={() => this.handleSelectKey(item)}
-                      onMouseenter={e => this.handleKeyMouseEnter(e, item)}
-                    >
-                      <span>{item.name}</span>
-                      {!!item?.isGroupKey && <span class='right icon-monitor icon-arrow-right'></span>}
-                    </div>
-                  ));
+                  const results = this.curList.filter(
+                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
+                  );
+                  return results.length ? (
+                    results.map((item, index) => (
+                      <div
+                        key={index}
+                        class={['list-item', { mt1: !!item?.isGroupKey }]}
+                        // v-bk-tooltips={{
+                        //   content: item.id,
+                        //   placements: ['right'],
+                        //   disabled: !!item?.isGroupKey,
+                        //   delay: [300, 0]
+                        // }}
+                        onMousedown={() => this.handleSelectKey(item)}
+                        onMouseenter={e => this.handleKeyMouseEnter(e, item)}
+                      >
+                        <span>{item.name}</span>
+                        {!!item?.isGroupKey && <span class='right icon-monitor icon-arrow-right'></span>}
+                      </div>
+                    ))
+                  ) : (
+                    <div class='no-data-item'>{this.$t('暂无数据')}</div>
+                  );
                 }
                 /* 连接符可选项 */
                 if (this.selectType === TypeEnum.method || this.selectType === TypeEnum.condition) {
@@ -1519,11 +1526,11 @@ export default class CommonCondition extends tsc<IProps> {
                 if (this.selectType === TypeEnum.value) {
                   if (this.tagList[this.curIndex[0]]?.condition?.field === strategyField) {
                     /* 策略的样式特殊 */
-                    return this.curList
-                      .filter(
-                        item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
-                      )
-                      .map((item, index) => (
+                    const results = this.curList.filter(
+                      item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
+                    );
+                    return results.length ? (
+                      results.map((item, index) => (
                         <div
                           key={index}
                           class={['list-item', { 'is-check': !!item?.isCheck }]}
@@ -1544,11 +1551,16 @@ export default class CommonCondition extends tsc<IProps> {
                           </span>
                           {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small'></span>}
                         </div>
-                      ));
+                      ))
+                    ) : (
+                      <div class='no-data-item'>{this.$t('暂无数据')}</div>
+                    );
                   }
-                  return this.curList
-                    .filter(item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1)
-                    .map((item, index) => (
+                  const results = this.curList.filter(
+                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
+                  );
+                  return results.length ? (
+                    results.map((item, index) => (
                       <div
                         key={index}
                         class={['list-item', { 'is-check': !!item?.isCheck }]}
@@ -1564,7 +1576,10 @@ export default class CommonCondition extends tsc<IProps> {
                         <span>{item.name}</span>
                         {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small'></span>}
                       </div>
-                    ));
+                    ))
+                  ) : (
+                    <div class='no-data-item'>{this.$t('暂无数据')}</div>
+                  );
                 }
               })()}
             </div>

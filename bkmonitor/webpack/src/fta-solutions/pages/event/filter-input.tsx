@@ -270,7 +270,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       },
       {
         id: 'tags',
-        name: this.$t('标签'),
+        name: this.$t('维度'),
         special: true
       },
       {
