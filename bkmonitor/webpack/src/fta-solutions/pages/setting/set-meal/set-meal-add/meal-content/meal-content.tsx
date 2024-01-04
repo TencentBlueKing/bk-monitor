@@ -295,7 +295,6 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       let v = '';
       const value = peripheralData[item.key];
       const varList = this.getVariableStrList(value); // 字符串内的变量
-      console.log(varList, templateListMap);
       const hasVar = !!varList.length; // 是否含有变量
       const subTitle = hasVar ? varList.join(',') : '';
       if (hasVar) {
