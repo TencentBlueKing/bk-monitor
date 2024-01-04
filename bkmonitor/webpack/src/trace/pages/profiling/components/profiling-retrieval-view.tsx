@@ -24,17 +24,50 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
+import { Button } from 'bkui-vue';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
+import { retrievalDataTypeList } from '../typings/profiling-retrieval';
+
+import TrendChart from './trend-chart';
 
 import './profiling-retrieval-view.scss';
 
 export default defineComponent({
   name: 'ProfilingRetrievalView',
+  props: {
+    dataType: {
+      type: String,
+      default: 'cpu'
+    }
+  },
+  emits: ['update:dataType'],
   setup() {},
   render() {
     return (
       <div class='profiling-retrieval-view-component'>
+        <div class='data-type'>
+          {this.$t('数据类型')}
+          <Button.ButtonGroup
+            class='data-type-list'
+            size='small'
+          >
+            {retrievalDataTypeList.map(item => {
+              return (
+                <Button
+                  key={item.id}
+                  selected={item.id === this.dataType}
+                  onClick={() => {
+                    this.$emit('update:dataType', item.id);
+                  }}
+                >
+                  {item.name}
+                </Button>
+              );
+            })}
+          </Button.ButtonGroup>
+        </div>
+        <TrendChart />
         <ProfilingGraph />
       </div>
     );

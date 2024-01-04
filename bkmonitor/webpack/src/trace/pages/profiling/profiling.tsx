@@ -69,7 +69,8 @@ export default defineComponent({
         comparisonWhere: []
       }
     });
-    const isEmpty = ref(true);
+    const isEmpty = ref(false);
+    const dataType = ref('cpu');
     /**
      * 检索面板和收藏面板显示状态切换
      * @param type 面板类型
@@ -104,10 +105,13 @@ export default defineComponent({
       if (!isBtnClick && !searchState.autoQuery) return;
       isEmpty.value = false;
     }
-
+    function handleDataTypeChange(v: string) {
+      dataType.value = v;
+    }
     return {
       t,
       isEmpty,
+      dataType,
       favoriteState,
       searchState,
       toolsFormData,
@@ -117,7 +121,8 @@ export default defineComponent({
       handleQuery,
       handleQueryClear,
       handleAddFavorite,
-      handleSearchFormDataChange
+      handleSearchFormDataChange,
+      handleDataTypeChange
     };
   },
 
@@ -137,7 +142,13 @@ export default defineComponent({
           </div>
         );
 
-      if (this.searchState.formData.type === SearchType.Profiling) return <ProfilingRetrievalView />;
+      if (this.searchState.formData.type === SearchType.Profiling)
+        return (
+          <ProfilingRetrievalView
+            dataType={this.dataType}
+            onUpdate:dataType={this.handleDataTypeChange}
+          />
+        );
 
       return <UploadRetrievalView formData={this.searchState.formData} />;
     };

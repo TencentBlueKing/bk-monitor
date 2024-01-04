@@ -48,3 +48,22 @@ export interface RetrievalFormData {
   where: ConditionItem[];
   comparisonWhere: ConditionItem[];
 }
+
+export const retrievalDataTypeList = [
+  {
+    id: 'cpu',
+    name: 'CPU'
+  },
+  {
+    id: 'mem',
+    name: 'MEM'
+  },
+  {
+    id: 'alloc',
+    name: 'ALLOC'
+  },
+  {
+    id: 'mutex',
+    name: 'MUTEX'
+  }
+] as const;
