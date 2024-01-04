@@ -44,6 +44,7 @@ import {
   transformMealContentParams
 } from './meal-content-data';
 import PeripheralSystem from './peripheral-system';
+import { setVariableToString } from './utils';
 
 import './meal-content.scss';
 
@@ -244,10 +245,41 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         break;
       case 'webhook':
         this.debugData.webhook = deepClone(this.data.webhook);
+        this.getHttpCallbackVariables();
         break;
     }
     this.debugData.type = type;
     this.isShowDebug = true;
+  }
+
+  /* 获取http回调变量数据 */
+  getHttpCallbackVariables() {
+    const templateListMap = new Map();
+    this.getMessageTemplateList.forEach(template => {
+      templateListMap.set(template.id, template);
+    });
+    const setVariable = obj => {
+      const tempObj = {};
+      const objKeys = Object.keys(obj);
+      objKeys.forEach(key => {
+        if (typeof obj[key] === 'string') {
+          tempObj[key] = setVariableToString(templateListMap, obj[key]);
+        } else if (typeof obj[key] === 'object') {
+          if (Array.isArray(obj[key])) {
+            tempObj[key] = [];
+            obj[key].forEach(item => {
+              tempObj[key].push(setVariable(item));
+            });
+          } else {
+            tempObj[key] = setVariable(obj[key]);
+          }
+        } else {
+          tempObj[key] = obj[key];
+        }
+      });
+      return tempObj;
+    };
+    this.debugData.webhook = setVariable(this.debugData.webhook);
   }
 
   // 获取调试变量数据
@@ -263,6 +295,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       let v = '';
       const value = peripheralData[item.key];
       const varList = this.getVariableStrList(value); // 字符串内的变量
+      console.log(varList, templateListMap);
       const hasVar = !!varList.length; // 是否含有变量
       const subTitle = hasVar ? varList.join(',') : '';
       if (hasVar) {
@@ -491,6 +524,9 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                     ref='httpCallBackRef'
                     isEdit={true}
                     value={this.data.webhook}
+                    variableList={this.getMessageTemplateList}
+                    validatorHasVariable={true}
+                    pluginId={this.data.id}
                     onChange={data => this.handleHttpCallBackChange(data)}
                     onDebug={() => this.handleDebug('webhook')}
                   ></HttpCallBack>
