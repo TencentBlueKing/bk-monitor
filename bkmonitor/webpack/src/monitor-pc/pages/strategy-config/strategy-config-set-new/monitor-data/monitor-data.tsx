@@ -561,7 +561,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                                 );
                               })()
                             : tabContent(item.id),
-                        disabled: isTabDisabled(item.id) ? false : this.dataMode !== item.id
+                        disabled: isTabDisabled(item.id) ? false : this.dataMode !== item.id,
+                        allowHTML: false
                         // disabled: !this.metricData?.every(item => item.metric_field)
                         //  || !isTabDisabled(item.id)
                         //  || this.readonly

@@ -169,7 +169,8 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
                         content: this.currentLayout.name,
                         delay: 200,
                         disabled: !!this.showLayoutName,
-                        appendTo: 'parent'
+                        appendTo: 'parent',
+                        allowHTML: false
                       }}
                     ></i>
                     {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}
