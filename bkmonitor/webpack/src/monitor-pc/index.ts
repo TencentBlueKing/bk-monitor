@@ -51,7 +51,7 @@ import store from './store/store';
 import '../monitor-static/icons/monitor-icons.css';
 import './static/css/reset.scss';
 import './static/css/global.scss';
-// import './common/externals';
+import './common/externals';
 // app 标识
 window.source_app = 'monitor';
 // 全局图表数量变量

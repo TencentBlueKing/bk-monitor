@@ -132,14 +132,14 @@ module.exports = async (baseConfig, { production, app }) => {
         '@common': path.resolve('./src/monitor-common/'),
       }
     },
-    // externals: app === 'apm' ? {
-    //   bkMagicVue: 'bk-magic-vue',
-    //   vueI18n: 'vue-i18n',
-    //   vueRouter: 'vue-router',
-    //   vueClassComponent: "vue-class-component",
-    //   vuePopertyDecorator: "vue-property-decorator",
-    //   vueTsxSupport: "vue-tsx-support",
-    //   vuexModuleDecorators: "vuex-module-decorators",
-    // }: {},
+    externals: app === 'apm' ? {
+      bkMagicVue: 'bk-magic-vue',
+      vueI18n: 'vue-i18n',
+      vueRouter: 'vue-router',
+      vueClassComponent: "vue-class-component",
+      vuePopertyDecorator: "vue-property-decorator",
+      vueTsxSupport: "vue-tsx-support",
+      vuexModuleDecorators: "vuex-module-decorators",
+    }: {},
   };
 };
