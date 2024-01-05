@@ -91,8 +91,8 @@ class InfluxdbStorager(Storager):
             "content": {
                 "keys": [
                     {"key": "host_name", "name": _("主机实例")},
-                    {"key": "influxdb_httpd_req_1h_increase", "name": _("最近1小时服务端请求数")},
-                    {"key": "influxdb_httpd_server_error_1h_increase", "name": _("最近1小时服务端错误数")},
+                    {"key": "influxdb_httpd_req_1h_increase", "name": _("服务端请求数(近1小时)")},
+                    {"key": "influxdb_httpd_server_error_1h_increase", "name": _("服务端错误数(近1小时)")},
                     {"key": "influxdb_runtime_sys", "name": _("内存占用量")},
                 ],
                 "values": [],
@@ -104,8 +104,8 @@ class InfluxdbStorager(Storager):
             "content": {
                 "keys": [
                     {"key": "database", "name": _("库名")},
-                    {"key": "influxdb_shard_write_points_ok_1h_increase", "name": _("最近1小时写入成功点数")},
-                    {"key": "influxdb_shard_write_point_err_1h_increase", "name": _("最近1小时写入失败点数")},
+                    {"key": "influxdb_shard_write_points_ok_1h_increase", "name": _("写入成功点数(近1小时)")},
+                    {"key": "influxdb_shard_write_point_err_1h_increase", "name": _("写入失败点数(近1小时)")},
                     {"key": "influxdb_shard_disk_bytes", "name": _("磁盘占用量")},
                     {"key": "influxdb_database_num_series", "name": _("Series数量")},
                 ],
