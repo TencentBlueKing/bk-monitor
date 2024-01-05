@@ -24,11 +24,18 @@
  * IN THE SOFTWARE.
  */
 
+import { TranslateResult } from 'vue-i18n';
+
 export enum ViewModeType {
   Table = 'table',
   Combine = 'combine',
   Flame = 'flame',
   Topo = 'topo'
+}
+
+export enum TextDirectionType {
+  Ltr = 'ltr',
+  Rtl = 'rtl'
 }
 
 export interface ViewModeItem {
@@ -41,11 +48,16 @@ export interface ProfilingTableItem {
   self: string;
   Total: string;
   color?: string;
+  diff?: string;
+  baseline?: string;
+  comparison?: string;
 }
 
 export interface TableColumn {
   id: string;
-  sort: string;
+  name: string | TranslateResult;
+  sort?: string;
+  mode?: 'normal' | 'diff';
 }
 
 export interface ITableTipsDetail {

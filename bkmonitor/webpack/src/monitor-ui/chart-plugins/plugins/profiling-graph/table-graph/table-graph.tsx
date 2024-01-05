@@ -23,24 +23,33 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { PROFILING_TABLE_DATA } from '../../../../../trace/plugins/charts/profiling-graph/mock.ts';
-import { ITableTipsDetail, ProfilingTableItem, TableColumn } from '../../../typings';
+import { PROFILING_TABLE_DATA } from '../../../../../trace/plugins/charts/profiling-graph/mock';
+import { ITableTipsDetail, ProfilingTableItem, TableColumn, TextDirectionType } from '../../../typings';
 
 import './table-graph.scss';
 
+interface ITableChartProps {
+  textDirection: TextDirectionType;
+}
 @Component
-export default class ProfilingTableChart extends tsc<{}> {
+export default class ProfilingTableChart extends tsc<ITableChartProps> {
+  @Prop({ required: true, type: String }) textDirection: TextDirectionType;
+
   /** 表格数据 */
   tableData: ProfilingTableItem[] = PROFILING_TABLE_DATA;
   tableColumns: TableColumn[] = [
-    { id: 'Location', sort: '' },
-    { id: 'Self', sort: '' },
-    { id: 'Total', sort: '' }
+    { id: 'Location', name: 'Location', sort: '' },
+    { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
+    { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
+    { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
+    { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
+    { id: 'diff', name: 'Diff', mode: 'diff', sort: '' }
   ];
   tipDetail: ITableTipsDetail = {};
+  diffMode = false;
 
   getColStyle(row: ProfilingTableItem) {
     const { color } = row;
@@ -87,21 +96,22 @@ export default class ProfilingTableChart extends tsc<{}> {
   render() {
     return (
       <div class='profiling-table-graph'>
-        <table class='profiling-table'>
+        <table class={`profiling-table ${this.diffMode ? 'diff-table' : ''}`}>
           <thead>
-            <tr>
-              {this.tableColumns.map(col => (
-                <th onClick={() => this.handleSort(col)}>
-                  <div class='thead-content'>
-                    <span>{col.id}</span>
-                    <div class='sort-button'>
-                      <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`}></i>
-                      <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`}></i>
+            {this.tableColumns.map(
+              col =>
+                (!col.mode || (this.diffMode && col.mode === 'diff') || (!this.diffMode && col.mode === 'normal')) && (
+                  <th onClick={() => this.handleSort(col)}>
+                    <div class='thead-content'>
+                      <span>{col.name}</span>
+                      <div class='sort-button'>
+                        <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`}></i>
+                        <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`}></i>
+                      </div>
                     </div>
-                  </div>
-                </th>
-              ))}
-            </tr>
+                  </th>
+                )
+            )}
           </thead>
           <tbody>
             {this.tableData.map(row => (
@@ -115,12 +125,22 @@ export default class ProfilingTableChart extends tsc<{}> {
                       class='color-reference'
                       style={`background-color: ${row.color}`}
                     ></span>
-                    <span>{row.location}</span>
+                    <span class={`text direction-${this.textDirection}`}>{row.location}</span>
                     {/* <div class='trace-mark'>Trace</div> */}
                   </div>
                 </td>
-                <td style={this.getColStyle(row)}>{row.self}</td>
-                <td style={this.getColStyle(row)}>{row.Total}</td>
+                {this.diffMode
+                  ? [
+                      <td>59%</td>,
+                      <td>59%</td>,
+                      <td>
+                        <span class={`diff-value ${false ? 'is-rise' : 'is-decline'}`}>+45%</span>
+                      </td>
+                    ]
+                  : [
+                      <td style={this.getColStyle(row)}>{row.self}</td>,
+                      <td style={this.getColStyle(row)}>{row.Total}</td>
+                    ]}
               </tr>
             ))}
           </tbody>

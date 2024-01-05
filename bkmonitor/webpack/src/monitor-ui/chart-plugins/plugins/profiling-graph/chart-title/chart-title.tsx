@@ -27,20 +27,23 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { DropdownMenu, Input } from 'bk-magic-vue';
 
-import { ViewModeItem, ViewModeType } from '../../../typings/profiling-graph';
+import { TextDirectionType, ViewModeItem, ViewModeType } from '../../../typings/profiling-graph';
 
 import './chart-title.scss';
 
 interface IChartTitleProps {
   activeMode: ViewModeType;
+  textDirection: TextDirectionType;
 }
 interface IChartTitleEvent {
   onModeChange: ViewModeType;
+  onTextDirectionChange: TextDirectionType;
 }
 
 @Component
 export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> {
   @Prop({ required: true, type: String }) activeMode: string;
+  @Prop({ required: true, type: String }) textDirection: string;
 
   downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
   viewModeList: ViewModeItem[] = [
@@ -49,15 +52,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     { id: ViewModeType.Flame, icon: 'mc-flame' },
     { id: ViewModeType.Topo, icon: 'Component' }
   ];
-  ellipsisDirection = 'ltr';
 
   @Emit('modeChange')
   handleModeChange(val: ViewModeType) {
     return val;
   }
 
-  handleEllipsisDirectionChange(val: string) {
-    this.ellipsisDirection = val;
+  @Emit('textDirectionChange')
+  handleTextDirectionChange(val: TextDirectionType) {
+    return val;
   }
 
   render() {
@@ -75,18 +78,14 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         </div>
         <Input right-icon='bk-icon icon-search' />
         <div class='ellipsis-direction button-group'>
-          <div
-            class={`button-group-item ${this.ellipsisDirection === 'ltr' ? 'active' : ''}`}
-            onClick={() => this.handleEllipsisDirectionChange('ltr')}
-          >
-            <i class='icon-monitor icon-AB'></i>
-          </div>
-          <div
-            class={`button-group-item ${this.ellipsisDirection === 'rtl' ? 'active' : ''}`}
-            onClick={() => this.handleEllipsisDirectionChange('rtl')}
-          >
-            <i class='icon-monitor icon-YZ'></i>
-          </div>
+          {Object.values(TextDirectionType).map(item => (
+            <div
+              class={`button-group-item ${item === this.textDirection ? 'active' : ''}`}
+              onClick={() => this.handleTextDirectionChange(item)}
+            >
+              <i class={`icon-monitor icon-${item === TextDirectionType.Ltr ? 'AB' : 'YZ'}`}></i>
+            </div>
+          ))}
         </div>
 
         <DropdownMenu

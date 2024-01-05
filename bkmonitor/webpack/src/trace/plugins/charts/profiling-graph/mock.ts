@@ -28,19 +28,19 @@ import { ColorTypes } from '../flame-graph-v2/types';
 
 export const PROFILING_TABLE_DATA = [
   {
-    location: 'sync.(*Mutex).Unlock',
+    location: 'sync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlock',
     self: '0.4 years',
     Total: '0.35 years',
     color: Object.values(ColorTypes)[Math.floor(Math.random() * 10)]
   },
   {
-    location: 'sync.(*Mutex).Unlock',
+    location: 'sync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlock',
     self: '0.4 years',
     Total: '0.35 years',
     color: Object.values(ColorTypes)[Math.floor(Math.random() * 10)]
   },
   {
-    location: 'sync.(*Mutex).Unlock',
+    location: 'sync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlocksync.(*Mutex).Unlock',
     self: '0.4 years',
     Total: '0.35 years',
     color: Object.values(ColorTypes)[Math.floor(Math.random() * 10)]

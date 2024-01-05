@@ -31,9 +31,9 @@
       }
 
       &:not(:first-child) {
-        width: 200px;
-        min-width: 150px;
-        max-width: 150px;
+        width: 120px;
+        min-width: 120px;
+        max-width: 120px;
       }
     }
 
@@ -42,7 +42,7 @@
       height: 32px;
       color: #313238;
       font-weight: normal;
-      background: #F0F1F5;
+      background: #f0f1f5;
       cursor: pointer;
     }
 
@@ -105,6 +105,20 @@
     .location-info {
       display: flex;
       align-items: center;
+      width: 100%;
+      overflow: hidden;
+
+      .text {
+        flex: 1;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        &.direction-rtl {
+          direction: rtl;
+        }
+      }
 
       .color-reference {
         display: inline-block;
@@ -120,6 +134,29 @@
         background-color: #fff;
         color: #3A84FF;
         border-radius: 12px;
+      }
+    }
+
+    &.diff-value {
+      &.is-rise {
+        color: #ff5656;
+      }
+      &.is-decline {
+        color: #2dcb56;
+      }
+    }
+
+    // 差异表格
+    &.diff-table {
+      border-right: 0;
+      th,
+      td {
+        border: 0;
+        &:not(:first-child) {
+          width: 94px;
+          min-width: 94px;
+          max-width: 94px;
+        }
       }
     }
   }

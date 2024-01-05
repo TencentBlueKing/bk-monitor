@@ -27,6 +27,7 @@
 import { defineComponent, ref } from 'vue';
 
 import { ViewModeType } from '../../../../monitor-ui/chart-plugins/typings';
+import { DirectionType } from '../../../typings';
 
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
@@ -39,15 +40,21 @@ export default defineComponent({
   setup() {
     // 当前视图模式
     const activeMode = ref<ViewModeType>(ViewModeType.Combine);
+    const textDirection = ref<DirectionType>('ltr');
 
     /** 切换视图模式 */
     const handleModeChange = (val: ViewModeType) => {
       activeMode.value = val;
     };
+    const handleTextDirectionChange = (val: DirectionType) => {
+      textDirection.value = val;
+    };
 
     return {
       activeMode,
-      handleModeChange
+      textDirection,
+      handleModeChange,
+      handleTextDirectionChange
     };
   },
   render() {
@@ -55,11 +62,15 @@ export default defineComponent({
       <div class='profiling-graph'>
         <ChartTitle
           activeMode={this.activeMode}
+          textDirection={this.textDirection}
           onModeChange={this.handleModeChange}
+          onTextDirectionChange={this.handleTextDirectionChange}
         />
         <div class='profiling-graph-content'>
-          {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) ? <TableGraph /> : ''}
-          {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) ? (
+          {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
+            <TableGraph textDirection={this.textDirection} />
+          )}
+          {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
             <FrameGraph
               appName={'bkmonitor_production'}
               profileId={'3d0d77e0669cdb72'}
@@ -67,9 +78,8 @@ export default defineComponent({
               end={1703747948022443}
               bizId={2}
               showGraphTools={false}
+              textDirection={this.textDirection}
             />
-          ) : (
-            ''
           )}
         </div>
       </div>

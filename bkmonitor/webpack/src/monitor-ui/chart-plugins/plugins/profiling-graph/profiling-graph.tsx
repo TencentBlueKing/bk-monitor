@@ -27,7 +27,7 @@
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import { PanelModel, ViewModeType } from '../../typings';
+import { PanelModel, TextDirectionType, ViewModeType } from '../../typings';
 import { CommonSimpleChart } from '../common-simple-chart';
 
 import ChartTitle from './chart-title/chart-title';
@@ -46,9 +46,13 @@ class ProfilingChart extends CommonSimpleChart {
   emptyText = '查无数据';
   // 视图模式
   activeMode: ViewModeType = ViewModeType.Combine;
+  textDirection: TextDirectionType = TextDirectionType.Ltr;
 
   handleModeChange(val: ViewModeType) {
     this.activeMode = val;
+  }
+  handleTextDirectionChange(val: TextDirectionType) {
+    this.textDirection = val;
   }
 
   render() {
@@ -59,20 +63,23 @@ class ProfilingChart extends CommonSimpleChart {
       <div class='profiling-graph'>
         <ChartTitle
           activeMode={this.activeMode}
+          textDirection={this.textDirection}
           onModeChange={this.handleModeChange}
+          onTextDirectionChange={this.handleTextDirectionChange}
         />
         <div class='profiling-graph-content'>
-          {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) ? <TableGraph /> : ''}
-          {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) ? (
+          {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
+            <TableGraph textDirection={this.textDirection} />
+          )}
+          {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
             <FrameGraph
               appName={'bkmonitor_production'}
               profileId={'3d0d77e0669cdb72'}
               start={1703747947993154}
               end={1703747948022443}
               bizId={2}
+              textDirection={this.textDirection}
             />
-          ) : (
-            ''
           )}
         </div>
       </div>
