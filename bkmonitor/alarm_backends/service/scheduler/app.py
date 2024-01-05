@@ -11,10 +11,6 @@ specific language governing permissions and limitations under the License.
 
 
 import os
-import time
-import typing
-from functools import wraps, partial
-from types import MethodType
 
 import django
 import six.moves.urllib.error
@@ -28,6 +24,7 @@ from django.db import close_old_connections
 
 from alarm_backends.core.cluster import get_cluster
 from bkmonitor.utils.common_utils import package_contents
+from core.prometheus.tools import celery_app_timer
 
 try:
     # 加载后台动态配置
@@ -244,54 +241,7 @@ else:
 
 
 # 任务执行时间统计
-def task_timer(queue: str = None) -> typing.Callable[[typing.Callable], typing.Callable]:
-    """
-    函数计时器
-    """
-    if not queue:
-        queue = "celery"
-
-    def actual_timer(func) -> typing.Callable:
-        from core.prometheus import metrics
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            result, exception = None, None
-            start_time = time.time()
-            try:
-                result = func(*args, **kwargs)
-            except Exception as e:  # noqa
-                exception = e
-
-            # 记录函数执行时间
-            metrics.CELERY_TASK_EXECUTE_TIME.labels(
-                task_name=func.__name__,
-                queue=queue,
-                status="failed" if exception else "success",
-            ).observe(time.time() - start_time)
-            metrics.report_all()
-
-            # 如果函数执行失败，抛出异常
-            if exception:
-                raise exception
-            return result
-        return wrapper
-    return actual_timer
-
-
-# 保留原有的task装饰器，增加函数计时器
-app._old_task = app.task
-
-
-# hack
-def hack_task(self, *args, **kwargs):
-    def wrapper(func):
-        return self._old_task(*args, **kwargs)(task_timer(queue=kwargs.get("queue"))(func))
-
-    return wrapper
-
-
-app.task = MethodType(hack_task, app)
+celery_app_timer(app)
 
 
 TASK_ROOT_MODULES = [
