@@ -307,7 +307,7 @@
 <script lang="ts">
 import VueI18n, { TranslateResult } from 'vue-i18n';
 import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
-import { bkForm, bkFormItem } from 'bk-magic-vue';
+
 import Sortable from 'sortablejs';
 
 import { getDashboardList } from '../../../monitor-api/modules/grafana';
@@ -356,8 +356,8 @@ interface ITimeRangeObj {
 })
 export default class SubscriptionsSet extends Vue {
   @Prop({ default: '', type: [Number, String] }) readonly id: number | string;
-  @Ref('validateForm')readonly validateFormRef: bkForm;
-  @Ref('reportContentsFormItem')reportContentsFormItemRef: bkFormItem;
+  @Ref('validateForm')readonly validateFormRef: any;
+  @Ref('reportContentsFormItem')reportContentsFormItemRef: any;
   @Ref('receiverTarget')receiverTargetRef: Element;
 
   isLoading = false;

@@ -430,7 +430,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
             ></div>
           </bk-alert>
         )}
-        <Form
+        <bk-form
           ref='formRef'
           rules={this.rules}
           readonly={this.readonly}
@@ -438,7 +438,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
           label-width={126}
           onChange={this.handleFormValueChange}
           class='time-serise-forecast-wrap'
-        ></Form>
+        ></bk-form>
       </div>
     );
   }

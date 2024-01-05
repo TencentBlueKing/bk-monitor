@@ -26,7 +26,6 @@
 
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
-import { Button, Input, Select, Sideslider, Table, TableColumn } from 'bk-magic-vue';
 
 import { metricInfo } from '../../../../monitor-api/modules/apm_meta';
 import { getUnitList } from '../../../../monitor-api/modules/strategies';
@@ -263,14 +262,14 @@ export default class IndicatorDimension extends tsc<{}> {
     };
     const operatorSlot = {
       default: props => [
-        <Button
+        <bk-button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleRetrieve(props.row)}
         >
           {this.$t('检索')}
-        </Button>
+        </bk-button>
       ]
     };
 
@@ -281,7 +280,7 @@ export default class IndicatorDimension extends tsc<{}> {
             slot='headerTool'
             class='indicator-filter'
           >
-            <Select
+            <bk-select
               class='filter-select'
               clearable={false}
               v-model={this.localTimeValue}
@@ -318,8 +317,8 @@ export default class IndicatorDimension extends tsc<{}> {
                   </span>
                 )}
               </div>
-            </Select>
-            <Input
+            </bk-select>
+            <bk-input
               class='filter-input'
               v-model={this.keyword}
               clearable
@@ -328,7 +327,7 @@ export default class IndicatorDimension extends tsc<{}> {
               onClear={this.getmetricLst}
             />
           </div>
-          <Table
+          <bk-table
             outer-border={false}
             data={this.metricList}
             pagination={this.pagination}
@@ -336,40 +335,40 @@ export default class IndicatorDimension extends tsc<{}> {
             on-page-limit-change={this.handleLimitChange}
             v-bkloading={{ isLoading: this.loading }}
           >
-            <TableColumn
+            <bk-table-column
               label={this.$t('指标名')}
               scopedSlots={indicatorSlot}
-            ></TableColumn>
-            <TableColumn
+            ></bk-table-column>
+            <bk-table-column
               label={this.$t('指标别名')}
               scopedSlots={{ default: props => props.row.metric_display_name || '--' }}
-            ></TableColumn>
-            <TableColumn
+            ></bk-table-column>
+            <bk-table-column
               label={this.$t('指标类型')}
               width='100'
               scopedSlots={{ default: props => props.row.type }}
-            ></TableColumn>
-            <TableColumn
+            ></bk-table-column>
+            <bk-table-column
               label={this.$t('单位')}
               width='160'
               scopedSlots={{ default: props => this.getUnitText(props.row.unit) }}
-            ></TableColumn>
-            {/* <TableColumn
+            ></bk-table-column>
+            {/* <bk-table-column
             label="启/停"
             width="80"
             filters={this.statusFilter}
             scopedSlots={{ default: props => props.row.status }}>
-          </TableColumn> */}
-            <TableColumn
+          </bk-table-column> */}
+            <bk-table-column
               label={this.$t('操作')}
               width='120'
               scopedSlots={operatorSlot}
               key='operator'
-            ></TableColumn>
-          </Table>
+            ></bk-table-column>
+          </bk-table>
         </PanelItem>
 
-        <Sideslider
+        <bk-sideslider
           ext-cls='indicator-detail-sideslider'
           transfer={true}
           isShow={this.sideslider.isShow}
@@ -397,7 +396,7 @@ export default class IndicatorDimension extends tsc<{}> {
             unitList={this.unitList}
             on-update={val => (this.shouldUpdate = val)}
           />
-        </Sideslider>
+        </bk-sideslider>
       </div>
     );
   }

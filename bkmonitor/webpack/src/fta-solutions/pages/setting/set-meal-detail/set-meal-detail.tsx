@@ -26,7 +26,6 @@
 /* eslint-disable camelcase */
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Sideslider, Tab, Table, TableColumn, TabPanel } from 'bk-magic-vue';
 
 import { getPlugins, getPluginTemplates, getTemplateDetail } from '../../../../monitor-api/modules/action';
 import { retrieveActionConfig } from '../../../../monitor-api/modules/model';
@@ -82,7 +81,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
   @Prop({ default: 'fta', type: String }) strategyType: strategyType;
   @Prop({ default: false, type: Boolean }) needEditTips: boolean;
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
-  @Ref('strategyListWrap') strategyListWrapRef: Table;
+  @Ref('strategyListWrap') strategyListWrapRef: any;
 
   isLoading = false;
   detailInfo: any = {};
@@ -438,7 +437,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
     );
     return (
       <div class='set-meal-detail-wrap'>
-        <Sideslider
+        <bk-sideslider
           isShow={this.isShow}
           width={this.width}
           quickClose
@@ -522,16 +521,16 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                 >
                   {this.tplShowMore}
                   {this.strategyList.length ? (
-                    <Table
+                    <bk-table
                       max-height={400}
                       ref='strategyListWrap'
                       data={this.filterStrategyList}
                     >
-                      <TableColumn
+                      <bk-table-column
                         label={this.$t('策略名')}
                         formatter={formatter}
-                      ></TableColumn>
-                    </Table>
+                      ></bk-table-column>
+                    </bk-table>
                   ) : undefined}
                 </div>
               </div>
@@ -680,7 +679,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                   <div class='notice-form-container'>
                     <div class='notice-title'>{this.$t('告警阶段')}</div>
                     <div class='notice-item-wrap alert'>
-                      <Tab
+                      <bk-tab
                         active={this.noticeAlertActive}
                         labelHeight={42}
                         on-tab-change={(v: string) => {
@@ -691,13 +690,13 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                         {this.mealData.notice.alert
                           .map(item => ({ key: item.key, label: item.timeRange.join('-') }))
                           .map(item => (
-                            <TabPanel
+                            <bk-tab-panel
                               key={item.key}
                               name={item.key}
                               label={item.label}
-                            ></TabPanel>
+                            ></bk-tab-panel>
                           ))}
-                      </Tab>
+                      </bk-tab>
                       <div class='notice-tab-wrap'>
                         <div
                           class='content-form-item'
@@ -737,7 +736,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                       </div>
                     </div>
                     <div class='notice-item-wrap template'>
-                      <Tab
+                      <bk-tab
                         active={this.noticeTemplateActive}
                         labelHeight={42}
                         on-tab-change={(v: string) => {
@@ -748,13 +747,13 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                         {this.mealData.notice.template
                           .map(item => ({ key: item.signal, label: templateSignalName[item.signal] }))
                           .map(item => (
-                            <TabPanel
+                            <bk-tab-panel
                               key={item.key}
                               name={item.key}
                               label={item.label}
-                            ></TabPanel>
+                            ></bk-tab-panel>
                           ))}
-                      </Tab>
+                      </bk-tab>
                       <div class='notice-tab-wrap'>
                         <div
                           class='content-form-item'
@@ -783,7 +782,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                     </div>
                     <div class='notice-title execution'>{this.$t('执行通知')}</div>
                     <div class='notice-item-wrap execution'>
-                      <Tab
+                      <bk-tab
                         active={this.noticeExecutionActive}
                         labelHeight={42}
                         on-tab-change={(v: number) => {
@@ -794,13 +793,13 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                         {this.mealData.notice.execution
                           .map(item => ({ key: item.riskLevel, label: executionName[item.riskLevel] }))
                           .map(item => (
-                            <TabPanel
+                            <bk-tab-panel
                               key={item.key}
                               name={item.key}
                               label={item.label}
-                            ></TabPanel>
+                            ></bk-tab-panel>
                           ))}
-                      </Tab>
+                      </bk-tab>
                       <div class='notice-tab-wrap'>
                         <div
                           class='content-form-item-column'
@@ -829,7 +828,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
               }
             </div>
           </div>
-        </Sideslider>
+        </bk-sideslider>
       </div>
     );
   }

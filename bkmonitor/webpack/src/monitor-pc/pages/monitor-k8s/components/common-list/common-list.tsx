@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
-import { Button } from 'bk-magic-vue';
 
 import { Debounce, deepClone } from '../../../../../monitor-common/utils/utils';
 import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
@@ -338,12 +337,12 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
-          <Button
+          <bk-button
             class='reflesh-btn'
             onClick={this.handleRefresh}
           >
             <i class='icon-monitor icon-shuaxin'></i>
-          </Button>
+          </bk-button>
         </div>
         {this.isEnableStatusFilter && (
           <StatusTab

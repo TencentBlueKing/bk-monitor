@@ -26,7 +26,6 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { bkTag } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { toPerformanceDetail } from '../../../common/go-link';
@@ -42,10 +41,7 @@ interface IEvents {
   onAlarmDispatch?: () => void;
 }
 @Component({
-  name: 'BasicInfo',
-  components: {
-    bkTag
-  }
+  name: 'BasicInfo'
 })
 export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   @Prop({ type: Object, default: () => ({}) }) basicInfo: IDetail;

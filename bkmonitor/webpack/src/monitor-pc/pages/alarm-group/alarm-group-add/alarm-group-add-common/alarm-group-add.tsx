@@ -955,6 +955,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 {this.isShowOverInput && (
                   <div class='over-input'>
                     <img
+                      alt=''
                       src={this.loadingSvg}
                       class='status-loading'
                     />

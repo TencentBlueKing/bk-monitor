@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Table, TableColumn } from 'bk-magic-vue';
 
 import { random } from '../../../monitor-common/utils';
 
@@ -144,7 +143,7 @@ export default class InfluxdbChild extends tsc<IProps> {
               ></span>
             </div>
             <div class={['item-content', { active: item.isExpand }]}>
-              <Table
+              <bk-table
                 outer-border={false}
                 header-border={false}
                 {...{
@@ -156,16 +155,16 @@ export default class InfluxdbChild extends tsc<IProps> {
                 {item.data.columns.map(column => {
                   const key = `column_${column.id}`;
                   return (
-                    <TableColumn
+                    <bk-table-column
                       key={key}
                       prop={column.id}
                       label={column.name}
                       column-key={column.id}
                       formatter={(row, _column, _cellValue, index) => this.handleSetFormatter(column.id, row, index)}
-                    ></TableColumn>
+                    ></bk-table-column>
                   );
                 })}
-              </Table>
+              </bk-table>
             </div>
           </div>
         ))}

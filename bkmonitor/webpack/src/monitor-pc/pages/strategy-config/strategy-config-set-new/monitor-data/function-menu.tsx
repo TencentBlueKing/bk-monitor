@@ -71,8 +71,8 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
 
   get filterList() {
     if (!this.keyword) return this.list;
-    return this.list.filter(func =>
-      func?.children?.some(item => item.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
+    return this.list.filter(
+      func => func?.children?.some(item => item.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
     );
   }
   get activeFuncList() {

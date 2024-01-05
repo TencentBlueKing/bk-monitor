@@ -25,7 +25,6 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tab, Table, TableColumn, TabPanel } from 'bk-magic-vue';
 
 import SetMealAddModule from '../../../../../../store/modules/set-meal-add';
 
@@ -116,7 +115,7 @@ export default class VariableList extends tsc<IVariableListProps> {
     return (
       <div class='variable-content'>
         {this.variablePanels?.length ? (
-          <Tab
+          <bk-tab
             on-tab-change={this.handleTap}
             {...{
               props: {
@@ -126,15 +125,15 @@ export default class VariableList extends tsc<IVariableListProps> {
             }}
           >
             {this.variablePanels.map((item, index) => (
-              <TabPanel
+              <bk-tab-panel
                 {...{ props: item }}
                 key={index}
-              ></TabPanel>
+              ></bk-tab-panel>
             ))}
-          </Tab>
+          </bk-tab>
         ) : undefined}
         <div class='variable-table'>
-          <Table
+          <bk-table
             {...{
               props: {
                 data: this.variableTable[this.variableActive]
@@ -144,19 +143,19 @@ export default class VariableList extends tsc<IVariableListProps> {
             on-row-mouse-leave={this.handleRowLeave}
             on-row-click={this.handleRowClick}
           >
-            <TableColumn
+            <bk-table-column
               label={this.$t('变量名')}
               {...{ scopedSlots }}
-            ></TableColumn>
-            <TableColumn
+            ></bk-table-column>
+            <bk-table-column
               {...{
                 props: {
                   label: this.$t('含义'),
                   prop: 'desc'
                 }
               }}
-            ></TableColumn>
-          </Table>
+            ></bk-table-column>
+          </bk-table>
         </div>
       </div>
     );

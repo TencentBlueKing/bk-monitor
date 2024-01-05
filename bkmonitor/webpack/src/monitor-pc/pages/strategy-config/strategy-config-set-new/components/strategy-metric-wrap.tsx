@@ -31,7 +31,6 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, SearchSelect } from 'bk-magic-vue';
 
 import { getMetricListV2 } from '../../../../../monitor-api/modules/strategies';
 import { deepClone } from '../../../../../monitor-common/utils/utils';
@@ -460,7 +459,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
         <div v-bkloading={{ isLoading: this.isLoading }}>
           <div class='metric-wrap-common'>
             <div class='metric-handle-row'>
-              <SearchSelect
+              <bk-search-select
                 class='search-select'
                 v-model={this.searchData.keyWord}
                 showPopoverTagChange={false}
@@ -469,12 +468,12 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
                 placeholder={this.$t('关键字搜索')}
                 show-condition={false}
                 onChange={this.handleSearch}
-              ></SearchSelect>
-              <Button
+              ></bk-search-select>
+              <bk-button
                 class='btn-refresh'
                 icon='icon-refresh'
                 onClick={this.handleRefresh}
-              ></Button>
+              ></bk-button>
             </div>
           </div>
           <div class='metric-wrap-main'>
@@ -527,19 +526,19 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
           </div>
         </div>
         <div slot='footer'>
-          <Button
+          <bk-button
             theme='primary'
             disabled={this.readonly || this.isCanAdd}
             onClick={this.handleAddMetric}
           >
             {this.$t('添加')}
-          </Button>
-          <Button
+          </bk-button>
+          <bk-button
             style='margin-left: 10px;'
             onClick={() => this.showChange(false)}
           >
             {this.$t('取消')}
-          </Button>
+          </bk-button>
         </div>
       </MonitorDialog>
     );

@@ -226,6 +226,7 @@ export default defineComponent({
           <img
             class='user-logo'
             src={tag.logo}
+            alt=''
           ></img>
         );
       }

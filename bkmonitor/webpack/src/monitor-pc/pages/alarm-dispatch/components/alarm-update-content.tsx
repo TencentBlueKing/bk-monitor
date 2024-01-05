@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { Tag } from 'bk-magic-vue';
-
 import { getCookie } from '../../../../monitor-common/utils/utils';
 import { LEVELLIST } from '../typing';
 
@@ -70,7 +68,7 @@ const AlarmUpdateContent = ctx => {
                 {i18n.t('追加标签')} :{' '}
               </span>
               {tag.map((item, index) => (
-                <Tag key={index}>{`${item.key}:${item.value}`}</Tag>
+                <bk-tag key={index}>{`${item.key}:${item.value}`}</bk-tag>
               ))}
             </span>
           ) : null}

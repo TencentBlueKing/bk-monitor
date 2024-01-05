@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, DatePicker, Input } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { bulkAddAlertShield } from '../../../../monitor-api/modules/shield';
@@ -294,29 +293,29 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
             >
               <div class='item-time'>
                 {this.timeList.map((item, index) => (
-                  <Button
+                  <bk-button
                     key={index}
                     on-click={e => this.handleScopeChange(e, item.id)}
                     class={['width-item', { 'is-selected': this.timeValue === item.id }]}
                   >
                     {item.name}
-                  </Button>
+                  </bk-button>
                 ))}
                 {this.timeValue !== 0 ? (
-                  <Button
+                  <bk-button
                     on-click={e => this.handleScopeChange(e, 0)}
                     class={['custom-width', { 'is-selected': this.timeValue === 0 }]}
                   >
                     {this.$t('button-自定义')}
-                  </Button>
+                  </bk-button>
                 ) : (
-                  <DatePicker
+                  <bk-date-picker
                     ref='time'
                     type={'datetimerange'}
                     placeholder={this.$t('选择日期时间范围')}
                     options={this.options}
                     v-model={this.customTime}
-                  ></DatePicker>
+                  ></bk-date-picker>
                 )}
               </div>
             </VerifyInput>
@@ -333,13 +332,13 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         <div class='stratrgy-item'>
           <div class='item-label'> {this.$t('屏蔽原因')} </div>
           <div class='item-desc'>
-            <Input
+            <bk-input
               type='textarea'
               v-model={this.desc}
               width={625}
               rows={3}
               maxlength={100}
-            ></Input>
+            ></bk-input>
           </div>
         </div>
       </div>
@@ -358,7 +357,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
       >
         {this.getContentComponent()}
         <template slot='footer'>
-          <Button
+          <bk-button
             on-click={() =>
               this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH
                 ? this.handleSubmit()
@@ -370,8 +369,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
             v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
           >
             {this.$t('确定')}
-          </Button>
-          <Button on-click={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>
+          </bk-button>
+          <bk-button on-click={() => this.handleShowChange(false)}>{this.$t('取消')}</bk-button>
         </template>
       </MonitorDialog>
     );

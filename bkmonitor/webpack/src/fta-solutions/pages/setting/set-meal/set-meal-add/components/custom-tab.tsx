@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tab, TabPanel, TimePicker } from 'bk-magic-vue';
 
 import { deepClone } from '../../../../../../monitor-common/utils/utils';
 import { defaultAddTimeRange } from '../meal-content/meal-content-data';
@@ -180,7 +179,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           ></span>
         ) : undefined}
         <div class='time-title'>{this.$tc('生效时段')}</div>
-        <TimePicker
+        <bk-time-picker
           style={{ 'pointer-events': this.curActive !== key ? 'none' : 'auto' }}
           v-model={item.timeValue}
           format={this.minIsMinute ? 'HH:mm' : 'HH:mm:ss'}
@@ -192,7 +191,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           transfer={true}
           allowCrossDay={true}
           on-open-change={state => this.handleOpenChange(state, item)}
-        ></TimePicker>
+        ></bk-time-picker>
       </div>
     );
   }
@@ -202,7 +201,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
       const timeClass = ['period-wrap', 'period-wrap-01'];
       return (
         <div class={timeClass[this.timeStyleType]}>
-          <Tab
+          <bk-tab
             ref='time-tab'
             active={this.curActive}
             labelHeight={timeHeight[this.timeStyleType]}
@@ -228,30 +227,30 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
               </div>
             ) : undefined}
             {this.curPanels.map(item => (
-              <TabPanel
+              <bk-tab-panel
                 key={item.key}
                 name={item.key}
                 renderLabel={(h, name) => this.renderLabel(name, item)}
-              ></TabPanel>
+              ></bk-tab-panel>
             ))}
-          </Tab>
+          </bk-tab>
         </div>
       );
     }
     if (this.type === 'text') {
       return (
-        <Tab
+        <bk-tab
           active={this.curActive}
           on-tab-change={this.handleChange}
         >
           {this.curPanels.map(item => (
-            <TabPanel
+            <bk-tab-panel
               key={item.key}
               name={item.key}
               label={item.label}
-            ></TabPanel>
+            ></bk-tab-panel>
           ))}
-        </Tab>
+        </bk-tab>
       );
     }
   }

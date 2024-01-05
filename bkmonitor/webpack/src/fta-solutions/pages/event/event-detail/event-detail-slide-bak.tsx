@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Sideslider } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { actionDetail } from '../../../../monitor-api/modules/alert';
@@ -337,7 +336,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
 
   render() {
     return (
-      <Sideslider
+      <bk-sideslider
         ext-cls='event-detail-sideslider'
         transfer={true}
         isShow={this.isShow}
@@ -358,7 +357,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         >
           {this.tplContent()}
         </div>
-      </Sideslider>
+      </bk-sideslider>
     );
   }
 }

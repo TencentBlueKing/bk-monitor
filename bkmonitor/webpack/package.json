@@ -31,7 +31,7 @@
     "clean:mobile": "rimraf weixin/*",
     "clean:pc": "rimraf ../static/monitor/*",
     "clean-dll": "rimraf ../static/monitor/dll/*",
-    "analyze": "npm run clean && bkmonitor-cli build -a",
+    "analyze": "npm run clean && bkmonitor-cli build -apm -a",
     "analyze:mobile": "npm run clean && bkmonitor-cli build -m -a",
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js",

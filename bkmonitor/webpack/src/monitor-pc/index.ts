@@ -33,7 +33,6 @@ import Vue from 'vue';
 import i18n from './i18n/i18n';
 
 import './common/import-magicbox-ui';
-import '@blueking/bk-weweb';
 import '../monitor-ui/directive/index';
 import './common/global';
 import '../monitor-static/svg-icons';
@@ -51,6 +50,8 @@ import store from './store/store';
 import '../monitor-static/icons/monitor-icons.css';
 import './static/css/reset.scss';
 import './static/css/global.scss';
+// todo: 子应用externals
+// import './common/externals';
 // app 标识
 window.source_app = 'monitor';
 // 全局图表数量变量

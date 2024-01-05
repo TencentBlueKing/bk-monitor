@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input, Option, Select, Sideslider } from 'bk-magic-vue';
 
 import { saveScenePanelConfig } from '../../../../monitor-api/modules/data_explorer';
 import SortPanel from '../../performance/performance-detail/sort-panel.vue';
@@ -220,7 +219,7 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
 
   render() {
     return (
-      <Sideslider
+      <bk-sideslider
         ext-cls='view-settings-side'
         title={this.$t('视图设置')}
         width={524}
@@ -242,13 +241,13 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                 {this.$t('视图标签名')}
                 {this.verify ? <span class='err-red'>{this.$t('视图标签名不能为空且不能相同')}</span> : undefined}
               </div>
-              <Input
+              <bk-input
                 on-focus={() => (this.verify = false)}
                 v-model={this.labelName}
                 disabled={this.isLabelDisable}
                 maxlength={20}
                 show-word-limit
-              ></Input>
+              ></bk-input>
             </div>
             <div
               class='sort-setting-title'
@@ -265,11 +264,11 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                   </span>
                 ) : (
                   <div class='create-input'>
-                    <Input
+                    <bk-input
                       v-model={this.createName}
                       maxlength={20}
                       show-word-limit
-                    ></Input>
+                    ></bk-input>
                     <i
                       class='ml5 bk-icon icon-check-1'
                       onClick={() => this.createGroup(true)}
@@ -284,24 +283,24 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
             </div>
             {this.isChecked ? (
               <div class='sort-setting-content'>
-                <Select
+                <bk-select
                   ext-cls='setting-content-select'
                   v-model={this.order}
                 >
                   {this.groupList.map(item => (
-                    <Option
+                    <bk-option
                       id={item.id}
                       name={item.title}
                       key={item.id}
-                    ></Option>
+                    ></bk-option>
                   ))}
-                </Select>
-                <Button
+                </bk-select>
+                <bk-button
                   theme='default'
                   onClick={this.addGroupPanels}
                 >
                   {this.$t('加进分组')}
-                </Button>
+                </bk-button>
               </div>
             ) : undefined}
           </div>
@@ -318,7 +317,7 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
             on-checked-change={v => (this.isChecked = v)}
           ></SortPanel>
         </div>
-      </Sideslider>
+      </bk-sideslider>
     );
   }
 }

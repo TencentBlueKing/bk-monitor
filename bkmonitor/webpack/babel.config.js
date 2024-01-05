@@ -30,7 +30,7 @@ module.exports = function (api) {
       '@babel/preset-env',
       {
         targets: {
-          browsers: ['> 1%', 'last 2 versions', 'not ie <= 8'],
+          browsers: ['> 1%', 'last 1 versions', 'not ie <= 11'],
           node: 'current'
         },
         useBuiltIns: 'usage',
@@ -47,12 +47,12 @@ module.exports = function (api) {
   ].filter(Boolean);
   const plugins = [
     '@babel/plugin-transform-runtime',
-    process.env.APP !== 'trace' ? [
-      'babel-plugin-import-bk-magic-vue',
-      {
-        baseLibName: 'bk-magic-vue'
-      }
-    ] : undefined,
+    // process.env.APP !== 'trace' ? [
+    //   'babel-plugin-import-bk-magic-vue',
+    //   {
+    //     baseLibName: 'bk-magic-vue'
+    //   }
+    // ] : undefined,
     process.env.APP === 'pc' ? [
       'component',
       {

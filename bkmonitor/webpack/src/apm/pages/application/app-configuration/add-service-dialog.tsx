@@ -26,7 +26,6 @@
 
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Dialog, DropdownMenu, Exception, Form, FormItem, Input, Option, Select, Spin } from 'bk-magic-vue';
 
 import {
   customServiceConfig,
@@ -314,18 +313,18 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
         ));
 
       return (
-        <Exception
+        <bk-exception
           class='empty-result'
           type='empty'
           scene='part'
         >
           <span>{this.$t('暂无匹配')}</span>
-        </Exception>
+        </bk-exception>
       );
     };
 
     return (
-      <Dialog
+      <bk-dialog
         value={this.value}
         title={this.$t('新建自定义服务')}
         header-position='left'
@@ -358,7 +357,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
               </span>
             </div>
             <div class='source-box'>
-              <Input
+              <bk-input
                 class='source-input'
                 type='textarea'
                 placeholder=' '
@@ -366,7 +365,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
               />
             </div>
           </div>
-          <Form
+          <bk-form
             class='add-form'
             ref='addServiceForm'
             form-type='vertical'
@@ -377,27 +376,27 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
               }
             }}
           >
-            <FormItem
+            <bk-form-item
               label={this.$t('远程服务类型')}
               required
               property='type'
               error-display-type='normal'
             >
-              <Select
+              <bk-select
                 z-index={3001}
                 vModel={this.formData.type}
                 clearable={false}
               >
                 {this.serviceTypeList.map(option => (
-                  <Option
+                  <bk-option
                     key={option.id}
                     id={option.id}
                     name={option.name}
-                  ></Option>
+                  ></bk-option>
                 ))}
-              </Select>
-            </FormItem>
-            <FormItem>
+              </bk-select>
+            </bk-form-item>
+            <bk-form-item>
               <div class='bk-button-group match-type-select'>
                 <bk-button
                   class={`${this.formData.match_type === 'manual' ? 'is-selected' : ''}`}
@@ -412,20 +411,20 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                   {this.$t('自动匹配')}
                 </bk-button>
               </div>
-            </FormItem>
+            </bk-form-item>
             {this.formData.match_type === 'manual' ? (
               <div class='manual-match-wrap'>
-                <FormItem
+                <bk-form-item
                   label={this.$t('服务名')}
                   required
                   property='name'
                   error-display-type='normal'
                 >
-                  <Input vModel={this.formData.name} />
-                </FormItem>
-                <FormItem label={this.$t('域名')}>
-                  <Input vModel={this.formData.rules.host.value}>
-                    <DropdownMenu
+                  <bk-input vModel={this.formData.name} />
+                </bk-form-item>
+                <bk-form-item label={this.$t('域名')}>
+                  <bk-input vModel={this.formData.rules.host.value}>
+                    <bk-dropdown-menu
                       class='group-text'
                       onShow={() => this.handleDropdownShow('domain', true)}
                       onHide={() => this.handleDropdownShow('domain', false)}
@@ -434,13 +433,13 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                       slot='prepend'
                       font-size="'medium'"
                     >
-                      <Button
+                      <bk-button
                         type='primary'
                         slot='dropdown-trigger'
                       >
                         <span>{this.operatorMaps[this.formData.rules.host.operator]}</span>
                         <i class={['bk-icon icon-angle-down', { 'icon-flip': this.isDomainDropdownShow }]} />
-                      </Button>
+                      </bk-button>
                       <ul
                         class='bk-dropdown-list'
                         slot='dropdown-content'
@@ -456,12 +455,12 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                           </li>
                         ))}
                       </ul>
-                    </DropdownMenu>
-                  </Input>
-                </FormItem>
-                <FormItem label='PATH'>
-                  <Input vModel={this.formData.rules.path.value}>
-                    <DropdownMenu
+                    </bk-dropdown-menu>
+                  </bk-input>
+                </bk-form-item>
+                <bk-form-item label='PATH'>
+                  <bk-input vModel={this.formData.rules.path.value}>
+                    <bk-dropdown-menu
                       class='group-text'
                       onShow={() => this.handleDropdownShow('path', true)}
                       onHide={() => this.handleDropdownShow('path', false)}
@@ -470,13 +469,13 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                       slot='prepend'
                       font-size="'medium'"
                     >
-                      <Button
+                      <bk-button
                         type='primary'
                         slot='dropdown-trigger'
                       >
                         <span>{this.operatorMaps[this.formData.rules.path.operator]}</span>
                         <i class={['bk-icon icon-angle-down', { 'icon-flip': this.isUriDropdownShow }]} />
-                      </Button>
+                      </bk-button>
                       <ul
                         class='bk-dropdown-list'
                         slot='dropdown-content'
@@ -492,32 +491,32 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                           </li>
                         ))}
                       </ul>
-                    </DropdownMenu>
-                  </Input>
-                </FormItem>
-                <FormItem label={this.$t('参数')}>
+                    </bk-dropdown-menu>
+                  </bk-input>
+                </bk-form-item>
+                <bk-form-item label={this.$t('参数')}>
                   {paramsList.map((param, index) => (
                     <div
                       class='params-list'
                       key={index}
                     >
-                      <Input
+                      <bk-input
                         class='name-input'
                         vModel={param.name}
                       />
-                      <Select
+                      <bk-select
                         vModel={param.operator}
                         z-index={3001}
                       >
                         {Object.keys(this.operatorMaps).map(operator => (
-                          <Option
+                          <bk-option
                             key={operator}
                             id={operator}
                             name={this.operatorMaps[operator]}
                           />
                         ))}
-                      </Select>
-                      <Input
+                      </bk-select>
+                      <bk-input
                         class='value-input'
                         vModel={param.value}
                       />
@@ -531,37 +530,37 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                       />
                     </div>
                   ))}
-                </FormItem>
+                </bk-form-item>
               </div>
             ) : (
               <div class='auto-match-wrap'>
                 <div class='desc-contnet'>{this.$t('说明文案')}</div>
-                <FormItem
+                <bk-form-item
                   label={this.$t('匹配规则')}
                   required
                   property='regex'
                   error-display-type='normal'
                 >
-                  <Input vModel={this.formData.regex} />
-                </FormItem>
+                  <bk-input vModel={this.formData.regex} />
+                </bk-form-item>
               </div>
             )}
-          </Form>
+          </bk-form>
           <div class='debugging-content'>
             <div class='header-tool'>
-              <Button
+              <bk-button
                 outline
                 theme='primary'
                 loading={this.isDebugging}
                 onClick={() => this.handlDebugger()}
               >
                 {this.$t('调试')}
-              </Button>
+              </bk-button>
               {this.debugged && (
                 <div>
                   {this.isDebugging ? (
                     <span class='status-wrap'>
-                      <Spin></Spin>
+                      <bk-spin></bk-spin>
                       <span style='margin-left:6px;'>{this.$t('调试中')}</span>
                     </span>
                   ) : (
@@ -579,22 +578,22 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
           </div>
         </div>
         <div slot='footer'>
-          <Button
+          <bk-button
             theme='primary'
             class='mr10'
             loading={this.isLoading}
             onClick={() => this.handleConfirm()}
           >
             {this.$t('确定')}
-          </Button>
-          <Button
+          </bk-button>
+          <bk-button
             disabled={this.isLoading}
             onClick={() => this.handleCancel()}
           >
             {this.$t('取消')}
-          </Button>
+          </bk-button>
         </div>
-      </Dialog>
+      </bk-dialog>
     );
   }
 }

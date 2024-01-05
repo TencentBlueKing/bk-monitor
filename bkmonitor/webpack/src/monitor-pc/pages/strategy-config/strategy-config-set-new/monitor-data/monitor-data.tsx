@@ -32,7 +32,6 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import { copyText, transformDataKey } from '../../../../../monitor-common/utils/utils';
 import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -578,14 +577,14 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
           {this.supportSource && (
             <div class='monitor-data-tool'>
               <div class='tool-left'>
-                {/* {this.editMode === 'Edit' ? <DropdownMenu trigger="click">
+                {/* {this.editMode === 'Edit' ? <bk-dropdown-menu trigger="click">
                 <div slot="dropdown-trigger">
                   <span class="primary-btn">
                     <span>{this.$t('查询模板')}</span>
                     <span class="icon-monitor icon-mc-triangle-down"></span>
                   </span>
                 </div>
-              </DropdownMenu> : <span class="primary-btn disable">
+              </bk-dropdown-menu> : <span class="primary-btn disable">
                 <span>{this.$t('查询模板')}</span>
                 <span class="icon-monitor icon-mc-triangle-down"></span>
               </span>} */}
@@ -665,7 +664,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 )}
               </div>
               <div class='source-options-wrap'>
-                <Input
+                <bk-input
                   class='step-input'
                   value={this.sourceStep}
                   min={10}
@@ -686,7 +685,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       }}
                     ></span>
                   </div>
-                </Input>
+                </bk-input>
               </div>
             </div>
           )}

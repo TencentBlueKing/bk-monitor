@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Exception, Table, TableColumn } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../../monitor-common/utils/utils';
 import { xssFilter } from '../../../../../monitor-common/utils/xss';
@@ -204,7 +203,7 @@ export default class DimensionTable extends tsc<IProps> {
   }
   renderTable() {
     return (
-      <Table
+      <bk-table
         default-sort={{ order: 'descending', prop: 'dim_surprise' }}
         class={this.selection.length === 1 ? 'disabled-select' : ''}
         ref='dimensionTable'
@@ -219,28 +218,28 @@ export default class DimensionTable extends tsc<IProps> {
         }}
         header-border={true}
       >
-        <TableColumn
+        <bk-table-column
           type='selection'
           width={32}
           before-select-change={this.handleBeforeSelectChange}
           before-select-all-change={this.handleBeforeSelectAllChange}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           label={this.$t('异常维度')}
           show-overflow-tooltip={true}
           scopedSlots={{ default: props => props.row.anomaly_dimension_alias }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           min-width={120}
           label={this.$t('异常维度值个数/维度值总数')}
           scopedSlots={{ default: props => this.renderDimensionColumn(props.row) }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           show-overflow-tooltip={true}
           label={this.$t('异常维度值占比')}
           scopedSlots={{ default: props => this.percentageText(props.row.dimension_value_percent) }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           width={340}
           label={this.$t('异常分值分布')}
           render-header={this.renderHeader.bind(
@@ -249,8 +248,8 @@ export default class DimensionTable extends tsc<IProps> {
             '异常分值范围从0到1，分值越大，说明该维度值的指标异常程度越高。'
           )}
           scopedSlots={{ default: props => this.renderDistributed(props.row.anomaly_score_distribution) }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           sortable
           sort-orders={['ascending', 'descending']}
           label={this.$t('JS散度')}
@@ -262,8 +261,8 @@ export default class DimensionTable extends tsc<IProps> {
             'JS散度越大，说明该维度内各维度值的异常分值越离散，越值得排查'
           )}
           scopedSlots={{ default: props => props.row.dim_surprise }}
-        ></TableColumn>
-      </Table>
+        ></bk-table-column>
+      </bk-table>
     );
   }
   render() {
@@ -272,13 +271,13 @@ export default class DimensionTable extends tsc<IProps> {
         {this.tableData.length > 0 ? (
           this.renderTable()
         ) : (
-          <Exception
+          <bk-exception
             type={this.dimensionDrillDownErr ? '500' : 'empty'}
             scene='part'
             slot='empty'
           >
             <span>{this.dimensionDrillDownErr ? this.dimensionDrillDownErr : this.$t('暂无数据')}</span>
-          </Exception>
+          </bk-exception>
         )}
       </div>
     );

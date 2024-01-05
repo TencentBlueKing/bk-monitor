@@ -26,7 +26,6 @@
 
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Dialog, Input, Radio, RadioGroup } from 'bk-magic-vue';
 
 import { shareFavorite } from '../../../../../monitor-api/modules/model';
 import { Debounce } from '../../../../../monitor-common/utils/utils';
@@ -196,7 +195,7 @@ export default class SharedDialog extends tsc<IProps> {
 
   render() {
     return (
-      <Dialog
+      <bk-dialog
         value={this.value}
         title={this.$t('共享')}
         header-position='left'
@@ -211,7 +210,7 @@ export default class SharedDialog extends tsc<IProps> {
         <div class='biz-list-wrap-01'>
           <div class='biz-list-main'>
             <div class='biz-search-wrap'>
-              <Input
+              <bk-input
                 class='biz-search'
                 clearable={false}
                 right-icon='bk-icon icon-search'
@@ -247,13 +246,13 @@ export default class SharedDialog extends tsc<IProps> {
           <span v-bk-tooltips={{ content: this.$t('该规则仅针对重名内容生效') }}>
             <div class='reset-name-title'>{this.$t('重名规则')}</div>
           </span>
-          <RadioGroup vModel={this.resetNameRule}>
-            <Radio value='skip'>{this.$t('不共享')}</Radio>
-            <Radio value='copy'>{this.$t('创建副本')}</Radio>
-            <Radio value='overwrite'>{this.$t('覆盖')}</Radio>
-          </RadioGroup>
+          <bk-radio-group vModel={this.resetNameRule}>
+            <bk-radio value='skip'>{this.$t('不共享')}</bk-radio>
+            <bk-radio value='copy'>{this.$t('创建副本')}</bk-radio>
+            <bk-radio value='overwrite'>{this.$t('覆盖')}</bk-radio>
+          </bk-radio-group>
         </div>
-      </Dialog>
+      </bk-dialog>
     );
   }
 }

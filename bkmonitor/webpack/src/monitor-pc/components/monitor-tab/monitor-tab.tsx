@@ -25,15 +25,14 @@
  */
 import Component from 'vue-class-component';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tab } from 'bk-magic-vue';
 
 import './monitor-tab.scss';
 
 @Component
-export default class MonitorTab extends tsc<Tab> {
+export default class MonitorTab extends tsc<{}> {
   render() {
     return (
-      <Tab
+      <bk-tab
         class='monitor-tab'
         type='unborder-card'
         tab-position='top'
@@ -44,7 +43,7 @@ export default class MonitorTab extends tsc<Tab> {
         {this.$slots.setting && <template slot='setting'>{this.$slots.setting}</template>}
         {this.$slots.add && <template slot='add'>{this.$slots.add}</template>}
         {this.$slots.extension && <template slot='extension'>{this.$slots.extension}</template>}
-      </Tab>
+      </bk-tab>
     );
   }
 }

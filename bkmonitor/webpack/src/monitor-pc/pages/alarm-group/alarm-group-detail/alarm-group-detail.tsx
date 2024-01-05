@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tab, TabPanel } from 'bk-magic-vue';
 
 import NoticeModeNew, {
   INoticeWayValue
@@ -558,7 +557,12 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                     >
                       <div class='person-image'>
                         {[
-                          item.logo ? <img src={item.logo} /> : undefined,
+                          item.logo ? (
+                            <img
+                              src={item.logo}
+                              alt=''
+                            />
+                          ) : undefined,
                           !item.logo && item.type === 'group' ? (
                             <i class='icon-monitor icon-mc-user-group no-img' />
                           ) : undefined,
@@ -598,7 +602,12 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                   >
                     <div class='person-image'>
                       {[
-                        item.logo ? <img src={item.logo} /> : undefined,
+                        item.logo ? (
+                          <img
+                            src={item.logo}
+                            alt=''
+                          />
+                        ) : undefined,
                         !item.logo && item.type === 'group' ? (
                           <i class='icon-monitor icon-mc-user-group no-img' />
                         ) : undefined,
@@ -627,7 +636,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
               <div class='alarm-details-item notice'>
                 <div class='notice-title'>{this.$t('告警阶段')}</div>
                 <div class='notice-item-wrap'>
-                  <Tab
+                  <bk-tab
                     active={this.notice.alertActive}
                     labelHeight={42}
                     on-tab-change={(v: string) => {
@@ -640,13 +649,13 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                       key: item.key,
                       label: item.time_range.replace('--', '-')
                     })).map(item => (
-                      <TabPanel
+                      <bk-tab-panel
                         key={item.key}
                         name={item.key}
                         label={item.label}
-                      ></TabPanel>
+                      ></bk-tab-panel>
                     ))}
-                  </Tab>
+                  </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew
                       noticeWay={this.noticeWayList}
@@ -666,7 +675,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                   {this.$t('执行通知')}
                 </div>
                 <div class='notice-item-wrap'>
-                  <Tab
+                  <bk-tab
                     active={this.notice.actionActive}
                     labelHeight={42}
                     on-tab-change={(v: string) => {
@@ -679,13 +688,13 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                       key: item.key,
                       label: item.time_range.replace('--', '-')
                     })).map(item => (
-                      <TabPanel
+                      <bk-tab-panel
                         key={item.key}
                         name={item.key}
                         label={item.label}
-                      ></TabPanel>
+                      ></bk-tab-panel>
                     ))}
-                  </Tab>
+                  </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew
                       noticeWay={this.noticeWayList}

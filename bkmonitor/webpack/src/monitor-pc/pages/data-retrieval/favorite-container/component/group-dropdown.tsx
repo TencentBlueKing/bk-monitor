@@ -26,7 +26,6 @@
 
 import { Component, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Form, FormItem, Input, Popover } from 'bk-magic-vue';
 
 import { FavoriteIndexType, IFavList } from '../../typings';
 
@@ -86,11 +85,11 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
   groupListPopoverInstance = null; // 分组列表实例
   titlePopoverInstance = null; // 表头列表实例
 
-  @Ref('operate') private readonly operatePopoverRef: Popover; // 操作列表实例
-  @Ref('groupMoveList') private readonly groupMoveListPopoverRef: Popover; // 移动到分组实例
-  @Ref('titleDrop') private readonly titlePopoverRef: Popover; // 移动到分组实例
-  @Ref('checkInputForm') private readonly checkInputFormRef: Form; // 移动到分组实例
-  @Ref('checkInputAddForm') private readonly checkInputAddFormRef: Form; // 移动到分组实例
+  @Ref('operate') private readonly operatePopoverRef: any; // 操作列表实例
+  @Ref('groupMoveList') private readonly groupMoveListPopoverRef: any; // 移动到分组实例
+  @Ref('titleDrop') private readonly titlePopoverRef: any; // 移动到分组实例
+  @Ref('checkInputForm') private readonly checkInputFormRef: any; // 移动到分组实例
+  @Ref('checkInputAddForm') private readonly checkInputAddFormRef: any; // 移动到分组实例
 
   get unPrivateGroupList() {
     // 去掉个人组的组列表
@@ -285,7 +284,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
         >
           {this.isShowResetGroupName ? (
             <li class='add-new-page-input'>
-              <Form
+              <bk-form
                 labelWidth={0}
                 ref='checkInputForm'
                 {...{
@@ -295,15 +294,15 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
                   }
                 }}
               >
-                <FormItem property='groupEditName'>
-                  <Input
+                <bk-form-item property='groupEditName'>
+                  <bk-input
                     clearable
                     placeholder={this.$t('输入组名,30个字符')}
                     vModel={this.verifyData.groupEditName}
                     onEnter={v => this.handleGroupKeyDown(v, 'reset')}
-                  ></Input>
-                </FormItem>
-              </Form>
+                  ></bk-input>
+                </bk-form-item>
+              </bk-form>
               <div class='operate-button'>
                 <span
                   class='bk-icon icon-check-line'
@@ -377,7 +376,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
           <li class='add-new-group'>
             {this.isShowNewGroupInput ? (
               <li class='new-page-input'>
-                <Form
+                <bk-form
                   labelWidth={0}
                   style={{ width: '100%' }}
                   ref='checkInputAddForm'
@@ -388,15 +387,15 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
                     }
                   }}
                 >
-                  <FormItem property='groupEditName'>
-                    <Input
+                  <bk-form-item property='groupEditName'>
+                    <bk-input
                       clearable
                       placeholder={this.$t('输入组名,30个字符')}
                       vModel={this.verifyData.groupEditName}
                       onEnter={v => this.handleGroupKeyDown(v, 'add')}
-                    ></Input>
-                  </FormItem>
-                </Form>
+                    ></bk-input>
+                  </bk-form-item>
+                </bk-form>
                 <div class='operate-button'>
                   <span
                     class='bk-icon icon-check-line'

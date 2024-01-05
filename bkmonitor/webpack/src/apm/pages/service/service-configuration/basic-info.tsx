@@ -25,7 +25,6 @@
  */
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Exception, Form, FormItem, Input, Option, Select, Spin, Tag } from 'bk-magic-vue';
 
 import { applicationList, CMDBInfoList, logList, serviceInfo } from '../../../../monitor-api/modules/apm_base_info';
 import {
@@ -530,13 +529,13 @@ export default class BasicInfo extends tsc<{}> {
         ));
 
       return (
-        <Exception
+        <bk-exception
           class='empty-result'
           type='empty'
           scene='part'
         >
           <span>{this.$t('暂无匹配')}</span>
-        </Exception>
+        </bk-exception>
       );
     };
 
@@ -557,6 +556,7 @@ export default class BasicInfo extends tsc<{}> {
                 <div class='content'>
                   <img
                     class='category-icon'
+                    alt=''
                     src={this.serviceInfo.extra_data?.category_icon}
                   />
                   <span class='category-name'>{this.serviceInfo.extra_data?.category_name}</span>
@@ -586,50 +586,52 @@ export default class BasicInfo extends tsc<{}> {
               <div class='content'>
                 {this.isEditing && (
                   <div class='edit-form-item'>
-                    <Select
+                    <bk-select
                       vModel={this.localRelationInfo.cmdb}
                       searchable
                       onChange={v => this.handleCmdbChange(v)}
                     >
                       {this.cmdbInfoList.map(option => (
-                        <Option
+                        <bk-option
                           key={option.id}
                           id={option.id}
                           name={option.name}
-                        ></Option>
+                        ></bk-option>
                       ))}
-                    </Select>
+                    </bk-select>
                   </div>
                 )}
                 <div class='tag-list'>
-                  <Tag class='relation-info-tag'>
+                  <bk-tag class='relation-info-tag'>
                     <span class='tag-label'>{this.$t('服务名称 :')}</span>
                     <span>{curCmdbRelationTagList?.template_name || '--'}</span>
-                  </Tag>
-                  <Tag class='relation-info-tag'>
+                  </bk-tag>
+                  <bk-tag class='relation-info-tag'>
                     <div class='category-tag'>
                       <span class='tag-label'>{this.$t('一级分类 :')}</span>
                       {curCmdbRelationTagList?.first_category?.icon && (
                         <img
+                          alt=''
                           class='icon'
                           src={curCmdbRelationTagList?.first_category?.icon}
                         />
                       )}
                       <span>{curCmdbRelationTagList?.first_category?.name || '--'}</span>
                     </div>
-                  </Tag>
-                  <Tag class='relation-info-tag'>
+                  </bk-tag>
+                  <bk-tag class='relation-info-tag'>
                     <div class='category-tag'>
                       <span class='tag-label'>{this.$t('二级分类 :')}</span>
                       {curCmdbRelationTagList?.second_category?.icon && (
                         <img
+                          alt=''
                           class='icon'
                           src={curCmdbRelationTagList?.second_category?.icon}
                         />
                       )}
                       <span>{curCmdbRelationTagList?.second_category?.name || '--'}</span>
                     </div>
-                  </Tag>
+                  </bk-tag>
                 </div>
               </div>
             </div>
@@ -645,20 +647,20 @@ export default class BasicInfo extends tsc<{}> {
               <div class='content'>
                 {this.isEditing ? (
                   <div class='edit-form-item'>
-                    <Select
+                    <bk-select
                       vModel={this.localRelationInfo.logType}
                       searchable
                       onChange={() => this.handleRelationLogChange()}
                     >
                       {this.logsInfoList.map(option => (
-                        <Option
+                        <bk-option
                           key={option.id}
                           id={option.id}
                           name={option.name}
-                        ></Option>
+                        ></bk-option>
                       ))}
-                    </Select>
-                    <Form
+                    </bk-select>
+                    <bk-form
                       ref='logForm'
                       {...{
                         props: {
@@ -669,45 +671,45 @@ export default class BasicInfo extends tsc<{}> {
                     >
                       {this.localRelationInfo.logType === 'bk_log' ? (
                         <div class='relation-log-select relation-log-form-item'>
-                          <FormItem property='relatedBizId'>
-                            <Select
+                          <bk-form-item property='relatedBizId'>
+                            <bk-select
                               vModel={this.localRelationInfo.relatedBizId}
                               searchable
                               onChange={v => this.handleLogBizChange(v)}
                             >
                               {this.bizSelectList.map(option => (
-                                <Option
+                                <bk-option
                                   key={option.id}
                                   id={option.id}
                                   name={option.name}
-                                ></Option>
+                                ></bk-option>
                               ))}
-                            </Select>
-                          </FormItem>
-                          <FormItem property='logValue'>
-                            <Select
+                            </bk-select>
+                          </bk-form-item>
+                          <bk-form-item property='logValue'>
+                            <bk-select
                               vModel={this.localRelationInfo.logValue}
                               searchable
                             >
                               {this.indexSetList.map(option => (
-                                <Option
+                                <bk-option
                                   key={option.id}
                                   id={option.id}
                                   name={option.name}
-                                ></Option>
+                                ></bk-option>
                               ))}
-                            </Select>
-                          </FormItem>
+                            </bk-select>
+                          </bk-form-item>
                         </div>
                       ) : (
-                        <FormItem property='logValue'>
-                          <Input
+                        <bk-form-item property='logValue'>
+                          <bk-input
                             class='input'
                             vModel={this.localRelationInfo.logValue}
                           />
-                        </FormItem>
+                        </bk-form-item>
                       )}
-                    </Form>
+                    </bk-form>
                   </div>
                 ) : (
                   <section>
@@ -715,17 +717,17 @@ export default class BasicInfo extends tsc<{}> {
                       <section>
                         {logRelation?.log_type === 'bk_log' ? (
                           <section>
-                            <Tag class='relation-info-tag'>
+                            <bk-tag class='relation-info-tag'>
                               <span>{`${logRelation.log_type_alias} : ${logRelation.related_bk_biz_name}`}</span>
-                            </Tag>
-                            <Tag class='relation-info-tag'>
+                            </bk-tag>
+                            <bk-tag class='relation-info-tag'>
                               <span>{`${this.$t('索引集 : ')}${logRelation.value_alias}`}</span>
-                            </Tag>
+                            </bk-tag>
                           </section>
                         ) : (
-                          <Tag class='relation-info-tag'>
+                          <bk-tag class='relation-info-tag'>
                             <span>{`${logRelation.log_type_alias} : ${logRelation.value}`}</span>
-                          </Tag>
+                          </bk-tag>
                         )}
                       </section>
                     ) : (
@@ -741,20 +743,20 @@ export default class BasicInfo extends tsc<{}> {
               <div class='content'>
                 {this.isEditing ? (
                   <div class='edit-form-item app-form-item'>
-                    <Select
+                    <bk-select
                       vModel={this.localRelationInfo.bizId}
                       searchable
                       onChange={v => this.handleBizChange(v)}
                     >
                       {this.bizSelectList.map(option => (
-                        <Option
+                        <bk-option
                           key={option.id}
                           id={option.id}
                           name={option.name}
-                        ></Option>
+                        ></bk-option>
                       ))}
-                    </Select>
-                    <Form
+                    </bk-select>
+                    <bk-form
                       ref='appForm'
                       {...{
                         props: {
@@ -763,31 +765,33 @@ export default class BasicInfo extends tsc<{}> {
                         }
                       }}
                     >
-                      <FormItem property='appId'>
-                        <Select
+                      <bk-form-item property='appId'>
+                        <bk-select
                           style='width:290px'
                           vModel={this.localRelationInfo.appId}
                           searchable
                         >
                           {this.appList.map(option => (
-                            <Option
+                            <bk-option
                               key={option.id}
                               id={option.id}
                               name={option.name}
-                            ></Option>
+                            ></bk-option>
                           ))}
-                        </Select>
-                      </FormItem>
-                    </Form>
+                        </bk-select>
+                      </bk-form-item>
+                    </bk-form>
                   </div>
                 ) : (
                   <section>
                     {appRelation?.relate_bk_biz_name && appRelation?.relate_app_name ? (
                       <section>
-                        <Tag class='relation-info-tag'>{`${this.$t('业务名称 : ')}${
+                        <bk-tag class='relation-info-tag'>{`${this.$t('业务名称 : ')}${
                           appRelation.relate_bk_biz_name
-                        }`}</Tag>
-                        <Tag class='relation-info-tag'>{`${this.$t('应用 : ')}${appRelation.relate_app_name}`}</Tag>
+                        }`}</bk-tag>
+                        <bk-tag class='relation-info-tag'>{`${this.$t('应用 : ')}${
+                          appRelation.relate_app_name
+                        }`}</bk-tag>
                       </section>
                     ) : (
                       '--'
@@ -835,7 +839,7 @@ export default class BasicInfo extends tsc<{}> {
               <div class='content'>
                 {this.isEditing ? (
                   <div class='edit-form-item apdex-form-item'>
-                    <Form
+                    <bk-form
                       ref='apdexForm'
                       {...{
                         props: {
@@ -844,8 +848,8 @@ export default class BasicInfo extends tsc<{}> {
                         }
                       }}
                     >
-                      <FormItem property='apdex'>
-                        <Input
+                      <bk-form-item property='apdex'>
+                        <bk-input
                           vModel={this.localRelationInfo.apdex}
                           type='number'
                           show-controls={false}
@@ -853,9 +857,9 @@ export default class BasicInfo extends tsc<{}> {
                           <template slot='append'>
                             <div class='right-unit'>ms</div>
                           </template>
-                        </Input>
-                      </FormItem>
-                    </Form>
+                        </bk-input>
+                      </bk-form-item>
+                    </bk-form>
                   </div>
                 ) : (
                   this.serviceInfo.relation?.apdex_relation?.apdex_value || 0
@@ -902,7 +906,7 @@ export default class BasicInfo extends tsc<{}> {
               </span>
             </div>
             <div class='source-box'>
-              <Input
+              <bk-input
                 class='source-input'
                 type='textarea'
                 placeholder=' '
@@ -934,7 +938,7 @@ export default class BasicInfo extends tsc<{}> {
                   <div class='content'>
                     {this.isEditing ? (
                       <div class='edit-uri-row'>
-                        <Input
+                        <bk-input
                           class='uri-input'
                           vModel={item}
                           onChange={v => this.handleUriInput(v, index)}
@@ -958,7 +962,7 @@ export default class BasicInfo extends tsc<{}> {
             {this.isEditing && (
               <div class='debugging-content'>
                 <div class='header-tool'>
-                  <Button
+                  <bk-button
                     outline
                     theme='primary'
                     size='small'
@@ -966,12 +970,12 @@ export default class BasicInfo extends tsc<{}> {
                     onClick={() => this.handlDebugger()}
                   >
                     {this.$t('调试')}
-                  </Button>
+                  </bk-button>
                   {this.debugged && (
                     <div>
                       {this.isDebugging ? (
                         <span class='status-wrap'>
-                          <Spin size='mini' />
+                          <bk-spin size='mini' />
                           <span style='margin-left:6px;'>{this.$t('调试中')}</span>
                         </span>
                       ) : (
@@ -989,19 +993,19 @@ export default class BasicInfo extends tsc<{}> {
               </div>
             )}
             {!this.isEditing && !this.uriList.length && (
-              <Exception
+              <bk-exception
                 class='empty-uri-info'
                 type='empty'
                 scene='part'
               >
                 <span>{this.$t('当前未配置URI信息')}</span>
-              </Exception>
+              </bk-exception>
             )}
           </div>
         </PanelItem>
         <div class='header-tools'>
           {!this.isEditing && (
-            <Button
+            <bk-button
               class='edit-btn'
               theme='primary'
               size='normal'
@@ -1012,7 +1016,7 @@ export default class BasicInfo extends tsc<{}> {
               }}
             >
               {this.$t('button-编辑')}
-            </Button>
+            </bk-button>
           )}
           <div
             class='history-btn'
@@ -1024,15 +1028,15 @@ export default class BasicInfo extends tsc<{}> {
         </div>
         {this.isEditing ? (
           <div class='submit-handle'>
-            <Button
+            <bk-button
               class='mr10'
               theme='primary'
               loading={this.isSubmitLoading}
               onClick={() => this.handleSubmit()}
             >
               {this.$t('保存')}
-            </Button>
-            <Button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</Button>
+            </bk-button>
+            <bk-button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</bk-button>
           </div>
         ) : (
           <div></div>

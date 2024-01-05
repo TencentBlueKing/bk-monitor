@@ -138,7 +138,7 @@
   </div>
 </template>
 <script>
-import { bkIcon } from 'bk-magic-vue';
+
 
 import { deepClone } from '../../../../../monitor-common/utils/utils';
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
@@ -151,7 +151,6 @@ export default {
   components: {
     AutoCompleteInput,
     VerifyInput,
-    bkIcon
   },
   props: {
     templateData: {

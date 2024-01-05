@@ -25,7 +25,6 @@
  */
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Exception } from 'bk-magic-vue';
 
 import { random } from '../../../../../monitor-common/utils/utils';
 import DashboardPanel from '../../../../../monitor-ui/chart-plugins/components/flex-dashboard-panel';
@@ -275,12 +274,12 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
           ]
         ) : (
           <div class={`bk-table-empty-block aiops-metrics-view-${!this.isCorrelationMetrics ? 'hide' : 'show'}`}>
-            <Exception
+            <bk-exception
               type={this.metricRecommendationErr ? '500' : 'empty'}
               scene='part'
             >
               {this.metricRecommendationErr ? this.metricRecommendationErr : this.$t('暂无数据')}
-            </Exception>
+            </bk-exception>
             {/* <div class="bk-table-empty-text">
               <i class="bk-table-empty-icon bk-icon icon-empty"></i>
               <div>{this.$t('暂无数据')}</div>

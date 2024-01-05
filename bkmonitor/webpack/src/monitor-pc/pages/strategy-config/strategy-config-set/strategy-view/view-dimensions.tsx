@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Option, Select } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../../monitor-common/utils';
 
@@ -102,7 +101,7 @@ export default class ViewDimensions extends tsc<IProps> {
             >
               <div class='item-title'>{item.name}</div>
               <div class='item-content'>
-                <Select
+                <bk-select
                   class='item-content-select'
                   value={this.localValues[item.id]}
                   allowCreate
@@ -111,13 +110,13 @@ export default class ViewDimensions extends tsc<IProps> {
                   onChange={v => this.handleItemChange(item, v)}
                 >
                   {item.list.map(l => (
-                    <Option
+                    <bk-option
                       key={l.id}
                       id={l.id}
                       name={l.id}
-                    ></Option>
+                    ></bk-option>
                   ))}
-                </Select>
+                </bk-select>
               </div>
             </div>
           ))}

@@ -26,7 +26,6 @@
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import G6 from '@antv/g6';
-import { Slider } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import bus from '../../../../monitor-common/utils/event-bus';
@@ -882,11 +881,12 @@ export class RelationGraph extends CommonSimpleChart {
             <img
               class='language-icon'
               src='${languageIcon}'
+              alt='${language}'
               style="display: ${languageIcon && isService ? '' : 'none'}" />
             <span class='language-name' style="display: ${!isService ? 'none' : ''}">${language}</span>
           </div>
           <div class='root-node-mark' style="display: ${isRootService && isService ? 'flex' : 'none'}">
-            <img class='root-icon' src='${bannerIcon}'>
+            <img class='root-icon' src='${bannerIcon}'  alt=''/>
             <span>${this.$t('起始')}</span>
           </div>
         </h3>
@@ -1313,7 +1313,7 @@ export class RelationGraph extends CommonSimpleChart {
                       class='icon-monitor icon-plus-line'
                       onClick={() => this.handleGraphZoom(this.zoomValue + 0.1)}
                     ></span>
-                    <Slider
+                    <bk-slider
                       v-model={this.zoomValue}
                       class='slider-wrap'
                       height='82px'
@@ -1323,7 +1323,7 @@ export class RelationGraph extends CommonSimpleChart {
                       max-value={this.maxZoomVal}
                       step={0.1}
                       onChange={value => this.handleGraphZoom(value)}
-                    ></Slider>
+                    ></bk-slider>
                     <span
                       class='icon-monitor icon-minus-line'
                       onClick={() => this.handleGraphZoom(this.zoomValue - 0.1)}

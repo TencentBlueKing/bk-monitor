@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { TimePicker } from 'bk-magic-vue';
 
 import './custom-time-range.scss';
 
@@ -41,7 +40,7 @@ interface IEvents {
 export default class CustomTimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => ['00:00', '23:59'], type: Array }) value: string[];
   @Prop({ default: true, type: Boolean }) allowCrossDay: boolean;
-  @Ref('timepicker') timepickerRef: TimePicker;
+  @Ref('timepicker') timepickerRef: any;
 
   /* 时间段 */
   localValue = ['00:00', '23:59'];
@@ -70,7 +69,7 @@ export default class CustomTimeRange extends tsc<IProps, IEvents> {
   render() {
     return (
       <div class='custom-time-range-component'>
-        <TimePicker
+        <bk-time-picker
           v-model={this.localValue}
           type={'timerange'}
           placeholder={this.$t('选择')}
@@ -80,7 +79,7 @@ export default class CustomTimeRange extends tsc<IProps, IEvents> {
           allowCrossDay={this.allowCrossDay}
           on-open-change={this.handleOpen}
           on-change={this.handleChange}
-        ></TimePicker>
+        ></bk-time-picker>
         <span
           class={['time-btn', { active: this.isActive }]}
           onClick={this.handleClick}

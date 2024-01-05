@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Checkbox, Collapse, CollapseItem, Dialog, Form, FormItem, Input } from 'bk-magic-vue';
 
 import { modifyCustomTsGroupingRuleList } from '../../../monitor-api/modules/custom_report';
 import { Debounce, random } from '../../../monitor-common/utils/utils';
@@ -90,7 +89,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) groups: IGroup[];
   @Ref('manualDropdown') manualDropdownRef: HTMLDivElement;
   @Ref('previewListWrap') previewListWrapRef: HTMLDivElement;
-  @Ref('checkInputForm') checkInputFormRef: Form;
+  @Ref('checkInputForm') checkInputFormRef: any;
   /* 分组列表 */
   groupList: IGroupItem[] = [];
   /* 编辑组名 */
@@ -463,7 +462,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
 
   render() {
     return (
-      <Dialog
+      <bk-dialog
         extCls={'custom-metric-group-manage-dialog'}
         value={this.show}
         width={960}
@@ -489,29 +488,29 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
             </div>
             {this.isAdd && [
               <div class='add-input-wrap'>
-                <Input
+                <bk-input
                   class='add-input'
                   placeholder={this.$t('输入分组名称')}
                   v-model={this.addName}
                   onChange={this.handleAddNameChange}
                   onEnter={this.handleClickAddConfirm}
-                ></Input>
-                <Button
+                ></bk-input>
+                <bk-button
                   class='confirm'
                   text
                   theme='primary'
                   onClick={this.handleClickAddConfirm}
                 >
                   {this.$t('确定')}
-                </Button>
-                <Button
+                </bk-button>
+                <bk-button
                   class='cancel'
                   text
                   theme='primary'
                   onClick={this.handleClickAddCancel}
                 >
                   {this.$t('取消')}
-                </Button>
+                </bk-button>
               </div>,
               !!this.addErrMsg ? <div class='add-err-msg'>{this.addErrMsg}</div> : undefined
             ]}
@@ -562,11 +561,11 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                   ></span>
                   {item.isEditName && (
                     <div class='input-wrap'>
-                      {/* <Input
+                      {/* <bk-input
                     class="temp-input"
                     v-model={this.tempName}
                     onChange={this.handleEditNameChange}
-                    onBlur={() => this.handleEditBlur(index)}></Input>
+                    onBlur={() => this.handleEditBlur(index)}></bk-input>
                   <span class="back-wrap" onClick={() => this.handleEditBlur(index)}>
                     <span class="err-msg" style={!!this.groupNameErrMsg ? '' :
                     'display:none;'}>{this.groupNameErrMsg}</span>
@@ -574,7 +573,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                   <span class="icon-monitor icon-mc-delete-line"
                   onClick={() => this.handleDeleteGroup(index)}></span> */}
                       <div class='add-input-wrap edit-input-wrap'>
-                        <Form
+                        <bk-form
                           labelWidth={0}
                           style={{ width: '100%' }}
                           ref='checkInputForm'
@@ -585,32 +584,32 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                             }
                           }}
                         >
-                          <FormItem property='tempName'>
-                            <Input
+                          <bk-form-item property='tempName'>
+                            <bk-input
                               class='add-input'
                               placeholder={this.$t('输入分组名称')}
                               vModel={this.verifyData.tempName}
                               onFocus={() => (this.editIndex = index)}
                               onEnter={() => this.handleEditNameChange(index)}
-                            ></Input>
-                          </FormItem>
-                        </Form>
-                        <Button
+                            ></bk-input>
+                          </bk-form-item>
+                        </bk-form>
+                        <bk-button
                           class='confirm'
                           text
                           theme='primary'
                           onClick={() => this.handleEditNameChange(index)}
                         >
                           {this.$t('确定')}
-                        </Button>
-                        <Button
+                        </bk-button>
+                        <bk-button
                           class='cancel'
                           text
                           theme='primary'
                           onClick={() => (item.isEditName = false)}
                         >
                           {this.$t('取消')}
-                        </Button>
+                        </bk-button>
                       </div>
                     </div>
                   )}
@@ -624,12 +623,12 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
               class='preview-list-wrap'
               ref='previewListWrap'
             >
-              <Collapse
+              <bk-collapse
                 v-model={this.previewActive}
                 class='preview-collapse'
               >
                 {this.previewList.map((item, index) => (
-                  <CollapseItem
+                  <bk-collapse-item
                     name={item.name}
                     key={item.name}
                     hide-arrow
@@ -684,21 +683,21 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                         ))}
                       </ul>
                     </div>
-                  </CollapseItem>
+                  </bk-collapse-item>
                 ))}
-              </Collapse>
+              </bk-collapse>
             </div>
           </div>
         </div>
         <div slot='footer'>
-          <Button
+          <bk-button
             theme='primary'
             style={{ 'margin-right': '8px' }}
             onClick={this.handleSubmit}
           >
             {this.$t('确定')}
-          </Button>
-          <Button onClick={this.handleCancel}>{this.$t('取消')}</Button>
+          </bk-button>
+          <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
         </div>
         <div style='display: none'>
           <div
@@ -706,22 +705,22 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
             ref='manualDropdown'
           >
             <div>
-              <Input
+              <bk-input
                 v-model={this.manualCheck.search}
                 placeholder={this.$t('输入关键字')}
                 left-icon={'bk-icon icon-search'}
                 behavior={'simplicity'}
                 onChange={this.handleManualSearch}
-              ></Input>
+              ></bk-input>
             </div>
             <div class='check-list-warp'>
               <div class='list-item'>
-                <Checkbox
+                <bk-checkbox
                   value={this.manualCheck.isSelectAll}
                   onChange={this.handleSelectAll}
                 >
                   {this.$t('全选')}
-                </Checkbox>
+                </bk-checkbox>
               </div>
               {this.manualCheck.searchList.map((item, index) => (
                 <div
@@ -735,7 +734,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                   }}
                   key={`${item.name}-${index}`}
                 >
-                  <Checkbox
+                  <bk-checkbox
                     value={item.checked}
                     key={item.name}
                     onChange={v => this.handleManualCheck(v, index)}
@@ -756,7 +755,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                         </span>
                       )}
                     </span>
-                  </Checkbox>
+                  </bk-checkbox>
                 </div>
               ))}
             </div>
@@ -770,7 +769,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
             )}
           </div>
         </div>
-      </Dialog>
+      </bk-dialog>
     );
   }
 }

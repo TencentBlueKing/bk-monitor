@@ -26,7 +26,6 @@
 
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Checkbox, Input, Option, Select, Sideslider } from 'bk-magic-vue';
 
 import {
   createDataPipeline,
@@ -375,7 +374,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
       );
     }
     return (
-      <Sideslider
+      <bk-sideslider
         ext-cls='data-pipeline-config-sides'
         isShow={this.show}
         quick-close={true}
@@ -396,11 +395,11 @@ export default class DataPipelineConfig extends tsc<IProps> {
             <div class='content-item-form'>
               {formItem(
                 <span class='require'>{this.$t('链路名称')}</span>,
-                <Input
+                <bk-input
                   v-model={this.formData.name}
                   disabled={this.isEdit}
                   onChange={() => this.clearErr(true)}
-                ></Input>,
+                ></bk-input>,
                 this.errMsg.name
               )}
               <div class='horizontal'>
@@ -436,46 +435,46 @@ export default class DataPipelineConfig extends tsc<IProps> {
               </div>
               {formItem(
                 <span class='require'>{this.$t('Kafka链路')}</span>,
-                <Select
+                <bk-select
                   v-model={this.formData.kafka_cluster_id}
                   v-bkloading={{ isLoading: this.getKafkaLoading }}
                   onChange={() => this.clearErr()}
                 >
                   {this.kafkaOptions.map(item => (
-                    <Option
+                    <bk-option
                       key={item.id}
                       id={item.id}
                       name={item.name}
-                    ></Option>
+                    ></bk-option>
                   ))}
-                </Select>,
+                </bk-select>,
                 this.errMsg.kafka_cluster_id
               )}
               {formItem(
                 <span class='require'>{this.$t('Transfer链路')}</span>,
-                <Select
+                <bk-select
                   v-model={this.formData.transfer_cluster_id}
                   v-bkloading={{ isLoading: this.getTransferListLoading }}
                   onChange={() => this.clearErr()}
                 >
                   {this.transferOptions.map(item => (
-                    <Option
+                    <bk-option
                       key={item.id}
                       id={item.id}
                       name={item.name}
-                    ></Option>
+                    ></bk-option>
                   ))}
-                </Select>,
+                </bk-select>,
                 this.errMsg.transfer_cluster_id
               )}
             </div>
             <div class='is-defalut'>
-              <Checkbox
+              <bk-checkbox
                 v-model={this.formData.is_default}
                 onChange={this.handleIsDefaultChange}
               >
                 {this.$t('是否为默认链路')}
-              </Checkbox>
+              </bk-checkbox>
               {this.hasDefalut && (
                 <div class='default-tip'>
                   <span class='icon-monitor icon-hint'></span>
@@ -498,50 +497,50 @@ export default class DataPipelineConfig extends tsc<IProps> {
             <div class='content-item-form'>
               {formItem(
                 <span class='check-title'>
-                  <Checkbox v-model={this.influxdbStorageEnable}>{this.$t('投递到Influxdb')}</Checkbox>
+                  <bk-checkbox v-model={this.influxdbStorageEnable}>{this.$t('投递到Influxdb')}</bk-checkbox>
                 </span>,
-                <Select
+                <bk-select
                   v-model={this.formData.influxdb_storage_cluster_id}
                   disabled={!this.influxdbStorageEnable}
                   v-bkloading={{ isLoading: this.getInfluxdLoading }}
                 >
                   {this.influxdbOptions.map(item => (
-                    <Option
+                    <bk-option
                       key={item.id}
                       id={item.id}
                       name={item.name}
-                    ></Option>
+                    ></bk-option>
                   ))}
-                </Select>,
+                </bk-select>,
                 this.errMsg.influxdb_storage_cluster_id
               )}
               {formItem(
                 <span class='check-title'>
-                  <Checkbox v-model={this.kafkaStorageEnable}>{this.$t('投递到Kafka')}</Checkbox>
+                  <bk-checkbox v-model={this.kafkaStorageEnable}>{this.$t('投递到Kafka')}</bk-checkbox>
                 </span>,
-                <Select
+                <bk-select
                   v-model={this.formData.kafka_storage_cluster_id}
                   disabled={!this.kafkaStorageEnable}
                   v-bkloading={{ isLoading: this.getKafkaLoading }}
                 >
                   {this.kafkaOptions.map(item => (
-                    <Option
+                    <bk-option
                       key={item.id}
                       id={item.id}
                       name={item.name}
-                    ></Option>
+                    ></bk-option>
                   ))}
-                </Select>,
+                </bk-select>,
                 this.errMsg.kafka_storage_cluster_id
               )}
               {formItem(
                 <span>{this.$t('备注说明')}</span>,
-                <Input
+                <bk-input
                   v-model={this.formData.description}
                   type={'textarea'}
                   rows={3}
                   maxlength={100}
-                ></Input>,
+                ></bk-input>,
                 this.errMsg.description
               )}
             </div>
@@ -551,21 +550,21 @@ export default class DataPipelineConfig extends tsc<IProps> {
           slot='footer'
           class='footer-content'
         >
-          <Button
+          <bk-button
             theme='primary'
             class='submit'
             onClick={this.handleSubmit}
           >
             {this.$t('提交')}
-          </Button>
-          <Button
+          </bk-button>
+          <bk-button
             class='cancel'
             onClick={() => this.emitIsShow(false)}
           >
             {this.$t('取消')}
-          </Button>
+          </bk-button>
         </div>
-      </Sideslider>
+      </bk-sideslider>
     );
   }
 }

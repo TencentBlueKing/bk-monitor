@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button } from 'bk-magic-vue';
 
 import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
 import authorityStore from '../../store/modules/authority';
@@ -75,13 +74,13 @@ export default class NoPermission extends tsc<AuthorityIDProps> {
         <div class='lock-icon'></div>
         <div class='title'>{this.$t('无权限访问')}</div>
         <div class='msg'>{this.$t('您没有该资源的权限，请先申请!')}</div>
-        <Button
+        <bk-button
           theme='primary'
           class='submit'
           on-click={this.handleApply}
         >
           {this.$t('去申请')}
-        </Button>
+        </bk-button>
       </div>
     );
   }

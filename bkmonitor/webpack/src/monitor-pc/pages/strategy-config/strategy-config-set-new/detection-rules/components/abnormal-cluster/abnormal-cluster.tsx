@@ -376,7 +376,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
             ></div>
           </bk-alert>
         )}
-        <Form
+        <bk-form
           ref='formRef'
           rules={this.rules}
           label-width={126}
@@ -384,7 +384,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
           formItemList={this.formItem}
           onChange={this.handleFormValueChange}
           class='time-serise-forecast-wrap'
-        ></Form>
+        ></bk-form>
       </div>
     );
   }

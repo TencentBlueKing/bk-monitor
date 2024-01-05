@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button } from 'bk-magic-vue';
 
 import { getExperience, saveExperience } from '../../../../monitor-api/modules/alert';
 import Editor from '../../../../monitor-ui/markdown-editor/editor';
@@ -91,14 +90,14 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
           class='detail-content-editor'
           v-model={this.text}
         ></Editor>
-        <Button
+        <bk-button
           ext-cls={'handleexperience-btn'}
           theme='primary'
           on-click={this.saveData}
         >
           {' '}
           {this.$t('保存')}{' '}
-        </Button>
+        </bk-button>
       </div>
     );
   }

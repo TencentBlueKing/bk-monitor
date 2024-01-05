@@ -335,8 +335,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
       this.curNode?.type === 'service'
         ? val.bk_target_service_instance_id
         : this.curNode?.type === 'host'
-        ? this.panel.targets?.[0]?.handleCreateItemId(val, true)
-        : `${val.bk_inst_id}-${val.bk_obj_id}`;
+          ? this.panel.targets?.[0]?.handleCreateItemId(val, true)
+          : `${val.bk_inst_id}-${val.bk_obj_id}`;
   }
 
   @Watch('viewOptions', { immediate: true })
@@ -534,8 +534,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
         this.curNode?.type === 'service'
           ? data.service_instance_id
           : this.curNode?.type === 'host'
-          ? `${this.panel.targets?.[0]?.handleCreateItemId(data)}`
-          : `${data.bk_inst_id}-${data.bk_obj_id}`;
+            ? `${this.panel.targets?.[0]?.handleCreateItemId(data)}`
+            : `${data.bk_inst_id}-${data.bk_obj_id}`;
       this.handleTitleChange(data);
     } else {
       this.curNode.type = 'overview'; // 选中数据总览时

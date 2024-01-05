@@ -26,7 +26,6 @@
 
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
-import { Button, Checkbox, Exception, SearchSelect } from 'bk-magic-vue';
 // import MonitorDateRange from '../../../../components/monitor-date-range/monitor-date-range.vue'
 import { debounce, throttle } from 'throttle-debounce';
 
@@ -491,8 +490,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       this.sourceType === 'log_time_series'
         ? `${row.related_name}.${row.metric_field}`
         : row.result_table_id
-        ? `${row.result_table_id}.${row.metric_field}`
-        : row.metric_field;
+          ? `${row.result_table_id}.${row.metric_field}`
+          : row.metric_field;
     // 英文
     if (this.$store.getters.lang !== 'en') {
       obj.alias = !row.metric_field_name || row.metric_field_name === row.metric_field ? '' : row.metric_field_name;
@@ -847,7 +846,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
           v-bkloading={{ isLoading: this.loading }}
         >
           <div class='head'>
-            <SearchSelect
+            <bk-search-select
               ref='searchSelect'
               class='metric-search'
               v-model={this.searchObj.keyWord}
@@ -857,12 +856,12 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
               placeholder={this.$t('关键字搜索')}
               on-change={this.handleSearch}
               show-condition={false}
-            ></SearchSelect>
-            <Button
+            ></bk-search-select>
+            <bk-button
               class='metric-refresh'
               icon='icon-refresh'
               on-click={() => this.refreshMonitorSource()}
-            ></Button>
+            ></bk-button>
           </div>
           <HorizontalScrollContainer
             key={String(this.tag.list?.length || 0)}
@@ -910,7 +909,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
                 </ul>
               </div>
               <div class='see-selected'>
-                <Checkbox
+                <bk-checkbox
                   checked={false}
                   true-value={true}
                   false-value={false}
@@ -921,7 +920,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
                     {this.$t('只看已选')}
                     <span class='num'>{`(${this.checkedMetric.length})`}</span>
                   </div>
-                </Checkbox>
+                </bk-checkbox>
               </div>
               {this.curData?.list.length ? (
                 <div
@@ -933,11 +932,11 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
                 </div>
               ) : (
                 <div class='metric-common-content'>
-                  <Exception
+                  <bk-exception
                     class='exception-wrap-item right-empty'
                     type='empty'
                     scene='part'
-                  ></Exception>
+                  ></bk-exception>
                 </div>
               )}
               {this.getNoMetricComponent()}
@@ -947,16 +946,16 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         </div>
         <template slot='footer'>
           {!this.readonly ? (
-            <Button
+            <bk-button
               theme='primary'
               style='margin-right: 10px'
               disabled={this.checkedMetric && this.checkedMetric.length === 0}
               on-click={this.handleConfirm}
             >
               {this.$t('添加')}
-            </Button>
+            </bk-button>
           ) : undefined}
-          <Button on-click={this.handleCancel}>{this.$t('取消')}</Button>
+          <bk-button on-click={this.handleCancel}>{this.$t('取消')}</bk-button>
         </template>
       </MonitorDialog>
     );

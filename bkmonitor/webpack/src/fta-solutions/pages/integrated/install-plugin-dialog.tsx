@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-// import { Dialog, Radio, RadioGroup, Select, Button } from 'bk-magic-vue';
-import { Button, Dialog } from 'bk-magic-vue';
 
+//
 import { createEventPluginInstance, getEventPluginInstance } from '../../../monitor-api/modules/event_plugin';
 import DynamicForm from '../setting/set-meal/set-meal-add/components/dynamic-form/dynamic-form';
 
@@ -144,7 +143,7 @@ export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, 
 
   render() {
     return (
-      <Dialog
+      <bk-dialog
         value={this.value}
         header-position='left'
         title={this.$t('安装插件')}
@@ -169,35 +168,35 @@ export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, 
           )}
         </div>
         <div slot='footer'>
-          <Button
+          <bk-button
             theme='primary'
             class='mr10'
             loading={this.loading}
             onClick={this.handleConfirm}
           >
             {this.$t('确认')}
-          </Button>
-          <Button onClick={this.handleClose}>{this.$t('取消')}</Button>
+          </bk-button>
+          <bk-button onClick={this.handleClose}>{this.$t('取消')}</bk-button>
         </div>
         {/* <div class="dialog-content">
           <div>{this.$t('安装至')}</div>
-          <RadioGroup v-model={this.type} class="mt15">
-            <Radio value="current">{this.$t('当前空间')}</Radio>
-            <Radio value="multi" class="all-biz">
+          <bk-radio-group v-model={this.type} class="mt15">
+            <bk-radio value="current">{this.$t('当前空间')}</bk-radio>
+            <bk-radio value="multi" class="all-biz">
               <div class="biz-select">
                 {this.$t('多个业务')}
-                <Select size="small" behavior="simplicity" clearable v-model={this.biz}></Select>
+                <bk-select size="small" behavior="simplicity" clearable v-model={this.biz}></bk-select>
               </div>
-            </Radio>
-          </RadioGroup>
+            </bk-radio>
+          </bk-radio-group>
           <i18n path="已安装本插件业务" class="installed-tips">
             <span class="count">{this.count}</span>
-            <Button text size="small">
+            <bk-button text size="small">
               {this.$t('点击查看')}
-            </Button>
+            </bk-button>
           </i18n>
         </div> */}
-      </Dialog>
+      </bk-dialog>
     );
   }
 }

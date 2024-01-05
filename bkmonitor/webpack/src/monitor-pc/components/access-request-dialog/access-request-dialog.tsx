@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Dialog, Exception, Link } from 'bk-magic-vue';
 
 import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
 import { handleGotoLink } from '../../common/constant';
@@ -98,7 +97,7 @@ export default class AccessRequestDialog extends tsc<{}> {
   }
   render() {
     return (
-      <Dialog
+      <bk-dialog
         v-model={this.visible}
         width={480}
         show-footer={false}
@@ -106,7 +105,7 @@ export default class AccessRequestDialog extends tsc<{}> {
         ext-cls='access-requst-dialog'
         mask-close={false}
       >
-        <Exception
+        <bk-exception
           type={403}
           scene={'part'}
         >
@@ -116,13 +115,13 @@ export default class AccessRequestDialog extends tsc<{}> {
               <div class='access-request-sub-title'>{window.i18n.t('可以按照以下方式进行申请')}</div>
               <div class='single-line'>
                 <span style='margin-right: 10px;'>1. {window.i18n.t('推荐加入该业务的用户组，查询')}</span>
-                <Link
+                <bk-link
                   disabled={!this.bizName}
                   theme='primary'
                   onClick={() => this.goToJoinInUserGroup()}
                 >
                   {window.i18n.t('{0} 用户组', [this.bizName])}
-                </Link>
+                </bk-link>
               </div>
               <div class='single-line'>
                 2. {window.i18n.t('找不到相应用户组时，请联系管理员：')}
@@ -130,17 +129,17 @@ export default class AccessRequestDialog extends tsc<{}> {
               </div>
               <div class='single-line'>
                 <span style='margin-right: 10px;'>3. {window.i18n.t('查看')}</span>
-                <Link
+                <bk-link
                   theme='primary'
                   onClick={() => handleGotoLink('accessRequest')}
                 >
                   {window.i18n.t('权限申请文档')}
-                </Link>
+                </bk-link>
               </div>
             </div>
           </div>
-        </Exception>
-      </Dialog>
+        </bk-exception>
+      </bk-dialog>
     );
   }
 }

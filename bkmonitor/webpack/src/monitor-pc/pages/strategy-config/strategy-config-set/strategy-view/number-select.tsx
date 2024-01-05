@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input, Popover } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../../monitor-common/utils';
 
@@ -39,7 +38,7 @@ interface IProps {
 
 @Component
 export default class NumberSelect extends tsc<IProps> {
-  @Ref('pop') popRef: Popover;
+  @Ref('pop') popRef: any;
 
   @Prop({ type: Array, default: () => [10, 20, 30, 40, 50] }) list: number[];
   @Prop({ type: [Number, String], default: 0 }) value: number;
@@ -70,7 +69,7 @@ export default class NumberSelect extends tsc<IProps> {
 
   render() {
     return (
-      <Popover
+      <bk-popover
         offset={-1}
         distance={12}
         arrow={false}
@@ -87,7 +86,7 @@ export default class NumberSelect extends tsc<IProps> {
           name='trigger'
           class='strategy-view-number-select'
         >
-          <Input
+          <bk-input
             class='width-45'
             v-model={this.localValue}
             type='number'
@@ -96,7 +95,7 @@ export default class NumberSelect extends tsc<IProps> {
             behavior='simplicity'
             showControls={false}
             onBlur={() => this.handleBlur()}
-          ></Input>
+          ></bk-input>
         </slot>
         <ul
           slot='content'
@@ -112,7 +111,7 @@ export default class NumberSelect extends tsc<IProps> {
             </li>
           ))}
         </ul>
-      </Popover>
+      </bk-popover>
     );
   }
 }

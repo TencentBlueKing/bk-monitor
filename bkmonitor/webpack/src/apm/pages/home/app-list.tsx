@@ -27,7 +27,6 @@
 // import { Component, Mixins, Provide } from 'vue-tsx-support';
 import { Component, Provide, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Dialog } from 'bk-magic-vue';
 
 import { CancelToken } from '../../../monitor-api/index';
 import {
@@ -214,7 +213,7 @@ export default class AppList extends tsc<{}> {
   }
 
   created() {
-    const { query } = this.$route;
+    const { query } = this.$route || {};
     if (query?.queryString) {
       this.searchKeyword = query.queryString as string;
     }
@@ -668,7 +667,7 @@ export default class AppList extends tsc<{}> {
           pluginId={this.pluginId}
           v-model={this.showAddDialog}
         ></AppAddForm>
-        <Dialog
+        <bk-dialog
           value={this.showGuideDialog}
           mask-close={true}
           ext-cls='guide-create-dialog'
@@ -681,7 +680,7 @@ export default class AppList extends tsc<{}> {
             guideId='apm-home'
             guideData={this.apmIntroduceData}
           />
-        </Dialog>
+        </bk-dialog>
       </div>
     );
   }

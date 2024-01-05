@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { ITableSeries } from '../options/type-interface';
@@ -65,7 +64,7 @@ export default class TableChart extends tsc<TableChartProps> {
 
   render() {
     return (
-      <Table
+      <bk-table
         data={this.tableData}
         size={'small'}
         ext-cls='chart-table'
@@ -73,15 +72,15 @@ export default class TableChart extends tsc<TableChartProps> {
         outer-border={false}
       >
         {this.tableColumn?.map(column => (
-          <TableColumn
+          <bk-table-column
             label={column.text}
             show-overflow-tooltip={true}
             scopedSlots={{
               default: ({ row }) => row[column.text]
             }}
-          ></TableColumn>
+          ></bk-table-column>
         ))}
-      </Table>
+      </bk-table>
     );
   }
 }

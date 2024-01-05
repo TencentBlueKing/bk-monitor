@@ -39,10 +39,6 @@ import zhIcon from '../static/images/svg/zh.svg';
 import { IMenuItem } from '../types';
 
 // #if APP !== 'external'
-import Calendar from './calendar/calendar';
-import DataPipeline from './data-pipeline/data-pipeline';
-import ResourceRegister from './resource-register/resource-register';
-import SpaceManage from './space-manage/space-manage';
 import GlobalSearchModal from './global-search-modal-new';
 import SettingModal from './setting-modal';
 
@@ -67,7 +63,9 @@ interface INavToolsEvents {
       import(/* webpackChunkName: 'MigrateDashboard' */ '../pages/migrate-dashboard/migrate-dashboard.vue') as any,
     ResourceRegister: () =>
       import(/* webpackChunkName: 'ResourceRegister' */ '../pages/resource-register/resource-register') as any,
-    DataPipeline: () => import(/* webpackChunkName: 'DataPipeline' */ '../pages/data-pipeline/data-pipeline') as any
+    DataPipeline: () => import(/* webpackChunkName: 'DataPipeline' */ '../pages/data-pipeline/data-pipeline') as any,
+    SpaceManage: () => import(/* webpackChunkName: 'SpaceManage' */ './space-manage/space-manage') as any,
+    GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any
   }
   // #endif
 } as any)
@@ -247,16 +245,16 @@ class NavTools extends DocumentLinkMixin {
       return <migrate-dashboard class='migrate-dashboard' />;
     }
     if (this.activeSetting === 'calendar') {
-      return <Calendar></Calendar>;
+      return <global-calendar></global-calendar>;
     }
     if (this.activeSetting === 'space-manage') {
-      return <SpaceManage></SpaceManage>;
+      return <space-manage></space-manage>;
     }
     if (this.activeSetting === 'resource-register') {
-      return <ResourceRegister></ResourceRegister>;
+      return <resource-register></resource-register>;
     }
     if (this.activeSetting === 'data-pipeline') {
-      return <DataPipeline></DataPipeline>;
+      return <data-pipeline></data-pipeline>;
     }
     return <health-z />;
   }
@@ -279,7 +277,7 @@ class NavTools extends DocumentLinkMixin {
    * 跳转到paas-host登录页面会自动清除登录cookie
    */
   handleQuit() {
-    location.href = location.origin + "/logout";
+    location.href = `${location.origin}/logout`;
   }
   render() {
     return (
@@ -341,12 +339,14 @@ class NavTools extends DocumentLinkMixin {
             {this.$store.getters.lang === 'en' ? (
               <img
                 class='language-icon'
+                alt='english'
                 src={enIcon}
               ></img>
             ) : (
               <img
                 class='language-icon'
                 src={zhIcon}
+                alt='中文'
               ></img>
             )}
           </div>
@@ -361,6 +361,7 @@ class NavTools extends DocumentLinkMixin {
                   <img
                     class='language-icon'
                     src={item.id === 'en' ? enIcon : zhIcon}
+                    alt='language'
                   ></img>
                   {item.name}
                 </li>

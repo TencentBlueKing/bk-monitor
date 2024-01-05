@@ -1684,7 +1684,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                       // 变量筛选
                       (!!this.sceneData.variables.length || this.sceneData.enableGroup) && (
                         <div class='dashboard-panel-filter-wrap'>
-                          <Collapse
+                          <bk-collapse
                             ref='collapseRef'
                             expand={this.filterActive}
                             renderAnimation={false}
@@ -1718,7 +1718,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                 />
                               ) : undefined}
                             </div>
-                          </Collapse>
+                          </bk-collapse>
                         </div>
                       )
                     }

@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import { Debounce, random } from '../../../../monitor-common/utils';
 import { getEventPaths } from '../../../utils';
@@ -1368,13 +1367,13 @@ export default class CommonCondition extends tsc<IProps> {
           >
             {(this.isPopTypeOfValue || this.isClickValueTag) && (
               <div class='search-wrap'>
-                <Input
+                <bk-input
                   value={this.valueSearch}
                   left-icon='bk-icon icon-search'
                   placeholder={window.i18n.t('输入关键字搜索')}
                   behavior={'simplicity'}
                   onChange={this.handleSearchChange}
-                ></Input>
+                ></bk-input>
               </div>
             )}
             <div class='wrap-list'>
