@@ -26,7 +26,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-const wewebId = 'newReport';
+const wewebId = 'report';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class TraceNewReport extends tsc<{}> {
@@ -35,17 +35,14 @@ export default class TraceNewReport extends tsc<{}> {
   }
   get newReportUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.newReportHost}/?bizId=${this.$store.getters.bizId}/#/trace/new-report-config`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/new-report-config`;
+      ? `${this.newReportHost}/?bizId=${this.$store.getters.bizId}/#/trace/report`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/report`;
   }
   get newReportData() {
     return JSON.stringify({
       host: this.newReportHost,
       baseroute: '/trace/'
     });
-  }
-  beforeRouteLeave(to, from, next) {
-    next();
   }
   render() {
     return (

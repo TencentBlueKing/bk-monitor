@@ -1,3 +1,5 @@
+import { defineComponent } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,18 +25,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteRecordRaw } from 'vue-router';
-
-export default [
-  {
-    path: '/report',
-    name: 'report',
-    component: () => import(/* webpackChunkName: "report" */ '../../pages/email-subscription/email-subscription-config')
+export default defineComponent({
+  name: 'DetailRow',
+  props: {
+    label: {
+      type: String,
+      default: ''
+    },
+    value: {
+      type: String,
+      default: ''
+    }
   },
-  {
-    path: '/report/create',
-    name: 'create-report',
-    component: () =>
-      import(/* webpackChunkName: "create-report" */ '../../pages/email-subscription/create-subscription')
+  setup(props) {
+    return {
+      props
+    };
+  },
+  render() {
+    return (
+      <div class='row'>
+        <div class='label'>
+          <span>{this.props.label}</span>
+        </div>
+        <span class='value'>{this.props.value}</span>
+      </div>
+    );
   }
-] as RouteRecordRaw[];
+});

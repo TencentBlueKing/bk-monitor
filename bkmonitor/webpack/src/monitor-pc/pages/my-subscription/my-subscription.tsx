@@ -61,6 +61,7 @@ class MySubscription extends tsc<{}> {
     conditions: []
   };
   tableData = [];
+  totalReportSize = 0;
   isTableLoading = false;
   isShowSideslider = false;
   isShowSendRecord = false;
@@ -76,7 +77,6 @@ class MySubscription extends tsc<{}> {
   isResending = false;
   resetAndGetSubscriptionList() {
     this.queryData.page = 1;
-    this.queryData.page_size = 20;
     this.fetchSubscriptionList();
   }
 
@@ -85,7 +85,8 @@ class MySubscription extends tsc<{}> {
     getReportList(this.queryData)
       .then(response => {
         console.log(response);
-        this.tableData = response;
+        this.tableData = response.report_list;
+        this.totalReportSize = response.total;
       })
       .catch(console.log)
       .finally(() => {
@@ -585,7 +586,8 @@ class MySubscription extends tsc<{}> {
                       });
                     }
                   }
-                  this.resetAndGetSubscriptionList();
+                  this.queryData.page = 1;
+                  this.fetchSubscriptionList();
                 },
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 'sort-change': ({ column, prop, order }) => {
@@ -594,13 +596,14 @@ class MySubscription extends tsc<{}> {
                   } else {
                     this.queryData.order = '';
                   }
-                  this.resetAndGetSubscriptionList();
+                  this.fetchSubscriptionList();
                 },
                 'page-change': newPage => {
                   this.queryData.page = newPage;
                   this.fetchSubscriptionList();
                 },
                 'page-limit-change': limit => {
+                  this.queryData.page = 1;
                   this.queryData.page_size = limit;
                   this.fetchSubscriptionList();
                 }
@@ -608,7 +611,7 @@ class MySubscription extends tsc<{}> {
             }}
             pagination={{
               current: this.queryData.page,
-              count: this.tableData.length,
+              count: this.totalReportSize,
               limit: this.queryData.page_size
             }}
             row-auto-height
