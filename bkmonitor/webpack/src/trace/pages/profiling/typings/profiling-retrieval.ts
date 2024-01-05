@@ -42,10 +42,15 @@ export interface ConditionItem {
   value: string | string[];
 }
 export interface RetrievalFormData {
+  /** 查询类型 */
   type: SearchType;
+  /** 是否开启对比模式 */
   isComparison: boolean;
-  server: string;
+  /** 应用/服务 */
+  server: string | number;
+  /** 查询项条件 */
   where: ConditionItem[];
+  /** 对比项条件 */
   comparisonWhere: ConditionItem[];
 }
 
@@ -67,3 +72,7 @@ export const retrievalDataTypeList = [
     name: 'MUTEX'
   }
 ] as const;
+
+export interface ApplicationItem {
+  [key: string]: any;
+}

@@ -42,8 +42,12 @@ export default defineComponent({
       required: true
     }
   },
-  setup() {
+  emits: ['showFileDetail'],
+  setup(_props, { emit }) {
     const { t } = useI18n();
+    function handleShowFileDetail(item) {
+      emit('showFileDetail', item);
+    }
 
     const uploadDialogShow = ref(false);
     const active = ref<ConditionType>(ConditionType.Where);
@@ -100,13 +104,6 @@ export default defineComponent({
       uploadDialogShow.value = v;
     }
 
-    /**
-     * @description 展示基础信息
-     * @param item
-     */
-    function handleShowFileDetail(item) {
-      console.log(item);
-    }
 
     function statusRender(status) {
       if (status === 'running') {
@@ -173,6 +170,7 @@ export default defineComponent({
                 <Select.Option
                   id={item.id}
                   key={item.id}
+                  name={item.name}
                 >
                   <div class='upload-select-item'>
                     <div class='left'>
