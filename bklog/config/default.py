@@ -1157,6 +1157,19 @@ CHECK_COLLECTOR_SWITCH: bool = os.getenv("CHECK_COLLECTOR_SWITCH", "off") == "on
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 # ==============================================================================
 
+# ==============================================================================
+# 支持监控跨域
+allowed_cors_from_settings = os.environ.get("BKAPP_ALLOWED_CORS_ORIGINS", "").split(",")
+# 监控默认域名
+default_allowed_bkmonitor_origin = BK_BKLOG_HOST.replace("bklog", "bkmonitor")
+# 中间件CorsMiddleware中支持跨域的域名配置
+CORS_ALLOWED_ORIGINS = [
+    default_allowed_bkmonitor_origin
+]
+for origin in allowed_cors_from_settings:
+    if origin:
+        CORS_ALLOWED_ORIGINS.append(origin)
+
 """
 以下为框架代码 请勿修改
 """

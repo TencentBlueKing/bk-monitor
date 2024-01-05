@@ -184,7 +184,8 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
             content: this.alarmNum < 1 ? this.$t('无告警事件') : this.$t('当前有{0}个告警事件', [this.alarmNum]),
             delay: 200,
             boundary: 'window',
-            placement: 'bottom'
+            placement: 'bottom',
+            allowHTML: false
           }}
         >
           <i class='icon-monitor icon-mc-chart-alert tool-icon' />

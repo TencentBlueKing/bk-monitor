@@ -16,11 +16,11 @@
 
 @mixin checkIcon() {
   position: absolute;
-  top: -4px;
+  top: -5px;
   right: -4px;
   z-index: 2;
   font-family: 'icon-monitor';
-  font-size: 22px;
+  font-size: 20px;
   line-height: normal;
   color: #fff;
   content: '\e6b7';
@@ -28,6 +28,10 @@
 $minWidth: 1036px;
 
 .alarm-group-add-wrap {
+  .width-508 {
+    width: 508px
+  }
+
   .biz-id-select {
     @include inputMinWidth();
   }
@@ -71,9 +75,13 @@ $minWidth: 1036px;
       //position: absolute;
       //bottom: -16px;
       //left: 0;
-      line-height: 1;
+      line-height: 30px;
       color: #ff5656;
     }
+  }
+
+  .bk-label-text {
+    font-size: 12px;
   }
 
   .input-duty {
@@ -84,6 +92,7 @@ $minWidth: 1036px;
       margin-left: 9px;
     }
   }
+
 
   .alert-type {
     display: flex;
@@ -98,6 +107,7 @@ $minWidth: 1036px;
       height: 48px;
       margin-right: 16px;
       cursor: pointer;
+      background: #fff;
       border: 1px solid #c4c6cc;
       border-radius: 2px;
 

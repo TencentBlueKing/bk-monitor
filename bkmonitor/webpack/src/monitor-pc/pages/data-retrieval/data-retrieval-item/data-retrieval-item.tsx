@@ -205,7 +205,8 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             content: item.id,
             placement: 'right',
             zIndex: 9999,
-            boundary: document.body
+            boundary: document.body,
+            allowHTML: false
           }}
         >
           {item.name}
@@ -225,7 +226,8 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             trigger: 'mouseenter',
             zIndex: 9999,
             offset: '0, 6',
-            boundary: document.body
+            boundary: document.body,
+            allowHTML: false
           }}
         >
           {node.name}
