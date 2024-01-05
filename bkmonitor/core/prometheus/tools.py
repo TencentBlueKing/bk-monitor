@@ -11,12 +11,15 @@ specific language governing permissions and limitations under the License.
 import logging
 import socket
 import time
+import typing
 from dataclasses import dataclass, field
-from typing import Generator, List, Optional, Union
+from functools import wraps
+from types import MethodType
+from typing import Generator, List, Optional
 
 from django.conf import settings
 from prometheus_client.exposition import push_to_gateway
-from prometheus_client.metrics import Gauge, Histogram, MetricWrapperBase, Summary
+from prometheus_client.metrics import MetricWrapperBase
 
 logger = logging.getLogger(__name__)
 
@@ -231,39 +234,53 @@ def push_to_agg_gateway(metric: MetricWrapperBase):
         metric._metrics = {}
 
 
-class AggMetricTimer:
+def task_timer(queue: str = None) -> typing.Callable[[typing.Callable], typing.Callable]:
     """
-    聚合网关指标计时器
-    传入metric对象及labels, 计时器在labels的最后追加一个运行异常label，默认为0，当有异常时会记录异常类的类名
+    函数计时器
     """
+    if not queue:
+        queue = "celery"
 
-    def __init__(self, metric: Union[Summary, Gauge, Histogram], labels: List[str], append_exc_type_label=True):
-        self.metric = metric
-        self.labels = labels
-        self.start_time = None
-        self.append_exc_type_label = append_exc_type_label
+    def actual_timer(func) -> typing.Callable:
+        from core.prometheus import metrics
 
-    def __enter__(self):
-        self.start_time = time.time()
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result, exception = None, None
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+            except Exception as e:  # noqa
+                exception = e
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        duration = time.time() - self.start_time
+            # 记录函数执行时间
+            metrics.CELERY_TASK_EXECUTE_TIME.labels(
+                task_name=func.__name__,
+                queue=queue,
+                exception=str(exception),
+            ).observe(time.time() - start_time)
+            metrics.report_all()
 
-        if not get_metric_agg_gateway_url():
-            return
+            # 如果函数执行失败，抛出异常
+            if exception:
+                raise exception
+            return result
 
-        try:
-            if self.append_exc_type_label:
-                if exc_type is not None:
-                    status = exc_type.__name__
-                else:
-                    status = "None"
-                self.labels = self.labels + [status]
-            if isinstance(self.metric, Gauge):
-                self.metric.labels(*self.labels).set(duration)
-            else:
-                self.metric.labels(*self.labels).observe(duration)
+        return wrapper
 
-                push_to_agg_gateway(self.metric)
-        except Exception as e:
-            logger.debug(e)
+    return actual_timer
+
+
+def hack_task(self, *args, **kwargs):
+    def wrapper(func):
+        return self._old_task(*args, **kwargs)(task_timer(queue=kwargs.get("queue"))(func))
+
+    return wrapper
+
+
+def celery_app_timer(app):
+    """
+    对 celery app 进行 patch，为其增加函数计时器
+    """
+    app._old_task = app.task
+    app.task = MethodType(hack_task, app)
