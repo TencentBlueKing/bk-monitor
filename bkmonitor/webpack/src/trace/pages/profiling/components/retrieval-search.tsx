@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, reactive, watch } from 'vue';
+import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
@@ -58,6 +58,15 @@ export default defineComponent({
         value: SearchType.Upload
       }
     ];
+    /** 应用/服务可选列表 */
+    const applicationList = ref([
+      { id: 1, name: 'app1', desc: 'app123', children: [{ id: 7, name: 'load-generator' }] },
+      { id: 2, name: 'rideshare-app', desc: 'app123', children: [{ id: 8, name: 'ride-sharing-app' }] },
+      { id: 3, name: 'nodata', desc: 'app123', children: [] },
+      { id: 4, name: 'nodata2', desc: 'app123', children: [] }
+    ]);
+    /** 当前选中的应用/服务 */
+    const selectApplicationData = ref(null);
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: null,
@@ -69,6 +78,9 @@ export default defineComponent({
       () => props.formData,
       newVal => {
         newVal && Object.assign(localFormData, newVal);
+      },
+      {
+        immediate: true
       }
     );
 
@@ -82,9 +94,21 @@ export default defineComponent({
       handleEmitChange();
     }
 
+    /**
+     * 选择应用/服务
+     * @param id 选项id
+     * @param val 选项数据
+     */
+    function handleApplicationChange(id, val) {
+      localFormData.server = id;
+      selectApplicationData.value = val;
+      handleEmitChange();
+    }
+
+    /** 查看详情 */
     function handleDetailClick() {
       // if (!localFormData.server) return;
-      emit('showDetail');
+      emit('showDetail', selectApplicationData.value);
     }
 
     /**
@@ -137,9 +161,11 @@ export default defineComponent({
 
     return {
       t,
+      applicationList,
       localFormData,
       retrievalType,
       handleTypeChange,
+      handleApplicationChange,
       handleDetailClick,
       handleComparisonChange,
       addCondition,
@@ -168,7 +194,11 @@ export default defineComponent({
               <div class='service form-item'>
                 <div class='label'>{this.t('应用/服务')}</div>
                 <div class='content'>
-                  <ApplicationCascade></ApplicationCascade>
+                  <ApplicationCascade
+                    list={this.applicationList}
+                    value={this.localFormData.server}
+                    onChange={this.handleApplicationChange}
+                  ></ApplicationCascade>
                   <div
                     class='detail-btn'
                     onClick={this.handleDetailClick}

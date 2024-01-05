@@ -26,13 +26,22 @@ import { RetrievalFormData } from './profiling-retrieval';
  * IN THE SOFTWARE.
  */
 export interface SearchState {
+  /** 是否展示查询面板 */
   isShow: boolean;
+  /** 是否开启自动查询功能 */
   autoQuery: boolean;
+  /** 是否能查询 */
   canQuery: boolean;
+  /** 表单数据 */
   formData: RetrievalFormData;
 }
 
 export enum PanelType {
   Favorite = 'favorite',
   Search = 'search'
+}
+
+export enum DetailType {
+  Application = 'application',
+  UploadFile = 'uploadFile'
 }
