@@ -502,7 +502,10 @@ export default class Home extends tsc<IHomeProps> {
                       <span class='unit'>{item.unit}</span>
                     </span>
                     <span class='item-bottom'>
-                      <img src={this.getSvgIcon(item.icon)} />
+                      <img
+                        src={this.getSvgIcon(item.icon)}
+                        alt=''
+                      />
                       <span class='title'>{item.name}</span>
                     </span>
                   </div>

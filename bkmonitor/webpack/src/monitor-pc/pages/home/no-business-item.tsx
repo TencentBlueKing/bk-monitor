@@ -186,7 +186,10 @@ export default class NoBusinessItem extends tsc<IProps> {
           </div>
           <div class='skeleton'>
             {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
-            <img src={require('../../static/images/svg/business-skeleton.svg')}></img>
+            <img
+              src={require('../../static/images/svg/business-skeleton.svg')}
+              alt=''
+            ></img>
           </div>
         </div>
         <div class='line'></div>

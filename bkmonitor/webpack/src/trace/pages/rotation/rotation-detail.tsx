@@ -132,7 +132,13 @@ export default defineComponent({
     }
 
     function renderUserLogo(user) {
-      if (user.logo) return <img src={user.logo}></img>;
+      if (user.logo)
+        return (
+          <img
+            src={user.logo}
+            alt=''
+          ></img>
+        );
       if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
       return <span class='icon-monitor icon-mc-user-one no-img'></span>;
     }

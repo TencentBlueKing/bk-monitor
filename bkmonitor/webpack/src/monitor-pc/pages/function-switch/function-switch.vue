@@ -45,6 +45,7 @@
       class="abnormal-data"
     >
       <img
+        alt=''
         class="abnormal-img"
         src="../../static/images/svg/Abnormal-data.svg"
       >
@@ -127,9 +128,9 @@ export default class FunctionSwitch extends Mixins(authorityMixinCreate(funcAuth
     }
 
     .abnormal-text {
+      margin-bottom: 24px;
       font-size: 24px;
       line-height: 31px;
-      margin-bottom: 24px;
       color: $defaultFontColor;
     }
   }

@@ -558,7 +558,12 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                     >
                       <div class='person-image'>
                         {[
-                          item.logo ? <img src={item.logo} /> : undefined,
+                          item.logo ? (
+                            <img
+                              src={item.logo}
+                              alt=''
+                            />
+                          ) : undefined,
                           !item.logo && item.type === 'group' ? (
                             <i class='icon-monitor icon-mc-user-group no-img' />
                           ) : undefined,
@@ -598,7 +603,12 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                   >
                     <div class='person-image'>
                       {[
-                        item.logo ? <img src={item.logo} /> : undefined,
+                        item.logo ? (
+                          <img
+                            src={item.logo}
+                            alt=''
+                          />
+                        ) : undefined,
                         !item.logo && item.type === 'group' ? (
                           <i class='icon-monitor icon-mc-user-group no-img' />
                         ) : undefined,

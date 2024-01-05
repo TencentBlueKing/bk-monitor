@@ -135,6 +135,7 @@
                   class="col-status-img"
                   v-if="isRunning && (props.row.status === 'RUNNING' || props.row.status === 'PENDING')"
                   src="../../../static/images/svg/spinner.svg"
+                  alt=''
                 >
                 <div
                   class="col-status-radius"

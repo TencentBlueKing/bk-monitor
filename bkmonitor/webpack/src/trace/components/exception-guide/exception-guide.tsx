@@ -66,6 +66,7 @@ export default defineComponent({
                     <img
                       class='custom-icon'
                       src={guideInfo.icon}
+                      alt=''
                     />
                   )
                 }

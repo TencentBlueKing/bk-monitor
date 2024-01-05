@@ -177,7 +177,10 @@ export default defineComponent({
             key={random(6)}
             onClick={() => handleToService(row?.['resource.service.name']?.value)}
           >
-            <img src={row?.['resource.service.name']?.icon} />
+            <img
+              src={row?.['resource.service.name']?.icon}
+              alt=''
+            />
             <Popover
               content={row?.['resource.service.name']?.value}
               popoverDelay={[200, 0]}
@@ -209,7 +212,10 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div class='classify-column'>
-            <img src={row.kind?.icon} />
+            <img
+              src={row.kind?.icon}
+              alt=''
+            />
             <span class='link-text'>{row.kind?.text}</span>
           </div>
         )
@@ -342,7 +348,10 @@ export default defineComponent({
             key={random(6)}
             onClick={() => handleToService(row?.['resource.service.name']?.value)}
           >
-            <img src={row?.['resource.service.name']?.icon} />
+            <img
+              src={row?.['resource.service.name']?.icon}
+              alt=''
+            />
             <Popover
               content={row?.['resource.service.name']?.value}
               popoverDelay={[200, 0]}
@@ -374,7 +383,10 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div class='classify-column'>
-            <img src={row.kind?.icon} />
+            <img
+              src={row.kind?.icon}
+              alt=''
+            />
             <span class='link-text'>{row.kind?.text}</span>
           </div>
         )

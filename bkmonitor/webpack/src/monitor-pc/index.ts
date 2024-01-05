@@ -33,7 +33,6 @@ import Vue from 'vue';
 import i18n from './i18n/i18n';
 
 import './common/import-magicbox-ui';
-import '@blueking/bk-weweb';
 import '../monitor-ui/directive/index';
 import './common/global';
 import '../monitor-static/svg-icons';
