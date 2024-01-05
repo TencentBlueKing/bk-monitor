@@ -27,11 +27,11 @@
 import { defineComponent, nextTick, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { deepClone } from '@common/utils';
 import {
   Button,
   Dialog,
   Dropdown,
+  InfoBox,
   Input,
   Loading,
   Message,
@@ -46,7 +46,6 @@ import { Column } from 'bkui-vue/lib/table/props';
 import dayjs from 'dayjs';
 
 import {
-  cloneReport,
   createOrUpdateReport,
   deleteReport,
   getReport,
@@ -54,11 +53,14 @@ import {
   getSendRecords,
   sendReport
 } from '../../../monitor-api/modules/new_report';
+import { deepClone } from '../../../monitor-common/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
+import TestSendSuccessDialog from './components/test-send-success-dialog';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
 import { getDefaultReportData, TestSendingTarget } from './types';
+import { getSendFrequencyText } from './utils';
 
 import './email-subscription-config.scss';
 
@@ -66,21 +68,25 @@ type TooltipsToggleMapping = {
   [key: number]: boolean;
 };
 
+// 表格字段 显隐设置的配置需要持久化到本地。
+const keyOfTableSettingInLocalStorage = 'report_list_table_settings';
+
 export default defineComponent({
   name: 'EmailSubscriptionConfig',
   setup() {
     const { t } = useI18n();
     const router = useRouter();
     const route = useRoute();
-    const queryData = reactive({
-      create_type: 'manager',
-      query_type: 'all',
-      search_key: '',
-      page: 1,
-      page_size: 20,
-      order: '',
-      conditions: []
-    });
+    // 查询订阅列表 相关参数 开始
+    const createType = ref<'manager' | 'user'>('manager');
+    const queryType = ref<'all' | 'available' | 'invalid'>('all');
+    const searchKey = ref('');
+    const page = ref(1);
+    const pageSize = ref(20);
+    const order = ref('');
+    const conditions = ref([]);
+    // 查询订阅列表 相关参数 结束
+    const totalReportSize = ref(0);
     // 控制 订阅列表 中多个 tooltips 的显隐
     const toggleMap = reactive<TooltipsToggleMapping>({});
     // 显示 发送记录 的 dialog
@@ -114,7 +120,7 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   {data.channels.map(item => t(ChannelName[item.channel_name])).toString()}
@@ -129,7 +135,7 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   {t(Scenario[data.scenario])}
@@ -144,7 +150,7 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   {t(SendMode[data.send_mode])}
@@ -172,7 +178,7 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   {getSendFrequencyText(data)}
@@ -190,10 +196,10 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {data.last_send_time || t('未发送')}
+                  {data.last_send_time ? dayjs(data.last_send_time).format('YYYY-MM-DD HH:mm:ss') : t('未发送')}
                 </div>
               );
             }
@@ -205,19 +211,19 @@ export default defineComponent({
               return data.send_status !== 'no_status' ? (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   <i
                     class={['icon-circle', data.send_status]}
-                    style={{ marginRight: '10px' }}
+                    style='margin-right: 10px;'
                   ></i>
                   {t(SendStatus[data.send_status])}
                 </div>
               ) : (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   {t('未发送')}
@@ -253,7 +259,7 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   {data.create_user}
@@ -281,6 +287,9 @@ export default defineComponent({
             field: 'create_time',
             sort: {
               value: null
+            },
+            render: ({ data }) => {
+              return <div>{dayjs(data.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
             }
           },
           {
@@ -289,7 +298,7 @@ export default defineComponent({
             width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
             render: row => {
               return (
-                <div>
+                <div style='display: flex;align-items: center;'>
                   <Button
                     theme='primary'
                     text
@@ -315,47 +324,65 @@ export default defineComponent({
                   </Button>
 
                   {/* 实现方式有问题，看看有没有其它的实现方式 */}
-                  <Popover
-                    trigger='click'
-                    theme='light'
-                    isShow={toggleMap[row.index] || false}
-                    placement='bottom-start'
-                    extCls='email-subscription-popover'
-                    v-slots={{
-                      content: () => (
-                        <div>
-                          <div
-                            class='popover-item'
-                            onClick={() => {
-                              toggleMap[row.index] = false;
-                              cloneDialog.subscription_id = row.data.id;
-                              cloneDialog.isShow = true;
-                              cloneDialog.name = row.data.name;
-                            }}
-                          >
-                            {t('克隆')}
+                  <div>
+                    <Popover
+                      trigger='click'
+                      theme='light'
+                      isShow={toggleMap[row.index] || false}
+                      placement='bottom-start'
+                      extCls='email-subscription-popover'
+                      v-slots={{
+                        content: () => (
+                          <div>
+                            <div
+                              class='popover-item'
+                              onClick={() => {
+                                toggleMap[row.index] = false;
+                                // 将当前数据深拷贝一次，将 name 增加 _clone 后缀，再把 id 的 key 删掉（让接口直接创建新数据）
+                                // 最后赋值到 subscriptionDetail 中，打开编辑抽屉组件让用户进行修改。
+                                const clonedSubscriptionDetail = deepClone(row.data);
+                                delete clonedSubscriptionDetail.id;
+                                clonedSubscriptionDetail.name = `${clonedSubscriptionDetail.name}_clone`;
+                                subscriptionDetail.value = clonedSubscriptionDetail;
+                                isShowEditSideslider.value = true;
+                              }}
+                            >
+                              {t('克隆')}
+                            </div>
+                            <div
+                              class='popover-item'
+                              onClick={() => {
+                                toggleMap[row.index] = false;
+                                InfoBox({
+                                  extCls: 'report-tips-dialog',
+                                  infoType: 'warning',
+                                  title: t('是否删除 {0} ?', [row.data.name]),
+                                  showMask: true,
+                                  onConfirm: () => {
+                                    return handleDeleteRow(row.data.id)
+                                      .then(() => {
+                                        return true;
+                                      })
+                                      .catch(() => {
+                                        return false;
+                                      });
+                                  }
+                                });
+                              }}
+                            >
+                              {t('删除')}
+                            </div>
                           </div>
-                          <div
-                            class='popover-item'
-                            onClick={() => {
-                              toggleMap[row.index] = false;
-                              deleteDialog.subscription_id = row.data.id;
-                              deleteDialog.isShow = true;
-                              deleteDialog.name = row.data.name;
-                            }}
-                          >
-                            {t('删除')}
-                          </div>
-                        </div>
-                      )
-                    }}
-                  >
-                    <i
-                      class='more-btn icon-monitor icon-mc-more'
-                      style='margin-left: 10px;'
-                      onClick={() => (toggleMap[row.index] = true)}
-                    />
-                  </Popover>
+                        )
+                      }}
+                    >
+                      <i
+                        class='more-btn icon-monitor icon-mc-more'
+                        style='margin-left: 10px;'
+                        onClick={() => (toggleMap[row.index] = true)}
+                      />
+                    </Popover>
+                  </div>
                 </div>
               );
             }
@@ -393,7 +420,10 @@ export default defineComponent({
         fields: [
           {
             label: `${t('发送时间')}`,
-            field: 'send_time'
+            field: 'send_time',
+            render: ({ data }) => {
+              return <div>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
+            }
           },
           {
             label: `${t('类型')}`,
@@ -593,31 +623,17 @@ export default defineComponent({
     const isShowTestSendResult = ref(false);
     // 订阅详情 数据，这个数据是来源于 订阅列表 里，该列表是带有详情的，不需要再请求即可获得。
     const subscriptionDetail = ref(getDefaultReportData());
-    const cloneDialog = reactive({
-      isShow: false,
-      loading: false,
-      subscription_id: 0,
-      name: ''
-    });
-
-    const deleteDialog = reactive({
-      isShow: false,
-      loading: false,
-      subscription_id: 0,
-      name: ''
-    });
 
     // 发送记录 里 重新发送 的 loading
     const isResending = ref(false);
-
-    // 是否 发送给自己 的弹窗确认
-    const sendMyselfDialog = reactive({
-      isShow: false
-    });
+    // 点击相同索引集警告中的 订阅名称 ，加载其它订阅详情的 loading
+    const isFetchReport = ref(false);
+    // checkNeedShowEditSlider() 对应的变量。 以免太早显示编辑态触发了表单内部的api请求（要根据该方法获取 scenario 变量才能去调用。）
+    const isShowCreateReportFormComponent = ref(true);
 
     function handleGoToCreateConfigPage() {
       router.push({
-        name: 'create-subscription'
+        name: 'create-report'
       });
     }
 
@@ -625,32 +641,12 @@ export default defineComponent({
       resetAndGetSubscriptionList();
     }
 
-    function handleClone() {
-      cloneDialog.loading = true;
-      cloneReport({
-        report_id: cloneDialog.subscription_id
-      })
-        .then(() => {
-          fetchSubscriptionList();
-        })
-        .finally(() => {
-          cloneDialog.loading = false;
-          cloneDialog.isShow = false;
-        });
-    }
-
-    function handleDeleteRow() {
-      deleteDialog.loading = true;
-      deleteReport({
-        report_id: deleteDialog.subscription_id
-      })
-        .then(() => {
-          fetchSubscriptionList();
-        })
-        .finally(() => {
-          deleteDialog.loading = false;
-          deleteDialog.isShow = false;
-        });
+    async function handleDeleteRow(report_id) {
+      await deleteReport({
+        report_id
+      }).then(() => {
+        fetchSubscriptionList();
+      });
     }
 
     async function testSending(to: TestSendingTarget) {
@@ -704,16 +700,24 @@ export default defineComponent({
     }
 
     function resetAndGetSubscriptionList() {
-      queryData.page = 1;
-      queryData.page_size = 20;
+      page.value = 1;
       fetchSubscriptionList();
     }
 
     function fetchSubscriptionList() {
       table.isLoading = true;
-      getReportList(queryData)
+      getReportList({
+        create_type: createType.value,
+        query_type: queryType.value,
+        search_key: searchKey.value,
+        page: page.value,
+        page_size: pageSize.value,
+        order: order.value,
+        conditions: conditions.value
+      })
         .then(response => {
-          table.data = response;
+          table.data = response.report_list;
+          totalReportSize.value = response.total;
         })
         .finally(() => {
           table.isLoading = false;
@@ -741,42 +745,6 @@ export default defineComponent({
         .finally(() => {
           sendRecordTable.isLoading = false;
         });
-    }
-
-    // TODO：这个该怎么封装好？
-    function getSendFrequencyText(data) {
-      const hourTextMap = {
-        0.5: t('每个小时整点,半点发送'),
-        1: t('每个小时整点发送'),
-        2: t('从0点开始,每隔2小时整点发送'),
-        6: t('从0点开始,每隔6小时整点发送'),
-        12: t('每天9:00,21:00发送')
-      };
-      const weekMap = [t('周一'), t('周二'), t('周三'), t('周四'), t('周五'), t('周六'), t('周日')];
-      let str = '';
-      if (!data?.frequency?.type) return '';
-      switch (data.frequency.type) {
-        case 3: {
-          const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
-          const weekStr = weekStrArr.join(', ');
-          str = `${weekStr} ${data.frequency.run_time}`;
-          break;
-        }
-        case 4: {
-          const dayArr = data.frequency.day_list.map(item => `${item}号`);
-          const dayStr = dayArr.join(', ');
-          str = `${dayStr} ${data.frequency.run_time}`;
-          break;
-        }
-        case 5: {
-          str = hourTextMap[data.frequency.hour];
-          break;
-        }
-        default:
-          str = data.frequency.run_time;
-          break;
-      }
-      return str;
     }
 
     function formatTimeRange(s, e) {
@@ -863,11 +831,9 @@ export default defineComponent({
         })
         .finally(() => {
           isSending.value = false;
-          sendMyselfDialog.isShow = false;
         });
     }
 
-    const isFetchReport = ref(false);
     /** 点击已存在的相同索引集对应的 订阅名称 时，切换 编辑抽屉的 订阅详情 内容 */
     function handleReportDetailChange(reportId) {
       isFetchReport.value = true;
@@ -885,7 +851,10 @@ export default defineComponent({
         });
     }
 
-    const isShowCreateReportFormComponent = ref(true);
+    /**
+     * 新增订阅 页面选择了重复的索引集时，点击相应的 订阅名称 就会跳回来这个页面。
+     * 其中 url 会带一些参数去打开编辑抽屉。
+     */
     function checkNeedShowEditSlider() {
       const { reportId, isShowEditSlider } = route.query;
       if (isShowEditSlider !== 'true') return;
@@ -911,13 +880,28 @@ export default defineComponent({
         });
     }
 
+    function setTableSetting() {
+      const tableSetting = window.localStorage.getItem(keyOfTableSettingInLocalStorage);
+      if (tableSetting) {
+        table.settings.checked = JSON.parse(tableSetting);
+      }
+    }
+
     onMounted(() => {
       checkNeedShowEditSlider();
       fetchSubscriptionList();
+      setTableSetting();
     });
     return {
       t,
-      queryData,
+      createType,
+      queryType,
+      searchKey,
+      page,
+      pageSize,
+      order,
+      conditions,
+      totalReportSize,
       handleInputKeydown,
       handleGoToCreateConfigPage,
       table,
@@ -930,15 +914,11 @@ export default defineComponent({
       resetAndGetSubscriptionList,
       fetchSubscriptionList,
       subscriptionDetail,
-      cloneDialog,
-      handleClone,
-      deleteDialog,
       handleDeleteRow,
       isSending,
       getSendingRecordList,
       getSendFrequencyText,
       formatTimeRange,
-      sendMyselfDialog,
       handleSendMyself,
       toggleMapForSendRecord,
       isShowTestSendResult,
@@ -961,7 +941,7 @@ export default defineComponent({
               <span>{this.t('新建')}</span>
             </Button>
             <Radio.Group
-              v-model={this.queryData.create_type}
+              v-model={this.createType}
               style='margin-left: 16px;'
               onChange={() => {
                 this.resetAndGetSubscriptionList();
@@ -973,7 +953,7 @@ export default defineComponent({
           </div>
           <div class='right-container'>
             <Radio.Group
-              v-model={this.queryData.query_type}
+              v-model={this.queryType}
               type='capsule'
               onChange={() => {
                 this.resetAndGetSubscriptionList();
@@ -1004,7 +984,7 @@ export default defineComponent({
               </Radio.Button> */}
             </Radio.Group>
             <Input
-              v-model={this.queryData.search_key}
+              v-model={this.searchKey}
               clearable
               class='search-input'
               onEnter={this.handleInputKeydown}
@@ -1034,20 +1014,24 @@ export default defineComponent({
             border={['outer']}
             settings={this.table.settings}
             style='margin-top: 16px;background-color: white;'
+            remote-pagination
             pagination={{
-              current: this.queryData.page,
-              limit: this.queryData.page_size,
-              count: this.table.data.length,
-              onChange: pageNum => {
-                this.queryData.page = pageNum;
+              current: this.page,
+              limit: this.pageSize,
+              count: this.totalReportSize,
+              onChange: (pageNum: number) => {
+                this.page = pageNum;
+                this.fetchSubscriptionList();
               },
-              onLimitChange: limit => {
-                this.queryData.page_size = limit;
+              onLimitChange: (limit: number) => {
+                this.page = 1;
+                this.pageSize = limit;
+                this.fetchSubscriptionList();
               }
             }}
             onColumnFilter={({ checked, column }) => {
               let currentIndex = -1;
-              const result = this.queryData.conditions.filter((item, index) => {
+              const result = this.conditions.filter((item, index) => {
                 if (item.key === column.field) {
                   currentIndex = index;
                   return item;
@@ -1056,27 +1040,31 @@ export default defineComponent({
               });
               if (result.length) {
                 if (checked.length) {
-                  this.queryData.conditions[currentIndex].value = checked;
+                  this.conditions[currentIndex].value = checked;
                 } else {
-                  this.queryData.conditions.splice(currentIndex, 1);
+                  this.conditions.splice(currentIndex, 1);
                 }
               } else {
                 if (checked.length) {
-                  this.queryData.conditions.push({
+                  this.conditions.push({
                     key: column.field,
                     value: checked
                   });
                 }
               }
+              this.page = 1;
               this.fetchSubscriptionList();
             }}
             onColumnSort={({ column, type }) => {
               if (type !== 'null') {
-                this.queryData.order = `${type === 'asc' ? '' : '-'}${column.field}`;
+                this.order = `${type === 'asc' ? '' : '-'}${column.field}`;
               } else {
-                this.queryData.order = '';
+                this.order = '';
               }
               this.fetchSubscriptionList();
+            }}
+            onSettingChange={({ checked }) => {
+              window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
             }}
           ></Table>
         </Loading>
@@ -1094,20 +1082,37 @@ export default defineComponent({
         >
           <div>
             <div class='dialog-header-info-container'>
-              <div class='label-container'>
-                <div class='label'>{this.t('发送频率')}:</div>
-                <div class='value'>{this.getSendFrequencyText(this.subscriptionDetail)}</div>
+              <div style='display: flex;'>
+                <div class='label-container'>
+                  <div class='label'>{this.t('发送频率')}:</div>
+                  <div
+                    class='value'
+                    style='max-width: 200px;white-space: normal;word-break: break-all;'
+                  >
+                    {this.getSendFrequencyText(this.subscriptionDetail)}
+                  </div>
+                </div>
+                <div class='label-container'>
+                  <div
+                    class='label'
+                    style='margin-left: 55px;'
+                  >
+                    {this.t('有效时间范围')}:
+                  </div>
+                  <div class='value'>
+                    {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
+                  </div>
+                </div>
               </div>
-              <div class='label-container'>
-                <div
-                  class='label'
-                  style='margin-left: 55px;'
+              <div>
+                <Button
+                  text
+                  theme='primary'
+                  disabled={this.sendRecordTable.isLoading}
+                  onClick={this.getSendingRecordList}
                 >
-                  {this.t('有效时间范围')}:
-                </div>
-                <div class='value'>
-                  {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
-                </div>
+                  {this.t('刷新')}
+                </Button>
               </div>
             </div>
 
@@ -1115,6 +1120,7 @@ export default defineComponent({
               <Table
                 data={this.sendRecordTable.data}
                 columns={this.sendRecordTable.columns.fields as Column[]}
+                height={400}
                 style='margin-top: 16px;'
               />
             </Loading>
@@ -1125,8 +1131,7 @@ export default defineComponent({
           v-model={[this.isShowSubscriptionDetailSideslider, 'isShow']}
           // 根据显示内容要动态调整。
           width={640}
-          quick-close={false}
-          transfer
+          ext-cls='detail-subscription-sideslider-container'
           v-slots={{
             header: () => {
               return (
@@ -1140,7 +1145,22 @@ export default defineComponent({
                     <Button
                       style='margin-right: 8px;'
                       onClick={() => {
-                        this.sendMyselfDialog.isShow = true;
+                        InfoBox({
+                          extCls: 'report-tips-dialog',
+                          infoType: 'warning',
+                          title: this.t('是否发送给自己?'),
+                          showMask: true,
+                          onConfirm: () => {
+                            console.log('onConfirm');
+                            return this.handleSendMyself()
+                              .then(() => {
+                                return true;
+                              })
+                              .catch(() => {
+                                return false;
+                              });
+                          }
+                        });
                       }}
                     >
                       {this.t('发送给自己')}
@@ -1197,9 +1217,10 @@ export default defineComponent({
           v-model={[this.isShowEditSideslider, 'isShow']}
           title={'编辑'}
           width={960}
-          quick-close={false}
           ext-cls='edit-subscription-sideslider-container'
-          transfer
+          onHidden={() => {
+            this.isShowDropdownMenu = false;
+          }}
         >
           <Loading
             class='loading-edit-slider'
@@ -1220,7 +1241,7 @@ export default defineComponent({
               <div class='footer-bar'>
                 <Button
                   theme='primary'
-                  style={{ width: '88px', marginRight: '8px' }}
+                  style='width: 88px;margin-right: 8px;'
                   onClick={() => {
                     this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
                       createOrUpdateReport(response).then(() => {
@@ -1259,7 +1280,7 @@ export default defineComponent({
                     theme='primary'
                     outline
                     loading={this.isSending}
-                    style={{ width: '88px', marginRight: '8px' }}
+                    style='width: 88px;margin-right: 8px;'
                     onClick={() => {
                       this.isShowDropdownMenu = !this.isShowDropdownMenu;
                     }}
@@ -1268,7 +1289,7 @@ export default defineComponent({
                   </Button>
                 </Dropdown>
                 <Button
-                  style={{ width: '88px' }}
+                  style='width: 88px;'
                   onClick={() => {
                     this.isShowEditSideslider = false;
                   }}
@@ -1280,89 +1301,7 @@ export default defineComponent({
           </Loading>
         </Sideslider>
 
-        {/* 克隆确认 */}
-        <Dialog
-          isShow={this.cloneDialog.isShow}
-          isLoading={this.cloneDialog.loading}
-          title={this.t('提示')}
-          confirmText={this.t('确认')}
-          cancelText={this.t('取消')}
-          onClosed={() => {
-            this.cloneDialog.isShow = false;
-          }}
-          onConfirm={this.handleClone}
-        >
-          <div>{this.t('是否克隆 {0} ?', [this.cloneDialog.name])}</div>
-        </Dialog>
-
-        {/* 删除确认 */}
-        <Dialog
-          isShow={this.deleteDialog.isShow}
-          isLoading={this.deleteDialog.loading}
-          title={this.t('提示')}
-          confirmText={this.t('确认')}
-          cancelText={this.t('取消')}
-          onClosed={() => {
-            this.deleteDialog.isShow = false;
-          }}
-          onConfirm={this.handleDeleteRow}
-        >
-          <div>{this.t('是否删除 {0} ?', [this.deleteDialog.name])}</div>
-        </Dialog>
-
-        <Dialog
-          isShow={this.sendMyselfDialog.isShow}
-          isLoading={this.isSending}
-          title={this.t('提示')}
-          confirmText={this.t('确认')}
-          cancelText={this.t('取消')}
-          onClosed={() => {
-            this.sendMyselfDialog.isShow = false;
-          }}
-          onConfirm={this.handleSendMyself}
-        >
-          <div>{this.t('是否发送给自己?')}</div>
-        </Dialog>
-
-        <Dialog
-          isShow={this.isShowTestSendResult}
-          dialog-type='show'
-          ext-cls='test-send-result-dialog'
-          onClosed={() => {
-            this.isShowTestSendResult = false;
-          }}
-          v-slots={{
-            default: () => {
-              return (
-                <div
-                  style={{
-                    marginLeft: '30px'
-                  }}
-                >
-                  {this.t('邮件任务已生成，请一分钟后到邮箱查看')}
-                </div>
-              );
-            },
-            header: () => {
-              return (
-                <div>
-                  <i
-                    class='icon-monitor icon-mc-check-fill'
-                    style='color: #2dca56;'
-                  />
-                  <span
-                    style={{
-                      marginLeft: '10px',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {this.t('发送测试邮件成功')}
-                  </span>
-                </div>
-              );
-            }
-          }}
-        ></Dialog>
+        <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
       </div>
     );
   }

@@ -285,6 +285,8 @@ class QuickCreateSubscription extends tsc<IProps> {
     }
   }
 
+  isLinkEnabled = 1;
+
 
   formDataRules() {
     return {
@@ -308,11 +310,7 @@ class QuickCreateSubscription extends tsc<IProps> {
         {
           validator: () => {
             if (this.formData.subscriber_type === 'self') return true;
-            console.log('channels v');
-
             const enabledList = this.formData.channels.filter(item => item.is_enabled);
-            console.log('enabledList', enabledList);
-
             if (enabledList.length === 0) {
               // 提醒用户，三个输入框都没有选中，必须选中一个。
               Object.keys(this.errorTips).forEach(key => {
@@ -327,20 +325,35 @@ class QuickCreateSubscription extends tsc<IProps> {
 
             if (enabledList.length === 0) return false;
             const subscriberList = enabledList.filter(item => item.subscribers.length);
-            console.log('subscriberList', subscriberList);
 
-            let isValid = false;
+            let isInvalid = false;
             // 选中了，但是输入框没有添加任何订阅内容，将选中的输入框都显示提示。
             enabledList.forEach(item => {
               if (!item.subscribers.length) {
                 this.errorTips[item.channel_name].message = this.errorTips[item.channel_name].defaultMessage;
                 this.errorTips[item.channel_name].isShow = true;
-                isValid = true;
+                isInvalid = true;
               } else {
-                this.errorTips[item.channel_name].isShow = false;
+                if (item.channel_name === 'email') {
+                  // 需要对邮箱格式校验
+                  item.subscribers.forEach(subscriber => {
+                    const result = String(subscriber.id || '')
+                      .toLowerCase()
+                      .match(
+                        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+                      );
+                    if (!result) {
+                      isInvalid = true;
+                      this.errorTips[item.channel_name].isShow = true;
+                      this.errorTips[item.channel_name].message = this.$t('邮件格式有误');
+                    }
+                  });
+                } else {
+                  this.errorTips[item.channel_name].isShow = false;
+                }
               }
             });
-            if (isValid) return false;
+            if (isInvalid) return false;
 
             if (subscriberList.length === 0) return false;
             return true;
@@ -380,6 +393,13 @@ class QuickCreateSubscription extends tsc<IProps> {
           trigger: 'change',
         },
       ],
+      name: [
+        {
+          required: true,
+          message: window.mainComponent.$t('必填项'),
+          trigger: 'change',
+        },
+      ]
     };
   }
 
@@ -471,8 +491,6 @@ class QuickCreateSubscription extends tsc<IProps> {
   }
 
   validateAllForms() {
-    console.log(this.$store.state.userMeta?.username);
-    
     if (!this.refOfContentForm) this.refOfContentForm = this.$refs.refOfContentForm;
     if (!this.refOfEmailSubscription) this.refOfEmailSubscription = this.$refs.refOfEmailSubscription;
     if (!this.refOfSendingConfigurationForm) this.refOfSendingConfigurationForm = this.$refs.refOfSendingConfigurationForm;
@@ -503,7 +521,7 @@ class QuickCreateSubscription extends tsc<IProps> {
         ];
       }
       // 调整 订阅名称 ，这里 订阅名称 由于没有录入的地方将是用默认方式组合。
-      cloneFormData.name = `${cloneFormData.content_config.title}-${this.$store.state.userMeta?.username || ''}`;
+      // cloneFormData.name = `${cloneFormData.content_config.title}-${this.$store.state.userMeta?.username || ''}`;
       cloneFormData.bk_biz_id = this.$route.query.bizId || '';
       cloneFormData.scenario_config.index_set_id = this.indexSetId;
       return cloneFormData;
@@ -515,7 +533,7 @@ class QuickCreateSubscription extends tsc<IProps> {
      * @param { * } val
      */
   handleCopy(text) {
-    copyText(`{${text}}`, msg => {
+    copyText(`{{${text}}}`, msg => {
       this.$bkMessage({
         message: msg,
         theme: 'error'
@@ -650,6 +668,12 @@ class QuickCreateSubscription extends tsc<IProps> {
       this.formData.end_time = null;
       // 点击 仅一次 时刷新一次时间。
       this.frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ss');
+    } else {
+      // 把丢掉的 start_time 和 end_time 补回去
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const [start_time, end_time] = this.formData.timerange;
+      this.formData.start_time = dayjs(start_time).unix();
+      this.formData.end_time = dayjs(end_time).unix();
     }
   }
 
@@ -670,7 +694,18 @@ class QuickCreateSubscription extends tsc<IProps> {
     return this.indexSetIDList.find(item => item.index_set_id === Number(this.indexSetId || 0))?.index_set_name || '';
   }
 
+  setDefaultValue() {
+    const titleMapping = {
+      clustering: this.$t('{0}日志聚类统计报表{1}', ['{{business_name}}', '{{time}}'])
+    };
+    const targetTitle = titleMapping[this.scenario] || '';
+    this.formData.content_config.title = targetTitle;
+    this.formData.content_config__title = targetTitle;
+    this.formData.name = `${targetTitle}-${this.$store.state.userMeta?.username || ''}`
+  }
+
   mounted() {
+    this.setDefaultValue();
     this.$http.request('retrieve/getIndexSetList', {
       query: {
         space_uid: this.$route.query.spaceUid,
@@ -1021,94 +1056,96 @@ class QuickCreateSubscription extends tsc<IProps> {
           </bk-form>
         </div>
 
-        {this.mode === 'normal' && (
-          <div class='card-container'>
+        <div class='card-container'>
             <div class='title'>{this.$t('邮件配置')}</div>
-
             <bk-form
               ref='refOfEmailSubscription'
               {...{
                 props: {
-                  model: this.formData
+                  model: this.formData,
+                  rules: this.formDataRules()
                 }
               }}
               label-width={200}
             >
               <bk-form-item
                 label={this.$t('邮件标题')}
-                property='content_config.title'
+                property='content_config__title'
                 required
                 error-display-type='normal'
-                rules={[
-                  {
-                    required: true,
-                    message: this.$t('必填项'),
-                    trigger: ['blur', 'change']
-                  }
-                ]}
               >
-                <bk-input
-                  v-model={this.formData.content_config.title}
-                  placeholder={this.$t('请输入')}
-                  style={{
-                    width: '465px'
-                  }}
-                ></bk-input>
+                <div style={{ display: 'flex' }}>
+                  <bk-input
+                    v-model={this.formData.content_config.title}
+                    placeholder={this.$t('请输入')}
+                    style={{
+                      width: '465px'
+                    }}
+                    onChange={() => {
+                      this.formData.content_config__title = this.formData.content_config.title;
+                    }}
+                  ></bk-input>
 
-                <bk-popover
-                  trigger='click'
-                  placement='bottom-start'
-                  theme='light'
-                  width='420px'
-                >
-                  <bk-button
-                    text
-                    theme='primary'
-                    style={{ marginLeft: '16px' }}
+                  <bk-popover
+                    trigger='click'
+                    placement='bottom-start'
+                    theme='light'
+                    width='420px'
                   >
-                    <i
-                      class='icon-monitor icon-mc-detail'
-                      style={{ marginRight: '7px' }}
-                    ></i>
-                    {this.$t('变量列表')}
-                  </bk-button>
-
-                  <div slot='content'>
-                    <bk-table
-                      data={this.variableTable.data}
-                      stripe
+                    <bk-button
+                      text
+                      theme='primary'
+                      style={{ marginLeft: '16px' }}
                     >
-                      <bk-table-column
-                        label={this.$t('变量名')}
-                        prop='name'
-                        scopedSlots={{
-                          default: ({ row }) => {
-                            return (
-                              <div>
-                                {row.variable}
-                                <i
-                                  class='log-icon icon-info-fill'
-                                  style={{ fontSize: '16px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
-                                  onClick={() => {
-                                    this.handleCopy(row.name);
-                                  }}
-                                ></i>
-                              </div>
-                            );
-                          }
-                        }}
-                      ></bk-table-column>
-                      <bk-table-column
-                        label={this.$t('变量说明')}
-                        prop='description'
-                      ></bk-table-column>
-                      <bk-table-column
-                        label={this.$t('示例')}
-                        prop='example'
-                      ></bk-table-column>
-                    </bk-table>
-                  </div>
-                </bk-popover>
+                      <i
+                        class='icon-monitor icon-mc-detail'
+                        style={{ marginRight: '7px' }}
+                      ></i>
+                      {this.$t('变量列表')}
+                    </bk-button>
+
+                    <div slot='content'>
+                    <bk-table
+                        data={this.variableTable.data}
+                        stripe
+                      >
+                        <bk-table-column
+                          label={this.$t('变量名')}
+                          prop='variable'
+                          scopedSlots={{
+                            default: ({ row }) => {
+                              return (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}>
+                                  <span style={{
+                                    width: 'calc(100% - 20px)'
+                                  }}>{row.name}</span>
+                                  <i
+                                    class='log-icon icon-wholesale-editor'
+                                    style={{ fontSize: '12px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
+                                    onClick={() => {
+                                      this.handleCopy(row.name);
+                                    }}
+                                  ></i>
+                                </div>
+                              );
+                            }
+                          }}
+                        ></bk-table-column>
+                        <bk-table-column
+                          label={this.$t('变量说明')}
+                          prop='description'
+                        ></bk-table-column>
+                        <bk-table-column
+                          label={this.$t('示例')}
+                          prop='example'
+                        ></bk-table-column>
+                      </bk-table>
+                    </div>
+                  </bk-popover>
+                </div>
               </bk-form-item>
 
               <bk-form-item
@@ -1116,14 +1153,18 @@ class QuickCreateSubscription extends tsc<IProps> {
                 property='content_config.is_link_enabled'
                 required
               >
-                <bk-radio-group v-model={this.formData.content_config.is_link_enabled}>
-                  <bk-radio label='1'>{this.$t('是')}</bk-radio>
-                  <bk-radio label='2'>{this.$t('否')}</bk-radio>
+                <bk-radio-group 
+                  v-model={this.isLinkEnabled}
+                  onChange={() => {
+                    this.formData.content_config.is_link_enabled = !!this.isLinkEnabled;
+                  }}
+                >
+                  <bk-radio label={1}>{this.$t('是')}</bk-radio>
+                  <bk-radio label={0}>{this.$t('否')}</bk-radio>
                 </bk-radio-group>
               </bk-form-item>
             </bk-form>
-          </div>
-        )}
+        </div>
 
         <div class='card-container'>
           <div class='title'>{this.$t('发送配置')}</div>
@@ -1138,19 +1179,12 @@ class QuickCreateSubscription extends tsc<IProps> {
             }}
             label-width={200}
           >
-            {this.mode === 'quick' && (
+            {/* {this.mode === 'quick' && (
               <bk-form-item
                 label={this.$t('邮件标题')}
                 property='content_config__title'
                 required
                 error-display-type='normal'
-                // rules={[
-                //   {
-                //     required: true,
-                //     message: this.$t('必填项'),
-                //     trigger: ['blur', 'change']
-                //   }
-                // ]}
               >
                 <div style={{ display: 'flex' }}>
                   <bk-input
@@ -1225,22 +1259,21 @@ class QuickCreateSubscription extends tsc<IProps> {
                   </bk-popover>
                 </div>
 
-                {/* <bk-checkbox v-model={this.sendingConfigurationForm.model.g}>{this.$t('附带链接')}</bk-checkbox> */}
+                <bk-checkbox v-model={this.formData.content_config.is_link_enabled}>{this.$t('附带链接')}</bk-checkbox>
               </bk-form-item>
-            )}
+            )} */}
 
-            {this.mode === 'normal' && (
-              <bk-form-item
-                label={this.$t('订阅名称')}
-                property='name'
-                required
-              >
-                <bk-input
-                  v-model={this.formData.name}
-                  style={{ width: '465px' }}
-                ></bk-input>
-              </bk-form-item>
-            )}
+            <bk-form-item
+              label={this.$t('订阅名称')}
+              property='name'
+              required
+              error-display-type='normal'
+            >
+              <bk-input
+                v-model={this.formData.name}
+                style={{ width: '465px' }}
+              ></bk-input>
+            </bk-form-item>
 
             {/* 需要自定义校验规则 */}
             <bk-form-item
@@ -1278,16 +1311,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 <div>
                   <bk-checkbox v-model={this.formData.channels[0].is_enabled}>{this.$t('内部邮件')}</bk-checkbox>
                   <br />
-                  <div>
-                    {/* <MemberSelector
-                      v-model={this.subscriberInput.user}
-                      group-list={this.defaultGroupList}
-                      on-select-user={v => {
-                        console.log(v);
-                        this.handleNoticeReceiver();
-                      }}
-                      style={{ width: '465px' }}
-                    ></MemberSelector> */}
+                  <div data-is-show-error-msg={String(this.errorTips.user.isShow)} class='aaa'>
                     <bk-user-selector
                       v-model={this.subscriberInput.user}
                       api={window.BK_LOGIN_URL}
@@ -1328,33 +1352,35 @@ class QuickCreateSubscription extends tsc<IProps> {
                       {this.$t('外部邮件')}
                     </bk-checkbox>
                   </div>
-                  <bk-popover
-                    trigger='click'
-                    placement='right'
-                    theme='light'
-                    content={this.$t('多个邮箱使用逗号隔开')}
-                  >
+                  <div data-is-show-error-msg={String(this.errorTips.email.isShow)}>
+                    <bk-popover
+                      trigger='click'
+                      placement='right'
+                      theme='light'
+                      content={this.$t('多个邮箱使用逗号隔开')}
+                    >
+                      <bk-input
+                        v-model={this.subscriberInput.email}
+                        disabled={!this.formData.channels[1].is_enabled}
+                        style={{ width: '465px' }}
+                      >
+                        <template slot='prepend'>
+                          <div class='group-text'>{this.$t('邮件列表')}</div>
+                        </template>
+                      </bk-input>
+                    </bk-popover>
+                    {/* 后期补上 */}
                     <bk-input
-                      v-model={this.subscriberInput.email}
+                      v-model={this.formData.channels[1].send_text}
                       disabled={!this.formData.channels[1].is_enabled}
-                      style={{ width: '465px' }}
+                      placeholder={this.$t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
+                      style={{ width: '465px', marginTop: '10px' }}
                     >
                       <template slot='prepend'>
-                        <div class='group-text'>{this.$t('邮件列表')}</div>
+                        <div class='group-text'>{this.$t('提示文案')}</div>
                       </template>
                     </bk-input>
-                  </bk-popover>
-                  {/* 后期补上 */}
-                  <bk-input
-                    v-model={this.formData.channels[1].send_text}
-                    disabled={!this.formData.channels[1].is_enabled}
-                    placeholder={this.$t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
-                    style={{ width: '465px', marginTop: '10px' }}
-                  >
-                    <template slot='prepend'>
-                      <div class='group-text'>{this.$t('提示文案')}</div>
-                    </template>
-                  </bk-input>
+                  </div>
                   {this.errorTips.email.isShow && <div class='form-error-tip'>{this.errorTips.email.message}</div>}
 
                   <div style={{ marginTop: '10px' }}>
@@ -1365,30 +1391,33 @@ class QuickCreateSubscription extends tsc<IProps> {
                       {this.$t('企业微信群')}
                     </bk-checkbox>
                   </div>
-                  <bk-popover
-                    trigger='click'
-                    placement='bottom-start'
-                    theme='light'
-                  >
-                    <bk-input
-                      v-model={this.subscriberInput.wxbot}
-                      disabled={!this.formData.channels[2].is_enabled}
-                      style={{ width: '465px' }}
+                  
+                  <div data-is-show-error-msg={String(this.errorTips.wxbot.isShow)}>
+                    <bk-popover
+                      trigger='click'
+                      placement='bottom-start'
+                      theme='light'
                     >
-                      <template slot='prepend'>
-                        <div class='group-text'>{this.$t('群ID')}</div>
-                      </template>
-                    </bk-input>
+                      <bk-input
+                        v-model={this.subscriberInput.wxbot}
+                        disabled={!this.formData.channels[2].is_enabled}
+                        style={{ width: '465px' }}
+                      >
+                        <template slot='prepend'>
+                          <div class='group-text'>{this.$t('群ID')}</div>
+                        </template>
+                      </bk-input>
 
-                    <div slot='content'>
-                      {this.$t('获取会话ID方法')}: <br />
-                      {this.$t('1.群聊列表右键添加群机器人: BK-Monitor')}
-                      <br />
-                      {this.$t(`2.手动 @BK-Monitor 并输入关键字'会话ID'`)}
-                      <br />
-                      {this.$t('3.将获取到的会话ID粘贴到输入框,使用逗号分隔')}
-                    </div>
-                  </bk-popover>
+                      <div slot='content'>
+                        {this.$t('获取会话ID方法')}: <br />
+                        {this.$t('1.群聊列表右键添加群机器人: BK-Monitor')}
+                        <br />
+                        {this.$t(`2.手动 @BK-Monitor 并输入关键字'会话ID'`)}
+                        <br />
+                        {this.$t('3.将获取到的会话ID粘贴到输入框,使用逗号分隔')}
+                      </div>
+                    </bk-popover>
+                  </div>
                   {this.errorTips.wxbot.isShow && <div class='form-error-tip'>{this.errorTips.wxbot.message}</div>}
                 </div>
               )}

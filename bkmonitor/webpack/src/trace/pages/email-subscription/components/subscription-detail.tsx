@@ -23,12 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, reactive, ref } from 'vue';
+import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { logServiceRelationBkLogIndexSet } from '@api/modules/apm_service';
 import dayjs from 'dayjs';
 
+import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
 import { Scenario } from '../mapping';
+import { getDefaultReportData, Report } from '../types';
+import { getSendFrequencyText } from '../utils';
+
+import DetailRow from './detail-row';
 
 import './subscription-detail.scss';
 
@@ -36,84 +40,42 @@ export default defineComponent({
   name: 'SubscriptionDetail',
   props: {
     detailInfo: {
-      type: Object,
+      type: Object as PropType<Report>,
       default() {
-        return {};
+        return getDefaultReportData();
       }
     }
   },
   setup(props) {
     const { t } = useI18n();
-    function formatFrequency(data) {
-      if (!data.frequency) return '';
-      const hourTextMap = {
-        0.5: window.i18n.t('每个小时整点,半点发送'),
-        1: window.i18n.t('每个小时整点发送'),
-        2: window.i18n.t('从0点开始,每隔2小时整点发送'),
-        6: window.i18n.t('从0点开始,每隔6小时整点发送'),
-        12: window.i18n.t('每天9:00,21:00发送')
-      };
-      const weekMap = [
-        window.i18n.t('周一'),
-        window.i18n.t('周二'),
-        window.i18n.t('周三'),
-        window.i18n.t('周四'),
-        window.i18n.t('周五'),
-        window.i18n.t('周六'),
-        window.i18n.t('周日')
-      ];
-      let str = '';
-      switch (data.frequency.type) {
-        case 3: {
-          const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
-          const weekStr = weekStrArr.join(', ');
-          str = `${weekStr} ${data.frequency.run_time}`;
-          break;
-        }
-        case 4: {
-          const dayArr = data.frequency.day_list.map(item => `${item}号`);
-          const dayStr = dayArr.join(', ');
-          str = `${dayStr} ${data.frequency.run_time}`;
-          break;
-        }
-        case 5: {
-          str = hourTextMap[data.frequency.hour];
-          break;
-        }
-        default:
-          str = data.frequency.run_time;
-          break;
-      }
-      return str;
-    }
-
-    const getTimeRange = computed(() => {
-      if (!props?.detailInfo?.start_time) return '';
-      const startTime = dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
-      return `${startTime} ~ ${endTime}`;
-    });
-
+    // 索引集 列表
     const indexSetIDList = ref([]);
-    const indexSetName = computed(() => {
-      return indexSetIDList.value.find(item => item.id === props.detailInfo?.scenario_config?.index_set_id)?.name || '';
-    });
 
     function getYearOnYearHour(type: number) {
       if (type === 0) return t('不比对');
       return t('{0}小时前', [type]);
     }
 
+    const getTimeRange = computed(() => {
+      if (!props.detailInfo.start_time) return '';
+      const startTime = dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
+      return `${startTime} ~ ${endTime}`;
+    });
+
+    // 查询 索引集 名称
+    const indexSetName = computed(() => {
+      return indexSetIDList.value.find(item => item.id === props.detailInfo.scenario_config.index_set_id)?.name || '';
+    });
+
     onMounted(() => {
-      logServiceRelationBkLogIndexSet()
-        .then(response => {
-          indexSetIDList.value = response;
-        })
-        .catch(console.log);
+      logServiceRelationBkLogIndexSet().then(response => {
+        indexSetIDList.value = response;
+      });
     });
     return {
       t,
-      formatFrequency,
+      getSendFrequencyText,
       getTimeRange,
       indexSetName,
       getYearOnYearHour
@@ -122,101 +84,65 @@ export default defineComponent({
   render() {
     return (
       <div class='subscription-detail-container'>
-        <div class='title'>{window.i18n.t('订阅内容')}</div>
+        <div class='title'>{this.t('订阅内容')}</div>
         <div>
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('订阅场景')}</span>
-            </div>
-            <span class='value'>{this.t(Scenario[this.detailInfo?.scenario])}</span>
-          </div>
+          <DetailRow
+            label={this.t('订阅场景')}
+            value={this.t(Scenario[this.detailInfo.scenario])}
+          />
 
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('索引集')}</span>
-            </div>
-            <span class='value'>{this.indexSetName}</span>
-          </div>
+          <DetailRow
+            label={this.t('索引集')}
+            value={this.indexSetName}
+          />
 
-          {/* 暂时不显示 */}
-          {false && (
-            <div class='row'>
-              <div class='label'>
-                <span>{window.i18n.t('展示范围')}</span>
-              </div>
-              {/* 需要转义 */}
-              <span class='value'>{this.detailInfo?.scenario_config?.year_on_year_change}</span>
-            </div>
+          <DetailRow
+            label={this.t('敏感度')}
+            value={this.detailInfo.scenario_config.pattern_level}
+          />
+
+          <DetailRow
+            label={this.t('最大展示')}
+            value={`${this.detailInfo.scenario_config.log_display_count} ${this.t('条')}`}
+          />
+
+          {this.detailInfo.scenario_config.year_on_year_hour !== 0 && (
+            <DetailRow
+              label={this.t('展示同比')}
+              value={this.getYearOnYearHour(this.detailInfo.scenario_config.year_on_year_hour)}
+            />
           )}
 
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('敏感度')}</span>
-            </div>
-            <span class='value'>{this.detailInfo?.scenario_config?.pattern_level}</span>
-          </div>
-
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('最大展示')}</span>
-            </div>
-            <span class='value'>
-              <span>{this.detailInfo?.scenario_config?.log_display_count}</span>
-              <span>{window.i18n.t('条')}</span>
-            </span>
-          </div>
-
-          {this.detailInfo?.scenario_config?.year_on_year_hour !== 0 && (
-            <div class='row'>
-              <div class='label'>
-                <span>{window.i18n.t('展示同比')}</span>
-              </div>
-              <span class='value'>{this.getYearOnYearHour(this.detailInfo?.scenario_config?.year_on_year_hour)}</span>
-            </div>
-          )}
-
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('生成附件')}</span>
-            </div>
-            <span class='value'>
-              {this.detailInfo?.scenario_config?.generate_attachment ? window.i18n.t('是') : window.i18n.t('否')}
-            </span>
-          </div>
+          <DetailRow
+            label={this.t('生成附件')}
+            value={this.detailInfo.scenario_config.generate_attachment ? this.t('是') : this.t('否')}
+          />
         </div>
 
-        <div class='title'>{window.i18n.t('邮件配置')}</div>
+        <div class='title'>{this.t('邮件配置')}</div>
         <div>
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('邮件标题')}</span>
-            </div>
-            <span class='value'>{this.detailInfo?.content_config?.title}</span>
-          </div>
+          <DetailRow
+            label={this.t('邮件标题')}
+            value={this.detailInfo.content_config.title}
+          />
 
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('附带链接')}</span>
-            </div>
-            <span class='value'>
-              {this.detailInfo?.content_config?.is_link_enabled ? window.i18n.t('是') : window.i18n.t('否')}
-            </span>
-          </div>
+          <DetailRow
+            label={this.t('附带链接')}
+            value={this.detailInfo.content_config.is_link_enabled ? this.t('是') : this.t('否')}
+          />
         </div>
 
-        <div class='title'>{window.i18n.t('发送配置')}</div>
+        <div class='title'>{this.t('发送配置')}</div>
         <div>
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('订阅名称')}</span>
-            </div>
-            <span class='value'>{this.detailInfo?.name}</span>
-          </div>
+          <DetailRow
+            label={this.t('订阅名称')}
+            value={this.detailInfo.name}
+          />
 
           {/* 特殊节点 订阅人里有其他要展示的内容 */}
           <div class='row subscribers'>
             <div class='label'>
-              <span>{window.i18n.t('订阅人')}</span>
+              <span>{this.t('订阅人')}</span>
             </div>
             <span class='value'>
               <div class='subscribers-row'>
@@ -224,14 +150,17 @@ export default defineComponent({
                   class='subscribers-label'
                   style='padding-top: 3px;'
                 >
-                  {window.i18n.t('内部用户')}
+                  {this.t('内部用户')}
                 </span>
-                <span class='subscribers-value'>
-                  {this.detailInfo?.channels
-                    ?.find?.(item => item.channel_name === 'user')
-                    ?.subscribers?.map?.(item => {
+                <span
+                  class='subscribers-value'
+                  style='padding-top: 3px;'
+                >
+                  {this.detailInfo.channels
+                    .find(item => item.channel_name === 'user')
+                    .subscribers.map(item => {
                       return (
-                        <div style='display: inline-flex;margin-right: 24px;margin-bottom: 10px;align-items: center;'>
+                        <div style='display: inline-flex;margin-right: 24px;margin-bottom: 7px;align-items: center;'>
                           {/* {item.src && (
                             <img
                               src=''
@@ -251,11 +180,11 @@ export default defineComponent({
                 class='subscribers-row'
                 style='padding-top: 20px;'
               >
-                <span class='subscribers-label'>{window.i18n.t('外部邮件')}</span>
+                <span class='subscribers-label'>{this.t('外部邮件')}</span>
                 <span class='subscribers-value'>
-                  {this.detailInfo?.channels
-                    ?.find?.(item => item.channel_name === 'email')
-                    ?.subscribers?.map?.(item => {
+                  {this.detailInfo.channels
+                    .find(item => item.channel_name === 'email')
+                    .subscribers.map(item => {
                       return <span class='email'>{item.id}</span>;
                     })}
                 </span>
@@ -265,11 +194,11 @@ export default defineComponent({
                 class='subscribers-row'
                 style='padding-top: 20px;'
               >
-                <span class='subscribers-label'>{window.i18n.t('企业微信群')}</span>
+                <span class='subscribers-label'>{this.t('企业微信群')}</span>
                 <span class='subscribers-value'>
-                  {this.detailInfo?.channels
-                    ?.find?.(item => item.channel_name === 'wxbot')
-                    ?.subscribers?.map?.(item => {
+                  {this.detailInfo.channels
+                    .find(item => item.channel_name === 'wxbot')
+                    .subscribers.map(item => {
                       return <span class='group-id'>{item.id}</span>;
                     })}
                 </span>
@@ -277,29 +206,15 @@ export default defineComponent({
             </span>
           </div>
 
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('发送频率')}</span>
-            </div>
-            <span
-              class='value'
-              style='align-self: center;'
-            >
-              {this.formatFrequency(this.detailInfo)}
-            </span>
-          </div>
+          <DetailRow
+            label={this.t('发送频率')}
+            value={this.getSendFrequencyText(this.detailInfo)}
+          />
 
-          <div class='row'>
-            <div class='label'>
-              <span>{window.i18n.t('有效时间范围')}</span>
-            </div>
-            <span
-              class='value'
-              style='align-self: center;'
-            >
-              {this.getTimeRange}
-            </span>
-          </div>
+          <DetailRow
+            label={this.t('有效时间范围')}
+            value={this.getTimeRange}
+          />
         </div>
       </div>
     );

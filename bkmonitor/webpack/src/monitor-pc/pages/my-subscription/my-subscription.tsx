@@ -61,6 +61,7 @@ class MySubscription extends tsc<{}> {
     conditions: []
   };
   tableData = [];
+  totalReportSize = 0;
   isTableLoading = false;
   isShowSideslider = false;
   isShowSendRecord = false;
@@ -76,7 +77,6 @@ class MySubscription extends tsc<{}> {
   isResending = false;
   resetAndGetSubscriptionList() {
     this.queryData.page = 1;
-    this.queryData.page_size = 20;
     this.fetchSubscriptionList();
   }
 
@@ -85,7 +85,8 @@ class MySubscription extends tsc<{}> {
     getReportList(this.queryData)
       .then(response => {
         console.log(response);
-        this.tableData = response;
+        this.tableData = response.report_list;
+        this.totalReportSize = response.total;
       })
       .catch(console.log)
       .finally(() => {
@@ -95,6 +96,8 @@ class MySubscription extends tsc<{}> {
 
   handleCancelSubscription(data) {
     this.$bkInfo({
+      extCls: 'cancel-report-dialog',
+      type: 'warning',
       title: this.$t('是否取消 {0} 的订阅?', [data?.name]),
       confirmLoading: true,
       confirmFn: () => {
@@ -178,6 +181,14 @@ class MySubscription extends tsc<{}> {
     let str = '';
     if (!data?.frequency?.type) return '';
     switch (data.frequency.type) {
+      case 1: {
+        str = this.$t('仅一次').toString();
+        break;
+      }
+      case 2: {
+        str = `${this.$t('每月 {0} 号', [data.frequency.day_list.toString()])} ${data.frequency.run_time}`;
+        break;
+      }
       case 3: {
         const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
         const weekStr = weekStrArr.join(', ');
@@ -185,7 +196,7 @@ class MySubscription extends tsc<{}> {
         break;
       }
       case 4: {
-        const dayArr = data.frequency.day_list.map(item => `${item}号`);
+        const dayArr = data.frequency.day_list.map(item => `${item}${this.$t('号')}`);
         const dayStr = dayArr.join(', ');
         str = `${dayStr} ${data.frequency.run_time}`;
         break;
@@ -214,28 +225,6 @@ class MySubscription extends tsc<{}> {
       {
         is_enabled: true,
         channel_name: this.currentTableRowOfSendingRecord.channel_name,
-        // subscribers: this.currentTableRowOfSendingRecord.tempSendResult
-        //   .filter(item => {
-        //     if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
-        //       return item;
-        //     }
-        //     if (
-        //       ['partial_failed', 'failed'].includes(this.currentTableRowOfSendingRecord.send_status) &&
-        //       !item.result
-        //     ) {
-        //       return item;
-        //     }
-        //   })
-        //   .map(item => {
-        //     const o = {
-        //       id: item.id,
-        //       is_enabled: true
-        //     };
-        //     if (item.type) {
-        //       o.type = item.type;
-        //     }
-        //     return o;
-        //   })
         subscribers: this.currentTableRowOfSendingRecord.tempSendResult
           ?.filter(item => {
             return this.currentTableRowOfSendingRecord.selectedTag.includes(item.id);
@@ -343,6 +332,7 @@ class MySubscription extends tsc<{}> {
               v-bkloading={{
                 isLoading: this.sendRecordTable.isLoading
               }}
+              height={400}
               style='margin-top: 16px;'
             >
               <bk-table-column
@@ -596,7 +586,8 @@ class MySubscription extends tsc<{}> {
                       });
                     }
                   }
-                  this.resetAndGetSubscriptionList();
+                  this.queryData.page = 1;
+                  this.fetchSubscriptionList();
                 },
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 'sort-change': ({ column, prop, order }) => {
@@ -605,13 +596,14 @@ class MySubscription extends tsc<{}> {
                   } else {
                     this.queryData.order = '';
                   }
-                  this.resetAndGetSubscriptionList();
+                  this.fetchSubscriptionList();
                 },
                 'page-change': newPage => {
                   this.queryData.page = newPage;
                   this.fetchSubscriptionList();
                 },
                 'page-limit-change': limit => {
+                  this.queryData.page = 1;
                   this.queryData.page_size = limit;
                   this.fetchSubscriptionList();
                 }
@@ -619,25 +611,29 @@ class MySubscription extends tsc<{}> {
             }}
             pagination={{
               current: this.queryData.page,
-              count: this.tableData.length,
+              count: this.totalReportSize,
               limit: this.queryData.page_size
             }}
+            row-auto-height
           >
             <bk-table-column
               label={this.$t('邮件标题')}
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <bk-button
-                      text
-                      title='primary'
-                      onClick={() => {
-                        this.isShowSideslider = true;
-                        this.detailInfo = row;
-                      }}
-                    >
-                      {row?.content_config?.title}
-                    </bk-button>
+                    <div style='padding: 14px 0;'>
+                      <bk-button
+                        text
+                        title='primary'
+                        onClick={() => {
+                          this.isShowSideslider = true;
+                          this.detailInfo = row;
+                        }}
+                        style='height: auto;'
+                      >
+                        {row?.content_config?.title}
+                      </bk-button>
+                    </div>
                   );
                 }
               }}
@@ -699,7 +695,11 @@ class MySubscription extends tsc<{}> {
               prop='last_send_time'
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{row.last_send_time || this.$t('未发送')}</div>;
+                  return (
+                    <div>
+                      {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ss') : this.$t('未发送')}
+                    </div>
+                  );
                 }
               }}
             ></bk-table-column>
