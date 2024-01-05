@@ -107,7 +107,6 @@ module.exports = async (baseConfig, { production, app }) => {
   }
   const appDirName = transformAppDir(app);
   const appDir = `./src/${appDirName}/`;
-  console.info(app, '---------------------');
   return {
     ...config,
     output: {
@@ -122,7 +121,8 @@ module.exports = async (baseConfig, { production, app }) => {
     },
     resolve: {
       ...config.resolve,
-      alias: {
+      alias: Object.assign({}, {  
+        ...config.resolve.alias,
         '@': appDir,
         '@router': path.resolve(`./src/${appDirName}/router/`),
         '@store': path.resolve(`./src/${appDirName}/store/`),
@@ -130,16 +130,23 @@ module.exports = async (baseConfig, { production, app }) => {
         '@api': path.resolve('./src/monitor-api/'),
         '@static': path.resolve('./src/monitor-static/'),
         '@common': path.resolve('./src/monitor-common/'),
-      }
+        
+      }, ['apm', 'fta', 'pc'].includes(app) ? {
+        'vue$': 'vue/dist/vue.runtime.common.js'
+      } : {})
     },
-    externals: app === 'apm' ? {
-      bkMagicVue: 'bk-magic-vue',
-      vueI18n: 'vue-i18n',
-      vueRouter: 'vue-router',
-      vueClassComponent: "vue-class-component",
-      vuePopertyDecorator: "vue-property-decorator",
-      vueTsxSupport: "vue-tsx-support",
-      vuexModuleDecorators: "vuex-module-decorators",
-    }: {},
+    // externals: app === 'apm' ? {
+    //   'echarts': 'echarts',
+    //   'dayjs': 'dayjs',
+    //   'axios': 'axios',
+    //   // 'bk-magic-vue': 'bkMagicVue',
+    //   // 'vue-i18n': 'vueI18n',
+    //   // 'vue-router': 'vueRouter',
+    //   // 'vue-class-component': 'vueClassComponent',
+    //   // 'vue-property-decorator': 'vuePopertyDecorator',
+    //   // 'vue-tsx-support': 'vueTsxSupport',
+    //   // 'vuex-module-decorators': 'vuexModuleDecorators',
+    // }: {},
   };
+  return x
 };

@@ -213,7 +213,7 @@ export default class AppList extends tsc<{}> {
   }
 
   created() {
-    const { query } = this.$route;
+    const { query } = this.$route || {};
     if (query?.queryString) {
       this.searchKeyword = query.queryString as string;
     }

@@ -88,8 +88,6 @@ import FilterInput from './filter-input';
 import MonitorDrag from './monitor-drag';
 
 import './event.scss';
-
-debugger;
 // 有权限的业务id
 const authorityBizId = -1;
 // 有数据的业务id
