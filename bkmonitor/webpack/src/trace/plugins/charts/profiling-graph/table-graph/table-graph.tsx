@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, shallowRef, Teleport } from 'vue';
+import { defineComponent, PropType, ref, shallowRef, Teleport } from 'vue';
 
 import {
   ITableTipsDetail,
   ProfilingTableItem,
   TableColumn
 } from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
+import { DirectionType } from '../../../../typings';
 import { PROFILING_TABLE_DATA } from '../mock';
 
 // import { ColorTypes } from './../../flame-graph-v2/types';
@@ -40,15 +41,25 @@ import './table-graph.scss';
 
 export default defineComponent({
   name: 'ProfilingTableGraph',
+  props: {
+    textDirection: {
+      type: String as PropType<DirectionType>,
+      default: 'ltr'
+    }
+  },
   setup() {
     /** 表格数据 */
     const tableData = ref<ProfilingTableItem[]>(PROFILING_TABLE_DATA);
     const tableColumns = ref<TableColumn[]>([
-      { id: 'Location', sort: '' },
-      { id: 'Self', sort: '' },
-      { id: 'Total', sort: '' }
+      { id: 'Location', name: 'Location', sort: '' },
+      { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
+      { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
+      { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
+      { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
+      { id: 'diff', name: 'Diff', mode: 'diff', sort: '' }
     ]);
     const tipDetail = shallowRef<ITableTipsDetail>({});
+    const diffMode = ref(false);
 
     const getColStyle = (row: ProfilingTableItem) => {
       const { color } = row;
@@ -99,26 +110,32 @@ export default defineComponent({
       handleSort,
       tipDetail,
       handleRowMouseMove,
-      handleRowMouseout
+      handleRowMouseout,
+      diffMode
     };
   },
   render() {
     return (
       <div class='profiling-table-graph'>
-        <table class='profiling-table'>
+        <table class={`profiling-table ${this.diffMode ? 'diff-table' : ''}`}>
           <thead>
             <tr>
-              {this.tableColumns.map(col => (
-                <th onClick={() => this.handleSort(col)}>
-                  <div class='thead-content'>
-                    <span>{col.id}</span>
-                    <div class='sort-button'>
-                      <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`}></i>
-                      <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`}></i>
-                    </div>
-                  </div>
-                </th>
-              ))}
+              {this.tableColumns.map(
+                col =>
+                  (!col.mode ||
+                    (this.diffMode && col.mode === 'diff') ||
+                    (!this.diffMode && col.mode === 'normal')) && (
+                    <th onClick={() => this.handleSort(col)}>
+                      <div class='thead-content'>
+                        <span>{col.name}</span>
+                        <div class='sort-button'>
+                          <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`}></i>
+                          <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`}></i>
+                        </div>
+                      </div>
+                    </th>
+                  )
+              )}
             </tr>
           </thead>
           <tbody>
@@ -133,12 +150,22 @@ export default defineComponent({
                       class='color-reference'
                       style={`background-color: ${row.color}`}
                     ></span>
-                    <span>{row.location}</span>
+                    <span class={`text direction-${this.textDirection}`}>{row.location}</span>
                     {/* <div class='trace-mark'>Trace</div> */}
                   </div>
                 </td>
-                <td style={this.getColStyle(row)}>{row.self}</td>
-                <td style={this.getColStyle(row)}>{row.Total}</td>
+                {this.diffMode
+                  ? [
+                      <td>59%</td>,
+                      <td>59%</td>,
+                      <td>
+                        <span class={`diff-value ${false ? 'is-rise' : 'is-decline'}`}>+45%</span>
+                      </td>
+                    ]
+                  : [
+                      <td style={this.getColStyle(row)}>{row.self}</td>,
+                      <td style={this.getColStyle(row)}>{row.Total}</td>
+                    ]}
               </tr>
             ))}
           </tbody>

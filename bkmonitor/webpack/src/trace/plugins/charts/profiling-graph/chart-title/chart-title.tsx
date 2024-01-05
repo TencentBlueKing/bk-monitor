@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref } from 'vue';
+import { defineComponent, PropType } from 'vue';
 import { Dropdown, Input } from 'bkui-vue';
 
 import { ViewModeItem, ViewModeType } from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
+import { DirectionType } from '../../../../typings';
 
 import './chart-title.scss';
 
@@ -37,9 +38,13 @@ export default defineComponent({
     activeMode: {
       type: String as PropType<ViewModeType>,
       required: true
+    },
+    textDirection: {
+      type: String as PropType<DirectionType>,
+      default: 'ltr'
     }
   },
-  emits: ['modeChange'],
+  emits: ['modeChange', 'textDirectionChange'],
   setup(props, { emit }) {
     const downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
     const viewModeList: ViewModeItem[] = [
@@ -49,21 +54,18 @@ export default defineComponent({
       { id: ViewModeType.Topo, icon: 'Component' }
     ];
 
-    const ellipsisDirection = ref('ltr');
-
     /** 切换视图模式 */
     const handleModeChange = (val: ViewModeType) => {
       emit('modeChange', val);
     };
-    const handleEllipsisDirectionChange = (val: string) => {
-      ellipsisDirection.value = val;
+    const handleEllipsisDirectionChange = (val: DirectionType) => {
+      emit('textDirectionChange', val);
     };
 
     return {
       downloadTypeMaps,
       viewModeList,
       handleModeChange,
-      ellipsisDirection,
       handleEllipsisDirectionChange
     };
   },
@@ -83,13 +85,13 @@ export default defineComponent({
         <Input type='search' />
         <div class='ellipsis-direction button-group'>
           <div
-            class={`button-group-item ${this.ellipsisDirection === 'ltr' ? 'active' : ''}`}
+            class={`button-group-item ${this.textDirection === 'ltr' ? 'active' : ''}`}
             onClick={() => this.handleEllipsisDirectionChange('ltr')}
           >
             <i class='icon-monitor icon-AB'></i>
           </div>
           <div
-            class={`button-group-item ${this.ellipsisDirection === 'rtl' ? 'active' : ''}`}
+            class={`button-group-item ${this.textDirection === 'rtl' ? 'active' : ''}`}
             onClick={() => this.handleEllipsisDirectionChange('rtl')}
           >
             <i class='icon-monitor icon-YZ'></i>
