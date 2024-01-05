@@ -25,10 +25,12 @@
  */
 import { defineComponent, PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Button, Dialog, Exception, Select, Upload } from 'bkui-vue';
+import { Button, Exception, Select } from 'bkui-vue';
 import { Spinner, Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
 import { ConditionType, RetrievalFormData } from '../typings';
+
+import ProfilingFileUpload from './profiling-file-upload';
 
 import './upload-retrieval-view.scss';
 
@@ -50,8 +52,9 @@ export default defineComponent({
     function handleUploadTypeChange(type: ConditionType) {
       active.value = type;
     }
-    function handleUploadConfirm() {
-      uploadDialogShow.value = false;
+
+    function handleUploadShowChange(v: boolean) {
+      uploadDialogShow.value = v;
     }
 
     return {
@@ -60,7 +63,7 @@ export default defineComponent({
       active,
       selectFile,
       handleUploadTypeChange,
-      handleUploadConfirm
+      handleUploadShowChange
     };
   },
   render() {
@@ -146,63 +149,11 @@ export default defineComponent({
           </Exception>
         </div>
 
-        <Dialog
-          class={['upload-popover', this.formData.isComparison ? 'show-footer' : '']}
-          is-show={this.uploadDialogShow}
-          title={this.t('上传文件')}
-          show-mask={false}
-          width={640}
-          onClosed={() => (this.uploadDialogShow = false)}
-        >
-          {{
-            default: () => (
-              <div class='upload-popover-wrap'>
-                {this.formData.isComparison && (
-                  <Button.ButtonGroup class='upload-type-group'>
-                    <Button
-                      selected={this.active === ConditionType.Where}
-                      onClick={() => this.handleUploadTypeChange(ConditionType.Where)}
-                    >
-                      {this.t('查询项')}
-                    </Button>
-                    <Button
-                      selected={this.active === ConditionType.Comparison}
-                      onClick={() => this.handleUploadTypeChange(ConditionType.Comparison)}
-                    >
-                      {this.t('查询项')}
-                    </Button>
-                  </Button.ButtonGroup>
-                )}
-
-                <Upload>
-                  <div class='upload-content'>
-                    <UploadIcon class='upload-icon' />
-                    <span class='title'>{this.t('点击上传或将文件拖到此处')}</span>
-                    <span class='desc'>{this.t('支持 pprof, json 等文件格式')}</span>
-                    <Button
-                      theme='primary'
-                      class='upload-btn'
-                    >
-                      {this.t('上传')}
-                    </Button>
-                  </div>
-                </Upload>
-              </div>
-            ),
-            footer: () => (
-              <div class='upload-popover-footer'>
-                <Button
-                  theme='primary'
-                  disabled
-                  onClick={this.handleUploadConfirm}
-                >
-                  {this.t('确定')}
-                </Button>
-                <Button onClick={() => (this.uploadDialogShow = false)}>{this.t('取消')}</Button>
-              </div>
-            )
-          }}
-        </Dialog>
+        <ProfilingFileUpload
+          show={this.uploadDialogShow}
+          isCompare={this.formData.isComparison}
+          onShowChange={this.handleUploadShowChange}
+        ></ProfilingFileUpload>
       </div>
     );
   }
