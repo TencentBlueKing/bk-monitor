@@ -1,0 +1,95 @@
+.app-list-wrap-page {
+  height: 100%;
+
+  .dashboard-tools-wrap {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+
+    .alarm-tools {
+      margin-right: 16px;
+    }
+
+    .dashboard-tools {
+      margin-right: 11px;
+
+      .dropdown-trigger {
+        padding: 0 16px;
+      }
+
+      .time-range {
+        padding: 0 16px;
+      }
+
+      .dashboard-tools-more {
+        padding-left: 6px;
+      }
+    }
+
+    .icon-mc-more-tool {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      margin-left: 8px;
+      overflow: hidden;
+      font-size: 16px;
+      cursor: pointer;
+      background: #f5f7fa;
+      border-radius: 2px;
+
+      &:hover {
+        color: #3a84ff;
+        background-color: #eaf3ff;
+      }
+    }
+  }
+
+  .app-add-btn {
+    display: flex;
+    align-items: center;
+    line-height: 24px;
+  }
+
+  .app-add-icon {
+    font-size: 24px;
+  }
+
+  .app-list-main {
+    height: calc(100% - 48px);
+    padding: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: #f5f7fa;
+
+    .app-list-content {
+      .app-list-content-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .app-info {
+        display: flex;
+        flex-direction: column;
+
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .app-alias-name {
+          font-weight: 700;
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .app-list-search {
+      width: 426px;
+    }
+  }
+}
