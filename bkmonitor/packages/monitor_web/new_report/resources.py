@@ -262,18 +262,18 @@ class GetReportListResource(Resource):
         reports = self.fill_external_info(reports, external_filter_dict, report_channels_map, last_send_record_map)
 
         # 分页
-        if validated_request_data.get("page") and validated_request_data.get("page_size"):
-            reports = reports[
-                (validated_request_data["page"] - 1)
-                * validated_request_data["page_size"] : validated_request_data["page"]
-                * validated_request_data["page_size"]
-            ]
+        total = len(reports)
+        reports = reports[
+            (validated_request_data["page"] - 1)
+            * validated_request_data["page_size"] : validated_request_data["page"]
+            * validated_request_data["page_size"]
+        ]
 
         # 根据排序字段进行排序
         if validated_request_data["order"]:
             reports = self.sort_reports(reports, validated_request_data["order"])
 
-        return reports
+        return {"report_list": reports, "total": total}
 
 
 class GetReportResource(Resource):
@@ -581,7 +581,7 @@ class GetExistReportsResource(Resource):
         )
         if validated_request_data.get("create_type"):
             qs = GetReportListResource.filter_by_create_type(validated_request_data["create_type"], qs)
-        reports = list(qs.values("id", "name"))
+        reports = list(qs.values())
         exist_report_list = []
         for report in reports:
             # 目前仅支持日志聚类模块检索条件

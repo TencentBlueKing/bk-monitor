@@ -23,14 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, reactive, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { createOrUpdateReport, sendReport } from '@api/modules/new_report';
-import { deepClone } from '@common/utils';
-import { Button, Dialog, Dropdown, Message } from 'bkui-vue';
+import { Button, Dropdown, Message } from 'bkui-vue';
+
+import { createOrUpdateReport, sendReport } from '../../../monitor-api/modules/new_report';
+import { deepClone } from '../../../monitor-common/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
+import TestSendSuccessDialog from './components/test-send-success-dialog';
+import { TestSendingTarget } from './types';
 
 import './create-subscription.scss';
 
@@ -39,11 +42,18 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const router = useRouter();
+    // 测试发送 按钮 loading
     const isSending = ref(false);
     const isShowDropdownMenu = ref(false);
-    async function testSending(to) {
-      const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms().catch(console.log);
-      console.log('testSending', tempFormData);
+    // 表格组件 实例
+    const refOfCreateSubscriptionForm = ref(null);
+    // 保存 按钮 loading
+    const isSaving = ref(false);
+    // 是否显示 测试发送 结果 dialog
+    const isShowTestSendResult = ref(false);
+
+    async function testSending(to: TestSendingTarget) {
+      const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms();
       if (!tempFormData) return;
       const formData = deepClone(tempFormData);
       if (to === 'self') {
@@ -62,46 +72,35 @@ export default defineComponent({
         ];
         formData.channels = selfChannels;
       }
-      if (to === 'all') {
-        console.log(refOfCreateSubscriptionForm.value);
-      }
       isSending.value = true;
       await sendReport(formData)
         .then(() => {
           isShowTestSendResult.value = true;
         })
-        .catch(console.log)
         .finally(() => {
           isSending.value = false;
           isShowDropdownMenu.value = false;
         });
     }
-    const refOfCreateSubscriptionForm = ref(null);
-    const isSaving = ref(false);
-    function handleSave() {
-      refOfCreateSubscriptionForm.value
-        .validateAllForms()
-        .then(response => {
-          // TODO: 提交数据即可
-          console.log(response);
-          isSaving.value = true;
-          createOrUpdateReport(response)
-            .then(() => {
-              Message({
-                theme: 'success',
-                message: window.i18n.t('保存成功')
-              });
-              router.go(-1);
-            })
-            .catch(console.log)
-            .finally(() => {
-              isSaving.value = false;
-            });
-        })
-        .catch(console.log());
-    }
 
-    const isShowTestSendResult = ref(false);
+    function handleSave() {
+      refOfCreateSubscriptionForm.value.validateAllForms().then(response => {
+        isSaving.value = true;
+        createOrUpdateReport(response)
+          .then(() => {
+            Message({
+              theme: 'success',
+              message: t('保存成功')
+            });
+            router.replace({
+              name: 'report'
+            });
+          })
+          .finally(() => {
+            isSaving.value = false;
+          });
+      });
+    }
 
     /**
      * 跳转到 订阅管理 页，并用 reportId 请求详情，最后打开编辑抽屉
@@ -110,7 +109,7 @@ export default defineComponent({
      */
     function handleGoToReportListPage(reportId) {
       router.push({
-        name: 'new-report-config',
+        name: 'report',
         query: {
           reportId,
           isShowEditSlider: 'true'
@@ -145,10 +144,10 @@ export default defineComponent({
           <Button
             theme='primary'
             loading={this.isSaving}
-            style={{ width: '88px', marginRight: '8px' }}
+            style='width: 88px;margin-right: 8px;'
             onClick={this.handleSave}
           >
-            {window.i18n.t('保存')}
+            {this.t('保存')}
           </Button>
           <Dropdown
             isShow={this.isShowDropdownMenu}
@@ -159,10 +158,10 @@ export default defineComponent({
                 return (
                   <Dropdown.DropdownMenu>
                     <Dropdown.DropdownItem onClick={() => this.testSending('self')}>
-                      {window.i18n.t('给自己')}
+                      {this.t('给自己')}
                     </Dropdown.DropdownItem>
                     <Dropdown.DropdownItem onClick={() => this.testSending('all')}>
-                      {window.i18n.t('给全员')}
+                      {this.t('给全员')}
                     </Dropdown.DropdownItem>
                   </Dropdown.DropdownMenu>
                 );
@@ -173,63 +172,25 @@ export default defineComponent({
               theme='primary'
               outline
               loading={this.isSending}
-              style={{ width: '88px', marginRight: '8px' }}
+              style='width: 88px;margin-right: 8px;'
               onClick={() => {
                 this.isShowDropdownMenu = !this.isShowDropdownMenu;
               }}
             >
-              {window.i18n.t('测试发送')}
+              {this.t('测试发送')}
             </Button>
           </Dropdown>
           <Button
-            style={{ width: '88px' }}
+            style='width: 88px;'
             onClick={() => {
               this.router.go(-1);
             }}
           >
-            {window.i18n.t('取消')}
+            {this.t('取消')}
           </Button>
         </div>
 
-        <Dialog
-          isShow={this.isShowTestSendResult}
-          dialog-type='show'
-          ext-cls='test-send-result-dialog'
-          onClosed={() => {
-            this.isShowTestSendResult = false;
-          }}
-          v-slots={{
-            default: () => {
-              return (
-                <div
-                  style={{
-                    marginLeft: '30px'
-                  }}
-                >
-                  {window.i18n.t('邮件任务已生成，请一分钟后到邮箱查看')}
-                </div>
-              );
-            },
-            header: () => {
-              return (
-                <div>
-                  <i
-                    class='icon-monitor icon-mc-check-fill'
-                    style='color: #2dca56;'
-                  />
-                  <span
-                    style={{
-                      marginLeft: '10px',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {window.i18n.t('发送测试邮件成功')}
-                  </span>
-                </div>
-              );
-            }
-          }}
-        ></Dialog>
+        <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
       </div>
     );
   }

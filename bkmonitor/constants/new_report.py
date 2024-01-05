@@ -150,7 +150,7 @@ class ReportQueryTypeEnum(ChoicesEnum):
 
 
 CLUSTERING_VARIABLES = [
-    {"name": "time", "description": "系统时间", "example": "20231010"},
+    {"name": "time", "description": "系统时间", "example": "2023-12-12 22:00"},
     {"name": "index_set_name", "description": "索引集名称", "example": "apm_demo_app_1111"},
     {"name": "business_name", "description": "业务名称", "example": "测试业务"},
 ]

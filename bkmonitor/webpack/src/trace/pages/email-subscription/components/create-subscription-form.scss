@@ -27,9 +27,22 @@
   }
 
   .bk-form-item.is-error {
-    .member-select-component {
-      border-color: #ea3636;
-      transition: all .15s;
+    // 该自定义属性是用来避免正确的输入框显示警告颜色
+    [data-is-show-error-msg='true'] {
+      .member-select-component {
+        border-color: #ea3636;
+        transition: all .15s;
+      }
+    }
+
+    [data-is-show-error-msg='false'] {
+      .bk-input {
+        border-color: #c4c6cc;
+      }
+
+      .bk-input.is-focused:not(.is-readonly) {
+        border-color: #3a84ff;
+      }
     }
 
     .is-disabled.bk-input {

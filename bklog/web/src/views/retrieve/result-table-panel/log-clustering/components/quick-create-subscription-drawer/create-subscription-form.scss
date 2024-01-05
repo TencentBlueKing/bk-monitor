@@ -36,10 +36,28 @@
     color: #63656e;
   }
 
+  .bk-form-radio {
+    font-size: 12px;
+  }
+
   .bk-form-item.is-error {
-    .user-selector-container {
-      border-color: #ea3636;
-      color: #ea3636;
+    [data-is-show-error-msg='true'] {
+      .user-selector-container {
+        border-color: #ea3636;
+        color: #ea3636;
+      }
+    }
+
+    [data-is-show-error-msg='false'] {
+      input[type='text'] {
+        border-color: #c4c6cc;
+        color: #63656e;
+      }
+
+      .bk-form-input:focus {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-color: #3a84ff !important;
+      }
     }
   }
 }

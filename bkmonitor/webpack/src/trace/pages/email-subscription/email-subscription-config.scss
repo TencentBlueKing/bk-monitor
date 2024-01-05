@@ -13,6 +13,10 @@
       .icon-mc-add {
         font-size: 22px;
       }
+
+      .bk-radio-button .bk-radio-button-label {
+        line-height: 30px;
+      }
     }
 
     .right-container {
@@ -48,6 +52,14 @@
   .gray-text {
     color: #93a1a1;
   }
+
+  .bk-pagination {
+    padding: 0 16px;
+
+    .bk-pagination-total-num {
+      align-self: end;
+    }
+  }
 }
 
 .email-subscription-popover {
@@ -69,6 +81,7 @@
 
 .dialog-header-info-container {
   display: flex;
+  justify-content: space-between;
 
   .label-container {
     display: flex;
@@ -178,6 +191,8 @@
 }
 
 .edit-subscription-sideslider-container {
+  position: fixed;
+
   .bk-modal-content {
     height: calc(100vh - 52px);
     background-color: #f5f7fa;
@@ -202,16 +217,8 @@
   }
 }
 
-.test-send-result-dialog {
-  .bk-dialog-header {
-    /* stylelint-disable-next-line declaration-no-important */
-    padding-bottom: 2px !important;
-  }
-
-  .bk-modal-content {
-    /* stylelint-disable-next-line declaration-no-important */
-    min-height: 60px !important;
-  }
+.detail-subscription-sideslider-container {
+  position: fixed;
 }
 
 .bk-tag-input-popover-content .bk-selector-list .bk-selector-list-item .text {
@@ -231,5 +238,15 @@
   .bk-loading-indicator {
     /* stylelint-disable-next-line declaration-no-important */
     z-index: 1005 !important;
+  }
+}
+
+.report-tips-dialog {
+  .bk-dialog-title {
+    /* stylelint-disable-next-line declaration-no-important */
+    height: auto !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    white-space: normal !important;
   }
 }

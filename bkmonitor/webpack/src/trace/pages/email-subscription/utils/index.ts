@@ -23,18 +23,48 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteRecordRaw } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 
-export default [
-  {
-    path: '/report',
-    name: 'report',
-    component: () => import(/* webpackChunkName: "report" */ '../../pages/email-subscription/email-subscription-config')
-  },
-  {
-    path: '/report/create',
-    name: 'create-report',
-    component: () =>
-      import(/* webpackChunkName: "create-report" */ '../../pages/email-subscription/create-subscription')
+export function getSendFrequencyText(data) {
+  const { t } = useI18n();
+  const hourTextMap = {
+    0.5: t('每个小时整点,半点发送'),
+    1: t('每个小时整点发送'),
+    2: t('从0点开始,每隔2小时整点发送'),
+    6: t('从0点开始,每隔6小时整点发送'),
+    12: t('每天9:00,21:00发送')
+  };
+  const weekMap = [t('周一'), t('周二'), t('周三'), t('周四'), t('周五'), t('周六'), t('周日')];
+  let str = '';
+  if (!data?.frequency?.type) return '';
+  switch (data.frequency.type) {
+    case 1: {
+      str = t('仅一次');
+      break;
+    }
+    case 2: {
+      str = `${t('每月 {0} 号', [data.frequency.day_list.toString()])} ${data.frequency.run_time}`;
+      break;
+    }
+    case 3: {
+      const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
+      const weekStr = weekStrArr.join(', ');
+      str = `${weekStr} ${data.frequency.run_time}`;
+      break;
+    }
+    case 4: {
+      const dayArr = data.frequency.day_list.map(item => `${item}号`);
+      const dayStr = dayArr.join(', ');
+      str = `${dayStr} ${data.frequency.run_time}`;
+      break;
+    }
+    case 5: {
+      str = hourTextMap[data.frequency.hour];
+      break;
+    }
+    default:
+      str = data.frequency.run_time;
+      break;
   }
-] as RouteRecordRaw[];
+  return str;
+}

@@ -26,25 +26,25 @@
 /* eslint-disable max-len */
 import { RouteConfig } from 'vue-router';
 
-import * as newReportAuth from '../../pages/new-report/authority-map';
+import * as reportAuth from '../../pages/new-report/authority-map';
 
-const NewReport = () => import(/* webpackChunkName: 'NewReport' */ '../../pages/new-report/new-report');
-const MyReport = () => import(/* webpackChunkName: 'MyReport' */ '../../pages/my-subscription/my-subscription');
-const MyAppliedReport = () => import(/* webpackChunkName: 'MyAppliedReport' */ '../../pages/my-apply/my-apply');
+const Report = () => import(/* webpackChunkName: 'NewReport' */ '../../pages/new-report/new-report');
+// const MyReport = () => import(/* webpackChunkName: 'MyReport' */ '../../pages/my-subscription/my-subscription');
+// const MyAppliedReport = () => import(/* webpackChunkName: 'MyAppliedReport' */ '../../pages/my-apply/my-apply');
 export default [
   {
-    path: '/trace/new-report-config',
-    name: 'new-report-config',
+    path: '/trace/report',
+    name: 'report',
     components: {
-      noCache: NewReport
+      noCache: Report
     },
     meta: {
       title: '邮件订阅',
-      navId: 'new-report-config',
+      navId: 'report',
       noNavBar: true,
       authority: {
-        map: newReportAuth,
-        page: [newReportAuth.MANAGE_AUTH]
+        map: reportAuth,
+        page: [reportAuth.MANAGE_AUTH]
       },
       route: {
         parent: 'manager'
@@ -52,21 +52,21 @@ export default [
     }
   },
   {
-    path: '/trace/create-subscription',
-    name: 'create-subscription',
+    path: '/trace/report/create',
+    name: 'create-report',
     components: {
-      noCache: NewReport
+      noCache: Report
     },
     meta: {
       title: '新建订阅',
       needBack: true,
-      navId: 'new-report-config',
+      navId: 'report',
       authority: {
-        map: newReportAuth,
-        page: [newReportAuth.MANAGE_AUTH]
+        map: reportAuth,
+        page: [reportAuth.MANAGE_AUTH]
       },
       route: {
-        parent: 'new-report-config'
+        parent: 'report'
       },
       noNavBar: true
     }

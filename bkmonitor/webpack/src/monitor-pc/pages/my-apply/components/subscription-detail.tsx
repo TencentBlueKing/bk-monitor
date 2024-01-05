@@ -191,7 +191,7 @@ export default defineComponent({
           </div>
         </div>
 
-        {/* <div class='title'>{window.i18n.t('邮件配置')}</div>
+        <div class='title'>{window.i18n.t('邮件配置')}</div>
         <div>
           <div class='row'>
             <div class='label'>
@@ -208,11 +208,11 @@ export default defineComponent({
               {this.detailInfo?.content_config?.is_link_enabled ? window.i18n.t('是') : window.i18n.t('否')}
             </span>
           </div>
-        </div> */}
+        </div>
 
         <div class='title'>{window.i18n.t('发送配置')}</div>
         <div>
-          <div class='row'>
+          {/* <div class='row'>
             <div class='label'>
               <span>{window.i18n.t('邮件标题')}</span>
             </div>
@@ -226,7 +226,7 @@ export default defineComponent({
             <span class='value'>
               {this.detailInfo?.content_config?.is_link_enabled ? window.i18n.t('是') : window.i18n.t('否')}
             </span>
-          </div>
+          </div> */}
 
           <div class='row'>
             <div class='label'>
@@ -258,7 +258,7 @@ export default defineComponent({
                       ?.subscribers?.filter(item => item.is_enabled)
                       ?.map?.(item => {
                         return (
-                          <div style='display: inline-flex;margin-right: 24px;margin-bottom: 10px;align-items: center;'>
+                          <div style='display: inline-flex;margin-right: 24px;margin-bottom: 7px;align-items: center;'>
                             {/* {item.src && (
                             <img
                               src=''

@@ -23,18 +23,55 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteRecordRaw } from 'vue-router';
+import { defineComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { Dialog } from 'bkui-vue';
 
-export default [
-  {
-    path: '/report',
-    name: 'report',
-    component: () => import(/* webpackChunkName: "report" */ '../../pages/email-subscription/email-subscription-config')
+import './test-send-success-dialog.scss';
+
+export default defineComponent({
+  name: 'TestSendSuccessDialog',
+  props: {
+    modelValue: {
+      type: Boolean,
+      default: false
+    }
   },
-  {
-    path: '/report/create',
-    name: 'create-report',
-    component: () =>
-      import(/* webpackChunkName: "create-report" */ '../../pages/email-subscription/create-subscription')
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const { t } = useI18n();
+    return {
+      t,
+      props,
+      emit
+    };
+  },
+  render() {
+    return (
+      <Dialog
+        isShow={this.modelValue}
+        dialog-type='show'
+        ext-cls='test-send-result-dialog'
+        onClosed={() => {
+          this.emit('update:modelValue', false);
+        }}
+        v-slots={{
+          default: () => {
+            return <div style='margin-left: 30px;'>{this.t('邮件任务已生成，请一分钟后到邮箱查看')}</div>;
+          },
+          header: () => {
+            return (
+              <div>
+                <i
+                  class='icon-monitor icon-mc-check-fill'
+                  style='color: #2dca56;'
+                />
+                <span style='margin-left: 10px;font-weight: bold;'>{this.t('发送测试邮件成功')}</span>
+              </div>
+            );
+          }
+        }}
+      ></Dialog>
+    );
   }
-] as RouteRecordRaw[];
+});

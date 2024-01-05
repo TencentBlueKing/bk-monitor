@@ -193,5 +193,7 @@ export default {
   不比对: 'Not Compared',
   '{0}小时前': '{0} hours ago',
   号: 'th',
-  '{0}小时': '{0} hours'
+  '{0}小时': '{0} hours',
+  '每月 {0} 号': '{0} of the month',
+  邮件格式有误: 'Email format is wrong'
 };
