@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref } from 'vue';
+import { defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Exception, Select } from 'bkui-vue';
 import { Spinner, Upload as UploadIcon } from 'bkui-vue/lib/icon';
@@ -49,6 +49,49 @@ export default defineComponent({
     const active = ref<ConditionType>(ConditionType.Where);
     const selectFile = ref(null);
 
+    /* 查询项 */
+    const searchObj = reactive({
+      selectFile: '',
+      list: [
+        {
+          id: '1',
+          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+          status: 'running'
+        },
+        {
+          id: '2',
+          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+          status: 'success'
+        },
+        {
+          id: '3',
+          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+          status: 'failed'
+        }
+      ]
+    });
+    /* 对比项 */
+    const compareObj = reactive({
+      selectFile: '',
+      list: [
+        {
+          id: '1',
+          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+          status: 'running'
+        },
+        {
+          id: '2',
+          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+          status: 'success'
+        },
+        {
+          id: '3',
+          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+          status: 'failed'
+        }
+      ]
+    });
+
     function handleUploadTypeChange(type: ConditionType) {
       active.value = type;
     }
@@ -57,13 +100,52 @@ export default defineComponent({
       uploadDialogShow.value = v;
     }
 
+    /**
+     * @description 展示基础信息
+     * @param item
+     */
+    function handleShowFileDetail(item) {
+      console.log(item);
+    }
+
+    function statusRender(status) {
+      if (status === 'running') {
+        return (
+          <div class='status'>
+            <Spinner class='loading'></Spinner>
+            <span class='label'>{t('解析中')}</span>
+          </div>
+        );
+      }
+      if (status === 'success') {
+        return (
+          <div class='status'>
+            <div class='success circle'></div>
+            <span class='label'>{t('解析成功')}</span>
+          </div>
+        );
+      }
+      if (status === 'failed') {
+        return (
+          <div class='status'>
+            <div class='error circle'></div>
+            <span class='label'>{t('解析失败')}</span>
+          </div>
+        );
+      }
+    }
+
     return {
       t,
       uploadDialogShow,
       active,
       selectFile,
+      searchObj,
+      compareObj,
       handleUploadTypeChange,
-      handleUploadShowChange
+      handleUploadShowChange,
+      statusRender,
+      handleShowFileDetail
     };
   },
   render() {
@@ -82,59 +164,56 @@ export default defineComponent({
           <div class='file-select'>
             {this.formData.isComparison && <div class='label where'>{this.t('查询项')}</div>}
             <Select
-              v-model={this.selectFile}
+              v-model={this.searchObj.selectFile}
               popoverOptions={{
                 extCls: 'upload-select-popover'
               }}
             >
-              <Select.Option
-                id='1'
-                name='Profile-2023-11-22-06-02-27.json （原文件名）'
-              >
-                <div class='upload-select-item'>
-                  <div class='left'>
-                    <div class='status'>
-                      <Spinner class='loading'></Spinner>
-                      <span class='label'>{this.t('解析中')}</span>
+              {this.searchObj.list.map(item => (
+                <Select.Option
+                  id={item.id}
+                  key={item.id}
+                >
+                  <div class='upload-select-item'>
+                    <div class='left'>
+                      {this.statusRender(item.status)}
+                      <div class='divider'></div>
+                      <div class='name'>{item.name}</div>
                     </div>
-                    <div class='divider'></div>
-                    <div class='name'>Profile-2023-11-22-06-02-27.json （原文件名）</div>
+                    <i
+                      class='icon-monitor icon-mc-detail'
+                      onClick={() => this.handleShowFileDetail(item)}
+                    ></i>
                   </div>
-                  <i class='icon-monitor icon-mc-detail'></i>
-                </div>
-              </Select.Option>
-              <Select.Option>
-                <div class='upload-select-item'>
-                  <div class='left'>
-                    <div class='status'>
-                      <div class='success circle'></div>
-                      <span class='label'>{this.t('解析成功')}</span>
-                    </div>
-                    <div class='divider'></div>
-                    <div class='name'>Profile-2023-11-22-06-02-27.json （原文件名）</div>
-                  </div>
-                  <i class='icon-monitor icon-mc-detail'></i>
-                </div>
-              </Select.Option>
-              <Select.Option>
-                <div class='upload-select-item'>
-                  <div class='left'>
-                    <div class='status'>
-                      <div class='error circle'></div>
-                      <span class='label'>{this.t('解析失败')}</span>
-                    </div>
-                    <div class='divider'></div>
-                    <div class='name'>Profile-2023-11-22-06-02-27.json （原文件名）</div>
-                  </div>
-                  <i class='icon-monitor icon-mc-detail'></i>
-                </div>
-              </Select.Option>
+                </Select.Option>
+              ))}
             </Select>
           </div>
           {this.formData.isComparison && (
             <div class='file-select'>
               {this.formData.isComparison && <div class='label comparison'>{this.t('对比项')}</div>}
-              <Select></Select>
+              <Select
+                v-model={this.compareObj.selectFile}
+                popoverOptions={{
+                  extCls: 'upload-select-popover'
+                }}
+              >
+                {this.compareObj.list.map(item => (
+                  <Select.Option
+                    id={item.id}
+                    key={item.id}
+                  >
+                    <div class='upload-select-item'>
+                      <div class='left'>
+                        {this.statusRender(item.status)}
+                        <div class='divider'></div>
+                        <div class='name'>{item.name}</div>
+                      </div>
+                      <i class='icon-monitor icon-mc-detail'></i>
+                    </div>
+                  </Select.Option>
+                ))}
+              </Select>
             </div>
           )}
         </div>

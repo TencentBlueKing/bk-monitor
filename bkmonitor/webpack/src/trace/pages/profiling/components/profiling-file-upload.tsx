@@ -109,7 +109,7 @@ export default defineComponent({
             progress: 0.5,
             isCancel: false
           }));
-        }, 300);
+        }, 50);
       } else {
         compareObj.files.push(options.file);
         setTimeout(() => {
