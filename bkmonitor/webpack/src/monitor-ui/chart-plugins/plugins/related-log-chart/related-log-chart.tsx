@@ -374,8 +374,9 @@ class RelatedLogChart extends CommonSimpleChart {
     // const hash = `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`;
     // const url = location.href.replace(location.hash, hash);
     // window.open(url, '_blank');
-    const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item/add`;
-    console.log(url);
+    const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
+      this.bkBizId || this.relatedBkBizId
+    }`;
     window.open(url);
   }
   /** 选择索引集 */
@@ -550,7 +551,7 @@ class RelatedLogChart extends CommonSimpleChart {
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
-                    {this.$t('关联日志')}
+                    {this.$t('日志采集')}
                   </Button>
                 </div>
               </Exception>
