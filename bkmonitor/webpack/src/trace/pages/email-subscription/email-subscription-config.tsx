@@ -27,7 +27,6 @@
 import { defineComponent, nextTick, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { deepClone } from '@common/utils';
 import {
   Button,
   Dialog,
@@ -54,6 +53,7 @@ import {
   getSendRecords,
   sendReport
 } from '../../../monitor-api/modules/new_report';
+import { deepClone } from '../../../monitor-common/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
@@ -86,6 +86,7 @@ export default defineComponent({
     const order = ref('');
     const conditions = ref([]);
     // 查询订阅列表 相关参数 结束
+    const totalReportSize = ref(0);
     // 控制 订阅列表 中多个 tooltips 的显隐
     const toggleMap = reactive<TooltipsToggleMapping>({});
     // 显示 发送记录 的 dialog
@@ -632,7 +633,7 @@ export default defineComponent({
 
     function handleGoToCreateConfigPage() {
       router.push({
-        name: 'create-subscription'
+        name: 'create-report'
       });
     }
 
@@ -700,7 +701,6 @@ export default defineComponent({
 
     function resetAndGetSubscriptionList() {
       page.value = 1;
-      pageSize.value = 20;
       fetchSubscriptionList();
     }
 
@@ -716,7 +716,8 @@ export default defineComponent({
         conditions: conditions.value
       })
         .then(response => {
-          table.data = response;
+          table.data = response.report_list;
+          totalReportSize.value = response.total;
         })
         .finally(() => {
           table.isLoading = false;
@@ -900,6 +901,7 @@ export default defineComponent({
       pageSize,
       order,
       conditions,
+      totalReportSize,
       handleInputKeydown,
       handleGoToCreateConfigPage,
       table,
@@ -1012,10 +1014,11 @@ export default defineComponent({
             border={['outer']}
             settings={this.table.settings}
             style='margin-top: 16px;background-color: white;'
+            remote-pagination
             pagination={{
               current: this.page,
               limit: this.pageSize,
-              count: this.table.data.length,
+              count: this.totalReportSize,
               onChange: (pageNum: number) => {
                 this.page = pageNum;
                 this.fetchSubscriptionList();
@@ -1049,6 +1052,7 @@ export default defineComponent({
                   });
                 }
               }
+              this.page = 1;
               this.fetchSubscriptionList();
             }}
             onColumnSort={({ column, type }) => {
