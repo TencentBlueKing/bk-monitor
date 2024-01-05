@@ -121,7 +121,10 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
       >
         <div class='header'>
           {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
-          <img src={require('../../static/img/we-com.svg')} />
+          <img
+            src={require('../../static/img/we-com.svg')}
+            alt=''
+          />
           <span>{this.title}</span>
         </div>
         <div class='content'>

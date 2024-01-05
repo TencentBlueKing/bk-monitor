@@ -304,6 +304,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                         <img
                           src={require('../../../../static/images/svg/spinner.svg')}
                           class='status-loading'
+                          alt=''
                         ></img>
                       ) : (
                         <span class='icon-monitor icon-mc-retry'></span>

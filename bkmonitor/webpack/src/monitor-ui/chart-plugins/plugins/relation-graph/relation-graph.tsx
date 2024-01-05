@@ -881,11 +881,12 @@ export class RelationGraph extends CommonSimpleChart {
             <img
               class='language-icon'
               src='${languageIcon}'
+              alt='${language}'
               style="display: ${languageIcon && isService ? '' : 'none'}" />
             <span class='language-name' style="display: ${!isService ? 'none' : ''}">${language}</span>
           </div>
           <div class='root-node-mark' style="display: ${isRootService && isService ? 'flex' : 'none'}">
-            <img class='root-icon' src='${bannerIcon}'>
+            <img class='root-icon' src='${bannerIcon}'  alt=''/>
             <span>${this.$t('起始')}</span>
           </div>
         </h3>

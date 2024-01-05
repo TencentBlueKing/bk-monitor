@@ -224,7 +224,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       <span class='string-col'>
         {val.icon ? (
           val.icon.length > 30 ? (
-            <img src={val.icon} />
+            <img
+              src={val.icon}
+              alt=''
+            />
           ) : (
             <i class={['icon-monitor', 'string-icon', val.icon]} />
           )
@@ -350,7 +353,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       >
         {val.icon ? (
           val.icon.length > 30 ? (
-            <img src={val.icon} />
+            <img
+              src={val.icon}
+              alt=''
+            />
           ) : (
             <i class={['icon-monitor', 'link-icon', val.icon]} />
           )
@@ -377,7 +383,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           >
             {val.icon ? (
               val.icon.length > 30 ? (
-                <img src={val.icon} />
+                <img
+                  src={val.icon}
+                  alt=''
+                />
               ) : (
                 <i class={['icon-monitor', 'link-icon', val.icon]} />
               )
@@ -405,7 +414,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId)
             }
           >
-            {item.icon ? <img src={item.icon} /> : ''}
+            {item.icon ? (
+              <img
+                src={item.icon}
+                alt=''
+              />
+            ) : (
+              ''
+            )}
             {item.value}
           </a>
         ))}

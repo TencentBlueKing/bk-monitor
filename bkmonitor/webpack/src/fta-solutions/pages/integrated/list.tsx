@@ -99,6 +99,7 @@ export default class List extends tsc<IListProps, IListEvents> {
               <div class='col-name'>
                 {row.logo ? (
                   <img
+                    alt=''
                     class='img-logo'
                     src={`data:image/png;base64,${row.logo}`}
                   ></img>

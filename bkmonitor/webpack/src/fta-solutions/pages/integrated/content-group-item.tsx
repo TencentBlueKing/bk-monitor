@@ -138,6 +138,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
         <div class='plugin-panel-content'>
           {item.logo ? (
             <img
+              alt=''
               class='img-logo'
               src={`data:image/png;base64,${item.logo}`}
             />

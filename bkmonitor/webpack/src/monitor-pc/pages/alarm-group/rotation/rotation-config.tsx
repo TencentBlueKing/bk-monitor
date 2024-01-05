@@ -698,6 +698,7 @@ export default class RotationConfig extends tsc<IProps> {
                   <img
                     class='loading-icon'
                     src={loadingIcon}
+                    alt=''
                   ></img>
                 ) : (
                   <span class='icon-monitor icon-zhongzhi1'></span>

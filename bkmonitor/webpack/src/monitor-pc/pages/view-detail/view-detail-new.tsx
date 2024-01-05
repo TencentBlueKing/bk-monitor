@@ -590,6 +590,7 @@ export default class ViewDetailNew extends tsc<IProps> {
                                     {item.value === null ? '--' : item.value}
                                     {tdIndex > 0 && (item.max || item.min) && (
                                       <img
+                                        alt=''
                                         class='item-max-min'
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         src={require(`../../static/images/svg/${item.min ? 'min.svg' : 'max.svg'}`)}

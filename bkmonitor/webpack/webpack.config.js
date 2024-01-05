@@ -130,7 +130,6 @@ module.exports = async (baseConfig, { production, app }) => {
         '@api': path.resolve('./src/monitor-api/'),
         '@static': path.resolve('./src/monitor-static/'),
         '@common': path.resolve('./src/monitor-common/'),
-        
       }, ['apm', 'fta', 'pc'].includes(app) ? {
         'vue$': 'vue/dist/vue.runtime.common.js'
       } : {})

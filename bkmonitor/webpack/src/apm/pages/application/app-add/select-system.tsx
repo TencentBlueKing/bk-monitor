@@ -482,7 +482,10 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
                   }
                 }}
               >
-                <img src={item.img} />
+                <img
+                  src={item.img}
+                  alt={item.name}
+                />
                 <span>{item.name}</span>
               </div>
             ))}

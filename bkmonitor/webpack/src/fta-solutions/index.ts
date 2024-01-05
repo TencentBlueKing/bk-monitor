@@ -28,7 +28,6 @@ import './public-path.ts';
 import '../monitor-common/polyfill';
 import Vue from 'vue';
 import i18n from './i18n/i18n';
-import '@blueking/bk-weweb';
 import './common/import-magicbox-ui';
 import '../monitor-ui/directive/index';
 

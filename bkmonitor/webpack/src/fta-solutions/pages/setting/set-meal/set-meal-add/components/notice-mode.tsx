@@ -249,6 +249,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                       <div class='th-title'>
                         {item.icon ? (
                           <img
+                            alt=''
                             class='title-icon'
                             src={`data:image/png;base64,${item.icon}`}
                           ></img>

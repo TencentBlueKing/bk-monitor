@@ -556,6 +556,7 @@ export default class BasicInfo extends tsc<{}> {
                 <div class='content'>
                   <img
                     class='category-icon'
+                    alt=''
                     src={this.serviceInfo.extra_data?.category_icon}
                   />
                   <span class='category-name'>{this.serviceInfo.extra_data?.category_name}</span>
@@ -610,6 +611,7 @@ export default class BasicInfo extends tsc<{}> {
                       <span class='tag-label'>{this.$t('一级分类 :')}</span>
                       {curCmdbRelationTagList?.first_category?.icon && (
                         <img
+                          alt=''
                           class='icon'
                           src={curCmdbRelationTagList?.first_category?.icon}
                         />
@@ -622,6 +624,7 @@ export default class BasicInfo extends tsc<{}> {
                       <span class='tag-label'>{this.$t('二级分类 :')}</span>
                       {curCmdbRelationTagList?.second_category?.icon && (
                         <img
+                          alt=''
                           class='icon'
                           src={curCmdbRelationTagList?.second_category?.icon}
                         />

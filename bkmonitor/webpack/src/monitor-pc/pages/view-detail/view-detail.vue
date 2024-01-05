@@ -161,6 +161,7 @@
                         >
                           {{ item?.value === null ? '--' : item.value }}
                           <img
+                            alt=''
                             v-if="tdIndex > 0 && (item?.max || item?.min)"
                             class="item-max-min"
                             :src="require(`../../static/images/svg/${item?.min ? 'min.svg' : 'max.svg'}`)"
