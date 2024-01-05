@@ -13,13 +13,16 @@ from typing_extensions import Protocol
 
 from apm_web.profile.converter import Converter
 
-from .callgraph import CallgraphDiagrammer
+from .callgraph import CallGraphDiagrammer
 from .flamegraph import FlamegraphDiagrammer
 from .table import TableDiagrammer
 
 
 class Diagrammer(Protocol):
     def draw(self, c: Converter, **options) -> Any:
+        raise NotImplementedError
+
+    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> Any:
         raise NotImplementedError
 
 
@@ -36,5 +39,5 @@ def register_diagrammer_cls(diagram_type: str, diagrammer_cls: Type[Diagrammer])
 
 
 register_diagrammer_cls("flamegraph", FlamegraphDiagrammer)
-register_diagrammer_cls("callgraph", CallgraphDiagrammer)
+register_diagrammer_cls("callgraph", CallGraphDiagrammer)
 register_diagrammer_cls("table", TableDiagrammer)

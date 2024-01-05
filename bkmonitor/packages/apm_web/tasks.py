@@ -10,21 +10,19 @@ specific language governing permissions and limitations under the License.
 """
 import time
 
+from celery.schedules import crontab
+from celery.task import periodic_task, task
+from django.conf import settings
+from django.utils.translation import gettext as _
+
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.models import Application
 from apm_web.serializers import ApplicationCacheSerializer
-
-from celery.task import task
-from celery.task import periodic_task
-from celery.schedules import crontab
-from common.log import logger
-from django.conf import settings
-from django.utils.translation import gettext as _
-
-from bkmonitor.utils.time_tools import strftime_local
 from bkmonitor.utils.common_utils import get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
+from bkmonitor.utils.time_tools import strftime_local
+from common.log import logger
 from core.drf_resource import api
 
 
@@ -119,3 +117,26 @@ def refresh_apm_application_metric():
     ServiceHandler.refresh_application_cache_data(applications)
 
     logger.info("[refresh_apm_application_metric] task finished")
+
+
+@task(ignore_result=True)
+def profile_file_upload_and_parse(fh, file_type, profile_id, bk_biz_id, app_name):
+    logger.info(
+        f"[profile_file_upload_and_parse] task start, bk_biz_id({bk_biz_id}), app_name({app_name}), "
+        f"profile_id({profile_id})"
+    )
+
+    from apm_web.profile.file_handler import ProfilingFileHandler
+
+    ProfilingFileHandler.parse_file(
+        fh=fh,
+        file_type=file_type,
+        profile_id=profile_id,
+        bk_biz_id=bk_biz_id,
+        app_name=app_name,
+    )
+
+    logger.info(
+        f"[profile_file_upload_and_parse] task finished, bk_biz_id({bk_biz_id}), application_id({app_name}), "
+        f"profile_id({profile_id})"
+    )
