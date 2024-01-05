@@ -253,11 +253,12 @@ def task_timer(queue: str = None) -> typing.Callable[[typing.Callable], typing.C
             except Exception as e:  # noqa
                 exception = e
 
+            exception_name = exception.__class__.__name__ if exception else "None"
             # 记录函数执行时间
             metrics.CELERY_TASK_EXECUTE_TIME.labels(
                 task_name=func.__name__,
                 queue=queue,
-                exception=str(exception),
+                exception=exception_name,
             ).observe(time.time() - start_time)
             metrics.report_all()
 
