@@ -18,6 +18,7 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
+from jinja2 import Template
 
 from alarm_backends.core.context import logger
 from alarm_backends.service.new_report.handler.base import BaseReportHandler
@@ -282,7 +283,7 @@ class ClusteringReportHandler(BaseReportHandler):
             "group_by": scenario_config.get("group_by", []),
             "percentage": 1 or round(max([i["percentage"] for i in result]), 2),
             "clustering_fields": clustering_config["clustering_fields"],
-            "time": datetime.now().strftime("%Y%m%d"),
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "is_link_enabled": content_config.get("is_link_enabled", True),
             "generate_attachment": scenario_config.get("generate_attachment", False),
         }
@@ -297,7 +298,8 @@ class ClusteringReportHandler(BaseReportHandler):
         if not render_params:
             logger.exception(f"render_params {render_params} is None.")
             return render_params
-        render_params["title"] = render_params["title"].format(**render_params)
+        title_template = Template(render_params["title"])
+        render_params["title"] = title_template.render(**render_params)
         render_params["mail_template_path"] = self.mail_template_path
         render_params["wechat_template_path"] = self.wechat_template_path
         if render_params.get("generate_attachment", False):
