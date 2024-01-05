@@ -252,7 +252,8 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
                 trigger: 'mouseenter',
                 zIndex: 9999,
                 offset: '0, 6',
-                boundary: document.body
+                boundary: document.body,
+                allowHTML: false
               }}
             >
               {name}

@@ -263,7 +263,8 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               content: item.tip,
                               boundary: 'window',
                               placements: ['top'],
-                              width: item.width
+                              width: item.width,
+                              allowHTML: false
                             }}
                           ></i>
                         ) : undefined}

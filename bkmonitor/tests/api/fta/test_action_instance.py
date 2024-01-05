@@ -8,18 +8,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import time
 import json
+import time
+from unittest.mock import MagicMock, patch
 
-from bkmonitor.models import ActionConfig
-from constants.action import ActionStatus
-from unittest.mock import patch, MagicMock
-
-from django.test import TestCase, Client
 from blueapps.account.models import User
-from bkmonitor.models.fta import ActionInstance
+from django.test import Client, TestCase
+
 from bkmonitor.documents import AlertDocument, EventDocument
-from packages.fta_web.action.resources.backend_resources import ITSMCallbackResource
+from bkmonitor.models import ActionConfig
+from bkmonitor.models.fta import ActionInstance
+from constants.action import ActionStatus
+from fta_web.action.resources.backend_resources import ITSMCallbackResource
 
 
 class TestActionInstanceResource(TestCase):
@@ -136,7 +136,10 @@ class TestBatchCreateResource(TestCase):
 
     def test_get_action_params_by_config(self):
         # 直接结单测试
-        request_url = "/api/v4/action_instance/get_action_params_by_config/?system=hihihi&signature=pi5ERY0tdLsrF2LbdgSwg3Xb1OAYBZDOayQKSBxwZEM="
+        request_url = (
+            "/api/v4/action_instance/get_action_params_by_config/?"
+            "system=hihihi&signature=pi5ERY0tdLsrF2LbdgSwg3Xb1OAYBZDOayQKSBxwZEM="
+        )
         self.start_mock()
         c = Client()
         webhook_config = {
@@ -218,7 +221,10 @@ class TestBatchCreateResource(TestCase):
         self.stop_mock()
 
     def test_batch_create_action(self):
-        request_url = "/api/v4/action_instance/batch_create_action/?system=hihihi&signature=pi5ERY0tdLsrF2LbdgSwg3Xb1OAYBZDOayQKSBxwZEM="
+        request_url = (
+            "/api/v4/action_instance/batch_create_action/?"
+            "system=hihihi&signature=pi5ERY0tdLsrF2LbdgSwg3Xb1OAYBZDOayQKSBxwZEM="
+        )
         self.start_mock()
         job_config = {
             "execute_config": {
