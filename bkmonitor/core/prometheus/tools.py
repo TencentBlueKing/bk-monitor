@@ -15,11 +15,11 @@ import typing
 from dataclasses import dataclass, field
 from functools import wraps
 from types import MethodType
-from typing import Generator, List, Optional, Union
+from typing import Generator, List, Optional
 
 from django.conf import settings
 from prometheus_client.exposition import push_to_gateway
-from prometheus_client.metrics import Gauge, Histogram, MetricWrapperBase, Summary
+from prometheus_client.metrics import MetricWrapperBase
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +257,7 @@ def task_timer(queue: str = None) -> typing.Callable[[typing.Callable], typing.C
             metrics.CELERY_TASK_EXECUTE_TIME.labels(
                 task_name=func.__name__,
                 queue=queue,
-                status="failed" if exception else "success",
+                exception=str(exception),
             ).observe(time.time() - start_time)
             metrics.report_all()
 
@@ -265,7 +265,9 @@ def task_timer(queue: str = None) -> typing.Callable[[typing.Callable], typing.C
             if exception:
                 raise exception
             return result
+
         return wrapper
+
     return actual_timer
 
 
