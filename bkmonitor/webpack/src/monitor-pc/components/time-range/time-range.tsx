@@ -33,8 +33,6 @@ import { DEFAULT_TIME_RANGE } from './utils';
 
 import '@blueking/date-picker/dist/vue2-full.css';
 
-console.info('DatePicker', DatePicker);
-
 export type TimeRangeType = [string, string];
 
 type TimeRangeDisplayType = 'normal' | 'simplicity';
