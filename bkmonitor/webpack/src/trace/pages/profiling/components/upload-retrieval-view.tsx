@@ -32,6 +32,24 @@ import { ConditionType, RetrievalFormData } from '../typings';
 
 import './upload-retrieval-view.scss';
 
+const mockList = [
+  {
+    id: '1',
+    name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+    status: 'loading'
+  },
+  {
+    id: '2',
+    name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+    status: 'success'
+  },
+  {
+    id: '3',
+    name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
+    status: 'error'
+  }
+];
+
 export default defineComponent({
   name: 'UploadRetrievalView',
   props: {
@@ -40,8 +58,12 @@ export default defineComponent({
       required: true
     }
   },
-  setup() {
+  emits: ['showFileDetail'],
+  setup(props, { emit }) {
     const { t } = useI18n();
+    function handleShowFileDetail(item) {
+      emit('showFileDetail', item);
+    }
 
     const uploadDialogShow = ref(false);
     const active = ref<ConditionType>(ConditionType.Where);
@@ -60,7 +82,8 @@ export default defineComponent({
       active,
       selectFile,
       handleUploadTypeChange,
-      handleUploadConfirm
+      handleUploadConfirm,
+      handleShowFileDetail
     };
   },
   render() {
@@ -84,48 +107,37 @@ export default defineComponent({
                 extCls: 'upload-select-popover'
               }}
             >
-              <Select.Option
-                id='1'
-                name='Profile-2023-11-22-06-02-27.json （原文件名）'
-              >
-                <div class='upload-select-item'>
-                  <div class='left'>
-                    <div class='status'>
-                      <Spinner class='loading'></Spinner>
-                      <span class='label'>{this.t('解析中')}</span>
+              {mockList.map(item => (
+                <Select.Option
+                  id={item.id}
+                  name={item.name}
+                >
+                  <div class='upload-select-item'>
+                    <div class='left'>
+                      <div class='status'>
+                        {item.status === 'loading' && [
+                          <Spinner class='loading'></Spinner>,
+                          <span class='label'>{this.t('解析中')}</span>
+                        ]}
+                        {item.status === 'success' && [
+                          <div class='success circle'></div>,
+                          <span class='label'>{this.t('解析成功')}</span>
+                        ]}
+                        {item.status === 'error' && [
+                          <div class='error circle'></div>,
+                          <span class='label'>{this.t('解析失败')}</span>
+                        ]}
+                      </div>
+                      <div class='divider'></div>
+                      <div class='name'>{item.name}</div>
                     </div>
-                    <div class='divider'></div>
-                    <div class='name'>Profile-2023-11-22-06-02-27.json （原文件名）</div>
+                    <i
+                      class='icon-monitor icon-mc-detail'
+                      onClick={() => this.handleShowFileDetail(item)}
+                    ></i>
                   </div>
-                  <i class='icon-monitor icon-mc-detail'></i>
-                </div>
-              </Select.Option>
-              <Select.Option>
-                <div class='upload-select-item'>
-                  <div class='left'>
-                    <div class='status'>
-                      <div class='success circle'></div>
-                      <span class='label'>{this.t('解析成功')}</span>
-                    </div>
-                    <div class='divider'></div>
-                    <div class='name'>Profile-2023-11-22-06-02-27.json （原文件名）</div>
-                  </div>
-                  <i class='icon-monitor icon-mc-detail'></i>
-                </div>
-              </Select.Option>
-              <Select.Option>
-                <div class='upload-select-item'>
-                  <div class='left'>
-                    <div class='status'>
-                      <div class='error circle'></div>
-                      <span class='label'>{this.t('解析失败')}</span>
-                    </div>
-                    <div class='divider'></div>
-                    <div class='name'>Profile-2023-11-22-06-02-27.json （原文件名）</div>
-                  </div>
-                  <i class='icon-monitor icon-mc-detail'></i>
-                </div>
-              </Select.Option>
+                </Select.Option>
+              ))}
             </Select>
           </div>
           {this.formData.isComparison && (
