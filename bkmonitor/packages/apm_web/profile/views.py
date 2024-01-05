@@ -100,7 +100,7 @@ class ProfileViewSet(ViewSet):
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
             )
         except Exception:  # pylint: disable=broad-except
-            raise ValueError(_("应用({}) 不存在").format(validated_data["application_id"]))
+            raise ValueError(_("应用({}) 不存在").format(validated_data["app_name"]))
 
         data = uploaded.read()
         md5 = hashlib.md5(data).hexdigest()
