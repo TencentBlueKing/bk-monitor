@@ -3573,7 +3573,7 @@ msgid "用户无结果表 {result_tables} 的管理权限，无法添加到索�
 msgstr ""
 
 #: apps/log_search/exceptions.py:341
-msgid "此索引没有找到时间字段类型"
+msgid "索引集对应的物理索引不存在"
 msgstr ""
 
 #: apps/log_search/exceptions.py:346

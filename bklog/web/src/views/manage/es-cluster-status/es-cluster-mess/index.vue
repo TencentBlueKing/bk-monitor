@@ -737,7 +737,6 @@ export default {
       width: 400px;
       height: calc(100vh - 104px);
       overflow: hidden;
-      border-left: 1px solid transparent;
 
       &.draging-move {
         border-left-color: #3a84ff;

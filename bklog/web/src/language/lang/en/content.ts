@@ -556,5 +556,15 @@ export default {
   大于: 'more than',
   小于: 'less than',
   大于或等于: 'greater than or equal',
-  小于或等于: 'less than or equal'
+  小于或等于: 'less than or equal',
+  '已选择{0}个索引集': '{0} index sets selected',
+  每次最多可选择10项: 'A maximum of 10 items can be selected at a time',
+  已有同名收藏: 'There is already a favorite with the same name',
+  多索引集: 'Multiple index sets',
+  已失效: 'Expired',
+  该字段在以下索引集存在冲突: 'This field has a conflict in the following index set',
+  '{0}日志来源': '{0} log source',
+  停用状态下无法添加标签: 'Cannot add label when disabled.',
+  '内置标签名，请重新填写': 'Built-in label, please reset fill in',
+  '联合查询无法进行异步下载，可直接下载前1万条数据': 'Joint query cannot be downloaded asynchronously, but the first 10,000 pieces of data can be downloaded directly.',
 };

@@ -23,66 +23,77 @@
 <template>
   <div
     :class="{ 'handle-content': true, 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }">
-    <span class="handle-card" v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }">
-      <span
-        :class="`icon log-icon icon-handle icon-time ${!isActiveLog && 'is-disable'}`"
-        @click.stop="handleCheckClick('realTimeLog', isActiveLog)">
+    <template v-if="!isUnionSearch">
+      <span class="handle-card" v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }">
+        <span
+          :class="`icon log-icon icon-handle icon-time ${!isActiveLog && 'is-disable'}`"
+          @click.stop="handleCheckClick('realTimeLog', isActiveLog)">
+        </span>
       </span>
-    </span>
-    <span class="handle-card" v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }">
-      <span
-        :class="`icon log-icon icon-handle icon-document ${!isActiveLog && 'is-disable'}`"
-        @click.stop="handleCheckClick('contextLog', isActiveLog)">
+      <span class="handle-card" v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }">
+        <span
+          :class="`icon log-icon icon-handle icon-document ${!isActiveLog && 'is-disable'}`"
+          @click.stop="handleCheckClick('contextLog', isActiveLog)">
+        </span>
       </span>
-    </span>
-    <span
-      v-if="isActiveWebConsole"
-      class="handle-card"
-      v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }">
       <span
-        :class="`icon icon-handle log-icon icon-teminal ${!isCanClickWebConsole && 'is-disable'}`"
-        @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"></span>
-    </span>
-    <div v-show="false">
-      <div id="realTimeLog-html">
-        <span>
-          <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
-          <span>{{toolMessage.realTimeLog}}</span>
+        v-if="isActiveWebConsole"
+        class="handle-card"
+        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }">
+        <span
+          :class="`icon icon-handle log-icon icon-teminal ${!isCanClickWebConsole && 'is-disable'}`"
+          @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"></span>
+      </span>
+      <div v-show="false">
+        <div id="realTimeLog-html">
+          <span>
+            <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
+            <span>{{toolMessage.realTimeLog}}</span>
+          <!-- <i18n path="请前往 {0}">
+                <span class="clean-str">{{$t('清洗')}}</span>
+              </i18n>
+            <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
+          </span>
+        </div>
+      </div>
+      <div v-show="false">
+        <div id="webConsole-html">
+          <span>
+            <span v-if="!isCanClickWebConsole" class="bk-icon icon-exclamation-circle-shape"></span>
+            <span>{{toolMessage.webConsole}}</span>
           <!-- <i18n path="请前往 {0}">
             <span class="clean-str">{{$t('清洗')}}</span>
           </i18n>
           <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
-        </span>
+          </span>
+        </div>
       </div>
-    </div>
-    <div v-show="false">
-      <div id="webConsole-html">
-        <span>
-          <span v-if="!isCanClickWebConsole" class="bk-icon icon-exclamation-circle-shape"></span>
-          <span>{{toolMessage.webConsole}}</span>
-          <!-- <i18n path="请前往 {0}">
-            <span class="clean-str">{{$t('清洗')}}</span>
-          </i18n>
-          <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
-        </span>
+      <div v-show="false">
+        <div id="contextLog-html">
+          <span>
+            <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
+            <span>{{toolMessage.contextLog}}</span>
+            <!-- <i18n path="请前往 {0}">
+              <span class="clean-str">{{$t('清洗')}}</span>
+            </i18n>
+            <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
+          </span>
+        </div>
       </div>
-    </div>
-    <div v-show="false">
-      <div id="contextLog-html">
-        <span>
-          <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
-          <span>{{toolMessage.contextLog}}</span>
-        <!-- <i18n path="请前往 {0}">
-          <span class="clean-str">{{$t('清洗')}}</span>
-        </i18n>
-        <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
-        </span>
-      </div>
-    </div>
+    </template>
+    <template v-else>
+      <span
+        class="handle-card union-icon" v-bk-tooltips="$t('{0}日志来源', {
+          0: !isShowSourceField ? $t('显示') : $t('隐藏')
+        })" @click.stop="handleClick('logSource')">
+        <i :class="['bk-icon icon-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
+      </span>
+    </template>
   </div>
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
 export default {
   props: {
     index: {
@@ -109,6 +120,10 @@ export default {
     };
   },
   computed: {
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
     isActiveLog() {
       return this.operatorConfig?.contextAndRealtime.is_active;
     },
@@ -144,6 +159,9 @@ export default {
     },
     toolMessage() {
       return this.operatorConfig.toolMessage;
+    },
+    isShowSourceField() {
+      return this.operatorConfig?.isShowSourceField;
     },
   },
   methods: {
@@ -192,5 +210,9 @@ export default {
   .clean-str {
     color: #3a84ff;
     cursor: pointer;
+  }
+
+  .union-icon {
+    margin-right: 8px;
   }
 </style>

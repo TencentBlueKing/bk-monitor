@@ -79,7 +79,7 @@
               :retrieve-params="retrieveParams"
               :field-alias-map="fieldAliasMap"
               :show-field-alias="showFieldAlias"
-              :visible-length="visibleFields.length"
+              :visible-fields="visibleFields"
               :statistical-field-data="statisticalFieldsData[item.field_name]"
               :field-item="item"
               @toggleItem="handleToggleItem" />
@@ -130,6 +130,7 @@ import FieldItem from './field-item';
 import FieldFilterPopover from './field-filter-popover';
 import VueDraggable from 'vuedraggable';
 import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { mapGetters } from 'vuex';
 
 export default {
   components: {
@@ -257,6 +258,10 @@ export default {
     filedSettingConfigID() { // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
     },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
   },
   watch: {
     '$route.params.indexId'() { // 切换索引集重置状态
@@ -326,7 +331,14 @@ export default {
       if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
       this.$http.request('retrieve/postFieldsConfig', {
         params: { index_set_id: this.$route.params.indexId },
-        data: { display_fields: displayFieldNames, sort_list: this.sortList, config_id: this.filedSettingConfigID },
+        data: {
+          display_fields: displayFieldNames,
+          sort_list: this.sortList,
+          config_id: this.filedSettingConfigID,
+          index_set_id: this.$route.params.indexId,
+          index_set_ids: this.unionIndexList,
+          index_set_type: this.isUnionSearch ? 'union' : 'single',
+        },
       }).catch((e) => {
         console.warn(e);
       });
