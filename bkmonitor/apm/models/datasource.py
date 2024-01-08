@@ -11,6 +11,15 @@ specific language governing permissions and limitations under the License.
 import json
 import math
 
+from django.conf import settings
+from django.db import models
+from django.db.transaction import atomic
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Q
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
+
 from apm import constants
 from apm.constants import (
     DATABASE_CONNECTION_NAME,
@@ -18,23 +27,14 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.utils.es_search import EsSearch
+from bkmonitor.utils.db import JsonField
+from bkmonitor.utils.user import get_global_user
 from common.log import logger
 from constants.apm import OtlpKey, SpanKind
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
-from django.conf import settings
-from django.db import models
-from django.db.transaction import atomic
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from elasticsearch_dsl import Q
 from metadata import models as metadata_models
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-
-from bkmonitor.utils.db import JsonField
-from bkmonitor.utils.user import get_global_user
 
 from .doris import BkDataDorisProvider
 
@@ -888,6 +888,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     DATASOURCE_TYPE = ApmDataSourceConfigBase.PROFILE_DATASOURCE
 
+    retention = models.IntegerField("过期时间")
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
 
@@ -907,6 +908,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
+        obj.retention = essentials["retention"]
         obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
         return
 

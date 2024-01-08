@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -7,16 +8,3 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from django.conf.urls import include, url
-
-from apm_web.profile import views
-from core.drf_resource.routers import ResourceRouter
-
-router = ResourceRouter()
-router.register_module(views)
-
-urlpatterns = [
-    url(r"^", include(router.urls)),
-    url(r"^profiles/", views.ProfileViewSet.as_view({"get": "query", "post": "upload"})),
-]
