@@ -1597,11 +1597,10 @@ class ExportUptimeCheckConfResource(Resource):
                 node_conf = resource.uptime_check.export_uptime_check_node_conf.get_node_conf(node)
                 task_conf["target_conf"]["node_list"].append(node_conf)
 
-        if task.protocol == "HTTP":
-            real_task_config = task.config
-        else:
-            real_task_config = {k: v for k, v in list(task.config.items()) if k != "hosts"}
+        real_task_config = task.config
+        if task.protocol != "HTTP" and "hosts" in real_task_config:
             real_task_config["ip_list"] = [i["ip"] for i in task.config["hosts"]]
+            del real_task_config["hosts"]
 
         task_conf["collector_conf"] = {
             "groups": ",".join([group.name for group in task.groups.all()]),
