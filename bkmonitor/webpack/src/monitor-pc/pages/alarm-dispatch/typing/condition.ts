@@ -92,8 +92,8 @@ export const KEY_FILTER_TAGS = [
 /* 标签包含的key选项 */
 export const KEY_TAG_MAPS = {
   [EKeyTags.cmdb]: ['set', 'module', 'host'],
-  [EKeyTags.strategy]: ['alert.scenario', 'alert.metric', 'alert.event_source', 'alert.strategy_id'],
-  [EKeyTags.event]: ['alert.name', 'ip', 'bk_cloud_id']
+  [EKeyTags.strategy]: ['alert.scenario', 'alert.metric', 'alert.strategy_id', STRATEGY_LABELS],
+  [EKeyTags.event]: ['alert.name', NOTICE_USERS_KEY, 'dimensions', 'ip', 'bk_cloud_id', 'alert.event_source']
 };
 
 export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
