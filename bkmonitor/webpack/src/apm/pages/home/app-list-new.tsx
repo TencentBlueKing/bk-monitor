@@ -61,8 +61,6 @@ interface IAppListItem {
 
 @Component
 export default class AppList extends tsc<{}> {
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
   routeList: INavItem[] = [
     {
       id: '',
@@ -147,8 +145,7 @@ export default class AppList extends tsc<{}> {
     apmData.data.buttons[0].url = window.__POWERED_BY_BK_WEWEB__ ? '#/apm/application/add' : '#/application/add';
     return apmData;
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-dupe-class-members
+  @Provide('handleShowAuthorityDetail')
   handleShowAuthorityDetail(actionIds: string | string[]) {
     authorityStore.getAuthorityDetail(actionIds);
   }
