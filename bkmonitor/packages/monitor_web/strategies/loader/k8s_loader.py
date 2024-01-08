@@ -11,20 +11,17 @@ specific language governing permissions and limitations under the License.
 
 from typing import List, Optional
 
-from django.conf import settings
-
-from core.drf_resource import resource, api
 from bkmonitor.models import StrategyLabel
-from monitor_web.strategies.user_groups import (
-    get_or_create_ops_notice_group,
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
+from core.drf_resource import api, resource
+from monitor_web.strategies.constant import (
+    DEFAULT_ALARM_STRATEGY_ATTR_NAME_K8S,
+    DEFAULT_ALARM_STRATEGY_LOADER_TYPE_K8S,
+    K8S_BUILTIN_LABEL,
 )
 from monitor_web.strategies.default_settings import default_strategy_settings
 from monitor_web.strategies.loader.base import DefaultAlarmStrategyLoaderBase
-from monitor_web.strategies.constant import (
-    K8S_BUILTIN_LABEL,
-    DEFAULT_ALARM_STRATEGY_LOADER_TYPE_K8S,
-    DEFAULT_ALARM_STRATEGY_ATTR_NAME_K8S,
-)
+from monitor_web.strategies.user_groups import get_or_create_ops_notice_group
 
 __all__ = ["K8sDefaultAlarmStrategyLoader"]
 
@@ -76,7 +73,7 @@ class K8sDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
             detects = default_config.get("detects")
             notice = default_config.get("notice")
             notice["user_groups"] = notice_group_ids
-            notice["config"]["template"] = settings.DEFAULT_NOTICE_MESSAGE_TEMPLATE
+            notice["config"]["template"] = DEFAULT_NOTICE_MESSAGE_TEMPLATE
             items = default_config.get("items")
             name = str(default_config.get("name"))
             labels = default_config.get("labels")

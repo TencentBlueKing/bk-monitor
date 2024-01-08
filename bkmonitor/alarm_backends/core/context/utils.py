@@ -8,13 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import functools
 import json
 import logging
+import time
 
 from alarm_backends.core.cache.cmdb.business import BusinessManager
 from alarm_backends.core.cache.key import NOTICE_MAPPING_KEY
 from constants.action import NoticeWay
 from core.drf_resource import api
+from core.prometheus import metrics
 
 logger = logging.getLogger("fta_action.run")
 
@@ -128,3 +131,30 @@ def get_notice_display_mapping(notice_way):
         notice_display_mapping = json.loads(notice_display_mapping)
 
     return str(notice_display_mapping.get(notice_way) or NoticeWay.NOTICE_WAY_MAPPING.get(notice_way, notice_way))
+
+
+def context_field_timer(func):
+
+    """
+    处理套餐上下文字段指标计时
+    处理方式：记录字段耗时，对于异常情况记录异常类名，并统一返回 None
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        result, exception = None, None
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+        except Exception as e:
+            exception = e
+
+        metrics.ALARM_CONTEXT_GET_FIELD_TIME.labels(
+            field=func.__name__,
+            exception=exception.__class__.__name__ if exception else "None",
+        ).observe(time.time() - start_time)
+        metrics.report_all()
+
+        return result
+
+    return wrapper
