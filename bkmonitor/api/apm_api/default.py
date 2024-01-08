@@ -359,3 +359,12 @@ class QueryDiscoverRules(ApmAPIGWResource):
 
     action = "/query_discover_rules/"
     method = "POST"
+
+
+class QueryProfileServicesDetail(ApmAPIGWResource):
+    """
+    查询Profile服务详情
+    """
+
+    action = "/apm/profile/services_detail/"
+    method = "GET"

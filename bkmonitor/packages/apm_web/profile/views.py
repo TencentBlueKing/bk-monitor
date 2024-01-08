@@ -22,11 +22,13 @@ from apm_web.profile.diagrams import get_diagrammer
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource import api
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 from .converter import generate_profile_id
 from .doris.converter import DorisConverter
 from .doris.handler import StorageHandler
 from .doris.querier import APIParams, APIType, Query
+from .resources import QueryServicesDetailResource
 from .serializers import (
     ProfileQuerySerializer,
     ProfileUploadRecordSLZ,
@@ -173,3 +175,21 @@ class ProfileViewSet(ViewSet):
         )
 
         return Response(data=ProfileUploadRecordSLZ(record).data)
+
+
+class QueryViewSet(ResourceViewSet):
+    INSTANCE_ID = "app_name"
+
+    def get_permissions(self):
+        return [
+            InstanceActionForDataPermission(
+                self.INSTANCE_ID,
+                [ActionEnum.VIEW_APM_APPLICATION],
+                ResourceEnum.APM_APPLICATION,
+                get_instance_id=Application.get_application_id_by_app_name,
+            )
+        ]
+
+    resource_routes = [
+        ResourceRoute("GET", QueryServicesDetailResource, endpoint="services_detail"),
+    ]
