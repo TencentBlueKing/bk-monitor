@@ -7,10 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.conf.urls import url
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
 from apm_web.profile import views
 
+router = DefaultRouter()
+router.register(r"profiling", views.ProfileViewSet, basename="profiling")
+
 urlpatterns = [
-    url(r"^profiles/", views.ProfileViewSet.as_view({"get": "query", "post": "upload"})),
+    path("", include(router.urls)),
 ]

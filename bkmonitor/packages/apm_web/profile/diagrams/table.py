@@ -10,8 +10,7 @@ specific language governing permissions and limitations under the License.
 from dataclasses import dataclass
 
 from apm_web.profile.converter import Converter
-
-from .base import FunctionTree
+from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
 
 
 @dataclass
@@ -20,14 +19,92 @@ class TableDiagrammer:
         tree = FunctionTree.load_from_profile(c)
 
         nodes = list(tree.nodes_map.values())
-        total_nodes = sorted(nodes, key=lambda x: x.value, reverse=True)
-        self_nodes = sorted(nodes, key=lambda x: x.self_time, reverse=True)
+        # 添加total节点
+        total_node = FunctionNode(id=0, value=tree.root.value, name="total", filename="", system_name="")
+        nodes.append(total_node)
+        sort_map = {"name": lambda x: x.display_name, "self": lambda x: x.self_time, "total": lambda x: x.value}
+
+        sort = str(options.get("sort")).lower()
+        sort_field = str(sort).replace("-", "")
+        if sort and sort in ["-" + key for key in sort_map.keys()]:
+            sorted_nodes = sorted(nodes, key=sort_map.get(sort_field), reverse=True)
+        elif sort and sort in sort_map.keys():
+            sorted_nodes = sorted(nodes, key=sort_map.get(sort_field))
+        else:
+            sorted_nodes = sorted(nodes, key=lambda x: x.value, reverse=True)
+        return {
+            "table_data": [
+                {"id": x.id, "name": x.display_name, "self": x.self_time, "total": x.value} for x in sorted_nodes
+            ],
+            "table_all": tree.root.value,
+            **c.get_sample_type(),
+        }
+
+    @classmethod
+    def get_ratio_value(cls, value: int, total: int) -> float:
+        if value == 0 or total == 0:
+            return 0.00
+        return value / total
+
+    @classmethod
+    def diff(cls, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
+        baseline_tree = FunctionTree.load_from_profile(base_doris_converter)
+        comparison_tree = FunctionTree.load_from_profile(diff_doris_converter)
+
+        baseline_nodes = list(baseline_tree.nodes_map.values())
+        comparison_nodes = list(comparison_tree.nodes_map.values())
+
+        baseline_map = {
+            x.display_name: {"id": x.id, "name": x.display_name, "self": x.self_time, "value": x.value}
+            for x in baseline_nodes
+        }
+        comparison_map = {
+            x.display_name: {"id": x.id, "name": x.display_name, "self": x.self_time, "value": x.value}
+            for x in comparison_nodes
+        }
+
+        # todo 后续肯能展示字段按需调整
+        baseline_all = baseline_tree.root.value
+        comparison_all = comparison_tree.root.value
+        table_data = [
+            {
+                "name": "total",
+                "baseline_node": {"id": 0, "name": "total", "self": 0, "value": baseline_all},
+                "comparison_node": {"id": 0, "name": "total", "self": 0, "value": comparison_all},
+                "baseline": baseline_all,
+                "comparison": comparison_all,
+                "diff": comparison_all - baseline_all,
+            }
+        ]
+        default_comparison_node = {"id": 0, "name": "", "self": 0, "value": 0}
+        for name in baseline_map.keys():
+            baseline_node = baseline_map.get(name, {})
+            comparison_node = comparison_map.get(name, default_comparison_node)
+            baseline = baseline_node.get("value", 0)
+            comparison = comparison_node.get("value", 0)
+            diff = comparison - baseline
+            table_data.append(
+                {
+                    "name": name,
+                    "baseline_node": baseline_node,
+                    "comparison_node": comparison_node,
+                    "baseline": baseline,
+                    "comparison": comparison,
+                    "diff": diff,
+                }
+            )
+
+        # 排序逻辑 对比图 table 数据 TODO
+        sort = str(options.get("sort")).lower()
+        sort_field = str(sort).replace("-", "")
+        if sort and sort_field in ():
+            pass
+
+        sort_table_data = sorted(table_data, key=lambda x: x["baseline"], reverse=True)
 
         return {
-            "table_data": {
-                "self": [{"id": x.id, "func": x.display_name, "value": x.self_time} for x in self_nodes],
-                "total": [{"id": x.id, "func": x.display_name, "value": x.value} for x in total_nodes],
-            },
-            "all": tree.root.value,
-            **c.get_sample_type(),
+            "table_data": sort_table_data,
+            "table_baseline_all": baseline_all,
+            "table_comparison_all": comparison_all,
+            **base_doris_converter.get_sample_type(),
         }
