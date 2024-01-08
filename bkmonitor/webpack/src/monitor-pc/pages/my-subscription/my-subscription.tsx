@@ -312,18 +312,34 @@ class MySubscription extends tsc<{}> {
         >
           <div>
             <div class='dialog-header-info-container'>
-              <div class='label-container'>
-                <div class='label'>{this.$t('发送频率')}:</div>
-                <div class='value'>{this.getSendFrequencyText(this.detailInfo)}</div>
-              </div>
-              <div class='label-container'>
-                <div
-                  class='label'
-                  style='margin-left: 55px;'
-                >
-                  {this.$t('有效时间范围')}:
+              <div style='display: flex;'>
+                <div class='label-container'>
+                  <div class='label'>{this.$t('发送频率')}:</div>
+                  <div class='value'>{this.getSendFrequencyText(this.detailInfo)}</div>
                 </div>
-                <div class='value'>{this.formatTimeRange(this.detailInfo?.start_time, this.detailInfo?.end_time)}</div>
+                <div class='label-container'>
+                  <div
+                    class='label'
+                    style='margin-left: 55px;'
+                  >
+                    {this.$t('有效时间范围')}:
+                  </div>
+                  <div class='value'>
+                    {this.formatTimeRange(this.detailInfo?.start_time, this.detailInfo?.end_time)}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <bk-button
+                  text
+                  theme='primary'
+                  disabled={this.sendRecordTable.isLoading}
+                  onClick={this.getSendingRecordList}
+                  style='font-size: 16px;'
+                >
+                  {this.$t('刷新')}
+                </bk-button>
               </div>
             </div>
 

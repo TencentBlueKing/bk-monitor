@@ -95,6 +95,8 @@ class NavTools extends DocumentLinkMixin {
   async handler() {
     this.$emit('change', false);
     this.globalSearchShow = false;
+    this.isShowMyReportModal = false;
+    this.isShowMyApplyModal = false;
   }
 
   /** 20231226 暂不使用 */
@@ -442,9 +444,6 @@ class NavTools extends DocumentLinkMixin {
                     onClick={() => {
                       this.isShowMyReportModal = false;
                       this.isShowMyApplyModal = true;
-                      // this.$router.push({
-                      //   name: 'my-applied-report'
-                      // });
                       this.$nextTick(() => {
                         (this.$refs.popoveruser as any)?.hideHandler?.();
                       });
@@ -457,9 +456,6 @@ class NavTools extends DocumentLinkMixin {
                     onClick={() => {
                       this.isShowMyApplyModal = false;
                       this.isShowMyReportModal = true;
-                      // this.$router.push({
-                      //   name: 'my-report'
-                      // });
                       this.$nextTick(() => {
                         (this.$refs.popoveruser as any)?.hideHandler?.();
                       });

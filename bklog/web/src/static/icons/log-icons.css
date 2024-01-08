@@ -25,7 +25,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-
 .icon-app-store:before {
   content: '\e162';
 }
@@ -212,6 +211,10 @@
 
 .icon-no-refresh:before {
   content: '\e11c';
+}
+
+.icon-copy-2:before {
+  content: '\e188';
 }
 
 .icon-number:before {

@@ -357,7 +357,7 @@ export default {
       const query = this.$route.query.bizId ? `?bizId=${this.$route.query.bizId}` : '';
       // window.open(`${window.MONITOR_URL}/${query}#/my-report`, '_blank');
       // 20231225 暂不需要
-      window.open(`${window.MONITOR_URL}/${query}#/?isShowMyReport=true`, '_blank');
+      window.open(`${window.MONITOR_URL}/${query}#/trace/report?isShowMyReport=true`, '_blank');
     },
   },
 };
