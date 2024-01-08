@@ -18,7 +18,6 @@ from django.conf import settings
 from django.db.models import Q
 
 from core.drf_resource import api
-from metadata.models.space.constants import EtlConfigs
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
 from metadata.models.vm.config import BkDataStorageWithDataID
 from metadata.models.vm.constants import BKDATA_NS_TIMESTAMP_DATA_ID_LIST, TimestampLen
@@ -288,32 +287,9 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
     """通过 data id 或者 etl config 获取接入 vm 是清洗时间的长度
 
     1. 如果 data id 在指定的白名单中，则为 纳米
-    2. 如果 etl_config 为bk_exporter, 则为 秒
-    3. 其它，则为 毫秒
+    2. 其它，则为 毫秒
     """
-    # 如果都不存在，则默认
-    if not (data_id or etl_config):
-        return TimestampLen.MILLISECOND_LEN.value
-
     if data_id and data_id in BKDATA_NS_TIMESTAMP_DATA_ID_LIST:
         return TimestampLen.NANOSECOND_LEN.value
-
-    second_etl_config = [EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value]
-
-    # TODO: 暂时不放到 admin 管理
-    # NOTE: 以实际传入的值为准
-    if etl_config and etl_config in second_etl_config:
-        return TimestampLen.SECOND_LEN.value
-    # 如果数据源 ID 存在，则查询出对应的 etl_config
-    if data_id:
-        from metadata.models import DataSource
-
-        try:
-            ds = DataSource.objects.get(bk_data_id=data_id)
-            if ds.etl_config in second_etl_config:
-                return TimestampLen.SECOND_LEN.value
-
-        except DataSource.DoesNotExist:
-            logger.error("query ds error, bk_data_id: %s", data_id)
 
     return TimestampLen.MILLISECOND_LEN.value
