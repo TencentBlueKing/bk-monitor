@@ -20,9 +20,11 @@ from apm_ebpf.constants import DeepflowComp
 from apm_ebpf.handlers.kube import BcsKubeClient
 from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
 from apm_ebpf.utils import group_by
+from bk_dataview.provisioning import sync_data_sources
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from core.drf_resource import api
+from monitor_web.grafana.provisioning import ApmEbpfProvisioning
 
 
 @dataclass
@@ -386,3 +388,36 @@ class DeepflowHandler:
         url = f"{self._scheme}://{node_ip}:{port}"
 
         return url
+
+    @classmethod
+    def install_grafana(cls):
+        """注册grafana仪表盘"""
+
+        check_biz_ids = WorkloadHandler.list_exist_biz_ids()
+        logger.info(
+            f"[GrafanaInstaller] start check "
+            f"if dashboards are installed in {len(check_biz_ids)} businesses({check_biz_ids})"
+        )
+
+        for biz_id in check_biz_ids:
+            # 注册数据源
+            org_info = api.grafana.get_organization_by_name(name=biz_id)
+            org_id = org_info.get("data", {}).get("id")
+            if not org_id:
+                logger.warning(f"[GrafanaInstaller] can not found org_name: {biz_id} in grafana?")
+                continue
+
+            datasources = cls(biz_id).list_datasources()
+            if not datasources:
+                logger.info(f"[GrafanaInstaller] biz_id: {biz_id} has not valid datasource, skip")
+                continue
+            logger.info(f"[GrafanaInstaller] biz_id: {biz_id} found {len(datasources)} datasource, registry")
+            sync_data_sources(
+                org_id,
+                ApmEbpfProvisioning.convert_to_datasource(list(datasources), DeepflowComp.GRAFANA_DATASOURCE_TYPE_NAME),
+            )
+            logger.info(f"[GrafanaInstaller] biz_id: {biz_id} datasource registry finished")
+
+            # 注册仪表盘
+            mapping = ApmEbpfProvisioning.get_dashboard_mapping(biz_id)
+            ApmEbpfProvisioning.upsert_dashboards(org_id, biz_id, mapping)
