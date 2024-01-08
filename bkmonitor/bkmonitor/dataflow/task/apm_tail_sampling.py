@@ -83,10 +83,10 @@ class TailSamplingFlinkNode(FlinkStreamNode):
         super(TailSamplingFlinkNode, self).__init__(source_rt_id, *args, **kwargs)
         self.flink_code = flink_code
         self.conditions = conditions or []
-        self.trace_gap_min = trace_gap_min or self._TRACE_GAP_MIN
-        self.trace_timeout_min = trace_timeout_min or self._TRACE_TIMEOUT_MIN
-        self.max_span_count = max_span_count or self._MAX_SPAN_COUNT
-        self.sampling_ratio = sampling_ratio or self._SAMPLING_RATIO
+        self.trace_gap_min = self._TRACE_GAP_MIN if trace_gap_min is None else trace_gap_min
+        self.trace_timeout_min = self._TRACE_TIMEOUT_MIN if trace_timeout_min is None else trace_timeout_min
+        self.max_span_count = self._MAX_SPAN_COUNT if max_span_count is None else max_span_count
+        self.sampling_ratio = self._SAMPLING_RATIO if sampling_ratio is None else sampling_ratio
 
     @property
     def args(self):
