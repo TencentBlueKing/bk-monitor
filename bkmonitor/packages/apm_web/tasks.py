@@ -120,7 +120,14 @@ def refresh_apm_application_metric():
 
 
 @task(ignore_result=True)
-def profile_file_upload_and_parse(fh, file_type, profile_id, bk_biz_id, app_name):
+def profile_file_upload_and_parse(key, file_type, profile_id, bk_biz_id, app_name):
+    """
+    :param key : 文件完整路径
+    :param str file_type: 上传文件类型
+    :param str profile_id: profile_id
+    :param int bk_biz_id: 业务id
+    :param str app_name: 应用名称
+    """
     logger.info(
         f"[profile_file_upload_and_parse] task start, bk_biz_id({bk_biz_id}), app_name({app_name}), "
         f"profile_id({profile_id})"
@@ -129,7 +136,7 @@ def profile_file_upload_and_parse(fh, file_type, profile_id, bk_biz_id, app_name
     from apm_web.profile.file_handler import ProfilingFileHandler
 
     ProfilingFileHandler.parse_file(
-        fh=fh,
+        key=key,
         file_type=file_type,
         profile_id=profile_id,
         bk_biz_id=bk_biz_id,

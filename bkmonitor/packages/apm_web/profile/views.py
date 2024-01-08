@@ -11,6 +11,7 @@ import datetime
 import hashlib
 import logging
 
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -18,10 +19,16 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from apm_web.models import Application, ProfileUploadRecord
+from apm_web.profile.constants import (
+    PROFILE_UPLOAD_RECORD_NEW_FILE_NAME,
+    CallGraphResponseDataMode,
+    UploadedFileStatus,
+)
 from apm_web.profile.converter import generate_profile_id
 from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.doris.converter import DorisConverter
 from apm_web.profile.doris.querier import APIParams, APIType, Query
+from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.profile.serializers import (
     ProfileListFileSerializer,
     ProfileQuerySerializer,
@@ -33,38 +40,6 @@ from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource import api
 
 logger = logging.getLogger("root")
-
-
-def generate_svg_data(data: dict):
-    """
-    生成 svg 图片数据
-    :param data call_graph 数据
-    """
-    from graphviz import Digraph
-
-    dot = Digraph(comment="The Round Table", format="svg")
-    dot.attr("node", shape="rectangle")
-    call_graph_data = data.get("call_graph_data", {})
-    for node in call_graph_data.get("call_graph_nodes", []):
-        ratio = 0.00 if data["call_graph_all"] == 0 else node["value"] / data["call_graph_all"]
-        ratio_str = f"{ratio:.2%}"
-        title = f"""
-        {node["name"]}
-        {node["self"]} of {node["value"]} ({ratio_str})
-        """
-        dot.node(str(node["id"]), label=title)
-
-    for edge in call_graph_data.get("call_graph_relation", []):
-        dot.edge(str(edge["source_id"]), str(edge["target_id"]), label=f'{edge["value"]} {data["unit"]}')
-
-    svg_data = dot.pipe(format="svg")
-    return svg_data
-
-
-def generate_file_name():
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-
-    return "Profile-" + now_str + ".pprof"
 
 
 class ProfileViewSet(ViewSet):
@@ -107,13 +82,8 @@ class ProfileViewSet(ViewSet):
         if ProfileUploadRecord.objects.filter(file_md5=md5).exists():
             raise ValueError(_("相同文件已上传"))
 
-        # 上传文件到 bkrepo
-        try:
-            from apm_web.profile.file_handler import ProfilingFileHandler
-
-            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
-        except Exception as e:
-            logger.error(f"{uploaded.name} file upload to bkrepo failed, error: {e}")
+        # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
+        ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
 
         profile_id = generate_profile_id()
 
@@ -127,15 +97,16 @@ class ProfileViewSet(ViewSet):
             operator=request.user.username,
             origin_file_name=uploaded.name,
             file_size=uploaded.size,  # 单位Bytes
-            file_name=generate_file_name(),
-            status=_("已上传"),
+            file_name=PROFILE_UPLOAD_RECORD_NEW_FILE_NAME.format(timezone.now().strftime("%Y-%m-%d-%H-%M-%S")),
+            status=UploadedFileStatus.UPLOADED,
+            service_name=validated_data.get("service_name", "default"),
         )
 
         # 异步任务： 文件解析及存储
         from apm_web.tasks import profile_file_upload_and_parse
 
         profile_file_upload_and_parse.delay(
-            uploaded,
+            uploaded.name,
             validated_data["file_type"],
             profile_id,
             validated_data["bk_biz_id"],
@@ -144,8 +115,8 @@ class ProfileViewSet(ViewSet):
 
         return Response(data=ProfileUploadRecordSLZ(record).data)
 
-    @action(methods=["GET"], detail=False, url_path="list_profile_upload_record")
-    def list_profile_upload_record(self, request: Request):
+    @action(methods=["GET"], detail=False, url_path="list_profile_upload_records")
+    def list_profile_upload_records(self, request: Request):
         serializer = ProfileListFileSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
@@ -156,26 +127,10 @@ class ProfileViewSet(ViewSet):
             filter_params["app_name"] = validated_data.get("app_name")
         if validated_data.get("origin_file_name"):
             filter_params["origin_file_name"] = validated_data.get("origin_file_name")
+        if validated_data.get("service_name "):
+            filter_params["service_name"] = validated_data.get("service_name")
         queryset = ProfileUploadRecord.objects.filter(**filter_params)
-        data = list(queryset.values())
-        return Response(data=data)
-
-    @classmethod
-    def call_graph(cls, validated_data, base_param: dict):
-        """查询 profiling 数据"""
-        doris_converter = cls.get_profile_data(validated_data, base_param)
-        data = get_diagrammer("callgraph").draw(doris_converter)
-        svg_data = generate_svg_data(data)
-
-        from io import BytesIO
-
-        try:
-            with BytesIO(svg_data) as svg_buffer:
-                res = svg_buffer.read().decode()
-        except Exception as e:
-            raise ValueError(_("call_graph, error: {}").format(e))
-
-        return Response(data={"call_graph_data": res})
+        return Response(data=ProfileUploadRecordSLZ(queryset, many=True).data)
 
     @classmethod
     def build_extra_params(cls, profile_id: str, label: dict) -> dict:
@@ -189,7 +144,9 @@ class ProfileViewSet(ViewSet):
         return extra_params
 
     @classmethod
-    def get_profile_data(cls, validated_data, base_param: dict) -> DorisConverter:
+    def get_profile_data(
+        cls, validated_data, app_name: str, start: int, end: int, application_info: dict
+    ) -> DorisConverter:
         """
         获取 profile 数据
         """
@@ -210,13 +167,13 @@ class ProfileViewSet(ViewSet):
             api_type=APIType.QUERY_SAMPLE,
             api_params=APIParams(
                 biz_id=bk_biz_id,
-                app=base_param["app_name"],
+                app=app_name,
                 type=profile_type,
-                start=base_param["start"],
-                end=base_param["end"],
+                start=start,
+                end=end,
                 **extra_params,
             ),
-            result_table_id=base_param["application_info"]["profiling_config"]["result_table_id"],
+            result_table_id=application_info["profiling_config"]["result_table_id"],
         )
 
         r = q.execute()
@@ -270,27 +227,23 @@ class ProfileViewSet(ViewSet):
         )
         end = int(end / 1000 + offset * 1000)
 
-        base_param = {
-            "app_name": app_name,
-            "application_info": application_info,
-            "start": start,
-            "end": end,
-        }
-        doris_converter = self.get_profile_data(validated_data, base_param)
-        diagram_types = validated_data["diagram_type"]
-        if (
-            validated_data.get("is_compared")
-            or validated_data.get("diff_profile_id")
-            or validated_data.get("diff_filter_label")
-        ):
-            diff_doris_converter = self.get_profile_data(validated_data, base_param)
+        doris_converter = self.get_profile_data(
+            validated_data=validated_data, app_name=app_name, start=start, end=end, application_info=application_info
+        )
+        diagram_types = validated_data["diagram_types"]
+        if validated_data.get("is_compared"):
+            diff_doris_converter = self.get_profile_data(
+                validated_data=validated_data,
+                app_name=app_name,
+                start=start,
+                end=end,
+                application_info=application_info,
+            )
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter) for d_type in diagram_types
             )
             return Response(data={k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()})
-        if len(diagram_types) == 1 and diagram_types[0] == "callgraph":
-            return self.call_graph(validated_data, base_param)
-        diagram_dicts = (
-            get_diagrammer(d_type).draw(doris_converter, sort=validated_data.get("sort")) for d_type in diagram_types
-        )
+
+        options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
+        diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
         return Response(data={k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()})

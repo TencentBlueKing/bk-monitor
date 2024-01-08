@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.models import ProfileUploadRecord
+from apm_web.profile.constants import UploadedFileStatus
 
 
 class ProfileQuerySerializer(serializers.Serializer):
@@ -20,7 +21,7 @@ class ProfileQuerySerializer(serializers.Serializer):
     profile_type = serializers.CharField(label="profile类型", required=False, default="cpu")
     profile_id = serializers.CharField(label="profile ID", required=False, default="")
     offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=300)
-    diagram_type = serializers.ListSerializer(
+    diagram_types = serializers.ListSerializer(
         child=serializers.CharField(), required=False, default=["flamegraph", "table"]
     )
     sort = serializers.CharField(label="排序, 只对table有效", required=False, default="-total")
@@ -41,8 +42,14 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
         model = ProfileUploadRecord
         fields = "__all__"
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["status"] = UploadedFileStatus.get_display_name(data["status"])
+        return data
+
 
 class ProfileListFileSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
     app_name = serializers.CharField(label="应用名称", required=False)
     origin_file_name = serializers.CharField(label="上传文件名称", default="", required=False)
+    service_name = serializers.CharField(label="服务名称", required=False)

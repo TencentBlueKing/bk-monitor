@@ -25,7 +25,7 @@ class PprofConverter(Converter):
         self.init_profile()
         try:
             self.profile.parse(gzip.decompress(raw))
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.profile.parse(raw)
 
         if not self.preset_profile_id:

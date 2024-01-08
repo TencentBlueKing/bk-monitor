@@ -9,11 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+import tempfile
 
 from bkstorages.backends.bkrepo import BKRepoStorage
 from django.utils.translation import ugettext_lazy as _
 
 from apm_web.models import Application, ProfileUploadRecord
+from apm_web.profile.constants import UploadedFileStatus
 from apm_web.profile.converter import get_converter_by_input_type
 from apm_web.profile.doris.handler import StorageHandler
 
@@ -24,10 +26,16 @@ class ProfilingFileHandler:
     def __init__(self):
         self.bk_repo_storage = BKRepoStorage(bucket="bkmonitor_apm_profile")
 
-    @classmethod
-    def parse_file(cls, fh, file_type: str, profile_id: str, bk_biz_id: int, app_name: str):
+    def get_file_data(self, key):
+        with tempfile.TemporaryFile() as fp:
+            self.bk_repo_storage.client.download_fileobj(key=key, fh=fp)
+            fp.seek(0)
+            data = fp.read()
+        return data
+
+    def parse_file(self, key, file_type: str, profile_id: str, bk_biz_id: int, app_name: str):
         """
-        :param fh : 文件句柄
+        :param key : 文件完整路径
         :param str file_type: 上传文件类型
         :param str profile_id: profile_id
         :param int bk_biz_id: 业务id
@@ -41,7 +49,8 @@ class ProfilingFileHandler:
 
         try:
             converter = get_converter_by_input_type(file_type)(preset_profile_id=profile_id)
-            data = fh.read()
+            # 从 bkrepo 中获取文件数据
+            data = self.get_file_data(key)
             p = converter.convert(data)
         except Exception as e:
             logger.exception(f"convert profiling data failed, error: {e}")
@@ -51,7 +60,7 @@ class ProfilingFileHandler:
         queryset = ProfileUploadRecord.objects.filter(**param)
 
         if p is None:
-            queryset.update(status=_("解析失败"))
+            queryset.update(status=UploadedFileStatus.PARSING_FAILED)
             logger.error(_("无法转换 profiling 数据"))
             return
 
@@ -60,7 +69,7 @@ class ProfilingFileHandler:
             handler.save_profile()
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"save profiling data to doris failed, error: {e}")
-            queryset.update(status=_("解析失败"))
+            queryset.update(status=UploadedFileStatus.PARSING_FAILED)
             return
 
-        queryset.update(status=_("解析成功"))
+        queryset.update(status=UploadedFileStatus.PARSING_SUCCEED)
