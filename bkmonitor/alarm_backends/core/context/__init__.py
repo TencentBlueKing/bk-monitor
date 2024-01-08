@@ -28,6 +28,7 @@ from bkmonitor.models import (
     GlobalConfig,
 )
 from bkmonitor.utils.common_utils import count_md5
+from constants import alert as alert_constants
 from constants.action import (
     ActionSignal,
     ActionStatus,
@@ -36,7 +37,6 @@ from constants.action import (
     NoticeWay,
     NoticeWayChannel,
 )
-from constants.alert import EVENT_SEVERITY_DICT, EventSeverity
 
 logger = logging.getLogger("fta_action.run")
 
@@ -75,24 +75,10 @@ class ActionContext(object):
         "action_instance_content",
     ]
 
-    DEFAULT_TITLE_TEMPLATE = "{{business.bk_biz_name}} - {{alarm.name}} {{alarm.display_type}}"
+    DEFAULT_TITLE_TEMPLATE = alert_constants.DEFAULT_TITLE_TEMPLATE
 
-    DEFAULT_TEMPLATE = (
-        "{{content.level}}\n"
-        "{{content.begin_time}}\n"
-        "{{content.time}}\n"
-        "{{content.duration}}\n"
-        "{{content.target_type}}\n"
-        "{{content.data_source}}\n"
-        "{{content.content}}\n"
-        "{{content.current_value}}\n"
-        "{{content.biz}}\n"
-        "{{content.target}}\n"
-        "{{content.dimension}}\n"
-        "{{content.detail}}\n"
-        "{{content.assign_detail}}\n"
-        "{{content.related_info}}\n"
-    )
+    # TODO(crayon) AiSettings 修复后再修改默认值
+    DEFAULT_TEMPLATE = alert_constants.OLD_DEFAULT_TEMPLATE
 
     DEFAULT_ACTION_TEMPLATE = (
         "{{action_instance_content.name}}\n"
@@ -107,9 +93,9 @@ class ActionContext(object):
     )
 
     ALERT_LEVEL_COLOR = {
-        EventSeverity.FATAL: "#EA3636",
-        EventSeverity.WARNING: "#FF9C01",
-        EventSeverity.REMIND: "#FFDE3A",
+        alert_constants.EventSeverity.FATAL: "#EA3636",
+        alert_constants.EventSeverity.WARNING: "#FF9C01",
+        alert_constants.EventSeverity.REMIND: "#FFDE3A",
     }
 
     def __init__(
@@ -256,7 +242,7 @@ class ActionContext(object):
 
     @cached_property
     def level_name(self):
-        return str(EVENT_SEVERITY_DICT.get(self.alert_level, self.alert_level))
+        return str(alert_constants.EVENT_SEVERITY_DICT.get(self.alert_level, self.alert_level))
 
     @cached_property
     def level_color(self):

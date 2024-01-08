@@ -12,13 +12,16 @@ from django.apps import apps as django_apps
 from django.db import connections
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.state import StateApps
-from django.test import TestCase
+from django.test import TransactionTestCase
 
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import SYSTEM_EVENT_RT_TABLE_ID
 
 
-class TestMigrations(TestCase):
+class TestMigrations(TransactionTestCase):
+
+    databases = {"default", "monitor_api"}
+
     @property
     def app(self):
         return django_apps.get_containing_app_config(type(self).__module__).name
@@ -379,11 +382,11 @@ class TestStrategyMigrate(TestMigrations):
 
     def test_migrated(self):
         from bkmonitor.models import (
-            StrategyModel,
-            ItemModel,
             AlgorithmModel,
             DetectModel,
+            ItemModel,
             QueryConfigModel,
+            StrategyModel,
         )
 
         strategy = StrategyModel.objects.get(id=self.BkMonitorTimeSeriesConfig["strategy"]["id"])

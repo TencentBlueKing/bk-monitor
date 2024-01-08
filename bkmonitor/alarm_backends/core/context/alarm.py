@@ -40,6 +40,7 @@ from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 
 from ...service.converge.shield.shielder import AlertShieldConfigShielder
 from . import BaseContextObject
+from .utils import context_field_timer
 
 logger = logging.getLogger("fta_action.run")
 
@@ -797,6 +798,7 @@ class Alarm(BaseContextObject):
         return False
 
     @cached_property
+    @context_field_timer
     def anomaly_dimensions(self):
         if not self.parent.alert:
             return None
@@ -807,13 +809,14 @@ class Alarm(BaseContextObject):
                 f"alert({self.parent.alert.id})-action("
                 f"{self.parent.action.id if self.parent.action else ''}) aiops维度下钻接口请求异常: {e}"
             )
-            return None
+            raise
 
         anomaly_dimension_count = result["info"]["anomaly_dimension_count"]
         anomaly_dimension_value_count = result["info"]["anomaly_dimension_value_count"]
         return f"异常维度 {anomaly_dimension_count}，异常维度值 {anomaly_dimension_value_count}"
 
     @cached_property
+    @context_field_timer
     def recommended_metrics(self):
         if not self.parent.alert:
             return None
@@ -824,7 +827,7 @@ class Alarm(BaseContextObject):
                 f"alert({self.parent.alert.id})-action("
                 f"{self.parent.action.id if self.parent.action else ''}) aiops关联指标接口请求异常: {e}"
             )
-            return None
+            raise
         # 推荐指标维度数
         recommended_metric_dimension_count = result["info"]["recommended_metric_count"]
         # 推荐指标数
