@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from abc import ABC
 
 from django.conf import settings
@@ -114,6 +113,96 @@ class HDFSStorageNode(StorageNode):
             "expires": self.storage_expires,
             "cluster": settings.BK_DATA_HDFS_STORAGE_CLUSTER_NAME,
         }
+
+
+class DorisStorageNode(StorageNode):
+    """
+    Doris存储节点
+    """
+
+    NODE_TYPE = "doris"
+
+    def __init__(self, cluster, *args, **kwargs):
+        super(DorisStorageNode, self).__init__(*args, **kwargs)
+        self.cluster = cluster
+
+    @property
+    def fields(self):
+        raise NotImplementedError
+
+    @property
+    def config(self):
+        return {
+            "bk_biz_id": self.bk_biz_id,
+            "result_table_id": self.source_rt_id,
+            "name": self.name,
+            "cluster": self.cluster,
+            "custom_param_config": {
+                "data_model": "duplicate",
+                "expires_dup": f"{self.storage_expires}d",
+                "expires_uniq": "-1",
+                "fields": self.fields,
+            },
+            "storage_field_config": {},
+            "udc_name": "doris",
+            "from_result_table_ids": [self.source_rt_id],
+        }
+
+
+class ElasticsearchStorageNode(StorageNode):
+    """
+    ES存储节点
+    """
+
+    NODE_TYPE = "elastic_storage"
+
+    def __init__(
+        self,
+        cluster,
+        storage_keys=None,
+        analyzed_fields=None,
+        doc_values_fields=None,
+        json_fields=None,
+        date_fields=None,
+        has_replica=False,
+        has_unique_key=False,
+        physical_table_name=False,
+        *args,
+        **kwargs,
+    ):
+        super(ElasticsearchStorageNode, self).__init__(*args, **kwargs)
+        self.has_replica = has_replica
+        self.storage_keys = storage_keys or []
+        self.analyzed_fields = analyzed_fields or []
+        self.doc_values_fields = doc_values_fields or []
+        self.json_fields = json_fields or []
+        self.date_fields = date_fields or []
+        self.cluster = cluster
+        self.has_unique_key = has_unique_key
+        self.physical_table_name = physical_table_name
+
+    @property
+    def config(self):
+        params = {
+            "bk_biz_id": self.bk_biz_id,
+            "result_table_id": self.source_rt_id,
+            "name": self.name,
+            "cluster": self.cluster,
+            "date_fields": self.date_fields,
+            "expires": self.storage_expires,
+            "has_replica": self.has_replica,
+            "has_unique_key": self.has_unique_key,
+            "storage_keys": self.storage_keys,
+            "analyzed_fields": self.analyzed_fields,
+            "doc_values_fields": self.doc_values_fields,
+            "json_fields": self.json_fields,
+            "from_result_table_ids": [self.source_rt_id],
+        }
+        if self.physical_table_name:
+            # 如果开启了自托管 需要额外处理表名
+            params["physical_table_name"] = f"write_{{yyyyMMdd}}_{self.physical_table_name}"
+
+        return params
 
 
 def create_tspider_or_druid_node(source_rt_id, storage_expires, parent):

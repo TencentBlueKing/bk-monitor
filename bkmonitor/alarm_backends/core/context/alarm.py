@@ -215,6 +215,7 @@ class Alarm(BaseContextObject):
 
         # 拓扑维度特殊处理
         display_dimensions = copy.deepcopy(self.display_dimensions)
+
         dimension_string_list = []
         if self.parent.alert.agg_dimensions:
             # 当存在agg_dimensions的顺序列表是，直接使用
@@ -670,6 +671,11 @@ class Alarm(BaseContextObject):
         alert_dict["event"].pop("extra_info", None)
         alert_dict["is_shielded"] = self.is_shielded
         alert_dict.update({"current_value": self.current_value, "description": self.description})
+
+        # 日志或事件关联信息
+        alert_dict["log_related_info"] = self.log_related_info
+        # 整体关联信息，包含了CMDB 和 日志信息
+        alert_dict["related_info"] = self.related_info
         return json.dumps(alert_dict)
 
     @cached_property
@@ -704,6 +710,24 @@ class Alarm(BaseContextObject):
         if not self.parent.alert:
             return ""
         return ",".join(self.parent.alert.assignee)
+
+    @cached_property
+    def receivers(self):
+        """
+        通知人列表
+        """
+        if not self.parent.alert:
+            return []
+        return self.parent.alert.assignee or []
+
+    @cached_property
+    def appointees(self):
+        """
+        负责人列表
+        """
+        if not self.parent.alert:
+            return []
+        return self.parent.alert.appointee or []
 
     @cached_property
     def ack_operator(self):

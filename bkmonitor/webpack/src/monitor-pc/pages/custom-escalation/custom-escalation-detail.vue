@@ -1160,7 +1160,6 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       },
       on: {
         change: (v) => {
-          console.log(v);
           setTimeout(() => {
             this.pagination.page = 1;
             this.groupFilterList = v;

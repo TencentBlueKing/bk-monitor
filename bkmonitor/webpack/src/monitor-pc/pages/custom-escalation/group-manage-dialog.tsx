@@ -452,7 +452,6 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
   }
   /* 删除一个组 */
   handleDeleteGroup(index: number) {
-    console.log(index);
     this.groupList.splice(index, 1);
     this.metricsMap = new Map();
     this.matchMetricsMap = new Map();
@@ -668,7 +667,8 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                               v-bk-tooltips={{
                                 placements: ['right'],
                                 content: !!row.description ? `${row.name}  (${row.description})` : row.name,
-                                boundary: 'window'
+                                boundary: 'window',
+                                allowHTML: false
                               }}
                             >
                               <span class='name'>{row.name}</span>
@@ -730,7 +730,8 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                     content: this.$t('由匹配规则{0}生成', [this.ruleOfMetrics.get(item.name)]),
                     placement: 'right',
                     boundary: 'window',
-                    disabled: !this.ruleOfMetrics.has(item.name)
+                    disabled: !this.ruleOfMetrics.has(item.name),
+                    allowHTML: false
                   }}
                   key={`${item.name}-${index}`}
                 >
@@ -744,7 +745,8 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                       v-bk-tooltips={{
                         placements: ['right'],
                         content: !!item.description ? `${item.name}  (${item.description})` : item.name,
-                        boundary: 'window'
+                        boundary: 'window',
+                        allowHTML: false
                       }}
                     >
                       <span class='title'>{this.highLightContent(this.manualCheck.search, item.name)}</span>

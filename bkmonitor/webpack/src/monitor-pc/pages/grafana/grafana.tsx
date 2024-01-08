@@ -30,6 +30,8 @@ import { getDashboardList } from '../../../monitor-api/modules/grafana';
 import bus from '../../../monitor-common/utils/event-bus';
 import { DASHBOARD_ID_KEY } from '../../constant/constant';
 
+import { getDashboardCache } from './utils';
+
 import './grafana.scss';
 
 interface IMessageEvent extends MessageEvent {
@@ -63,10 +65,21 @@ export default class MyComponent extends tsc<{}> {
   }
   @Watch('url', { immediate: true })
   async handleUrlChange() {
+    if (this.$store.getters.bizIdChangePedding) {
+      this.loading = true;
+      this.grafanaUrl = `${this.orignUrl}${this.$store.getters.bizIdChangePedding.replace('/home', '')}/?orgName=${
+        this.$store.getters.bizId
+      }${this.getUrlParamsString()}`;
+      setTimeout(() => (this.loading = false), 2000);
+      return;
+    }
+    this.loading = true;
     const grafanaUrl = await this.handleGetGrafanaUrl();
     if (!this.grafanaUrl) {
       this.grafanaUrl = grafanaUrl;
+      setTimeout(() => (this.loading = false), 2000);
     } else {
+      this.loading = false;
       const url = new URL(grafanaUrl);
       this.iframeRef?.contentWindow.postMessage(
         {
@@ -78,7 +91,6 @@ export default class MyComponent extends tsc<{}> {
     }
   }
   async handleGetGrafanaUrl() {
-    this.loading = true;
     let grafanaUrl = '';
     if (!this.url) {
       if (this.$route.name === 'grafana-home') {
@@ -86,7 +98,7 @@ export default class MyComponent extends tsc<{}> {
       } else {
         const list = await getDashboardList().catch(() => []);
         const { bizId } = this.$store.getters;
-        const dashboardCache = this.handleGetDashboardCache();
+        const dashboardCache = getDashboardCache();
         const dashboardCacheId = dashboardCache?.[bizId] || '';
         if (dashboardCacheId && list.some(item => item.uid === dashboardCacheId)) {
           this.$router.replace({
@@ -138,20 +150,12 @@ export default class MyComponent extends tsc<{}> {
     iframeContent?.document.body.removeEventListener('keydown', this.handleKeydownGlobalSearch);
     // this.unWatch?.();
   }
-  handleGetDashboardCache() {
-    let dashboardCache;
-    try {
-      dashboardCache = JSON.parse(localStorage.getItem(DASHBOARD_ID_KEY));
-    } catch {}
-    return dashboardCache;
-  }
   handleSetDashboardCache(dashboardCacheId: string) {
-    const dashboardCache = this.handleGetDashboardCache();
+    const dashboardCache = getDashboardCache();
     const { bizId } = this.$store.getters;
     localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
   }
   handleLoad() {
-    setTimeout(() => (this.loading = false), 100);
     this.$nextTick(() => {
       const iframeContent = this.iframeRef?.contentWindow;
       this.iframeRef?.focus();
@@ -228,7 +232,7 @@ export default class MyComponent extends tsc<{}> {
     return (
       <div
         class='grafana-wrap'
-        v-monitor-loading='{ isLoading: loading }'
+        v-monitor-loading={{ isLoading: this.loading }}
       >
         <iframe
           onLoad={this.handleLoad}

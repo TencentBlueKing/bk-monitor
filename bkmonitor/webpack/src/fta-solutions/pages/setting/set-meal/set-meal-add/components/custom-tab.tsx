@@ -213,12 +213,16 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
             {this.timeStyleType === 1 ? (
               <div
                 slot='add'
-                style={{ cursor: this.isCanAdd ? 'pointer' : 'not-allowed' }}
-                class='custom-add'
+                class={['custom-add', { disabled: !this.isCanAdd }]}
                 onClick={() => this.handleAddPanel()}
               >
                 <div class='jia'>+</div>
-                <span v-bk-tooltips={{ content: this.$t('已配置全天24小时生效时段，无需额外添加生效时段') }}>
+                <span
+                  v-bk-tooltips={{
+                    content: this.$t('已配置全天24小时生效时段，无需额外添加生效时段'),
+                    disabled: this.isCanAdd
+                  }}
+                >
                   {this.$t('生效时段')}
                 </span>
               </div>

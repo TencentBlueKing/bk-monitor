@@ -21,6 +21,7 @@ from rest_framework import serializers
 
 from apm.constants import GLOBAL_CONFIG_BK_BIZ_ID, ConfigTypes, VisibleEnum
 from apm.core.handlers.application_hepler import ApplicationHelper
+from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.instance_handlers import InstanceHandler
 from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
@@ -32,12 +33,15 @@ from apm.models import (
     ApmMetricDimension,
     ApmTopoDiscoverRule,
     AppConfigBase,
+    BkdataFlowConfig,
     CustomServiceConfig,
     Endpoint,
     HostInstance,
     LicenseConfig,
+    MetricDataSource,
     NormalTypeValueConfig,
     ProbeConfig,
+    ProfileDataSource,
     QpsConfig,
     RemoteServiceRelation,
     RootEndpoint,
@@ -47,13 +51,22 @@ from apm.models import (
     TopoRelation,
     TraceDataSource,
 )
+from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
 from bkm_space.utils import space_uid_to_bk_biz_id
+from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import TraceListQueryMode
+from constants.apm import (
+    DataSamplingLogTypeChoices,
+    FlowType,
+    TailSamplingSupportMethod,
+    TraceListQueryMode,
+    TraceWaterFallDisplayKey,
+)
 from core.drf_resource import Resource, api
 from metadata import models
+from metadata.models import DataSource
 
 logger = logging.getLogger("apm")
 
@@ -373,14 +386,12 @@ class ReleaseAppConfigResource(Resource):
         refresh_apm_application_config.delay(bk_biz_id, app_name)
 
     def set_custom_service_config(self, bk_biz_id, app_name, custom_services):
-
         CustomServiceConfig.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, config_level=ApdexConfig.APP_LEVEL, config_key=app_name
         ).delete()
         CustomServiceConfig.refresh_config(bk_biz_id, app_name, ApdexConfig.APP_LEVEL, app_name, custom_services)
 
     def set_config(self, bk_biz_id, app_name, config_key, config_level, config):
-
         if config_level == AppConfigBase.APP_LEVEL:
             # 如果是app级别配置 -> 保存实例名配置&维度配置&采样配置
             instance_name_config = config.get("instance_name_config", [])
@@ -566,7 +577,6 @@ class QueryTopoNodeResource(Resource):
     many_response_data = True
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         if data.get("topo_key"):
@@ -591,7 +601,6 @@ class QueryTopoRelationResource(Resource):
     many_response_data = True
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         if data.get("from_topo_key"):
@@ -603,7 +612,6 @@ class QueryTopoRelationResource(Resource):
 
 
 class QueryTopoInstanceResource(PageListResource):
-
     UNIQUE_UPDATED_AT = "updated_at"
 
     class RequestSerializer(serializers.Serializer):
@@ -651,7 +659,6 @@ class QueryTopoInstanceResource(PageListResource):
         return queryset
 
     def pre_process(self, filter_params, validated_request_data):
-
         # 去除 updated_at 过滤条件
         filter_flag = {}
         for k in list(filter_params.keys()):
@@ -686,7 +693,6 @@ class QueryTopoInstanceResource(PageListResource):
         return merge_data
 
     def perform_request(self, validated_request_data):
-
         filter_params = DiscoverHandler.get_retention_utc_filter_params(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
@@ -732,7 +738,6 @@ class QueryRootEndpointResource(Resource):
     many_response_data = True
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         return RootEndpoint.objects.filter(**filter_params)
@@ -780,7 +785,6 @@ class QueryEndpointResource(Resource):
         bk_instance_id = serializers.CharField(required=False, label="实例id", allow_blank=True, default="")
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         endpoints = Endpoint.objects.filter(**filter_params).order_by("-updated_at")
@@ -863,7 +867,6 @@ class QueryTraceListResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, validated_data):
-
         if validated_data["query_mode"] == TraceListQueryMode.PRE_CALCULATION:
             qm = QueryMode.TRACE
         else:
@@ -933,11 +936,25 @@ class QueryTraceDetailResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
         trace_id = serializers.CharField(label="trace_id")
+        displays = serializers.ListField(
+            child=serializers.ChoiceField(
+                choices=TraceWaterFallDisplayKey.choices(),
+                default=TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY,
+            ),
+            default=list,
+            allow_empty=True,
+            required=False,
+        )
 
     def perform_request(self, validated_data):
+        # otel data must be in displays choice
+        displays = validated_data.get("displays")
+        if TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY not in displays:
+            displays.append(TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY)
+
         trace, relation_mapping = QueryProxy(
             validated_data["bk_biz_id"], validated_data["app_name"]
-        ).query_trace_detail(validated_data["trace_id"], validated_data["bk_biz_id"])
+        ).query_trace_detail(validated_data["trace_id"], validated_data["displays"], validated_data["bk_biz_id"])
 
         return {"trace_data": trace, "relation_mapping": relation_mapping}
 
@@ -1157,7 +1174,6 @@ class QueryTraceByHostInstanceResource(Resource):
         limit = serializers.IntegerField(default=10)
 
     def perform_request(self, data):
-
         host_instance = DiscoverHandler.get_host_instance(data["bk_biz_id"], data["ip"], data["bk_cloud_id"])
 
         if not host_instance:
@@ -1245,7 +1261,6 @@ class QueryRemoteServiceRelationResource(Resource):
             fields = ["topo_node_key", "from_endpoint_name", "category"]
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         q = Q(topo_node_key=data["topo_node_key"])
@@ -1363,7 +1378,6 @@ class DeleteApplicationResource(Resource):
 
 
 class QuerySpanStatisticsListResource(Resource):
-
     RequestSerializer = QuerySerializer
 
     def perform_request(self, validated_data):
@@ -1379,7 +1393,6 @@ class QuerySpanStatisticsListResource(Resource):
 
 
 class QueryServiceStatisticsListResource(Resource):
-
     RequestSerializer = QuerySerializer
 
     def perform_request(self, validated_data):
@@ -1392,3 +1405,137 @@ class QueryServiceStatisticsListResource(Resource):
             validated_data.get("filters"),
             validated_data.get("es_dsl"),
         )
+
+
+class QueryBuiltinProfileDatasourceResource(Resource):
+    """Query builtin profile datasource"""
+
+    class ProfileDataSourceSerializer(serializers.ModelSerializer):
+        bk_data_token = serializers.SerializerMethodField()
+
+        def get_bk_data_token(self, obj: ProfileDataSource):
+            params = {"bk_biz_id": obj.bk_biz_id, "app_name": obj.app_name, "profile_data_id": obj.bk_data_id}
+            return transform_data_id_to_v1_token(**params)
+
+        class Meta:
+            model = ProfileDataSource
+            fields = "__all__"
+
+    def perform_request(self, validated_request_data: dict):
+        builtin_source = ProfileDataSource.get_builtin_source()
+        if builtin_source is None:
+            raise ValueError(_("未找到内置数据源，请联系管理员创建"))
+
+        return self.ProfileDataSourceSerializer(builtin_source).data
+
+
+class GetBkDataFlowDetailResource(Resource):
+    """获取APM在计算平台中创建的Flow列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
+        flow_type = serializers.ChoiceField(label="数据开始时间", choices=FlowType.choices)
+
+    class FlowResponseSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = BkdataFlowConfig
+            fields = "__all__"
+
+    def perform_request(self, validated_request_data):
+        instance = FlowHelper.get_detail(**validated_request_data)
+        if instance:
+            return self.FlowResponseSerializer(instance=instance).data
+
+        return None
+
+
+class CreateOrUpdateBkdataFlowResource(Resource):
+    """创建/更新计算平台Flow"""
+
+    class RequestSerializer(serializers.Serializer):
+        class TailSamplingConfigSerializer(serializers.Serializer):
+            class TailConditions(serializers.Serializer):
+                """尾部采样-采样规则数据格式"""
+
+                condition_choices = (
+                    ("and", "and"),
+                    ("or", "or"),
+                )
+
+                condition = serializers.ChoiceField(label="Condition", choices=condition_choices, required=False)
+                key = serializers.CharField(label="Key")
+                method = serializers.ChoiceField(label="Method", choices=TailSamplingSupportMethod.choices)
+                value = serializers.ListSerializer(label="Value", child=serializers.CharField())
+
+            tail_percentage = serializers.IntegerField(label="尾部采样-采集百分比", required=False)
+            tail_trace_session_gap_min = serializers.IntegerField(label="尾部采样-会话过期时间", required=False)
+            tail_trace_mark_timeout = serializers.IntegerField(label="尾部采样-标记状态最大存活时间", required=False)
+            tail_conditions = serializers.ListSerializer(child=TailConditions(), required=False, allow_empty=True)
+
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
+        flow_type = serializers.ChoiceField(label="Flow类型", choices=FlowType.choices)
+        config = serializers.DictField(label="Flow配置", allow_empty=True)
+
+    def perform_request(self, validated_data):
+        bk_biz_id = validated_data["bk_biz_id"]
+        app_name = validated_data["app_name"]
+
+        # 目前仅支持创建尾部采样Flow
+        if validated_data["flow_type"] == FlowType.TAIL_SAMPLING.value:
+            ser = self.RequestSerializer.TailSamplingConfigSerializer(data=validated_data["config"])
+            ser.is_valid(raise_exception=True)
+
+            logger.info(
+                f"[create_trace_tail_sampling] start create tail sampling, bk_biz_id: {bk_biz_id} app_name: {app_name}"
+            )
+            trace = TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+            if not trace:
+                raise ValueError(f"没有找到app_name: {app_name}的Trace数据表")
+
+            if settings.IS_ACCESS_BK_DATA:
+                create_or_update_tail_sampling.delay(trace, ser.data)
+                return
+
+            raise ValueError("环境中未开启计算平台，无法创建")
+
+        raise ValueError(f"不支持的Flow类型: {validated_data['flow_type']}")
+
+
+class OperateApmDataIdResource(Resource):
+    """操作APM Dataid的链路"""
+
+    class RequestSerializer(serializers.Serializer):
+        datalink_operate = (("stop", "暂停"), ("recover", "恢复"))
+
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
+        datasource_type = serializers.ChoiceField(label="采样类型", choices=DataSamplingLogTypeChoices.choices())
+        operate = serializers.ChoiceField(choices=datalink_operate, label="操作")
+
+    def perform_request(self, validated_data):
+        if validated_data["datasource_type"] == DataSamplingLogTypeChoices.TRACE:
+            data_id = TraceDataSource.objects.get(
+                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
+            ).bk_data_id
+        else:
+            data_id = MetricDataSource.objects.get(
+                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
+            ).bk_data_id
+
+        ds = DataSource.objects.filter(bk_data_id=data_id).first()
+        if not ds:
+            raise ValueError(f"data_id: {data_id} not found in metadata.DataSource")
+
+        logger.info(f"[OPERATE_APM_DATA_ID] --> {validated_data['operate']} dataId: {data_id}")
+        if validated_data["operate"] == "stop":
+            ds.is_enable = False
+            ds.save()
+            ds.delete_consul_config()
+            return data_id
+
+        ds.is_enable = True
+        ds.save()
+        ds.refresh_consul_config()
+        return data_id
