@@ -398,7 +398,6 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                     id={key}
                     v-bk-overflow-tips={{
                       allowHTML: true,
-                      theme: 'light common-table',
                       interactive: true
                     }}
                   >
@@ -1150,7 +1149,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                                 ? this.askTipMsg(isAck, status, ackOperator)
                                 : this.$t('告警确认'),
                             delay: 200,
-                            appendTo: 'parent'
+                            appendTo: 'parent',
+                            allowHTML: false
                           }}
                         />
                         <span
@@ -1423,7 +1423,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 ? `${this.opetateRow.shield_operator?.[0] || ''}${this.$t('已屏蔽')}`
                 : '',
               delay: 200,
-              appendTo: () => document.body
+              appendTo: () => document.body,
+              allowHTML: false
             }}
             on-click={() => !this.opetateRow?.is_shielded && this.handleQuickShield(this.opetateRow)}
           >

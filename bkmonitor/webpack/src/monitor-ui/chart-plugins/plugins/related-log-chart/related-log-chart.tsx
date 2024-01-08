@@ -129,8 +129,6 @@ class RelatedLogChart extends CommonSimpleChart {
     this.unregisterOberver();
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
-    console.log(this.panel.options?.related_log_chart?.defaultKeyword, 2333);
-
     this.keyword = this.panel.options?.related_log_chart?.defaultKeyword ?? this.keyword;
     // 先用 log_predicate 接口判断日志类型 蓝鲸日志平台 or 第三方其他日志
     const predicateLogTarget = this.panel.targets.find(item => item.dataType === 'log_predicate');
@@ -370,10 +368,14 @@ class RelatedLogChart extends CommonSimpleChart {
    * @desc 关联日志
    */
   handleRelated() {
-    const { app_name: appName, service_name: serviceName } = this.viewOptions as Record<string, string>;
-    const hash = `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`;
-    const url = location.href.replace(location.hash, hash);
-    window.open(url, '_blank');
+    // const { app_name: appName, service_name: serviceName } = this.viewOptions as Record<string, string>;
+    // const hash = `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`;
+    // const url = location.href.replace(location.hash, hash);
+    // window.open(url, '_blank');
+    const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
+      this.bkBizId || this.relatedBkBizId
+    }`;
+    window.open(url);
   }
   /** 选择索引集 */
   handleSelectIndexSet(v) {
@@ -490,7 +492,8 @@ class RelatedLogChart extends CommonSimpleChart {
                     v-bk-tooltips={{
                       content: this.selectedOptionAlias,
                       theme: 'light',
-                      placement: 'top-start'
+                      placement: 'top-start',
+                      allowHTML: false
                     }}
                   >
                     {this.relatedIndexSetList.map(option => (
@@ -547,7 +550,7 @@ class RelatedLogChart extends CommonSimpleChart {
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
-                    {this.$t('关联日志')}
+                    {this.$t('日志采集')}
                   </Button>
                 </div>
               </Exception>

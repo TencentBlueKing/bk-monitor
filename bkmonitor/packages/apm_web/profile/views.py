@@ -25,8 +25,8 @@ from core.drf_resource import api
 
 from .converter import generate_profile_id
 from .doris.converter import DorisConverter
-from .doris.handler import StorageHandler
 from .doris.querier import APIParams, APIType, Query
+from .handler import CollectorHandler
 from .serializers import (
     ProfileQuerySerializer,
     ProfileUploadRecordSLZ,
@@ -137,11 +137,6 @@ class ProfileViewSet(ViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        try:
-            application = Application.objects.get(pk=validated_data["application_id"])
-        except Exception:  # pylint: disable=broad-except
-            raise ValueError(_("应用({}) 不存在").format(validated_data["application_id"]))
-
         # 2. convert file to Profile object
         profile_id = generate_profile_id()
         file_type = validated_data["file_type"]
@@ -154,10 +149,9 @@ class ProfileViewSet(ViewSet):
         if p is None:
             raise ValueError(_("无法转换 profiling 数据"))
 
-        # 3. save Profile object to storage, like doris
-        handler = StorageHandler(application, p)
+        # 3. send data to collector
         try:
-            handler.save_profile()
+            CollectorHandler.send(p)
         except Exception:  # pylint: disable=broad-except
             logger.exception("save profiling data to doris failed")
             raise ValueError(_("保存 profiling 数据失败"))
@@ -165,7 +159,6 @@ class ProfileViewSet(ViewSet):
         # 4. record it if everything is ok
         record = ProfileUploadRecord.objects.create(
             bk_biz_id=validated_data["bk_biz_id"],
-            app_name=application.app_name,
             file_md5=md5,
             file_type=file_type,
             profile_id=profile_id,

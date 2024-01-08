@@ -220,7 +220,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
           if (!!id) {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield-edit/${id}`
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`
             };
           }
         }
@@ -326,7 +326,8 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             v-bk-tooltips={{
               placement: 'top',
               content: showTip ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
-              disabled: !showTip
+              disabled: !showTip,
+              allowHTML: false
             }}
             class={{
               'tip-dashed': showTip
@@ -355,7 +356,8 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             v-bk-tooltips={{
               placement: 'top',
               content: item.sourceTime ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
-              disabled: !item.sourceTime
+              disabled: !item.sourceTime,
+              allowHTML: false
             }}
             on-click={() => item.isMultiple && this.beforeCollapseChange(item)}
             class={{ 'tip-dashed': item.operate === 'CREATE' || item.operate === 'CONVERGE' }}
@@ -422,7 +424,8 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
               v-bk-tooltips={{
                 placement: 'top',
                 content: item.sourceTime ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
-                disabled: !item.sourceTime
+                disabled: !item.sourceTime,
+                allowHTML: false
               }}
               class='tip-dashed'
             >

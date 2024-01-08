@@ -467,7 +467,7 @@ class TestTaskResource(Resource):
                         q_params = Q(ip=success_info["ip"]) | Q(bk_host_id=success_info["bk_host_id"])
                     node = all_nodes.filter(q_params).first()
                     fail_result.append(
-                        _("node:{node}, log:{log}".format(node=node.name, log=" | ".join(error_message)))
+                        "node:{node}, log:{log}".format(node=node.name, log=" | ".join(error_message))
                     )
 
             if len(fail_result):
@@ -1780,7 +1780,7 @@ class FileParseResource(Resource):
                     "cnkey": _("DNS查询模式"),
                     "enkey": "dns_check_mode",
                     "required": False,
-                    "default": _("single"),
+                    "default": "single",
                     "regex": r"^all$|^single$",
                 },
                 {"cnkey": _("期望响应信息"), "enkey": "response", "required": False, "default": _("包含:")},
@@ -1847,7 +1847,7 @@ class FileParseResource(Resource):
                     "cnkey": _("DNS查询模式"),
                     "enkey": "dns_check_mode",
                     "required": False,
-                    "default": _("single"),
+                    "default": "single",
                     "regex": r"^all$|^single$",
                 },
             ]
@@ -1902,7 +1902,7 @@ class FileParseResource(Resource):
                     "cnkey": _("DNS查询模式"),
                     "enkey": "dns_check_mode",
                     "required": False,
-                    "default": _("single"),
+                    "default": "single",
                     "regex": r"^all$|^single$",
                 },
             ]
