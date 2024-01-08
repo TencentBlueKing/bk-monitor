@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Dialog, Input } from 'bk-magic-vue';
 
@@ -39,6 +39,7 @@ import OperateOptions, { IOperateOption } from '../../../monitor-pc/pages/uptime
 import introduceData from '../../../monitor-pc/router/space';
 import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
+import authorityStore from '../../store/modules/authority';
 
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
@@ -60,6 +61,8 @@ interface IAppListItem {
 
 @Component
 export default class AppList extends tsc<{}> {
+  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
+
   routeList: INavItem[] = [
     {
       id: '',
@@ -143,6 +146,11 @@ export default class AppList extends tsc<{}> {
     apmData.is_no_source = false;
     apmData.data.buttons[0].url = window.__POWERED_BY_BK_WEWEB__ ? '#/apm/application/add' : '#/application/add';
     return apmData;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-dupe-class-members
+  handleShowAuthorityDetail(actionIds: string | string[]) {
+    authorityStore.getAuthorityDetail(actionIds);
   }
 
   created() {
