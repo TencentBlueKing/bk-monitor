@@ -69,6 +69,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
   }
 
   handleShowPopover(e: Event) {
+    e.stopPropagation();
     if (!this.popoverInstance) {
       this.popoverInstance = this.$bkPopover(e.target, {
         content: this.moreItemsRef,
@@ -116,11 +117,12 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           </span>
         ))}
         {this.options?.popover?.length ? (
-          <div
-            class='option-more'
-            onClick={this.handleShowPopover}
-          >
-            <span class='bk-icon icon-more'></span>
+          <div onClick={this.handleShowPopover}>
+            {this.$slots?.trigger || (
+              <div class='option-more'>
+                <span class='bk-icon icon-more'></span>
+              </div>
+            )}
           </div>
         ) : undefined}
         <div style={{ display: 'none' }}>

@@ -28,17 +28,19 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Dialog, Input } from 'bk-magic-vue';
 
-import { listApplication } from '../../../monitor-api/modules/apm_meta';
+import { deleteApplication, listApplication } from '../../../monitor-api/modules/apm_meta';
 import { Debounce } from '../../../monitor-common/utils/utils';
 import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
 import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 import AlarmTools from '../../../monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import { IFilterDict, INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
+import OperateOptions, { IOperateOption } from '../../../monitor-pc/pages/uptime-check/components/operate-options';
 import introduceData from '../../../monitor-pc/router/space';
 import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 
+import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
 
 import './app-list-new.scss';
@@ -50,6 +52,10 @@ interface IAppListItem {
   };
   app_name: string;
   application_id: number;
+  firstCode: string;
+  permission: {
+    [key: string]: boolean;
+  };
 }
 
 @Component
@@ -86,6 +92,34 @@ export default class AppList extends tsc<{}> {
     limit: 10,
     total: 100
   };
+
+  opreateOptions: IOperateOption[] = [
+    {
+      id: 'storageState',
+      name: window.i18n.t('存储状态'),
+      authority: true
+    },
+    {
+      id: 'dataStatus',
+      name: window.i18n.t('数据状态'),
+      authority: true
+    },
+    {
+      id: 'accessService',
+      name: window.i18n.t('接入服务'),
+      authority: true
+    },
+    {
+      id: 'noDataAlarm',
+      name: window.i18n.t('新增无数据告警'),
+      authority: true
+    },
+    {
+      id: 'delete',
+      name: window.i18n.t('删除'),
+      authority: true
+    }
+  ];
 
   get alarmToolsPanel() {
     const data = {
@@ -133,7 +167,8 @@ export default class AppList extends tsc<{}> {
     });
     this.appList = listData.data.map(item => ({
       ...item,
-      isExpan: false
+      isExpan: false,
+      firstCode: item.app_alias?.value?.slice(0, 1) || ''
     }));
     // 路由同步查询关键字
     const routerParams = {
@@ -212,6 +247,51 @@ export default class AppList extends tsc<{}> {
     row.isExpan = !row.isExpan;
   }
 
+  /**
+   * @description 更多选项
+   * @param id
+   * @param row
+   */
+  handleConfig(id, row) {
+    // 存储状态、数据状态、指标维度、新增无数据告警 分别跳到配置页 query: active
+    const toConfigKeys = ['storageState', 'dataStatus', 'indicatorDimension', 'noDataAlarm'];
+    // 接入服务 /service-add/opentelemetry/apm_test_have_data
+    const toAccessService = ['accessService'];
+    if (toConfigKeys.includes(id)) {
+      const routeData = this.$router.resolve({
+        name: 'application-config',
+        params: {
+          id: row.application_id
+        },
+        query: {
+          active: id === 'noDataAlarm' ? 'dataStatus' : id
+        }
+      });
+      window.open(routeData.href);
+    } else if (toAccessService.includes(id)) {
+      const routeData = this.$router.resolve({
+        name: 'service-add',
+        params: {
+          appName: row.app_name
+        }
+      });
+      window.open(routeData.href);
+    } else if (id === 'delete') {
+      this.$bkInfo({
+        type: 'warning',
+        title: this.$t('确认删除该应用？'),
+        maskClose: true,
+        escClose: true,
+        confirmFn: () => {
+          deleteApplication({ app_name: row.app_name }).then(() => {
+            this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
+            this.getAppList();
+          });
+        }
+      });
+    }
+  }
+
   render() {
     return (
       <div class='app-list-wrap-page'>
@@ -283,7 +363,7 @@ export default class AppList extends tsc<{}> {
                       <div class='header-left'>
                         <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]}></span>
                         <div class='first-code'>
-                          <span>蓝</span>
+                          <span>{item.firstCode}</span>
                         </div>
                         <div class='biz-name-01'>{item.app_alias?.value}</div>
                         <div class='biz-name-02'>（{item.app_name}）</div>
@@ -323,9 +403,24 @@ export default class AppList extends tsc<{}> {
                         >
                           {this.$t('配置')}
                         </Button>
-                        <div class='more-btn'>
-                          <span class='icon-monitor icon-mc-more'></span>
-                        </div>
+                        <OperateOptions
+                          options={{
+                            outside: [],
+                            popover: this.opreateOptions.map(o => ({
+                              ...o,
+                              authority: item?.permission[authorityMap.VIEW_AUTH] ?? true,
+                              authorityDetail: authorityMap.VIEW_AUTH
+                            }))
+                          }}
+                          onOptionClick={id => this.handleConfig(id, item)}
+                        >
+                          <div
+                            class='more-btn'
+                            slot='trigger'
+                          >
+                            <span class='icon-monitor icon-mc-more'></span>
+                          </div>
+                        </OperateOptions>
                       </div>
                     </div>
                     {item.isExpan && <div class='expan-content'></div>}
