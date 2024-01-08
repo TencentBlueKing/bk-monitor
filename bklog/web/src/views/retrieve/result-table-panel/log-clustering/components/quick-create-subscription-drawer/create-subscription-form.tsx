@@ -660,7 +660,7 @@ class QuickCreateSubscription extends tsc<IProps> {
           .filter(item => item.id);
         this.formData.channels[2].subscribers = result;
   }
-  
+
   @Watch('formData.frequency.type')
   watchFrequencyType() {
     if (this.formData.frequency.type === 1) {
@@ -1123,8 +1123,8 @@ class QuickCreateSubscription extends tsc<IProps> {
                                     width: 'calc(100% - 20px)'
                                   }}>{row.name}</span>
                                   <i
-                                    class='log-icon icon-wholesale-editor'
-                                    style={{ fontSize: '12px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
+                                    class='log-icon icon-copy-2'
+                                    style={{ fontSize: '16px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
                                     onClick={() => {
                                       this.handleCopy(row.name);
                                     }}
@@ -1153,7 +1153,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 property='content_config.is_link_enabled'
                 required
               >
-                <bk-radio-group 
+                <bk-radio-group
                   v-model={this.isLinkEnabled}
                   onChange={() => {
                     this.formData.content_config.is_link_enabled = !!this.isLinkEnabled;
@@ -1391,7 +1391,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                       {this.$t('企业微信群')}
                     </bk-checkbox>
                   </div>
-                  
+
                   <div data-is-show-error-msg={String(this.errorTips.wxbot.isShow)}>
                     <bk-popover
                       trigger='click'
@@ -1530,7 +1530,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     }}
                     onChange={v => {
                       console.log('only_once_run_time', v);
-                      
+
                       // this.frequency.only_once_run_time = v;
                     }}
                   ></bk-date-picker>

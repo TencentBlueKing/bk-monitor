@@ -136,7 +136,7 @@ export default defineComponent({
         <div class='create-subscription-container'>
           <CreateSubscriptionForm
             ref='refOfCreateSubscriptionForm'
-            mode='normal'
+            mode='create'
             onSelectExistedReport={this.handleGoToReportListPage}
           ></CreateSubscriptionForm>
         </div>
@@ -183,7 +183,9 @@ export default defineComponent({
           <Button
             style='width: 88px;'
             onClick={() => {
-              this.router.go(-1);
+              this.router.replace({
+                name: 'report'
+              });
             }}
           >
             {this.t('取消')}
