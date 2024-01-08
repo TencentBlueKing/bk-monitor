@@ -41,6 +41,23 @@ export enum PanelType {
   Search = 'search'
 }
 
+export interface ServicesDetail {
+  /** 应用 */
+  app_name: string;
+  /** 模块 */
+  service_name: string;
+  /** 周期 */
+  period: string;
+  /** 周期类型 */
+  period_type: string;
+  /** 采样频率 */
+  frequency: string;
+  /** 创建时间 */
+  create_time: string;
+  /** 最近上报时间 */
+  last_report_time: string;
+}
+
 export enum DetailType {
   Application = 'application',
   UploadFile = 'uploadFile'
