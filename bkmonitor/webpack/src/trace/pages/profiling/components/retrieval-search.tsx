@@ -66,7 +66,16 @@ export default defineComponent({
       { id: 4, name: 'nodata2', desc: 'app123', children: [] }
     ]);
     /** 当前选中的应用/服务 */
-    const selectApplicationData = ref(null);
+    const selectApplicationData = ref({
+      bk_biz_id: 100605,
+      app_name: 'profiling_bar',
+      service_name: 'serviceA',
+      period: '10000000',
+      period_type: 'nanoseconds',
+      frequency: '100.0Hz',
+      create_time: '2024-01-08 23:18:36',
+      last_report_time: '2024-01-08 23:18:36'
+    });
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: null,

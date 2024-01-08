@@ -26,7 +26,6 @@
 
 import { defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Form, Sideslider } from 'bkui-vue';
 
 import { debounce } from '../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
@@ -37,11 +36,12 @@ import HandleBtn from '../main/handle-btn/handle-btn';
 import EmptyCard from './components/empty-card';
 import FavoriteList from './components/favorite-list';
 import PageHeader from './components/page-header';
+import ProfilingDetail from './components/profiling-detail';
 import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
 import { ToolsFormData } from './typings/page-header';
-import { DetailType, PanelType, SearchState, SearchType } from './typings';
+import { DetailType, PanelType, SearchState, SearchType, ServicesDetail } from './typings';
 
 import './profiling.scss';
 
@@ -107,7 +107,7 @@ export default defineComponent({
 
     const detailShow = ref(false);
     const detailType = ref<DetailType>(DetailType.Application);
-    const detailData = ref({});
+    const detailData = ref<ServicesDetail>(null);
     /** 展示详情侧边栏 */
     function handleShowDetail(detail) {
       detailShow.value = true;
@@ -257,76 +257,12 @@ export default defineComponent({
           <div class='view-wrap'>{renderView()}</div>
         </div>
 
-        <Sideslider
-          isShow={this.detailShow}
-          onUpdate:isShow={val => (this.detailShow = val)}
-          quick-close
-          width={400}
-          ext-cls='profiling-detail-sideslider'
-        >
-          {{
-            header: () => (
-              <div class='profiling-detail-header'>
-                <span class='title'>{this.t('基础信息')}</span>
-                <span class='jump-link'>
-                  {this.t('Profile 接入文档')}
-                  <i class='icon-monitor icon-fenxiang'></i>
-                </span>
-              </div>
-            ),
-            default: () => (
-              <div class='profiling-detail-content'>
-                {this.detailType === DetailType.Application ? (
-                  <Form labelWidth={144}>
-                    <Form.FormItem label={`${this.t('模块名称')}:`}>rideshare-app-dotnet</Form.FormItem>
-                    <Form.FormItem label={`${this.t('所属应用')}:`}>
-                      rideshare-app
-                      <span class='jump-link'>
-                        {this.t('应用详情')}
-                        <i class='icon-monitor icon-fenxiang'></i>
-                      </span>
-                    </Form.FormItem>
-                    <Form.FormItem label={`${this.t('采样频率')}:`}>99 Hz</Form.FormItem>
-                    <Form.FormItem label={`${this.t('上报数据类型')}:`}>***SDK</Form.FormItem>
-                    <Form.FormItem label={`${this.t('SDK版本')}:`}>1.1.0</Form.FormItem>
-                    <Form.FormItem label={`${this.t('数据语言')}:`}>java</Form.FormItem>
-                    <Form.FormItem label={`${this.t('创建时间')}:`}>2023-10-31 12:49:34</Form.FormItem>
-                    <Form.FormItem label={`${this.t('最近上报时间')}:`}>2023-10-31 12:49:34</Form.FormItem>
-                  </Form>
-                ) : (
-                  <Form labelWidth={144}>
-                    <Form.FormItem label={`${this.t('文件名称')}:`}>
-                      Profile-2023-11-22-06-02-27.json （原文件名）
-                    </Form.FormItem>
-                    <Form.FormItem label={`${this.t('文件大小')}:`}>1.1 MB</Form.FormItem>
-                    <Form.FormItem label={`${this.t('协议类型')}:`}>pprof</Form.FormItem>
-                    <Form.FormItem label={`${this.t('解析状态')}:`}>
-                      <div class='status'>
-                        <div class='success circle'></div>
-                        <span class='label'>{this.t('解析成功')}</span>
-                        {/* {this.detailData.status === 'loading' && [
-                          <Spinner class='loading'></Spinner>,
-                          <span class='label'>{this.t('解析中')}</span>
-                        ]}
-                        {this.detailData.status === 'success' && [
-                          <div class='success circle'></div>,
-                          <span class='label'>{this.t('解析成功')}</span>
-                        ]}
-                        {this.detailData.status === 'error' && [
-                          <div class='error circle'></div>,
-                          <span class='label'>{this.t('解析失败')}</span>
-                        ]} */}
-                      </div>
-                    </Form.FormItem>
-                    <Form.FormItem label={`${this.t('文件md5')}:`}>-</Form.FormItem>
-                    <Form.FormItem label={`${this.t('上传人')}:`}>javanzhagn</Form.FormItem>
-                    <Form.FormItem label={`${this.t('上传时间')}:`}>2023-10-31 12:49:34</Form.FormItem>
-                  </Form>
-                )}
-              </div>
-            )
-          }}
-        </Sideslider>
+        <ProfilingDetail
+          show={this.detailShow}
+          detailType={this.detailType}
+          detailData={this.detailData}
+          onShowChange={val => (this.detailShow = val)}
+        ></ProfilingDetail>
       </div>
     );
   }
