@@ -11,12 +11,13 @@ specific language governing permissions and limitations under the License.
 import datetime
 from typing import Any, Dict, List, Union
 
+import arrow
 from django.db.models import Q
 from django.utils.translation import ugettext as _
 
 from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.common_utils import host_key
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -238,13 +239,20 @@ class OsMonitorInfo(BaseMonitorInfo):
             return self.get_abnormal_status
 
         # 判断CPU使用率，如果有则视为接入了
-        data_source = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)(
-            table="system.cpu_summary",
-            metrics=[{"field": "usage", "method": "COUNT", "alias": "count"}],
-            filter_dict={"time__gt": "5m", "bk_biz_id": str(self.bk_biz_id)},
+        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
+        promql = "sum(count_over_time(bkmonitor:system:cpu_summary:usage[5m]))"
+        data_source = data_source_class(
+            bk_biz_id=self.bk_biz_id,
+            promql=promql,
+            interval=60,
+            alias="a",
         )
-        api_result = data_source.query_data(limit=1)
-        return MonitorStatus.NORMAL if api_result and api_result[0]["count"] > 0 else MonitorStatus.UNSET
+        query = UnifyQuery(bk_biz_id=self.bk_biz_id, data_sources=[data_source], expression="")
+        now_ts = arrow.now()
+        records = query.query_data(
+            start_time=now_ts.replace(minutes=-1).timestamp * 1000, end_time=now_ts.timestamp * 1000
+        )
+        return MonitorStatus.NORMAL if records and records[0]["_result_"] > 0 else MonitorStatus.UNSET
 
     def no_access_info(self):
         return {
