@@ -28,10 +28,13 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Dialog, Input } from 'bk-magic-vue';
 
+import { listApplication } from '../../../monitor-api/modules/apm_meta';
 import { Debounce } from '../../../monitor-common/utils/utils';
 import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
+import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 import AlarmTools from '../../../monitor-pc/pages/monitor-k8s/components/alarm-tools';
-import { INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
+import { IFilterDict, INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import introduceData from '../../../monitor-pc/router/space';
 import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
@@ -39,6 +42,15 @@ import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import NavBar from './nav-bar';
 
 import './app-list-new.scss';
+
+interface IAppListItem {
+  isExpan: boolean;
+  app_alias: {
+    value: string;
+  };
+  app_name: string;
+  application_id: number;
+}
 
 @Component
 export default class AppList extends tsc<{}> {
@@ -48,10 +60,12 @@ export default class AppList extends tsc<{}> {
       name: 'APM'
     }
   ];
-
+  /** 时间范围 */
+  timeRange: TimeRangeType = ['now-1h', 'now'];
+  /** 表格列数据项过滤 */
+  filterDict: IFilterDict = {};
   /** 显示引导页 */
   showGuidePage = false;
-
   // menu list
   menuList: IMenuItem[] = [
     {
@@ -59,13 +73,19 @@ export default class AppList extends tsc<{}> {
       name: window.i18n.tc('帮助文档')
     }
   ];
-
   /** 是否显示帮助文档弹窗 */
   showGuideDialog = false;
   /** 搜索关键词 */
   searchKeyword = '';
   /* 是否展开 */
   isExpan = false;
+  /* 应用分类数据 */
+  appList: IAppListItem[] = [];
+  pagination = {
+    current: 1,
+    limit: 10,
+    total: 100
+  };
 
   get alarmToolsPanel() {
     const data = {
@@ -89,6 +109,41 @@ export default class AppList extends tsc<{}> {
     apmData.is_no_source = false;
     apmData.data.buttons[0].url = window.__POWERED_BY_BK_WEWEB__ ? '#/apm/application/add' : '#/application/add';
     return apmData;
+  }
+
+  created() {
+    this.getAppList();
+  }
+
+  async getAppList() {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const params = {
+      start_time: startTime,
+      end_time: endTime,
+      keyword: this.searchKeyword,
+      sort: '',
+      filter_dict: this.filterDict,
+      page: this.pagination.current,
+      page_size: this.pagination.limit
+    };
+    const listData = await listApplication(params).catch(() => {
+      return {
+        data: []
+      };
+    });
+    this.appList = listData.data.map(item => ({
+      ...item,
+      isExpan: false
+    }));
+    // 路由同步查询关键字
+    const routerParams = {
+      name: this.$route.name,
+      query: {
+        ...this.$route.query,
+        queryString: this.searchKeyword
+      }
+    };
+    this.$router.replace(routerParams).catch(() => {});
   }
 
   /** 展示添加弹窗 */
@@ -121,8 +176,40 @@ export default class AppList extends tsc<{}> {
   /**
    * @description 展开收起
    */
-  handleExpanChange() {
+  handleAllExpanChange() {
     this.isExpan = !this.isExpan;
+  }
+
+  /** 跳转服务概览 */
+  linkToOverview(row) {
+    const routeData = this.$router.resolve({
+      name: 'application',
+      query: {
+        'filter-app_name': row.app_name
+      }
+    });
+    window.open(routeData.href);
+  }
+  /**
+   * @description 跳转到配置页
+   * @param row
+   */
+  handleToConfig(row) {
+    const routeData = this.$router.resolve({
+      name: 'application-config',
+      params: {
+        id: row.application_id
+      }
+    });
+    window.open(routeData.href);
+  }
+
+  /**
+   * @description 展开
+   * @param row
+   */
+  handleExpanChange(row: IAppListItem) {
+    row.isExpan = !row.isExpan;
   }
 
   render() {
@@ -167,7 +254,7 @@ export default class AppList extends tsc<{}> {
           ) : (
             <div class='app-list-content'>
               <div class='app-list-content-top'>
-                <Button onClick={this.handleExpanChange}>
+                <Button onClick={this.handleAllExpanChange}>
                   {this.isExpan ? (
                     <span class='icon-monitor icon-mc-full-screen'></span>
                   ) : (
@@ -182,6 +269,68 @@ export default class AppList extends tsc<{}> {
                   clearable
                   onInput={this.handleSearch}
                 ></Input>
+              </div>
+              <div class='app-list-content-data'>
+                {this.appList.map(item => (
+                  <div
+                    key={item.application_id}
+                    class='item-expan-wrap'
+                  >
+                    <div
+                      class='expan-header'
+                      onClick={() => this.handleExpanChange(item)}
+                    >
+                      <div class='header-left'>
+                        <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]}></span>
+                        <div class='first-code'>
+                          <span>蓝</span>
+                        </div>
+                        <div class='biz-name-01'>{item.app_alias?.value}</div>
+                        <div class='biz-name-02'>（{item.app_name}）</div>
+                        <div class='item-label'>服务数量:</div>
+                        <div class='item-content'>
+                          <span>58</span>
+                        </div>
+                        <div class='item-label'>Tracing:</div>
+                        <div class='item-content'>
+                          <div class='trace-status'>无数据</div>
+                        </div>
+                        <div class='item-label'>Profiling:</div>
+                        <div class='item-content'>
+                          <span>正常</span>
+                        </div>
+                      </div>
+                      <div class='header-right'>
+                        <Button
+                          class='mr-8'
+                          size='small'
+                          theme='primary'
+                          outline
+                          onClick={(event: Event) => {
+                            event.stopPropagation();
+                            this.linkToOverview(item);
+                          }}
+                        >
+                          {this.$t('查看详情')}
+                        </Button>
+                        <Button
+                          class='mr-8'
+                          size='small'
+                          onClick={(event: Event) => {
+                            event.stopPropagation();
+                            this.handleToConfig(item);
+                          }}
+                        >
+                          {this.$t('配置')}
+                        </Button>
+                        <div class='more-btn'>
+                          <span class='icon-monitor icon-mc-more'></span>
+                        </div>
+                      </div>
+                    </div>
+                    {item.isExpan && <div class='expan-content'></div>}
+                  </div>
+                ))}
               </div>
             </div>
           )}
