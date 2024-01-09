@@ -19,8 +19,6 @@ class UploadedFileStatus(models.TextChoices):
     # 解析成功
     PARSING_SUCCEED = "parsing_succeed", _("解析成功")
 
-    UNKNOWN = "unknown", _("未知")
-
 
 class ProfileUploadRecord(models.Model):
     """Profile upload record"""
@@ -41,6 +39,6 @@ class ProfileUploadRecord(models.Model):
     # 文件大小, 单位Bytes
     file_size = models.BigIntegerField("文件大小", default=0)
     status = models.CharField(
-        "状态", max_length=36, choices=UploadedFileStatus.choices, default=UploadedFileStatus.UNKNOWN
+        "状态", max_length=36, choices=UploadedFileStatus.choices, default=UploadedFileStatus.UPLOADED
     )
     service_name = models.CharField("服务名称", max_length=50, default="default")

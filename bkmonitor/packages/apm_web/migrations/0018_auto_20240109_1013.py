@@ -37,7 +37,6 @@ class Migration(migrations.Migration):
                     ("uploaded", "已上传"),
                     ("parsing_failed", "解析失败"),
                     ("parsing_succeed", "解析成功"),
-                    ("unknown", "未知"),
                 ],
                 default="unknown",
                 max_length=36,
