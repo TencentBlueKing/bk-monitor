@@ -19,3 +19,13 @@ class InputType(Enum):
     @classmethod
     def choices(cls):
         return tuple((i.name, i.value) for i in cls)
+
+
+class CallGraphResponseDataMode:
+    # 图片数据模式
+    IMAGE_DATA_MODE = "image_data_mode"
+    # 纯数据模式 Pure data mode
+    PURE_DATA_MODE = "pure_data_mode"
+
+
+PROFILE_UPLOAD_RECORD_NEW_FILE_NAME = "Profile-{}.pprof"
