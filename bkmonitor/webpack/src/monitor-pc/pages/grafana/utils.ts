@@ -23,24 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue from 'vue';
-import VueI18n from 'vue-i18n';
-import enUS from 'vant/lib/locale/lang/en-US';
+import { DASHBOARD_ID_KEY } from '../../constant/constant';
 
-import '../../monitor-pc/i18n/dayjs';
-
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils/constant';
-import { getCookie } from '../../monitor-common/utils/utils';
-import englishJson from '../lang/en.json';
-import chineseJson from '../lang/zh-cn.json';
-
-Vue.use(VueI18n);
-const i18n = new VueI18n({
-  locale: getCookie(LANGUAGE_COOKIE_KEY) || 'zh-cn',
-  fallbackLocale: 'zh-cn',
-  messages: {
-    en: Object.assign({}, enUS, englishJson),
-    'zh-cn': Object.assign({}, chineseJson)
-  }
-});
-export default i18n;
+export const getDashboardCache = () => {
+  let dashboardCache;
+  try {
+    dashboardCache = JSON.parse(localStorage.getItem(DASHBOARD_ID_KEY));
+  } catch {}
+  return dashboardCache;
+};

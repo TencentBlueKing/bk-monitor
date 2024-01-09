@@ -109,7 +109,6 @@ from fta_web.models.alert import (
     SearchHistory,
     SearchType,
 )
-from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.aiops.metric_recommend.constant import (
     METRIC_RECOMMAND_SCENE_SERVICE_TEMPLATE,
 )
@@ -2613,10 +2612,6 @@ class MetricRecommendationResource(AIOpsBaseResource):
         :param alert: 告警信息
         :param exp_config: 查询表达式配置
         """
-        # 查询该业务是否配置有ai设置
-        ai_setting = AiSetting(bk_biz_id=alert.event["bk_biz_id"])
-        metric_recommend = ai_setting.metric_recommend
-
         return {
             "json_args": json.dumps(
                 {
@@ -2627,12 +2622,6 @@ class MetricRecommendationResource(AIOpsBaseResource):
                     "bk_biz_id": alert.event["bk_biz_id"],
                     "alert_id": alert.id,
                 }
-            ),
-            "reference_table": metric_recommend.result_table_id
-            or (
-                f"{settings.DEFAULT_BKDATA_BIZ_ID}_"
-                f"{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}_"
-                f"{alert.event['bk_biz_id']}"
             ),
         }
 
