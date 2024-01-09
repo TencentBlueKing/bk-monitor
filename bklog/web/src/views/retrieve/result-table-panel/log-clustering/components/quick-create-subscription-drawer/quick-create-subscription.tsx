@@ -114,10 +114,6 @@ class QuickCreateSubscription extends tsc<IProps> {
       });
   }
 
-  mounted() {
-    this.isShowSendingSuccessDialog = true;
-  }
-
   render() {
     return (
       <div>
