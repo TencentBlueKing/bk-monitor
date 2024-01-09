@@ -41,7 +41,7 @@ export type TimeFrequency = {
 };
 
 export type ScenarioConfig = {
-  index_set_id: number;
+  index_set_id: number | null;
   pattern_level: string;
   log_display_count: number;
   year_on_year_hour: number;
@@ -93,6 +93,8 @@ export type Report = {
   is_self_subscribed: boolean;
   last_send_time?: null | string;
   send_status: string;
+  // 该值为表单组件内的使用值，请不要上传。
+  timerange?: string[];
 };
 // 订阅详情 对象 结束
 
@@ -110,30 +112,34 @@ export function getDefaultReportData(): Report {
     bk_biz_id: 0,
     scenario: 'clustering',
     frequency: {
-      hour: 0,
-      type: 0,
+      type: 5,
+      hour: 0.5,
       day_list: [],
-      run_time: '00:00:00',
+      run_time: '',
       week_list: [],
       data_range: null
     },
     content_config: {
       title: '',
-      is_link_enabled: false
+      is_link_enabled: true
     },
     scenario_config: {
       index_set_id: 0,
-      pattern_level: '',
-      log_display_count: 0,
-      year_on_year_hour: 0,
-      generate_attachment: false,
+      // 需要从 slider 上进行转换
+      pattern_level: '01',
+      log_display_count: 30,
+      year_on_year_hour: 1,
+      generate_attachment: true,
+      // 是否只展示新类
       is_show_new_pattern: false,
-      year_on_year_change: ''
+      // 这个同比配置不需要前端展示，暂不开放配置入口 （不用管）
+      year_on_year_change: 'all'
     },
     start_time: 0,
     end_time: 0,
     send_mode: '',
-    subscriber_type: '',
+    // 给他人/仅自己 订阅，在 新增订阅 页面里强制写 others
+    subscriber_type: 'others',
     send_round: 0,
     is_manager_created: false,
     channels: [
@@ -157,6 +163,7 @@ export function getDefaultReportData(): Report {
     is_invalid: false,
     is_self_subscribed: false,
     last_send_time: null,
-    send_status: ''
+    send_status: '',
+    timerange: []
   };
 }

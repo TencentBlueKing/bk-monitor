@@ -411,6 +411,7 @@ export default defineComponent({
       // 这里先不展示 创建时间 ，让用户自己手动开。
       .filter(item => !['create_time'].includes(item.field))
       .map(item => item.field);
+    setTableSetting();
 
     // 发送记录 里控制多个 tooltips 的显隐
     const toggleMapForSendRecord = reactive<TooltipsToggleMapping>({});
@@ -827,7 +828,9 @@ export default defineComponent({
       formData.report_id = id;
       await sendReport(formData)
         .then(() => {
-          isShowTestSendResult.value = true;
+          setTimeout(() => {
+            isShowTestSendResult.value = true;
+          }, 500);
         })
         .finally(() => {
           isSending.value = false;
@@ -877,12 +880,18 @@ export default defineComponent({
         .finally(() => {
           isFetchReport.value = false;
           isShowCreateReportFormComponent.value = true;
+          // 只需要打开一次 slider 即可。把 url 参数清空，避免刷新页面时还会出现 slider 。
+          router.replace({
+            name: 'report'
+          });
         });
     }
 
     function setTableSetting() {
       const tableSetting = window.localStorage.getItem(keyOfTableSettingInLocalStorage);
       if (tableSetting) {
+        console.log(tableSetting);
+
         table.settings.checked = JSON.parse(tableSetting);
       }
     }
@@ -890,7 +899,6 @@ export default defineComponent({
     onMounted(() => {
       checkNeedShowEditSlider();
       fetchSubscriptionList();
-      setTableSetting();
     });
     return {
       t,
@@ -1110,6 +1118,7 @@ export default defineComponent({
                   theme='primary'
                   disabled={this.sendRecordTable.isLoading}
                   onClick={this.getSendingRecordList}
+                  style='font-size: 16px;'
                 >
                   {this.t('刷新')}
                 </Button>
@@ -1121,6 +1130,7 @@ export default defineComponent({
                 data={this.sendRecordTable.data}
                 columns={this.sendRecordTable.columns.fields as Column[]}
                 height={400}
+                virtual-enabled
                 style='margin-top: 16px;'
               />
             </Loading>
@@ -1132,6 +1142,7 @@ export default defineComponent({
           // 根据显示内容要动态调整。
           width={640}
           ext-cls='detail-subscription-sideslider-container'
+          transfer
           v-slots={{
             header: () => {
               return (
@@ -1151,7 +1162,6 @@ export default defineComponent({
                           title: this.t('是否发送给自己?'),
                           showMask: true,
                           onConfirm: () => {
-                            console.log('onConfirm');
                             return this.handleSendMyself()
                               .then(() => {
                                 return true;
@@ -1231,7 +1241,7 @@ export default defineComponent({
                 {this.isShowCreateReportFormComponent && (
                   <CreateSubscriptionForm
                     ref='refOfCreateSubscriptionForm'
-                    mode='quick'
+                    mode='edit'
                     detailInfo={this.subscriptionDetail}
                     onSelectExistedReport={this.handleReportDetailChange}
                   ></CreateSubscriptionForm>

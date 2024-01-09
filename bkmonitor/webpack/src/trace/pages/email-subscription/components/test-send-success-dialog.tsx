@@ -57,7 +57,9 @@ export default defineComponent({
         }}
         v-slots={{
           default: () => {
-            return <div style='margin-left: 30px;'>{this.t('邮件任务已生成，请一分钟后到邮箱查看')}</div>;
+            return (
+              <div style='margin-left: 30px;padding-top: 14px;'>{this.t('邮件任务已生成，请一分钟后到邮箱查看')}</div>
+            );
           },
           header: () => {
             return (
