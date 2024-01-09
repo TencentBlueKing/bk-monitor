@@ -75,6 +75,12 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+
+        .icon-mc-full-screen,
+        .icon-mc-merge {
+          margin-right: 8px;
+          font-size: 16px;
+        }
       }
 
       .app-info {

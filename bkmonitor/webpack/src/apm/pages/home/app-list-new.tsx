@@ -30,10 +30,12 @@ import { Button, Dialog, Input, Spin } from 'bk-magic-vue';
 
 import { deleteApplication, listApplication, listApplicationAsync } from '../../../monitor-api/modules/apm_meta';
 import { Debounce } from '../../../monitor-common/utils/utils';
+import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
 import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
 import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 import AlarmTools from '../../../monitor-pc/pages/monitor-k8s/components/alarm-tools';
+import CommonTable, { ICommonTableProps } from '../../../monitor-pc/pages/monitor-k8s/components/common-table';
 import { IFilterDict, INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import OperateOptions, { IOperateOption } from '../../../monitor-pc/pages/uptime-check/components/operate-options';
 import introduceData from '../../../monitor-pc/router/space';
@@ -75,6 +77,7 @@ interface IAppListItem {
     type: string;
   };
   firstCodeColor: string;
+  tableData: ICommonTableProps;
 }
 
 @Component
@@ -217,7 +220,18 @@ export default class AppList extends tsc<{}> {
         firstCodeColor: charColor(firstCode),
         firstCode,
         loading: false,
-        tableData: {},
+        tableData: {
+          pagination: {
+            count: 20,
+            current: 1,
+            limit: 10,
+            showTotalCount: false
+          },
+          columns: [],
+          data: [],
+          checkable: false,
+          showLimit: false
+        },
         service_count: null
       };
     };
@@ -249,21 +263,25 @@ export default class AppList extends tsc<{}> {
         application_ids: appIds
       };
       listApplicationAsync(params).then(res => {
-        const dataMap = res.reduce((pre, cur) => {
-          // eslint-disable-next-line no-param-reassign
-          if (!pre[cur.application_id]) pre[cur.application_id] = cur[field];
-          return pre;
-        }, {});
+        const dataMap = {};
+        res?.forEach(item => {
+          dataMap[String(item.application_id)] = item[field];
+        });
         this.appList = this.appList.map(app => ({
           ...app,
-          [field]: dataMap[app.application_id] || 0
+          [field]: app[field] || dataMap[String(app.application_id)] || null
         }));
       });
     });
   }
   /* 获取服务列表 */
-  getServiceData(appId: string) {
-    console.log(appId);
+  getServiceData(appIds: number[]) {
+    const appIdsSet = new Set(appIds);
+    this.appList.forEach(item => {
+      if (appIdsSet.has(item.application_id)) {
+        //
+      }
+    });
   }
 
   /** 展示添加弹窗 */
@@ -298,6 +316,10 @@ export default class AppList extends tsc<{}> {
    */
   handleAllExpanChange() {
     this.isExpan = !this.isExpan;
+    this.appList = this.appList.map(item => ({ ...item, isExpan: this.isExpan }));
+    if (this.isExpan) {
+      this.getServiceData(this.appList.map(item => item.application_id));
+    }
   }
 
   /** 跳转服务概览 */
@@ -330,6 +352,9 @@ export default class AppList extends tsc<{}> {
    */
   handleExpanChange(row: IAppListItem) {
     row.isExpan = !row.isExpan;
+    if (row.isExpan) {
+      this.getServiceData([row.application_id]);
+    }
   }
 
   /**
@@ -440,12 +465,12 @@ export default class AppList extends tsc<{}> {
             <div class='app-list-content'>
               <div class='app-list-content-top'>
                 <Button onClick={this.handleAllExpanChange}>
-                  {this.isExpan ? (
-                    <span class='icon-monitor icon-mc-full-screen'></span>
-                  ) : (
+                  {!this.isExpan ? (
                     <span class='icon-monitor icon-mc-merge'></span>
+                  ) : (
+                    <span class='icon-monitor icon-mc-full-screen'></span>
                   )}
-                  <span>{this.isExpan ? this.$t('全部展开') : this.$t('全部收起')}</span>
+                  <span>{this.isExpan ? this.$t('全部收起') : this.$t('全部展开')}</span>
                 </Button>
                 <Input
                   class='app-list-search'
@@ -544,7 +569,19 @@ export default class AppList extends tsc<{}> {
                         </OperateOptions>
                       </div>
                     </div>
-                    {item.isExpan && <div class='expan-content'></div>}
+                    {item.isExpan && (
+                      <div class='expan-content'>
+                        {item.tableData.data.length ? (
+                          <CommonTable {...{ props: item.tableData }}></CommonTable>
+                        ) : (
+                          <EmptyStatus
+                            textMap={{
+                              empty: this.$t('暂无数据')
+                            }}
+                          ></EmptyStatus>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
