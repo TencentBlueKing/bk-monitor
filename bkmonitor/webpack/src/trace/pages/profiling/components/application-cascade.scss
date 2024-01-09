@@ -15,7 +15,6 @@
   .application-cascade-popover-content {
     display: flex;
     flex-direction: column;
-    width: 482px;
     height: 308px;
 
     .search-wrap {
@@ -103,7 +102,7 @@
       }
 
       .second {
-        flex: 1;
+        width: 282px;
 
         .has-data-wrap {
           padding-top: 4px;

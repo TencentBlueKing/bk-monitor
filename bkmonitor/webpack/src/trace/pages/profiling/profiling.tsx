@@ -26,7 +26,6 @@
 
 import { defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Form, Sideslider } from 'bkui-vue';
 
 import { debounce } from '../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
@@ -37,11 +36,12 @@ import HandleBtn from '../main/handle-btn/handle-btn';
 import EmptyCard from './components/empty-card';
 import FavoriteList from './components/favorite-list';
 import PageHeader from './components/page-header';
+import ProfilingDetail from './components/profiling-detail';
 import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
 import { ToolsFormData } from './typings/page-header';
-import { PanelType, SearchState, SearchType } from './typings';
+import { DetailType, PanelType, SearchState, SearchType, ServicesDetail } from './typings';
 
 import './profiling.scss';
 
@@ -50,6 +50,7 @@ export default defineComponent({
   directives: { monitorDrag },
   setup() {
     const { t } = useI18n();
+    /** 顶部工具栏数据 */
     const toolsFormData = ref<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefautTimezone(),
@@ -58,6 +59,8 @@ export default defineComponent({
     const favoriteState = reactive({
       isShow: false
     });
+
+    /** 查询数据状态 */
     const searchState = reactive<SearchState>({
       isShow: true,
       autoQuery: true,
@@ -65,7 +68,7 @@ export default defineComponent({
       formData: {
         type: SearchType.Profiling,
         isComparison: false,
-        server: '',
+        server: 7,
         where: [],
         comparisonWhere: []
       }
@@ -103,19 +106,31 @@ export default defineComponent({
     }
 
     const detailShow = ref(false);
+    const detailType = ref<DetailType>(DetailType.Application);
+    const detailData = ref<ServicesDetail>(null);
     /** 展示详情侧边栏 */
-    function handleShowDetail() {
+    function handleShowDetail(detail) {
       detailShow.value = true;
+      detailType.value = DetailType.Application;
+      detailData.value = detail;
+    }
+    function handleShowFileDetail(detail) {
+      detailShow.value = true;
+      detailType.value = DetailType.UploadFile;
+      detailData.value = detail;
     }
 
     function handleAutoQueryChange(val: boolean) {
       searchState.autoQuery = val;
     }
+    /** 清楚查询条件 */
     function handleQueryClear() {}
+    /** 添加收藏 */
     function handleAddFavorite() {}
 
     const handleQueryDebounce = debounce(handleQuery, 300, false);
 
+    /** 查询功能 */
     function handleQuery(isBtnClick = false) {
       if (!isBtnClick && !searchState.autoQuery) return;
       isEmpty.value = false;
@@ -131,6 +146,8 @@ export default defineComponent({
       searchState,
       toolsFormData,
       detailShow,
+      detailType,
+      detailData,
       handleToolFormDataChange,
       handleShowTypeChange,
       handleAutoQueryChange,
@@ -139,7 +156,8 @@ export default defineComponent({
       handleAddFavorite,
       handleSearchFormDataChange,
       handleDataTypeChange,
-      handleShowDetail
+      handleShowDetail,
+      handleShowFileDetail
     };
   },
 
@@ -167,7 +185,12 @@ export default defineComponent({
           />
         );
 
-      return <UploadRetrievalView formData={this.searchState.formData} />;
+      return (
+        <UploadRetrievalView
+          formData={this.searchState.formData}
+          onShowFileDetail={this.handleShowFileDetail}
+        />
+      );
     };
 
     return (
@@ -234,45 +257,12 @@ export default defineComponent({
           <div class='view-wrap'>{renderView()}</div>
         </div>
 
-        <Sideslider
-          isShow={this.detailShow}
-          onUpdate:isShow={val => (this.detailShow = val)}
-          quick-close
-          width={400}
-          ext-cls='profiling-detail-sideslider'
-        >
-          {{
-            header: () => (
-              <div class='profiling-detail-header'>
-                <span class='title'>{this.t('基础信息')}</span>
-                <span class='jump-link'>
-                  {this.t('Profile 接入文档')}
-                  <i class='icon-monitor icon-fenxiang'></i>
-                </span>
-              </div>
-            ),
-            default: () => (
-              <div class='profiling-detail-content'>
-                <Form labelWidth={144}>
-                  <Form.FormItem label={`${this.t('模块名称')}:`}>rideshare-app-dotnet</Form.FormItem>
-                  <Form.FormItem label={`${this.t('所属应用')}:`}>
-                    rideshare-app
-                    <span class='jump-link'>
-                      {this.t('应用详情')}
-                      <i class='icon-monitor icon-fenxiang'></i>
-                    </span>
-                  </Form.FormItem>
-                  <Form.FormItem label={`${this.t('采样频率')}:`}>99 Hz</Form.FormItem>
-                  <Form.FormItem label={`${this.t('上报数据类型')}:`}>***SDK</Form.FormItem>
-                  <Form.FormItem label={`${this.t('SDK版本')}:`}>1.1.0</Form.FormItem>
-                  <Form.FormItem label={`${this.t('数据语言')}:`}>java</Form.FormItem>
-                  <Form.FormItem label={`${this.t('创建时间')}:`}>2023-10-31 12:49:34</Form.FormItem>
-                  <Form.FormItem label={`${this.t('最近上报时间')}:`}>2023-10-31 12:49:34</Form.FormItem>
-                </Form>
-              </div>
-            )
-          }}
-        </Sideslider>
+        <ProfilingDetail
+          show={this.detailShow}
+          detailType={this.detailType}
+          detailData={this.detailData}
+          onShowChange={val => (this.detailShow = val)}
+        ></ProfilingDetail>
       </div>
     );
   }

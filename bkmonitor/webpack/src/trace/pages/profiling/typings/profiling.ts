@@ -26,13 +26,39 @@ import { RetrievalFormData } from './profiling-retrieval';
  * IN THE SOFTWARE.
  */
 export interface SearchState {
+  /** 是否展示查询面板 */
   isShow: boolean;
+  /** 是否开启自动查询功能 */
   autoQuery: boolean;
+  /** 是否能查询 */
   canQuery: boolean;
+  /** 表单数据 */
   formData: RetrievalFormData;
 }
 
 export enum PanelType {
   Favorite = 'favorite',
   Search = 'search'
+}
+
+export interface ServicesDetail {
+  /** 应用 */
+  app_name: string;
+  /** 模块 */
+  service_name: string;
+  /** 周期 */
+  period: string;
+  /** 周期类型 */
+  period_type: string;
+  /** 采样频率 */
+  frequency: string;
+  /** 创建时间 */
+  create_time: string;
+  /** 最近上报时间 */
+  last_report_time: string;
+}
+
+export enum DetailType {
+  Application = 'application',
+  UploadFile = 'uploadFile'
 }
