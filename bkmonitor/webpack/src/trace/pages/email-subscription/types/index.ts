@@ -25,6 +25,19 @@
  */
 export type TestSendingTarget = 'all' | 'self';
 
+export enum FrequencyType {
+  /** 按小时 */
+  hourly = 5,
+  /** 按天 */
+  dayly = 4,
+  /** 按周 */
+  weekly = 3,
+  /** 按月 */
+  monthly = 2,
+  /** 仅一次 */
+  onlyOnce = 1
+}
+
 // 订阅详情 对象 开始
 export type DataRange = {
   number: number;
@@ -33,7 +46,7 @@ export type DataRange = {
 
 export type TimeFrequency = {
   hour: number;
-  type: number;
+  type: FrequencyType;
   day_list: number[];
   run_time: string;
   week_list: number[];
@@ -62,7 +75,7 @@ export type Subscriber = {
 };
 
 export type Channel = {
-  channel_name: string;
+  channel_name: 'user' | 'email' | 'wxbot';
   is_enabled: boolean;
   subscribers: Subscriber[];
   send_text?: string;

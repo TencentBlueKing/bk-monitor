@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
+import { defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
-  Alert,
   Button,
   Checkbox,
   DatePicker,
@@ -48,12 +47,14 @@ import { getExistReports, getVariables } from '../../../../monitor-api/modules/n
 import { copyText, deepClone, transformDataKey } from '../../../../monitor-common/utils';
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../mapping';
-import { Report } from '../types';
+import { FrequencyType, Report } from '../types';
 import { getDefaultReportData, switchReportDataForCreate, switchReportDataForUpdate } from '../utils';
+
+import ExistedReportAlert from './existed-report-alert';
 
 import './create-subscription-form.scss';
 
-// 敏感度 枚举。这里做成枚举是方便反向映射。即：通过 value 转成 key 。
+/** 敏感度 枚举。这里做成枚举是方便反向映射。即：通过 value 转成 key 。 */
 enum PatternLevelEnum {
   '01' = 100,
   '03' = 75,
@@ -69,13 +70,15 @@ const EXCLUDES_WEEKEND = [1, 2, 3, 4, 5];
 export default defineComponent({
   name: 'CreateSubscriptionForm',
   props: {
-    // 新增订阅有两种模式，不同模式的表单内容也有所不同。以及 onMounted 方法中对应初始化的执行。
-    // 还要搭配 formData.scenario 去判断该显示什么表单内容。
+    /**
+     * 新增订阅有两种模式，不同模式的表单内容也有所不同。以及 onMounted 方法中对应初始化的执行。
+        还要搭配 formData.scenario 去判断该显示什么表单内容。
+     */
     mode: {
       type: String as PropType<'create' | 'edit'>,
       default: 'create'
     },
-    // 编辑 模式的时候需要用到这个，作为初始化值
+    /** 编辑 模式的时候需要用到这个，作为初始化值 */
     detailInfo: {
       type: Object as PropType<Report>,
       default: () => {
@@ -83,18 +86,19 @@ export default defineComponent({
       }
     }
   },
+  emits: ['SelectExistedReport'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const formData = reactive(getDefaultReportData());
-    // 表单验证规则
+    /** 表单验证规则 */
     const formDataRules = {
       frequency: [
         {
           validator: () => {
             switch (formData.frequency.type) {
-              case 3:
+              case FrequencyType.weekly:
                 return frequency.week_list.length > 0;
-              case 2:
+              case FrequencyType.monthly:
                 return frequency.day_list.length > 0;
               default:
                 return true;
@@ -109,12 +113,10 @@ export default defineComponent({
         {
           validator: () => {
             const enabledList = formData.channels.filter(item => item.is_enabled);
-            console.log('enabledList', enabledList);
-
             if (enabledList.length === 0) {
               // 提醒用户，三个输入框都没有选中，必须选中一个。
               Object.keys(errorTips).forEach(key => {
-                errorTips[key].message = '请至少选择一种订阅方式';
+                errorTips[key].message = t('请至少选择一种订阅方式');
                 errorTips[key].isShow = true;
               });
               return false;
@@ -122,10 +124,7 @@ export default defineComponent({
             Object.keys(errorTips).forEach(key => {
               errorTips[key].isShow = false;
             });
-
             const subscriberList = enabledList.filter(item => item.subscribers.length);
-            console.log('subscriberList', subscriberList);
-
             let isInvalid = false;
             // 选中了，但是输入框没有添加任何订阅内容，将选中的输入框都显示提示。
             enabledList.forEach(item => {
@@ -137,6 +136,7 @@ export default defineComponent({
                 if (item.channel_name === 'email') {
                   // 需要对邮箱格式校验
                   item.subscribers.forEach(subscriber => {
+                    // 校验邮箱格式
                     const result = String(subscriber.id || '')
                       .toLowerCase()
                       .match(
@@ -164,7 +164,7 @@ export default defineComponent({
         }
       ]
     };
-    // 针对 订阅人 一项进行特殊的校验异常提醒。因为该项内容有三个输入框要分别处理。
+    /** 针对 订阅人 一项进行特殊的校验异常提醒。因为该项内容有三个输入框要分别处理。 */
     const errorTips = reactive({
       user: {
         message: '',
@@ -182,18 +182,18 @@ export default defineComponent({
         isShow: false
       }
     });
-    // 敏感度 选择器
+    /** 敏感度 选择器 */
     const pattenLevelSlider = ref(0);
-    // 有效时间范围 相关
+    /** 有效时间范围 相关 */
     const dataRange = ref('none');
-    // 订阅人 项相关变量。这里会监听该变量变化动态修改 formData 中 channels 。
+    /** 订阅人 项相关变量。这里会监听该变量变化动态修改 formData 中 channels 。 */
     const subscriberInput = reactive({
       user: [],
       email: '',
       wxbot: ''
     });
     const isIncludeWeekend = ref(true);
-    // 发送频率相关
+    /** 发送频率相关。该对象最后会把该对象数据copy到 formData 上，因为其中 run_time 的日期格式不同导致 日期组件 报异常，所以这里单独抽出整个对象。 */
     const frequency = reactive({
       type: 5,
       hour: 0.5,
@@ -203,121 +203,41 @@ export default defineComponent({
       day_list: []
     });
     const subscribeFor = ref<'self' | 'others'>('self');
+    /** 发送频率 中 按小时 的小时选项。 */
     const hourOption = [0.5, 1, 2, 6, 12].map(id => {
       return { id, name: t('{0}小时', [id]) };
     });
-    const customSliderContent = {
-      0: {
-        label: ''
-      },
-      25: {
-        label: ''
-      },
-      50: {
-        label: ''
-      },
-      75: {
-        label: ''
-      },
-      100: {
-        label: ''
-      }
-    };
-    const weekList = [
-      { name: t('星期一'), id: 1 },
-      { name: t('星期二'), id: 2 },
-      { name: t('星期三'), id: 3 },
-      { name: t('星期四'), id: 4 },
-      { name: t('星期五'), id: 5 },
-      { name: t('星期六'), id: 6 },
-      { name: t('星期日'), id: 7 }
-    ];
+    /** 敏感度的 间隙 值。 */
+    const customSliderContent = [0, 25, 50, 75, 100].reduce((acc, cur) => {
+      // label 为空串为的是不显示 tips
+      acc[cur] = { label: '' };
+      return acc;
+    }, {});
+    const daysOfWeek = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+    const weekList = daysOfWeek.map((day, index) => ({ name: t(day), id: index + 1 }));
+    /** 索引集 列表 */
     const indexSetIDList = ref([]);
+    /** 展示同比 的选项。 */
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const YOYList = ref([
-      {
-        id: 0,
-        name: t('不比对')
-      },
-      {
-        id: 1,
-        name: t('{0}小时前', [1])
-      },
-      {
-        id: 2,
-        name: t('{0}小时前', [2])
-      },
-      {
-        id: 3,
-        name: t('{0}小时前', [3])
-      },
-      {
-        id: 6,
-        name: t('{0}小时前', [6])
-      },
-      {
-        id: 12,
-        name: t('{0}小时前', [12])
-      },
-      {
-        id: 24,
-        name: t('{0}小时前', [24])
-      }
-    ]);
-    const timeRangeOption = [
-      {
-        id: 'none',
-        name: t('按发送频率')
-      },
-      {
-        id: '5minutes',
-        name: t('近{n}分钟', { n: 5 })
-      },
-      {
-        id: '15minutes',
-        name: t('近{n}分钟', { n: 15 })
-      },
-      {
-        id: '30minutes',
-        name: t('近{n}分钟', { n: 30 })
-      },
-      {
-        id: '1hours',
-        name: t('近{n}小时', { n: 1 })
-      },
-      {
-        id: '3hours',
-        name: t('近{n}小时', { n: 3 })
-      },
-      {
-        id: '6hours',
-        name: t('近{n}小时', { n: 6 })
-      },
-      {
-        id: '12hours',
-        name: t('近{n}小时', { n: 12 })
-      },
-      {
-        id: '24hours',
-        name: t('近{n}小时', { n: 24 })
-      },
-      {
-        id: '2days',
-        name: t('近 {n} 天', { n: 2 })
-      },
-      {
-        id: '7days',
-        name: t('近 {n} 天', { n: 7 })
-      },
-      {
-        id: '30days',
-        name: t('近 {n} 天', { n: 30 })
-      }
+    const YOYList = [
+      { id: 0, name: t('不比对') },
+      ...[1, 2, 3, 6, 12, 24].map(id => ({ id, name: t('{0}小时前', [id]) }))
     ];
+    /** 时间范围选项 */
+    const timeRangeOption = [
+      { id: 'none', name: t('按发送频率') },
+      ...[5, 15, 30].map(n => ({ id: `${n}minutes`, name: t('近{n}分钟', { n }) })),
+      ...[1, 3, 6, 12, 24].map(n => ({ id: `${n}hours`, name: t('近{n}小时', { n }) })),
+      ...[2, 7, 30].map(n => ({ id: `${n}days`, name: t('近 {n} 天', { n }) }))
+    ];
+    /** 订阅内容 表单实例 */
     const refOfContentForm = ref();
+    /** 邮件订阅 表单实例 */
     const refOfEmailSubscription = ref();
+    /** 发送配置 表单实例 */
     const refOfSendingConfigurationForm = ref();
     const isShowAdvancedOption = ref(true);
+    /** 展示同比 的 switcher */
     const isShowYOY = ref(true);
     const variableTable = reactive({
       data: [],
@@ -327,25 +247,13 @@ export default defineComponent({
             label: `${t('订阅名称')}`,
             render: ({ data }) => {
               return (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 'calc(100% - 20px)',
-                      wordBreak: 'break-all',
-                      whiteSpace: 'normal',
-                      lineHeight: '14px'
-                    }}
-                  >
+                <div style='display: flex;align-items: center;'>
+                  <span style='width: calc(100% - 20px);word-break: break-all;white-space: normal;line-height: 14px;'>
                     {data.name}
                   </span>
                   <i
                     class='icon-monitor icon-mc-copy'
-                    style={{ fontSize: '16px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
+                    style='font-size: 16px;margin-left: 5px;color: #3A84FF;cursor: pointer;'
                     onClick={() => {
                       handleCopy(data.name);
                     }}
@@ -365,8 +273,10 @@ export default defineComponent({
         ]
       }
     });
+    /** 当选择已创建过订阅的索引集时，显示该警告 */
     const isShowExistSubscriptionTips = ref(false);
     const existedReportList = ref([]);
+    /** 当选择 发送频率 为 仅一次 要保留当前所生成或选择的时间。否则就看起来是 bug 。 */
     let isNotChooseOnlyOnce = true;
     function handleSliderChange() {
       formData.scenario_config.pattern_level = PatternLevelEnum[pattenLevelSlider.value] || '01';
@@ -393,7 +303,7 @@ export default defineComponent({
       }
       return transformDataKey(res, true);
     }
-    // 当通过所有表单验证时收集一次 frequency 对象。（后端对这个格式有要求，已体现在代码中）
+    /** 当通过所有表单验证时收集一次 frequency 对象。（后端对这个格式有要求，已体现在代码中） */
     function collectFrequency() {
       // 先手动重置一遍
       Object.assign(formData.frequency, {
@@ -403,30 +313,30 @@ export default defineComponent({
         day_list: []
       });
       switch (formData.frequency.type) {
-        case 5:
+        case FrequencyType.hourly:
           Object.assign(formData.frequency, {
             hour: frequency.hour
           });
           break;
-        case 4:
+        case FrequencyType.dayly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
             week_list: isIncludeWeekend.value ? INCLUDES_WEEKEND : EXCLUDES_WEEKEND
           });
           break;
-        case 3:
+        case FrequencyType.weekly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
             week_list: frequency.week_list
           });
           break;
-        case 2:
+        case FrequencyType.monthly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
             day_list: frequency.day_list
           });
           break;
-        case 1:
+        case FrequencyType.onlyOnce:
           Object.assign(formData.frequency, {
             run_time: frequency.only_once_run_time
           });
@@ -436,9 +346,7 @@ export default defineComponent({
       }
     }
 
-    /**
-     * 有效时间范围切换一次就要对 formData
-     */
+    /** 有效时间范围切换一次就要对 formData */
     function handleTimeRangeChange(v) {
       if (v.filter(item => !!item).length < 2) {
         formData.timerange = [];
@@ -448,7 +356,6 @@ export default defineComponent({
       const result = v.map(date => {
         return dayjs(date).unix();
       });
-      console.log(result);
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const [start_time, end_time] = result;
       formData.start_time = start_time;
@@ -494,6 +401,9 @@ export default defineComponent({
       });
     }
 
+    /**
+     * 编辑模式 需要将详情数据回填到组件中。
+     */
     function setFormData() {
       // 这里要保证 channels 的顺序是正确的
       const clonedDetailInfo = deepClone(props.detailInfo);
@@ -507,7 +417,7 @@ export default defineComponent({
         return item;
       });
       delete clonedDetailInfo.channels;
-      if (clonedDetailInfo.frequency.type === 1) isNotChooseOnlyOnce = false;
+      if (clonedDetailInfo.frequency.type === FrequencyType.onlyOnce) isNotChooseOnlyOnce = false;
       Object.assign(formData, clonedDetailInfo);
       // 时间范围
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -532,22 +442,22 @@ export default defineComponent({
         .toString();
       // 处理 发送频率 的数据
       switch (formData.frequency.type) {
-        case 5:
+        case FrequencyType.hourly:
           frequency.hour = formData.frequency.hour;
           break;
-        case 4:
+        case FrequencyType.dayly:
           frequency.run_time = formData.frequency.run_time;
           isIncludeWeekend.value = INCLUDES_WEEKEND.every(item => formData.frequency.week_list.includes(item));
           break;
-        case 3:
+        case FrequencyType.weekly:
           frequency.week_list = formData.frequency.week_list;
           frequency.run_time = formData.frequency.run_time;
           break;
-        case 2:
+        case FrequencyType.monthly:
           frequency.day_list = formData.frequency.day_list;
           frequency.run_time = formData.frequency.run_time;
           break;
-        case 1:
+        case FrequencyType.onlyOnce:
           frequency.only_once_run_time = formData.frequency.run_time;
           break;
 
@@ -564,16 +474,15 @@ export default defineComponent({
       isShowYOY.value = Boolean(formData.scenario_config.year_on_year_hour);
     }
 
+    /** 选择一次 索引集 就要查询一次是否重复选择 */
     function checkExistSubscriptions() {
       getExistReports({
         scenario: formData.scenario,
         index_set_id: formData.scenario_config.index_set_id
-      })
-        .then((response: []) => {
-          existedReportList.value = response;
-          isShowExistSubscriptionTips.value = !!response.length;
-        })
-        .catch(console.log);
+      }).then((response: []) => {
+        existedReportList.value = response;
+        isShowExistSubscriptionTips.value = !!response.length;
+      });
     }
 
     /** 根据当前的 订阅场景 跳转到相应的能创建订阅的页面。
@@ -611,7 +520,9 @@ export default defineComponent({
         const rangeObj = getTimeRangeObj(dataRange.value);
         if (rangeObj) {
           const unit = String(rangeObj.time_level || 'minutes').at(0);
+          // @ts-ignore
           query.start_time = `now-${rangeObj.number || 15}${unit}`;
+          // @ts-ignore
           query.end_time = 'now';
         }
         const qs = new URLSearchParams(query as any).toString();
@@ -619,8 +530,10 @@ export default defineComponent({
       }
     }
 
-    function handleExistedReportNameClick(reportId) {
-      emit('select-existed-report', reportId);
+    /** 当该组件在 订阅列表 页面使用时。即：编辑态下才会使用到，通知父组件更换当前整个表单内容 */
+    function handleExistedReportNameClick(reportId: number) {
+      // TODO: 类型补上
+      emit('SelectExistedReport', reportId);
     }
 
     watch(
@@ -635,7 +548,6 @@ export default defineComponent({
     watch(
       () => subscriberInput.user,
       () => {
-        console.log('watch subscriberInput.user');
         formData.channels[0].subscribers = deepClone(subscriberInput.user).map(item => {
           // eslint-disable-next-line no-param-reassign
           item.is_enabled = true;
@@ -681,19 +593,16 @@ export default defineComponent({
       () => {
         getVariables({
           scenario: formData.scenario
-        })
-          .then(response => {
-            variableTable.data = response;
-            console.log(response);
-          })
-          .catch(console.log);
+        }).then(response => {
+          variableTable.data = response;
+        });
       },
       { immediate: true }
     );
     watch(
       () => formData.frequency.type,
       () => {
-        if (formData.frequency.type === 1) {
+        if (formData.frequency.type === FrequencyType.onlyOnce) {
           formData.start_time = null;
           formData.end_time = null;
           // 点击 仅一次 时刷新一次时间。
@@ -708,22 +617,11 @@ export default defineComponent({
       }
     );
 
-    const duplicatedIndexIdName = computed(() => {
-      const result = indexSetIDList.value.find(item => item.id === formData.scenario_config.index_set_id);
-      return result.name || '';
-    });
-
-    const indexSetName = computed(() => {
-      return indexSetIDList.value.find(item => item.id === formData.scenario_config.index_set_id)?.name || '';
-    });
-
     onMounted(() => {
       if (props.mode === 'edit') setFormData();
-      logServiceRelationBkLogIndexSet()
-        .then(response => {
-          indexSetIDList.value = response;
-        })
-        .catch(console.log);
+      logServiceRelationBkLogIndexSet().then(response => {
+        indexSetIDList.value = response;
+      });
     });
 
     return {
@@ -744,8 +642,6 @@ export default defineComponent({
       YOYList,
       checkExistSubscriptions,
       isShowExistSubscriptionTips,
-      duplicatedIndexIdName,
-      indexSetName,
 
       refOfContentForm,
       refOfEmailSubscription,
@@ -803,40 +699,11 @@ export default defineComponent({
                 </Select>
                 {this.isShowExistSubscriptionTips && (
                   <div style='margin-top: 8px;width: 800px;'>
-                    <Alert
-                      theme='warning'
-                      v-slots={{
-                        title: () => {
-                          return (
-                            <div>
-                              <i18n-t
-                                keypath='当前已存在相同索引集的订阅 {btn} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'
-                                v-slots={{
-                                  btn: () => {
-                                    return this.existedReportList.map((item, index) => {
-                                      return (
-                                        <span>
-                                          <span
-                                            style='color: #3A84FF;cursor: pointer;'
-                                            onClick={() => this.handleExistedReportNameClick(item.id)}
-                                          >
-                                            {item.name}
-                                          </span>
-                                          {index + 1 === this.existedReportList.length ? '' : ' , '}
-                                        </span>
-                                      );
-                                    });
-                                  }
-                                }}
-                              />
-                            </div>
-                          );
-                        }
-                      }}
-                      style={{
-                        width: '465px'
-                      }}
-                    ></Alert>
+                    <ExistedReportAlert
+                      existedReportList={this.existedReportList}
+                      style='width: 465px;'
+                      onReportNameClick={this.handleExistedReportNameClick}
+                    />
                   </div>
                 )}
               </Form.FormItem>
@@ -909,37 +776,10 @@ export default defineComponent({
                 </Select>
                 {this.isShowExistSubscriptionTips && (
                   <div style='margin-top: 8px;width: 800px;'>
-                    <Alert
-                      theme='warning'
-                      v-slots={{
-                        title: () => {
-                          return (
-                            <div>
-                              <i18n-t
-                                keypath='当前已存在相同索引集的订阅 {btn} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'
-                                v-slots={{
-                                  btn: () => {
-                                    return this.existedReportList.map((item, index) => {
-                                      return (
-                                        <span>
-                                          <span
-                                            style='color: #3A84FF;cursor: pointer;'
-                                            onClick={() => this.handleExistedReportNameClick(item.id)}
-                                          >
-                                            {item.name}
-                                          </span>
-                                          {index + 1 === this.existedReportList.length ? '' : ' , '}
-                                        </span>
-                                      );
-                                    });
-                                  }
-                                }}
-                              />
-                            </div>
-                          );
-                        }
-                      }}
-                    ></Alert>
+                    <ExistedReportAlert
+                      existedReportList={this.existedReportList}
+                      onReportNameClick={this.handleExistedReportNameClick}
+                    />
                   </div>
                 )}
               </Form.FormItem>
@@ -972,13 +812,13 @@ export default defineComponent({
                 text
                 theme='primary'
                 onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)}
-                style={{ marginLeft: '144px', marginBottom: '10px' }}
+                style='margin-left: 144px;margin-bottom: 10px;'
               >
                 {this.mode === 'create' && this.t('高级设置')}
                 {this.mode === 'edit' && this.t('内容配置')}
                 <i
                   class={['icon-monitor', this.isShowAdvancedOption ? 'icon-double-down' : 'icon-double-up']}
-                  style={{ fontSize: '26px' }}
+                  style='font-size: 26px;'
                 ></i>
               </Button>
             </div>
@@ -1037,7 +877,7 @@ export default defineComponent({
                     v-model={this.formData.scenario_config.log_display_count}
                     type='number'
                     suffix={this.t('条')}
-                    style={{ width: '160px' }}
+                    style='width: 160px;'
                   ></Input>
                 </Form.FormItem>
 
@@ -1046,7 +886,7 @@ export default defineComponent({
                   property='scenario_config.year_on_year_hour'
                   required
                 >
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style='display: flex;align-items: center;'>
                     <Switcher
                       v-model={this.isShowYOY}
                       theme='primary'
@@ -1115,9 +955,7 @@ export default defineComponent({
               <Input
                 v-model={this.formData.content_config.title}
                 placeholder={this.t('请输入')}
-                style={{
-                  width: '465px'
-                }}
+                style='width: 465px;'
               ></Input>
 
               <Popover
@@ -1144,11 +982,11 @@ export default defineComponent({
                 <Button
                   text
                   theme='primary'
-                  style={{ marginLeft: '16px' }}
+                  style='margin-left: 16px'
                 >
                   <i
                     class='icon-monitor icon-mc-detail'
-                    style={{ marginRight: '7px' }}
+                    style='margin-right: 7px;'
                   ></i>
                   {this.t('变量列表')}
                 </Button>
@@ -1184,7 +1022,7 @@ export default defineComponent({
             >
               <Input
                 v-model={this.formData.name}
-                style={{ width: '465px' }}
+                style='width: 465px;'
               ></Input>
             </Form.FormItem>
 
@@ -1202,7 +1040,7 @@ export default defineComponent({
                   <div data-is-show-error-msg={this.errorTips.user.isShow}>
                     <MemberSelect
                       v-model={this.subscriberInput.user}
-                      style={{ width: '465px' }}
+                      style='width: 465px;'
                       onChange={() => {
                         nextTick(() => {
                           this.formDataRules.channels[0].validator();
@@ -1212,10 +1050,10 @@ export default defineComponent({
                     {this.errorTips.user.isShow && <div class='bk-form-error'>{this.errorTips.user.message}</div>}
                   </div>
 
-                  <div style={{ marginTop: '10px' }}>
+                  <div style='margin-top: 10px;'>
                     <Checkbox
                       v-model={this.formData.channels[1].is_enabled}
-                      style={{ marginTop: '10px' }}
+                      style='margin-top: 10px;'
                     >
                       {this.t('外部邮件')}
                     </Checkbox>
@@ -1231,7 +1069,7 @@ export default defineComponent({
                         v-model={this.subscriberInput.email}
                         prefix={this.t('邮件列表')}
                         disabled={!this.formData.channels[1].is_enabled}
-                        style={{ width: '465px' }}
+                        style='width: 465px;'
                         data-is-show-error-msg={this.errorTips.email.isShow}
                       ></Input>
                     </Popover>
@@ -1242,15 +1080,15 @@ export default defineComponent({
                       prefix={this.t('提示文案')}
                       disabled={!this.formData.channels[1].is_enabled}
                       placeholder={this.t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
-                      style={{ width: '465px', marginTop: '10px' }}
+                      style='width: 465px;margin-top: 10px;'
                     ></Input>
                   </div>
                   {this.errorTips.email.isShow && <div class='bk-form-error'>{this.errorTips.email.message}</div>}
 
-                  <div style={{ marginTop: '10px' }}>
+                  <div style='margin-top: 10px;'>
                     <Checkbox
                       v-model={this.formData.channels[2].is_enabled}
-                      style={{ marginTop: '10px' }}
+                      style='margin-top: 10px;'
                     >
                       {this.t('企业微信群')}
                     </Checkbox>
@@ -1279,7 +1117,7 @@ export default defineComponent({
                         v-model={this.subscriberInput.wxbot}
                         prefix={this.t('群ID')}
                         disabled={!this.formData.channels[2].is_enabled}
-                        style={{ width: '465px' }}
+                        style='width: 465px;'
                       ></Input>
                     </Popover>
                   </div>
@@ -1295,18 +1133,18 @@ export default defineComponent({
               required
             >
               <Radio.Group v-model={this.formData.frequency.type}>
-                <Radio label={5}>{this.t('按小时')}</Radio>
-                <Radio label={4}>{this.t('按天')}</Radio>
-                <Radio label={3}>{this.t('按周')}</Radio>
-                <Radio label={2}>{this.t('按月')}</Radio>
-                <Radio label={1}>{this.t('仅一次')}</Radio>
+                <Radio label={FrequencyType.hourly}>{this.t('按小时')}</Radio>
+                <Radio label={FrequencyType.dayly}>{this.t('按天')}</Radio>
+                <Radio label={FrequencyType.weekly}>{this.t('按周')}</Radio>
+                <Radio label={FrequencyType.monthly}>{this.t('按月')}</Radio>
+                <Radio label={FrequencyType.onlyOnce}>{this.t('仅一次')}</Radio>
               </Radio.Group>
 
-              {this.formData.frequency.type === 5 && (
+              {this.formData.frequency.type === FrequencyType.hourly && (
                 <Select
                   v-model={this.frequency.hour}
                   clearable={false}
-                  style={{ width: '240px' }}
+                  style='width: 240px;'
                 >
                   {this.hourOption.map(item => {
                     return (
@@ -1319,19 +1157,16 @@ export default defineComponent({
                 </Select>
               )}
 
-              {[2, 3, 4].includes(this.formData.frequency.type) && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                >
-                  {this.formData.frequency.type === 3 && (
+              {[FrequencyType.monthly, FrequencyType.weekly, FrequencyType.dayly].includes(
+                this.formData.frequency.type
+              ) && (
+                <div style='display: flex;align-items: center;'>
+                  {this.formData.frequency.type === FrequencyType.weekly && (
                     <Select
                       v-model={this.frequency.week_list}
                       multiple
                       clearable={false}
-                      style={{ width: '160px', marginRight: '10px', height: '32px' }}
+                      style='width: 160px;margin-right: 10px;height: 32px;'
                     >
                       {this.weekList.map(item => {
                         return (
@@ -1343,12 +1178,12 @@ export default defineComponent({
                       })}
                     </Select>
                   )}
-                  {this.formData.frequency.type === 2 && (
+                  {this.formData.frequency.type === FrequencyType.monthly && (
                     <Select
                       v-model={this.frequency.day_list}
                       multiple
                       clearable={false}
-                      style={{ width: '160px', marginRight: '10px', height: '32px' }}
+                      style='width: 160px;margin-right: 10px;height: 32px;'
                     >
                       {Array(31)
                         .fill('')
@@ -1367,15 +1202,13 @@ export default defineComponent({
                     appendToBody
                     placeholder={this.t('选择时间范围')}
                     clearable={false}
-                    style={{ width: '130px' }}
+                    style='width: 130px;'
                   />
                   {/* 该复选值不需要提交，后续在编辑的时候需要通过 INCLUDES_WEEKEND 和 weekList 去判断即可 */}
-                  {this.formData.frequency.type === 4 && (
+                  {this.formData.frequency.type === FrequencyType.dayly && (
                     <Checkbox
                       v-model={this.isIncludeWeekend}
-                      style={{
-                        marginLeft: '10px'
-                      }}
+                      style='margin-left: 10px;'
                     >
                       {this.t('包含周末')}
                     </Checkbox>
@@ -1383,15 +1216,13 @@ export default defineComponent({
                 </div>
               )}
 
-              {this.formData.frequency.type === 1 && (
+              {this.formData.frequency.type === FrequencyType.onlyOnce && (
                 <div>
                   <DatePicker
                     modelValue={this.frequency.only_once_run_time}
                     type='datetime'
                     clearable={false}
-                    style={{
-                      width: '168px'
-                    }}
+                    style='width: 168px;'
                     onChange={v => {
                       this.frequency.only_once_run_time = v;
                     }}
@@ -1400,7 +1231,7 @@ export default defineComponent({
               )}
             </Form.FormItem>
 
-            {this.formData.frequency.type !== 1 && (
+            {this.formData.frequency.type !== FrequencyType.onlyOnce && (
               <Form.FormItem
                 label={this.t('有效时间范围')}
                 property='timerange'

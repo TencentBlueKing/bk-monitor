@@ -27,7 +27,7 @@ import { useI18n } from 'vue-i18n';
 
 import { Report } from '../types';
 
-export function getSendFrequencyText(data) {
+export function getSendFrequencyText(data: Report) {
   const { t } = useI18n();
   const hourTextMap = {
     0.5: t('每个小时整点,半点发送'),
@@ -155,6 +155,7 @@ export function getDefaultReportData(): Report {
     bk_biz_id: 0,
     scenario: 'clustering',
     frequency: {
+      // TODO：补齐类型
       type: 5,
       hour: 0.5,
       day_list: [],
