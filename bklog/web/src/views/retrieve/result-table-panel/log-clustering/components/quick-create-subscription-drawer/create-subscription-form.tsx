@@ -287,6 +287,7 @@ class QuickCreateSubscription extends tsc<IProps> {
 
   isLinkEnabled = 1;
 
+  bizName = '';
 
   formDataRules() {
     return {
@@ -533,7 +534,20 @@ class QuickCreateSubscription extends tsc<IProps> {
      * @param { * } val
      */
   handleCopy(text) {
-    copyText(`{{${text}}}`, msg => {
+    let switchedText = '';
+    switch (text) {
+      case 'time':
+        switchedText = dayjs(new Date()).format('YYYY-MM-DD HH:mm');
+        break;
+      case 'index_set_name':
+        switchedText = this.indexSetName;
+        break;
+      case 'business_name':
+        switchedText = this.bizName;
+        break;
+
+    }
+    copyText(switchedText, msg => {
       this.$bkMessage({
         message: msg,
         theme: 'error'
@@ -695,8 +709,12 @@ class QuickCreateSubscription extends tsc<IProps> {
   }
 
   setDefaultValue() {
+    const spaceList = this.$store.state.mySpaceList;
+    const bizId = this.$store.state.bkBizId;
+    this.bizName = spaceList.find(item => item.bk_biz_id === bizId)?.space_name || '';
+    const currentDate = dayjs(new Date()).format('YYYY-MM-DD HH:mm');
     const titleMapping = {
-      clustering: this.$t('{0}日志聚类统计报表{1}', ['{{business_name}}', '{{time}}'])
+      clustering: this.$t('{0}-日志聚类统计报表-{1}', [this.bizName, currentDate])
     };
     const targetTitle = titleMapping[this.scenario] || '';
     this.formData.content_config.title = targetTitle;

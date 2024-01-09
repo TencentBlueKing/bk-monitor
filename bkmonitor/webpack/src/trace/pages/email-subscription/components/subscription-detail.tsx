@@ -148,7 +148,7 @@ export default defineComponent({
               <div class='subscribers-row'>
                 <span
                   class='subscribers-label'
-                  style='padding-top: 3px;'
+                  style='padding-top: 3px;margin-bottom: 7px;'
                 >
                   {this.t('内部用户')}
                 </span>
@@ -180,12 +180,24 @@ export default defineComponent({
                 class='subscribers-row'
                 style='padding-top: 20px;'
               >
-                <span class='subscribers-label'>{this.t('外部邮件')}</span>
+                <span
+                  class='subscribers-label'
+                  style='margin-bottom: 7px;'
+                >
+                  {this.t('外部邮件')}
+                </span>
                 <span class='subscribers-value'>
                   {this.detailInfo.channels
                     .find(item => item.channel_name === 'email')
                     .subscribers.map(item => {
-                      return <span class='email'>{item.id}</span>;
+                      return (
+                        <span
+                          class='email'
+                          style='display: inline-flex;'
+                        >
+                          {item.id}
+                        </span>
+                      );
                     })}
                 </span>
               </div>
@@ -194,12 +206,24 @@ export default defineComponent({
                 class='subscribers-row'
                 style='padding-top: 20px;'
               >
-                <span class='subscribers-label'>{this.t('企业微信群')}</span>
+                <span
+                  class='subscribers-label'
+                  style='margin-bottom: 7px;'
+                >
+                  {this.t('企业微信群')}
+                </span>
                 <span class='subscribers-value'>
                   {this.detailInfo.channels
                     .find(item => item.channel_name === 'wxbot')
                     .subscribers.map(item => {
-                      return <span class='group-id'>{item.id}</span>;
+                      return (
+                        <span
+                          class='group-id'
+                          style='display: inline-flex;'
+                        >
+                          {item.id}
+                        </span>
+                      );
                     })}
                 </span>
               </div>

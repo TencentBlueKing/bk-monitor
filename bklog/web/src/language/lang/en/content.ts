@@ -616,5 +616,5 @@ export default {
   订阅名称: 'Subscription name',
   观测场景: 'Observations',
   选择时间范围: 'Select Time Range',
-  '{0}日志聚类统计报表{1}': '{0}Log clustering statistics report{1}'
+  '{0}-日志聚类统计报表-{1}': '{0}-Log clustering statistics report-{1}'
 };
