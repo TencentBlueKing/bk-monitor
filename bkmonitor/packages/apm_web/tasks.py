@@ -18,6 +18,7 @@ from django.utils.translation import gettext as _
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.models import Application
+from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
 from bkmonitor.utils.common_utils import get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
@@ -133,9 +134,7 @@ def profile_file_upload_and_parse(key, file_type, profile_id, bk_biz_id, app_nam
         f"profile_id({profile_id})"
     )
 
-    from apm_web.profile.file_handler import ProfilingFileHandler
-
-    ProfilingFileHandler.parse_file(
+    ProfilingFileHandler().parse_file(
         key=key,
         file_type=file_type,
         profile_id=profile_id,

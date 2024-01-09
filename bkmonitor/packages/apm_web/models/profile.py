@@ -8,8 +8,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
-from apm_web.profile.constants import UploadedFileStatus
+
+class UploadedFileStatus(models.TextChoices):
+    # 已上传
+    UPLOADED = "uploaded", _("已上传")
+    # 解析失败
+    PARSING_FAILED = "parsing_failed", _("解析失败")
+    # 解析成功
+    PARSING_SUCCEED = "parsing_succeed", _("解析成功")
+
+    UNKNOWN = "unknown", _("未知")
 
 
 class ProfileUploadRecord(models.Model):
@@ -31,6 +41,6 @@ class ProfileUploadRecord(models.Model):
     # 文件大小, 单位Bytes
     file_size = models.BigIntegerField("文件大小", default=0)
     status = models.CharField(
-        "状态", max_length=36, choices=UploadedFileStatus.choices(), default=UploadedFileStatus.UNKNOWN
+        "状态", max_length=36, choices=UploadedFileStatus.choices, default=UploadedFileStatus.UNKNOWN
     )
     service_name = models.CharField("服务名称", max_length=50, default="default")

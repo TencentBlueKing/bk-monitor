@@ -21,31 +21,6 @@ class InputType(Enum):
         return tuple((i.name, i.value) for i in cls)
 
 
-class UploadedFileStatus:
-    # 已上传
-    UPLOADED = "uploaded"
-    # 解析失败
-    PARSING_FAILED = "parsing_failed"
-    # 解析成功
-    PARSING_SUCCEED = "parsing_succeed"
-
-    UNKNOWN = "unknown"
-
-    status_map = {"uploaded": "已上传", "parsing_failed": "解析失败", "parsing_succeed": "解析成功", "unknown": "未知"}
-
-    @classmethod
-    def choices(cls):
-        return [
-            (cls.UPLOADED, "uploaded"),
-            (cls.PARSING_FAILED, "parsing_failed"),
-            (cls.PARSING_SUCCEED, "parsing_succeed"),
-        ]
-
-    @classmethod
-    def get_display_name(cls, name):
-        return cls.status_map.get(name, cls.status_map["unknown"])
-
-
 class CallGraphResponseDataMode:
     # 图片数据模式
     IMAGE_DATA_MODE = "image_data_mode"

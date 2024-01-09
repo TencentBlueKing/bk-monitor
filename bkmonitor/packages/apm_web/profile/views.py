@@ -18,11 +18,10 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from apm_web.models import Application, ProfileUploadRecord
+from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
     PROFILE_UPLOAD_RECORD_NEW_FILE_NAME,
     CallGraphResponseDataMode,
-    UploadedFileStatus,
 )
 from apm_web.profile.converter import generate_profile_id
 from apm_web.profile.diagrams import get_diagrammer
@@ -35,6 +34,7 @@ from apm_web.profile.serializers import (
     ProfileUploadRecordSLZ,
     ProfileUploadSerializer,
 )
+from apm_web.tasks import profile_file_upload_and_parse
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource import api
@@ -83,7 +83,11 @@ class ProfileViewSet(ViewSet):
             raise ValueError(_("相同文件已上传"))
 
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
-        ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
+        try:
+            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
+        except Exception:
+            logger.exception("failed to upload file to bkrepo")
+            raise Exception(_("上传文件失败"))
 
         profile_id = generate_profile_id()
 
@@ -103,8 +107,6 @@ class ProfileViewSet(ViewSet):
         )
 
         # 异步任务： 文件解析及存储
-        from apm_web.tasks import profile_file_upload_and_parse
-
         profile_file_upload_and_parse.delay(
             uploaded.name,
             validated_data["file_type"],

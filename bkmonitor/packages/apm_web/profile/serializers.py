@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.models import ProfileUploadRecord
-from apm_web.profile.constants import UploadedFileStatus
 
 
 class ProfileQuerySerializer(serializers.Serializer):
@@ -44,7 +43,7 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["status"] = UploadedFileStatus.get_display_name(data["status"])
+        data["status"] = instance.get_status_display()
         return data
 
 

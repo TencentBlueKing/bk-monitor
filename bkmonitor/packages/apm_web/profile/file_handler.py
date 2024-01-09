@@ -14,8 +14,7 @@ import tempfile
 from bkstorages.backends.bkrepo import BKRepoStorage
 from django.utils.translation import ugettext_lazy as _
 
-from apm_web.models import Application, ProfileUploadRecord
-from apm_web.profile.constants import UploadedFileStatus
+from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.converter import get_converter_by_input_type
 from apm_web.profile.doris.handler import StorageHandler
 
