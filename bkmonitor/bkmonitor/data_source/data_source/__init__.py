@@ -925,6 +925,7 @@ class TimeSeriesDataSource(DataSource):
             order_by=self.order_by,
             start_time=start_time,
             end_time=end_time,
+            interval=kwargs.get("interval"),
         )
         records = self._filter_by_advance_method(q.raw_data)
         return [record[dimension_field] for record in records]
