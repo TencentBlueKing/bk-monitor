@@ -20,14 +20,19 @@ class ProfileQuerySerializer(serializers.Serializer):
     profile_type = serializers.CharField(label="profile类型", required=False, default="cpu")
     profile_id = serializers.CharField(label="profile ID", required=False, default="")
     offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=300)
-    diagram_type = serializers.ChoiceField(
-        choices=["flamegraph", "callgraph", "table"], required=False, default="flamegraph"
+    diagram_types = serializers.ListSerializer(
+        child=serializers.CharField(), required=False, default=["flamegraph", "table"]
     )
+    sort = serializers.CharField(label="排序, 只对table有效", required=False, default="-total")
+    filter_label = serializers.DictField(label="标签过滤", default={}, required=False)
+    diff_filter_label = serializers.DictField(label="标签过滤", default={}, required=False)
+    is_compared = serializers.BooleanField(label="是否开启对比模式", required=False, default=False)
+    diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="")
 
 
 class ProfileUploadSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID")
-    application_id = serializers.IntegerField(label="应用ID")
+    app_name = serializers.CharField(label="应用名称")
     file_type = serializers.ChoiceField(choices=["perf_script", "pprof"])
 
 
@@ -35,3 +40,15 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
     class Meta:
         model = ProfileUploadRecord
         fields = "__all__"
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["status"] = instance.get_status_display()
+        return data
+
+
+class ProfileListFileSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+    app_name = serializers.CharField(label="应用名称", required=False)
+    origin_file_name = serializers.CharField(label="上传文件名称", default="", required=False)
+    service_name = serializers.CharField(label="服务名称", required=False)
