@@ -26,9 +26,9 @@
 
 import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Dialog, Input } from 'bk-magic-vue';
+import { Button, Dialog, Input, Spin } from 'bk-magic-vue';
 
-import { deleteApplication, listApplication } from '../../../monitor-api/modules/apm_meta';
+import { deleteApplication, listApplication, listApplicationAsync } from '../../../monitor-api/modules/apm_meta';
 import { Debounce } from '../../../monitor-common/utils/utils';
 import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
 import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
@@ -46,6 +46,14 @@ import NavBar from './nav-bar';
 
 import './app-list-new.scss';
 
+const charColor = (str: string) => {
+  const h = str.charCodeAt(0) % 360;
+  const s = '50%';
+  const l = '50%';
+  const color = `hsl(${h}, ${s}, ${l})`;
+  return color;
+};
+
 interface IAppListItem {
   isExpan: boolean;
   app_alias: {
@@ -57,6 +65,16 @@ interface IAppListItem {
   permission: {
     [key: string]: boolean;
   };
+  loading: false;
+  service_count?: {
+    value?: number;
+  };
+  status: {
+    text: string;
+    tips: string;
+    type: string;
+  };
+  firstCodeColor: string;
 }
 
 @Component
@@ -91,8 +109,10 @@ export default class AppList extends tsc<{}> {
   pagination = {
     current: 1,
     limit: 10,
-    total: 100
+    total: 100,
+    isEnd: false
   };
+  loading = false;
 
   opreateOptions: IOperateOption[] = [
     {
@@ -151,9 +171,22 @@ export default class AppList extends tsc<{}> {
   }
 
   created() {
+    this.getLimitOfHeight();
     this.getAppList();
   }
 
+  /**
+   * @description 动态计算当前每页数量
+   */
+  getLimitOfHeight() {
+    const itemHeight = 68;
+    const limit = Math.ceil((window.screen.height - 164) / itemHeight) + 1;
+    this.pagination.limit = limit;
+  }
+
+  /**
+   * @description 获取应用列表
+   */
   async getAppList() {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
@@ -165,16 +198,38 @@ export default class AppList extends tsc<{}> {
       page: this.pagination.current,
       page_size: this.pagination.limit
     };
+    this.loading = true;
     const listData = await listApplication(params).catch(() => {
       return {
         data: []
       };
     });
-    this.appList = listData.data.map(item => ({
-      ...item,
-      isExpan: false,
-      firstCode: item.app_alias?.value?.slice(0, 1) || ''
-    }));
+    this.loading = false;
+    /* 是否到底了 */
+    this.pagination.isEnd = listData.data.length < this.pagination.limit;
+    /* 总数 */
+    this.pagination.total = listData.total || 0;
+    const defaultItem = item => {
+      const firstCode = item.app_alias?.value?.slice(0, 1) || '-';
+      return {
+        ...item,
+        isExpan: false,
+        firstCodeColor: charColor(firstCode),
+        firstCode,
+        loading: false,
+        tableData: {},
+        service_count: null
+      };
+    };
+    if (this.pagination.current === 1) {
+      this.appList = listData.data.map(item => defaultItem(item));
+    } else {
+      this.appList.push(...listData.data.map(item => defaultItem(item)));
+    }
+    this.getAsyncData(
+      ['service_count'],
+      listData.data.map(item => item.application_id)
+    );
     // 路由同步查询关键字
     const routerParams = {
       name: this.$route.name,
@@ -184,6 +239,31 @@ export default class AppList extends tsc<{}> {
       }
     };
     this.$router.replace(routerParams).catch(() => {});
+  }
+
+  /* 获取服务数量 */
+  getAsyncData(fields: string[], appIds: number[]) {
+    fields.forEach(field => {
+      const params = {
+        column: field,
+        application_ids: appIds
+      };
+      listApplicationAsync(params).then(res => {
+        const dataMap = res.reduce((pre, cur) => {
+          // eslint-disable-next-line no-param-reassign
+          if (!pre[cur.application_id]) pre[cur.application_id] = cur[field];
+          return pre;
+        }, {});
+        this.appList = this.appList.map(app => ({
+          ...app,
+          [field]: dataMap[app.application_id] || 0
+        }));
+      });
+    });
+  }
+  /* 获取服务列表 */
+  getServiceData(appId: string) {
+    console.log(appId);
   }
 
   /** 展示添加弹窗 */
@@ -297,6 +377,23 @@ export default class AppList extends tsc<{}> {
     }
   }
 
+  /**
+   * @description 滚动加载
+   * @param event
+   */
+  handleScroll(event: Event | any) {
+    if (!this.loading && !this.pagination.isEnd) {
+      const { clientHeight } = event.target;
+      const { scrollTop } = event.target;
+      const { scrollHeight } = event.target;
+      const isAtBottom = Math.abs(scrollHeight - (clientHeight + scrollTop)) < 1;
+      if (isAtBottom) {
+        this.pagination.current += 1;
+        this.getAppList();
+      }
+    }
+  }
+
   render() {
     return (
       <div class='app-list-wrap-page'>
@@ -330,7 +427,10 @@ export default class AppList extends tsc<{}> {
           )}
         </NavBar>
 
-        <div class='app-list-main'>
+        <div
+          class='app-list-main'
+          onScroll={this.handleScroll}
+        >
           {this.showGuidePage ? (
             <GuidePage
               guideId='apm-home'
@@ -367,18 +467,34 @@ export default class AppList extends tsc<{}> {
                     >
                       <div class='header-left'>
                         <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]}></span>
-                        <div class='first-code'>
+                        <div
+                          class='first-code'
+                          style={{
+                            background: item.firstCodeColor
+                          }}
+                        >
                           <span>{item.firstCode}</span>
                         </div>
                         <div class='biz-name-01'>{item.app_alias?.value}</div>
                         <div class='biz-name-02'>（{item.app_name}）</div>
-                        <div class='item-label'>服务数量:</div>
+                        <div class='item-label'>{this.$t('服务数量')}:</div>
                         <div class='item-content'>
-                          <span>58</span>
+                          <span>
+                            {item.service_count === null ? <Spin size='mini' /> : item?.service_count?.value || 0}
+                          </span>
                         </div>
-                        <div class='item-label'>Tracing:</div>
+                        <div
+                          class='item-label'
+                          v-bk-tooltips={{
+                            placement: 'top',
+                            content: item.status?.tips,
+                            disabled: !item.status?.tips
+                          }}
+                        >
+                          Tracing:
+                        </div>
                         <div class='item-content'>
-                          <div class='trace-status'>无数据</div>
+                          <div class={['trace-status', item.status.type]}>{item.status.text}</div>
                         </div>
                         <div class='item-label'>Profiling:</div>
                         <div class='item-content'>
@@ -431,6 +547,14 @@ export default class AppList extends tsc<{}> {
                     {item.isExpan && <div class='expan-content'></div>}
                   </div>
                 ))}
+              </div>
+              <div class='bottom-loading-status'>
+                {(this.loading || this.pagination.isEnd) && (
+                  <div class='loading-box'>
+                    {this.loading && <div class='spinner'></div>}
+                    {this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}
+                  </div>
+                )}
               </div>
             </div>
           )}
