@@ -121,7 +121,8 @@ export default class WhereDisplay extends tsc<IProps> {
                 trigger: 'mouseenter',
                 zIndex: 9999,
                 offset: '0, 6',
-                boundary: document.body
+                boundary: document.body,
+                allowHTML: false
               }}
             >{` ${this.whereNameMap.get(item.key) || item.key} `}</span>
             <span class='where-method'>{` ${this.methodNameMap.get(item.method) || item.method} `}</span>

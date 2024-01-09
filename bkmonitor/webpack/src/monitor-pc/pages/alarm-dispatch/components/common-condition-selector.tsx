@@ -275,7 +275,8 @@ export default class CommonConditionSelector extends tsc<IProps> {
               trigger: 'mouseenter',
               zIndex: 9999,
               disabled: !item.field,
-              boundary: document.body
+              boundary: document.body,
+              allowHTML: false
             }}
             nodataMsg={window.i18n.t('无选项') as string}
             onChange={v => this.handleKeyChange(item, v)}

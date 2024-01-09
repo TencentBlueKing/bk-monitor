@@ -141,7 +141,8 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
               v-bk-tooltips={{
                 content: item,
                 zIndex: 9999,
-                boundary: document.body
+                boundary: document.body,
+                allowHTML: false
               }}
             >
               {this.handleDisplayName(item)}
@@ -168,7 +169,8 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
                     content: opt.id,
                     placement: 'right',
                     zIndex: 9999,
-                    boundary: document.body
+                    boundary: document.body,
+                    allowHTML: false
                   }}
                 >
                   {opt.name}

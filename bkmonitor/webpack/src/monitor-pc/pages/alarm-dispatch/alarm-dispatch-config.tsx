@@ -1645,7 +1645,8 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               class='icon-monitor icon-mind-fill'
               v-bk-tooltips={{
                 content: row.validateTips[id],
-                placements: ['top']
+                placements: ['top'],
+                allowHTML: false
               }}
             ></i>
           </div>
@@ -1802,7 +1803,8 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               <i
                 class='icon-monitor icon-mind-fill'
                 v-bk-tooltips={{
-                  content: row.validateTips[id]
+                  content: row.validateTips[id],
+                  allowHTML: false
                 }}
               ></i>
             )}

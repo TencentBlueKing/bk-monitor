@@ -62,6 +62,7 @@ from constants.apm import (
     FlowType,
     TailSamplingSupportMethod,
     TraceListQueryMode,
+    TraceWaterFallDisplayKey,
 )
 from core.drf_resource import Resource, api
 from metadata import models
@@ -935,11 +936,25 @@ class QueryTraceDetailResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
         trace_id = serializers.CharField(label="trace_id")
+        displays = serializers.ListField(
+            child=serializers.ChoiceField(
+                choices=TraceWaterFallDisplayKey.choices(),
+                default=TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY,
+            ),
+            default=list,
+            allow_empty=True,
+            required=False,
+        )
 
     def perform_request(self, validated_data):
+        # otel data must be in displays choice
+        displays = validated_data.get("displays")
+        if TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY not in displays:
+            displays.append(TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY)
+
         trace, relation_mapping = QueryProxy(
             validated_data["bk_biz_id"], validated_data["app_name"]
-        ).query_trace_detail(validated_data["trace_id"], validated_data["bk_biz_id"])
+        ).query_trace_detail(validated_data["trace_id"], validated_data["displays"], validated_data["bk_biz_id"])
 
         return {"trace_data": trace, "relation_mapping": relation_mapping}
 
@@ -1483,7 +1498,7 @@ class CreateOrUpdateBkdataFlowResource(Resource):
                 create_or_update_tail_sampling.delay(trace, ser.data)
                 return
 
-            raise ValueError(f"环境中未开启计算平台，无法创建")
+            raise ValueError("环境中未开启计算平台，无法创建")
 
         raise ValueError(f"不支持的Flow类型: {validated_data['flow_type']}")
 

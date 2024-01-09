@@ -52,7 +52,7 @@ import {
   queryConfigToPromql
 } from '../../../monitor-api/modules/strategies';
 import { monitorDrag } from '../../../monitor-common/utils/drag-directive';
-import { copyText, deepClone, getUrlParam, random } from '../../../monitor-common/utils/utils';
+import { Debounce, copyText, deepClone, getUrlParam, random } from '../../../monitor-common/utils/utils';
 import PromqlEditor from '../../../monitor-ui/promql-editor/promql-editor';
 import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
@@ -308,12 +308,15 @@ export default class DataRetrieval extends tsc<{}> {
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+  @Debounce(200)
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value: TimeRangeType) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
-    this.compareValue.tools.timeRange = value;
-    this.showRestore = true;
-    this.handleQueryProxy();
+    if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
+      this.compareValue.tools.timeRange = value;
+      this.showRestore = true;
+      this.handleQueryProxy();
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {

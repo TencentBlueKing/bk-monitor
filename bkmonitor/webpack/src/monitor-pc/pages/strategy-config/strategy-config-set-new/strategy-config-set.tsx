@@ -538,7 +538,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // this.addDefaultAlarmHandling();
   }
   deactivated() {
-    this.isMultivariateAnomalyDetection = false;
     this.clearErrorMsg();
     (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
   }
@@ -911,6 +910,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.loading = true;
     this.strategyId = 0;
     this.editAllowed = true;
+    this.isMultivariateAnomalyDetection = false;
     const promiseList = [];
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
@@ -2652,7 +2652,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 <div
                   v-bk-tooltips={{
                     disabled: this.submitBtnTipDisabled,
-                    content: !this.editAllowed ? this.$t('内置策略不允许修改') : this.$t('未选择监控数据')
+                    content: !this.editAllowed ? this.$t('内置策略不允许修改') : this.$t('未选择监控数据'),
+                    allowHTML: false
                   }}
                 >
                   <bk-button

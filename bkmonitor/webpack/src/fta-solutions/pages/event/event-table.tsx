@@ -1170,7 +1170,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                                 ? this.askTipMsg(isAck, status, ackOperator, followerDisabled)
                                 : this.$t('告警确认'),
                             delay: 200,
-                            appendTo: 'parent'
+                            appendTo: 'parent',
+                            allowHTML: false
                           }}
                         />
                         <span
@@ -1459,7 +1460,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               })(),
               delay: 200,
               placements: ['left'],
-              appendTo: () => document.body
+              appendTo: () => document.body,
+              allowHTML: false
             }}
             on-click={() =>
               !this.opetateRow?.is_shielded &&

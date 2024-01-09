@@ -23,37 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { DASHBOARD_ID_KEY } from '../../constant/constant';
 
-import './plugin-status-tag.scss';
-
-interface IProps {
-  icon: string;
-  checked: boolean;
-  text: string;
-  iconFontSize?: number;
-  tips?: string;
-}
-@Component
-export default class PluginStatusTag extends tsc<IProps> {
-  @Prop({ type: String, default: '' }) icon: string;
-  @Prop({ type: Boolean, default: false }) checked: boolean;
-  @Prop({ type: String, default: '' }) text: string;
-  @Prop({ type: Number }) iconFontSize: number;
-  @Prop({ type: String }) tips: string;
-  render() {
-    return (
-      <span class={['plugin-status-tag-item', { 'is-checked': this.checked }]}>
-        <span class={['plugin-status-icon']}>
-          <i
-            class={['icon-monitor', this.icon]}
-            style={{ fontSize: `${this.iconFontSize}px` }}
-            v-bk-tooltips={{ content: this.tips, disabled: !this.tips, allowHTML: false }}
-          />
-        </span>
-        <span class='plugin-status-text'>{this.text}</span>
-      </span>
-    );
-  }
-}
+export const getDashboardCache = () => {
+  let dashboardCache;
+  try {
+    dashboardCache = JSON.parse(localStorage.getItem(DASHBOARD_ID_KEY));
+  } catch {}
+  return dashboardCache;
+};
