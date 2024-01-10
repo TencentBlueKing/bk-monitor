@@ -27,9 +27,7 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 import { getApplyRecords, getReport } from '@api/modules/new_report';
 
-import QuickCreateSubscription from '../../components/quick-create-subscription/quick-create-subscription';
-
-import SubscriptionDetail from './components/subscription-detail';
+import ReportDetail from './components/report-detail';
 
 import './my-apply.scss';
 
@@ -41,8 +39,7 @@ enum Status {
 
 @Component({
   components: {
-    SubscriptionDetail,
-    QuickCreateSubscription
+    ReportDetail
   }
 })
 class MyApply extends tsc<{}> {
@@ -65,6 +62,7 @@ class MyApply extends tsc<{}> {
   get computedTableData() {
     return this.tableData
       .filter(item => {
+        // TODO：filter 部分可以优化
         if (this.approvalStatus === 'ALL') {
           return item;
         }
@@ -255,17 +253,9 @@ class MyApply extends tsc<{}> {
           </div>
 
           <div slot='content'>
-            <SubscriptionDetail detailInfo={this.detailInfo}></SubscriptionDetail>
+            <ReportDetail detailInfo={this.detailInfo}></ReportDetail>
           </div>
         </bk-sideslider>
-
-        {/* 测试代码 */}
-        {/* <QuickCreateSubscription v-model={this.isShowQCSSlider}></QuickCreateSubscription>
-        <bk-button
-          onClick={() => {
-            this.isShowQCSSlider = true;
-          }}
-        ></bk-button> */}
       </div>
     );
   }

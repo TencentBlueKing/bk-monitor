@@ -29,43 +29,6 @@
   .header-container {
     display: flex;
     justify-content: space-between;
-
-    .radio-container {
-      display: flex;
-      padding: 4px;
-      background: #f0f1f5;
-      border-radius: 2px;
-
-      .radio {
-        position: relative;
-        display: flex;
-        align-items: center;
-        padding: 4px 12px;
-        cursor: pointer;
-
-        &:not(:last-of-type) {
-          &::before {
-            position: absolute;
-            top: 50%;
-            right: -1px;
-            width: 1px;
-            height: 12px;
-            content: '';
-            background: #dcdee5;
-            transform: translateY(-50%);
-          }
-        }
-
-        &.selected {
-          color: #3a84ff;
-          background: #fff;
-
-          &::before {
-            display: none;
-          }
-        }
-      }
-    }
   }
 }
 
