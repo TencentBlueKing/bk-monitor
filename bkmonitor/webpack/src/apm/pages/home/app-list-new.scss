@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .app-list-wrap-page {
   height: 100%;
 
@@ -218,6 +219,10 @@
           .expan-content {
             min-height: 180px;
             background: #fff;
+
+            .common-table .bk-table-column-setting.is-last {
+              border-top: 0 !important;
+            }
           }
         }
       }

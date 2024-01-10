@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Button, Dialog, Input, Spin } from 'bk-magic-vue';
 
 import { deleteApplication, listApplication, listApplicationAsync } from '../../../monitor-api/modules/apm_meta';
+import { serviceList, serviceListAsync } from '../../../monitor-api/modules/apm_metric';
 import { Debounce } from '../../../monitor-common/utils/utils';
 import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
 import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
@@ -36,6 +37,7 @@ import type { TimeRangeType } from '../../../monitor-pc/components/time-range/ti
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 import AlarmTools from '../../../monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import CommonTable, { ICommonTableProps } from '../../../monitor-pc/pages/monitor-k8s/components/common-table';
+import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import { IFilterDict, INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import OperateOptions, { IOperateOption } from '../../../monitor-pc/pages/uptime-check/components/operate-options';
 import introduceData from '../../../monitor-pc/router/space';
@@ -77,7 +79,7 @@ interface IAppListItem {
     type: string;
   };
   firstCodeColor: string;
-  tableData: ICommonTableProps;
+  tableData: ICommonTableProps & { paginationData: { current: number; limit: number; count: number } };
 }
 
 @Component
@@ -191,6 +193,9 @@ export default class AppList extends tsc<{}> {
    * @description 获取应用列表
    */
   async getAppList() {
+    if (this.loading) {
+      return;
+    }
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       start_time: startTime,
@@ -221,16 +226,18 @@ export default class AppList extends tsc<{}> {
         firstCode,
         loading: false,
         tableData: {
-          pagination: {
+          pagination: null,
+          paginationData: {
             count: 20,
             current: 1,
-            limit: 10,
-            showTotalCount: false
+            limit: 15
           },
           columns: [],
           data: [],
           checkable: false,
-          showLimit: false
+          showLimit: false,
+          outerBorder: true,
+          maxHeight: 584
         },
         service_count: null
       };
@@ -276,12 +283,77 @@ export default class AppList extends tsc<{}> {
   }
   /* 获取服务列表 */
   getServiceData(appIds: number[]) {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const appIdsSet = new Set(appIds);
     this.appList.forEach(item => {
       if (appIdsSet.has(item.application_id)) {
-        //
+        serviceList({
+          app_name: item.app_name,
+          start_time: startTime,
+          end_time: endTime,
+          filter: '',
+          sort: '',
+          filter_dict: {},
+          check_filter_dict: {},
+          page: item.tableData.paginationData.current,
+          page_size: item.tableData.paginationData.limit,
+          keyword: '',
+          condition_list: [],
+          view_options: {
+            app_name: item.app_name,
+            compare_targets: [],
+            current_target: {},
+            method: 'AVG',
+            interval: 'auto',
+            group_by: [],
+            filters: {
+              app_name: item.app_name
+            }
+          },
+          bk_biz_id: this.$store.getters.bizId
+        }).then(({ columns, data, total }) => {
+          item.tableData.data = data || [];
+          item.tableData.columns = columns || [];
+          item.tableData.paginationData.count = total;
+          const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
+          const services = (data || []).map(d => d.service_name.value);
+          fields.forEach(field => {
+            serviceListAsync({
+              app_name: item.app_name,
+              start_time: startTime,
+              end_time: endTime,
+              column: field,
+              service_names: services,
+              bk_biz_id: this.$store.getters.bizId
+            })
+              .then(serviceData => {
+                const dataMap = {};
+                serviceData?.forEach(item => {
+                  dataMap[String(item.field)] = item[field];
+                });
+                item.tableData.data = item.tableData.data.map(d => ({
+                  ...d,
+                  [field]: d[field] || dataMap[String(d.field)] || null
+                }));
+              })
+              .finally(() => {
+                item.tableData.columns = item.tableData.columns.map(col => ({
+                  ...col,
+                  asyncable: col.id === field ? false : col.asyncable
+                }));
+              });
+          });
+        });
       }
     });
+  }
+
+  /**
+   * @description 时间范围
+   * @param v
+   */
+  handleTimeRangeChange(v) {
+    this.timeRange = v;
   }
 
   /** 展示添加弹窗 */
@@ -308,7 +380,9 @@ export default class AppList extends tsc<{}> {
   /** 列表搜索 */
   @Debounce(300)
   handleSearch() {
-    //
+    this.pagination.current = 1;
+    this.pagination.isEnd = false;
+    this.getAppList();
   }
 
   /**
@@ -319,6 +393,17 @@ export default class AppList extends tsc<{}> {
     this.appList = this.appList.map(item => ({ ...item, isExpan: this.isExpan }));
     if (this.isExpan) {
       this.getServiceData(this.appList.map(item => item.application_id));
+    }
+  }
+
+  /**
+   * @description 展开
+   * @param row
+   */
+  handleExpanChange(row: IAppListItem) {
+    row.isExpan = !row.isExpan;
+    if (row.isExpan) {
+      this.getServiceData([row.application_id]);
     }
   }
 
@@ -344,17 +429,6 @@ export default class AppList extends tsc<{}> {
       }
     });
     window.open(routeData.href);
-  }
-
-  /**
-   * @description 展开
-   * @param row
-   */
-  handleExpanChange(row: IAppListItem) {
-    row.isExpan = !row.isExpan;
-    if (row.isExpan) {
-      this.getServiceData([row.application_id]);
-    }
   }
 
   /**
@@ -432,6 +506,11 @@ export default class AppList extends tsc<{}> {
                 class='alarm-tools'
                 panel={this.alarmToolsPanel}
               />
+              <DashboardTools
+                showListMenu={false}
+                timeRange={this.timeRange}
+                onTimeRangeChange={this.handleTimeRangeChange}
+              ></DashboardTools>
               <bk-button
                 size='small'
                 theme='primary'

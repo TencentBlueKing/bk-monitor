@@ -97,6 +97,8 @@ export interface ICommonTableProps {
   stripe?: boolean;
   // 表格高度 默认为自动高度  height为Number类型，单位px height为String类型，则高度会设置为 Table 的 style.height
   height?: string | number;
+  // 表格最大高度
+  maxHeight?: string | number;
   // 是否显示表头
   showHeader?: boolean;
   // 是否高亮当前行
@@ -178,6 +180,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Prop({ type: Boolean, default: false }) stripe: boolean;
   // 表格高度
   @Prop({ type: [String, Number] }) height: string | number;
+  // 表格最大高度
+  @Prop({ type: [String, Number] }) maxHeight: string | number;
   // 是否显示表头
   @Prop({ type: Boolean, default: true }) showHeader: boolean;
   // 是否高亮当前行
@@ -710,8 +714,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               (this.hasOverviewData || !!headerPreIcon) && column.checked
                 ? () => this.renderColumnsHeader(column)
                 : !!column?.renderHeader
-                ? () => column.renderHeader()
-                : undefined
+                  ? () => column.renderHeader()
+                  : undefined
             }
             {...{
               props: {
@@ -774,6 +778,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           pagination={{ ...this.pagination }}
           ref='table'
           height={this.height}
+          max-height={this.maxHeight}
           showHeader={this.showHeader}
           highlightCurrentRow={this.highlightCurrentRow}
           header-cell-class-name={headerCellname}
