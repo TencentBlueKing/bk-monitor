@@ -29,12 +29,12 @@ import { useI18n } from 'vue-i18n';
 
 import { debounce } from '../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { monitorDrag } from '../../utils/drag-directive';
-import HandleBtn from '../main/handle-btn/handle-btn';
 
 import EmptyCard from './components/empty-card';
-import FavoriteList from './components/favorite-list';
+import HandleBtn from './components/handle-btn';
+// import FavoriteList from './components/favorite-list';
 import PageHeader from './components/page-header';
 import ProfilingDetail from './components/profiling-detail';
 import ProfilingRetrievalView from './components/profiling-retrieval-view';
@@ -56,19 +56,21 @@ export default defineComponent({
       timezone: getDefautTimezone(),
       refreshInterval: -1
     });
-    const favoriteState = reactive({
-      isShow: false
-    });
 
     /** 查询数据状态 */
     const searchState = reactive<SearchState>({
       isShow: true,
+      autoQueryTimer: null,
       autoQuery: true,
+      loading: false,
       canQuery: true,
       formData: {
         type: SearchType.Profiling,
         isComparison: false,
-        server: 7,
+        server: {
+          app_name: 'app1',
+          service_name: 'load-generator'
+        },
         where: [],
         comparisonWhere: []
       }
@@ -83,8 +85,6 @@ export default defineComponent({
     function handleShowTypeChange(type: PanelType, status: boolean) {
       if (type === 'search') {
         searchState.isShow = status;
-      } else {
-        favoriteState.isShow = status;
       }
     }
     /**
@@ -96,6 +96,10 @@ export default defineComponent({
       handleQueryDebounce();
     }
 
+    function handleDataTypeChange(v: string) {
+      dataType.value = v;
+    }
+
     /**
      * 查询表单数据改变
      * @param val 表单数据
@@ -104,60 +108,99 @@ export default defineComponent({
       searchState.formData = val;
       handleQueryDebounce();
     }
+    /** 切换自动查询 */
+    function handleAutoQueryChange(val: boolean) {
+      searchState.autoQuery = val;
+      startAutoQueryTimer();
+    }
+    /** 启动自动查询定时器 */
+    function startAutoQueryTimer() {
+      window.clearTimeout(searchState.autoQueryTimer);
+      /**
+       * 以下情况不能自动查询
+       * 1. 没有开启自动查询
+       * 2. 没有设置自动查询间隔
+       * 3. 查询按钮禁用
+       * 4. 正在查询
+       */
+      if (
+        toolsFormData.value.refreshInterval === -1 ||
+        !searchState.autoQuery ||
+        !searchState.canQuery ||
+        searchState.loading
+      )
+        return;
 
+      searchState.autoQueryTimer = window.setTimeout(startAutoQueryTimer, toolsFormData.value.refreshInterval);
+    }
+
+    /** 清除查询条件 */
+    function handleQueryClear() {
+      searchState.formData.isComparison = false;
+      searchState.formData.where = [];
+      searchState.formData.comparisonWhere = [];
+      searchState.formData.server = {
+        app_name: '',
+        service_name: ''
+      };
+    }
+    const handleQueryDebounce = debounce(handleQuery, 300, false);
+    /** 获取接口请求参数 */
+    function getParams() {
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      const { server, isComparison, where, comparisonWhere } = searchState.formData;
+
+      return {
+        start: start * 1000 * 1000,
+        end: end * 1000 * 1000,
+        ...server,
+        is_compared: isComparison,
+        filter_label: where.reduce((pre, cur) => {
+          pre[cur.key] = cur.value;
+          return pre;
+        }, {}),
+        diff_filter_label: comparisonWhere.reduce((pre, cur) => {
+          pre[cur.key] = cur.value;
+          return pre;
+        }, {}),
+        profile_type: dataType.value
+      };
+    }
+    /** 查询功能 */
+    function handleQuery() {
+      isEmpty.value = false;
+      console.log(getParams());
+    }
+
+    // ----------------------详情-------------------------
     const detailShow = ref(false);
     const detailType = ref<DetailType>(DetailType.Application);
     const detailData = ref<ServicesDetail>(null);
-    /** 展示详情侧边栏 */
-    function handleShowDetail(detail) {
+    /** 展示服务详情 */
+    function handleShowDetail(type: DetailType, detail) {
       detailShow.value = true;
-      detailType.value = DetailType.Application;
-      detailData.value = detail;
-    }
-    function handleShowFileDetail(detail) {
-      detailShow.value = true;
-      detailType.value = DetailType.UploadFile;
+      detailType.value = type;
       detailData.value = detail;
     }
 
-    function handleAutoQueryChange(val: boolean) {
-      searchState.autoQuery = val;
-    }
-    /** 清楚查询条件 */
-    function handleQueryClear() {}
-    /** 添加收藏 */
-    function handleAddFavorite() {}
-
-    const handleQueryDebounce = debounce(handleQuery, 300, false);
-
-    /** 查询功能 */
-    function handleQuery(isBtnClick = false) {
-      if (!isBtnClick && !searchState.autoQuery) return;
-      isEmpty.value = false;
-    }
-    function handleDataTypeChange(v: string) {
-      dataType.value = v;
-    }
     return {
       t,
       isEmpty,
       dataType,
-      favoriteState,
       searchState,
       toolsFormData,
       detailShow,
       detailType,
       detailData,
+      startAutoQueryTimer,
       handleToolFormDataChange,
       handleShowTypeChange,
       handleAutoQueryChange,
-      handleQuery,
+      handleQueryDebounce,
       handleQueryClear,
-      handleAddFavorite,
       handleSearchFormDataChange,
       handleDataTypeChange,
-      handleShowDetail,
-      handleShowFileDetail
+      handleShowDetail
     };
   },
 
@@ -188,7 +231,7 @@ export default defineComponent({
       return (
         <UploadRetrievalView
           formData={this.searchState.formData}
-          onShowFileDetail={this.handleShowFileDetail}
+          onShowFileDetail={detail => this.handleShowDetail(DetailType.UploadFile, detail)}
         />
       );
     };
@@ -198,14 +241,14 @@ export default defineComponent({
         <div class='page-header'>
           <PageHeader
             v-model={this.toolsFormData}
-            isShowFavorite={this.favoriteState.isShow}
             isShowSearch={this.searchState.isShow}
             onShowTypeChange={this.handleShowTypeChange}
             onChange={this.handleToolFormDataChange}
+            onRefreshIntervalChange={this.startAutoQueryTimer}
           ></PageHeader>
         </div>
         <div class='page-content'>
-          {this.favoriteState.isShow && (
+          {/* {this.favoriteState.isShow && (
             <div
               class='favorite-list-wrap'
               v-monitor-drag={{
@@ -220,7 +263,7 @@ export default defineComponent({
             >
               <FavoriteList></FavoriteList>
             </div>
-          )}
+          )} */}
           {this.searchState.isShow && (
             <div
               class='search-form-wrap'
@@ -237,17 +280,17 @@ export default defineComponent({
               <RetrievalSearch
                 formData={this.searchState.formData}
                 onChange={this.handleSearchFormDataChange}
-                onShowDetail={this.handleShowDetail}
+                onShowDetail={detail => this.handleShowDetail(DetailType.Application, detail)}
               >
                 {{
                   query: () => (
                     <HandleBtn
                       autoQuery={this.searchState.autoQuery}
                       canQuery={this.searchState.canQuery}
+                      loading={this.searchState.loading}
                       onChangeAutoQuery={this.handleAutoQueryChange}
-                      onQuery={() => this.handleQuery(true)}
+                      onQuery={this.handleQueryDebounce}
                       onClear={this.handleQueryClear}
-                      onAdd={this.handleAddFavorite}
                     ></HandleBtn>
                   )
                 }}

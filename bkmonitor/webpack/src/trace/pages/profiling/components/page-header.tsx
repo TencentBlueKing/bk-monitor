@@ -29,6 +29,7 @@ import { useI18n } from 'vue-i18n';
 import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import PageToolHeader from '../../../components/page-tool-header/page-tool-header';
 import { DEFAULT_TIME_RANGE, TimeRangeType } from '../../../components/time-range/utils';
+import { PanelType } from '../typings';
 import { ToolsFormData } from '../typings/page-header';
 
 import './page-header.scss';
@@ -49,7 +50,7 @@ export default defineComponent({
       default: null
     }
   },
-  emits: ['change', 'showTypeChange'],
+  emits: ['change', 'showTypeChange', 'refreshIntervalChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const toolsFormData = reactive<ToolsFormData>({
@@ -76,13 +77,14 @@ export default defineComponent({
     }
     function handleRefreshIntervalChange(refreshInterval: number) {
       toolsFormData.refreshInterval = refreshInterval;
+      emit('refreshIntervalChange', refreshInterval);
       handleEmitData();
     }
     function handleImmediateRefresh() {
       handleEmitData();
     }
 
-    function handleShowTypeChange(showType: 'search' | 'favorite', status: boolean) {
+    function handleShowTypeChange(showType: PanelType, status: boolean) {
       emit('showTypeChange', showType, status);
     }
 
@@ -116,7 +118,7 @@ export default defineComponent({
           prepend: () => (
             <div class='page-header-left'>
               <div class='icon-container'>
-                <div
+                {/* <div
                   v-bk-tooltips={{
                     content: this.isShowFavorite ? this.t('点击收起收藏') : this.t('点击展开收藏'),
                     placements: ['bottom'],
@@ -128,10 +130,10 @@ export default defineComponent({
                       'light-icon': !this.isShowFavorite
                     }
                   ]}
-                  onClick={() => this.handleShowTypeChange('favorite', !this.isShowFavorite)}
+                  onClick={() => this.handleShowTypeChange(PanelType.Favorite, !this.isShowFavorite)}
                 >
                   <span class='icon-monitor icon-mc-uncollect'></span>
-                </div>
+                </div> */}
                 <div
                   v-bk-tooltips={{
                     content: this.isShowSearch ? this.t('点击收起检索') : this.t('点击展开检索'),
@@ -139,7 +141,7 @@ export default defineComponent({
                     delay: 200
                   }}
                   class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
-                  onClick={() => this.handleShowTypeChange('search', !this.isShowSearch)}
+                  onClick={() => this.handleShowTypeChange(PanelType.Search, !this.isShowSearch)}
                 >
                   <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
                 </div>

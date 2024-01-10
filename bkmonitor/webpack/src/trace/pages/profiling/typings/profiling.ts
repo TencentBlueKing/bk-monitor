@@ -1,5 +1,3 @@
-import { RetrievalFormData } from './profiling-retrieval';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,13 +23,20 @@ import { RetrievalFormData } from './profiling-retrieval';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { RetrievalFormData } from './profiling-retrieval';
+
 export interface SearchState {
   /** 是否展示查询面板 */
   isShow: boolean;
+  /** 自动查询时间器 */
+  autoQueryTimer: number;
   /** 是否开启自动查询功能 */
   autoQuery: boolean;
   /** 是否能查询 */
   canQuery: boolean;
+  /** 查询loading */
+  loading: boolean;
   /** 表单数据 */
   formData: RetrievalFormData;
 }

@@ -60,10 +60,15 @@ export default defineComponent({
     ];
     /** 应用/服务可选列表 */
     const applicationList = ref([
-      { id: 1, name: 'app1', desc: 'app123', children: [{ id: 7, name: 'load-generator' }] },
-      { id: 2, name: 'rideshare-app', desc: 'app123', children: [{ id: 8, name: 'ride-sharing-app' }] },
-      { id: 3, name: 'nodata', desc: 'app123', children: [] },
-      { id: 4, name: 'nodata2', desc: 'app123', children: [] }
+      { id: 'app1', name: 'app1', desc: 'app123', children: [{ id: 'load-generator', name: 'load-generator' }] },
+      {
+        id: 'rideshare-app',
+        name: 'rideshare-app',
+        desc: 'app123',
+        children: [{ id: 'ride-sharing-app', name: 'ride-sharing-app' }]
+      },
+      { id: 'nodata', name: 'nodata', desc: 'app123', children: [] },
+      { id: 'nodata2', name: 'nodata2', desc: 'app123', children: [] }
     ]);
     /** 当前选中的应用/服务 */
     const selectApplicationData = ref({
@@ -78,7 +83,10 @@ export default defineComponent({
     });
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
-      server: null,
+      server: {
+        app_name: '',
+        service_name: ''
+      },
       isComparison: false,
       where: [],
       comparisonWhere: []
@@ -105,18 +113,19 @@ export default defineComponent({
 
     /**
      * 选择应用/服务
-     * @param id 选项id
-     * @param val 选项数据
+     * @param val 选项值
      */
-    function handleApplicationChange(id, val) {
-      localFormData.server = id;
-      selectApplicationData.value = val;
+    function handleApplicationChange(val: string[]) {
+      const [appName, serviceName] = val;
+      localFormData.server.app_name = appName;
+      localFormData.server.service_name = serviceName;
       handleEmitChange();
     }
 
     /** 查看详情 */
     function handleDetailClick() {
-      // if (!localFormData.server) return;
+      if (!localFormData.server.app_name || !localFormData.server.service_name) return;
+
       emit('showDetail', selectApplicationData.value);
     }
 
@@ -205,7 +214,7 @@ export default defineComponent({
                 <div class='content'>
                   <ApplicationCascade
                     list={this.applicationList}
-                    value={this.localFormData.server}
+                    value={[this.localFormData.server.app_name, this.localFormData.server.service_name]}
                     onChange={this.handleApplicationChange}
                   ></ApplicationCascade>
                   <div
