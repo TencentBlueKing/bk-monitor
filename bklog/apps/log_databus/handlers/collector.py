@@ -2689,7 +2689,7 @@ class CollectorHandler(object):
                         bk_biz_id=data["bk_biz_id"],
                         collector_type=config["collector_type"],
                         bcs_cluster_id=data["bcs_cluster_id"],
-                        namespace_list=config["namespaces"],
+                        namespace_list=config.get("namespaces") or config.get("namespaces_exclude"),
                     )
 
                 # 原生模式，直接通过结构化数据生成
@@ -2700,12 +2700,14 @@ class CollectorHandler(object):
                     collector_config_id=self.data.collector_config_id,
                     collector_type=config["collector_type"],
                     namespaces=config["namespaces"],
+                    namespaces_exclude=config["namespaces_exclude"],
                     any_namespace=not config["namespaces"],
                     data_encoding=config["data_encoding"],
                     params=config["params"],
                     workload_type=config["container"]["workload_type"],
                     workload_name=config["container"]["workload_name"],
                     container_name=config["container"]["container_name"],
+                    container_name_exclude=config["container"]["container_name_exclude"],
                     match_labels=config["label_selector"]["match_labels"],
                     match_expressions=config["label_selector"]["match_expressions"],
                     all_container=not any(
@@ -2713,6 +2715,7 @@ class CollectorHandler(object):
                             config["container"]["workload_type"],
                             config["container"]["workload_name"],
                             config["container"]["container_name"],
+                            config["container"]["container_name_exclude"],
                             config["label_selector"]["match_labels"],
                             config["label_selector"]["match_expressions"],
                         ]
@@ -2795,7 +2798,7 @@ class CollectorHandler(object):
                 bk_biz_id=bk_biz_id,
                 collector_type=config["collector_type"],
                 bcs_cluster_id=data["bcs_cluster_id"],
-                namespace_list=config["namespaces"],
+                namespace_list=config.get("namespaces") or config.get("namespaces_exclude"),
             )
 
         for key, value in collector_config_update.items():
@@ -3557,13 +3560,17 @@ class CollectorHandler(object):
                     data["configs"][x]["container"]["workload_type"],
                     data["configs"][x]["container"]["workload_name"],
                     data["configs"][x]["container"]["container_name"],
+                    data["configs"][x]["container"]["container_name_exclude"],
                     data["configs"][x]["label_selector"]["match_labels"],
                     data["configs"][x]["label_selector"]["match_expressions"],
                 ]
             )
             if x < len(container_configs):
                 container_configs[x].namespaces = data["configs"][x]["namespaces"]
-                container_configs[x].any_namespace = not data["configs"][x]["namespaces"]
+                container_configs[x].namespaces = data["configs"][x]["namespaces_exclude"]
+                container_configs[x].any_namespace = not (
+                    data["configs"][x]["namespaces"] and data["configs"][x]["namespaces_exclude"]
+                )
                 container_configs[x].data_encoding = data["configs"][x]["data_encoding"]
                 container_configs[x].params = (
                     {
@@ -3576,6 +3583,7 @@ class CollectorHandler(object):
                 container_configs[x].workload_type = data["configs"][x]["container"]["workload_type"]
                 container_configs[x].workload_name = data["configs"][x]["container"]["workload_name"]
                 container_configs[x].container_name = data["configs"][x]["container"]["container_name"]
+                container_configs[x].container_name_exclude = data["configs"][x]["container"]["container_name_exclude"]
                 container_configs[x].match_labels = data["configs"][x]["label_selector"]["match_labels"]
                 container_configs[x].match_expressions = data["configs"][x]["label_selector"]["match_expressions"]
                 container_configs[x].collector_type = data["configs"][x]["collector_type"]
@@ -3591,7 +3599,8 @@ class CollectorHandler(object):
                 container_config = ContainerCollectorConfig(
                     collector_config_id=collector_config_id,
                     namespaces=data["configs"][x]["namespaces"],
-                    any_namespace=not data["configs"][x]["namespaces"],
+                    namespaces_exclude=data["configs"][x]["namespaces_exclude"],
+                    any_namespace=not (data["configs"][x]["namespaces"] and data["configs"][x]["namespaces_exclude"]),
                     data_encoding=data["configs"][x]["data_encoding"],
                     params={
                         "paths": data["configs"][x]["paths"],
@@ -3602,6 +3611,7 @@ class CollectorHandler(object):
                     workload_type=data["configs"][x]["container"]["workload_type"],
                     workload_name=data["configs"][x]["container"]["workload_name"],
                     container_name=data["configs"][x]["container"]["container_name"],
+                    container_name_exclude=data["configs"][x]["container"]["container_name_exclude"],
                     match_labels=data["configs"][x]["label_selector"]["match_labels"],
                     match_expressions=data["configs"][x]["label_selector"]["match_expressions"],
                     collector_type=data["configs"][x]["collector_type"],
@@ -3802,13 +3812,27 @@ class CollectorHandler(object):
         ]
 
     @classmethod
-    def filter_pods(cls, pods, namespaces=None, workload_type="", workload_name="", container_name=""):
+    def filter_pods(
+        cls,
+        pods,
+        namespaces=None,
+        namespaces_exclude=None,
+        workload_type="",
+        workload_name="",
+        container_name="",
+        container_name_exclude=None,
+    ):
+        namespaces_exclude = namespaces_exclude or []
         container_names = container_name.split(",") if container_name else []
+        container_names_exclude = container_name_exclude or []
         pattern = re.compile(workload_name)
         filtered_pods = []
         for pod in pods.items:
             # 命名空间匹配
             if namespaces and pod.metadata.namespace not in namespaces:
+                continue
+
+            if namespaces_exclude and pod.metadata.namespace in namespaces_exclude:
                 continue
 
             # 工作负载匹配
@@ -3837,17 +3861,29 @@ class CollectorHandler(object):
                 else:
                     continue
 
+            if container_names_exclude:
+                is_continue = False
+                for container in pod.spec.containers:
+                    if container.name in container_names_exclude:
+                        is_continue = True
+                        break
+                if is_continue:
+                    continue
+
             filtered_pods.append(pod)
 
         return [(pod.metadata.namespace, pod.metadata.name) for pod in filtered_pods]
 
     @classmethod
-    def preview_containers(cls, bcs_cluster_id, topo_type, label_selector=None, namespaces=None, container=None):
+    def preview_containers(
+        cls, bcs_cluster_id, topo_type, label_selector=None, namespaces=None, namespaces_exclude=None, container=None
+    ):
         """
         预览匹配到的 nodes 或 pods
         """
         container = container or {}
         namespaces = namespaces or []
+        namespaces_exclude = namespaces_exclude or []
         label_selector = label_selector or {}
 
         # 将标签匹配条件转换为表达式
@@ -3890,17 +3926,17 @@ class CollectorHandler(object):
         # 当存在标签表达式时，以标签表达式维度展示
         # 当不存在标签表达式时，以namespace维度展示
         if selector_expression:
-            if not namespaces or len(namespaces) > 1:
+            if not namespaces or len(namespaces) > 1 or namespaces_exclude:
                 pods = api_instance.list_pod_for_all_namespaces(label_selector=selector_expression)
             else:
                 pods = api_instance.list_namespaced_pod(label_selector=selector_expression, namespace=namespaces[0])
         else:
-            if not namespaces or len(namespaces) > 1:
+            if not namespaces or len(namespaces) > 1 or namespaces_exclude:
                 pods = api_instance.list_pod_for_all_namespaces()
             else:
                 pods = api_instance.list_namespaced_pod(namespace=namespaces[0])
 
-        pods = cls.filter_pods(pods, namespaces=namespaces, **container)
+        pods = cls.filter_pods(pods, namespaces=namespaces, namespaces_exclude=namespaces_exclude, **container)
 
         # 按 namespace进行分组
         namespace_pods = defaultdict(list)
@@ -4041,11 +4077,14 @@ class CollectorHandler(object):
 
             # 校验配置
             try:
+                namespace_list = config.get("namespaceSelector", {}).get("matchNames", []) or config.get(
+                    "namespaceSelector", {}
+                ).get("excludeNames", [])
                 self.check_cluster_config(
                     bk_biz_id=bk_biz_id,
                     collector_type=log_config_type,
                     bcs_cluster_id=bcs_cluster_id,
-                    namespace_list=config.get("namespaceSelector", {}).get("matchNames", []),
+                    namespace_list=namespace_list,
                 )
             except AllNamespaceNotAllowedException:
                 return {
@@ -4080,12 +4119,14 @@ class CollectorHandler(object):
             container_configs.append(
                 {
                     "namespaces": config.get("namespaceSelector", {}).get("matchNames", []),
+                    "namespaces_exclude": config.get("namespaceSelector", {}).get("excludeNames", []),
                     "container": {
                         "workload_type": config.get("workloadType", ""),
                         "workload_name": config.get("workloadName", ""),
                         "container_name": ",".join(config["containerNameMatch"])
                         if config.get("containerNameMatch")
                         else "",
+                        "container_name_exclude": config.get("containerNameExcludeMatch", []),
                     },
                     "label_selector": {
                         "match_labels": [
@@ -4307,10 +4348,15 @@ class CollectorHandler(object):
             "encoding": container_config.data_encoding,
             "logConfigType": container_config.collector_type,
             "allContainer": container_config.all_container,
-            "namespaceSelector": {"any": container_config.any_namespace, "matchNames": container_config.namespaces},
+            "namespaceSelector": {
+                "any": container_config.any_namespace,
+                "matchNames": container_config.namespaces,
+                "excludeNames": container_config.namespaces_exclude,
+            },
             "workloadType": container_config.workload_type,
             "workloadName": container_config.workload_name,
             "containerNameMatch": container_config.container_name.split(",") if container_config.container_name else [],
+            "containerNameExcludeMatch": container_config.container_name_exclude or [],
             "labelSelector": {
                 "matchLabels": {label["key"]: label["value"] for label in container_config.match_labels}
                 if container_config.match_labels

@@ -237,6 +237,15 @@ class ContainerSerializer(serializers.Serializer):
     workload_type = serializers.CharField(label=_("workload类型"), default="", allow_blank=True)
     workload_name = serializers.CharField(label=_("workload名称"), allow_blank=True, default="")
     container_name = serializers.CharField(label=_("容器名称"), required=False, allow_blank=True, default="")
+    container_name_exclude = serializers.ListSerializer(
+        child=serializers.CharField(), required=False, label=_("排除容器名称"), default=[]
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get("container_name") and attrs.get("container_name_exclude"):
+            raise ValidationError(_("不能同时指定容器名称和排除容器名称"))
 
 
 class LabelSelectorSerializer(serializers.Serializer):
@@ -250,12 +259,21 @@ class LabelSelectorSerializer(serializers.Serializer):
 
 class ContainerConfigSerializer(serializers.Serializer):
     namespaces = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("命名空间"), default=[])
+    namespaces_exclude = serializers.ListSerializer(
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
+    )
     container = ContainerSerializer(required=False, label=_("指定容器"))
     label_selector = LabelSelectorSerializer(required=False, label=_("标签"))
     paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"))
     data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
     params = PluginParamSerializer(required=True, label=_("插件参数"))
     collector_type = serializers.CharField(label=_("容器采集类型"))
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get("namespaces") and attrs.get("namespaces_exclude"):
+            raise ValidationError(_("不能同时指定命名空间和排除指定空间"))
 
 
 class BcsContainerConfigSerializer(serializers.Serializer):
@@ -1160,6 +1178,9 @@ class PreviewContainersSerializer(serializers.Serializer):
         required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
     )
     namespaces = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("命名空间"), default=[])
+    namespaces_exclude = serializers.ListSerializer(
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
+    )
     container = ContainerSerializer(required=False, label=_("指定容器"))
 
 
@@ -1180,6 +1201,7 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
     class NamespaceSelector(serializers.Serializer):
         any = serializers.BooleanField(label=_("是否匹配全部命名空间"), required=False)
         matchNames = serializers.ListField(label=_("关键字列表"), allow_empty=True, required=False)
+        excludeNames = serializers.ListField(label=_("排除关键字列表"), allow_empty=True, required=False)
 
     class MultilineSerializer(serializers.Serializer):
         pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
@@ -1233,6 +1255,9 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
     workloadName = serializers.CharField(label=_("匹配工作负载名称"), required=False, allow_blank=True)
     containerNameMatch = serializers.ListField(
         label=_("容器名称匹配"), child=serializers.CharField(), required=False, allow_empty=True
+    )
+    containerNameExcludeMatch = serializers.ListField(
+        label=_("容器名称匹配排除"), child=serializers.CharField(), required=False, allow_empty=True
     )
     labelSelector = LabelSelectorSerializer(label=_("匹配标签"), required=False)
     delimiter = serializers.CharField(
