@@ -683,16 +683,17 @@ class GetVariableValue(Resource):
         timestamp = int(time.time() // 60 * 60)
         start_time = params.get("start_time", timestamp - 30 * 60)
         end_time = params.get("end_time", timestamp)
-
-        time_range = end_time - start_time
-        if time_range < 5 * 60:
-            interval = 60
-        elif time_range < 60 * 60:
-            interval = 5 * 60
-        elif time_range < 24 * 60 * 60:
-            interval = 60 * 60
-        else:
-            interval = 24 * 60 * 60
+        interval = params.get("interval")
+        if not interval:
+            time_range = end_time - start_time
+            if time_range < 5 * 60:
+                interval = 60
+            elif time_range < 60 * 60:
+                interval = 5 * 60
+            elif time_range < 24 * 60 * 60:
+                interval = 60 * 60
+            else:
+                interval = 24 * 60 * 60
 
         # 增加cookies过滤
         cookies_filter = get_cookies_filter()
