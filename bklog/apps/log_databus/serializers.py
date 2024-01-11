@@ -237,15 +237,21 @@ class ContainerSerializer(serializers.Serializer):
     workload_type = serializers.CharField(label=_("workload类型"), default="", allow_blank=True)
     workload_name = serializers.CharField(label=_("workload名称"), allow_blank=True, default="")
     container_name = serializers.CharField(label=_("容器名称"), required=False, allow_blank=True, default="")
-    container_name_exclude = serializers.ListSerializer(
-        child=serializers.CharField(), required=False, label=_("排除容器名称"), default=[]
-    )
+    container_name_exclude = serializers.CharField(label=_("排除容器名称"), required=False, allow_blank=True, default="")
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
         if attrs.get("container_name") and attrs.get("container_name_exclude"):
             raise ValidationError(_("不能同时指定容器名称和排除容器名称"))
+
+        container_name_exclude = attrs.get("container_name_exclude")
+
+        container_name_exclude = [name.strip() for name in container_name_exclude.split(",") if name]
+
+        attrs["container_name_exclude"] = container_name_exclude
+
+        return attrs
 
 
 class LabelSelectorSerializer(serializers.Serializer):
@@ -274,6 +280,8 @@ class ContainerConfigSerializer(serializers.Serializer):
 
         if attrs.get("namespaces") and attrs.get("namespaces_exclude"):
             raise ValidationError(_("不能同时指定命名空间和排除指定空间"))
+
+        return attrs
 
 
 class BcsContainerConfigSerializer(serializers.Serializer):

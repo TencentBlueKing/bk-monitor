@@ -2685,12 +2685,13 @@ class CollectorHandler(object):
             else:
                 # 效验共享集群命名空间是否在允许的范围
                 for config in data["configs"]:
-                    self.check_cluster_config(
-                        bk_biz_id=data["bk_biz_id"],
-                        collector_type=config["collector_type"],
-                        bcs_cluster_id=data["bcs_cluster_id"],
-                        namespace_list=config.get("namespaces") or config.get("namespaces_exclude"),
-                    )
+                    if config.get("namespaces"):
+                        self.check_cluster_config(
+                            bk_biz_id=data["bk_biz_id"],
+                            collector_type=config["collector_type"],
+                            bcs_cluster_id=data["bcs_cluster_id"],
+                            namespace_list=config["namespaces"],
+                        )
 
                 # 原生模式，直接通过结构化数据生成
                 container_configs = data["configs"]
@@ -2794,12 +2795,13 @@ class CollectorHandler(object):
 
         # 效验共享集群命名空间是否在允许的范围
         for config in data["configs"]:
-            self.check_cluster_config(
-                bk_biz_id=bk_biz_id,
-                collector_type=config["collector_type"],
-                bcs_cluster_id=data["bcs_cluster_id"],
-                namespace_list=config.get("namespaces") or config.get("namespaces_exclude"),
-            )
+            if config.get("namespaces"):
+                self.check_cluster_config(
+                    bk_biz_id=bk_biz_id,
+                    collector_type=config["collector_type"],
+                    bcs_cluster_id=data["bcs_cluster_id"],
+                    namespace_list=config["namespaces"],
+                )
 
         for key, value in collector_config_update.items():
             setattr(self.data, key, value)
@@ -3862,13 +3864,14 @@ class CollectorHandler(object):
                     continue
 
             if container_names_exclude:
-                is_continue = False
+                is_break = True
                 for container in pod.spec.containers:
-                    if container.name in container_names_exclude:
-                        is_continue = True
+                    if container.name not in container_names_exclude:
+                        is_break = False
                         break
-                if is_continue:
-                    continue
+
+                if is_break:
+                    break
 
             filtered_pods.append(pod)
 
@@ -4077,15 +4080,14 @@ class CollectorHandler(object):
 
             # 校验配置
             try:
-                namespace_list = config.get("namespaceSelector", {}).get("matchNames", []) or config.get(
-                    "namespaceSelector", {}
-                ).get("excludeNames", [])
-                self.check_cluster_config(
-                    bk_biz_id=bk_biz_id,
-                    collector_type=log_config_type,
-                    bcs_cluster_id=bcs_cluster_id,
-                    namespace_list=namespace_list,
-                )
+                namespace_list = config.get("namespaceSelector", {}).get("matchNames", [])
+                if namespace_list:
+                    self.check_cluster_config(
+                        bk_biz_id=bk_biz_id,
+                        collector_type=log_config_type,
+                        bcs_cluster_id=bcs_cluster_id,
+                        namespace_list=namespace_list,
+                    )
             except AllNamespaceNotAllowedException:
                 return {
                     "origin_text": yaml_config,
