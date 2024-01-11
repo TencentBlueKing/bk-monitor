@@ -584,7 +584,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         const metricData = this.$route.query.data ? this.$route.query.data : this.$route.params.data;
         metric = typeof metricData === 'string' ? JSON.parse(decodeURIComponent(metricData)) : metricData;
         // promql
-        if (metric.mode === 'code' || metric.data[0]?.promql) {
+        if (metric.mode === 'code' || metric.data?.[0]?.promql) {
           await this.$nextTick();
           this.monitorDataEditMode = 'Source';
           this.sourceData.sourceCode = metric.data[0]?.promql || '';
