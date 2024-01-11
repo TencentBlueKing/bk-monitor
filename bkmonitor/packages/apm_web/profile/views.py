@@ -28,6 +28,7 @@ from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.doris.converter import DorisConverter
 from apm_web.profile.doris.querier import APIParams, APIType, Query
 from apm_web.profile.file_handler import ProfilingFileHandler
+from apm_web.profile.resources import QueryServicesDetailResource
 from apm_web.profile.serializers import (
     ProfileListFileSerializer,
     ProfileQuerySerializer,
@@ -39,7 +40,6 @@ from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-
 
 logger = logging.getLogger("root")
 
