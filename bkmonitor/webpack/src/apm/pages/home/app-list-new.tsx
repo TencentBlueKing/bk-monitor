@@ -79,7 +79,17 @@ interface IAppListItem {
     type: string;
   };
   firstCodeColor: string;
-  tableData: ICommonTableProps & { paginationData: { current: number; limit: number; count: number } };
+  tableData: ICommonTableProps & {
+    paginationData: {
+      current: number;
+      limit: number;
+      count: number;
+      isEnd?: boolean;
+    };
+  };
+  tableDataLoading: boolean;
+  tableSortKey: string;
+  tableFilters: IFilterDict;
 }
 
 @Component
@@ -228,17 +238,25 @@ export default class AppList extends tsc<{}> {
         tableData: {
           pagination: null,
           paginationData: {
-            count: 20,
+            count: 0,
             current: 1,
-            limit: 15
+            limit: 15,
+            // limit: 5,
+            isEnd: false
           },
           columns: [],
           data: [],
+          loading: false,
           checkable: false,
           showLimit: false,
           outerBorder: true,
+          scrollLoading: false,
           maxHeight: 584
+          // maxHeight: 284
         },
+        tableDataLoading: false,
+        tableSortKey: '',
+        tableFilters: {},
         service_count: null
       };
     };
@@ -281,19 +299,35 @@ export default class AppList extends tsc<{}> {
       });
     });
   }
-  /* 获取服务列表 */
-  getServiceData(appIds: number[]) {
+  /**
+   * @description 获取服务列表
+   * @param appIds
+   * @param isScrollEnd
+   * @param isReflesh
+   */
+  getServiceData(appIds: number[], isScrollEnd = false, isReflesh = false) {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const appIdsSet = new Set(appIds);
     this.appList.forEach(item => {
+      if (item.tableDataLoading || item.tableData.paginationData.isEnd) {
+        return;
+      }
+      if (!isScrollEnd && item.tableData.data.length && !isReflesh) {
+        return;
+      }
       if (appIdsSet.has(item.application_id)) {
+        if (isScrollEnd) {
+          item.tableDataLoading = true;
+        } else {
+          item.tableData.loading = true;
+        }
         serviceList({
           app_name: item.app_name,
           start_time: startTime,
           end_time: endTime,
           filter: '',
-          sort: '',
-          filter_dict: {},
+          sort: item.tableSortKey,
+          filter_dict: item.tableFilters,
           check_filter_dict: {},
           page: item.tableData.paginationData.current,
           page_size: item.tableData.paginationData.limit,
@@ -312,9 +346,14 @@ export default class AppList extends tsc<{}> {
           },
           bk_biz_id: this.$store.getters.bizId
         }).then(({ columns, data, total }) => {
-          item.tableData.data = data || [];
+          if (item.tableData.paginationData.current > 1) {
+            item.tableData.data.push(...(data || []));
+          } else {
+            item.tableData.data = data || [];
+          }
           item.tableData.columns = columns || [];
           item.tableData.paginationData.count = total;
+          item.tableData.paginationData.isEnd = (data || []).length < item.tableData.paginationData.limit;
           const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
           const services = (data || []).map(d => d.service_name.value);
           fields.forEach(field => {
@@ -341,6 +380,8 @@ export default class AppList extends tsc<{}> {
                   ...col,
                   asyncable: col.id === field ? false : col.asyncable
                 }));
+                item.tableDataLoading = false;
+                item.tableData.loading = false;
               });
           });
         });
@@ -354,6 +395,12 @@ export default class AppList extends tsc<{}> {
    */
   handleTimeRangeChange(v) {
     this.timeRange = v;
+  }
+
+  handleImmediateReflesh() {
+    this.pagination.current = 1;
+    this.pagination.isEnd = false;
+    this.getAppList();
   }
 
   /** 展示添加弹窗 */
@@ -493,6 +540,62 @@ export default class AppList extends tsc<{}> {
     }
   }
 
+  /**
+   * @description 收藏
+   * @param val
+   * @param row
+   */
+  handleCollect(val, item: IAppListItem) {
+    const apis = val.api.split('.');
+    (this as any).$api[apis[0]][apis[1]](val.params).then(() => {
+      item.tableData.paginationData.current = 1;
+      item.tableData.paginationData.isEnd = false;
+      this.getServiceData([item.application_id], false, true);
+    });
+  }
+
+  /**
+   * @description 表格滚动到底部
+   * @param row
+   */
+  handleScrollEnd(item: IAppListItem) {
+    item.tableData.paginationData.current += 1;
+    this.getServiceData([item.application_id], true);
+  }
+
+  /**
+   * @description 表格排序
+   * @param param0
+   * @param item
+   */
+  handleSortChange({ prop, order }, item: IAppListItem) {
+    switch (order) {
+      case 'ascending':
+        item.tableSortKey = prop;
+        break;
+      case 'descending':
+        item.tableSortKey = `-${prop}`;
+        break;
+      default:
+        item.tableSortKey = undefined;
+    }
+    item.tableData.paginationData.current = 1;
+    item.tableData.paginationData.isEnd = false;
+    this.getServiceData([item.application_id], false, true);
+  }
+
+  /**
+   * @description 表格筛选
+   * @param filters
+   * @param item
+   */
+  handleFilterChange(filters: IFilterDict, item: IAppListItem) {
+    item.tableFilters = filters;
+    item.tableData.paginationData.current = 1;
+    item.tableData.paginationData.isEnd = false;
+    this.getServiceData([item.application_id], false, true);
+  }
+
   render() {
     return (
       <div class='app-list-wrap-page'>
@@ -510,6 +613,7 @@ export default class AppList extends tsc<{}> {
                 showListMenu={false}
                 timeRange={this.timeRange}
                 onTimeRangeChange={this.handleTimeRangeChange}
+                onImmediateReflesh={() => this.handleImmediateReflesh()}
               ></DashboardTools>
               <bk-button
                 size='small'
@@ -651,7 +755,13 @@ export default class AppList extends tsc<{}> {
                     {item.isExpan && (
                       <div class='expan-content'>
                         {item.tableData.data.length ? (
-                          <CommonTable {...{ props: item.tableData }}></CommonTable>
+                          <CommonTable
+                            {...{ props: item.tableData }}
+                            onCollect={val => this.handleCollect(val, item)}
+                            onScrollEnd={() => this.handleScrollEnd(item)}
+                            onSortChange={val => this.handleSortChange(val as any, item)}
+                            onFilterChange={val => this.handleFilterChange(val, item)}
+                          ></CommonTable>
                         ) : (
                           <EmptyStatus
                             textMap={{

@@ -65,6 +65,7 @@ const HEADER_PRE_ICON_NAME = 'header_pre_icon';
 export interface ICommonTableProps {
   // 表格loading
   loading?: boolean;
+  scrollLoading?: boolean;
   // 设置表头字段 存储到本地localstorage key值 默认不设置
   storeKey?: string;
   // 是否可选择行
@@ -140,6 +141,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Ref('table') tableRef: Table;
   // table loading
   @Prop({ default: false }) loading: boolean;
+  // scroll Loading
+  @Prop({ default: false }) scrollLoading: boolean;
   // 是否显示表格列设置
   @Prop({ default: true }) hasColnumSetting: boolean;
   // 设置的表格固定列保存在localstorage的key值
@@ -784,6 +787,13 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           header-cell-class-name={headerCellname}
           cell-class-name={cellName}
           v-bkloading={{ isLoading: this.loading, zIndex: 1000 }}
+          scroll-loading={{
+            isLoading: this.scrollLoading,
+            size: 'mini',
+            theme: 'info',
+            icon: 'circle-2-1',
+            placement: 'right'
+          }}
           on-sort-change={this.handleSortChange}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
