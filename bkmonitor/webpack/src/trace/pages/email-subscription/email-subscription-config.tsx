@@ -53,14 +53,15 @@ import {
   getSendRecords,
   sendReport
 } from '../../../monitor-api/modules/new_report';
-import { deepClone } from '../../../monitor-common/utils';
+import { deepClone, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
+import { docCookies } from '../../../monitor-common/utils/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
-import { getDefaultReportData, TestSendingTarget } from './types';
-import { getSendFrequencyText } from './utils';
+import { TestSendingTarget } from './types';
+import { getDefaultReportData, getSendFrequencyText } from './utils';
 
 import './email-subscription-config.scss';
 
@@ -70,6 +71,9 @@ type TooltipsToggleMapping = {
 
 // 表格字段 显隐设置的配置需要持久化到本地。
 const keyOfTableSettingInLocalStorage = 'report_list_table_settings';
+
+const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
+console.log(currentLang);
 
 export default defineComponent({
   name: 'EmailSubscriptionConfig',
@@ -1147,7 +1151,23 @@ export default defineComponent({
                 <div class='slider-header-container'>
                   <div class='title-container'>
                     <span class='title'>{this.t('订阅详情')}</span>
-                    <span class='sub-title'>-&nbsp;{this.subscriptionDetail.name}</span>
+                    <Popover
+                      placement='bottom-start'
+                      v-slots={{
+                        content: () => {
+                          return <span>{this.subscriptionDetail.name}</span>;
+                        }
+                      }}
+                    >
+                      <span
+                        class='sub-title'
+                        style={{
+                          maxWidth: currentLang === 'en' ? '180px' : '250px'
+                        }}
+                      >
+                        -&nbsp;{this.subscriptionDetail.name}
+                      </span>
+                    </Popover>
                   </div>
 
                   <div class='operation-container'>

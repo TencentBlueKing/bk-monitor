@@ -82,7 +82,7 @@ export type Channel = {
 };
 
 export type Report = {
-  id: number;
+  id?: number;
   is_enabled?: boolean;
   is_deleted?: boolean;
   create_user?: string;
@@ -103,10 +103,14 @@ export type Report = {
   is_manager_created?: boolean;
   channels: Channel[];
   is_invalid?: boolean;
-  is_self_subscribed: boolean;
+  is_self_subscribed?: boolean;
   last_send_time?: null | string;
-  send_status: string;
+  send_status?: string;
   // 该值为表单组件内的使用值，请不要上传。
   timerange?: string[];
+  // 表单的验证的 bug ，后期再考虑删掉
+  scenario_config__log_display_count?: number;
+  // 同上一个道理
+  content_config__title?: string;
 };
 // 订阅详情 对象 结束
