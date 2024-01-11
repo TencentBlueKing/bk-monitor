@@ -104,6 +104,7 @@ class QueryDataResource(BkDataQueryAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         sql = serializers.CharField(required=True, label="查询SQL语句")
+        prefer_storage = serializers.CharField(required=False, label="查询引擎")
 
     def perform_request(self, params):
         if settings.BKDATA_DATA_TOKEN:

@@ -15,8 +15,11 @@ from typing import Optional
 
 import requests
 from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
 
 from api.bkdata.default import QueryDataResource
+from apm_web.models import Application
+from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,8 @@ class APIParams:
 
     label_key: Optional[str] = None
     label_filter: Optional[dict] = None
+    limit: dict = None
+    order: dict = None
 
     def to_dict(self):
         r = {
@@ -50,7 +55,10 @@ class APIParams:
             r["label_key"] = self.label_key
         if self.label_filter:
             r["label_filter"] = self.label_filter
-
+        if self.limit:
+            r["limit"] = self.limit
+        if self.order:
+            r["order"] = self.order
         return r
 
 
@@ -96,3 +104,51 @@ class Query:
             return None
 
         return res["data"]
+
+
+class QueryTemplate:
+    def __init__(self, bk_biz_id, app_name):
+        try:
+            application_id = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id).pk
+        except Exception:  # pylint: disable=broad-except
+            raise ValueError(_("应用({}) 不存在").format(app_name))
+
+        try:
+            application_info = api.apm_api.detail_application({"application_id": application_id})
+        except Exception:  # pylint: disable=broad-except
+            raise ValueError(_("应用({}.{}) 不存在").format(bk_biz_id, app_name))
+
+        if "profiling_config" not in application_info:
+            raise ValueError(_("应用({}.{}) 未开启性能分析").format(bk_biz_id, app_name))
+
+        self.result_table_id = application_info["profiling_config"]["result_table_id"]
+        self.bk_biz_id = bk_biz_id
+        self.app_name = app_name
+
+    def get_sample_info(self, start, end, _type, label_filter=None):
+        """查询样本基本信息"""
+        if not label_filter:
+            label_filter = {}
+
+        res = Query(
+            api_type=APIType.QUERY_SAMPLE,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                type=_type,
+                start=start,
+                end=end,
+                limit={"offset": 0, "rows": 1},
+                order={"expr": "time", "sort": "desc"},
+                **label_filter,
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+        if not res:
+            return None
+
+        data_list = res.get("list")
+        if not data_list:
+            return None
+
+        return {"last_report_time": data_list["list"][0].get("timestamp")}
