@@ -44,8 +44,11 @@ export interface ViewModeItem {
 }
 
 export interface ProfilingTableItem {
+  id: number;
+  name: string;
+  self: number;
+  total: number;
   location: string;
-  self: string;
   Total: string;
   color?: string;
   diff?: string;

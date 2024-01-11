@@ -121,5 +121,7 @@ export default {
   关联告警组: 'Related Alarm Group',
   设计值班时间: 'Design Duty Time',
   设置轮值规则: 'Set Rotation Rules',
-  添加轮值人员: 'Add Rotation Members'
+  添加轮值人员: 'Add Rotation Members',
+  查询项: 'Query Item',
+  对比项: 'Comparative Item'
 };
