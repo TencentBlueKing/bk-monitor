@@ -3910,12 +3910,3 @@ class ArgusStorage(models.Model, StorageResultTable):
     def add_field(self, field):
         """增加一个新的字段"""
         pass
-
-
-class ClusterMetric(models.Model):
-    metric_name = models.CharField(verbose_name="指标名称", max_length=512, primary_key=True)
-    tags = JsonField(verbose_name="维度字段列表", default=[])
-
-    class Meta:
-        verbose_name = "集群指标配置"
-        verbose_name_plural = "集群指标配置"
