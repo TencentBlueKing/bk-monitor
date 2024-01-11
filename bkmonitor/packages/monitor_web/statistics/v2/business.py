@@ -9,6 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import arrow
+
+from apm_web.constants import DataStatus
 from apm_web.models import Application
 from django.utils.functional import cached_property
 from monitor.models import UptimeCheckTask
@@ -159,7 +161,8 @@ class BusinessCollector(BaseCollector):
     @cached_property
     def apm_biz_count(self):
         return (
-            Application.objects.filter(bk_biz_id__in=list(self.biz_info.keys()), is_enabled=True)
+            Application.objects.filter(
+                bk_biz_id__in=list(self.biz_info.keys()), is_enabled=True, data_status=DataStatus.NORMAL)
             .values_list("bk_biz_id", flat=True)
             .distinct()
             .count()

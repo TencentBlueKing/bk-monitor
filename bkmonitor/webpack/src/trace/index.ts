@@ -34,14 +34,15 @@ import { Message } from 'bkui-vue';
 import Api from '../monitor-api/api';
 import { setVue } from '../monitor-api/utils/index';
 import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
-import { getUrlParam, setGlobalBizId } from '../monitor-common/utils';
+import { getUrlParam, mergeSpaceList, setGlobalBizId } from '../monitor-common/utils';
 
 import directives from './directive/index';
 import App from './pages/app';
 import router from './router/router';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
-
+// 全量引入 bkui-vue 样式
+import 'bkui-vue/dist/style.css';
 import '../monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
 
@@ -71,7 +72,9 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       Object.keys(data).forEach(key => {
         window[key.toLocaleLowerCase()] = data[key];
       });
+      mergeSpaceList(window.space_list);
       window.username = window.uin;
+      window.user_name = window.uin;
       window.cc_biz_id = +window.bk_biz_id;
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       setGlobalBizId();
@@ -94,7 +97,9 @@ if (window.__POWERED_BY_BK_WEWEB__) {
             window[key.toLocaleLowerCase()] = data[key];
           });
         });
-      serviceWorker.register();
     })
-    .catch(e => console.error(e));
+    .catch(e => console.error(e))
+    .finally(() => {
+      serviceWorker.immediateRegister();
+    });
 }

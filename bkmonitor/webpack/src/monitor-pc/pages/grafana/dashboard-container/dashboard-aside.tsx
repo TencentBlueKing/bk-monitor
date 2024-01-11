@@ -262,7 +262,10 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     }
   }
   handleResetChecked() {
-    if (this.$route.name === 'grafana-home') {
+    if (this.$store.getters.bizIdChangePedding) {
+      const list = this.$store.getters.bizIdChangePedding?.split('/') || [];
+      this.checked = list.length < 2 ? GRAFANA_HOME_ID : list[2] || GRAFANA_HOME_ID;
+    } else if (this.$route.name === 'grafana-home') {
       this.checked = GRAFANA_HOME_ID;
     } else if (this.$route.name === 'favorite-dashboard') {
       this.checked = this.$route.params?.url || '';
@@ -279,7 +282,6 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       return [];
     });
     this.grafanaList = this.handleGrafanaTreeData(list);
-    console.info(this.grafanaList);
     this.grafanaList.unshift({
       id: 99999,
       title: 'Home',
@@ -737,7 +739,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 <span
                   v-bk-tooltips={{
                     content: item.tips,
-                    extCls: 'garfana-link-tips'
+                    extCls: 'garfana-link-tips',
+                    allowHTML: false
                   }}
                   class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}

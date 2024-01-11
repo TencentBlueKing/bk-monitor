@@ -169,8 +169,8 @@ export default defineComponent({
       const data = await getUserList(params);
       setUsers(data);
     }
-    function handleFocus(v) {
-      console.log(v);
+    function handleFocus() {
+      // console.log(v);
     }
     function handleBlur() {
       key.value = random(8);
@@ -178,7 +178,9 @@ export default defineComponent({
     }
 
     async function getUserList(params: Record<string, any>) {
-      return await listUsersUser(params)
+      return await listUsersUser(params, {
+        needCancel: true
+      })
         .then(res => res?.results || [])
         .catch(() => []);
     }

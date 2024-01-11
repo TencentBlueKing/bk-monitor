@@ -200,7 +200,12 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   created() {
     this.handleSearch = debounce(300, false, this.handleSearchChange);
   }
-
+  mounted() {
+    if (!this.loading && !this.tableData.loading) {
+      this.clearConditions();
+      this.init();
+    }
+  }
   beforeRouteEnter(to, from, next) {
     next(vm => {
       vm.dataReset();
@@ -493,6 +498,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 this.hasManageAuth ? this.addCustomEscalation() : this.handleShowAuthorityDetail(this.manageAuthDetail)
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建')}
             </Button>
             <Input

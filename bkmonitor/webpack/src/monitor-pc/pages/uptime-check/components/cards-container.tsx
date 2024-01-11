@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Button } from 'bk-magic-vue';
-import { addListener, removeListener } from 'resize-detector';
 
 import { Debounce } from '../../../../monitor-common/utils/utils';
 

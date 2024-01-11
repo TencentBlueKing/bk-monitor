@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop } from 'vue-property-decorator';
+import { ofType } from 'vue-tsx-support';
 
 import { secToString } from '../../../../components/cycle-input/utils';
+import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
 import { MetricDetail } from '../../strategy-config-set-new/typings';
 
@@ -52,13 +53,15 @@ interface IConfigsItem {
  * 策略详情的指标项展示组件
  */
 @Component
-export default class MetricListItem extends tsc<IProps> {
+class MetricListItem extends Mixins(metricTipsContentMixin) {
   /** 指标数据 */
   @Prop({ type: Object }) metric: MetricDetail;
   /** 是否为表达式 */
   @Prop({ default: '', type: String }) expression: string;
   /** 表达式函数 */
   @Prop({ default: () => [], type: Array }) expFunctions: IFunctionsValue[];
+
+  popoverInstance = null;
 
   confisList: IConfigsItem[] = [
     {
@@ -143,7 +146,14 @@ export default class MetricListItem extends tsc<IProps> {
       if (item.enabled) {
         switch (item.key) {
           case 'metricName':
-            item.value = metric.metric_field_name || (metric.metric_id as any);
+            item.value = (
+              <span
+                onMouseenter={e => this.handleMetricMouseenter(e)}
+                onMouseleave={this.handleMetricMouseleave}
+              >
+                {metric.metric_field_name || (metric.metric_id as any)}
+              </span>
+            );
             item.label = this.metricNameLabel();
             break;
           case 'logMetricName':
@@ -181,6 +191,31 @@ export default class MetricListItem extends tsc<IProps> {
     });
   }
 
+  handleMetricMouseenter(e) {
+    let content = '';
+    try {
+      content = this.handleGetMetricTipsContent(this.metric);
+    } catch (error) {
+      // content = `${this.$t('指标不存在')}`;
+    }
+    if (content) {
+      this.popoverInstance = this.$bkPopover(e.target, {
+        content,
+        placement: 'right',
+        theme: 'monitor-metric-popover',
+        arrow: true,
+        flip: false
+      });
+      this.popoverInstance?.show?.(100);
+    }
+  }
+
+  handleMetricMouseleave() {
+    this.popoverInstance?.hide?.();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
+  }
+
   /** 指标名label */
   metricNameLabel() {
     const { metricMetaId, data_source_label: dataSourceLabel, data_type_label } = this.metric;
@@ -209,7 +244,21 @@ export default class MetricListItem extends tsc<IProps> {
         {this.metric.agg_dimension.map(id => {
           const groupByItem = this.metric.dimensions.find(item => item.id === id);
           const name = groupByItem?.name ?? id;
-          return <span class='groupby-item'>{name}</span>;
+          return (
+            <span
+              class='groupby-item'
+              v-bk-tooltips={{
+                content: id,
+                trigger: 'mouseenter',
+                zIndex: 9999,
+                offset: '0, 6',
+                boundary: document.body,
+                allowHTML: false
+              }}
+            >
+              {name}
+            </span>
+          );
         })}
       </span>
     ) : undefined;
@@ -274,3 +323,5 @@ export default class MetricListItem extends tsc<IProps> {
     );
   }
 }
+
+export default ofType<IProps>().convert(MetricListItem);

@@ -148,7 +148,7 @@ export default class MaskingAddRule extends tsc<IProps> {
       },
       {
         max: 30,
-        message: window.mainComponent.$t('不能多于30个字符'),
+        message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
         trigger: 'blur',
       },
       {

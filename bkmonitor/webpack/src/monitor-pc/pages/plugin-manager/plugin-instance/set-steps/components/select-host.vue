@@ -85,7 +85,8 @@
                 v-bk-tooltips="{
                   content: `${scope.row.agentStatusName}${$t('不能进行调试')}`,
                   boundary: 'window',
-                  disabled: scope.row.agentStatus === 0
+                  disabled: scope.row.agentStatus === 0,
+                  allowHTML: false
                 }"
               >{{ scope.row.agentStatusName }}</span>
             </template>

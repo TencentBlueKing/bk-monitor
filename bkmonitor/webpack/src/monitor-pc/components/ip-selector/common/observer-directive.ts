@@ -26,7 +26,7 @@
 /* eslint-disable no-underscore-dangle */
 import { DirectiveOptions } from 'vue';
 import { DirectiveBinding } from 'vue/types/options';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 interface ICustomElements extends HTMLElement {
   __mutation__?: MutationObserver;

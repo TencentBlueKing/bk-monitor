@@ -33,7 +33,7 @@ class Config(AppConfig):
         global_config.run(apps)
 
         # 检测是否运行测试（python manage.py test 或 pytest）
-        if "test" in sys.argv or "pytest" in sys.modules:
+        if "test" in sys.argv or "pytest" in sys.modules and settings.ROLE != "worker":
             hack_settings(GlobalConfig, settings)
             if settings.ROLE == "worker":
                 post_migrate.connect(_refresh_cache_node, sender=self, dispatch_uid="bkmonitor test")
