@@ -134,7 +134,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("action_id", _lazy("处理记录ID"), es_field="id"),
         QueryField("converge_id", _lazy("收敛记录ID"), es_field="id"),
         QueryField("event_id", _lazy("事件ID"), es_field="event.event_id", is_char=True),
-        QueryField("plugin_id", _lazy("告警"), es_field="event.plugin_id", is_char=True),
+        QueryField("plugin_id", _lazy("告警源"), es_field="event.plugin_id", is_char=True),
         QueryField("plugin_display_name", _lazy("告警源名称"), searchable=False),
         # TODO: 后续需要改为根据策略名搜索出策略ID，再根据策略ID过滤告警。这里的实现，可能会搜索出第三方告警
         QueryField("strategy_name", _lazy("策略名称"), es_field="alert_name", agg_field="alert_name.raw", is_char=True),
