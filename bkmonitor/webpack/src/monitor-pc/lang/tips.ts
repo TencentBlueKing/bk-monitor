@@ -209,5 +209,8 @@ export default {
   请至少选择一种订阅方式: 'Please select at least one subscription method',
   请选择: 'please choose',
   主动订阅: 'Actively subscribe',
-  他人订阅: 'Others subscribe'
+  他人订阅: 'Others subscribe',
+  内部邮件不可为空: 'Internal email cannot be empty',
+  外部邮件不可为空: 'External email cannot be empty',
+  企业微信群不可为空: 'Enterprise WeChat group cannot be empty'
 };

@@ -434,5 +434,6 @@ export default {
   用户订阅的: 'User Subscribed',
   测试发送: 'Test Send',
   跳转至场景查看: 'Jump to Scene View',
-  发送给自己: 'Send to yourself'
+  发送给自己: 'Send to yourself',
+  查看单据详情: 'View document details'
 };

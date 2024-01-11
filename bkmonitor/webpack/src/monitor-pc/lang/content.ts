@@ -186,8 +186,6 @@ export default {
   多: 'Multi',
   少: 'Less',
   日志聚类: 'Log Clustering',
-  仪表盘: 'Dashboard',
-  观测场景: 'Observation Scenario',
   给自己: 'To yourself',
   给全员: 'To everyone',
   不比对: 'Not Compared',
