@@ -306,7 +306,7 @@ export default class DataStatus extends tsc<{}> {
               <div class='msg-item'>
                 <span
                   class='tip-label'
-                  v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。') }}
+                  v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。'), allowHTML: false }}
                 >
                   {this.$t('无数据告警')}
                 </span>

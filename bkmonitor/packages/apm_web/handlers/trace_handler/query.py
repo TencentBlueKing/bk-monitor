@@ -304,7 +304,7 @@ class SpanOptionValues(OptionValues):
     API = api.apm_api.query_span_option_values
 
     FIELDS = [
-        OptionValues.Field(id="span_name", source=OptionValues.Source.ES, label=_("Span Name")),
+        OptionValues.Field(id="span_name", source=OptionValues.Source.ES, label="Span Name"),
         OptionValues.Field(id="status.code", source=OptionValues.Source.METHOD, label=_("状态")),
         OptionValues.Field(id="kind", source=OptionValues.Source.METHOD, label=_("类型")),
         OptionValues.Field(id="resource.telemetry.sdk.version", source=OptionValues.Source.ES, label=_("版本")),
@@ -383,9 +383,13 @@ class QueryHandler:
         return OptionValues.get_option_values(option, start_time, end_time)
 
     @classmethod
-    def get_file_option_values(cls, bk_biz_id, app_name, fields, start_time, end_time):
-        # 使用预计算表查询 -> 补充前缀collections
-        option = TraceOptionValues(bk_biz_id, app_name)
+    def get_file_option_values(cls, bk_biz_id, app_name, fields, start_time, end_time, mode):
+        if mode == "pre_calculate":
+            # 使用预计算表查询 -> 补充前缀collections
+            option = TraceOptionValues(bk_biz_id, app_name)
+        else:
+            option = SpanOptionValues(bk_biz_id, app_name)
+
         fields = [f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{i}" for i in fields]
         response = OptionValues.get_field_option_values(option, fields, start_time, end_time)
         # 去除前缀

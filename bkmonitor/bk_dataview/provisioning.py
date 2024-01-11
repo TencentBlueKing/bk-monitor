@@ -134,7 +134,8 @@ class SimpleProvisioning(BaseProvisioning):
                                     continue
                                 yield Dashboard(title=title, dashboard=dashboard)
 
-    def upsert_dashboards(self, org_id, org_name, dashboard_mapping):
+    @classmethod
+    def upsert_dashboards(cls, org_id, org_name, dashboard_mapping):
         from monitor.models import ApplicationConfig
 
         dashboard_keys = set(dashboard_mapping.keys())
@@ -146,7 +147,7 @@ class SimpleProvisioning(BaseProvisioning):
         not_created = dashboard_keys - created
         for i in not_created:
             # 不存在则进行创建
-            if self.create_default_dashboard(org_id, f"{dashboard_mapping[i]}.json", bk_biz_id=org_name):
+            if cls.create_default_dashboard(org_id, f"{dashboard_mapping[i]}.json", bk_biz_id=org_name):
                 ApplicationConfig.objects.get_or_create(cc_biz_id=org_name, key=i, value="created")
 
     @classmethod

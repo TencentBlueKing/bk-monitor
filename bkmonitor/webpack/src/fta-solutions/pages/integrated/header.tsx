@@ -139,7 +139,8 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
                 class={['type-switch-icon', { active: item.id === this.viewTypes.active }]}
                 v-bk-tooltips={{
                   placement: 'top',
-                  content: item.tips
+                  content: item.tips,
+                  allowHTML: false
                 }}
                 onClick={() => this.handleChangeViewType(item)}
               >
