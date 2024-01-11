@@ -11,29 +11,35 @@ import datetime
 import hashlib
 import logging
 
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from apm_web.models import Application, ProfileUploadRecord
-from apm_web.profile.converter import get_converter_by_input_type
+from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
+from apm_web.profile.constants import (
+    PROFILE_UPLOAD_RECORD_NEW_FILE_NAME,
+    CallGraphResponseDataMode,
+)
+from apm_web.profile.converter import generate_profile_id
 from apm_web.profile.diagrams import get_diagrammer
+from apm_web.profile.doris.converter import DorisConverter
+from apm_web.profile.doris.querier import APIParams, APIType, Query
+from apm_web.profile.file_handler import ProfilingFileHandler
+from apm_web.profile.serializers import (
+    ProfileListFileSerializer,
+    ProfileQuerySerializer,
+    ProfileUploadRecordSLZ,
+    ProfileUploadSerializer,
+)
+from apm_web.tasks import profile_file_upload_and_parse
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
-from .converter import generate_profile_id
-from .doris.converter import DorisConverter
-from .doris.handler import StorageHandler
-from .doris.querier import APIParams, APIType, Query
-from .resources import QueryServicesDetailResource
-from .serializers import (
-    ProfileQuerySerializer,
-    ProfileUploadRecordSLZ,
-    ProfileUploadSerializer,
-)
 
 logger = logging.getLogger("root")
 
@@ -56,9 +62,138 @@ class ProfileViewSet(ViewSet):
             ]
         return []
 
+    @action(methods=["POST"], detail=False, url_path="upload")
+    def upload(self, request: Request):
+        """上传 profiling 文件"""
+        uploaded = request.FILES.get("file")
+        if not uploaded:
+            raise ValueError(_("上传文件为空"))
+
+        serializer = ProfileUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        try:
+            application = Application.objects.get(
+                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
+            )
+        except Exception:  # pylint: disable=broad-except
+            raise ValueError(_("应用({}) 不存在").format(validated_data["app_name"]))
+
+        data = uploaded.read()
+        md5 = hashlib.md5(data).hexdigest()
+        if ProfileUploadRecord.objects.filter(file_md5=md5).exists():
+            raise ValueError(_("相同文件已上传"))
+
+        # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
+        try:
+            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
+        except Exception:
+            logger.exception("failed to upload file to bkrepo")
+            raise Exception(_("上传文件失败"))
+
+        profile_id = generate_profile_id()
+
+        # record it if everything is ok
+        record = ProfileUploadRecord.objects.create(
+            bk_biz_id=validated_data["bk_biz_id"],
+            app_name=application.app_name,
+            file_md5=md5,
+            file_type=validated_data["file_type"],
+            profile_id=profile_id,
+            operator=request.user.username,
+            origin_file_name=uploaded.name,
+            file_size=uploaded.size,  # 单位Bytes
+            file_name=PROFILE_UPLOAD_RECORD_NEW_FILE_NAME.format(timezone.now().strftime("%Y-%m-%d-%H-%M-%S")),
+            status=UploadedFileStatus.UPLOADED,
+            service_name=validated_data.get("service_name", "default"),
+        )
+
+        # 异步任务： 文件解析及存储
+        profile_file_upload_and_parse.delay(
+            uploaded.name,
+            validated_data["file_type"],
+            profile_id,
+            validated_data["bk_biz_id"],
+            application.app_name,
+        )
+
+        return Response(data=ProfileUploadRecordSLZ(record).data)
+
+    @action(methods=["GET"], detail=False, url_path="list_profile_upload_records")
+    def list_profile_upload_records(self, request: Request):
+        serializer = ProfileListFileSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        filter_params = {}
+        if validated_data.get("bk_biz_id"):
+            filter_params["bk_biz_id"] = validated_data.get("bk_biz_id")
+        if validated_data.get("app_name"):
+            filter_params["app_name"] = validated_data.get("app_name")
+        if validated_data.get("origin_file_name"):
+            filter_params["origin_file_name"] = validated_data.get("origin_file_name")
+        if validated_data.get("service_name "):
+            filter_params["service_name"] = validated_data.get("service_name")
+        queryset = ProfileUploadRecord.objects.filter(**filter_params)
+        return Response(data=ProfileUploadRecordSLZ(queryset, many=True).data)
+
+    @classmethod
+    def build_extra_params(cls, profile_id: str, label: dict) -> dict:
+        extra_params = {}
+        if profile_id:
+            extra_params["label_filter"] = {"profile_id": profile_id}
+        if label and isinstance(extra_params.get("label_filter"), dict):
+            extra_params["label_filter"].update(label)
+        else:
+            extra_params["label_filter"] = label
+        return extra_params
+
+    @classmethod
+    def get_profile_data(
+        cls, validated_data, app_name: str, start: int, end: int, application_info: dict
+    ) -> DorisConverter:
+        """
+        获取 profile 数据
+        """
+        bk_biz_id = validated_data["bk_biz_id"]
+        profile_type = validated_data["profile_type"]
+        profile_id = validated_data.get("profile_id", "")
+        filter_label = validated_data.get("filter_label", {})
+        diff_profile_id = validated_data.get("diff_profile_id", "")
+        diff_filter_label = validated_data.get("diff_filter_label", {})
+        if profile_id or filter_label:
+            extra_params = cls.build_extra_params(profile_id, filter_label)
+        elif diff_profile_id or diff_filter_label:
+            extra_params = cls.build_extra_params(diff_profile_id, diff_filter_label)
+        else:
+            extra_params = {}
+
+        q = Query(
+            api_type=APIType.QUERY_SAMPLE,
+            api_params=APIParams(
+                biz_id=bk_biz_id,
+                app=app_name,
+                type=profile_type,
+                start=start,
+                end=end,
+                **extra_params,
+            ),
+            result_table_id=application_info["profiling_config"]["result_table_id"],
+        )
+
+        r = q.execute()
+
+        if r is None:
+            raise ValueError(_("未查询到有效数据"))
+        c = DorisConverter()
+        p = c.convert(r)
+        if p is None:
+            raise ValueError(_("无法转换 profiling 数据"))
+        return c
+
+    @action(methods=["POST"], detail=False, url_path="query")
     def query(self, request: Request):
         """查询 profiling 数据"""
-        serializer = ProfileQuerySerializer(data=request.query_params)
+        serializer = ProfileQuerySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
@@ -96,85 +231,26 @@ class ProfileViewSet(ViewSet):
         )
         end = int(end / 1000 + offset * 1000)
 
-        extra_params = {}
-        profile_id = validated_data["profile_id"]
-        if profile_id:
-            extra_params["label_filter"] = {"profile_id": profile_id}
-        profile_type = validated_data["profile_type"]
-        # 查询 BK Doris 数据
-        q = Query(
-            api_type=APIType.QUERY_SAMPLE,
-            api_params=APIParams(
-                biz_id=bk_biz_id, app=app_name, type=profile_type, start=start, end=end, **extra_params
-            ),
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+        doris_converter = self.get_profile_data(
+            validated_data=validated_data, app_name=app_name, start=start, end=end, application_info=application_info
         )
+        diagram_types = validated_data["diagram_types"]
+        if validated_data.get("is_compared"):
+            diff_doris_converter = self.get_profile_data(
+                validated_data=validated_data,
+                app_name=app_name,
+                start=start,
+                end=end,
+                application_info=application_info,
+            )
+            diff_diagram_dicts = (
+                get_diagrammer(d_type).diff(doris_converter, diff_doris_converter) for d_type in diagram_types
+            )
+            return Response(data={k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()})
 
-        r = q.execute()
-        if r is None:
-            raise ValueError(_("未查询到有效数据"))
-
-        # 直接将 profiling 数据转换成火焰图格式
-        c = DorisConverter()
-        p = c.convert(r)
-        if p is None:
-            raise ValueError(_("无法转换 profiling 数据"))
-
-        return Response(data=get_diagrammer(validated_data["diagram_type"]).draw(c))
-
-    def upload(self, request: Request):
-        """上传 profiling 文件"""
-        uploaded = request.FILES.get("file")
-        if not uploaded:
-            raise ValueError(_("上传文件为空"))
-
-        # 0. prepare uploaded file
-        uploaded = uploaded.read()
-        md5 = hashlib.md5(uploaded).hexdigest()
-        if ProfileUploadRecord.objects.filter(file_md5=md5).exists():
-            raise ValueError(_("相同文件已上传"))
-
-        # 1. got target application
-        serializer = ProfileUploadSerializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-
-        try:
-            application = Application.objects.get(pk=validated_data["application_id"])
-        except Exception:  # pylint: disable=broad-except
-            raise ValueError(_("应用({}) 不存在").format(validated_data["application_id"]))
-
-        # 2. convert file to Profile object
-        profile_id = generate_profile_id()
-        file_type = validated_data["file_type"]
-        c = get_converter_by_input_type(file_type)(preset_profile_id=profile_id)
-        try:
-            p = c.convert(uploaded)
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("convert profiling data failed")
-            p = None
-        if p is None:
-            raise ValueError(_("无法转换 profiling 数据"))
-
-        # 3. save Profile object to storage, like doris
-        handler = StorageHandler(application, p)
-        try:
-            handler.save_profile()
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("save profiling data to doris failed")
-            raise ValueError(_("保存 profiling 数据失败"))
-
-        # 4. record it if everything is ok
-        record = ProfileUploadRecord.objects.create(
-            bk_biz_id=validated_data["bk_biz_id"],
-            app_name=application.app_name,
-            file_md5=md5,
-            file_type=file_type,
-            profile_id=profile_id,
-            operator=request.user.username,
-        )
-
-        return Response(data=ProfileUploadRecordSLZ(record).data)
+        options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
+        diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
+        return Response(data={k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()})
 
 
 class QueryViewSet(ResourceViewSet):
