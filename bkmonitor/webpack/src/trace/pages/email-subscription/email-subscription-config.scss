@@ -182,10 +182,14 @@
     }
 
     .sub-title {
+      max-width: 250px;
       margin-left: 10px;
+      overflow: hidden;
       font-size: 14px;
       line-height: 14px;
       color: #63656e;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }

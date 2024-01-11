@@ -28,7 +28,7 @@ import { Component as tsc, ofType } from 'vue-tsx-support';
 // import { createOrUpdateReport, sendReport } from '@api/modules/new_report';
 import { deepClone } from '@/components/monitor-echarts/utils';
 
-import CreateSubscriptionForm from './create-subscription-form.tsx';
+import CreateSubscriptionForm from './create-subscription-form';
 
 import './quick-create-subscription.scss';
 
@@ -53,7 +53,6 @@ class QuickCreateSubscription extends tsc<IProps> {
     (this.$refs.refOfCreateSubscriptionForm as any)
       ?.validateAllForms?.()
       .then((response) => {
-        console.log(response);
         this.isSaving = true;
         this.$http.request('newReport/createOrUpdateReport/', {
           data: response,
@@ -65,17 +64,14 @@ class QuickCreateSubscription extends tsc<IProps> {
             });
             this.$emit('change', false);
           })
-          .catch(console.log)
           .finally(() => {
             this.isSaving = false;
           });
       })
-      .catch(console.log);
   }
 
   async testSending(to) {
-    const tempFormData = await (this.$refs.refOfCreateSubscriptionForm as any)?.validateAllForms?.().catch(console.log);
-    console.log('testSending', tempFormData);
+    const tempFormData = await (this.$refs.refOfCreateSubscriptionForm as any)?.validateAllForms?.();
     if (!tempFormData) return;
     const formData = deepClone(tempFormData);
     if (to === 'self') {
@@ -94,21 +90,13 @@ class QuickCreateSubscription extends tsc<IProps> {
       ];
       formData.channels = selfChannels;
     }
-    if (to === 'all') {
-      console.log(tempFormData);
-    }
     this.isSending = true;
     await this.$http.request('newReport/sendReport/', {
       data: formData
     })
       .then(() => {
-        // this.$bkMessage({
-        //   theme: 'success',
-        //   message: this.$t('发送成功'),
-        // });
         this.isShowSendingSuccessDialog = true;
       })
-      .catch(console.log)
       .finally(() => {
         this.isSending = false;
       });
@@ -133,7 +121,7 @@ class QuickCreateSubscription extends tsc<IProps> {
               {/* @ts-ignore */}
               <create-subscription-form
                 ref='refOfCreateSubscriptionForm'
-                mode='quick'
+                mode='create'
                 // 这里填 订阅场景、索引集 等已知参数
                 scenario={this.scenario}
                 index-set-id={this.indexSetId}
@@ -143,7 +131,7 @@ class QuickCreateSubscription extends tsc<IProps> {
               <bk-button
                 theme='primary'
                 loading={this.isSaving}
-                style={{ width: '88px', marginRight: '8px' }}
+                style="width: 88px; margin-right: 8px;"
                 onClick={this.handleSave}
               >
                 {this.$t('保存')}
@@ -157,7 +145,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                   outline
                   loading={this.isSending}
                   slot='dropdown-trigger'
-                  style={{ width: '88px', marginRight: '8px' }}
+                  style="width: 88px; margin-right: 8px;"
                 >
                   {this.$t('测试发送')}
                 </bk-button>
@@ -185,7 +173,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 </ul>
               </bk-dropdown-menu>
               <bk-button
-                style={{ width: '88px' }}
+                style="width: 88px;"
                 onClick={() => this.$emit('change', false)}
               >
                 {this.$t('取消')}

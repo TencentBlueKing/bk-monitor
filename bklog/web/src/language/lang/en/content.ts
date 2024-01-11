@@ -563,7 +563,7 @@ export default {
   给自己: 'For myself',
   给全员: 'To all',
   按发送频率: 'By sending frequency',
-  '近 {n} 天': 'Last {n} days',
+  '近{n}天': 'Last {n} days',
   '{0}小时': '{0} hours',
   条: 'item',
   '{0}小时前': '{0} hours ago',
@@ -616,5 +616,6 @@ export default {
   订阅名称: 'Subscription name',
   观测场景: 'Observations',
   选择时间范围: 'Select Time Range',
-  '{0}-日志聚类统计报表-{1}': '{0}-Log clustering statistics report-{1}'
+  '{0}-日志聚类统计报表-{1}': '{0}-Log clustering statistics report-{1}',
+  请至少选择一种订阅方式: 'Please select at least one subscription method'
 };

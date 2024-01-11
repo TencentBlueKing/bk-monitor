@@ -29,8 +29,8 @@ import dayjs from 'dayjs';
 
 import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
 import { Scenario } from '../mapping';
-import { getDefaultReportData, Report } from '../types';
-import { getSendFrequencyText } from '../utils';
+import { Report } from '../types';
+import { getDefaultReportData, getSendFrequencyText } from '../utils';
 
 import DetailRow from './detail-row';
 
@@ -158,7 +158,7 @@ export default defineComponent({
                 >
                   {this.detailInfo.channels
                     .find(item => item.channel_name === 'user')
-                    .subscribers.map(item => {
+                    ?.subscribers?.map?.(item => {
                       return (
                         <div style='display: inline-flex;margin-right: 24px;margin-bottom: 7px;align-items: center;'>
                           {/* {item.src && (
@@ -189,7 +189,7 @@ export default defineComponent({
                 <span class='subscribers-value'>
                   {this.detailInfo.channels
                     .find(item => item.channel_name === 'email')
-                    .subscribers.map(item => {
+                    ?.subscribers?.map?.(item => {
                       return (
                         <span
                           class='email'
@@ -215,7 +215,7 @@ export default defineComponent({
                 <span class='subscribers-value'>
                   {this.detailInfo.channels
                     .find(item => item.channel_name === 'wxbot')
-                    .subscribers.map(item => {
+                    ?.subscribers?.map?.(item => {
                       return (
                         <span
                           class='group-id'

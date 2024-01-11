@@ -59,8 +59,8 @@ import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
-import { getDefaultReportData, TestSendingTarget } from './types';
-import { getSendFrequencyText } from './utils';
+import { TestSendingTarget } from './types';
+import { getDefaultReportData, getSendFrequencyText } from './utils';
 
 import './email-subscription-config.scss';
 
@@ -1147,7 +1147,16 @@ export default defineComponent({
                 <div class='slider-header-container'>
                   <div class='title-container'>
                     <span class='title'>{this.t('订阅详情')}</span>
-                    <span class='sub-title'>-&nbsp;{this.subscriptionDetail.name}</span>
+                    <Popover
+                      placement='bottom-start'
+                      v-slots={{
+                        content: () => {
+                          return <span>{this.subscriptionDetail.name}</span>;
+                        }
+                      }}
+                    >
+                      <span class='sub-title'>-&nbsp;{this.subscriptionDetail.name}</span>
+                    </Popover>
                   </div>
 
                   <div class='operation-container'>
