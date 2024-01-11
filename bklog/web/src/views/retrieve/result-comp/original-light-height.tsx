@@ -27,14 +27,16 @@ import TextSegmentation from './text-segmentation.vue';
 import './original-light-height.scss';
 
 interface IProps {
-  originJson: Object;
+  originJson: object;
   visibleFields: Array<any>;
+  isWrap: boolean;
 }
 @Component
 export default class QueryStatement extends tsc<IProps> {
   /** 原始日志 */
   @Prop({ type: Object, required: true }) originJson;
   @Prop({ type: Array<any>, required: true }) visibleFields;
+  @Prop({ type: Boolean, required: true }) isWrap;
 
   segmentReg = /<mark>(.*?)<\/mark>/g;
 
@@ -42,8 +44,12 @@ export default class QueryStatement extends tsc<IProps> {
     return this.visibleFields.map(item => item.field_name);
   }
 
+  get strOriginJson() {
+    return JSON.stringify(this.fieldMapDataObj);
+  }
+
   // 扁平化对象所有数据
-  get fieldMapData() {
+  get fieldMapDataObj() {
     const { newObject } = getFlatObjValues(this.originJson || {});
     const visibleObject = {};
     Object.keys(newObject).forEach((el) => {
@@ -55,7 +61,7 @@ export default class QueryStatement extends tsc<IProps> {
       pre[cur] = visibleObject[cur] ?? '';
       return pre;
     }, {});
-    return Object.entries(sortObject);
+    return sortObject;
   }
 
   @Emit('menuClick')
@@ -72,8 +78,8 @@ export default class QueryStatement extends tsc<IProps> {
 
   render() {
     return (
-      <span class="origin-content">
-        {this.fieldMapData.map(([key, value]) => {
+      <span class="origin-content" title={this.isWrap ? '' : this.strOriginJson}>
+        {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>
               <span class="black-mark">&nbsp;{key}:&nbsp;</span>
