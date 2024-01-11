@@ -17,10 +17,6 @@ from typing import Dict, List
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
-from monitor_web.grafana.utils import get_cookies_filter
-from monitor_web.models import CollectConfigMeta
-from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
-from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -44,6 +40,10 @@ from constants.data_source import (
 from constants.strategy import EVENT_QUERY_CONFIG_MAP, SYSTEM_EVENT_RT_TABLE_ID
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
+from monitor_web.grafana.utils import get_cookies_filter
+from monitor_web.models import CollectConfigMeta
+from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
+from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 
 logger = logging.getLogger(__name__)
 
@@ -683,6 +683,17 @@ class GetVariableValue(Resource):
         timestamp = int(time.time() // 60 * 60)
         start_time = params.get("start_time", timestamp - 30 * 60)
         end_time = params.get("end_time", timestamp)
+        interval = params.get("interval")
+        if not interval:
+            time_range = end_time - start_time
+            if time_range < 5 * 60:
+                interval = 60
+            elif time_range < 60 * 60:
+                interval = 5 * 60
+            elif time_range < 24 * 60 * 60:
+                interval = 60 * 60
+            else:
+                interval = 24 * 60 * 60
 
         # 增加cookies过滤
         cookies_filter = get_cookies_filter()
@@ -709,6 +720,7 @@ class GetVariableValue(Resource):
             start_time=start_time * 1000,
             end_time=end_time * 1000,
             slimit=GRAPH_MAX_SLIMIT,
+            interval=interval,
         )
 
         dimensions = self.assemble_dimensions(fields, records)

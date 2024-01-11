@@ -23,9 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { MANAGE_AUTH as GROUP_MANAGE } from '../alarm-group/authority-map';
 import { MANAGE_AUTH as PLUGIN_MANAGE } from '../plugin-manager/authority-map';
 
 export const VIEW_AUTH = 'view_collection_v2';
 export const MANAGE_AUTH = 'manage_collection_v2';
 export const PLUGIN_MANAGE_AUTH = PLUGIN_MANAGE;
 export const STRATEGY_VIEW_AUTH = 'view_rule_v2';
+export const ALARM_GROUP_MANAGE_AUTH = GROUP_MANAGE; // 告警组管理权限

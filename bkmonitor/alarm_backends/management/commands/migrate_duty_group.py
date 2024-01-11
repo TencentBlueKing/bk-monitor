@@ -31,10 +31,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         bk_biz_ids = options.get("bk_biz_ids") or []
+        if isinstance(bk_biz_ids, str):
+            bk_biz_ids = [int(biz) for biz in bk_biz_ids.split(",")]
         print("migrate duty user group config business(%s)" % bk_biz_ids)
         group_queryset = UserGroup.objects.filter(need_duty=True)
         if bk_biz_ids:
-            group_queryset.filter(bk_biz_id__in=bk_biz_ids)
+            group_queryset = group_queryset.filter(bk_biz_id__in=bk_biz_ids)
         migrated_user_group = []
         migrated_duty_arranges = []
         deleted_duty_arranges = []

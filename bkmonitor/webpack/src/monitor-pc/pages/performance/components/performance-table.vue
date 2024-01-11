@@ -276,7 +276,8 @@
                   content: getDynamicColumnValue(row, item.id),
                   showOnInit: false,
                   placements: ['top'],
-                  interactive: false
+                  interactive: false,
+                  allowHTML: false
                 }"
               >
                 {{ getDynamicColumnValue(row, item.id) }}
@@ -296,7 +297,8 @@
                 content: row.bk_cluster.map(item => item.name).join(),
                 showOnInit: false,
                 placements: ['top'],
-                interactive: false
+                interactive: false,
+                allowHTML: false
               }"
             >
               {{ row.bk_cluster.map(item => item.name).join() }}
@@ -314,7 +316,8 @@
                 content: row.bk_inst_name,
                 showOnInit: false,
                 placements: ['top'],
-                interactive: false
+                interactive: false,
+                allowHTML: false
               }"
             >{{ row.bk_inst_name }}</span>
           </template>
