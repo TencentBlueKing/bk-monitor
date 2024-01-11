@@ -149,7 +149,7 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
         try:
             kafka_data = refine_bkdata_kafka_info()
         except Exception as e:
-            logger.error("get bkdata kafka host error: %s", e)
+            logger.error("get bkdata kafka host error, table_id: %s, error: %s", table_id, e)
             return {"err_msg": f"request vm api error, {e}"}
         storage_cluster_id = kafka_data["cluster_id"]
         try:
@@ -161,7 +161,7 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
             vm_data["cluster_id"] = storage_cluster_id
             return vm_data
         except Exception as e:
-            logger.error("request vm api error, %s", e)
+            logger.error("request vm api error, table_id: %s, error: %s", table_id, e)
             return {"err_msg": f"request vm api error, {e}"}
     # 创建清洗和入库 vm
     bk_base_data = BkDataStorage.objects.filter(table_id=table_id).first()
@@ -190,7 +190,9 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
         # 启动
         api.bkdata.start_databus_cleans(result_table_id=bkbase_result_table_id, storages=["kafka"])
     except Exception as e:
-        logger.error("create or start data clean error, params: %s, error: %s", json.dumps(clean_data), e)
+        logger.error(
+            "create or start data clean error, table_id: %s, params: %s, error: %s", table_id, json.dumps(clean_data), e
+        )
         return {"err_msg": f"request clean api error, {e}"}
     # 接入 vm
     try:
