@@ -29,6 +29,7 @@ from apm.resources import (
     QueryHostInstanceResource,
     QueryLogRelationByIndexSetIdResource,
     QueryMetricDimensionsResource,
+    QueryProfileServiceDetailResource,
     QueryRemoteServiceRelationResource,
     QueryRootEndpointResource,
     QueryServiceStatisticsListResource,
@@ -105,4 +106,10 @@ class TopoViewSet(ResourceViewSet):
         ResourceRoute("POST", QueryRemoteServiceRelationResource, endpoint="query_remote_service_relation"),
         ResourceRoute("POST", QueryTopoRelationResource, endpoint="query_topo_relation"),
         ResourceRoute("GET", QueryTopoNodeResource, endpoint="query_topo_node"),
+    ]
+
+
+class ProfileViewSet(ResourceViewSet):
+    resource_routes = [
+        ResourceRoute("GET", QueryProfileServiceDetailResource, endpoint="services_detail"),
     ]
