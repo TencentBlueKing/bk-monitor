@@ -13,6 +13,9 @@ import datetime
 import logging
 from typing import Type
 
+from django.utils import timezone
+
+from apm.core.handlers.profile.query import ProfileQueryBuilder
 from apm.models import ProfileDataSource
 
 logger = logging.getLogger("apm")
@@ -34,6 +37,11 @@ class Discover(abc.ABC):
 
     def discover(self, start_time, end_time):
         raise NotImplementedError
+
+    def get_builder(self, start_time, end_time):
+        return ProfileQueryBuilder.from_table(self.result_table_id, self.bk_biz_id, self.app_name).with_time(
+            start_time, end_time
+        )
 
     def clear_if_overflow(self, model):
         count = model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).count()
@@ -68,7 +76,7 @@ class DiscoverHandler:
     # 根据最近10分钟数据进行分析
     TIME_DELTA = 10
 
-    def __init__(self, bk_biz_id, app_name):
+    def __init__(self, bk_biz_id: int, app_name: str):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
         self.datasource = ProfileDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
@@ -76,7 +84,7 @@ class DiscoverHandler:
             raise ValueError(f"{app_name}({bk_biz_id}) profile datasource not found")
 
     def discover(self):
-        end_time = datetime.datetime.now()
+        end_time = timezone.now()
         start_time = end_time - datetime.timedelta(minutes=self.TIME_DELTA)
 
         for name, i in DiscoverContainers.all_discovers().items():

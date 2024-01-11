@@ -119,7 +119,7 @@ def check_apm_consul_config():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def profile_handler(bk_biz_id, app_name):
+def profile_handler(bk_biz_id: int, app_name: str):
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} start at {datetime.datetime.now()}")
     ProfileDiscoverHandler(bk_biz_id, app_name).discover()
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")

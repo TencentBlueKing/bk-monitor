@@ -34,6 +34,12 @@ class ApiParamLimit:
 
 
 @dataclass
+class ApiParamOrder:
+    expr: str
+    sort: str = "asc"
+
+
+@dataclass
 class ApiParam:
     biz_id: str = ""
     app: str = ""
@@ -43,12 +49,26 @@ class ApiParam:
     label_filter: typing.Dict = field(default_factory=list)
     service_name: str = ""
     limit: ApiParamLimit = None
+    order: ApiParamOrder = None
 
     def to_json(self):
-        res = asdict(self)
-        if not self.limit:
-            del res["limit"]
-        return res
+        r = {
+            "biz_id": self.biz_id,
+            "app": self.app,
+            "type": self.type,
+            "start": self.start,
+            "end": self.end,
+        }
+        if self.label_filter:
+            r["label_filter"] = self.label_filter
+        if self.service_name:
+            r["service_name"] = self.service_name
+        if self.limit:
+            r["limit"] = asdict(self.limit)
+        if self.order:
+            r["order"] = asdict(self.order)
+
+        return r
 
 
 class ProfileQueryBuilder:
