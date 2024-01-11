@@ -47,7 +47,10 @@ export interface RetrievalFormData {
   /** 是否开启对比模式 */
   isComparison: boolean;
   /** 应用/服务 */
-  server: string | number;
+  server: {
+    app_name: string;
+    service_name: string;
+  };
   /** 查询项条件 */
   where: ConditionItem[];
   /** 对比项条件 */

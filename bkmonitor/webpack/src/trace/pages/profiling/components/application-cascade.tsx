@@ -33,11 +33,11 @@ export default defineComponent({
   name: 'ApplicationCascade',
   props: {
     list: {
-      type: Array as PropType<any>,
+      type: Array as PropType<any[]>,
       default: () => []
     },
     value: {
-      type: [String, Number],
+      type: Object as PropType<string[]>,
       required: true
     }
   },
@@ -81,29 +81,26 @@ export default defineComponent({
     });
 
     watch(
-      () => props.value,
+      () => [props.value, props.list],
       val => {
-        if (val) {
-          /** 根据二级选项id找到父级 */
-          selectValue.secondId = val;
-          hasData.value = true;
-          props.list.forEach(item => {
-            item.children?.forEach(child => {
-              if (child.id === val) {
-                selectValue.secondData = child;
-                selectValue.firstData = item;
-                selectValue.firstId = item.id;
-                secondList.value = item.children;
-              }
-            });
-          });
-        } else {
+        const [value, list] = val;
+        if (!value.length || !list.length) {
           hasData.value = false;
           selectValue.firstId = null;
           selectValue.firstData = null;
           selectValue.secondId = null;
           selectValue.secondData = null;
+          return;
         }
+
+        const first = list.find(first => first.id === value[0]);
+        selectValue.firstId = first?.id;
+        selectValue.firstData = first;
+        secondList.value = first?.children || [];
+        const second = first?.children?.find(child => child.id === value[1]);
+        selectValue.secondId = second?.id;
+        selectValue.secondData = second;
+        hasData.value = true;
       },
       {
         immediate: true
@@ -138,7 +135,7 @@ export default defineComponent({
       selectValue.secondId = val.id;
       selectValue.secondData = val;
       showPopover.value = false;
-      emit('change', val.id, val);
+      emit('change', [selectValue.firstId, selectValue.secondId]);
     }
 
     return {
