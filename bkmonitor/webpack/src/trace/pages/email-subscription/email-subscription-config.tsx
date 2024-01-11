@@ -53,7 +53,8 @@ import {
   getSendRecords,
   sendReport
 } from '../../../monitor-api/modules/new_report';
-import { deepClone } from '../../../monitor-common/utils';
+import { deepClone, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
+import { docCookies } from '../../../monitor-common/utils/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
@@ -70,6 +71,9 @@ type TooltipsToggleMapping = {
 
 // 表格字段 显隐设置的配置需要持久化到本地。
 const keyOfTableSettingInLocalStorage = 'report_list_table_settings';
+
+const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
+console.log(currentLang);
 
 export default defineComponent({
   name: 'EmailSubscriptionConfig',
@@ -1155,7 +1159,14 @@ export default defineComponent({
                         }
                       }}
                     >
-                      <span class='sub-title'>-&nbsp;{this.subscriptionDetail.name}</span>
+                      <span
+                        class='sub-title'
+                        style={{
+                          maxWidth: currentLang === 'en' ? '180px' : '250px'
+                        }}
+                      >
+                        -&nbsp;{this.subscriptionDetail.name}
+                      </span>
                     </Popover>
                   </div>
 

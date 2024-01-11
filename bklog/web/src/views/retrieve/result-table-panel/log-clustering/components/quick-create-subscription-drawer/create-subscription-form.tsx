@@ -4,6 +4,8 @@ import { copyText, deepClone, transformDataKey } from '../../../../../../compone
 import BkUserSelector from '@blueking/user-selector';
 import dayjs from 'dayjs';
 
+import { FrequencyType, Report } from './types';
+
 import './create-subscription-form.scss';
 
 enum PatternLevelEnum {
@@ -87,7 +89,7 @@ class QuickCreateSubscription extends tsc<IProps> {
   /** 当前页面所对应的 场景 类型。现在是 日志。所以固定写成 日志聚类 */
   @Prop({ type: String, default: 'clustering' }) scenario: string;
 
-  formData = {
+  formData: Report = {
     scenario: 'clustering',
     name: '',
     start_time: 0,
@@ -95,7 +97,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     // 给他人/自己 订阅 。self, others 仅自己/给他人
     subscriber_type: 'self',
     scenario_config: {
-      index_set_id: '',
+      index_set_id: 0,
       // 需要从 slider 上进行转换
       pattern_level: '01',
       log_display_count: 30,
@@ -143,6 +145,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     scenario_config__log_display_count: 0,
     // 同上一个道理
     content_config__title: '',
+    bk_biz_id: 0,
   };
 
   /** 发送频率相关。该对象最后会把该对象数据copy到 formData 上，因为其中 run_time 的日期格式不同导致 日期组件 报异常，所以这里单独抽出整个对象。 */
@@ -227,9 +230,9 @@ class QuickCreateSubscription extends tsc<IProps> {
         {
           validator: () => {
             switch (this.formData.frequency.type) {
-              case 3:
+              case FrequencyType.weekly:
                 return this.frequency.week_list.length > 0;
-              case 2:
+              case FrequencyType.monthly:
                 return this.frequency.day_list.length > 0;
               default:
                 return true;
@@ -278,7 +281,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     if (!result) {
                       isInvalid = true;
                       this.errorTips[item.channel_name].isShow = true;
-                      this.errorTips[item.channel_name].message = this.$t('邮件格式有误');
+                      this.errorTips[item.channel_name].message = this.$t('邮件格式有误').toString();
                     }
                   });
                 } else {
@@ -371,30 +374,30 @@ class QuickCreateSubscription extends tsc<IProps> {
       day_list: []
     });
     switch (this.formData.frequency.type) {
-      case 5:
+      case FrequencyType.hourly:
         Object.assign(this.formData.frequency, {
           hour: this.frequency.hour
         });
         break;
-      case 4:
+      case FrequencyType.dayly:
         Object.assign(this.formData.frequency, {
           run_time: this.frequency.run_time,
           week_list: this.isIncludeWeekend ? INCLUDES_WEEKEND : EXCLUDES_WEEKEND
         });
         break;
-      case 3:
+      case FrequencyType.weekly:
         Object.assign(this.formData.frequency, {
           run_time: this.frequency.run_time,
           week_list: this.frequency.week_list
         });
         break;
-      case 2:
+      case FrequencyType.monthly:
         Object.assign(this.formData.frequency, {
           run_time: this.frequency.run_time,
           day_list: this.frequency.day_list
         });
         break;
-      case 1:
+      case FrequencyType.onlyOnce:
         Object.assign(this.formData.frequency, {
           run_time: dayjs(this.frequency.only_once_run_time).format('YYYY-MM-DD HH:mm:ss')
         });
@@ -431,7 +434,7 @@ class QuickCreateSubscription extends tsc<IProps> {
       this.refOfEmailSubscription?.validate?.(),
       this.refOfSendingConfigurationForm?.validate?.()
     ]).then(() => {
-      const cloneFormData = deepClone(this.formData);
+      const cloneFormData: Report = deepClone(this.formData);
       // scenario_config__log_display_count content_config__title
       delete cloneFormData.scenario_config__log_display_count;
       delete cloneFormData.content_config__title;
@@ -453,8 +456,8 @@ class QuickCreateSubscription extends tsc<IProps> {
       }
       // 调整 订阅名称 ，这里 订阅名称 由于没有录入的地方将是用默认方式组合。
       // cloneFormData.name = `${cloneFormData.content_config.title}-${this.$store.state.userMeta?.username || ''}`;
-      cloneFormData.bk_biz_id = this.$route.query.bizId || '';
-      cloneFormData.scenario_config.index_set_id = this.indexSetId;
+      cloneFormData.bk_biz_id = Number(this.$route.query.bizId || 0);
+      cloneFormData.scenario_config.index_set_id = Number(this.indexSetId || 0);
       return cloneFormData;
     });
   }
@@ -564,7 +567,7 @@ class QuickCreateSubscription extends tsc<IProps> {
 
   @Watch('formData.frequency.type')
   watchFrequencyType() {
-    if (this.formData.frequency.type === 1) {
+    if (this.formData.frequency.type === FrequencyType.onlyOnce) {
       this.formData.start_time = null;
       this.formData.end_time = null;
       // 点击 仅一次 时刷新一次时间。
@@ -1041,14 +1044,14 @@ class QuickCreateSubscription extends tsc<IProps> {
               error-display-type='normal'
             >
               <bk-radio-group v-model={this.formData.frequency.type}>
-                <bk-radio label={5}>{this.$t('按小时')}</bk-radio>
-                <bk-radio label={4}>{this.$t('按天')}</bk-radio>
-                <bk-radio label={3}>{this.$t('按周')}</bk-radio>
-                <bk-radio label={2}>{this.$t('按月')}</bk-radio>
-                <bk-radio label={1}>{this.$t('仅一次')}</bk-radio>
+                <bk-radio label={FrequencyType.hourly}>{this.$t('按小时')}</bk-radio>
+                <bk-radio label={FrequencyType.dayly}>{this.$t('按天')}</bk-radio>
+                <bk-radio label={FrequencyType.weekly}>{this.$t('按周')}</bk-radio>
+                <bk-radio label={FrequencyType.monthly}>{this.$t('按月')}</bk-radio>
+                <bk-radio label={FrequencyType.onlyOnce}>{this.$t('仅一次')}</bk-radio>
               </bk-radio-group>
 
-              {this.formData.frequency.type === 5 && (
+              {this.formData.frequency.type === FrequencyType.hourly && (
                 <bk-select
                   v-model={this.frequency.hour}
                   clearable={false}
@@ -1065,7 +1068,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 </bk-select>
               )}
 
-              {[2, 3, 4].includes(this.formData.frequency.type) && (
+              {[FrequencyType.monthly, FrequencyType.weekly, FrequencyType.dayly].includes(this.formData.frequency.type) && (
                 <div style="display: flex; align-items: center;">
                   {this.formData.frequency.type === 3 && (
                     <bk-select
@@ -1084,7 +1087,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                       })}
                     </bk-select>
                   )}
-                  {this.formData.frequency.type === 2 && (
+                  {this.formData.frequency.type === FrequencyType.monthly && (
                     <bk-select
                       v-model={this.frequency.day_list}
                       multiple
@@ -1111,7 +1114,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     style="width: 130px;"
                   />
                   {/* 该复选值不需要提交，后续在编辑的时候需要通过 INCLUDES_WEEKEND 和 weekList 去判断即可 */}
-                  {this.formData.frequency.type === 4 && (
+                  {this.formData.frequency.type === FrequencyType.dayly && (
                     <bk-checkbox
                       v-model={this.isIncludeWeekend}
                       style="margin-left: 10px;"
@@ -1122,7 +1125,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 </div>
               )}
 
-              {this.formData.frequency.type === 1 && (
+              {this.formData.frequency.type === FrequencyType.onlyOnce && (
                 <div>
                   <bk-date-picker
                     v-model={this.frequency.only_once_run_time}
@@ -1134,7 +1137,7 @@ class QuickCreateSubscription extends tsc<IProps> {
               )}
             </bk-form-item>
 
-            {this.formData.frequency.type !== 1 && (
+            {this.formData.frequency.type !== FrequencyType.onlyOnce && (
               <bk-form-item
                 label={this.$t('有效时间范围')}
                 property='timerange'
