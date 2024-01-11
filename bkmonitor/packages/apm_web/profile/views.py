@@ -28,6 +28,7 @@ from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.doris.converter import DorisConverter
 from apm_web.profile.doris.querier import APIParams, APIType, Query
 from apm_web.profile.file_handler import ProfilingFileHandler
+from apm_web.profile.resources import QueryServicesDetailResource
 from apm_web.profile.serializers import (
     ProfileListFileSerializer,
     ProfileQuerySerializer,
@@ -38,6 +39,7 @@ from apm_web.tasks import profile_file_upload_and_parse
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource import api
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 logger = logging.getLogger("root")
 
@@ -249,3 +251,21 @@ class ProfileViewSet(ViewSet):
         options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
         return Response(data={k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()})
+
+
+class QueryViewSet(ResourceViewSet):
+    INSTANCE_ID = "app_name"
+
+    def get_permissions(self):
+        return [
+            InstanceActionForDataPermission(
+                self.INSTANCE_ID,
+                [ActionEnum.VIEW_APM_APPLICATION],
+                ResourceEnum.APM_APPLICATION,
+                get_instance_id=Application.get_application_id_by_app_name,
+            )
+        ]
+
+    resource_routes = [
+        ResourceRoute("GET", QueryServicesDetailResource, endpoint="services_detail"),
+    ]

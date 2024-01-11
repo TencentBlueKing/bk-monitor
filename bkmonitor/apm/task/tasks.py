@@ -25,10 +25,16 @@ from apm.core.application_config import ApplicationConfig
 from apm.core.discover.base import TopoHandler
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
+from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
 from apm.core.platform_config import PlatformConfig
-from apm.models import ApmApplication, EbpfApplicationConfig, MetricDataSource
+from apm.models import (
+    ApmApplication,
+    EbpfApplicationConfig,
+    MetricDataSource,
+    ProfileDataSource,
+)
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -120,3 +126,34 @@ def check_apm_consul_config():
     logger.info(f"[check_apm_consul_config] start {datetime.datetime.now()}")
     ConsulHandler.check_update()
     logger.info(f"[check_apm_consul_config] end {datetime.datetime.now()}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def profile_handler(bk_biz_id: int, app_name: str):
+    logger.info(f"[profile_handler] ({bk_biz_id}){app_name} start at {datetime.datetime.now()}")
+    ProfileDiscoverHandler(bk_biz_id, app_name).discover()
+    logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def profile_discover_cron():
+    """定时发现profile服务"""
+    logger.info(f"[profile_discover_cron] start at {datetime.datetime.now()}")
+    interval = 10
+    slug = datetime.datetime.now().minute & interval
+    apps = [
+        (i.bk_biz_id, i.app_name)
+        for i in ApmApplication.objects.filter(is_enabled=True).values("bk_biz_id", "app_name")
+    ]
+
+    for index, ds in enumerate([i for i in ProfileDataSource.objects.all() if (i.bk_biz_id, i.app_name) in apps]):
+        try:
+            with service_lock(key.APM_PROFILE_DISCOVER_LOCK, bk_biz_id=ds.bk_biz_id, app_name=ds.app_name):
+                if index % interval == slug:
+                    logger.info(f"[profile_discover_cron] assign to worker. ({ds.bk_biz_id}){ds.app_name}")
+                    profile_handler.delay(ds.bk_biz_id, ds.app_name)
+        except LockError:
+            logger.info(f"skipped: [profile_discover_cron] already running. ({ds.bk_biz_id}){ds.app_name}")
+            continue
+
+    logger.info(f"[profile_discover_cron] end at {datetime.datetime.now()}")

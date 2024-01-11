@@ -129,4 +129,4 @@ bk-crypto-python-sdk==1.0.4
 betterproto==1.2.5
 
 # graphviz
-graphviz==0.20.1
+graphviz==0.19.1

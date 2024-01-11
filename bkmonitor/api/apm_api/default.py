@@ -392,3 +392,12 @@ class OperateApmDataId(ApmAPIGWResource):
 
     action = "/apm/operate_apm_dataid/"
     method = "POST"
+
+
+class QueryProfileServicesDetail(ApmAPIGWResource):
+    """
+    查询Profile服务详情
+    """
+
+    action = "/apm/profile/services_detail/"
+    method = "GET"
