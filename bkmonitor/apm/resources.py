@@ -1388,8 +1388,13 @@ class QueryProfileServiceDetailResource(Resource):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
         service_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        data_type = serializers.CharField()
 
     class ResponseSerializer(serializers.ModelSerializer):
+        last_check_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+        created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+        updated_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+
         class Meta:
             model = ProfileService
             fields = "__all__"
@@ -1397,8 +1402,12 @@ class QueryProfileServiceDetailResource(Resource):
     many_response_data = True
 
     def perform_request(self, validated_data):
-        params = {"bk_biz_id": validated_data["bk_biz_id"], "app_name": validated_data["app_name"]}
+        params = {
+            "bk_biz_id": validated_data["bk_biz_id"],
+            "app_name": validated_data["app_name"],
+            "data_type": validated_data["data_type"],
+        }
         if validated_data.get("service_name"):
             params["name"] = validated_data["service_name"]
 
-        return ProfileService.objects.filter(**params).order_by("-last_check_time")
+        return ProfileService.objects.filter(**params).order_by("created_at")

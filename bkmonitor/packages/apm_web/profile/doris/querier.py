@@ -41,6 +41,7 @@ class APIParams:
     label_key: Optional[str] = None
     label_filter: Optional[dict] = None
     limit: dict = None
+    order: dict = None
 
     def to_dict(self):
         r = {
@@ -56,6 +57,8 @@ class APIParams:
             r["label_filter"] = self.label_filter
         if self.limit:
             r["limit"] = self.limit
+        if self.order:
+            r["order"] = self.order
         return r
 
 
@@ -127,7 +130,6 @@ class QueryTemplate:
         if not label_filter:
             label_filter = {}
 
-        # TODO 需要增加条件 order_by=timestamp 目前还没支持排序
         res = Query(
             api_type=APIType.QUERY_SAMPLE,
             api_params=APIParams(
@@ -137,6 +139,7 @@ class QueryTemplate:
                 start=start,
                 end=end,
                 limit={"offset": 0, "rows": 1},
+                order={"expr": "time", "sort": "desc"},
                 **label_filter,
             ),
             result_table_id=self.result_table_id,
