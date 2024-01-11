@@ -128,4 +128,5 @@ export type ReportSendRecord = {
   send_time: string;
 };
 
-export type ReportQueryType = 'available' | 'cancelled' | 'invalid';
+export type MyApplicationQueryType = 'ALL' | 'RUNNING' | 'SUCCESS' | 'FAILED';
+export type ReportQueryType = 'available' | 'cancelled' | 'invalid' | MyApplicationQueryType;

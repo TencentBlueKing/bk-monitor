@@ -23,28 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import i18n from '../../../i18n/i18n';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc, ofType } from 'vue-tsx-support';
 
-export const SendMode = {
-  periodic: i18n.t('周期发送'),
-  one_time: i18n.t('仅发一次')
-};
+interface IProps {
+  label: any;
+  value: string | number;
+}
 
-export const SendStatus = {
-  failed: i18n.t('发送失败'),
-  partial_failed: i18n.t('发送部分失败'),
-  success: i18n.t('发送成功'),
-  no_status: i18n.t('未发送')
-};
+@Component
+class DetailRow extends tsc<IProps> {
+  @Prop({ type: String, default: '' })
+  label: any;
+  @Prop({ type: [String, Number], default: '' })
+  value: string | number;
 
-export const Scenario = {
-  clustering: i18n.t('日志聚类'),
-  dashboard: i18n.t('仪表盘'),
-  scene: i18n.t('观测场景')
-};
-
-export const ApplyStatus = {
-  RUNNING: i18n.t('待审批'),
-  SUCCESS: i18n.t('审批通过'),
-  FAILED: i18n.t('审批驳回')
-};
+  render() {
+    return (
+      <div class='row'>
+        <div class='label'>
+          <span>{this.label}</span>
+        </div>
+        <span
+          class='value'
+          style='align-self: center;'
+        >
+          {this.value}
+        </span>
+      </div>
+    );
+  }
+}
+export default ofType().convert(DetailRow);

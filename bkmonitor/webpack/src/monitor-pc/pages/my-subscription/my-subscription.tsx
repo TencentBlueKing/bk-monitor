@@ -88,6 +88,11 @@ class MySubscription extends tsc<{}> {
   detailInfo = getDefaultReportData();
   /** 重新发送 loading */
   isResending = false;
+  tabList = [
+    { type: 'available', text: '生效中', iconClass: 'available' },
+    { type: 'cancelled', text: '已取消', iconClass: 'cancelled' },
+    { type: 'invalid', text: '已失效', iconClass: 'invalid' }
+  ];
   resetAndGetSubscriptionList() {
     this.page = 1;
     this.fetchSubscriptionList();
@@ -461,6 +466,7 @@ class MySubscription extends tsc<{}> {
           <div class='header-container'>
             <QueryTypeRadio
               v-model={this.queryType}
+              tabList={this.tabList}
               onChange={() => {
                 this.resetAndGetSubscriptionList();
               }}

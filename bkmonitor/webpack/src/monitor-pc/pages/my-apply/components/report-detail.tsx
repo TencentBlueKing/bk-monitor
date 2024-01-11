@@ -32,11 +32,13 @@ import { Scenario } from '../../my-subscription/mapping';
 import { Report, ReportQueryType } from '../../my-subscription/types';
 import { getDefaultReportData, getSendFrequencyText } from '../../my-subscription/utils';
 
+import DetailRow from './detail-row';
+
 import './report-detail.scss';
 
 interface IProps {
   detailInfo: Report;
-  queryType: ReportQueryType;
+  queryType?: ReportQueryType;
 }
 
 @Component
@@ -50,8 +52,8 @@ class ReportDetail extends tsc<IProps> {
   indexSetIDList = [];
 
   getYearOnYearHour(hour: number) {
-    if (hour) return this.$t('{0}小时前', [hour]);
-    return this.$t('不比对');
+    if (hour) return this.$t('{0}小时前', [hour]).toString();
+    return this.$t('不比对').toString();
   }
 
   get getTimeRange() {
@@ -76,78 +78,58 @@ class ReportDetail extends tsc<IProps> {
       <div class='subscription-detail-container'>
         <div class='title'>{this.$t('订阅内容')}</div>
         <div>
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('订阅场景')}</span>
-            </div>
-            <span class='value'>{Scenario[this.detailInfo.scenario]}</span>
-          </div>
+          <DetailRow
+            label={this.$t('订阅场景')}
+            value={Scenario[this.detailInfo.scenario]}
+          />
 
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('索引集')}</span>
-            </div>
-            <span class='value'>{this.indexSetName}</span>
-          </div>
+          <DetailRow
+            label={this.$t('索引集')}
+            value={this.indexSetName}
+          />
 
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('敏感度')}</span>
-            </div>
-            <span class='value'>{this.detailInfo.scenario_config.pattern_level}</span>
-          </div>
+          <DetailRow
+            label={this.$t('敏感度')}
+            value={this.detailInfo.scenario_config.pattern_level}
+          />
 
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('最大展示')}</span>
-            </div>
-            <span class='value'>{this.detailInfo.scenario_config.log_display_count}</span>
-          </div>
+          <DetailRow
+            label={this.$t('最大展示')}
+            value={this.detailInfo.scenario_config.log_display_count}
+          />
 
           {this.detailInfo.scenario_config.year_on_year_hour !== 0 && (
-            <div class='row'>
-              <div class='label'>
-                <span>{this.$t('展示同比')}</span>
-              </div>
-              <span class='value'>{this.getYearOnYearHour(this.detailInfo.scenario_config.year_on_year_hour)}</span>
-            </div>
+            <DetailRow
+              label={this.$t('展示同比')}
+              value={this.getYearOnYearHour(this.detailInfo.scenario_config.year_on_year_hour)}
+            />
           )}
 
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('生成附件')}</span>
-            </div>
-            <span class='value'>
-              {this.detailInfo.scenario_config.generate_attachment ? this.$t('是') : this.$t('否')}
-            </span>
-          </div>
+          <DetailRow
+            label={this.$t('生成附件')}
+            value={this.$t(this.detailInfo.scenario_config.generate_attachment ? '是' : '否').toString()}
+          />
         </div>
 
         <div class='title'>{this.$t('邮件配置')}</div>
         <div>
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('邮件标题')}</span>
-            </div>
-            <span class='value'>{this.detailInfo.content_config.title}</span>
-          </div>
+          <DetailRow
+            label={this.$t('邮件标题')}
+            value={this.detailInfo.content_config.title}
+          />
 
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('附带链接')}</span>
-            </div>
-            <span class='value'>{this.detailInfo.content_config.is_link_enabled ? this.$t('是') : this.$t('否')}</span>
-          </div>
+          <DetailRow
+            label={this.$t('附带链接')}
+            value={this.$t(this.detailInfo.content_config.is_link_enabled ? '是' : '否').toString()}
+          />
         </div>
 
         <div class='title'>{this.$t('发送配置')}</div>
         <div>
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('订阅名称')}</span>
-            </div>
-            <span class='value'>{this.detailInfo.name}</span>
-          </div>
+          <DetailRow
+            label={this.$t('订阅名称')}
+            value={this.detailInfo.name}
+          />
 
           {/* 特殊节点 订阅人里有其他要展示的内容 */}
           <div class='row subscribers'>
@@ -200,29 +182,15 @@ class ReportDetail extends tsc<IProps> {
             </span>
           </div>
 
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('发送频率')}</span>
-            </div>
-            <span
-              class='value'
-              style='align-self: center;'
-            >
-              {getSendFrequencyText(this.detailInfo)}
-            </span>
-          </div>
+          <DetailRow
+            label={this.$t('发送频率')}
+            value={getSendFrequencyText(this.detailInfo)}
+          />
 
-          <div class='row'>
-            <div class='label'>
-              <span>{this.$t('有效时间范围')}</span>
-            </div>
-            <span
-              class='value'
-              style='align-self: center;'
-            >
-              {this.getTimeRange}
-            </span>
-          </div>
+          <DetailRow
+            label={this.$t('有效时间范围')}
+            value={this.getTimeRange}
+          />
         </div>
       </div>
     );

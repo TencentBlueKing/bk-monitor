@@ -23,30 +23,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Model } from 'vue-property-decorator';
+import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 
 import { ReportQueryType } from '../types';
 
 import './query-type-radio.scss';
 
+interface IProps {
+  tabList: TabList[];
+}
 interface IEvent {
   onChange: string;
 }
 
+type TabList = {
+  type: string;
+  text: string;
+  iconClass: string;
+  isShow?: boolean;
+};
+
 @Component
-class QueryTypeRadio extends tsc<{}, IEvent> {
+class QueryTypeRadio extends tsc<IProps, IEvent> {
   @Model('update', { type: String, default: 'available' })
   queryType: ReportQueryType;
+  @Prop({ type: Array, default: () => [] })
+  tabList: TabList[];
 
   render() {
     return (
       <div class='query-type-radio-container'>
-        {[
-          { type: 'available', text: '生效中', iconClass: 'available' },
-          { type: 'cancelled', text: '已取消', iconClass: 'cancelled' },
-          { type: 'invalid', text: '已失效', iconClass: 'invalid' }
-        ].map(({ type, text, iconClass }) => (
+        {this.tabList.map(({ type, text, iconClass, isShow = true }) => (
           <div
             key={type}
             class={['radio', this.queryType === type && 'selected']}
@@ -55,7 +63,7 @@ class QueryTypeRadio extends tsc<{}, IEvent> {
               this.$emit('change', type);
             }}
           >
-            <i class={`circle ${iconClass}`}></i>
+            {isShow && <i class={`circle ${iconClass}`}></i>}
             {this.$t(text)}
           </div>
         ))}
