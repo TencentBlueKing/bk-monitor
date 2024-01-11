@@ -129,6 +129,8 @@ export default class AppList extends tsc<{}> {
   };
   loading = false;
 
+  refleshInstance = null;
+
   opreateOptions: IOperateOption[] = [
     {
       id: 'storageState',
@@ -395,12 +397,31 @@ export default class AppList extends tsc<{}> {
    */
   handleTimeRangeChange(v) {
     this.timeRange = v;
+    this.pagination.current = 1;
+    this.getAppList();
   }
 
+  /**
+   * @description 手动刷新
+   */
   handleImmediateReflesh() {
     this.pagination.current = 1;
     this.pagination.isEnd = false;
     this.getAppList();
+  }
+
+  /**
+   * @description 自动刷新
+   * @param val
+   */
+  handleRefleshChange(val: number) {
+    window.clearInterval(this.refleshInstance);
+    if (val > 0) {
+      this.refleshInstance = setInterval(() => {
+        this.pagination.current = 1;
+        this.getAppList();
+      }, val);
+    }
   }
 
   /** 展示添加弹窗 */
@@ -614,6 +635,7 @@ export default class AppList extends tsc<{}> {
                 timeRange={this.timeRange}
                 onTimeRangeChange={this.handleTimeRangeChange}
                 onImmediateReflesh={() => this.handleImmediateReflesh()}
+                onRefleshChange={this.handleRefleshChange}
               ></DashboardTools>
               <bk-button
                 size='small'
@@ -638,6 +660,9 @@ export default class AppList extends tsc<{}> {
         <div
           class='app-list-main'
           onScroll={this.handleScroll}
+          v-bkloading={{
+            isLoading: this.pagination.current === 1 && this.loading
+          }}
         >
           {this.showGuidePage ? (
             <GuidePage
