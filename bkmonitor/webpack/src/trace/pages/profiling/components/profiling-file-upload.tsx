@@ -32,6 +32,8 @@ import { ConditionType } from '../typings/profiling-retrieval';
 
 import './profiling-file-upload.scss';
 
+const fileTypes = ['perf_script', 'pprof'];
+
 const uploadTypeList = [
   { id: ConditionType.Where, name: window.i18n.t('查询项') },
   { id: ConditionType.Comparison, name: window.i18n.t('对比项') }
@@ -101,6 +103,12 @@ export default defineComponent({
       console.log(options);
       if (uploadType.value === ConditionType.Where) {
         searchObj.files.push(options.file);
+        const params = {
+          app_name: '',
+          file_type: '',
+          file: null
+        };
+        console.log(params);
         setTimeout(() => {
           searchObj.isRunning = true;
           filesStatus.value = searchObj.files.map(item => ({
@@ -164,11 +172,14 @@ export default defineComponent({
                 </Button.ButtonGroup>
               )}
               {!this.isRunning ? (
-                <Upload customRequest={this.handleUploadProgress as any}>
+                <Upload
+                  customRequest={this.handleUploadProgress as any}
+                  accept={fileTypes.map(f => `.${f}`).join(',')}
+                >
                   <div class='upload-content'>
                     <UploadIcon class='upload-icon' />
                     <span class='title'>{this.t('点击上传或将文件拖到此处')}</span>
-                    <span class='desc'>{this.t('支持 pprof, json 等文件格式')}</span>
+                    <span class='desc'>{this.t('支持{0}等文件格式', [fileTypes.join(',')])}</span>
                     <Button
                       theme='primary'
                       class='upload-btn'

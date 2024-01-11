@@ -26,14 +26,18 @@
 
 import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Dialog, Input } from 'bk-magic-vue';
+import { Button, Dialog, Input, Spin } from 'bk-magic-vue';
 
-import { deleteApplication, listApplication } from '../../../monitor-api/modules/apm_meta';
+import { deleteApplication, listApplication, listApplicationAsync } from '../../../monitor-api/modules/apm_meta';
+import { serviceList, serviceListAsync } from '../../../monitor-api/modules/apm_metric';
 import { Debounce } from '../../../monitor-common/utils/utils';
+import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
 import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
 import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 import AlarmTools from '../../../monitor-pc/pages/monitor-k8s/components/alarm-tools';
+import CommonTable, { ICommonTableProps } from '../../../monitor-pc/pages/monitor-k8s/components/common-table';
+import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import { IFilterDict, INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import OperateOptions, { IOperateOption } from '../../../monitor-pc/pages/uptime-check/components/operate-options';
 import introduceData from '../../../monitor-pc/router/space';
@@ -46,6 +50,14 @@ import NavBar from './nav-bar';
 
 import './app-list-new.scss';
 
+const charColor = (str: string) => {
+  const h = str.charCodeAt(0) % 360;
+  const s = '50%';
+  const l = '50%';
+  const color = `hsl(${h}, ${s}, ${l})`;
+  return color;
+};
+
 interface IAppListItem {
   isExpan: boolean;
   app_alias: {
@@ -57,6 +69,27 @@ interface IAppListItem {
   permission: {
     [key: string]: boolean;
   };
+  loading: false;
+  service_count?: {
+    value?: number;
+  };
+  status: {
+    text: string;
+    tips: string;
+    type: string;
+  };
+  firstCodeColor: string;
+  tableData: ICommonTableProps & {
+    paginationData: {
+      current: number;
+      limit: number;
+      count: number;
+      isEnd?: boolean;
+    };
+  };
+  tableDataLoading: boolean;
+  tableSortKey: string;
+  tableFilters: IFilterDict;
 }
 
 @Component
@@ -91,8 +124,12 @@ export default class AppList extends tsc<{}> {
   pagination = {
     current: 1,
     limit: 10,
-    total: 100
+    total: 100,
+    isEnd: false
   };
+  loading = false;
+
+  refleshInstance = null;
 
   opreateOptions: IOperateOption[] = [
     {
@@ -151,10 +188,26 @@ export default class AppList extends tsc<{}> {
   }
 
   created() {
+    this.getLimitOfHeight();
     this.getAppList();
   }
 
+  /**
+   * @description 动态计算当前每页数量
+   */
+  getLimitOfHeight() {
+    const itemHeight = 68;
+    const limit = Math.ceil((window.screen.height - 164) / itemHeight) + 1;
+    this.pagination.limit = limit;
+  }
+
+  /**
+   * @description 获取应用列表
+   */
   async getAppList() {
+    if (this.loading) {
+      return;
+    }
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       start_time: startTime,
@@ -165,16 +218,59 @@ export default class AppList extends tsc<{}> {
       page: this.pagination.current,
       page_size: this.pagination.limit
     };
+    this.loading = true;
     const listData = await listApplication(params).catch(() => {
       return {
         data: []
       };
     });
-    this.appList = listData.data.map(item => ({
-      ...item,
-      isExpan: false,
-      firstCode: item.app_alias?.value?.slice(0, 1) || ''
-    }));
+    this.loading = false;
+    /* 是否到底了 */
+    this.pagination.isEnd = listData.data.length < this.pagination.limit;
+    /* 总数 */
+    this.pagination.total = listData.total || 0;
+    const defaultItem = item => {
+      const firstCode = item.app_alias?.value?.slice(0, 1) || '-';
+      return {
+        ...item,
+        isExpan: false,
+        firstCodeColor: charColor(firstCode),
+        firstCode,
+        loading: false,
+        tableData: {
+          pagination: null,
+          paginationData: {
+            count: 0,
+            current: 1,
+            limit: 15,
+            // limit: 5,
+            isEnd: false
+          },
+          columns: [],
+          data: [],
+          loading: false,
+          checkable: false,
+          showLimit: false,
+          outerBorder: true,
+          scrollLoading: false,
+          maxHeight: 584
+          // maxHeight: 284
+        },
+        tableDataLoading: false,
+        tableSortKey: '',
+        tableFilters: {},
+        service_count: null
+      };
+    };
+    if (this.pagination.current === 1) {
+      this.appList = listData.data.map(item => defaultItem(item));
+    } else {
+      this.appList.push(...listData.data.map(item => defaultItem(item)));
+    }
+    this.getAsyncData(
+      ['service_count'],
+      listData.data.map(item => item.application_id)
+    );
     // 路由同步查询关键字
     const routerParams = {
       name: this.$route.name,
@@ -184,6 +280,148 @@ export default class AppList extends tsc<{}> {
       }
     };
     this.$router.replace(routerParams).catch(() => {});
+  }
+
+  /* 获取服务数量 */
+  getAsyncData(fields: string[], appIds: number[]) {
+    fields.forEach(field => {
+      const params = {
+        column: field,
+        application_ids: appIds
+      };
+      listApplicationAsync(params).then(res => {
+        const dataMap = {};
+        res?.forEach(item => {
+          dataMap[String(item.application_id)] = item[field];
+        });
+        this.appList = this.appList.map(app => ({
+          ...app,
+          [field]: app[field] || dataMap[String(app.application_id)] || null
+        }));
+      });
+    });
+  }
+  /**
+   * @description 获取服务列表
+   * @param appIds
+   * @param isScrollEnd
+   * @param isReflesh
+   */
+  getServiceData(appIds: number[], isScrollEnd = false, isReflesh = false) {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const appIdsSet = new Set(appIds);
+    this.appList.forEach(item => {
+      if (item.tableDataLoading || item.tableData.paginationData.isEnd) {
+        return;
+      }
+      if (!isScrollEnd && item.tableData.data.length && !isReflesh) {
+        return;
+      }
+      if (appIdsSet.has(item.application_id)) {
+        if (isScrollEnd) {
+          item.tableDataLoading = true;
+        } else {
+          item.tableData.loading = true;
+        }
+        serviceList({
+          app_name: item.app_name,
+          start_time: startTime,
+          end_time: endTime,
+          filter: '',
+          sort: item.tableSortKey,
+          filter_dict: item.tableFilters,
+          check_filter_dict: {},
+          page: item.tableData.paginationData.current,
+          page_size: item.tableData.paginationData.limit,
+          keyword: '',
+          condition_list: [],
+          view_options: {
+            app_name: item.app_name,
+            compare_targets: [],
+            current_target: {},
+            method: 'AVG',
+            interval: 'auto',
+            group_by: [],
+            filters: {
+              app_name: item.app_name
+            }
+          },
+          bk_biz_id: this.$store.getters.bizId
+        }).then(({ columns, data, total }) => {
+          if (item.tableData.paginationData.current > 1) {
+            item.tableData.data.push(...(data || []));
+          } else {
+            item.tableData.data = data || [];
+          }
+          item.tableData.columns = columns || [];
+          item.tableData.paginationData.count = total;
+          item.tableData.paginationData.isEnd = (data || []).length < item.tableData.paginationData.limit;
+          const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
+          const services = (data || []).map(d => d.service_name.value);
+          fields.forEach(field => {
+            serviceListAsync({
+              app_name: item.app_name,
+              start_time: startTime,
+              end_time: endTime,
+              column: field,
+              service_names: services,
+              bk_biz_id: this.$store.getters.bizId
+            })
+              .then(serviceData => {
+                const dataMap = {};
+                serviceData?.forEach(item => {
+                  dataMap[String(item.field)] = item[field];
+                });
+                item.tableData.data = item.tableData.data.map(d => ({
+                  ...d,
+                  [field]: d[field] || dataMap[String(d.field)] || null
+                }));
+              })
+              .finally(() => {
+                item.tableData.columns = item.tableData.columns.map(col => ({
+                  ...col,
+                  asyncable: col.id === field ? false : col.asyncable
+                }));
+                item.tableDataLoading = false;
+                item.tableData.loading = false;
+              });
+          });
+        });
+      }
+    });
+  }
+
+  /**
+   * @description 时间范围
+   * @param v
+   */
+  handleTimeRangeChange(v) {
+    this.timeRange = v;
+    this.pagination.current = 1;
+    this.getAppList();
+  }
+
+  /**
+   * @description 手动刷新
+   */
+  handleImmediateReflesh() {
+    this.pagination.current = 1;
+    this.pagination.isEnd = false;
+    this.getAppList();
+  }
+
+  /**
+   * @description 自动刷新
+   * @param val
+   */
+  handleRefleshChange(val: number) {
+    window.clearInterval(this.refleshInstance);
+    if (val > 0) {
+      this.refleshInstance = setInterval(() => {
+        this.pagination.current = 1;
+        this.getAppList();
+      }, val);
+    }
   }
 
   /** 展示添加弹窗 */
@@ -210,7 +448,9 @@ export default class AppList extends tsc<{}> {
   /** 列表搜索 */
   @Debounce(300)
   handleSearch() {
-    //
+    this.pagination.current = 1;
+    this.pagination.isEnd = false;
+    this.getAppList();
   }
 
   /**
@@ -218,6 +458,21 @@ export default class AppList extends tsc<{}> {
    */
   handleAllExpanChange() {
     this.isExpan = !this.isExpan;
+    this.appList = this.appList.map(item => ({ ...item, isExpan: this.isExpan }));
+    if (this.isExpan) {
+      this.getServiceData(this.appList.map(item => item.application_id));
+    }
+  }
+
+  /**
+   * @description 展开
+   * @param row
+   */
+  handleExpanChange(row: IAppListItem) {
+    row.isExpan = !row.isExpan;
+    if (row.isExpan) {
+      this.getServiceData([row.application_id]);
+    }
   }
 
   /** 跳转服务概览 */
@@ -242,14 +497,6 @@ export default class AppList extends tsc<{}> {
       }
     });
     window.open(routeData.href);
-  }
-
-  /**
-   * @description 展开
-   * @param row
-   */
-  handleExpanChange(row: IAppListItem) {
-    row.isExpan = !row.isExpan;
   }
 
   /**
@@ -297,6 +544,79 @@ export default class AppList extends tsc<{}> {
     }
   }
 
+  /**
+   * @description 滚动加载
+   * @param event
+   */
+  handleScroll(event: Event | any) {
+    if (!this.loading && !this.pagination.isEnd) {
+      const { clientHeight } = event.target;
+      const { scrollTop } = event.target;
+      const { scrollHeight } = event.target;
+      const isAtBottom = Math.abs(scrollHeight - (clientHeight + scrollTop)) < 1;
+      if (isAtBottom) {
+        this.pagination.current += 1;
+        this.getAppList();
+      }
+    }
+  }
+
+  /**
+   * @description 收藏
+   * @param val
+   * @param row
+   */
+  handleCollect(val, item: IAppListItem) {
+    const apis = val.api.split('.');
+    (this as any).$api[apis[0]][apis[1]](val.params).then(() => {
+      item.tableData.paginationData.current = 1;
+      item.tableData.paginationData.isEnd = false;
+      this.getServiceData([item.application_id], false, true);
+    });
+  }
+
+  /**
+   * @description 表格滚动到底部
+   * @param row
+   */
+  handleScrollEnd(item: IAppListItem) {
+    item.tableData.paginationData.current += 1;
+    this.getServiceData([item.application_id], true);
+  }
+
+  /**
+   * @description 表格排序
+   * @param param0
+   * @param item
+   */
+  handleSortChange({ prop, order }, item: IAppListItem) {
+    switch (order) {
+      case 'ascending':
+        item.tableSortKey = prop;
+        break;
+      case 'descending':
+        item.tableSortKey = `-${prop}`;
+        break;
+      default:
+        item.tableSortKey = undefined;
+    }
+    item.tableData.paginationData.current = 1;
+    item.tableData.paginationData.isEnd = false;
+    this.getServiceData([item.application_id], false, true);
+  }
+
+  /**
+   * @description 表格筛选
+   * @param filters
+   * @param item
+   */
+  handleFilterChange(filters: IFilterDict, item: IAppListItem) {
+    item.tableFilters = filters;
+    item.tableData.paginationData.current = 1;
+    item.tableData.paginationData.isEnd = false;
+    this.getServiceData([item.application_id], false, true);
+  }
+
   render() {
     return (
       <div class='app-list-wrap-page'>
@@ -310,6 +630,13 @@ export default class AppList extends tsc<{}> {
                 class='alarm-tools'
                 panel={this.alarmToolsPanel}
               />
+              <DashboardTools
+                showListMenu={false}
+                timeRange={this.timeRange}
+                onTimeRangeChange={this.handleTimeRangeChange}
+                onImmediateReflesh={() => this.handleImmediateReflesh()}
+                onRefleshChange={this.handleRefleshChange}
+              ></DashboardTools>
               <bk-button
                 size='small'
                 theme='primary'
@@ -330,7 +657,13 @@ export default class AppList extends tsc<{}> {
           )}
         </NavBar>
 
-        <div class='app-list-main'>
+        <div
+          class='app-list-main'
+          onScroll={this.handleScroll}
+          v-bkloading={{
+            isLoading: this.pagination.current === 1 && this.loading
+          }}
+        >
           {this.showGuidePage ? (
             <GuidePage
               guideId='apm-home'
@@ -340,12 +673,12 @@ export default class AppList extends tsc<{}> {
             <div class='app-list-content'>
               <div class='app-list-content-top'>
                 <Button onClick={this.handleAllExpanChange}>
-                  {this.isExpan ? (
-                    <span class='icon-monitor icon-mc-full-screen'></span>
-                  ) : (
+                  {!this.isExpan ? (
                     <span class='icon-monitor icon-mc-merge'></span>
+                  ) : (
+                    <span class='icon-monitor icon-mc-full-screen'></span>
                   )}
-                  <span>{this.isExpan ? this.$t('全部展开') : this.$t('全部收起')}</span>
+                  <span>{this.isExpan ? this.$t('全部收起') : this.$t('全部展开')}</span>
                 </Button>
                 <Input
                   class='app-list-search'
@@ -367,18 +700,34 @@ export default class AppList extends tsc<{}> {
                     >
                       <div class='header-left'>
                         <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]}></span>
-                        <div class='first-code'>
+                        <div
+                          class='first-code'
+                          style={{
+                            background: item.firstCodeColor
+                          }}
+                        >
                           <span>{item.firstCode}</span>
                         </div>
                         <div class='biz-name-01'>{item.app_alias?.value}</div>
                         <div class='biz-name-02'>（{item.app_name}）</div>
-                        <div class='item-label'>服务数量:</div>
+                        <div class='item-label'>{this.$t('服务数量')}:</div>
                         <div class='item-content'>
-                          <span>58</span>
+                          <span>
+                            {item.service_count === null ? <Spin size='mini' /> : item?.service_count?.value || 0}
+                          </span>
                         </div>
-                        <div class='item-label'>Tracing:</div>
+                        <div
+                          class='item-label'
+                          v-bk-tooltips={{
+                            placement: 'top',
+                            content: item.status?.tips,
+                            disabled: !item.status?.tips
+                          }}
+                        >
+                          Tracing:
+                        </div>
                         <div class='item-content'>
-                          <div class='trace-status'>无数据</div>
+                          <div class={['trace-status', item.status.type]}>{item.status.text}</div>
                         </div>
                         <div class='item-label'>Profiling:</div>
                         <div class='item-content'>
@@ -428,9 +777,35 @@ export default class AppList extends tsc<{}> {
                         </OperateOptions>
                       </div>
                     </div>
-                    {item.isExpan && <div class='expan-content'></div>}
+                    {item.isExpan && (
+                      <div class='expan-content'>
+                        {item.tableData.data.length ? (
+                          <CommonTable
+                            {...{ props: item.tableData }}
+                            onCollect={val => this.handleCollect(val, item)}
+                            onScrollEnd={() => this.handleScrollEnd(item)}
+                            onSortChange={val => this.handleSortChange(val as any, item)}
+                            onFilterChange={val => this.handleFilterChange(val, item)}
+                          ></CommonTable>
+                        ) : (
+                          <EmptyStatus
+                            textMap={{
+                              empty: this.$t('暂无数据')
+                            }}
+                          ></EmptyStatus>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
+              </div>
+              <div class='bottom-loading-status'>
+                {(this.loading || this.pagination.isEnd) && (
+                  <div class='loading-box'>
+                    {this.loading && <div class='spinner'></div>}
+                    {this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}
+                  </div>
+                )}
               </div>
             </div>
           )}
