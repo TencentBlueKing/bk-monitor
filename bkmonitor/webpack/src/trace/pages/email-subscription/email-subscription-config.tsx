@@ -73,7 +73,6 @@ type TooltipsToggleMapping = {
 const keyOfTableSettingInLocalStorage = 'report_list_table_settings';
 
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
-console.log(currentLang);
 
 export default defineComponent({
   name: 'EmailSubscriptionConfig',

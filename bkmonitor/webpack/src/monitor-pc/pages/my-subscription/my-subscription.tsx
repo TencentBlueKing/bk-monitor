@@ -33,7 +33,8 @@ import {
   getSendRecords,
   sendReport
 } from '../../../monitor-api/modules/new_report';
-import { deepClone } from '../../../monitor-common/utils';
+import { deepClone, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
+import { docCookies } from '../../../monitor-common/utils/utils';
 import ReportDetail from '../my-apply/components/report-detail';
 
 import QueryTypeRadio from './components/query-type-radio';
@@ -48,6 +49,8 @@ type ExtraSendReportData = {
   tempSendResult: (SendResult & { is_enabled: boolean })[];
   selectedTag: string[];
 };
+
+const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
 
 @Component({
   components: {
@@ -727,11 +730,18 @@ class MySubscription extends tsc<{}> {
             style='height: 100%;'
           >
             <div class='title-container'>
-              <div>
+              <div style='display: flex;align-items: center;'>
                 <span class='title'>{this.$t('订阅详情')}</span>
-                <span class='sub-title'>-&nbsp;{this.detailInfo.name}</span>
+                <span
+                  class='sub-title'
+                  style={{
+                    maxWidth: currentLang === 'en' ? '260px' : '350px'
+                  }}
+                >
+                  -&nbsp;{this.detailInfo.name}
+                </span>
                 <i
-                  class='icon-monitor icon-copy-link'
+                  class='icon-monitor icon-copy-link link-icon'
                   style='color: #3A84FF; font-size: 14px; margin-left: 10px; cursor: pointer;'
                   onClick={this.goToTargetScene}
                 />

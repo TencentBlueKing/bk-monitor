@@ -133,8 +133,6 @@ export default {
   发送成功: 'Send Success',
   发送部分失败: 'Send Partially Failed',
   发送失败: 'Send Failed',
-  发送记录: 'Send Record',
-  重新订阅: 'Re-subscribe',
   有效时间范围: 'Effective Time Range',
   发送结果: 'Send Result',
   通知渠道: 'Notification Channel',
