@@ -890,8 +890,6 @@ export default defineComponent({
     function setTableSetting() {
       const tableSetting = window.localStorage.getItem(keyOfTableSettingInLocalStorage);
       if (tableSetting) {
-        console.log(tableSetting);
-
         table.settings.checked = JSON.parse(tableSetting);
       }
     }

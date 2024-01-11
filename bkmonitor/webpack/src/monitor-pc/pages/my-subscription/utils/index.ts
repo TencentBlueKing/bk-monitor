@@ -23,29 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { useI18n } from 'vue-i18n';
-
-import { Report } from '../types';
+import i18n from '../../../i18n/i18n';
+import { Report, ReportSendRecord } from '../types';
 
 export function getSendFrequencyText(data: Report) {
-  const { t } = useI18n();
   const hourTextMap = {
-    0.5: t('每个小时整点,半点发送'),
-    1: t('每个小时整点发送'),
-    2: t('从0点开始,每隔2小时整点发送'),
-    6: t('从0点开始,每隔6小时整点发送'),
-    12: t('每天9:00,21:00发送')
+    0.5: i18n.t('每个小时整点,半点发送'),
+    1: i18n.t('每个小时整点发送'),
+    2: i18n.t('从0点开始,每隔2小时整点发送'),
+    6: i18n.t('从0点开始,每隔6小时整点发送'),
+    12: i18n.t('每天9:00,21:00发送')
   };
-  const weekMap = [t('周一'), t('周二'), t('周三'), t('周四'), t('周五'), t('周六'), t('周日')];
+  const weekMap = [
+    i18n.t('周一'),
+    i18n.t('周二'),
+    i18n.t('周三'),
+    i18n.t('周四'),
+    i18n.t('周五'),
+    i18n.t('周六'),
+    i18n.t('周日')
+  ];
   let str = '';
   if (!data?.frequency?.type) return '';
   switch (data.frequency.type) {
     case 1: {
-      str = t('仅一次');
+      str = i18n.t('仅一次').toString();
       break;
     }
     case 2: {
-      str = `${t('每月 {0} 号', [data.frequency.day_list.toString()])} ${data.frequency.run_time}`;
+      str = `${i18n.t('每月 {0} 号', [data.frequency.day_list.toString()])} ${data.frequency.run_time}`;
       break;
     }
     case 3: {
@@ -55,7 +61,7 @@ export function getSendFrequencyText(data: Report) {
       break;
     }
     case 4: {
-      const dayArr = data.frequency.day_list.map(item => `${item}号`);
+      const dayArr = data.frequency.day_list.map(item => `${item}${i18n.t('号')}`);
       const dayStr = dayArr.join(', ');
       str = `${dayStr} ${data.frequency.run_time}`;
       break;
@@ -69,76 +75,6 @@ export function getSendFrequencyText(data: Report) {
       break;
   }
   return str;
-}
-
-/**
- * 由于 getDefaultReportData() 中包含全量的 key ，其中有一些 key 不需要在创建订阅时提交。
- * 这里会先把创建订阅无关的 key 先删掉。
- */
-export function switchReportDataForCreate(data: Report) {
-  // 这里只取需要的
-  /* eslint-disable */
-  const {
-    scenario,
-    name,
-    start_time,
-    end_time,
-    subscriber_type,
-    scenario_config,
-    frequency,
-    content_config,
-    channels
-  } = data;
-  /* eslint-enable */
-  return {
-    scenario,
-    name,
-    start_time,
-    end_time,
-    subscriber_type,
-    scenario_config,
-    frequency,
-    content_config,
-    channels
-  };
-}
-
-/**
- * 由于 getDefaultReportData() 中包含全量的 key ，其中有一些 key 不需要在更新订阅时提交。
- * 这里会先把更新订阅无关的 key 先删掉。
- */
-export function switchReportDataForUpdate(data: Report) {
-  // 这里只取需要的
-  /* eslint-disable */
-  const {
-    id,
-    bk_biz_id,
-    is_enabled,
-    scenario,
-    name,
-    start_time,
-    end_time,
-    subscriber_type,
-    scenario_config,
-    frequency,
-    content_config,
-    channels
-  } = data;
-  /* eslint-enable */
-  return {
-    id,
-    bk_biz_id,
-    is_enabled,
-    scenario,
-    name,
-    start_time,
-    end_time,
-    subscriber_type,
-    scenario_config,
-    frequency,
-    content_config,
-    channels
-  };
 }
 
 // 生成一个有 默认数据 的对象
@@ -209,5 +145,16 @@ export function getDefaultReportData(): Report {
     last_send_time: null,
     send_status: '',
     timerange: []
+  };
+}
+
+export function getDefaultSingleSendRecord(): ReportSendRecord {
+  return {
+    id: 0,
+    report_id: 0,
+    channel_name: 'user',
+    send_results: [],
+    send_status: '',
+    send_time: '1970-01-01 00:00:00+0000'
   };
 }

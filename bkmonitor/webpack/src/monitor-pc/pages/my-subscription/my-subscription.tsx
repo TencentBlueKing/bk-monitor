@@ -23,86 +23,110 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
-import { cancelOrResubscribeReport, getReportList, getSendRecords, sendReport } from '@api/modules/new_report';
-import { deepClone } from '@common/utils';
 import dayjs from 'dayjs';
 
-import SubscriptionDetail, { Scenario } from '../my-apply/components/subscription-detail';
+import {
+  cancelOrResubscribeReport,
+  getReportList,
+  getSendRecords,
+  sendReport
+} from '../../../monitor-api/modules/new_report';
+import { deepClone } from '../../../monitor-common/utils';
+import ReportDetail from '../my-apply/components/report-detail';
+
+import QueryTypeRadio from './components/query-type-radio';
+import { Scenario, SendMode, SendStatus } from './mapping';
+import { Report, ReportQueryType, ReportSendRecord, SendResult } from './types';
+import { getDefaultReportData, getDefaultSingleSendRecord, getSendFrequencyText } from './utils';
 
 import './my-subscription.scss';
 
-enum SendMode {
-  periodic = window.i18n.t('周期发送'),
-  one_time = window.i18n.t('仅发一次')
-}
-
-enum SendStatus {
-  failed = window.i18n.t('发送失败'),
-  partial_failed = window.i18n.t('发送部分失败'),
-  success = window.i18n.t('发送成功'),
-  no_status = window.i18n.t('未发送')
-}
+/** 发送记录 中点击 重新发送会给原先的记录额外添加其他数据。这里补上 */
+type ExtraSendReportData = {
+  tempSendResult: (SendResult & { is_enabled: boolean })[];
+  selectedTag: string[];
+};
 
 @Component({
   components: {
-    SubscriptionDetail
+    ReportDetail,
+    QueryTypeRadio
   }
 })
 class MySubscription extends tsc<{}> {
-  queryData = {
-    create_type: 'self',
-    query_type: 'available',
-    search_key: '',
-    page: 1,
-    page_size: 20,
-    order: '',
-    conditions: []
-  };
-  tableData = [];
+  /** 我的订阅 列表只能查询自己创建的，所以该值固定不变 */
+  createType = 'self';
+  queryType: ReportQueryType = 'available';
+  searchKey = '';
+  page = 1;
+  pageSize = 20;
+  order = '';
+  conditions = [];
+  /** 订阅列表 数据 */
+  reportList = [];
+  /** 订阅列表 总数 */
   totalReportSize = 0;
-  isTableLoading = false;
+  /** 订阅列表 loading */
+  isReportListLoading = false;
+  /** 订阅详情 显示抽屉栏 */
   isShowSideslider = false;
+  /** 显示 发送记录 弹窗 */
   isShowSendRecord = false;
-  sendRecordTable = {
-    data: [],
-    isLoading: false
-  };
+  /** 发送记录 列表 */
+  sendRecordList = [];
+  isSendRecordListLoading = false;
+  /** 发送记录 中 popover 的实例，用作选择重新发送选择 */
   popoverInstance: unknown = null;
-  currentTableRowOfSendingRecord: unknown = {};
-  isShowQuickCreateSideslider = false;
-  detailInfo = {};
-  isCancelingSubscription = false;
+  /** 发送记录 单条数据 */
+  currentTableRowOfSendingRecord: ReportSendRecord & ExtraSendReportData = Object.assign(getDefaultSingleSendRecord(), {
+    tempSendResult: [],
+    selectedTag: []
+  });
+  /** 订阅详情 */
+  detailInfo = getDefaultReportData();
+  /** 重新发送 loading */
   isResending = false;
+  tabList = [
+    { type: 'available', text: '生效中', iconClass: 'available' },
+    { type: 'cancelled', text: '已取消', iconClass: 'cancelled' },
+    { type: 'invalid', text: '已失效', iconClass: 'invalid' }
+  ];
   resetAndGetSubscriptionList() {
-    this.queryData.page = 1;
+    this.page = 1;
     this.fetchSubscriptionList();
   }
 
   fetchSubscriptionList() {
-    this.isTableLoading = true;
-    getReportList(this.queryData)
+    this.isReportListLoading = true;
+    getReportList({
+      create_type: this.createType,
+      query_type: this.queryType,
+      search_key: this.searchKey,
+      page: this.page,
+      page_size: this.pageSize,
+      order: this.order,
+      conditions: this.conditions
+    })
       .then(response => {
-        console.log(response);
-        this.tableData = response.report_list;
+        this.reportList = response.report_list;
         this.totalReportSize = response.total;
       })
-      .catch(console.log)
       .finally(() => {
-        this.isTableLoading = false;
+        this.isReportListLoading = false;
       });
   }
 
-  handleCancelSubscription(data) {
+  handleCancelSubscription(data: Report) {
     this.$bkInfo({
       extCls: 'cancel-report-dialog',
       type: 'warning',
-      title: this.$t('是否取消 {0} 的订阅?', [data?.name]),
+      title: this.$t('是否取消 {0} 的订阅?', [data.name]),
       confirmLoading: true,
       confirmFn: () => {
         return cancelOrResubscribeReport({
-          report_id: data?.id,
+          report_id: data.id,
           is_enabled: false
         })
           .then(() => {
@@ -113,21 +137,18 @@ class MySubscription extends tsc<{}> {
             this.fetchSubscriptionList();
             return true;
           })
-          .catch(error => {
-            console.log(error);
-            return false;
-          });
+          .catch(() => false);
       }
     });
   }
 
-  handleResubscribeReport(data) {
+  handleResubscribeReport(data: Report) {
     this.$bkInfo({
-      title: this.$t('是否重新订阅 {0} ?', [data?.name]),
+      title: this.$t('是否重新订阅 {0} ?', [data.name]),
       confirmLoading: true,
       confirmFn: () => {
         return cancelOrResubscribeReport({
-          report_id: data?.id,
+          report_id: data.id,
           is_enabled: true
         })
           .then(() => {
@@ -138,81 +159,25 @@ class MySubscription extends tsc<{}> {
             this.fetchSubscriptionList();
             return true;
           })
-          .catch(error => {
-            console.log(error);
-            return false;
-          });
+          .catch(() => false);
       }
     });
   }
 
   getSendingRecordList() {
-    this.sendRecordTable.isLoading = true;
+    this.isSendRecordListLoading = true;
     getSendRecords({
       report_id: this.detailInfo.id
     })
       .then(response => {
-        console.log(response);
-        this.sendRecordTable.data = response;
+        this.sendRecordList = response;
       })
-      .catch(console.log)
       .finally(() => {
-        this.sendRecordTable.isLoading = false;
+        this.isSendRecordListLoading = false;
       });
   }
 
-  getSendFrequencyText(data) {
-    const hourTextMap = {
-      0.5: window.i18n.tc('每个小时整点,半点发送'),
-      1: window.i18n.tc('每个小时整点发送'),
-      2: window.i18n.tc('从0点开始,每隔2小时整点发送'),
-      6: window.i18n.tc('从0点开始,每隔6小时整点发送'),
-      12: window.i18n.tc('每天9:00,21:00发送')
-    };
-    const weekMap = [
-      window.i18n.t('周一'),
-      window.i18n.t('周二'),
-      window.i18n.t('周三'),
-      window.i18n.t('周四'),
-      window.i18n.t('周五'),
-      window.i18n.t('周六'),
-      window.i18n.t('周日')
-    ];
-    let str = '';
-    if (!data?.frequency?.type) return '';
-    switch (data.frequency.type) {
-      case 1: {
-        str = this.$t('仅一次').toString();
-        break;
-      }
-      case 2: {
-        str = `${this.$t('每月 {0} 号', [data.frequency.day_list.toString()])} ${data.frequency.run_time}`;
-        break;
-      }
-      case 3: {
-        const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
-        const weekStr = weekStrArr.join(', ');
-        str = `${weekStr} ${data.frequency.run_time}`;
-        break;
-      }
-      case 4: {
-        const dayArr = data.frequency.day_list.map(item => `${item}${this.$t('号')}`);
-        const dayStr = dayArr.join(', ');
-        str = `${dayStr} ${data.frequency.run_time}`;
-        break;
-      }
-      case 5: {
-        str = hourTextMap[data.frequency.hour];
-        break;
-      }
-      default:
-        str = data.frequency.run_time;
-        break;
-    }
-    return str;
-  }
-
-  formatTimeRange(s, e) {
+  formatTimeRange(s: number, e: number) {
     if (!s) return '';
     const startTime = dayjs.unix(s).format('YYYY-MM-DD HH:mm:ss');
     const endTime = dayjs.unix(e).format('YYYY-MM-DD HH:mm:ss');
@@ -226,7 +191,7 @@ class MySubscription extends tsc<{}> {
         is_enabled: true,
         channel_name: this.currentTableRowOfSendingRecord.channel_name,
         subscribers: this.currentTableRowOfSendingRecord.tempSendResult
-          ?.filter(item => {
+          .filter(item => {
             return this.currentTableRowOfSendingRecord.selectedTag.includes(item.id);
           })
           .map(item => {
@@ -247,9 +212,9 @@ class MySubscription extends tsc<{}> {
           theme: 'success',
           message: this.$t('发送成功')
         });
+        // @ts-ignore
         this.popoverInstance.hide();
       })
-      .catch(console.log)
       .finally(() => {
         this.isResending = false;
       });
@@ -261,9 +226,9 @@ class MySubscription extends tsc<{}> {
   goToTargetScene() {
     if (this.detailInfo.scenario === 'clustering') {
       if (!this.detailInfo.scenario_config.index_set_id) {
-        Message({
+        this.$bkMessage({
           theme: 'warning',
-          message: window.i18n.t('请选择索引集')
+          message: this.$t('请选择索引集')
         });
         return;
       }
@@ -291,11 +256,6 @@ class MySubscription extends tsc<{}> {
     }
   }
 
-  @Watch('queryData.query_type')
-  handleQueryTypeChange() {
-    this.resetAndGetSubscriptionList();
-  }
-
   mounted() {
     this.fetchSubscriptionList();
   }
@@ -315,7 +275,7 @@ class MySubscription extends tsc<{}> {
               <div style='display: flex;'>
                 <div class='label-container'>
                   <div class='label'>{this.$t('发送频率')}:</div>
-                  <div class='value'>{this.getSendFrequencyText(this.detailInfo)}</div>
+                  <div class='value'>{getSendFrequencyText(this.detailInfo)}</div>
                 </div>
                 <div class='label-container'>
                   <div
@@ -324,9 +284,7 @@ class MySubscription extends tsc<{}> {
                   >
                     {this.$t('有效时间范围')}:
                   </div>
-                  <div class='value'>
-                    {this.formatTimeRange(this.detailInfo?.start_time, this.detailInfo?.end_time)}
-                  </div>
+                  <div class='value'>{this.formatTimeRange(this.detailInfo.start_time, this.detailInfo.end_time)}</div>
                 </div>
               </div>
 
@@ -334,7 +292,7 @@ class MySubscription extends tsc<{}> {
                 <bk-button
                   text
                   theme='primary'
-                  disabled={this.sendRecordTable.isLoading}
+                  disabled={this.isSendRecordListLoading}
                   onClick={this.getSendingRecordList}
                   style='font-size: 16px;'
                 >
@@ -344,9 +302,9 @@ class MySubscription extends tsc<{}> {
             </div>
 
             <bk-table
-              data={this.sendRecordTable.data}
+              data={this.sendRecordList}
               v-bkloading={{
-                isLoading: this.sendRecordTable.isLoading
+                isLoading: this.isSendRecordListLoading
               }}
               height={400}
               style='margin-top: 16px;'
@@ -361,7 +319,7 @@ class MySubscription extends tsc<{}> {
                 scopedSlots={{
                   default: ({ row }) => {
                     return (
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style='display: flex; align-items: center;'>
                         <i class={['dot-circle', row.send_status]} />
                         <span style='margin-left: 10px;'>{SendStatus[row.send_status]}</span>
                       </div>
@@ -380,7 +338,8 @@ class MySubscription extends tsc<{}> {
                         theme='primary'
                         onClick={e => {
                           this.currentTableRowOfSendingRecord = row;
-                          this.sendRecordTable.data.forEach(item => {
+                          this.sendRecordList.forEach(item => {
+                            // 为了不影响原先的 send_result ,这里将使用中间变量。
                             this.$set(item, 'tempSendResult', deepClone(item.send_results));
                             this.$set(item, 'selectedTag', []);
                             // 需要根据发送结果去对 selectedTag 里的内容进行预先填充。
@@ -395,6 +354,7 @@ class MySubscription extends tsc<{}> {
                           });
                           this.$nextTick(() => {
                             if (this.popoverInstance) {
+                              // @ts-ignore
                               this.popoverInstance.destroy();
                             }
                             this.popoverInstance = this.$bkPopover(e.target, {
@@ -408,6 +368,7 @@ class MySubscription extends tsc<{}> {
                               interactive: true,
                               zIndex: 2002
                             });
+                            // @ts-ignore
                             this.popoverInstance.show(100);
                           });
                         }}
@@ -442,7 +403,7 @@ class MySubscription extends tsc<{}> {
                   3. 已成功发送 {0} 个，失败 {1} 个内部用户
                   */}
               <i18n path='已成功发送 {0} 个内部用户'>
-                <span class='success-text'>{this.currentTableRowOfSendingRecord?.send_results?.length}</span>
+                <span class='success-text'>{this.currentTableRowOfSendingRecord.send_results.length}</span>
               </i18n>
             </div>
 
@@ -460,47 +421,11 @@ class MySubscription extends tsc<{}> {
               {this.$t('确定重新发送给以下用户')}
             </div>
 
-            {/* <div class='tag-content'>
-              {this.currentTableRowOfSendingRecord?.tempSendResult?.map((item, index) => {
-                if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
-                  return (
-                    <bk-tag
-                      closable={
-                        this.currentTableRowOfSendingRecord?.tempSendResult?.filter(target => target.result).length > 1
-                      }
-                      onClose={() => {
-                        this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
-                      }}
-                    >
-                      {item.id}
-                    </bk-tag>
-                  );
-                }
-                if (
-                  ['partial_failed', 'failed'].includes(this.currentTableRowOfSendingRecord.send_status) &&
-                  !item.result
-                ) {
-                  return (
-                    <bk-tag
-                      closable={
-                        this.currentTableRowOfSendingRecord?.tempSendResult.filter(target => !target.result).length > 1
-                      }
-                      onClose={() => {
-                        this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
-                      }}
-                    >
-                      {item.id}
-                    </bk-tag>
-                  );
-                }
-              })}
-            </div> */}
-
             <div style='margin-top: 10px;'>
               <bk-tag-input
                 v-model={this.currentTableRowOfSendingRecord.selectedTag}
                 list={this.currentTableRowOfSendingRecord.tempSendResult}
-                placeholder={window.i18n.t('请选择')}
+                placeholder={this.$t('请选择')}
                 has-delete-icon
                 trigger='focus'
                 display-key='id'
@@ -514,7 +439,7 @@ class MySubscription extends tsc<{}> {
               <bk-button
                 theme='primary'
                 style='min-width: 64px;'
-                disabled={!this.currentTableRowOfSendingRecord?.selectedTag?.length}
+                disabled={!this.currentTableRowOfSendingRecord.selectedTag.length}
                 loading={this.isResending}
                 onClick={this.handleResendSubscription}
               >
@@ -524,6 +449,7 @@ class MySubscription extends tsc<{}> {
               <bk-button
                 style='min-width: 64px;margin-left: 8px;'
                 onClick={() => {
+                  // @ts-ignore
                   this.popoverInstance.hide();
                 }}
               >
@@ -536,99 +462,81 @@ class MySubscription extends tsc<{}> {
     };
     return (
       <div class='my-apply-container'>
-        {/* <div class='header-title'>{this.$t('我的订阅')}</div> */}
-
         <div>
           <div class='header-container'>
-            <div class='radio-container'>
-              <div
-                class={['radio', this.queryData.query_type === 'available' && 'selected']}
-                onClick={() => (this.queryData.query_type = 'available')}
-              >
-                <i class='circle effecting'></i>
-                {this.$t('生效中')}
-              </div>
-              <div
-                class={['radio', this.queryData.query_type === 'cancelled' && 'selected']}
-                onClick={() => (this.queryData.query_type = 'cancelled')}
-              >
-                <i class='circle canceled'></i>
-                {this.$t('已取消')}
-              </div>
-              <div
-                class={['radio', this.queryData.query_type === 'invalid' && 'selected']}
-                onClick={() => (this.queryData.query_type = 'invalid')}
-              >
-                <i class='circle effected'></i>
-                {this.$t('已失效')}
-              </div>
-            </div>
+            <QueryTypeRadio
+              v-model={this.queryType}
+              tabList={this.tabList}
+              onChange={() => {
+                this.resetAndGetSubscriptionList();
+              }}
+            ></QueryTypeRadio>
 
             <bk-input
-              v-model={this.queryData.search_key}
+              v-model={this.searchKey}
               placeholder={this.$t('请输入搜索条件')}
               right-icon='bk-icon icon-search'
-              style={{ width: '320px' }}
+              style='width: 320px;'
               onEnter={this.resetAndGetSubscriptionList}
             ></bk-input>
           </div>
 
           <bk-table
-            data={this.tableData}
+            data={this.reportList}
             v-bkloading={{
-              isLoading: this.isTableLoading
+              isLoading: this.isReportListLoading
             }}
-            style={{ marginTop: '24px' }}
+            style='margin-top: 24px;'
             {...{
               on: {
                 'filter-change': filters => {
                   const targetKey = Object.keys(filters)[0];
                   let targetIndex = -1;
-                  const result = this.queryData.conditions.filter((item, index) => {
+                  const result = this.conditions.filter((item, index) => {
                     if (item.key === targetKey) targetIndex = index;
                     return item.key === targetKey;
                   });
                   if (result.length) {
                     if (filters[targetKey]?.length) {
-                      this.queryData.conditions[targetIndex].value = filters[targetKey];
+                      this.conditions[targetIndex].value = filters[targetKey];
                     } else {
-                      this.queryData.conditions.splice(targetIndex, 1);
+                      this.conditions.splice(targetIndex, 1);
                     }
                   } else {
                     if (filters[targetKey]?.length) {
-                      this.queryData.conditions.push({
+                      this.conditions.push({
                         key: targetKey,
                         value: filters[targetKey]
                       });
                     }
                   }
-                  this.queryData.page = 1;
+                  this.page = 1;
                   this.fetchSubscriptionList();
                 },
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 'sort-change': ({ column, prop, order }) => {
                   if (prop) {
-                    this.queryData.order = `${order === 'ascending' ? '' : '-'}${prop}`;
+                    this.order = `${order === 'ascending' ? '' : '-'}${prop}`;
                   } else {
-                    this.queryData.order = '';
+                    this.order = '';
                   }
                   this.fetchSubscriptionList();
                 },
                 'page-change': newPage => {
-                  this.queryData.page = newPage;
+                  this.page = newPage;
                   this.fetchSubscriptionList();
                 },
                 'page-limit-change': limit => {
-                  this.queryData.page = 1;
-                  this.queryData.page_size = limit;
+                  this.page = 1;
+                  this.pageSize = limit;
                   this.fetchSubscriptionList();
                 }
               }
             }}
             pagination={{
-              current: this.queryData.page,
+              current: this.page,
               count: this.totalReportSize,
-              limit: this.queryData.page_size
+              limit: this.pageSize
             }}
             row-auto-height
           >
@@ -647,7 +555,7 @@ class MySubscription extends tsc<{}> {
                         }}
                         style='height: auto;'
                       >
-                        {row?.content_config?.title}
+                        {row.content_config.title}
                       </bk-button>
                     </div>
                   );
@@ -664,7 +572,6 @@ class MySubscription extends tsc<{}> {
               }}
             ></bk-table-column>
 
-            {/* 没找到 */}
             <bk-table-column
               label={this.$t('来源')}
               scopedSlots={{
@@ -680,11 +587,11 @@ class MySubscription extends tsc<{}> {
               columnKey='send_mode'
               filters={[
                 {
-                  text: window.i18n.t('周期发送'),
+                  text: this.$t('周期发送'),
                   value: 'periodic'
                 },
                 {
-                  text: window.i18n.t('仅发一次'),
+                  text: this.$t('仅发一次'),
                   value: 'one_time'
                 }
               ]}
@@ -695,12 +602,11 @@ class MySubscription extends tsc<{}> {
               }}
             ></bk-table-column>
 
-            {/* 没找到 */}
             <bk-table-column
               label={this.$t('发送时间')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{this.getSendFrequencyText(row)}</div>;
+                  return <div>{getSendFrequencyText(row)}</div>;
                 }
               }}
             ></bk-table-column>
@@ -726,29 +632,29 @@ class MySubscription extends tsc<{}> {
               columnKey='send_status'
               filters={[
                 {
-                  text: `${window.i18n.t('发送成功')}`,
+                  text: `${this.$t('发送成功')}`,
                   value: 'success'
                 },
                 {
-                  text: `${window.i18n.t('未发送')}`,
+                  text: `${this.$t('未发送')}`,
                   value: 'no_status'
                 },
                 // {
-                //   text: `${window.i18n.t('发送部分失败')}`,
+                //   text: `${this.$t('发送部分失败')}`,
                 //   value: 'partial_failed'
                 // },
                 {
-                  text: `${window.i18n.t('发送失败')}`,
+                  text: `${this.$t('发送失败')}`,
                   value: 'failed'
                 }
               ]}
               scopedSlots={{
                 default: ({ row }) => {
                   return row.send_status !== 'no_status' ? (
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style='display: flex; align-items: center;'>
                       <i
                         class={['dot-circle', row.send_status]}
-                        style={{ marginRight: '10px' }}
+                        style='margin-right: 10px;'
                       ></i>
                       {SendStatus[row.send_status]}
                     </div>
@@ -777,22 +683,22 @@ class MySubscription extends tsc<{}> {
                         {this.$t('发送记录')}
                       </bk-button>
 
-                      {['available', 'invalid'].includes(this.queryData.query_type) && (
+                      {['available', 'invalid'].includes(this.queryType) && (
                         <bk-button
                           text
                           theme='primary'
-                          style={{ marginLeft: '10px' }}
+                          style='margin-left: 10px;'
                           onClick={() => this.handleCancelSubscription(row)}
                         >
                           {this.$t('取消订阅')}
                         </bk-button>
                       )}
 
-                      {this.queryData.query_type === 'cancelled' && (
+                      {this.queryType === 'cancelled' && (
                         <bk-button
                           text
                           theme='primary'
-                          style={{ marginLeft: '10px' }}
+                          style='margin-left: 10px;'
                           onClick={() => this.handleResubscribeReport(row)}
                         >
                           {this.$t('重新订阅')}
@@ -811,32 +717,28 @@ class MySubscription extends tsc<{}> {
           width='640'
           ext-cls='my-subscription-slider'
           transfer
+          quick-close
           before-close={() => {
             this.isShowSideslider = false;
           }}
         >
           <div
             slot='header'
-            style={{ height: '100%' }}
+            style='height: 100%;'
           >
             <div class='title-container'>
               <div>
                 <span class='title'>{this.$t('订阅详情')}</span>
-                <span class='sub-title'>-&nbsp;{this.detailInfo?.name}</span>
+                <span class='sub-title'>-&nbsp;{this.detailInfo.name}</span>
                 <i
                   class='icon-monitor icon-copy-link'
-                  style={{
-                    color: '#3A84FF',
-                    fontSize: '14px',
-                    marginLeft: '10px',
-                    cursor: 'pointer'
-                  }}
+                  style='color: #3A84FF; font-size: 14px; margin-left: 10px; cursor: pointer;'
                   onClick={this.goToTargetScene}
                 />
               </div>
 
               <div>
-                {['available', 'invalid'].includes(this.queryData.query_type) && (
+                {['available', 'invalid'].includes(this.queryType) && (
                   <bk-button
                     theme='primary'
                     outline
@@ -846,7 +748,7 @@ class MySubscription extends tsc<{}> {
                   </bk-button>
                 )}
 
-                {this.queryData.query_type === 'cancelled' && (
+                {this.queryType === 'cancelled' && (
                   <bk-button
                     theme='primary'
                     outline
@@ -855,18 +757,15 @@ class MySubscription extends tsc<{}> {
                     {this.$t('重新订阅')}
                   </bk-button>
                 )}
-
-                {/* 暂不需要 */}
-                {/* <bk-button style={{ marginLeft: '8px' }}>{this.$t('编辑')}</bk-button> */}
               </div>
             </div>
           </div>
 
           <div slot='content'>
-            <SubscriptionDetail
+            <ReportDetail
               detailInfo={this.detailInfo}
-              queryType={this.queryData.query_type}
-            ></SubscriptionDetail>
+              queryType={this.queryType}
+            ></ReportDetail>
           </div>
         </bk-sideslider>
 

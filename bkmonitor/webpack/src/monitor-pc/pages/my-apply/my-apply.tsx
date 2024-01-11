@@ -27,60 +27,55 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 import { getApplyRecords, getReport } from '@api/modules/new_report';
 
-import QuickCreateSubscription from '../../components/quick-create-subscription/quick-create-subscription';
+import QueryTypeRadio from '../my-subscription/components/query-type-radio';
+import { ApplyStatus } from '../my-subscription/mapping';
+import { MyApplicationQueryType } from '../my-subscription/types';
+import { getDefaultReportData } from '../my-subscription/utils';
 
-import SubscriptionDetail from './components/subscription-detail';
+import ReportDetail from './components/report-detail';
 
 import './my-apply.scss';
 
-enum Status {
-  RUNNING = window.i18n.t('待审批'),
-  SUCCESS = window.i18n.t('审批通过'),
-  FAILED = window.i18n.t('审批驳回')
-}
-
 @Component({
   components: {
-    SubscriptionDetail,
-    QuickCreateSubscription
+    ReportDetail,
+    QueryTypeRadio
   }
 })
 class MyApply extends tsc<{}> {
-  approvalStatus = 'ALL';
+  approvalStatus: MyApplicationQueryType = 'ALL';
   searchValue = '';
   tableData = [];
   isTableLoading = false;
   isShowSideslider = false;
   isShowQCSSlider = false;
-  detailInfo = {};
+  detailInfo = getDefaultReportData();
+  tabList = [
+    { type: 'ALL', text: '全部', iconClass: 'ALL', isShow: false },
+    { type: 'RUNNING', text: '待审批', iconClass: 'RUNNING' },
+    { type: 'SUCCESS', text: '审批通过', iconClass: 'SUCCESS' },
+    { type: 'FAILED', text: '审批驳回', iconClass: 'FAILED' }
+  ];
   handleGetSubscriptionID(report_id) {
-    getReport({ report_id })
-      .then(response => {
-        this.detailInfo = response;
-        this.isShowSideslider = true;
-      })
-      .catch(console.log);
+    getReport({ report_id }).then(response => {
+      this.detailInfo = response;
+      this.isShowSideslider = true;
+    });
   }
 
+  /** 该列表筛选为纯前端筛选 */
   get computedTableData() {
     return this.tableData
       .filter(item => {
-        if (this.approvalStatus === 'ALL') {
-          return item;
-        }
-        if (item.status === this.approvalStatus) {
-          return item;
-        }
+        return this.approvalStatus === 'ALL' || item.status === this.approvalStatus;
       })
       .filter(item => {
-        if (
+        return (
           item.content_title.includes(this.searchValue) ||
           item.approval_sn.includes(this.searchValue) ||
           item.approvers.find(item => item.includes(this.searchValue)) ||
           item.create_time.includes(this.searchValue)
-        ) {
-          return item;
-        }
+        );
       });
   }
 
@@ -88,10 +83,8 @@ class MyApply extends tsc<{}> {
     this.isTableLoading = true;
     getApplyRecords()
       .then(response => {
-        console.log(response);
         this.tableData = response;
       })
-      .catch(console.log)
       .finally(() => {
         this.isTableLoading = false;
       });
@@ -100,46 +93,19 @@ class MyApply extends tsc<{}> {
   render() {
     return (
       <div class='my-apply-container'>
-        {/* <div class='header-title'>{this.$t('我的订阅')}</div> */}
-
         <div>
           <div class='header-container'>
             {/* 纯前端筛选即可 */}
-            <div class='radio-container'>
-              <div
-                class={['radio', this.approvalStatus === 'ALL' && 'selected']}
-                onClick={() => (this.approvalStatus = 'ALL')}
-              >
-                {this.$t('全部')}
-              </div>
-              <div
-                class={['radio', this.approvalStatus === 'RUNNING' && 'selected']}
-                onClick={() => (this.approvalStatus = 'RUNNING')}
-              >
-                <i class='circle RUNNING'></i>
-                {this.$t('待审批')}
-              </div>
-              <div
-                class={['radio', this.approvalStatus === 'SUCCESS' && 'selected']}
-                onClick={() => (this.approvalStatus = 'SUCCESS')}
-              >
-                <i class='circle SUCCESS'></i>
-                {this.$t('审批通过')}
-              </div>
-              <div
-                class={['radio', this.approvalStatus === 'FAILED' && 'selected']}
-                onClick={() => (this.approvalStatus = 'FAILED')}
-              >
-                <i class='circle FAILED'></i>
-                {this.$t('审批驳回')}
-              </div>
-            </div>
+            <QueryTypeRadio
+              v-model={this.approvalStatus}
+              tabList={this.tabList}
+            ></QueryTypeRadio>
 
             <bk-input
               v-model={this.searchValue}
               placeholder={this.$t('搜索')}
               right-icon='bk-icon icon-search'
-              style={{ width: '320px' }}
+              style='width: 320px;'
             ></bk-input>
           </div>
 
@@ -148,7 +114,7 @@ class MyApply extends tsc<{}> {
             v-bkloading={{
               isLoading: this.isTableLoading
             }}
-            style={{ marginTop: '24px' }}
+            style='margin-top: 24px;'
           >
             <bk-table-column
               label={this.$t('单号')}
@@ -179,7 +145,7 @@ class MyApply extends tsc<{}> {
               label={this.$t('当前步骤')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{row.approval_step[0]?.name || '--'}</div>;
+                  return <div>{row.approval_step[0].name || '--'}</div>;
                 }
               }}
             ></bk-table-column>
@@ -198,9 +164,9 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style='display: flex; align-items: center;'>
                       <i class={['circle', row.status]}></i>
-                      {Status[row.status]}
+                      {ApplyStatus[row.status]}
                     </div>
                   );
                 }
@@ -227,7 +193,7 @@ class MyApply extends tsc<{}> {
                       {this.$t('查看单据详情')}
                       <i
                         class='icon-monitor icon-mc-link'
-                        style={{ marginLeft: '5px' }}
+                        style='margin-left: 5px;'
                       ></i>
                     </bk-button>
                   );
@@ -251,21 +217,13 @@ class MyApply extends tsc<{}> {
             slot='header'
           >
             <span class='title'>{this.$t('订阅详情')}</span>
-            <span class='sub-title'>-&nbsp;{this.detailInfo?.name}</span>
+            <span class='sub-title'>-&nbsp;{this.detailInfo.name}</span>
           </div>
 
           <div slot='content'>
-            <SubscriptionDetail detailInfo={this.detailInfo}></SubscriptionDetail>
+            <ReportDetail detailInfo={this.detailInfo}></ReportDetail>
           </div>
         </bk-sideslider>
-
-        {/* 测试代码 */}
-        {/* <QuickCreateSubscription v-model={this.isShowQCSSlider}></QuickCreateSubscription>
-        <bk-button
-          onClick={() => {
-            this.isShowQCSSlider = true;
-          }}
-        ></bk-button> */}
       </div>
     );
   }

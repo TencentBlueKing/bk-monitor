@@ -205,5 +205,9 @@ export default {
   确定重新发送给以下失败用户: 'Confirm to resend to the following failed users:',
   确定重新发送给以下失败邮件: 'Confirm to resend to the following failed emails:',
   确定重新发送给以下失败企业微信群: 'Confirm to resend to the following failed enterprise WeChat groups:',
-  必需为正整数: 'Must be a positive integer'
+  必需为正整数: 'Must be a positive integer',
+  请至少选择一种订阅方式: 'Please select at least one subscription method',
+  请选择: 'please choose',
+  主动订阅: 'Actively subscribe',
+  他人订阅: 'Others subscribe'
 };
