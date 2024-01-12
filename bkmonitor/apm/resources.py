@@ -53,6 +53,7 @@ from apm.models import (
 )
 from apm.models.profile import ProfileService
 from apm.task.tasks import create_or_update_tail_sampling
+from apm.models.profile import ProfileService
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -1549,7 +1550,7 @@ class QueryProfileServiceDetailResource(Resource):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
         service_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-        data_type = serializers.CharField()
+        data_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class ResponseSerializer(serializers.ModelSerializer):
         last_check_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
@@ -1566,9 +1567,10 @@ class QueryProfileServiceDetailResource(Resource):
         params = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
-            "data_type": validated_data["data_type"],
         }
         if validated_data.get("service_name"):
             params["name"] = validated_data["service_name"]
+        if validated_data.get("data_type"):
+            params["data_type"] = validated_data["data_type"]
 
         return ProfileService.objects.filter(**params).order_by("created_at")

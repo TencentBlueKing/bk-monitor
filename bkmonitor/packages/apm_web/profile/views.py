@@ -28,7 +28,10 @@ from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.doris.converter import DorisConverter
 from apm_web.profile.doris.querier import APIParams, APIType, Query
 from apm_web.profile.file_handler import ProfilingFileHandler
-from apm_web.profile.resources import QueryServicesDetailResource
+from apm_web.profile.resources import (
+    ListApplicationServicesResource,
+    QueryServicesDetailResource,
+)
 from apm_web.profile.serializers import (
     ProfileListFileSerializer,
     ProfileQuerySerializer,
@@ -37,7 +40,7 @@ from apm_web.profile.serializers import (
 )
 from apm_web.tasks import profile_file_upload_and_parse
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
 from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -257,6 +260,9 @@ class QueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
+        if self.action in ["services"]:
+            return [ViewBusinessPermission()]
+
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
@@ -267,5 +273,6 @@ class QueryViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
+        ResourceRoute("GET", ListApplicationServicesResource, endpoint="services"),
         ResourceRoute("GET", QueryServicesDetailResource, endpoint="services_detail"),
     ]

@@ -9,12 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+import time
 
 from rest_framework import serializers
 
+from apm_web.models import Application
+from apm_web.profile.doris.querier import QueryTemplate
 from core.drf_resource import Resource, api
-
-from .doris.querier import QueryTemplate
 
 
 class QueryServicesDetailResource(Resource):
@@ -59,3 +60,59 @@ class QueryServicesDetailResource(Resource):
     @classmethod
     def format_time(cls, value):
         return datetime.datetime.fromtimestamp(int(value) / 1000).strftime("%Y-%m-%d %H:%M:%S")
+
+
+class ListApplicationServicesResource(Resource):
+    """查询所有应用/服务信息列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField()
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+
+    def perform_request(self, validated_data):
+        applications = Application.objects.filter(bk_biz_id=validated_data["bk_biz_id"])
+
+        apps = []
+        nodata_apps = []
+
+        for application in applications:
+            services = api.apm_api.query_profile_services_detail(
+                **{"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
+            )
+            app_has_data = False
+            app_services = []
+
+            for svr in services:
+                # 如果上次检查时间在start-end范围内 说明此范围此服务有数据
+                check_timestamp = int(time.mktime(time.strptime(svr["last_check_time"], "%Y-%m-%d %H:%M:%S")))
+                if validated_data["start_time"] <= check_timestamp <= validated_data["end_time"]:
+                    app_has_data = True
+                    app_services.append(
+                        {
+                            "id": svr["id"],
+                            "name": svr["name"],
+                            "has_data": True,
+                        }
+                    )
+                else:
+                    app_services.append(
+                        {
+                            "id": svr["id"],
+                            "name": svr["name"],
+                            "has_data": False,
+                        }
+                    )
+            [nodata_apps, apps][app_has_data].append(
+                {
+                    "bk_biz_id": application.bk_biz_id,
+                    "app_name": application.app_name,
+                    "app_alias": application.app_alias,
+                    "services": app_services,
+                }
+            )
+
+        return {
+            "normal": apps,
+            "no_data": nodata_apps,
+        }

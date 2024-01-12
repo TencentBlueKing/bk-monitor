@@ -21,6 +21,15 @@ from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
+from django.conf import settings
+from django.db import models
+from django.db.transaction import atomic
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Q
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
+
 from apm import constants
 from apm.constants import (
     DATABASE_CONNECTION_NAME,
