@@ -245,12 +245,6 @@ class ContainerSerializer(serializers.Serializer):
         if attrs.get("container_name") and attrs.get("container_name_exclude"):
             raise ValidationError(_("不能同时指定容器名称和排除容器名称"))
 
-        container_name_exclude = attrs.get("container_name_exclude")
-
-        container_name_exclude = [name.strip() for name in container_name_exclude.split(",") if name]
-
-        attrs["container_name_exclude"] = container_name_exclude
-
         return attrs
 
 

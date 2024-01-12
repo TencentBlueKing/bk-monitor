@@ -3822,11 +3822,11 @@ class CollectorHandler(object):
         workload_type="",
         workload_name="",
         container_name="",
-        container_name_exclude=None,
+        container_name_exclude="",
     ):
         namespaces_exclude = namespaces_exclude or []
         container_names = container_name.split(",") if container_name else []
-        container_names_exclude = container_name_exclude or []
+        container_names_exclude = container_name_exclude.split(",") if container_name_exclude else []
         pattern = re.compile(workload_name)
         filtered_pods = []
         for pod in pods.items:
@@ -4128,7 +4128,9 @@ class CollectorHandler(object):
                         "container_name": ",".join(config["containerNameMatch"])
                         if config.get("containerNameMatch")
                         else "",
-                        "container_name_exclude": config.get("containerNameExcludeMatch", []),
+                        "container_name_exclude": ",".join(config["containerNameExcludeMatch"])
+                        if config.get("containerNameExcludeMatch")
+                        else "",
                     },
                     "label_selector": {
                         "match_labels": [
@@ -4358,7 +4360,9 @@ class CollectorHandler(object):
             "workloadType": container_config.workload_type,
             "workloadName": container_config.workload_name,
             "containerNameMatch": container_config.container_name.split(",") if container_config.container_name else [],
-            "containerNameExcludeMatch": container_config.container_name_exclude or [],
+            "containerNameExcludeMatch": container_config.container_name_exclude.split(",")
+            if container_config.container_name_exclude
+            else [],
             "labelSelector": {
                 "matchLabels": {label["key"]: label["value"] for label in container_config.match_labels}
                 if container_config.match_labels
@@ -4421,6 +4425,7 @@ class CollectorHandler(object):
                         container_config["workload_type"],
                         container_config["workload_name"],
                         container_config["container_name"],
+                        container_config["container_name_exclude"],
                         container_config["match_labels"],
                         container_config["match_expressions"],
                     ]
