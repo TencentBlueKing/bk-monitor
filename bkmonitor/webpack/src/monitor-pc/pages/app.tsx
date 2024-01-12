@@ -28,14 +28,14 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkPaasLogin from '@blueking/paas-login';
 import { Input, Navigation, NavigationMenu, NavigationMenuGroup, NavigationMenuItem } from 'bk-magic-vue';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
 import { getFooter, listStickySpaces } from '../../monitor-api/modules/commons';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
 import debounce from '../../monitor-common/utils/debounce-decorator';
 import bus from '../../monitor-common/utils/event-bus';
-import { docCookies, getUrlParam } from '../../monitor-common/utils/utils';
+import { docCookies, getUrlParam, random } from '../../monitor-common/utils/utils';
 import AuthorityModal from '../../monitor-ui/authority-modal';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
@@ -55,7 +55,20 @@ import HeaderSettingModal from './header-setting-modal';
 // #endif
 
 import './app.scss';
+import introduce from '../common/introduce';
+import { isAuthority } from '../router/router';
+import { getDashboardCache } from './grafana/utils';
+import { getDashboardList } from '../../monitor-api/modules/grafana';
 
+const changeNoticeRouteList = [
+  'strategy-config-add',
+  'strategy-config-edit',
+  'strategy-config-target',
+  'alarm-shield-add',
+  'alarm-shield-edit',
+  'plugin-add',
+  'plugin-edit'
+];
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
@@ -74,7 +87,6 @@ export default class App extends tsc<{}> {
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
   @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
   routeList = getRouteConfig();
-  bizId = window.cc_biz_id;
   showBizList = false;
   keyword = '';
   localMenuList = [];
@@ -97,6 +109,10 @@ export default class App extends tsc<{}> {
   globalSettingShow = false;
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
   @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
+  routeViewKey = random(10);
+  get bizId() {
+    return this.$store.getters.bizId;
+  }
   get navActive() {
     let routeId = this.routeId || 'home';
     const {
@@ -156,7 +172,6 @@ export default class App extends tsc<{}> {
   get isFullScreen() {
     return this.$store.getters.isFullScreen;
   }
-
   // route loading
   get routeChangeLoading() {
     return this.$store.getters.routeChangeLoading;
@@ -178,7 +193,6 @@ export default class App extends tsc<{}> {
 
   created() {
     this.handleSetNeedMenu();
-    this.bizId = this.$store.getters.bizId;
     this.menuToggle = localStorage.getItem('navigationToogle') === 'true';
     this.noticeStepList = [
       {
@@ -331,14 +345,14 @@ export default class App extends tsc<{}> {
   async handleMenuItemClick(item) {
     let hasRouteChange = this.$route.path !== item.path;
     const isMicroApp = microRouteNameList.includes(item.id);
-    const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
+    // const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
     // 屏蔽是微应用 需特殊处理
     if (isMicroApp) {
       hasRouteChange = location.hash !== item.href;
     }
     if (hasRouteChange && !!item.href) {
       await this.$nextTick();
-      if (isMicroApp || !(this.$router as any).history.pending || isPeddingMicroApp) {
+      if (!(this.$router as any).history.pending) {
         const route = item.usePath ? { path: item.path } : { name: item.id };
         !item.noCache &&
           this.setUserStoreMenu({
@@ -346,11 +360,11 @@ export default class App extends tsc<{}> {
           });
         if (isMicroApp) {
           location.hash = item.href;
-          setTimeout(() => {
-            (this.$router as any).history.pending = null;
-          }, 2000);
         } else this.$router.push(route);
       }
+      setTimeout(() => {
+        (this.$router as any).history.pending = null;
+      }, 2000);
     }
   }
   /**
@@ -361,17 +375,7 @@ export default class App extends tsc<{}> {
    */
   handleBeforeNavChange(newId: string, oldId: string) {
     this.handleHeaderSettingShowChange(false);
-    if (
-      [
-        'strategy-config-add',
-        'strategy-config-edit',
-        'strategy-config-target',
-        'alarm-shield-add',
-        'alarm-shield-edit',
-        'plugin-add',
-        'plugin-edit'
-      ].includes(this.$route.name)
-    ) {
+    if (changeNoticeRouteList.includes(this.$route.name)) {
       if (newId !== oldId) {
         this.$router.push({
           name: newId
@@ -379,46 +383,107 @@ export default class App extends tsc<{}> {
       }
       return false;
     }
+    (this.$router as any).history.pending = null;
     return true;
   }
   // 切换业务
   async handleBizChange(v: number) {
     this.handleHeaderSettingShowChange(false);
-    setTimeout(() => {
-      window.cc_biz_id = +v;
-      window.bk_biz_id = +v;
-      window.space_uid = this.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
-      this.showBizList = false;
-      this.$store.commit('app/SET_BIZ_ID', +v);
-      const { navId } = this.$route.meta;
-      if (['apm-home', 'fta-integrated'].includes(navId)) {
-        location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${
-          navId === 'apm-home' ? 'apm/home' : 'fta/intergrations'
-        }`;
+    // 切换全局业务配置
+    window.cc_biz_id = +v;
+    window.bk_biz_id = +v;
+    window.space_uid = this.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
+    this.showBizList = false;
+    this.$store.commit('app/SET_BIZ_ID', +v);
+    this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
+    const { navId } = this.$route.meta;
+    // 处理页面引导页信息
+    introduce.clear();
+    let promise = null;
+    if (navId in introduce.data) {
+      promise = introduce.getIntroduce(this.$route.meta.navId);
+    }
+    // 跳转
+    if (navId === 'grafana') {
+      const dashboardCache = getDashboardCache();
+      const dashboardId = dashboardCache[v];
+      let path = 'grafana/home';
+      if (dashboardId) {
+        const list = await getDashboardList().catch(() => []);
+        const hasDashboard = list.some(item => item.uid === dashboardId);
+        path = hasDashboard ? `grafana/d/${dashboardId}` : 'grafana/home';
+      }
+      this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', path);
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise, path).then(async hasAuth => {
+        if (hasAuth) {
+          this.routeViewKey = random(10);
+        }
+      });
+      setTimeout(() => {
+        this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+      }, 32);
+    } else if (navId !== this.$route.name) {
+      // 所有页面的子路由在切换业务的时候都统一返回到父级页面
+      const parentRoute = this.$router.options.routes.find(item => item.name === navId);
+      if (parentRoute) {
+        this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
+        const hasAuth = await this.handleUpdateRoute({ bizId: `${v}` }, promise);
+        hasAuth &&
+          this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
+            this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+          });
+        if (!hasAuth) {
+          this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+        }
         return;
       }
-      // 所有页面的子路由在切换业务的时候都统一返回到父级页面
-      if (navId !== this.$route.name) {
-        const parentRoute = this.$router.options.routes.find(item => item.name === navId);
-        if (parentRoute) {
-          location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${parentRoute.path}`;
-        } else {
-          this.handleReload();
-        }
-      } else {
-        this.handleReload();
-      }
-    }, 200);
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
+        hasAuth && (this.routeViewKey = random(10));
+      });
+    } else {
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
+        hasAuth && (this.routeViewKey = random(10));
+      });
+    }
+    window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
+    this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
   }
   // 刷新页面
-  handleReload() {
-    const { needClearQuery } = this.$route.meta;
-    // 清空query查询条件
-    if (needClearQuery) {
-      location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${this.$route.path}`;
-    } else {
-      location.search = `?bizId=${window.cc_biz_id}`;
+  async handleUpdateRoute(params: Record<string, any>, promise = () => false, path?: string) {
+    const promiseList = [];
+    promiseList.push(promise);
+    const { authority } = this.$route.meta;
+    const serachParams = new URLSearchParams(params);
+    const newUrl = `${window.location.pathname}?${serachParams.toString()}#${path || this.$route.path}`;
+    history.replaceState({}, '', newUrl);
+    // 判断页面权限
+    let hasAuthority = false;
+    if (authority?.page) {
+      promiseList.push(
+        isAuthority(authority?.page)
+          .catch(() => false)
+          .finally(() => {
+            setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
+          })
+      );
+      [, hasAuthority] = await Promise.all(promiseList);
+      if (!hasAuthority) {
+        this.$router.push({
+          path: `/exception/403/${random(10)}`,
+          query: {
+            actionId: authority.page || '',
+            fromUrl: (path || this.$route.path).replace(/^\//, ''),
+            parentRoute: this.$route.meta.route.parent
+          },
+          params: {
+            title: '无权限'
+          }
+        });
+        return false;
+      }
     }
+    await Promise.all(promiseList);
+    return true;
   }
   handleClickBizSelect() {
     this.showBizList = !this.showBizList;
@@ -586,6 +651,7 @@ export default class App extends tsc<{}> {
         ></CommonNavBar>
       ),
       <div
+        key={this.routeViewKey}
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
         class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
         style={{ height: this.showNav ? 'calc(100% - 52px)' : '100%' }}
@@ -781,6 +847,7 @@ export default class App extends tsc<{}> {
           }
           {!this.menuList?.length && this.isDashboard ? (
             <DashboardContainer
+              key={this.routeViewKey}
               bizIdList={this.bizIdList}
               onBizChange={this.handleBizChange}
               onOpenSpaceManager={this.handleOpenSpace}

@@ -124,11 +124,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.toolRef.timeRange = value;
-    this.tools.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.toolRef.timeRange = value;
+      this.tools.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -316,7 +318,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.isMultivariateAnomalyDetection) {
       return false;
     }
-    return this.metricQueryData.length > 0;
+    return this.metricQueryData.length > 0 || this.metricQueryData;
   }
 
   deactivated() {
@@ -1020,7 +1022,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 </div>
               )}
             </div>,
-
             this.needDescContent && (
               <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
                 {this.isEventMetric && <div class='desc-title'>{this.$t('系统事件说明')}</div>}
