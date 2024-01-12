@@ -1,6 +1,6 @@
-plugin_id: multi_cloud_alert
+plugin_id: multi_cloud_test_alert
 version: 1.0.0
-plugin_display_name: 公有云告警推送
+plugin_display_name: 公有云告警测试推送
 plugin_type: http_push
 summary: 推送公有云监控告警
 author: 蓝鲸智云
@@ -16,47 +16,15 @@ ingest_config:
   alert_sources:
     - code: TENCENT
       name: 腾讯云
-    - code: GOOGLE
-      name: 谷歌云
   is_external: true
   collect_type: bk_collector
 
-normalization_config:
-  - field: alert_name
-    expr: alarmPolicyInfo.policyName
-  - field: event_id
-    expr: event_id
-  - field: description
-    expr: "alarmPolicyInfo.conditions.metricShowName && alarmPolicyInfo.conditions.calcType && alarmPolicyInfo.conditions.calcValue && alarmPolicyInfo.conditions.calcUnit && join(' ', [alarmPolicyInfo.conditions.metricShowName, alarmPolicyInfo.conditions.calcType, alarmPolicyInfo.conditions.calcValue, alarmPolicyInfo.conditions.calcUnit]) || alarmPolicyInfo.conditions.productShowName && alarmPolicyInfo.conditions.eventShowName && join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName]) || alarmObjInfo.content"
-  - field: metric
-    expr: alarmPolicyInfo.conditions.metricName
-  - field: category
-    expr: category
-  - field: assignee
-    expr: assignee
-  - field: status
-    expr: "get_field({1: 'ABNORMAL', 0: 'RECOVERED'}, alarmStatus)"
-  - field: target
-    expr: target
-  - field: target_type
-    expr: target_type
-  - field: severity
-    expr: "'1'"
-  - field: bk_biz_id
-    expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
-  - field: tags
-    expr: "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, content: alarmObjInfo.content, summary: alarmObjInfo.summary, alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}, alarmObjInfo.dimensions, alarmObjInfo.tags)"
-  - field: time
-    expr: firstOccurTime
-  - field: source_time
-    expr: firstOccurTime
-  - field: anomaly_time
-    expr: firstOccurTime
-
+# 清洗配置
+normalization_config: {}
 clean_configs:
   # 谷歌云的清洗配置
   - rules:
-    - key: headers."user-agent"
+    - key: headers.user-agent
       value:
         - "Google-Alerts"
       method: eq
@@ -70,63 +38,175 @@ clean_configs:
       - field: alert_name
         expr: incident.policy_name
       - field: event_id
-        expr: incident.incident_id
+        expr: "['google_cloud_alert_{{plugin_inst_biz_id}}', incident.incident_id] | join('.', @)"
       - field: description
         expr: incident.summary
       - field: metric
-        expr: incident.metric.displayName
-      - field: category
-        expr: category
-      - field: assignee
-        expr: assignee
+        expr: incident.metric.type
       - field: status
         expr: "get_field({OPEN: 'ABNORMAL', open: 'ABNORMAL', CLOSED: 'CLOSED', closed: 'CLOSED'}, incident.state)"
-      - field: target
-        expr: target
-      - field: target_type
-        expr: target_type
       - field: severity
-        expr: "'1'"
+        expr: "get_field({Warning: '3', Error: '2', Critical: '1'}, incident.severity)"
       - field: bk_biz_id
-        expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: "merge(incident.resource.labels, incident.metric.labels, {resource_type: incident.resource.type, metric_type: incident.metric.type})"
       - field: tags
-        expr: "merge({scoping_project_id: incident.scoping_project_id, scoping_project_number: incident.scoping_project_number, observed_value: incident.observed_value, resource: to_string(incident.resource), resource_id: incident.resource_id, resource_display_name: incident.resource_display_name, metric: to_string(incident.metric), policy_user_labels: incident.policy_user_labels, condition: to_string(incident.condition)}, incident.metadata)"
-      - field: time
-        expr: incident.started_at
-      - field: anomaly_time
-        expr: incident.started_at
+        expr: |
+          {
+            scoping_project_id: incident.scoping_project_id,
+            scoping_project_number: incident.scoping_project_number,
+            resource_id: incident.resource_id,
+            resource_name: incident.resource_name,
+            resource_type_display_name: incident.resource_type_display_name,
+            metric_display_name: incident.metric.displayName,
+            url: incident.url,
+          }
   # 腾讯云的清洗配置
   - rules:
     - key: __http_query_params__.source
       value:
         - "tencent"
       method: eq
+      condition: and
+    - key: alarmType
+      value:
+        - "metric"
+      method: eq
     normalization_config:
       - field: alert_name
         expr: alarmPolicyInfo.policyName
       - field: event_id
-        expr: event_id
+        expr: "['tencent_cloud_alert_{{plugin_inst_biz_id}}', sessionId] | join('.', @)"
       - field: description
-        expr: "alarmPolicyInfo.conditions.metricShowName && alarmPolicyInfo.conditions.calcType && alarmPolicyInfo.conditions.calcValue && alarmPolicyInfo.conditions.calcUnit && join(' ', [alarmPolicyInfo.conditions.metricShowName, alarmPolicyInfo.conditions.calcType, alarmPolicyInfo.conditions.calcValue, alarmPolicyInfo.conditions.calcUnit]) || alarmPolicyInfo.conditions.productShowName && alarmPolicyInfo.conditions.eventShowName && join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName]) || alarmObjInfo.content"
+        expr: alarmPolicyInfo.conditions.metricShowName
       - field: metric
         expr: alarmPolicyInfo.conditions.metricName
-      - field: category
-        expr: category
-      - field: assignee
-        expr: assignee
       - field: status
-        expr: "get_field({1: 'ABNORMAL', 0: 'RECOVERED'}, alarmStatus)"
-      - field: target
-        expr: target
-      - field: target_type
-        expr: target_type
+        expr: "get_field({status_1: 'ABNORMAL', status_0: 'RECOVERED'}, ['status', alarmStatus] | join('_', @))"
       - field: severity
-        expr: "'1'"
+        expr: "get_field({Warn: '2', Serious: '1', Remind: '3'}, alarmLevel) || '1'"
       - field: bk_biz_id
-        expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: |
+          alarmObjInfo.dimensions &&
+          merge(
+            alarmObjInfo.dimensions,
+            {
+              region: alarmObjInfo.region,
+              namespace: alarmObjInfo.namespace,
+              policyId: alarmPolicyInfo.policyId
+            }
+          ) ||
+          alarmObjInfo."tapm.instance.key" &&
+          {
+            "tapm.instance.key": alarmObjInfo."tapm.instance.key",
+            "service.name": alarmObjInfo."service.name",
+            "span.kind": alarmObjInfo."span.kind",
+            operation: alarmObjInfo.operation,
+            policyId: alarmPolicyInfo.policyId
+          } || 
+          alarmObjInfo.level &&
+          {
+            level: alarmObjInfo.level,
+            id: alarmObjInfo.id,
+            instanceId: alarmObjInfo.instanceId,
+            policyId: alarmPolicyInfo.policyId
+          }
       - field: tags
-        expr: "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, content: alarmObjInfo.content, summary: alarmObjInfo.summary, alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}, {dimensions: alarmObjInfo.dimensions}, {tags: alarmObjInfo.tags})"
-      - field: time
-        expr: firstOccurTime
-      - field: anomaly_time
-        expr: firstOccurTime
+        expr: |
+          {
+            alarmType: alarmType,
+            policyName: alarmPolicyInfo.policyName,
+            policyType: alarmPolicyInfo.policyType,
+            policyTypeCName: alarmPolicyInfo.policyTypeCName，
+            metricName: alarmPolicyInfo.conditions.metricName,
+            metricShowName: alarmPolicyInfo.conditions.metricShowName
+          }
+  - rules:
+    - key: __http_query_params__.source
+      value:
+        - "tencent"
+      method: eq
+      condition: and
+    - key: alarmType
+      value:
+        - "event"
+      method: eq
+    normalization_config:
+      - field: alert_name
+        expr: alarmPolicyInfo.policyName
+      - field: event_id
+        expr: "['tencent_cloud_alert_{{plugin_inst_biz_id}}', sessionId] | join('.', @)"
+      - field: description
+        expr: join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName]
+      - field: metric
+        expr: alarmPolicyInfo.conditions.metricName
+      - field: status
+        expr: "get_field({status_1: 'ABNORMAL', status_0: 'RECOVERED'}, ['status', alarmStatus] | join('_', @))"
+      - field: severity
+        expr: "get_field({Warn: '2', Serious: '1', Remind: '3'}, alarmLevel) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: |
+          merge(
+            alarmObjInfo.dimensions,
+            {
+              region: alarmObjInfo.region,
+              namespace: alarmObjInfo.namespace,
+              policyId: alarmPolicyInfo.policyId
+            }
+          )
+      - field: tags
+        expr: |
+          {
+            alarmType: alarmType,
+            policyName: alarmPolicyInfo.policyName,
+            policyType: alarmPolicyInfo.policyType,
+            policyTypeCName: alarmPolicyInfo.policyTypeCName,
+            productName: alarmPolicyInfo.conditions.productName,
+            productShowName: alarmPolicyInfo.conditions.productShowName,
+            eventName: alarmPolicyInfo.conditions.eventName,
+            eventShowName: alarmPolicyInfo.conditions.eventShowName
+          }
+  - rules:
+    - key: __http_query_params__.source
+      value:
+        - "tencent"
+      method: eq
+      condition: and
+    - key: alarmType
+      value:
+        - "prometheus"
+      method: eq
+    normalization_config:
+      - field: alert_name
+        expr: alarmPolicyInfo.policyName
+      - field: event_id
+        expr: "['tencent_cloud_alert_{{plugin_inst_biz_id}}', sessionId] | join('.', @)"
+      - field: description
+        expr: alarmObjInfo.content
+      - field: metric
+        expr: alarmPolicyInfo.conditions.metricName
+      - field: status
+        expr: "get_field({status_1: 'ABNORMAL', status_0: 'RECOVERED'}, ['status', alarmStatus] | join('_', @))"
+      - field: severity
+        expr: "get_field({Warn: '2', Serious: '1', Remind: '3'}, alarmLevel) || '1'"
+      - field: bk_biz_id
+        expr: "'{{plugin_inst_biz_id}}'"
+      - field: dimensions
+        expr: |
+          merge(
+            alarmObjInfo.tags,
+            {
+              policyId: alarmPolicyInfo.policyId
+            }
+          )
+      - field: tags
+        expr: |
+          {
+            alarmType: alarmType,
+            policyName: alarmPolicyInfo.policyName
+          }
