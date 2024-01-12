@@ -131,6 +131,10 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
 
   metricpopoerInstance = null;
 
+  get readonlyMetrics() {
+    return this.scene?.metrics?.filter(item => this.metrics.includes(item.metric_id)) || [];
+  }
+
   @Emit('change')
   handleChange(value?) {
     if (value) {
@@ -382,7 +386,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           >
             {this.readonly ? (
               <div class='aiops-tag-wrap'>
-                {this.scene?.metrics?.length > 0 && (
+                {this.readonlyMetrics.length > 0 && (
                   <div class={['aiops-tag-content', this.tagOpen && 'aiops-tag-content-open']}>
                     <i18n
                       path='共{count}个指标'
@@ -393,7 +397,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                         slot='count'
                         class='aiops-tag-count'
                       >
-                        {this.scene.metrics.length}
+                        {this.readonlyMetrics.length}
                       </span>
                     </i18n>
                     ：
@@ -401,7 +405,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                       class='aiops-tag-list'
                       ref='tagListRef'
                     >
-                      {this.scene.metrics.map(metric => (
+                      {this.readonlyMetrics.map(metric => (
                         <span
                           key={metric.metric_id}
                           onMouseenter={e => this.handleMetricMouseenter(e, metric.metric)}

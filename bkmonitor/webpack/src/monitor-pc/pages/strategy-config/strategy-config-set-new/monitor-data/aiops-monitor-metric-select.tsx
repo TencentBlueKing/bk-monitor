@@ -26,7 +26,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from '../../../../../monitor-common/utils';
+import { Debounce, random } from '../../../../../monitor-common/utils';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { IScenarioItem, MetricDetail, MetricType } from '../typings';
 
@@ -56,8 +56,20 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
 
   showAll = false;
 
+  observer = null;
+
   created() {
     this.selectTargetId = `aiops-monitor-metric-select-component-id-${random(8)}`;
+    this.observer = new ResizeObserver(entries => {
+      entries.forEach(() => {
+        // const { width } = entry.contentRect;
+        this.handleWatchWidth();
+      });
+    });
+  }
+
+  mounted() {
+    this.observer.observe(this.$el);
   }
 
   @Watch('value', { immediate: true })
@@ -72,6 +84,11 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
     if (value.length) {
       this.handleGetMetricTag();
     }
+  }
+
+  @Debounce(300)
+  handleWatchWidth() {
+    this.getOverflowHideCount();
   }
 
   /**
