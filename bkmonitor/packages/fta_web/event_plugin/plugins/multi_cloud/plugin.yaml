@@ -24,7 +24,7 @@ normalization_config: {}
 clean_configs:
   # 谷歌云的清洗配置
   - rules:
-    - key: headers.user-agent
+    - key: __http_headers__."user-agent"
       value:
         - "Google-Alerts"
       method: eq
