@@ -28,12 +28,6 @@ from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.doris.converter import DorisConverter
 from apm_web.profile.doris.querier import APIParams, APIType, Query
 from apm_web.profile.file_handler import ProfilingFileHandler
-from apm_web.profile.resources import QueryServicesDetailResource
-from apm_web.profile.serializers import (
-    ProfileListFileSerializer,
-from apm_web.profile.doris.converter import DorisConverter
-from apm_web.profile.doris.querier import APIParams, APIType, Query
-from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.profile.resources import (
     ListApplicationServicesResource,
     QueryServicesDetailResource,
@@ -44,11 +38,6 @@ from apm_web.profile.serializers import (
     ProfileUploadRecordSLZ,
     ProfileUploadSerializer,
 )
-from apm_web.tasks import profile_file_upload_and_parse
-from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission
-from core.drf_resource import api
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from apm_web.tasks import profile_file_upload_and_parse
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
