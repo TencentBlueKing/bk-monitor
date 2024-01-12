@@ -13,10 +13,9 @@ import time
 
 from rest_framework import serializers
 
+from apm_web.models import Application
+from apm_web.profile.doris.querier import QueryTemplate
 from core.drf_resource import Resource, api
-
-from ..models import Application
-from .doris.querier import QueryTemplate
 
 
 class QueryServicesDetailResource(Resource):
