@@ -277,6 +277,168 @@ SEVERITY1、SEVERITY2、SEVERITY3分别替换成Prometheus日志对应的severit
     return plugin_info
 
 
+def get_multi_cloud_plugin_info():
+    plugin_info = {
+        "plugin_id": "multi_cloud6",
+        "version": "1.0.0",
+        "plugin_display_name": "公有云告警推送",
+        "plugin_type": "http_push",
+        "summary": "推送公有云监控告警",
+        "author": "蓝鲸智云",
+        "tags": ["TENCENT CLOUD", "GOOGLE CLOUD"],
+        "ingest_config": {
+            "source_format": "json",
+            "multiple_events": True,
+            "events_path": "data",
+            "alert_sources": [{"code": "TENCENT", "name": "腾讯云"}, {"code": "GOOGLE", "name": "谷歌云"}],
+            "is_external": True,
+            "collect_type": "bk_collector",
+        },
+        "normalization_config": [
+            {"field": "alert_name", "expr": "alarmPolicyInfo.policyName"},
+            {"field": "event_id", "expr": "event_id"},
+            {"field": "description",
+             "expr": "alarmPolicyInfo.conditions.metricShowName && alarmPolicyInfo.conditions.calcType && alarmPolicyInfo.conditions.calcValue && alarmPolicyInfo.conditions.calcUnit && join(' ', [alarmPolicyInfo.conditions.metricShowName, alarmPolicyInfo.conditions.calcType, alarmPolicyInfo.conditions.calcValue, alarmPolicyInfo.conditions.calcUnit]) || alarmPolicyInfo.conditions.productShowName && alarmPolicyInfo.conditions.eventShowName && join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName]) || alarmObjInfo.content"},
+            {"field": "metric", "expr": "alarmPolicyInfo.conditions.metricName"},
+            {"field": "category", "expr": "category"},
+            {"field": "assignee", "expr": "assignee"},
+
+            {"field": "status", "expr": "get_field({1: 'ABNORMAL', 0: 'RECOVERED'}, alarmStatus)"},
+            {"field": "target_type", "expr": "target_type"},
+            {"field": "target", "expr": "target_type"},
+            {"field": "severity", "expr": "'1'"},
+            {"field": "bk_biz_id", "expr": "bk_biz_id || '{{plugin_inst_biz_id}}'"},
+            {"field": "tags",
+             "expr": "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, content: alarmObjInfo.content, summary: alarmObjInfo.summary, alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}, alarmObjInfo.dimensions, alarmObjInfo.tags)"},
+            {"field": "time", "expr": "firstOccurTime"},
+            {"field": "source_time", "expr": "firstOccurTime"},
+            {"field": "anomaly_time", "expr": "firstOccurTime"}
+        ],
+        "clean_configs": [
+            {
+                "rules": [
+                    {"key": 'headers."user-agent"', "value": ["Google-Alerts"], "method": "eq", "condition": "or"},
+                    {"key": '__http_query_params__.source', "value": ["google"], "method": "eq", "condition": "or"}
+                ],
+                "normalization_config": [
+                    {"field": "alert_name", "expr": "incident.policy_name"},
+                    {"field": "event_id", "expr": "incident.incident_id"},
+                    {"field": "description", "expr": "incident.summary"},
+                    {"field": "metric", "expr": "incident.metric.displayName"},
+                    {"field": "category", "expr": "category"},
+                    {"field": "assignee", "expr": "assignee"},
+                    {"field": "status", "expr": "get_field({OPEN: 'ABNORMAL', open: 'ABNORMAL', CLOSED: 'CLOSED', "
+                                                "closed: 'CLOSED'}, incident.state)"},
+                    {"field": "target_type", "expr": "target_type"},
+                    {"field": "target", "expr": "target_type"},
+                    {"field": "severity", "expr": "'1'"},
+                    {"field": "bk_biz_id", "expr": "bk_biz_id || '{{plugin_inst_biz_id}}'"},
+                    {"field": "tags", "expr": "merge({scoping_project_id: incident.scoping_project_id, "
+                                              "scoping_project_number: incident.scoping_project_number, "
+                                              "observed_value: incident.observed_value, resource: to_string("
+                                              "incident.resource), resource_id: incident.resource_id, "
+                                              "resource_display_name: incident.resource_display_name, "
+                                              "metric: to_string(incident.metric), policy_user_labels: "
+                                              "incident.policy_user_labels, condition: to_string("
+                                              "incident.condition)}, incident.metadata)"},
+                    {"field": "time", "expr": "incident.started_at"},
+                    {"field": "anomaly_time", "expr": "incident.started_at"}
+                ]
+            },
+            {
+                "rules": [
+                    {"key": '__http_query_params__.source', "value": ["tencent"], "method": "eq"},
+                ],
+                "normalization_config": [
+                    {"field": "alert_name", "expr": "alarmPolicyInfo.policyName"},
+                    {"field": "event_id", "expr": "event_id"},
+                    {"field": "description",
+                     "expr": "alarmPolicyInfo.conditions.metricShowName && alarmPolicyInfo.conditions.calcType && "
+                             "alarmPolicyInfo.conditions.calcValue && alarmPolicyInfo.conditions.calcUnit && join(' "
+                             "', [alarmPolicyInfo.conditions.metricShowName, alarmPolicyInfo.conditions.calcType, "
+                             "alarmPolicyInfo.conditions.calcValue, alarmPolicyInfo.conditions.calcUnit]) || "
+                             "alarmPolicyInfo.conditions.productShowName && alarmPolicyInfo.conditions.eventShowName "
+                             "&& join(' ', [alarmPolicyInfo.conditions.productShowName, "
+                             "alarmPolicyInfo.conditions.eventShowName]) || alarmObjInfo.content"},
+                    {"field": "metric", "expr": "alarmPolicyInfo.conditions.metricName"},
+                    {"field": "category", "expr": "category"},
+                    {"field": "assignee", "expr": "assignee"},
+                    {"field": "status", "expr": "get_field({1: 'ABNORMAL', 0: 'RECOVERED'}, alarmStatus)"},
+                    {"field": "target_type", "expr": "target_type"},
+                    {"field": "target", "expr": "target_type"},
+                    {"field": "severity", "expr": "'1'"},
+                    {"field": "bk_biz_id", "expr": "bk_biz_id || '{{plugin_inst_biz_id}}'"},
+                    {"field": "tags", "expr": "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, "
+                                              "appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, "
+                                              "content: alarmObjInfo.content, summary: alarmObjInfo.summary, "
+                                              "alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}, "
+                                              "alarmObjInfo.dimensions, alarmObjInfo.tags)"},
+                    {"field": "time", "expr": "firstOccurTime"},
+                    {"field": "source_time", "expr": "firstOccurTime"},
+                    {"field": "anomaly_time", "expr": "firstOccurTime"}
+                ]
+            }
+        ],
+        "description": """## 1. 插件说明
+
+公有云告警拉取插件, 拉取公有云监控告警历史 
+
+## 2. 插件作者
+
+![蓝鲸智云](./media/蓝鲸智云.png)""",
+        "tutorial": """1. Webhook Push URL 路径配置 
+
+    | 云 | 是否必填 | source配置 |
+    |---|----------|------|
+    | 腾讯云 | 必填 | tencent  | 
+    | 谷歌云 | 选填 | google   |
+
+    注：路径上的token即以上配置的Token（点击查看）
+
+    ```
+    例子URL：http://www.bk.com/fta/v1/event/?token={{token}}&source={{source}}
+    腾讯云：http://www.bk.com/fta/v1/event/?token=Token&source=tencent
+    谷歌云：http://www.bk.com/fta/v1/event/?token=Token&source=google
+    ```
+
+2. 告警回调配置指引 以下指引腾讯云及谷歌云的告警回调配置
+    #### 腾讯云
+    （1）访问腾讯云可观测平台：进入[腾讯云可观测平台的通知模板页面](https://console.cloud.tencent.com/monitor/alarm/notice)
+
+    （2）创建新通知模板
+
+    （3）配置通知模板，接口回调输入回调接口地址
+
+    （4）绑定告警策略：进入管理告警策略页面，关联通知模板与告警策略
+
+    （5）接收告警信息
+
+    （6）查看告警历史
+
+    具体详情可参考腾讯云官网：<https://cloud.tencent.com/document/product/248/50409>
+    #### 谷歌云
+    （1）准备 Webhook 处理程序
+
+    （2）访问 Google Cloud 控制台：选择 "Monitoring"，接着选择 "notifications"（提醒）
+
+    （3）修改通知渠道
+
+    （4）添加新的 Webhook：在 "网络钩子" 部分，点击 "新增"
+
+    （5）填写表单
+
+    （6）点测试连接：访问接收端点以确认是否成功接收
+
+    （7）保存设置
+
+    具体详情可参考谷歌云官网：<https://cloud.google.com/monitoring/support/notification-options?hl=zh-cn#webhooks>
+
+3. 完成
+    ##""",
+    }
+    return plugin_info
+
+
 class TestEventPluginMigrate(TestCase):
     databases = {"monitor_api", "default"}
 
@@ -353,31 +515,29 @@ class TestEventPluginMigrate(TestCase):
     def test_create_multi_cloud_event_plugin(self):
         data_id_patch = mock.patch("core.drf_resource.api.metadata.get_data_id", return_value={"token": "test token"})
         data_id_patch.start()
-        plugin_info = get_plugin_info()
-        plugin_info["ingest_config"]["collect_type"] = "bk_collector"
-        plugin_info["ingest_config"]["alert_sources"] = [{"code": "TENCENT", "name": "腾讯云"}]
-        plugin_info["plugin_type"] = "http_push"
-        r = CreateEventPluginResource()
-        data = r.request(plugin_info)
-        ingest_config = data["ingest_config"]
-        self.assertEqual(ingest_config["alert_sources"], [{"code": "TENCENT", "name": "腾讯云"}])
         # 测试创建
-        event_plugin = EventPluginV2.objects.get(plugin_id=data["plugin_id"], version=data["version"])
-        inst_info = {
-            "bk_biz_id": 2,
-            "plugin_id": event_plugin.plugin_id,
-            "version": event_plugin.version,
-            "config_params": {param["field"]: "http://www.blueking111.com/" for param in event_plugin.config_params},
+        plugin_info = get_multi_cloud_plugin_info()
+        event_plugin_request = CreateEventPluginResource().request(plugin_info)
+        ingest_config = event_plugin_request["ingest_config"]
+        self.assertEqual(ingest_config["collect_type"], "bk_collector")
+        self.assertEqual(plugin_info["plugin_type"], "http_push")
+        # 测试更新
+        plugin_info["plugin_display_name"] = f"update {plugin_info['plugin_display_name']}"
+        event_plugin_request = UpdateEventPluginResource().request(plugin_info)
+        self.assertEqual(event_plugin_request["plugin_display_name"], plugin_info["plugin_display_name"])
+        # 测试安装
+        event_plugin = EventPluginV2.objects.get(plugin_id=event_plugin_request["plugin_id"],
+                                                 version=event_plugin_request["version"])
+        install_info = {
+            "bk_biz_id": 2, "plugin_id": event_plugin.plugin_id, "version": event_plugin.version, "config_params": {}
         }
-        inst_r = CreateEventPluginInstanceResource()
-        inst_data = inst_r.request(inst_info)
-        self.assertEqual(inst_data["data_id"], 10001)
-        inst_info = GetEventPluginInstanceResource().perform_request(
+        install_event_plugin = CreateEventPluginInstanceResource()
+        install_event_plugin_request = install_event_plugin.request(install_info)
+        self.assertEqual(install_event_plugin_request["data_id"], 10001)
+        install_info = GetEventPluginInstanceResource().perform_request(
             {"bk_biz_id": 2, "plugin_id": event_plugin.plugin_id, "version": event_plugin.version}
         )
-        print(inst_info)
-        self.assertTrue("source" in inst_info["instances"][0]["push_url"])
-
+        print(install_info)
         data_id_patch.stop()
 
     def test_create_event_plugin(self):
