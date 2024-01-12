@@ -538,6 +538,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               show-custom-label={true}
               custom-content={{ 0: { label: this.$t('较少告警') }, 100: { label: this.$t('较多告警') } }}
               value={this.formModel.sensitivity}
+              disable={this.readonly}
               onInput={this.handleSensitivity}
             />
           </FormItem>
