@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, ref } from 'vue';
+import { defineComponent, provide, reactive, Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { debounce } from '../../../monitor-common/utils/utils';
@@ -56,6 +56,7 @@ export default defineComponent({
       timezone: getDefautTimezone(),
       refreshInterval: -1
     });
+    provide<Ref<ToolsFormData>>('toolsFormData', toolsFormData);
 
     /** 查询数据状态 */
     const searchState = reactive<SearchState>({
@@ -68,8 +69,8 @@ export default defineComponent({
         type: SearchType.Profiling,
         isComparison: false,
         server: {
-          app_name: 'app1',
-          service_name: 'load-generator'
+          app_name: '',
+          service_name: ''
         },
         where: [],
         comparisonWhere: []
