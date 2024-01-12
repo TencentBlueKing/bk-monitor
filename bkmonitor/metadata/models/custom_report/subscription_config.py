@@ -17,6 +17,7 @@ from operator import methodcaller
 from django.conf import settings
 from django.db import models
 
+from alarm_backends.core.cache.models.custom_ts_group import CustomTSGroupCacheManager
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
@@ -150,7 +151,6 @@ class CustomReportSubscription(models.Model):
 
     @classmethod
     def get_protocol(cls, bk_data_id):
-        from alarm_backends.core.cache.models.custom_ts_grouop import CustomTSGroupCacheManager
         return CustomTSGroupCacheManager.get(bk_data_id) or "json"
 
     @classmethod
