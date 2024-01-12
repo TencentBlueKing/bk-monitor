@@ -37,7 +37,7 @@ WEIXIN_SITE_URL = os.environ.get("BKAPP_WEIXIN_SITE_URL", settings.SITE_URL + "w
 # 蓝鲸微信本地静态文件请求URL前缀
 WEIXIN_STATIC_URL = os.environ.get("BKAPP_WEIXIN_STATIC_URL", settings.STATIC_URL + "weixin/")
 # 蓝鲸微信登录的URL
-WEIXIN_LOGIN_URL = WEIXIN_SITE_URL.rstrip("/") + "/weixin/login/"
+WEIXIN_LOGIN_URL = WEIXIN_SITE_URL.rstrip("/") + "/login/"
 
 # 微信 Agent id
 WEIXIN_AGENT_ID = os.environ.get("BKAPP_WEIXIN_AGENT_ID", "")

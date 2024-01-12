@@ -1,8 +1,8 @@
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1699927188028') format('woff2'),
-    url('monitor-icons.woff?t=1699927188028') format('woff'),
-    url('monitor-icons.ttf?t=1699927188028') format('truetype');
+  src: url('monitor-icons.woff2?t=1703833310980') format('woff2'),
+    url('monitor-icons.woff?t=1703833310980') format('woff'),
+    url('monitor-icons.ttf?t=1703833310980') format('truetype');
 }
 
 .icon-monitor {
@@ -12,6 +12,26 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-fuwumokuai:before {
+  content: '\e7a3';
+}
+
+.icon-yingjian:before {
+  content: '\e79f';
+}
+
+.icon-fuwuzujian:before {
+  content: '\e7a0';
+}
+
+.icon-OS:before {
+  content: '\e7a1';
+}
+
+.icon-jincheng:before {
+  content: '\e7a2';
 }
 
 .icon-mc-flame:before {

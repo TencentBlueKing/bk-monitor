@@ -58,6 +58,7 @@ register(
 )
 register(models.TraceDataSource)
 register(models.MetricDataSource)
+register(models.ProfileDataSource)
 register(models.ApmTopoDiscoverRule)
 register(models.DataLink, ("bk_biz_id",), ("bk_biz_id",))
 register(models.ApmInstanceDiscover)

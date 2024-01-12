@@ -22,21 +22,21 @@ import logging
 import os
 import traceback
 
-from apm.core.handlers.application_hepler import ApplicationHelper
-from apm.models import DataLink
-from constants.apm import PreCalculateSpecificField
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.result_table import ResultTableField
-from core.drf_resource import api, resource
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from elasticsearch import helpers as helpers_common
 from elasticsearch5 import helpers as helpers_5
 from elasticsearch6 import helpers as heplers_6
-from metadata.models import ESStorage
 
+from apm.core.handlers.application_hepler import ApplicationHelper
+from apm.models import DataLink
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
+from constants.apm import PreCalculateSpecificField
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.result_table import ResultTableField
+from core.drf_resource import api, resource
+from metadata.models import ESStorage
 
 logger = logging.getLogger("apm")
 
@@ -64,9 +64,6 @@ class RendezvousHash:
 class PrecalculateStorage:
     """预计算存储类"""
 
-    SLICE_SIZE = settings.APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE
-    RETENTION = settings.APM_APP_PRE_CALCULATE_STORAGE_RETENTION
-    SHARDS = settings.APM_APP_PRE_CALCULATE_STORAGE_SHARDS
     TABLE_SCHEMA = [
         {
             "field_name": PreCalculateSpecificField.BIZ_ID.value,
@@ -390,7 +387,6 @@ class PrecalculateStorage:
             instance = ESStorage.objects.filter(table_id=i['table_name']).first()
 
             if not instance:
-
                 try:
                     instance = cls.create_storage_table(i["cluster_id"], i["table_name"])
                     client = instance.get_client()
@@ -431,7 +427,6 @@ class PrecalculateStorage:
 
     @classmethod
     def create_storage_table(cls, storage_id, table_name):
-
         bk_data_id = cls.create_data_id(table_name)
         resource.metadata.create_result_table(
             {
@@ -446,12 +441,15 @@ class PrecalculateStorage:
                 "default_storage_config": {
                     "cluster_id": storage_id,
                     "storage_cluster_id": storage_id,
-                    "slice_size": cls.SLICE_SIZE,
-                    "retention": cls.RETENTION,
+                    "slice_size": settings.APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE,
+                    "retention": settings.APM_APP_PRE_CALCULATE_STORAGE_RETENTION,
                     "slice_gap": 60 * 24,
                     "date_format": "%Y%m%d",
                     "mapping_settings": cls.MAPPING_SETTINGS,
-                    "index_settings": {"number_of_shards": cls.SHARDS, "number_of_replicas": 0},
+                    "index_settings": {
+                        "number_of_shards": settings.APM_APP_PRE_CALCULATE_STORAGE_SHARDS,
+                        "number_of_replicas": 0,
+                    },
                 },
                 "field_list": cls.TABLE_SCHEMA,
                 "is_time_field_only": True,
@@ -548,7 +546,6 @@ class PrecalculateStorage:
 
         cluster_mapping = {}
         for k, v in node_mapping.items():
-
             parts = k.split("-", 1)
             cluster_id = parts[0]
             index_name = parts[-1].replace('.', '_')
@@ -558,7 +555,6 @@ class PrecalculateStorage:
                 cluster_mapping[cluster_id] = {"client": v, "tables": [index_name]}
 
         for cluster, index_info in cluster_mapping.items():
-
             is_combine = can_combine(index_info["tables"])
             if not is_combine:
                 logger.info(f"[PreCalculate] table_name not have common prefix, will not combine indexes")
@@ -609,7 +605,6 @@ class PrecalculateStorage:
 
     @classmethod
     def _exact_unique_data(cls, data, mapping_or_fields, key_field, remove_field=None):
-
         res = {}
 
         for i in data:
@@ -620,7 +615,6 @@ class PrecalculateStorage:
                     item[j] = i.get(j)
             else:
                 for k, v in mapping_or_fields.items():
-
                     item[v] = i.get(k)
 
             res[i[key_field]] = item
@@ -640,12 +634,15 @@ class PrecalculateStorage:
             "field_list": cls.TABLE_SCHEMA,
             "external_storage": {
                 "elasticsearch": {
-                    "slice_size": cls.SLICE_SIZE,
-                    "retention": cls.RETENTION,
+                    "slice_size": settings.APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE,
+                    "retention": settings.APM_APP_PRE_CALCULATE_STORAGE_RETENTION,
                     "slice_gap": 60 * 24,
                     "date_format": "%Y%m%d",
                     "mapping_settings": cls.MAPPING_SETTINGS,
-                    "index_settings": {"number_of_shards": cls.SHARDS, "number_of_replicas": 0},
+                    "index_settings": {
+                        "number_of_shards": settings.APM_APP_PRE_CALCULATE_STORAGE_SHARDS,
+                        "number_of_replicas": 0,
+                    },
                 }
             },
             "is_time_field_only": True,
