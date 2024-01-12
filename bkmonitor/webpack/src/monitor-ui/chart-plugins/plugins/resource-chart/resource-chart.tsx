@@ -106,7 +106,7 @@ class ResourceChart extends CommonSimpleChart {
             })
       );
       const res = await Promise.all(promiseList);
-      if (res?.every?.(item => item.length)) {
+      if (res?.every?.(item => item?.length)) {
         this.inited = true;
         this.empty = false;
         this.data = res;
@@ -271,7 +271,8 @@ class ResourceChart extends CommonSimpleChart {
                     content: item.tips,
                     showOnInit: false,
                     trigger: 'mouseenter',
-                    placements: ['top']
+                    placements: ['top'],
+                    allowHTML: false
                   }}
                 />
               )}
@@ -290,7 +291,7 @@ class ResourceChart extends CommonSimpleChart {
           class='draggable-handle'
           title={this.panel.title}
           draging={this.panel.draging}
-          showMore={!this.empty && this.showHeaderMoreTool && !!this.panel.options.alert_filterable}
+          showMore={!this.empty && this.showHeaderMoreTool && !!this.panel.options?.alert_filterable}
           menuList={this.menuList}
           metrics={this.metrics}
           isInstant={this.panel.instant && this.showHeaderMoreTool}

@@ -103,7 +103,7 @@
                 @setPopperInstance="setPopperInstance"
                 @modifyFields="modifyFields"
                 @confirm="confirmModifyFields"
-                @cancel="closeDropdown" />
+                @cancel="cancelModifyFields" />
             </div>
           </bk-popover>
         </div>
@@ -120,7 +120,6 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
 import TableLog from './table-log.vue';
 import FieldsSetting from '../../result-comp/fields-setting';
 import ExportLog from '../../result-comp/export-log.vue';
@@ -153,7 +152,6 @@ export default {
       showAsyncExport: false, // 异步下载弹窗
       exportLoading: false,
       fieldsConfigList: [],
-      selectConfigID: null,
     };
   },
   computed: {
@@ -169,15 +167,15 @@ export default {
     filedSettingConfigID() { // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
     },
-    ...mapState([
-      'indexId',
-    ]),
+    routeIndexSet() {
+      return this.$route.params.indexId;
+    },
   },
   watch: {
-    indexId: {
+    routeIndexSet: {
       immediate: true,
       handler(val) {
-        if (!!val) this.requestFiledConfig(val);
+        if (!!val) this.requestFiledConfig();
       },
     },
   },
@@ -192,27 +190,32 @@ export default {
     confirmModifyFields(displayFieldNames, showFieldAlias, isUpdateSelectList = true) {
       this.modifyFields(displayFieldNames, showFieldAlias);
       this.closeDropdown();
-      if (isUpdateSelectList) this.requestFiledConfig(this.indexId);
+      if (isUpdateSelectList) this.requestFiledConfig();
+    },
+    cancelModifyFields() {
+      this.closeDropdown();
+      this.requestFiledConfig();
     },
     /** 更新显示字段 */
     modifyFields(displayFieldNames, showFieldAlias) {
       this.$emit('fieldsUpdated', displayFieldNames, showFieldAlias);
+      this.$emit('shouldRetrieve');
     },
     closeDropdown() {
       this.showFieldsSetting = false;
-      this.$refs.fieldsSettingPopper.instance?.hide();
+      this.$refs.fieldsSettingPopper?.instance.hide();
     },
     setPopperInstance(status = true) {
-      this.$refs.fieldsSettingPopper.instance?.set({
+      this.$refs.fieldsSettingPopper?.instance.set({
         hideOnClick: status,
       });
     },
-    async requestFiledConfig(indexId) {
+    async requestFiledConfig() {
       /** 获取配置列表 */
       this.isLoading = true;
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
-          params: { index_set_id: indexId, scope: 'default' },
+          params: { index_set_id: this.routeIndexSet, scope: 'default' },
         });
         this.fieldsConfigList = res.data;
       } catch (error) {
@@ -240,7 +243,7 @@ export default {
     },
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
-      this.$refs.fieldsSettingPopper.instance?.show();
+      this.$refs.fieldsSettingPopper?.instance.show();
     },
   },
 };

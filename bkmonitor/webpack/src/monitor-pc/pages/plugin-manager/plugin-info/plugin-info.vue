@@ -414,7 +414,7 @@
 </template>
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { retrieveCollectorPlugin } from '../../../../monitor-api/modules/model';
 import Viewer from '../../../../monitor-ui/markdown-editor/viewer.tsx';

@@ -586,5 +586,7 @@ export default {
   脱敏算子: 'Desensitization operator',
   'label-脱敏算子': 'Desensitization Operator',
   全局脱敏: 'Global Desensitization',
-  责任人: 'Responsible'
+  责任人: 'Responsible',
+  索引字段: 'Index Set Fields',
+  'label-内置字段': 'Built-in Fields',
 };

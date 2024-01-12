@@ -2556,7 +2556,7 @@ class PromqlToQueryConfig(Resource):
                             "params": [
                                 {"id": param.id, "value": str(value)}
                                 for param, value in zip(
-                                    Functions[function["method"]].params, function["vargs_list"] or []
+                                    Functions[function["method"]].params, function.get("vargs_list") or []
                                 )
                             ],
                         }
@@ -2574,7 +2574,7 @@ class PromqlToQueryConfig(Resource):
                         "params": [
                             {"id": param.id, "value": str(value)}
                             for param, value in zip(
-                                Functions[time_function["function"]].params, time_function["vargs_list"] or []
+                                Functions[time_function["function"]].params, time_function.get("vargs_list") or []
                             )
                         ],
                     }
@@ -2598,7 +2598,7 @@ class PromqlToQueryConfig(Resource):
                         "params": [
                             {
                                 "id": "n",
-                                "value": "-" + time_shift_value if query["offset_forward"] else time_shift_value,
+                                "value": "-" + time_shift_value if query.get("offset_forward") else time_shift_value,
                             }
                         ],
                     }

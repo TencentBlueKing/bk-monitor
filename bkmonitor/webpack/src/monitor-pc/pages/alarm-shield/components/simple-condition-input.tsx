@@ -340,7 +340,8 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
               trigger: 'mouseenter',
               zIndex: 9999,
               disabled: !item.key,
-              boundary: document.body
+              boundary: document.body,
+              allowHTML: false
             }}
             nodataMsg={window.i18n.t('该策略无可选维度') as string}
             onChange={v => this.handleKeyChange(item, v)}

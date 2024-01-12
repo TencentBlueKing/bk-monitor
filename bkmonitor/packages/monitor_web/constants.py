@@ -57,7 +57,7 @@ ETL_CONFIG = enum(
 )
 
 EVENT_FIELD_CHINESE = dict(
-    id=_("ID"),
+    id="ID",
     bk_biz_id=_("业务ID"),
     anomaly_count=_("告警次数"),
     duration=_("持续时间"),

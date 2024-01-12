@@ -896,11 +896,14 @@ class CustomTimeSeriesDetail(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        model_only = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(pk=params["time_series_group_id"])
         serializer = CustomTSTableSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
+        if params.get("model_only"):
+            return data
         label_display_dict = get_label_display_dict()
         data["scenario_display"] = label_display_dict.get(data["scenario"], [data["scenario"]])
         data["access_token"] = config.token
