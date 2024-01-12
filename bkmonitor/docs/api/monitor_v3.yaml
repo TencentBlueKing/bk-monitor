@@ -1879,12 +1879,12 @@
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
-  dest_path: /apm_api/v1/profile/services_detail/
+  dest_path: /apm_api/v1/profiling/services_detail/
   is_hidden: true
   label: 查询profile服务详情
   label_en: query profile service detail
-  name: query_apm_topo_node
-  path: /v2/monitor_v3/apm/profile/services_detail/
+  name: query_apm_profile_service_detail
+  path: /v2/monitor_v3/apm/profiling/services_detail/
   method: GET
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
