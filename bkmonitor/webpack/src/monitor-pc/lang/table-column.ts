@@ -123,5 +123,7 @@ export default {
   设置轮值规则: 'Set Rotation Rules',
   添加轮值人员: 'Add Rotation Members',
   查询项: 'Query Item',
-  对比项: 'Comparative Item'
+  对比项: 'Comparative Item',
+  告警: 'Alarm',
+  关注人: 'Follower'
 };

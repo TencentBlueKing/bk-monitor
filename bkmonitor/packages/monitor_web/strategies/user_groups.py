@@ -124,3 +124,40 @@ def get_or_create_ops_notice_group(bk_biz_id: int) -> Optional[int]:
         user_group_serializer.save()
 
     return UserGroup.objects.get(bk_biz_id=bk_biz_id, name=six.text_type(user_group["name"])).id
+
+
+def add_member_to_collecting_notice_group(bk_biz_id: int, user_id: str) -> int:
+    """创建采集负责人"""
+    collecting_group_name = _("采集负责人")
+    instances = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=collecting_group_name)
+    if not instances.exists():
+        user_group = {
+            "name": collecting_group_name,
+            "notice_receiver": [{"id": user_id, "type": "user"}],
+            **settings.PUBLIC_NOTICE_CONFIG,
+        }
+        user_group_serializer = UserGroupDetailSlz(
+            data={
+                "bk_biz_id": bk_biz_id,
+                "name": six.text_type(user_group["name"]),
+                "duty_arranges": [{"users": user_group["notice_receiver"]}],
+                "desc": user_group["message"],
+                "alert_notice": user_group["alert_notice"],
+                "action_notice": user_group["action_notice"],
+            }
+        )
+    else:
+        # 检索用户是否已经存在在当前告警组，存在则跳过添加步骤
+        inst = instances[0]
+        duty_arranges = UserGroupDetailSlz(inst).data["duty_arranges"]
+        # 目前按照《直接通知》方式进行判定和添加成员
+        current_users = duty_arranges[0]["users"]
+        for user in current_users:
+            if user["type"] == "user" and user["id"] == user_id:
+                return inst.id
+        current_users.append({"id": user_id, "type": "user"})
+        user_group_serializer = UserGroupDetailSlz(inst, data={"duty_arranges": duty_arranges}, partial=True)
+
+    user_group_serializer.is_valid(True)
+    inst = user_group_serializer.save()
+    return inst.id
