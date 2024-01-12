@@ -104,7 +104,6 @@ export default defineComponent({
       uploadDialogShow.value = v;
     }
 
-
     function statusRender(status) {
       if (status === 'running') {
         return (
@@ -228,6 +227,7 @@ export default defineComponent({
 
         <ProfilingFileUpload
           show={this.uploadDialogShow}
+          appName={this.formData.server.app_name}
           isCompare={this.formData.isComparison}
           onShowChange={this.handleUploadShowChange}
         ></ProfilingFileUpload>
