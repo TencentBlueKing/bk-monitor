@@ -33,6 +33,7 @@ import { addCustomMetric } from '../../../monitor-api/modules/custom_report';
 import { getMetricListV2, updateMetricListByBiz } from '../../../monitor-api/modules/strategies';
 import { LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils/constant';
 import { copyText, Debounce, deepClone, docCookies } from '../../../monitor-common/utils/utils';
+import { xssFilter } from '../../../monitor-common/utils/xss';
 import { handleGotoLink } from '../../common/constant';
 import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
@@ -692,7 +693,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   getMetricTipsTpl(data) {
     return `
     <div class="metric-tips-wrap">
-      ${data.reduce((total, item) => `${total}<div>${item.label}：${item.value}</div>`, '')}
+      ${data.reduce((total, item) => `${total}<div>${xssFilter(item.label)}：${xssFilter(item.value)}</div>`, '')}
     </div>
     `;
   }
@@ -720,7 +721,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           placement: 'right',
           boundary: 'window',
           disabled: this.isScrolling,
-          content: this.getMetricTipsTpl(data)
+          content: this.getMetricTipsTpl(data),
+          allowHTML: true
         }}
       >
         <span>{item.metric_field_name}</span>
@@ -763,7 +765,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           placement: 'right',
           boundary: 'window',
           disabled: this.isScrolling,
-          content: this.getMetricTipsTpl(data)
+          content: this.getMetricTipsTpl(data),
+          allowHTML: true
         }}
       >
         <div class='log-name'>{item.metric_field_name}</div>

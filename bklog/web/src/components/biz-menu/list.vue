@@ -25,7 +25,6 @@
     <li
       v-for="item in spaceList"
       :key="item.id"
-      v-if="item.permission && item.permission[authorityMap.VIEW_BUSINESS]"
       :class="[
         'list-item',
         {
@@ -106,24 +105,6 @@ export default {
     handleProjectChange(space) {
       if (!(space.permission && space.permission[authorityMap.VIEW_BUSINESS])) return;
       this.$emit('click-menu-item', space);
-    },
-    // 业务列表点击申请业务权限
-    async applyProjectAccess(item) {
-      try {
-        this.$bkLoading();
-        const res = await this.$store.dispatch('getApplyData', {
-          action_ids: [authorityMap.VIEW_BUSINESS],
-          resources: [{
-            type: 'space',
-            id: item.space_uid,
-          }],
-        });
-        window.open(res.data.apply_url);
-      } catch (err) {
-        console.warn(err);
-      } finally {
-        this.$bkLoading.hide();
-      }
     },
   },
 };

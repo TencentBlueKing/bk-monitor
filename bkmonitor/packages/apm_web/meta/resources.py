@@ -498,6 +498,10 @@ class SetupResource(Resource):
                     if "sampler_percentage" not in attrs:
                         raise ValueError(f"尾部采样未配置采集百分比")
 
+                if attrs.get("tail_conditions"):
+                    t = [i for i in attrs["tail_conditions"] if i["key"] and i["method"] and i["value"]]
+                    attrs["tail_conditions"] = t
+
                 return attr
 
         class InstanceNameConfigSerializer(serializers.Serializer):

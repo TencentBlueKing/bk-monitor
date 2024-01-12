@@ -126,7 +126,7 @@ export default {
   策略屏蔽: 'Mute by Rule ',
   策略内容: 'Rule Content',
   应用策略数: 'Related Rules',
-  应用告警分派规则数: 'Related Dispatch Rules',
+  分派规则数: 'Dispatch Rules',
   策略: 'Alert Rule',
   策略项: 'Rule Item',
   触发策略: 'Trigger Rule',

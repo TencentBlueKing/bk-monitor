@@ -346,7 +346,8 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                       class='tag-column'
                                       v-bk-tooltips={{
                                         content: row.metrics.map(m => m.id).join(','),
-                                        placements: ['top']
+                                        placements: ['top'],
+                                        allowHTML: false
                                       }}
                                     >
                                       {row.metrics.map(metric => (

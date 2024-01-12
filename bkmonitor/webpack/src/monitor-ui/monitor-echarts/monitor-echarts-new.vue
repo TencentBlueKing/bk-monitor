@@ -173,7 +173,7 @@
     <span
       class="is-error"
       v-if="errorMsg"
-      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip' }"
+      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip', allowHTML: false }"
     />
     <div
       v-if="hasResize"
