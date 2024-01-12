@@ -60,7 +60,7 @@ clean_configs:
             resource_name: incident.resource_name,
             resource_type_display_name: incident.resource_type_display_name,
             metric_display_name: incident.metric.displayName,
-            url: incident.url,
+            url: incident.url
           }
   # 腾讯云的清洗配置
   - rules:
@@ -120,7 +120,7 @@ clean_configs:
             alarmType: alarmType,
             policyName: alarmPolicyInfo.policyName,
             policyType: alarmPolicyInfo.policyType,
-            policyTypeCName: alarmPolicyInfo.policyTypeCName，
+            policyTypeCName: alarmPolicyInfo.policyTypeCName,
             metricName: alarmPolicyInfo.conditions.metricName,
             metricShowName: alarmPolicyInfo.conditions.metricShowName
           }
