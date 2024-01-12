@@ -41,7 +41,7 @@ normalization_config:
   - field: target_type
     expr: target_type
   - field: severity
-    expr: '1'
+    expr: "'1'"
   - field: bk_biz_id
     expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
   - field: tags
@@ -86,7 +86,7 @@ clean_configs:
       - field: target_type
         expr: target_type
       - field: severity
-        expr: '1'
+        expr: "'1'"
       - field: bk_biz_id
         expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
       - field: tags
@@ -121,14 +121,12 @@ clean_configs:
       - field: target_type
         expr: target_type
       - field: severity
-        expr: '1'
+        expr: "'1'"
       - field: bk_biz_id
         expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
       - field: tags
-        expr: "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, content: alarmObjInfo.content, summary: alarmObjInfo.summary, alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}, alarmObjInfo.dimensions, alarmObjInfo.tags)"
+        expr: "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, content: alarmObjInfo.content, summary: alarmObjInfo.summary, alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}, {dimensions: alarmObjInfo.dimensions}, {tags: alarmObjInfo.tags})"
       - field: time
-        expr: firstOccurTime
-      - field: source_time
         expr: firstOccurTime
       - field: anomaly_time
         expr: firstOccurTime
