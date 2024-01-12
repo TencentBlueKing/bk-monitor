@@ -24,20 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref, shallowRef, Teleport } from 'vue';
+import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
 
+import { getHashVal } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
+import { ColorTypes } from '../../../../../monitor-ui/chart-plugins/typings';
 import {
   ITableTipsDetail,
   ProfilingTableItem,
   TableColumn
 } from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
+import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
 import { DirectionType } from '../../../../typings';
-import { PROFILING_TABLE_DATA } from '../mock';
 
 // import { ColorTypes } from './../../flame-graph-v2/types';
 import './table-graph.scss';
 
 // const valueColumnWidth = 150;
+
+const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
 
 export default defineComponent({
   name: 'ProfilingTableGraph',
@@ -45,11 +49,19 @@ export default defineComponent({
     textDirection: {
       type: String as PropType<DirectionType>,
       default: 'ltr'
+    },
+    unit: {
+      type: String,
+      default: ''
+    },
+    data: {
+      type: Array as PropType<ProfilingTableItem[]>,
+      default: () => []
     }
   },
-  setup() {
+  setup(props) {
     /** 表格数据 */
-    const tableData = ref<ProfilingTableItem[]>(PROFILING_TABLE_DATA);
+    const tableData = ref<ProfilingTableItem[]>([]);
     const tableColumns = ref<TableColumn[]>([
       { id: 'Location', name: 'Location', sort: '' },
       { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
@@ -58,15 +70,59 @@ export default defineComponent({
       { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
       { id: 'diff', name: 'Diff', mode: 'diff', sort: '' }
     ]);
+    const maxItem = ref<{ self: number; total: number }>({
+      self: 0,
+      total: 0
+    });
     const tipDetail = shallowRef<ITableTipsDetail>({});
     const diffMode = ref(false);
 
-    const getColStyle = (row: ProfilingTableItem) => {
+    watch(
+      () => props.data,
+      (val: ProfilingTableItem[]) => {
+        maxItem.value = {
+          self: Math.max(...val.map(item => item.self)),
+          total: Math.max(...val.map(item => item.total))
+        };
+        tableData.value = val.map(item => {
+          const palette = Object.values(ColorTypes);
+          const colorIndex = getHashVal(item.name) % palette.length;
+          const color = palette[colorIndex];
+          return {
+            ...item,
+            color,
+            displaySelf: formatColValue(item.self),
+            displayTotal: formatColValue(item.total)
+          };
+        });
+      },
+      {
+        immediate: true,
+        deep: true
+      }
+    );
+
+    // Self 和 Total 值的展示
+    const formatColValue = (val: number) => {
+      switch (props.unit) {
+        case 'nanoseconds': {
+          const nsFormat = getValueFormat('ns');
+          const { text, suffix } = nsFormat(val);
+          return text + suffix;
+        }
+        default:
+          return '';
+      }
+    };
+    const getColStyle = (row: ProfilingTableItem, field: string) => {
       const { color } = row;
+      const value = row[field] || 0;
+      const percent = (value * TABLE_BGCOLOR_COLUMN_WIDTH) / maxItem.value[field];
+      const xPosition = TABLE_BGCOLOR_COLUMN_WIDTH - percent;
+
       return {
         'background-image': `linear-gradient(${color}, ${color})`,
-        // 'background-position': `-${Math.round(Math.random() * valueColumnWidth)}px 0px`,
-        'background-position': `-80px 0px`,
+        'background-position': `-${xPosition}px 0px`,
         'background-repeat': 'no-repeat'
       };
     };
@@ -80,7 +136,7 @@ export default defineComponent({
         };
       });
     };
-    const handleRowMouseMove = (e: MouseEvent) => {
+    const handleRowMouseMove = (e: MouseEvent, row: ProfilingTableItem) => {
       let axisLeft = e.pageX;
       let axisTop = e.pageY;
       if (axisLeft + 394 > window.innerWidth) {
@@ -93,10 +149,18 @@ export default defineComponent({
       } else {
         axisTop = axisTop;
       }
+
+      const { name, displaySelf, displayTotal, self, total } = row;
+      const totalItem = tableData.value[0];
+
       tipDetail.value = {
         left: axisLeft,
         top: axisTop,
-        title: 'sync.(*Mutex).Unlock'
+        title: name,
+        displaySelf,
+        displayTotal,
+        selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
+        totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`
       };
     };
     const handleRowMouseout = () => {
@@ -104,14 +168,15 @@ export default defineComponent({
     };
 
     return {
-      tableColumns,
       tableData,
+      tableColumns,
       getColStyle,
       handleSort,
       tipDetail,
       handleRowMouseMove,
       handleRowMouseout,
-      diffMode
+      diffMode,
+      formatColValue
     };
   },
   render() {
@@ -141,7 +206,7 @@ export default defineComponent({
           <tbody>
             {this.tableData.map(row => (
               <tr
-                onMousemove={e => this.handleRowMouseMove(e)}
+                onMousemove={e => this.handleRowMouseMove(e, row)}
                 onMouseout={() => this.handleRowMouseout()}
               >
                 <td>
@@ -150,7 +215,7 @@ export default defineComponent({
                       class='color-reference'
                       style={`background-color: ${row.color}`}
                     ></span>
-                    <span class={`text direction-${this.textDirection}`}>{row.location}</span>
+                    <span class={`text direction-${this.textDirection}`}>{row.name}</span>
                     {/* <div class='trace-mark'>Trace</div> */}
                   </div>
                 </td>
@@ -163,8 +228,8 @@ export default defineComponent({
                       </td>
                     ]
                   : [
-                      <td style={this.getColStyle(row)}>{row.self}</td>,
-                      <td style={this.getColStyle(row)}>{row.Total}</td>
+                      <td style={this.getColStyle(row, 'self')}>{row.displaySelf}</td>,
+                      <td style={this.getColStyle(row, 'total')}>{row.displayTotal}</td>
                     ]}
               </tr>
             ))}
@@ -185,14 +250,14 @@ export default defineComponent({
               <table class='tips-table'>
                 <thead>
                   <th></th>
-                  <th>Self (% of total CPU)</th>
-                  <th>Total (% of total CPU)</th>
+                  <th>Self (% of total)</th>
+                  <th>Total (% of total)</th>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>CPU Time</td>
-                    <td>4.32 minutes(9.33%)</td>
-                    <td>5.33 minutes(11.52%)</td>
+                    <td>&nbsp;&nbsp;</td>
+                    <td>{`${this.tipDetail.displaySelf}(${this.tipDetail.selfPercent})`}</td>
+                    <td>{`${this.tipDetail.displayTotal}(${this.tipDetail.totalPercent})`}</td>
                   </tr>
                 </tbody>
               </table>

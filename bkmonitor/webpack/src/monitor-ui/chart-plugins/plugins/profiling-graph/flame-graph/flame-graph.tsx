@@ -31,7 +31,6 @@ import { HierarchyNode } from 'd3-hierarchy';
 
 import { Debounce } from '../../../../../monitor-common/utils/utils';
 import MonitorResizeLayout from '../../../../../monitor-pc/components/resize-layout/resize-layout';
-import { FLAME_DATA } from '../../../../../trace/plugins/charts/profiling-graph/mock';
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
 import {
   BaseDataType,
@@ -51,6 +50,7 @@ import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from './utils';
 import './frame-graph.scss';
 
 interface IFlameGraphProps {
+  data: BaseDataType;
   appName: string;
   diffTraceId?: string;
   filterKeywords?: string[];
@@ -78,6 +78,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   @Ref() wrapperRef: HTMLElement;
   @Ref() flameToolsPopoverContent: HTMLElement;
 
+  @Prop({ required: true, type: Object as () => BaseDataType }) data: BaseDataType;
   @Prop({ required: true, type: String }) appName: string;
   @Prop({ default: '', type: String }) diffTraceId: string;
   @Prop({ default: () => [] as string[], type: Array }) filterKeywords: [];
@@ -138,24 +139,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     this.handleUpdateloadingChange(true);
     this.showException = false;
     try {
-      const { bizId, appName, start, end, profileId } = this;
-
-      // TODO
-      // const data = await profileQuery(
-      //   {
-      //     bk_biz_id: bizId,
-      //     app_name: appName,
-      //     start,
-      //     end,
-      //     profile_id: profileId
-      //   },
-      //   {
-      //     needCancel: true
-      //   }
-      // ).catch(() => false);
-      const data = FLAME_DATA;
-
-      if (data?.flame_data) {
+      if (this.data) {
         if (this.diffTraceId) {
           this.handleDiffTraceSuccessChange();
         }
@@ -165,7 +149,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
         if (!this.chartRef?.clientWidth) return;
 
         this.graphInstance = new FlameChart(
-          this.initGraphData(data.flame_data),
+          this.initGraphData(this.data),
           {
             w: this.chartRef.clientWidth - paddingLeft * 2,
             c: 20,

@@ -68,7 +68,9 @@ export default defineComponent({
           </Button.ButtonGroup>
         </div>
         <TrendChart />
-        <ProfilingGraph />
+        <div class='profiling-graph-view-content'>
+          <ProfilingGraph />
+        </div>
       </div>
     );
   }

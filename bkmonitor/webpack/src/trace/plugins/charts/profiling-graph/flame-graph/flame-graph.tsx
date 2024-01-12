@@ -23,13 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, toRaw, watch } from 'vue';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
 import { debounce } from 'throttle-debounce';
 
-import { profileQuery } from '../../../../../monitor-api/modules/apm_profile';
 import { FlameChart } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
 import {
   BaseDataType,
@@ -46,7 +45,6 @@ import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueF
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
-import { FLAME_DATA } from '../mock';
 
 import '../../flame-graph-v2/flame-graph.scss';
 import './flame-graph.scss';
@@ -61,6 +59,10 @@ const paddingLeft = 16;
 export default defineComponent({
   name: 'FlameGraph',
   props: {
+    data: {
+      type: Object as () => BaseDataType,
+      default: () => {}
+    },
     appName: {
       type: String,
       required: true
@@ -131,30 +133,13 @@ export default defineComponent({
       }
     );
     watch(
-      [() => props.appName, () => props.profileId, () => props.diffTraceId],
+      [() => props.data],
       debounce(16, async () => {
         contextMenuRect.value.left = -1;
         emit('update:loading', true);
         showException.value = false;
         try {
-          const { bizId, appName, start, end, profileId } = props;
-
-          // TODO
-          // const data = await profileQuery(
-          //   {
-          //     bk_biz_id: bizId,
-          //     app_name: appName,
-          //     start,
-          //     end,
-          //     profile_id: profileId
-          //   },
-          //   {
-          //     needCancel: true
-          //   }
-          // ).catch(() => false);
-          const data = FLAME_DATA;
-
-          if (data?.flame_data) {
+          if (props.data) {
             if (props.diffTraceId) {
               emit('diffTraceSuccess');
             }
@@ -164,7 +149,7 @@ export default defineComponent({
             if (!chartRef.value?.clientWidth) return;
 
             graphInstance = new FlameChart(
-              initGraphData(data.flame_data),
+              initGraphData(toRaw(props.data)),
               {
                 w: chartRef.value.clientWidth - paddingLeft * 2,
                 c: 20,
@@ -294,7 +279,7 @@ export default defineComponent({
           showException.value = true;
         }
       }),
-      { immediate: true }
+      { immediate: true, deep: true }
     );
     watch(
       () => props.filterKeywords,
