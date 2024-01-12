@@ -706,9 +706,12 @@ export default {
       //     addition: []
       // })
       // 过滤相关
+      const tempList = handleTransformToTimestamp(this.datePickerValue);
       this.retrieveParams = {
         bk_biz_id: this.$store.state.bkBizId,
         ...DEFAULT_RETRIEVE_PARAMS,
+        start_time: tempList[0],
+        end_time: tempList[1],
       };
       this.statisticalFieldsData = {};
       this.retrieveDropdownData = {};
