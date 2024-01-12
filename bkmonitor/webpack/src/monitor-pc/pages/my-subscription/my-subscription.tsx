@@ -731,13 +731,15 @@ class MySubscription extends tsc<{}> {
             <div class='title-container'>
               <div style='display: flex;align-items: center;'>
                 <span class='title'>{this.$t('订阅详情')}</span>
+                <span class='sub-title'>-&nbsp;</span>
                 <span
                   class='sub-title'
                   style={{
                     maxWidth: currentLang === 'en' ? '260px' : '350px'
                   }}
+                  v-bk-overflow-tips
                 >
-                  -&nbsp;{this.detailInfo.name}
+                  {this.detailInfo.name}
                 </span>
                 <i
                   class='icon-monitor icon-copy-link link-icon'

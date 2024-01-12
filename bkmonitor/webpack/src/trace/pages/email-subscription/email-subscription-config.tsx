@@ -1151,7 +1151,7 @@ export default defineComponent({
                   <div class='title-container'>
                     <span class='title'>{this.t('订阅详情')}</span>
                     <Popover
-                      placement='bottom-start'
+                      placement='bottom'
                       v-slots={{
                         content: () => {
                           return <span>{this.subscriptionDetail.name}</span>;
