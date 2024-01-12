@@ -23,23 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { PropType } from 'vue/types/options';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { PROFILING_TABLE_DATA } from '../../../../../trace/plugins/charts/profiling-graph/mock';
-import { ITableTipsDetail, ProfilingTableItem, TableColumn, TextDirectionType } from '../../../typings';
+import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
+import { ColorTypes, ITableTipsDetail, ProfilingTableItem, TableColumn, TextDirectionType } from '../../../typings';
+import { getHashVal } from '../flame-graph/utils';
 
 import './table-graph.scss';
 
+const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
+
 interface ITableChartProps {
+  unit: string;
   textDirection: TextDirectionType;
+  data: ProfilingTableItem[];
 }
 @Component
 export default class ProfilingTableChart extends tsc<ITableChartProps> {
+  @Prop({ required: true, type: String }) unit: string;
   @Prop({ required: true, type: String }) textDirection: TextDirectionType;
+  @Prop({ required: true, type: Array as PropType<ProfilingTableItem[]> }) data: ProfilingTableItem[];
 
+  maxItem: { self: number; total: number } = {
+    self: 0,
+    total: 0
+  };
   /** 表格数据 */
-  tableData: ProfilingTableItem[] = PROFILING_TABLE_DATA;
+  tableData: ProfilingTableItem[] = [];
   tableColumns: TableColumn[] = [
     { id: 'Location', name: 'Location', sort: '' },
     { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
@@ -51,12 +63,47 @@ export default class ProfilingTableChart extends tsc<ITableChartProps> {
   tipDetail: ITableTipsDetail = {};
   diffMode = false;
 
-  getColStyle(row: ProfilingTableItem) {
+  @Watch('data', { immediate: true, deep: true })
+  handleDataChange(val: ProfilingTableItem[]) {
+    this.maxItem = {
+      self: Math.max(...val.map(item => item.self)),
+      total: Math.max(...val.map(item => item.total))
+    };
+    this.tableData = (val || []).map(item => {
+      const palette = Object.values(ColorTypes);
+      const colorIndex = getHashVal(item.name) % palette.length;
+      const color = palette[colorIndex];
+      return {
+        ...item,
+        color,
+        displaySelf: this.formatColValue(item.self),
+        displayTotal: this.formatColValue(item.total)
+      };
+    });
+  }
+
+  // Self 和 Total 值的展示
+  formatColValue(val: number) {
+    switch (this.unit) {
+      case 'nanoseconds': {
+        const nsFormat = getValueFormat('ns');
+        const { text, suffix } = nsFormat(val);
+        return text + suffix;
+      }
+      default:
+        return '';
+    }
+  }
+  // 获取对应值与列最大值所占百分比背景色
+  getColStyle(row: ProfilingTableItem, field: string) {
     const { color } = row;
+    const value = row[field] || 0;
+    const percent = (value * TABLE_BGCOLOR_COLUMN_WIDTH) / this.maxItem[field];
+    const xPosition = TABLE_BGCOLOR_COLUMN_WIDTH - percent;
+
     return {
       'background-image': `linear-gradient(${color}, ${color})`,
-      // 'background-position': `-${Math.round(Math.random() * valueColumnWidth)}px 0px`,
-      'background-position': `-80px 0px`,
+      'background-position': `-${xPosition}px 0px`,
       'background-repeat': 'no-repeat'
     };
   }
@@ -70,7 +117,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps> {
       };
     });
   }
-  handleRowMouseMove(e: MouseEvent) {
+  handleRowMouseMove(e: MouseEvent, row: ProfilingTableItem) {
     let axisLeft = e.pageX;
     let axisTop = e.pageY;
     if (axisLeft + 394 > window.innerWidth) {
@@ -83,10 +130,18 @@ export default class ProfilingTableChart extends tsc<ITableChartProps> {
     } else {
       axisTop = axisTop;
     }
+
+    const { name, displaySelf, displayTotal, self, total } = row;
+    const totalItem = this.tableData[0];
+
     this.tipDetail = {
       left: axisLeft,
       top: axisTop,
-      title: 'sync.(*Mutex).Unlock'
+      title: name,
+      displaySelf,
+      displayTotal,
+      selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
+      totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`
     };
   }
   handleRowMouseout() {
@@ -116,7 +171,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps> {
           <tbody>
             {this.tableData.map(row => (
               <tr
-                onMousemove={e => this.handleRowMouseMove(e)}
+                onMousemove={e => this.handleRowMouseMove(e, row)}
                 onMouseout={() => this.handleRowMouseout()}
               >
                 <td>
@@ -125,7 +180,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps> {
                       class='color-reference'
                       style={`background-color: ${row.color}`}
                     ></span>
-                    <span class={`text direction-${this.textDirection}`}>{row.location}</span>
+                    <span class={`text direction-${this.textDirection}`}>{row.name}</span>
                     {/* <div class='trace-mark'>Trace</div> */}
                   </div>
                 </td>
@@ -138,8 +193,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps> {
                       </td>
                     ]
                   : [
-                      <td style={this.getColStyle(row)}>{row.self}</td>,
-                      <td style={this.getColStyle(row)}>{row.Total}</td>
+                      <td style={this.getColStyle(row, 'self')}>{row.displaySelf}</td>,
+                      <td style={this.getColStyle(row, 'total')}>{row.displayTotal}</td>
                     ]}
               </tr>
             ))}
@@ -159,14 +214,14 @@ export default class ProfilingTableChart extends tsc<ITableChartProps> {
             <table class='tips-table'>
               <thead>
                 <th></th>
-                <th>Self (% of total CPU)</th>
-                <th>Total (% of total CPU)</th>
+                <th>Self (% of total)</th>
+                <th>Total (% of total)</th>
               </thead>
               <tbody>
                 <tr>
-                  <td>CPU Time</td>
-                  <td>4.32 minutes(9.33%)</td>
-                  <td>5.33 minutes(11.52%)</td>
+                  <td>&nbsp;&nbsp;</td>
+                  <td>{`${this.tipDetail.displaySelf}(${this.tipDetail.selfPercent})`}</td>
+                  <td>{`${this.tipDetail.displayTotal}(${this.tipDetail.totalPercent})`}</td>
                 </tr>
               </tbody>
             </table>

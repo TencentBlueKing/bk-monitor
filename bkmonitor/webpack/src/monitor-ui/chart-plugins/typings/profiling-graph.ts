@@ -48,8 +48,9 @@ export interface ProfilingTableItem {
   name: string;
   self: number;
   total: number;
-  location: string;
-  Total: string;
+  displaySelf?: string;
+  displayTotal?: string;
+  location?: string;
   color?: string;
   diff?: string;
   baseline?: string;
@@ -67,9 +68,29 @@ export interface ITableTipsDetail {
   left?: number; // 提示框左边距离画布左边的距离
   top?: number; // 提示框上边距离画布上边的距离
   title?: string;
+  displaySelf?: string;
+  displayTotal?: string;
+  selfPercent?: string;
+  totalPercent?: string;
   proportion?: string | number;
   duration?: string;
   diffDuration?: string;
   diffValue?: number | string;
   id?: string;
+}
+
+export interface IQueryParams {
+  bk_biz_id?: number;
+  app_name?: string;
+  start?: number;
+  end?: number;
+  profile_type?: string;
+  profile_id?: string;
+  diff_profile_id?: string;
+  offset?: number;
+  diagram_types?: string[];
+  sort?: string;
+  filter_label?: Record<string, string>;
+  diff_filter_label?: any;
+  is_compared?: boolean;
 }

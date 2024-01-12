@@ -24,10 +24,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import { PanelModel, TextDirectionType, ViewModeType } from '../../typings';
+import { Debounce } from '../../../../monitor-common/utils/utils';
+import { PROFILING_QUERY_DATA } from '../../../../trace/plugins/charts/profiling-graph/mock';
+import {
+  BaseDataType,
+  IQueryParams,
+  PanelModel,
+  ProfilingTableItem,
+  TextDirectionType,
+  ViewModeType
+} from '../../typings';
 import { CommonSimpleChart } from '../common-simple-chart';
 
 import ChartTitle from './chart-title/chart-title';
@@ -38,16 +47,50 @@ import './profiling-graph.scss';
 
 interface IProfilingChartProps {
   panel: PanelModel;
+  queryParams: IQueryParams;
 }
 
 @Component
 class ProfilingChart extends CommonSimpleChart {
+  @Prop({ default: () => {}, type: Object }) queryParams: IQueryParams;
+
+  isLoading = false;
+  tableData: ProfilingTableItem[] = [];
+  flameData: BaseDataType = {
+    name: '',
+    children: undefined,
+    id: ''
+  };
+  unit = '';
   empty = false;
   emptyText = '查无数据';
   // 视图模式
   activeMode: ViewModeType = ViewModeType.Combine;
   textDirection: TextDirectionType = TextDirectionType.Ltr;
 
+  @Debounce(16)
+  @Watch('queryParams', { immediate: true, deep: true })
+  handleQueryParamsChange() {
+    this.handleQuery();
+  }
+
+  handleQuery() {
+    try {
+      // isLoaing.value = true;
+      // const { queryParams } = this.$props;
+      // const params = Object.assign({}, queryParams);
+      // const data = await profileQuery(params).catch(() => false);
+      const data = PROFILING_QUERY_DATA;
+      if (data) {
+        this.unit = data.unit || '';
+        this.tableData = data.table_data || [];
+        this.flameData = data.flame_data as any;
+      }
+    } catch (e) {
+      console.error(e);
+      // isLoaing.value = false;
+    }
+  }
   handleModeChange(val: ViewModeType) {
     this.activeMode = val;
   }
@@ -60,7 +103,10 @@ class ProfilingChart extends CommonSimpleChart {
       return <div class='empty-chart'>{this.emptyText}</div>;
     }
     return (
-      <div class='profiling-graph'>
+      <div
+        class='profiling-graph'
+        v-bkloading={{ isLoading: this.isLoading }}
+      >
         <ChartTitle
           activeMode={this.activeMode}
           textDirection={this.textDirection}
@@ -69,10 +115,15 @@ class ProfilingChart extends CommonSimpleChart {
         />
         <div class='profiling-graph-content'>
           {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
-            <TableGraph textDirection={this.textDirection} />
+            <TableGraph
+              data={this.tableData}
+              unit={this.unit}
+              textDirection={this.textDirection}
+            />
           )}
           {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
             <FrameGraph
+              data={this.flameData}
               appName={'bkmonitor_production'}
               profileId={'3d0d77e0669cdb72'}
               start={1703747947993154}

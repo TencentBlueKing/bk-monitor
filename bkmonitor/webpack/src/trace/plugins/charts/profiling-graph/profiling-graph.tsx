@@ -24,24 +24,68 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, PropType, ref, watch } from 'vue';
+// import { profileQuery } from '@api/modules/apm_profile';
+import { Loading } from 'bkui-vue';
+import { debounce } from 'throttle-debounce';
 
-import { ViewModeType } from '../../../../monitor-ui/chart-plugins/typings';
-import { DirectionType } from '../../../typings';
+import { BaseDataType, ProfilingTableItem, ViewModeType } from '../../../../monitor-ui/chart-plugins/typings';
+import { DirectionType, IQueryParams } from '../../../typings';
 
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
+import { PROFILING_QUERY_DATA } from './mock';
 
 import './profiling-graph.scss';
 
 export default defineComponent({
   name: 'ProfilingGraph',
-  setup() {
+  props: {
+    queryParams: {
+      type: Object as PropType<IQueryParams>,
+      default: () => {}
+    }
+  },
+  setup(props) {
     // 当前视图模式
     const activeMode = ref<ViewModeType>(ViewModeType.Combine);
     const textDirection = ref<DirectionType>('ltr');
+    const isLoaing = ref(false);
+    const tableData = ref<ProfilingTableItem[]>([]);
+    const flameData = ref<BaseDataType>({
+      name: '',
+      children: undefined,
+      id: ''
+    });
+    const unit = ref('');
 
+    watch(
+      [() => props.queryParams],
+      debounce(16, async () => handleQuery()),
+      {
+        immediate: true,
+        deep: true
+      }
+    );
+
+    const handleQuery = async () => {
+      try {
+        // isLoaing.value = true;
+        // const { queryParams } = props;
+        // const params = Object.assign({}, queryParams);
+        // const data = await profileQuery(params).catch(() => false);
+        const data = PROFILING_QUERY_DATA;
+        if (data) {
+          unit.value = data.unit || '';
+          tableData.value = data.table_data || [];
+          flameData.value = data.flame_data as any;
+        }
+      } catch (e) {
+        console.error(e);
+        // isLoaing.value = false;
+      }
+    };
     /** 切换视图模式 */
     const handleModeChange = (val: ViewModeType) => {
       activeMode.value = val;
@@ -51,6 +95,10 @@ export default defineComponent({
     };
 
     return {
+      tableData,
+      flameData,
+      unit,
+      isLoaing,
       activeMode,
       textDirection,
       handleModeChange,
@@ -59,7 +107,10 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='profiling-graph'>
+      <Loading
+        loading={this.isLoaing}
+        class='profiling-graph'
+      >
         <ChartTitle
           activeMode={this.activeMode}
           textDirection={this.textDirection}
@@ -68,10 +119,15 @@ export default defineComponent({
         />
         <div class='profiling-graph-content'>
           {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
-            <TableGraph textDirection={this.textDirection} />
+            <TableGraph
+              data={this.tableData}
+              unit={this.unit}
+              textDirection={this.textDirection}
+            />
           )}
           {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
             <FrameGraph
+              data={this.flameData}
               appName={'bkmonitor_production'}
               profileId={'3d0d77e0669cdb72'}
               start={1703747947993154}
@@ -82,7 +138,7 @@ export default defineComponent({
             />
           )}
         </div>
-      </div>
+      </Loading>
     );
   }
 });
