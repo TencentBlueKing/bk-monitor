@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, reactive, ref, watch } from 'vue';
+import { defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 
-import { ConditionType, SearchType } from '../typings';
-import { RetrievalFormData } from '../typings/profiling-retrieval';
+import { listApplicationServices, queryServicesDetail } from '../../../../monitor-api/modules/apm_profile';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { ApplicationList, ConditionType, RetrievalFormData, SearchType, ToolsFormData } from '../typings';
 
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
@@ -48,6 +49,8 @@ export default defineComponent({
   emits: ['change', 'showDetail'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
+
     const retrievalType = [
       {
         label: t('持续 Profiling'),
@@ -59,28 +62,12 @@ export default defineComponent({
       }
     ];
     /** 应用/服务可选列表 */
-    const applicationList = ref([
-      { id: 'app1', name: 'app1', desc: 'app123', children: [{ id: 'load-generator', name: 'load-generator' }] },
-      {
-        id: 'rideshare-app',
-        name: 'rideshare-app',
-        desc: 'app123',
-        children: [{ id: 'ride-sharing-app', name: 'ride-sharing-app' }]
-      },
-      { id: 'nodata', name: 'nodata', desc: 'app123', children: [] },
-      { id: 'nodata2', name: 'nodata2', desc: 'app123', children: [] }
-    ]);
-    /** 当前选中的应用/服务 */
-    const selectApplicationData = ref({
-      bk_biz_id: 100605,
-      app_name: 'profiling_bar',
-      service_name: 'serviceA',
-      period: '10000000',
-      period_type: 'nanoseconds',
-      frequency: '100.0Hz',
-      create_time: '2024-01-08 23:18:36',
-      last_report_time: '2024-01-08 23:18:36'
+    const applicationList = ref<ApplicationList>({
+      normal: [],
+      no_data: []
     });
+    /** 当前选中的应用/服务 */
+    const selectApplicationData = ref();
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: {
@@ -123,9 +110,15 @@ export default defineComponent({
     }
 
     /** 查看详情 */
-    function handleDetailClick() {
+    async function handleDetailClick() {
       if (!localFormData.server.app_name || !localFormData.server.service_name) return;
-
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      selectApplicationData.value = await queryServicesDetail({
+        start_time: start * 1000,
+        end_time: end * 1000,
+        app_name: localFormData.server.app_name,
+        service_name: localFormData.server.service_name
+      }).catch(() => ({}));
       emit('showDetail', selectApplicationData.value);
     }
 
@@ -171,6 +164,18 @@ export default defineComponent({
         localFormData.comparisonWhere[index] = val;
       }
       handleEmitChange();
+    }
+
+    onMounted(() => {
+      getApplicationList();
+    });
+
+    async function getApplicationList() {
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      applicationList.value = await listApplicationServices({
+        start_time: start * 1000,
+        end_time: end * 1000
+      }).catch(() => ({ normal: [], no_data: [] }));
     }
 
     function handleEmitChange() {

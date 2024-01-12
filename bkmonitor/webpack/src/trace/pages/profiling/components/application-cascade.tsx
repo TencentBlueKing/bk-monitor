@@ -25,7 +25,10 @@
  */
 import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Button, Form, Input, Popover } from 'bkui-vue';
+import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
+
+import { queryBkDataToken } from '../../../../monitor-api/modules/apm_meta';
+import { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
 
 import './application-cascade.scss';
 
@@ -33,8 +36,8 @@ export default defineComponent({
   name: 'ApplicationCascade',
   props: {
     list: {
-      type: Array as PropType<any[]>,
-      default: () => []
+      type: Object as PropType<ApplicationList>,
+      default: () => ({ normal: [], no_data: [] })
     },
     value: {
       type: Object as PropType<string[]>,
@@ -44,63 +47,60 @@ export default defineComponent({
   emits: ['change'],
   setup(props, { emit }) {
     const { t } = useI18n();
-
+    const token = ref('');
+    const tokenLoading = ref(false);
     /** 筛选 */
     const searchKey = ref('');
-    /** 一级选项列表 */
-    const selectList = computed(() => {
-      const list = { hasData: [], noData: [] };
-      props.list.forEach(item => {
-        if (!item.name.includes(searchKey.value)) return;
-        if (item.children?.length) {
-          list.hasData.push(item);
-        } else {
-          list.noData.push(item);
-        }
+    /** 应用列表 */
+    const appList = computed<ApplicationList>(() => {
+      const list = { normal: [], no_data: [] };
+      list.normal = props.list.normal.filter(item => {
+        if (item.app_name.includes(searchKey.value)) return true;
+        if (item.services.some(service => service.name.includes(searchKey.value))) return true;
+        return false;
+      });
+      list.no_data = props.list.no_data.filter(item => {
+        return item.app_name.includes(searchKey.value);
       });
       return list;
     });
-    /** 二级选项列表 */
-    const secondList = ref([]);
 
-    /** 一级选项是否有数据应用 */
-    const hasData = ref(true);
+    /** 应用是否有数据 */
+    const hasData = computed(() => {
+      if (props.list.normal.find(item => item.app_name === selectValue.appName)) return true;
+      return false;
+    });
+
+    /** 已选择的应用 */
+    const appData = computed(() => {
+      if (hasData.value) {
+        return props.list.normal.find(item => item.app_name === selectValue.appName);
+      }
+      return props.list.no_data.find(item => item.app_name === selectValue.appName);
+    });
+
+    /** 服务列表 */
+    const serviceList = computed(() => {
+      if (!appData.value) return [];
+      return appData.value.services;
+    });
+
     const selectValue = reactive({
-      /** 一级选项id */
-      firstId: null,
-      /** 一级选项数据 */
-      firstData: null,
-      /** 二级选项id */
-      secondId: null,
-      /** 二级选项数据 */
-      secondData: null
+      /** 应用名称 */
+      appName: null,
+      /** 服务名称 */
+      serviceName: null
     });
     const inputText = computed(() => {
-      if (!selectValue.firstData || !selectValue.secondData) return '';
-      return `${selectValue.firstData.name} / ${selectValue.secondData.name}`;
+      if (!selectValue.appName || !selectValue.serviceName) return '';
+      return `${selectValue.appName} / ${selectValue.serviceName}`;
     });
 
     watch(
-      () => [props.value, props.list],
+      () => props.value,
       val => {
-        const [value, list] = val;
-        if (!value.length || !list.length) {
-          hasData.value = false;
-          selectValue.firstId = null;
-          selectValue.firstData = null;
-          selectValue.secondId = null;
-          selectValue.secondData = null;
-          return;
-        }
-
-        const first = list.find(first => first.id === value[0]);
-        selectValue.firstId = first?.id;
-        selectValue.firstData = first;
-        secondList.value = first?.children || [];
-        const second = first?.children?.find(child => child.id === value[1]);
-        selectValue.secondId = second?.id;
-        selectValue.secondData = second;
-        hasData.value = true;
+        selectValue.appName = val[0] || '';
+        selectValue.serviceName = val[1] || '';
       },
       {
         immediate: true
@@ -113,43 +113,57 @@ export default defineComponent({
     }
 
     /**
-     * 一级选项选中触发事件
+     * 选择应用
      * @param val 选项值
      */
-    function handleFirstClick(val) {
-      if (val.id === selectValue.firstId) return;
-      /** 切换一级选项清空二级选项数据 */
-      selectValue.secondId = null;
-      selectValue.secondData = null;
-      selectValue.firstId = val.id;
-      selectValue.firstData = val;
-      hasData.value = val.children.length > 0;
-      secondList.value = val.children || [];
+    function handleAppClick(val: ApplicationItem) {
+      if (val.app_name === selectValue.appName) return;
+      selectValue.appName = val.app_name;
+      selectValue.serviceName = null;
+      token.value = '';
     }
     /**
-     * 二级选项选中触发事件
+     * 选择服务
      * @param val 选项值
      */
-    function handleSecondClick(val) {
-      if (val.id === selectValue.secondId) return;
-      selectValue.secondId = val.id;
-      selectValue.secondData = val;
+    function handleServiceClick(val: ServiceItem) {
+      if (val.name === selectValue.serviceName) return;
+      selectValue.serviceName = val.name;
       showPopover.value = false;
-      emit('change', [selectValue.firstId, selectValue.secondId]);
+      emit('change', [selectValue.appName, selectValue.serviceName]);
+    }
+
+    /** 查看token */
+    async function handleViewToken() {
+      tokenLoading.value = true;
+      token.value = await queryBkDataToken(appData.value.application_id).catch(() => {});
+      tokenLoading.value = false;
+    }
+
+    /** 查看应用  */
+    function handleViewApp() {
+      const hash = `#/apm/home?queryString=${appData.value.app_name}`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_self');
     }
 
     return {
       t,
+      tokenLoading,
+      token,
       searchKey,
       hasData,
       selectValue,
-      selectList,
-      secondList,
+      appList,
+      appData,
+      serviceList,
       inputText,
       showPopover,
-      handleFirstClick,
-      handleSecondClick,
-      handlePopoverShowChange
+      handleAppClick,
+      handleViewToken,
+      handleServiceClick,
+      handlePopoverShowChange,
+      handleViewApp
     };
   },
   render() {
@@ -190,40 +204,43 @@ export default defineComponent({
                   <div class='first panel'>
                     <div class='group-title'>{this.t('有数据应用')}</div>
                     <div class='group-wrap'>
-                      {this.selectList.hasData.map(item => (
+                      {this.appList.normal.map(item => (
                         <div
-                          class={{ 'group-item': true, active: item.id === this.selectValue.firstId }}
-                          onClick={() => this.handleFirstClick(item)}
-                          key={item.id}
+                          class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
+                          onClick={() => this.handleAppClick(item)}
+                          key={item.application_id}
                         >
-                          <div class='left'>
-                            <i class='icon-monitor icon-mc-menu-apm'></i>
-                            <span class='name'>{item.name}</span>
-                            <span class='desc'>{item.desc}</span>
-                          </div>
+                          <i class='icon-monitor icon-mc-menu-apm'></i>
+                          <span class='name'>
+                            {item.app_name}
+                            <span class='desc'>({item.app_alias})</span>
+                          </span>
                           <i class='icon-monitor icon-arrow-right'></i>
                         </div>
                       ))}
                     </div>
                     <div class='group-title'>{this.t('无数据应用')}</div>
-                    {this.selectList.noData.map(item => (
+                    {this.appList.no_data.map(item => (
                       <div
-                        class={{ 'group-item': true, active: item.id === this.selectValue.firstId }}
-                        onClick={() => this.handleFirstClick(item)}
+                        class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
+                        onClick={() => this.handleAppClick(item)}
                       >
                         <i class='icon-monitor icon-mc-menu-apm'></i>
-                        <span class='name'>{item.name}</span>
+                        <span class='name'>
+                          {item.app_name}
+                          <span class='desc'>({item.app_alias})</span>
+                        </span>
                       </div>
                     ))}
                   </div>
-                  {this.selectValue.firstId && (
+                  {this.selectValue.appName && (
                     <div class='second panel'>
                       {this.hasData ? (
                         <div class='has-data-wrap'>
-                          {this.secondList.map(item => (
+                          {this.serviceList.map(item => (
                             <div
-                              class={{ 'group-item': true, active: item.id === this.selectValue.secondId }}
-                              onClick={() => this.handleSecondClick(item)}
+                              class={{ 'group-item': true, active: item.name === this.selectValue.serviceName }}
+                              onClick={() => this.handleServiceClick(item)}
                             >
                               <i class='icon-monitor icon-mc-grafana-home'></i>
                               <span class='name'>{item.name}</span>
@@ -232,28 +249,38 @@ export default defineComponent({
                         </div>
                       ) : (
                         <div class='no-data-wrap'>
-                          <Form labelWidth={100}>
-                            <Form.FormItem label={this.t('应用名')}>trace_agg_scene</Form.FormItem>
-                            <Form.FormItem label={this.t('应用别名')}>应用1</Form.FormItem>
-                            <Form.FormItem label={this.t('描述')}>我是描述我是描述我是描述</Form.FormItem>
-                            <Form.FormItem label='Token'>
-                              <span class='password'>●●●●●●●●●●</span>
-                              <Button
-                                text
-                                theme='primary'
-                              >
-                                {this.t('点击查看')}
-                              </Button>
-                            </Form.FormItem>
-                          </Form>
-                          <div class='btn'>
-                            <span>{this.t('Profile 接入指引')}</span>
-                            <i class='icon-monitor icon-fenxiang'></i>
-                          </div>
-                          <div class='btn'>
-                            <span>{this.t('查看应用')}</span>
-                            <i class='icon-monitor icon-fenxiang'></i>
-                          </div>
+                          <Loading
+                            loading={this.tokenLoading}
+                            theme='primary'
+                            mode='spin'
+                          >
+                            <Form labelWidth={100}>
+                              <Form.FormItem label={this.t('应用名')}>{this.appData.app_name}</Form.FormItem>
+                              <Form.FormItem label={this.t('应用别名')}>{this.appData.app_alias}</Form.FormItem>
+                              <Form.FormItem label={this.t('描述')}>{this.appData.description}</Form.FormItem>
+                              <Form.FormItem label='Token'>
+                                <span class='password'>{this.token || '●●●●●●●●●●'}</span>
+                                <Button
+                                  text
+                                  theme='primary'
+                                  onClick={this.handleViewToken}
+                                >
+                                  {this.t('点击查看')}
+                                </Button>
+                              </Form.FormItem>
+                            </Form>
+                            <div class='btn'>
+                              <span>{this.t('Profile 接入指引')}</span>
+                              <i class='icon-monitor icon-fenxiang'></i>
+                            </div>
+                            <div
+                              class='btn'
+                              onClick={this.handleViewApp}
+                            >
+                              <span>{this.t('查看应用')}</span>
+                              <i class='icon-monitor icon-fenxiang'></i>
+                            </div>
+                          </Loading>
                         </div>
                       )}
                     </div>

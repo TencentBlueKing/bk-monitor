@@ -76,6 +76,22 @@ export const retrievalDataTypeList = [
   }
 ] as const;
 
+export interface ServiceItem {
+  id: number;
+  name: string;
+  has_data: boolean;
+}
+
 export interface ApplicationItem {
-  [key: string]: any;
+  bk_biz_id: number;
+  application_id: number;
+  app_name: string;
+  app_alias: string;
+  description: string;
+  services: ServiceItem[];
+}
+
+export interface ApplicationList {
+  normal: ApplicationItem[];
+  no_data: ApplicationItem[];
 }
