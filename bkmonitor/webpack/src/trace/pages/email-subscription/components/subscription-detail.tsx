@@ -58,8 +58,8 @@ export default defineComponent({
 
     const getTimeRange = computed(() => {
       if (!props.detailInfo.start_time) return '';
-      const startTime = dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
+      const startTime = dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm');
+      const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm');
       return `${startTime} ~ ${endTime}`;
     });
 
@@ -140,22 +140,25 @@ export default defineComponent({
           />
 
           {/* 特殊节点 订阅人里有其他要展示的内容 */}
-          <div class='row subscribers'>
+          <div
+            class='row subscribers'
+            style='padding-bottom: 13px;'
+          >
             <div class='label'>
               <span>{this.t('订阅人')}</span>
             </div>
             <span class='value'>
-              <div class='subscribers-row'>
+              <div
+                class='subscribers-row'
+                style='padding-bottom: 13px;'
+              >
                 <span
                   class='subscribers-label'
-                  style='padding-top: 3px;margin-bottom: 7px;'
+                  style='margin-bottom: 7px;'
                 >
                   {this.t('内部用户')}
                 </span>
-                <span
-                  class='subscribers-value'
-                  style='padding-top: 3px;'
-                >
+                <span class='subscribers-value'>
                   {this.detailInfo.channels
                     .find(item => item.channel_name === 'user')
                     ?.subscribers?.map?.(item => {
@@ -178,7 +181,7 @@ export default defineComponent({
 
               <div
                 class='subscribers-row'
-                style='padding-top: 20px;'
+                style='padding-bottom: 13px;'
               >
                 <span
                   class='subscribers-label'
@@ -193,7 +196,7 @@ export default defineComponent({
                       return (
                         <span
                           class='email'
-                          style='display: inline-flex;'
+                          style='display: inline-flex;margin-bottom: 7px;'
                         >
                           {item.id}
                         </span>
@@ -202,10 +205,7 @@ export default defineComponent({
                 </span>
               </div>
 
-              <div
-                class='subscribers-row'
-                style='padding-top: 20px;'
-              >
+              <div class='subscribers-row'>
                 <span
                   class='subscribers-label'
                   style='margin-bottom: 7px;'
@@ -219,7 +219,7 @@ export default defineComponent({
                       return (
                         <span
                           class='group-id'
-                          style='display: inline-flex;'
+                          style='display: inline-flex;margin-bottom: 7px;'
                         >
                           {item.id}
                         </span>

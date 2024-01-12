@@ -753,8 +753,8 @@ export default defineComponent({
 
     function formatTimeRange(s, e) {
       if (!s) return '';
-      const startTime = dayjs.unix(s).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = dayjs.unix(e).format('YYYY-MM-DD HH:mm:ss');
+      const startTime = dayjs.unix(s).format('YYYY-MM-DD HH:mm');
+      const endTime = dayjs.unix(e).format('YYYY-MM-DD HH:mm');
       return `${startTime} ~ ${endTime}`;
     }
 
@@ -1119,7 +1119,7 @@ export default defineComponent({
                   theme='primary'
                   disabled={this.sendRecordTable.isLoading}
                   onClick={this.getSendingRecordList}
-                  style='font-size: 16px;'
+                  style='font-size: 12px;'
                 >
                   {this.t('刷新')}
                 </Button>
@@ -1151,7 +1151,7 @@ export default defineComponent({
                   <div class='title-container'>
                     <span class='title'>{this.t('订阅详情')}</span>
                     <Popover
-                      placement='bottom-start'
+                      placement='bottom'
                       v-slots={{
                         content: () => {
                           return <span>{this.subscriptionDetail.name}</span>;

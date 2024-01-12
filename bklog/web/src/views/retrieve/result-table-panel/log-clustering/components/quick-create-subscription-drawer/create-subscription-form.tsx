@@ -502,9 +502,13 @@ class QuickCreateSubscription extends tsc<IProps> {
     const titleMapping = {
       clustering: this.$t('{0}-日志聚类统计报表-{1}', [this.bizName, currentDate])
     };
+    const nameMapping = {
+      clustering: this.$t('{0}-日志聚类统计报表-{1}', ['{{business_name}}', '{{time}}'])
+    };
     const targetTitle = titleMapping[this.scenario] || '';
-    this.formData.content_config.title = targetTitle;
-    this.formData.content_config__title = targetTitle;
+    const targetName = nameMapping[this.scenario] || '';
+    this.formData.content_config.title = targetName;
+    this.formData.content_config__title = targetName;
     this.formData.name = `${targetTitle}-${this.$store.state.userMeta?.username || ''}`
   }
 
