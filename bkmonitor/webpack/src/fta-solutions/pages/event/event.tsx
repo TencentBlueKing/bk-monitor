@@ -469,9 +469,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         if (queryData?.query_configs?.length) {
           const { query_configs } = queryData;
           let queryString = '';
+          const uniqueMap = {};
           query_configs.forEach((item, index) => {
-            if (item.metric_id) {
-              queryString += `${index > 0 ? ' OR ' : ''}指标ID: "${item.metric_id}"`;
+            if (item.metric_id && !uniqueMap[item.metric_id]) {
+              queryString += `${index > 0 ? ' OR ' : ''}${isEn ? 'metric' : '指标ID'}: "${item.metric_id}"`;
+              uniqueMap[item.metric_id] = true;
             }
           });
           vm.queryString = queryString;
