@@ -14,11 +14,31 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-Flame1:before {
+.icon-fuwumokuai:before {
+  content: '\e7a3';
+}
+
+.icon-yingjian:before {
+  content: '\e79f';
+}
+
+.icon-fuwuzujian:before {
+  content: '\e7a0';
+}
+
+.icon-OS:before {
+  content: '\e7a1';
+}
+
+.icon-jincheng:before {
+  content: '\e7a2';
+}
+
+.icon-mc-flame:before {
   content: '\e79d';
 }
 
-.icon-fenping:before {
+.icon-mc-fenping:before {
   content: '\e79e';
 }
 

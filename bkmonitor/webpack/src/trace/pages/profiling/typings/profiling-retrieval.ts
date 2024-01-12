@@ -24,62 +24,58 @@
  * IN THE SOFTWARE.
  */
 
-/**
- * 查找父节点
- */
-export const findRegionById = (tree, id, parents = []) => {
-  // eslint-disable-next-line @typescript-eslint/prefer-for-of
-  for (let i = 0; i < tree.length; i++) {
-    const region = tree[i];
-    if (region.id === id) {
-      parents.push(region.id);
-      return parents.reverse();
-    }
-    if (region.children) {
-      const found = findRegionById(region.children, id, parents);
-      if (found) {
-        parents.push(region.id);
-        return found;
-      }
-    }
-  }
-  return null;
-};
+export enum SearchType {
+  Profiling = 'profiling',
+  Upload = 'upload'
+}
 
-/**
- * 查找子节点
- */
-export const findChildById = (treeList, id) => {
-  const temp = [];
-  const searchFn = function (treeList) {
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
-    for (let i = 0; i < treeList.length; i++) {
-      const item = treeList[i];
-      if (item.id !== id) {
-        temp.push(item.id);
-      }
-      if (item.children) {
-        searchFn(item.children);
-      }
-    }
+export enum ConditionType {
+  /** 查询项 */
+  Where = 'where',
+  /** 对比项 */
+  Comparison = 'comparison'
+}
+
+export interface ConditionItem {
+  key: string;
+  method: 'eq';
+  value: string | string[];
+}
+export interface RetrievalFormData {
+  /** 查询类型 */
+  type: SearchType;
+  /** 是否开启对比模式 */
+  isComparison: boolean;
+  /** 应用/服务 */
+  server: {
+    app_name: string;
+    service_name: string;
   };
-  searchFn(treeList);
-  return temp;
-};
+  /** 查询项条件 */
+  where: ConditionItem[];
+  /** 对比项条件 */
+  comparisonWhere: ConditionItem[];
+}
 
-/**
- * @desc 字符串生成 hash 值
- */
-export const getHashVal = string => {
-  let hash = 0;
-  let i;
-  let chr;
-  if (string.length === 0) return hash;
-  for (i = 0; i < string.length; i++) {
-    chr = string.charCodeAt(i);
-    hash = (hash << 5) - hash + chr;
-    hash |= 0;
+export const retrievalDataTypeList = [
+  {
+    id: 'cpu',
+    name: 'CPU'
+  },
+  {
+    id: 'mem',
+    name: 'MEM'
+  },
+  {
+    id: 'alloc',
+    name: 'ALLOC'
+  },
+  {
+    id: 'mutex',
+    name: 'MUTEX'
   }
+] as const;
 
-  return Math.abs(hash);
-};
+export interface ApplicationItem {
+  [key: string]: any;
+}
