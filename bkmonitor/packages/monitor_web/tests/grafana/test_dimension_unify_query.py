@@ -8,16 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from packages.monitor_web.grafana.resources.unify_query import DimensionUnifyQuery
 import pytest
 
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from monitor_web.grafana.resources.unify_query import DimensionUnifyQuery
 
 get_dimension_data_return = {
     "values": {
         "bk_biz_id": ["2", "4"],
         "ip": [
-            "10.0.0.1",
+            "127.0.0.1",
         ],
         "id": ["7878", "785858"],
         "bk_supplier_id": [],
@@ -85,7 +85,10 @@ class TestDimensionUnifyQuery:
         )
         data = dimension_unify_query.perform_request(params)
         data.sort(key=lambda x: x["value"])
-        assert data == [{"label": "2|10.0.0.1", "value": "2|10.0.0.1"}, {"label": "4|10.0.0.1", "value": "4|10.0.0.1"}]
+        assert data == [
+            {"label": "2|127.0.0.1", "value": "2|127.0.0.1"},
+            {"label": "4|127.0.0.1", "value": "4|127.0.0.1"},
+        ]
 
     def test_bkmonitor_time_series_by_more_target_with_none_data(self, mocker):
         """
@@ -101,8 +104,8 @@ class TestDimensionUnifyQuery:
         data = dimension_unify_query.perform_request(params)
         data.sort(key=lambda x: x["value"])
         assert data == [
-            {"label": "2||10.0.0.1", "value": "2||10.0.0.1"},
-            {"label": "4||10.0.0.1", "value": "4||10.0.0.1"},
+            {"label": "2||127.0.0.1", "value": "2||127.0.0.1"},
+            {"label": "4||127.0.0.1", "value": "4||127.0.0.1"},
         ]
 
     def test_custom_time_series_by_single_target(self, mocker):
@@ -133,7 +136,10 @@ class TestDimensionUnifyQuery:
         )
         data = dimension_unify_query.perform_request(params)
         data.sort(key=lambda x: x["value"])
-        assert data == [{"label": "2|10.0.0.1", "value": "2|10.0.0.1"}, {"label": "4|10.0.0.1", "value": "4|10.0.0.1"}]
+        assert data == [
+            {"label": "2|127.0.0.1", "value": "2|127.0.0.1"},
+            {"label": "4|127.0.0.1", "value": "4|127.0.0.1"},
+        ]
 
     def test_custom_time_series_by_more_target_with_none_data(self, mocker):
         """
@@ -149,8 +155,8 @@ class TestDimensionUnifyQuery:
         data = dimension_unify_query.perform_request(params)
         data.sort(key=lambda x: x["value"])
         assert data == [
-            {"label": "2||10.0.0.1", "value": "2||10.0.0.1"},
-            {"label": "4||10.0.0.1", "value": "4||10.0.0.1"},
+            {"label": "2||127.0.0.1", "value": "2||127.0.0.1"},
+            {"label": "4||127.0.0.1", "value": "4||127.0.0.1"},
         ]
 
     def test_log_search_timeseries(self, mocker):
@@ -287,7 +293,7 @@ class TestDimensionUnifyQuery:
                             "parent_span_id": "b8387415713cca21",
                             "path": "",
                             "resource": {"bk_data_id": 1500096, "service.name": "test-service"},
-                            "serverIp": "10.0.0.1",
+                            "serverIp": "127.0.0.1",
                             "span_id": "990f5a2181ca54f1",
                             "span_name": "handle-ts-query",
                             "start_time": 1630724613411625,
@@ -389,10 +395,10 @@ class TestDimensionUnifyQuery:
                             "gseIndex": 412144,
                             "iterationIndex": 2,
                             "log": "Sep  4 09:42:15 VM-1-56-centos ssm: [GIN] 2021/09/04 - "
-                            "09:42:15 | 200 |    1.285774ms |       10.0.0.1 | POST   "
+                            "09:42:15 | 200 |    1.285774ms |       127.0.0.1 | POST   "
                             '  "/api/v1/auth/access-tokens/verify"',
                             "path": "/var/log/messages",
-                            "serverIp": "10.0.0.1",
+                            "serverIp": "127.0.0.1",
                             "time": "1630719736000",
                         },
                         "_type": "_doc",
@@ -445,7 +451,7 @@ class TestDimensionUnifyQuery:
                         "_source": {
                             "event_name": "login_count",
                             "time": "1630659967000",
-                            "target": "0:10.0.0.1",
+                            "target": "0:127.0.0.1",
                             "dimensions": {
                                 "bk_biz_id": "2",
                                 "bk_module_id": "34",
@@ -454,7 +460,7 @@ class TestDimensionUnifyQuery:
                                 "bk_target_topo_level": "",
                                 "file_path": "this is file_path",
                                 "bk_target_service_category_id": "",
-                                "bk_target_ip": "10.0.0.1",
+                                "bk_target_ip": "127.0.0.1",
                                 "bk_set_id": "7",
                                 "bk_target_service_instance_id": "",
                                 "bk_target_cloud_id": "0",

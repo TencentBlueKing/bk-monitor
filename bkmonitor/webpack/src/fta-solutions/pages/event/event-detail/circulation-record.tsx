@@ -220,7 +220,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
           if (!!id) {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield-edit/${id}`
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`
             };
           }
         }

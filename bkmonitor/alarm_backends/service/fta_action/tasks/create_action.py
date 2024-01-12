@@ -607,9 +607,7 @@ class CreateActionProcessor:
 
             # 对历史的内容需要去重
             # TODO 需要确认告警通知人指的时候收集了所有接收到通知的总和吗？
-            alerts_assignee[alert.id] = self.get_alert_related_users(
-                assignees + followers + supervisors, alerts_assignee[alert.id]
-            )
+            alerts_assignee[alert.id] = self.get_alert_related_users(assignees + supervisors, alerts_assignee[alert.id])
 
             # 告警负责人字段，替换为当前的负责人
             if assignees:
@@ -620,7 +618,7 @@ class CreateActionProcessor:
             alerts_supervisor[alert.id] = self.get_alert_related_users(supervisors, alerts_supervisor[alert.id])
 
             # 告警关注人
-            alerts_follower[alert.id] = self.get_alert_related_users(followers, alerts_supervisor[alert.id])
+            alerts_follower[alert.id] = self.get_alert_related_users(followers, alerts_follower[alert.id])
 
             for action in actions + itsm_actions:
                 action_config = action_configs.get(str(action["config_id"]))

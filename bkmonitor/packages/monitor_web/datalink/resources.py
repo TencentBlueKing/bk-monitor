@@ -31,6 +31,7 @@ from monitor_web.models.plugin import PluginVersionHistory
 from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
     DataLinkStage,
+    DatalinkStrategy,
     DataLinkStrategyInfo,
 )
 
@@ -174,9 +175,12 @@ class UpdateAlertUserGroupsResource(BaseStatusResource):
 
     def perform_request(self, validated_request_data: Dict):
         self.init_data(validated_request_data["collect_config_id"], DataLinkStage(validated_request_data["stage"]))
+        strategy_tuples: List[Tuple[int, DatalinkStrategy]] = []
+        for sid in self.strategy_ids:
+            strategy_tuples.append((sid, self.strategy_map.get(sid)))
         self.loader.update_rule_group(
             user_group_ids=validated_request_data["notice_group_list"],
-            strategy_ids=self.strategy_ids,
+            strategy_tuples=strategy_tuples,
         )
         return "ok"
 

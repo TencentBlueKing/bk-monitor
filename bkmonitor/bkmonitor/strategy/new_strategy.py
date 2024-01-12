@@ -88,6 +88,7 @@ from bkmonitor.utils.time_tools import strftime_local
 from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import (
+    DATALINK_SOURCE,
     HOST_SCENARIO,
     SERVICE_SCENARIO,
     SYSTEM_EVENT_RT_TABLE_ID,
@@ -1496,10 +1497,12 @@ class Strategy(AbstractConfig):
         priority = serializers.IntegerField(min_value=0, required=False, default=None, max_value=10000, allow_null=True)
         metric_type = serializers.CharField(allow_blank=True, default="")
 
-        def validate_name(self, value):
-            if value.startswith("集成内置") or value.startswith("Datalink BuiltIn"):
+        def validate(self, attrs):
+            name = attrs.get("name")
+            is_builtin_name = name.startswith("集成内置") or name.startswith("Datalink BuiltIn")
+            if attrs.get("source") != DATALINK_SOURCE and is_builtin_name:
                 raise ValidationError(detail="Name starts with 'Datalink BuiltIn' and '集成内置' is forbidden")
-            return value
+            return attrs
 
     def __init__(
         self,
@@ -1612,6 +1615,7 @@ class Strategy(AbstractConfig):
             "path": self.path,
             "priority": self.priority,
             "priority_group_key": priority_group_key,
+            "edit_allowed": self.source != DATALINK_SOURCE,
         }
 
         config["metric_type"] = config["items"][0]["metric_type"] if config["items"] else ""

@@ -704,7 +704,6 @@ export default {
       z-index: 999;
       height: calc(100vh - 99px);
       overflow: hidden;
-      border-left: 1px solid transparent;
 
       .drag-item {
         width: 20px;

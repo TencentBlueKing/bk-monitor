@@ -122,8 +122,9 @@ def run_action(action_type, action_info):
 
     metrics.ACTION_EXECUTE_TIME.labels(**labels).observe(time.time() - start_time)
     metrics.ACTION_EXECUTE_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc, **labels).inc()
-    if is_finished and action_instance:
+    if is_finished and action_instance and not action_instance.is_parent_action:
         # 结束之后统计任务的执行情况
+        # 如果是主任务的情况，可以直接忽略
         status_labels = {
             "status": metrics.StatusEnum.FAILED
             if action_instance.status == ActionStatus.FAILURE

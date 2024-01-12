@@ -104,6 +104,8 @@ DEFAULT_DATALINK_STRATEGIES = [
                         "agg_condition": [
                             {"key": "bkm_up_code", "method": "nreg", "value": ["^2\\d{3}$"]},
                             {"key": "bkm_up_code", "method": "neq", "value": ["0"], "condition": "and"},
+                            {"key": "bk_collect_config_id", "method": "neq", "value": [""], "condition": "and"},
+                            {"key": "bk_biz_id", "method": "eq", "value": ["${{bk_biz_id}}"], "condition": "and"},
                         ],
                         "agg_dimension": [
                             "bkm_up_code",
@@ -120,7 +122,7 @@ DEFAULT_DATALINK_STRATEGIES = [
                         "functions": [],
                         "metric_field": "bkm_gather_up",
                         "name": "bkm_gather_up",
-                        "result_table_id": "bkmonitorbeat_gather_up.base",
+                        "result_table_id": "bkmonitorbeat_gather_up.__default__",
                         "unit": "",
                     },
                 ],
@@ -145,6 +147,8 @@ DEFAULT_DATALINK_STRATEGIES = [
                     {
                         "agg_condition": [
                             {"key": "bkm_up_code", "method": "reg", "value": ["^2\\d{3}$"]},
+                            {"key": "bk_collect_config_id", "method": "neq", "value": [""], "condition": "and"},
+                            {"key": "bk_biz_id", "method": "eq", "value": ["${{bk_biz_id}}"], "condition": "and"},
                         ],
                         "agg_dimension": [
                             "bkm_up_code",
@@ -161,7 +165,7 @@ DEFAULT_DATALINK_STRATEGIES = [
                         "functions": [],
                         "metric_field": "bkm_gather_up",
                         "name": "bkm_gather_up",
-                        "result_table_id": "bkmonitorbeat_gather_up.base",
+                        "result_table_id": "bkmonitorbeat_gather_up.__default__",
                         "unit": "",
                     },
                 ],

@@ -94,7 +94,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 # LOG_LEVEL = 'INFO'
 
 # 调试开关，生产环境请关闭
-DEBUG = TEMPLATE_DEBUG = ENVIRONMENT == "development"
+DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or ENVIRONMENT == "development"
 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
@@ -1146,7 +1146,7 @@ BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", "{}{}".format(BK_PAAS_INNER_HOST, SITE_URL))
 
 # 是否跳过 iam migrate
-BK_IAM_SKIP = False
+BK_IAM_SKIP = os.getenv("BK_IAM_SKIP", "false").lower() == "true"
 
 # 采集配置文件参数最大值(M)
 COLLECTING_CONFIG_FILE_MAXSIZE = 2

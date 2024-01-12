@@ -13,7 +13,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
-from constants.action import GLOBAL_BIZ_ID, ActionPluginType
+from constants.action import GLOBAL_BIZ_ID, ActionPluginType, UserGroupType
 from constants.alert import AlertAssignSeverity
 from constants.strategy import DATALINK_SOURCE
 
@@ -93,6 +93,7 @@ class BaseAlertAssignRuleSlz(serializers.Serializer):
 class AssignRuleSlz(serializers.ModelSerializer, BaseAlertAssignRuleSlz):
     bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
     assign_group_id = serializers.IntegerField(label="分派组ID", required=True)
+    user_type = serializers.ChoiceField(label="通知人员类型", choices=UserGroupType.CHOICE, default=UserGroupType.MAIN)
 
     class Meta:
         model = AlertAssignRule
@@ -106,6 +107,7 @@ class AssignRuleSlz(serializers.ModelSerializer, BaseAlertAssignRuleSlz):
             "actions",
             "alert_severity",
             "additional_tags",
+            "user_type",
         )
 
     def validate_actions(self, value):
@@ -235,6 +237,11 @@ class BatchSaveAssignRulesSlz(BatchAssignRulesSlz):
 
     def validate_group_name(self, value):
         return self.validate_name(value)
+
+    def validate_assign_group_id(self, value):
+        if value and AlertAssignGroup.objects.filter(id=value, source=DATALINK_SOURCE).exists():
+            raise ValidationError(detail="Edit datalink builtin rules is forbidden")
+        return value
 
     @staticmethod
     def save(validated_data):

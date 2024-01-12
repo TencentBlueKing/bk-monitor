@@ -10,9 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
+from rest_framework.utils import encoders
 from typing_extensions import TypedDict
 
 from bkmonitor.action.serializers.assign import AssignRuleSlz
@@ -37,7 +38,8 @@ from monitor_web.strategies.user_groups import add_member_to_collecting_notice_g
 DataLinkStrategyRule = TypedDict("DataLinkStrategyRule", {"user_groups": List[int]})
 
 DataLinkStrategyInfo = TypedDict(
-    "DataLinkStrategyInfo", {"strategy_id": int, "strategy_desc": str, "rule": DataLinkStrategyRule}
+    "DataLinkStrategyInfo",
+    {"strategy_id": int, "strategy_name": DatalinkStrategy, "strategy_desc": str, "rule": DataLinkStrategyRule},
 )
 
 
@@ -86,44 +88,33 @@ class DatalinkDefaultAlarmStrategyLoader:
         logger.info("Succeed to init notice group: {}, {}".format(notice_group_id, self.user_id))
 
         # 添加默认告警策略
-        strategy_ids = []
+        strategy_tuples: List[Tuple[int, DatalinkStrategy]] = []
         for item in strategies_list:
             name = item["_name"]
             strategy_id = self.check_strategy_exist(name)
             if strategy_id is not None:
-                strategy_ids.append(strategy_id)
+                strategy_tuples.append((strategy_id, name))
                 logger.info(
                     "Strategy(collect_config={}, {}) has existed, strategy_id={}".format(
                         self.collect_config_id, name, strategy_id
                     )
                 )
                 continue
-            try:
-                new_strategy_id = self.update_strategy(item)
-                strategy_ids.append(new_strategy_id)
-                logger.info("Succeed to update strategy({}, {})".format(self.collect_config_id, name))
-            except Exception as err:
-                logger.exception(
-                    "Fail to load/initial strategy({}) in CollectConfig({}:{}), {}".format(
-                        item["_name"], self.collect_config_id, self.collect_config_name, err
-                    )
-                )
+            new_strategy_id = self.update_strategy(item)
+            strategy_tuples.append((new_strategy_id, name))
+            logger.info("Succeed to update strategy({}, {})".format(self.collect_config_id, name))
 
         # 添加告警分派规则
-        try:
-            self.update_rule_group([notice_group_id], strategy_ids, force_update=False)
-            logger.info("Succeed to update rule group, {}".format(strategy_ids))
-        except Exception as err:
-            logger.exception("Fail to save rule groups according to strategies({}), {}".format(strategy_ids, err))
+        self.update_rule_group([notice_group_id], strategy_tuples, force_update=False)
+        logger.info("Succeed to update rule group, {}".format(strategy_tuples))
 
     def update_strategy(self, strategy: Dict) -> int:
         """加载默认告警策略 ."""
         _name: DatalinkStrategy = strategy.pop("_name")
         # 占位符渲染
-        strategy_str = json.dumps(strategy)
-        strategy_str = strategy_str.replace("${{collect_config_id}}", str(self.collect_config_id))
-        strategy_str = strategy_str.replace("${{collect_config_name}}", self.collect_config_name)
+        strategy_str = json.dumps(strategy, cls=encoders.JSONEncoder)
         strategy_str = strategy_str.replace("${{custom_label}}", self.render_label(_name))
+        strategy_str = strategy_str.replace("${{bk_biz_id}}", str(self.bk_biz_id))
         strategy = json.loads(strategy_str)
 
         # 组装通知信息
@@ -145,36 +136,40 @@ class DatalinkDefaultAlarmStrategyLoader:
             "actions": [],
         }
         # 保存策略
+        logger.info("Start to save strategy, %s", strategy_config)
         return resource.strategies.save_strategy_v2(**strategy_config)["id"]
 
-    def update_rule_group(self, user_group_ids: List[int], strategy_ids: List[int], force_update: bool = True):
+    def update_rule_group(
+        self, user_group_ids: List[int], strategy_tuples: List[Tuple[int, DatalinkStrategy]], force_update: bool = True
+    ):
         """保存告警分派组"""
         rules = []
-        for strategy_id in strategy_ids:
-            rules.append(
-                {
-                    "bk_biz_id": self.bk_biz_id,
-                    "is_enabled": True,
-                    "user_groups": user_group_ids,
-                    "conditions": [
-                        {"field": "alert.strategy_id", "value": [strategy_id], "method": "eq", "condition": "and"},
-                        {
-                            "field": "bk_collect_config_id",
-                            "value": [self.collect_config_id],
-                            "method": "eq",
-                            "condition": "and",
-                        },
-                    ],
-                    "actions": [
-                        {
-                            "action_type": "notice",
-                            "upgrade_config": {"is_enabled": False, "user_groups": [], "upgrade_interval": 0},
-                            "is_enabled": True,
-                        }
-                    ],
-                    "additional_tags": [{"key": "idx", "value": self.build_rule_idx(strategy_id)}],
-                }
-            )
+        for strategy_id, strategy_name in strategy_tuples:
+            rule = {
+                "bk_biz_id": self.bk_biz_id,
+                "is_enabled": True,
+                "user_groups": user_group_ids,
+                "conditions": [
+                    {"field": "alert.strategy_id", "value": [strategy_id], "method": "eq", "condition": "and"},
+                    {
+                        "field": "bk_collect_config_id",
+                        "value": [self.collect_config_id],
+                        "method": "eq",
+                        "condition": "and",
+                    },
+                ],
+                "actions": [
+                    {
+                        "action_type": "notice",
+                        "upgrade_config": {"is_enabled": False, "user_groups": [], "upgrade_interval": 0},
+                        "is_enabled": True,
+                    }
+                ],
+                "additional_tags": [{"key": "idx", "value": self.build_rule_idx(strategy_id)}],
+            }
+            rule["user_type"] = "follower" if strategy_name == DatalinkStrategy.COLLECTING_SYS_ALARM else "main"
+            rules.append(rule)
+
         tool = RuleGroupTool(bk_biz_id=self.bk_biz_id)
         tool.ensure_group()
         tool.ensure_rules(rules, force_update)
@@ -207,6 +202,7 @@ class DatalinkDefaultAlarmStrategyLoader:
             map[strategy_id] = {
                 "strategy_id": strategy_id,
                 "strategy_desc": DATALINK_GATHER_STATEGY_DESC[(strategy_name, gather_type)],
+                "stratey_name": strategy_name,
                 "rule": {"user_groups": rule.user_groups},
             }
         return map
