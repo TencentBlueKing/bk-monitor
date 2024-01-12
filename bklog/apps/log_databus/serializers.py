@@ -1258,7 +1258,7 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
     containerNameMatch = serializers.ListField(
         label=_("容器名称匹配"), child=serializers.CharField(), required=False, allow_empty=True
     )
-    containerNameExcludeMatch = serializers.ListField(
+    containerNameExclude = serializers.ListField(
         label=_("容器名称匹配排除"), child=serializers.CharField(), required=False, allow_empty=True
     )
     labelSelector = LabelSelectorSerializer(label=_("匹配标签"), required=False)

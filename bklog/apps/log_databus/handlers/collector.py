@@ -4128,8 +4128,8 @@ class CollectorHandler(object):
                         "container_name": ",".join(config["containerNameMatch"])
                         if config.get("containerNameMatch")
                         else "",
-                        "container_name_exclude": ",".join(config["containerNameExcludeMatch"])
-                        if config.get("containerNameExcludeMatch")
+                        "container_name_exclude": ",".join(config["containerNameExclude"])
+                        if config.get("containerNameExclude")
                         else "",
                     },
                     "label_selector": {
@@ -4360,7 +4360,7 @@ class CollectorHandler(object):
             "workloadType": container_config.workload_type,
             "workloadName": container_config.workload_name,
             "containerNameMatch": container_config.container_name.split(",") if container_config.container_name else [],
-            "containerNameExcludeMatch": container_config.container_name_exclude.split(",")
+            "containerNameExclude": container_config.container_name_exclude.split(",")
             if container_config.container_name_exclude
             else [],
             "labelSelector": {
