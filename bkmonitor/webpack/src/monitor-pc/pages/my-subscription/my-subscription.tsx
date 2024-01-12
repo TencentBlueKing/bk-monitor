@@ -182,8 +182,8 @@ class MySubscription extends tsc<{}> {
 
   formatTimeRange(s: number, e: number) {
     if (!s) return '';
-    const startTime = dayjs.unix(s).format('YYYY-MM-DD HH:mm:ss');
-    const endTime = dayjs.unix(e).format('YYYY-MM-DD HH:mm:ss');
+    const startTime = dayjs.unix(s).format('YYYY-MM-DD HH:mm');
+    const endTime = dayjs.unix(e).format('YYYY-MM-DD HH:mm');
     return `${startTime} ~ ${endTime}`;
   }
 
@@ -297,7 +297,7 @@ class MySubscription extends tsc<{}> {
                   theme='primary'
                   disabled={this.isSendRecordListLoading}
                   onClick={this.getSendingRecordList}
-                  style='font-size: 16px;'
+                  style='font-size: 12px;'
                 >
                   {this.$t('刷新')}
                 </bk-button>
@@ -551,7 +551,6 @@ class MySubscription extends tsc<{}> {
                     <div style='padding: 14px 0;'>
                       <bk-button
                         text
-                        title='primary'
                         onClick={() => {
                           this.isShowSideslider = true;
                           this.detailInfo = row;

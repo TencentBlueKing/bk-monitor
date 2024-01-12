@@ -162,14 +162,15 @@ class QuickCreateSubscription extends tsc<IProps> {
                       {this.$t('给自己')}
                     </a>
                   </li>
-                  <li>
+                  {/* 2024.1.12 由于该按钮需要权限判断，但不好实现，这里直接去掉该功能。这里先保留 */}
+                  {/* <li>
                     <a
                       href='javascript:;'
                       onClick={() => this.testSending('all')}
                     >
                       {this.$t('给全员')}
                     </a>
-                  </li>
+                  </li> */}
                 </ul>
               </bk-dropdown-menu>
               <bk-button

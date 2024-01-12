@@ -185,7 +185,6 @@ class MyApply extends tsc<{}> {
                   return (
                     <bk-button
                       text
-                      title='primary'
                       onClick={() => {
                         window.open(row.approval_url, '_blank');
                       }}

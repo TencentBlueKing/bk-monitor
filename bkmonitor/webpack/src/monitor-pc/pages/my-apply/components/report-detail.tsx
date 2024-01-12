@@ -58,8 +58,8 @@ class ReportDetail extends tsc<IProps> {
 
   get getTimeRange() {
     if (!this.detailInfo.start_time) return '';
-    const startTime = dayjs.unix(this.detailInfo.start_time).format('YYYY-MM-DD HH:mm:ss');
-    const endTime = dayjs.unix(this.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
+    const startTime = dayjs.unix(this.detailInfo.start_time).format('YYYY-MM-DD HH:mm');
+    const endTime = dayjs.unix(this.detailInfo.end_time).format('YYYY-MM-DD HH:mm');
     return `${startTime} ~ ${endTime}`;
   }
 
@@ -132,23 +132,18 @@ class ReportDetail extends tsc<IProps> {
           />
 
           {/* 特殊节点 订阅人里有其他要展示的内容 */}
-          <div class='row subscribers'>
+          <div
+            class='row subscribers'
+            style='padding-bottom: 13px;'
+          >
             <div class='label'>
               <span>{this.$t('订阅人')}</span>
             </div>
             <span class='value'>
               {this.queryType !== 'cancelled' ? (
                 <div class='subscribers-row'>
-                  <span
-                    class='subscribers-label'
-                    style='padding-top: 3px;'
-                  >
-                    {this.$t('内部用户')}
-                  </span>
-                  <span
-                    class='subscribers-value'
-                    style='padding-top: 3px;'
-                  >
+                  <span class='subscribers-label'>{this.$t('内部用户')}</span>
+                  <span class='subscribers-value'>
                     {this.detailInfo.channels
                       .find(item => item.channel_name === 'user')
                       ?.subscribers.filter(item => item.is_enabled)
