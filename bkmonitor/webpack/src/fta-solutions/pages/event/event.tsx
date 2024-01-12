@@ -29,6 +29,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import { promqlToQueryConfig } from '@api/modules/strategies';
 import { Alert, BigTree, Checkbox, Icon, Pagination, Popover, Select, Tab, TabPanel } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
@@ -461,6 +462,21 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           .filter(id => ![authorityBizId, hasDataBizId].includes(+id))
           .some(id => !window.space_list.some(item => item.id === id));
       }
+      if (params?.promql?.length) {
+        const queryData = await promqlToQueryConfig({
+          promql: params.promql
+        }).catch(() => false);
+        if (queryData?.query_configs?.length) {
+          const { query_configs } = queryData;
+          let queryString = '';
+          query_configs.forEach((item, index) => {
+            if (item.metric_id) {
+              queryString += `${index > 0 ? ' OR ' : ''}指标ID: "${item.metric_id}"`;
+            }
+          });
+          vm.queryString = queryString;
+        }
+      }
       // await vm.handleGetAllBizList();
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
       vm.handleRefleshChange(vm.refleshInterval);
@@ -584,6 +600,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           key === 'from' && this.$set(this.timeRange, 0, val);
           key === 'to' && this.$set(this.timeRange, 1, val);
           query[key] = val;
+        } else if (key === 'promql') {
+          query[key] = decodeURIComponent((val as string) || '');
         } else {
           query[key] = val;
         }
