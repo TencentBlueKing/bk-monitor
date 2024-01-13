@@ -1,0 +1,145 @@
+.upload-retrieval-view-component {
+  height: 100%;
+
+  .header-wrap {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+
+    .upload-btn {
+      margin-right: 12px;
+
+      .upload-icon {
+        margin-right: 7px;
+      }
+    }
+
+    .file-select {
+      display: flex;
+      flex: 1;
+      height: 32px;
+      font-size: 14px;
+      color: #313238;
+      box-shadow: 0 2px 4px 0 #1919290d;
+
+      & + .file-select {
+        margin-left: 12px;
+      }
+
+      .label {
+        padding: 0 16px;
+        line-height: 32px;
+        color: #63656e;
+        border-radius: 2px 0 0 2px;
+
+        &.where {
+          background-color: #e1ecff;
+        }
+
+        &.comparison {
+          background-color: #fff3e1;
+        }
+      }
+
+      .bk-select {
+        flex: 1;
+
+        .bk-input {
+          border: none;
+        }
+      }
+    }
+  }
+
+  .chart-wrap {
+    height: calc(100% - 48px);
+    margin-top: 16px;
+    background-color: #fff;
+
+    .loading-wrap {
+      transform: translateY(212px);
+
+      .bk-exception-img {
+        width: 220px;
+        height: 100px;
+
+        .exception-image {
+          transform: scale(1.5);
+        }
+      }
+
+      .bk-exception-footer {
+        margin-top: 8px;
+      }
+
+      .text {
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #63656e;
+      }
+
+      .desc {
+        font-size: 12px;
+        color: #979ba5;
+      }
+    }
+  }
+}
+
+.bk-popover.bk-select-popover.upload-select-popover {
+  .upload-select-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+
+    .left {
+      display: flex;
+      align-items: center;
+
+      .status {
+        display: flex;
+        align-items: center;
+        width: 68px;
+
+        .loading {
+          font-size: 14px;
+          color: #3a84ff;
+        }
+
+        .circle {
+          width: 8px;
+          height: 8px;
+          margin-left: 3px;
+          border-radius: 50%;
+
+          &.success {
+            background: #e5f6ea;
+            border: 1px solid #3fc06d;
+          }
+
+          &.error {
+            background: #ffe6e6;
+            border: 1px solid #ea3636;
+          }
+        }
+
+        .label {
+          margin-left: 5px;
+          color: #63656e;
+        }
+      }
+
+      .divider {
+        width: 1px;
+        height: 12px;
+        margin-right: 12px;
+        background-color: #979ba5;
+      }
+
+      .icon-mc-detail {
+        color: #63656e;
+      }
+    }
+  }
+}

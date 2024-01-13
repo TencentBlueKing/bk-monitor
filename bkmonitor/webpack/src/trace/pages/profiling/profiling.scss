@@ -1,0 +1,38 @@
+.profiling-page {
+  height: 100%;
+
+  .page-header {
+    width: 100%;
+  }
+
+  .page-content {
+    display: flex;
+    height: calc(100% - 52px);
+
+    .favorite-list-wrap {
+      width: 240px;
+      height: 100%;
+    }
+
+    .search-form-wrap {
+      background-color: #fff;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
+    }
+
+    .view-wrap {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      padding: 16px 24px 24px;
+
+      .empty-wrap {
+        display: flex;
+        margin: auto;
+
+        .empty-card {
+          margin-left: 40px;
+        }
+      }
+    }
+  }
+}

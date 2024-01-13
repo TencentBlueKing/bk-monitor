@@ -31,8 +31,9 @@ import { NumberValue, scaleLinear } from 'd3-scale';
 import { BaseType, select, Selection, ValueFn } from 'd3-selection';
 import { curveCatmullRom, line } from 'd3-shape';
 
-import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
+import 'd3-transition';
 
+import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
 import {
   BaseDataType,
   BaseRect,
@@ -43,7 +44,8 @@ import {
   IOtherData,
   RootId,
   ThreadPos
-} from './types';
+} from '../../../typings';
+
 import { findChildById, findRegionById, getHashVal } from './utils';
 
 const usFormat = getValueFormat('µs');
