@@ -26,16 +26,15 @@ def migrate_duty_groups(apps, schema_editor):
             # 新版本的，忽略
             print("new duty group({}), turn to next one".format(user_group.name))
             continue
+        duty_arranges = list(DutyArrange.objects.filter(user_group_id=user_group.id).order_by("order"))
 
-        if not user_group.duty_arranges:
+        if not duty_arranges:
             print("empty duty group({}), turn to next one".format(user_group.name))
             continue
 
         print("start to migrate duty group({})".format(user_group.name))
 
-        category = (
-            DutyCategory.HANDOFF if any([d.need_rotation for d in user_group.duty_arranges]) else DutyCategory.REGULAR
-        )
+        category = DutyCategory.HANDOFF if any([d.need_rotation for d in duty_arranges]) else DutyCategory.REGULAR
         duty_rule = DutyRule.objects.create(
             bk_biz_id=user_group.bk_biz_id,
             name=user_group.name,
@@ -44,7 +43,7 @@ def migrate_duty_groups(apps, schema_editor):
             category=category,
             effective_time=datetime.now(tz=user_group.tz_info).strftime("%Y-%m-%d %H:%M:00"),
         )
-        for arrange in DutyArrange.objects.filter(user_group_id=user_group.id):
+        for arrange in duty_arranges:
             if not all([arrange.duty_time, arrange.duty_users]):
                 # 如果没有轮值人和轮值时间为无效内容，可以删除
                 deleted_duty_arranges.append(arrange.id)
