@@ -217,7 +217,8 @@
       :total-fields="totalFields"
       :clean-config="cleanConfig"
       :config-data="clusteringData"
-      :statistical-fields-data="statisticalFieldsData"
+      :date-picker-value="datePickerValue"
+      :retrieve-params="retrieveParams"
       @closeSetting="isShowSettingModal = false;"
       @updateLogFields="requestFields" />
     <!-- 收藏更新弹窗 -->
