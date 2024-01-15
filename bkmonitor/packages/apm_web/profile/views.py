@@ -340,7 +340,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         start, end = self._enlarge_duration(
             int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
         )
-
         results = self._query(
             api_type=APIType.LABEL_VALUES,
             app_name=validated_data["app_name"],
