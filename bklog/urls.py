@@ -35,8 +35,8 @@ from django.conf import settings
 from django.conf.urls import include, url
 from django.contrib import admin
 from django.views import static
-from version_log import config
 from bk_notice_sdk import config as notice_config
+from version_log import config
 
 urlpatterns = [
     url(r"^bklog_manage/", admin.site.urls),
