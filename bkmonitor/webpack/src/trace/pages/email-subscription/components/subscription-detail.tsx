@@ -29,7 +29,7 @@ import dayjs from 'dayjs';
 
 import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
 import { Scenario } from '../mapping';
-import { Report } from '../types';
+import { FrequencyType, Report } from '../types';
 import { getDefaultReportData, getSendFrequencyText } from '../utils';
 
 import DetailRow from './detail-row';
@@ -232,7 +232,20 @@ export default defineComponent({
 
           <DetailRow
             label={this.t('发送频率')}
-            value={this.getSendFrequencyText(this.detailInfo)}
+            v-slots={{
+              value: () => {
+                return this.detailInfo.frequency.type === FrequencyType.onlyOnce ? (
+                  <span>
+                    <span>{this.getSendFrequencyText(this.detailInfo)}</span>
+                    <span style='margin-left: 10px;'>
+                      {dayjs(this.detailInfo.frequency.run_time).format('YYYY-MM-DD HH:mm')}
+                    </span>
+                  </span>
+                ) : (
+                  this.getSendFrequencyText(this.detailInfo)
+                );
+              }
+            }}
           />
 
           <DetailRow

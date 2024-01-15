@@ -37,9 +37,10 @@ export default defineComponent({
       default: ''
     }
   },
-  setup(props) {
+  setup(props, { slots }) {
     return {
-      props
+      props,
+      slots
     };
   },
   render() {
@@ -48,7 +49,11 @@ export default defineComponent({
         <div class='label'>
           <span>{this.props.label}</span>
         </div>
-        <span class='value'>{this.props.value}</span>
+        {this.slots.value ? (
+          <span class='value'>{this.slots.value()}</span>
+        ) : (
+          <span class='value'>{this.props.value}</span>
+        )}
       </div>
     );
   }
