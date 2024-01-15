@@ -286,6 +286,7 @@ export class FlameChart<D extends BaseDataType> {
       .each((root: HierarchyNode<D>, index: number, groups: HTMLElement[]) => {
         const newRoot = partition<D>()(root);
         const isInView = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
+          if (!clickDepth) return true;
           return this.isInviewNodeId.includes(d.data.id);
         };
         const getLeft = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
