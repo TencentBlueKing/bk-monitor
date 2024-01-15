@@ -640,7 +640,8 @@ export default class HistoryShareManage extends tsc<IProps> {
                                   v-bk-tooltips={{
                                     content: row.link,
                                     placements: ['top'],
-                                    duration: [300, 20]
+                                    duration: [300, 20],
+                                    allowHTML: false
                                   }}
                                   value={row.link}
                                   lengthNum={row.token.length + 1}

@@ -461,7 +461,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                               e.stopPropagation();
                               this.handleJumpToSurrounding(option?.newInfo?.url);
                             }}
-                            v-bk-tooltips={{ content: option?.newInfo?.tips }}
+                            v-bk-tooltips={{ content: option?.newInfo?.tips, allowHTML: false }}
                           ></span>
                         )}
                       </div>

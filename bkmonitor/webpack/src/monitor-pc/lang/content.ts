@@ -193,5 +193,6 @@ export default {
   号: 'th',
   '{0}小时': '{0} hours',
   '每月 {0} 号': '{0} of the month',
-  邮件格式有误: 'Email format is wrong'
+  邮件格式有误: 'Email format is wrong',
+  通知人员类型: 'Notification person type'
 };

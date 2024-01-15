@@ -919,6 +919,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
 
         # 将存储的修改时间去掉，防止MD5命中失败
         consul_config["cluster_config"].pop("last_modify_time")
+        consul_config["cluster_config"]["instance_cluster_name"] = self.influxdb_proxy_storage.instance_cluster_name
 
         return consul_config
 
