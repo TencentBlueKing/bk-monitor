@@ -24,62 +24,73 @@
  * IN THE SOFTWARE.
  */
 
-/**
- * 查找父节点
- */
-export const findRegionById = (tree, id, parents = []) => {
-  // eslint-disable-next-line @typescript-eslint/prefer-for-of
-  for (let i = 0; i < tree.length; i++) {
-    const region = tree[i];
-    if (region.id === id) {
-      parents.push(region.id);
-      return parents.reverse();
-    }
-    if (region.children) {
-      const found = findRegionById(region.children, id, parents);
-      if (found) {
-        parents.push(region.id);
-        return found;
-      }
-    }
-  }
-  return null;
-};
+import { TranslateResult } from 'vue-i18n';
 
-/**
- * 查找子节点
- */
-export const findChildById = (treeList, id) => {
-  const temp = [];
-  const searchFn = function (treeList) {
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
-    for (let i = 0; i < treeList.length; i++) {
-      const item = treeList[i];
-      if (item.id !== id) {
-        temp.push(item.id);
-      }
-      if (item.children) {
-        searchFn(item.children);
-      }
-    }
-  };
-  searchFn(treeList);
-  return temp;
-};
+export enum ViewModeType {
+  Table = 'table',
+  Combine = 'combine',
+  Flame = 'flame',
+  Topo = 'topo'
+}
 
-/**
- * @desc 字符串生成 hash 值
- */
-export const getHashVal = string => {
-  let hash = 0;
-  let i;
-  let chr;
-  if (string.length === 0) return hash;
-  for (i = 0; i < string.length; i++) {
-    chr = string.charCodeAt(i);
-    hash = (hash << 5) - hash + chr;
-    hash |= 0;
-  }
+export enum TextDirectionType {
+  Ltr = 'ltr',
+  Rtl = 'rtl'
+}
 
-  return Math.abs(hash);
-};
+export interface ViewModeItem {
+  id: ViewModeType;
+  icon: string;
+}
+
+export interface ProfilingTableItem {
+  id: number;
+  name: string;
+  self: number;
+  total: number;
+  displaySelf?: string;
+  displayTotal?: string;
+  location?: string;
+  color?: string;
+  diff?: string;
+  baseline?: string;
+  comparison?: string;
+}
+
+export interface TableColumn {
+  id: string;
+  name: string | TranslateResult;
+  sort?: string;
+  mode?: 'normal' | 'diff';
+}
+
+export interface ITableTipsDetail {
+  left?: number; // 提示框左边距离画布左边的距离
+  top?: number; // 提示框上边距离画布上边的距离
+  title?: string;
+  displaySelf?: string;
+  displayTotal?: string;
+  selfPercent?: string;
+  totalPercent?: string;
+  proportion?: string | number;
+  duration?: string;
+  diffDuration?: string;
+  diffValue?: number | string;
+  id?: string;
+}
+
+export interface IQueryParams {
+  bk_biz_id?: number;
+  app_name?: string;
+  start?: number;
+  end?: number;
+  profile_type?: string;
+  profile_id?: string;
+  diff_profile_id?: string;
+  offset?: number;
+  diagram_types?: string[];
+  sort?: string;
+  filter_label?: Record<string, string>;
+  diff_filter_label?: any;
+  is_compared?: boolean;
+}

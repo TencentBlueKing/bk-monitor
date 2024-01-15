@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 import datetime
 import hashlib
 import logging
+from collections import defaultdict
+from typing import Optional, Tuple, Union
 
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -20,6 +22,7 @@ from rest_framework.viewsets import ViewSet
 
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
+    DEFAULT_SERVICE_NAME,
     PROFILE_UPLOAD_RECORD_NEW_FILE_NAME,
     CallGraphResponseDataMode,
 )
@@ -34,6 +37,8 @@ from apm_web.profile.resources import (
 )
 from apm_web.profile.serializers import (
     ProfileListFileSerializer,
+    ProfileQueryLabelsSerializer,
+    ProfileQueryLabelValuesSerializer,
     ProfileQuerySerializer,
     ProfileUploadRecordSLZ,
     ProfileUploadSerializer,
@@ -47,9 +52,7 @@ from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 logger = logging.getLogger("root")
 
 
-class ProfileViewSet(ViewSet):
-    """Profile viewSet"""
-
+class ProfileBaseViewSet(ViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
@@ -65,6 +68,8 @@ class ProfileViewSet(ViewSet):
             ]
         return []
 
+
+class ProfileUploadViewSet(ProfileBaseViewSet):
     @action(methods=["POST"], detail=False, url_path="upload")
     def upload(self, request: Request):
         """上传 profiling 文件"""
@@ -122,8 +127,8 @@ class ProfileViewSet(ViewSet):
 
         return Response(data=ProfileUploadRecordSLZ(record).data)
 
-    @action(methods=["GET"], detail=False, url_path="list_profile_upload_records")
-    def list_profile_upload_records(self, request: Request):
+    @action(methods=["GET"], detail=False, url_path="records")
+    def records(self, request: Request):
         serializer = ProfileListFileSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
@@ -139,112 +144,106 @@ class ProfileViewSet(ViewSet):
         queryset = ProfileUploadRecord.objects.filter(**filter_params)
         return Response(data=ProfileUploadRecordSLZ(queryset, many=True).data)
 
-    @classmethod
-    def build_extra_params(cls, profile_id: str, label: dict) -> dict:
-        extra_params = {}
-        if profile_id:
-            extra_params["label_filter"] = {"profile_id": profile_id}
-        if label and isinstance(extra_params.get("label_filter"), dict):
-            extra_params["label_filter"].update(label)
-        else:
-            extra_params["label_filter"] = label
-        return extra_params
 
-    @classmethod
-    def get_profile_data(
-        cls, validated_data, app_name: str, start: int, end: int, application_info: dict
-    ) -> DorisConverter:
+class ProfileQueryViewSet(ProfileBaseViewSet):
+    """Profile Query viewSet"""
+
+    @staticmethod
+    def _query(
+        bk_biz_id: int,
+        data_type: str,
+        app_name: str,
+        service_name: str,
+        start: int,
+        end: int,
+        result_table_id: str,
+        label_key: Optional[str] = None,
+        api_type: APIType = APIType.QUERY_SAMPLE,
+        profile_id: Optional[str] = None,
+        filter_labels: Optional[dict] = None,
+        converted: bool = True,
+    ) -> Union[DorisConverter, dict]:
         """
         获取 profile 数据
         """
-        bk_biz_id = validated_data["bk_biz_id"]
-        profile_type = validated_data["profile_type"]
-        profile_id = validated_data.get("profile_id", "")
-        filter_label = validated_data.get("filter_label", {})
-        diff_profile_id = validated_data.get("diff_profile_id", "")
-        diff_filter_label = validated_data.get("diff_filter_label", {})
-        if profile_id or filter_label:
-            extra_params = cls.build_extra_params(profile_id, filter_label)
-        elif diff_profile_id or diff_filter_label:
-            extra_params = cls.build_extra_params(diff_profile_id, diff_filter_label)
-        else:
-            extra_params = {}
+        if api_type.value == APIType.LABEL_VALUES and label_key is None:
+            raise ValueError(_("查询 label values 时 label_key 不能为空"))
+
+        extra_params = defaultdict(dict)
+        for k, v in filter_labels.items():
+            extra_params["label_filter"][k] = v
+
+        if profile_id:
+            extra_params["label_filter"]["profile_id"] = profile_id
 
         q = Query(
-            api_type=APIType.QUERY_SAMPLE,
+            api_type=api_type,
             api_params=APIParams(
-                biz_id=bk_biz_id,
+                biz_id=str(bk_biz_id),
                 app=app_name,
-                type=profile_type,
+                service_name=service_name,
+                type=data_type,
                 start=start,
                 end=end,
                 **extra_params,
             ),
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=result_table_id,
         )
+        if q.api_type.value == APIType.LABEL_VALUES:
+            q.api_params.label_key = label_key
 
         r = q.execute()
 
         if r is None:
             raise ValueError(_("未查询到有效数据"))
+
+        if not converted:
+            return r
+
         c = DorisConverter()
         p = c.convert(r)
         if p is None:
             raise ValueError(_("无法转换 profiling 数据"))
         return c
 
-    @action(methods=["POST"], detail=False, url_path="query")
-    def query(self, request: Request):
-        """查询 profiling 数据"""
-        serializer = ProfileQuerySerializer(data=request.data)
+    @action(methods=["POST", "GET"], detail=False, url_path="samples")
+    def samples(self, request: Request):
+        """查询 profiling samples 数据"""
+        serializer = ProfileQuerySerializer(data=request.data or request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
         bk_biz_id = validated_data["bk_biz_id"]
         app_name = validated_data["app_name"]
-        try:
-            application_id = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id).pk
-        except Exception:  # pylint: disable=broad-except
-            raise ValueError(_("应用({}) 不存在").format(app_name))
+        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
+        application_info = self._examine_application(bk_biz_id, app_name)
 
-        try:
-            application_info = api.apm_api.detail_application({"application_id": application_id})
-        except Exception:  # pylint: disable=broad-except
-            raise ValueError(_("应用({}) 不存在").format(application_id))
-
-        if "app_name" not in application_info:
-            raise ValueError(_("应用({}) 不存在").format(application_id))
-        app_name = application_info["app_name"]
-        if "profiling_config" not in application_info:
-            raise ValueError(_("应用({}) 未开启性能分析").format(application_id))
-
-        offset = validated_data["offset"]
-        start = validated_data["start"]
-        end = validated_data["end"]
-        # 由于 doris 入库可能存在延迟，所以需要稍微加大查询时间范围
-        # profile_id 对于数据有较强的过滤效果，不会引起数据量过大问题
-        # doris 存储默认按自然天划分，默认查找从当天最早的数据开始
-
-        # start & end all in microsecond, so we need to convert it to millisecond
-        start = int(
-            datetime.datetime.combine(
-                datetime.datetime.fromtimestamp(start / (1000 * 1000)), datetime.time.min
-            ).timestamp()
-            * 1000
+        start, end = self._enlarge_duration(
+            validated_data["start"], validated_data["end"], offset=validated_data["offset"]
         )
-        end = int(end / 1000 + offset * 1000)
-
-        doris_converter = self.get_profile_data(
-            validated_data=validated_data, app_name=app_name, start=start, end=end, application_info=application_info
+        doris_converter = self._query(
+            bk_biz_id=validated_data['bk_biz_id'],
+            app_name=app_name,
+            service_name=service_name,
+            data_type=validated_data["data_type"],
+            start=start,
+            end=end,
+            profile_id=validated_data.get("profile_id"),
+            filter_labels=validated_data.get("filter_labels"),
+            result_table_id=application_info["profiling_config"]["result_table_id"],
         )
         diagram_types = validated_data["diagram_types"]
         if validated_data.get("is_compared"):
-            diff_doris_converter = self.get_profile_data(
-                validated_data=validated_data,
+            diff_doris_converter = self._query(
+                bk_biz_id=validated_data['bk_biz_id'],
                 app_name=app_name,
+                service_name=service_name,
+                data_type=validated_data["data_type"],
                 start=start,
                 end=end,
-                application_info=application_info,
+                profile_id=validated_data.get("diff_profile_id"),
+                filter_labels=validated_data.get("diff_filter_labels"),
+                result_table_id=application_info["profiling_config"]["result_table_id"],
             )
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter) for d_type in diagram_types
@@ -255,8 +254,111 @@ class ProfileViewSet(ViewSet):
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
         return Response(data={k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()})
 
+    @staticmethod
+    def _enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:
+        # 由于 doris 入库可能存在延迟，所以需要稍微加大查询时间范围
+        # profile_id 对于数据有较强的过滤效果，不会引起数据量过大问题
+        # doris 存储默认按自然天划分，默认查找从当天最早的数据开始
+        # TODO: 可能需要关注具体拉取效率问题
 
-class QueryViewSet(ResourceViewSet):
+        # start & end all in microsecond, so we need to convert it to millisecond
+        start = int(
+            datetime.datetime.combine(
+                datetime.datetime.fromtimestamp(start / (1000 * 1000)), datetime.time.min
+            ).timestamp()
+            * 1000
+        )
+        end = int(end / 1000 + offset * 1000)
+
+        return start, end
+
+    @staticmethod
+    def _examine_application(bk_biz_id: int, app_name: str) -> dict:
+        """
+        检查应用的 Profiling 功能是否可用
+        """
+        try:
+            application = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id)
+            application_id = application.pk
+        except Exception:  # pylint: disable=broad-except
+            raise ValueError(_("应用({}) 不存在").format(app_name))
+
+        try:
+            application_info = api.apm_api.detail_application({"application_id": application_id})
+        except Exception:  # pylint: disable=broad-except
+            raise ValueError(_("应用({}) 不存在").format(application_id))
+
+        if "app_name" not in application_info:
+            raise ValueError(_("应用({}) 不存在").format(application_id))
+        if "profiling_config" not in application_info:
+            raise ValueError(_("应用({}) 未开启性能分析").format(application_id))
+
+        return application_info
+
+    @action(methods=["GET"], detail=False, url_path="labels")
+    def labels(self, request: Request):
+        """获取 profiling 数据的 label 列表"""
+        serializer = ProfileQueryLabelsSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        bk_biz_id = validated_data["bk_biz_id"]
+        app_name = validated_data["app_name"]
+        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
+        application_info = self._examine_application(bk_biz_id, app_name)
+
+        start, end = self._enlarge_duration(
+            int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
+        )
+
+        results = self._query(
+            api_type=APIType.LABELS,
+            app_name=validated_data["app_name"],
+            bk_biz_id=validated_data["bk_biz_id"],
+            service_name=service_name,
+            data_type=validated_data["data_type"],
+            converted=False,
+            result_table_id=application_info["profiling_config"]["result_table_id"],
+            start=start,
+            end=end,
+        )
+
+        label_keys = [label["label_key"] for label in results["list"]]
+        return Response(data={"label_keys": label_keys})
+
+    @action(methods=["GET"], detail=False, url_path="label_values")
+    def label_values(self, request: Request):
+        """获取 profiling 数据的 label 列表"""
+        serializer = ProfileQueryLabelValuesSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        bk_biz_id = validated_data["bk_biz_id"]
+        app_name = validated_data["app_name"]
+        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
+        application_info = self._examine_application(bk_biz_id, app_name)
+        start, end = self._enlarge_duration(
+            int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
+        )
+
+        results = self._query(
+            api_type=APIType.LABEL_VALUES,
+            app_name=validated_data["app_name"],
+            bk_biz_id=validated_data["bk_biz_id"],
+            service_name=service_name,
+            data_type=validated_data["data_type"],
+            label_key=validated_data["label_key"],
+            result_table_id=application_info["profiling_config"]["result_table_id"],
+            start=start,
+            end=end,
+            converted=False,
+        )
+
+        label_values = [label["label_value"] for label in results["list"]]
+        return Response(data={"label_values": label_values})
+
+
+class ResourceQueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):

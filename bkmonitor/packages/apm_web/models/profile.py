@@ -17,7 +17,11 @@ class UploadedFileStatus(models.TextChoices):
     # 解析失败
     PARSING_FAILED = "parsing_failed", _("解析失败")
     # 解析成功
-    PARSING_SUCCEED = "parsing_succeed", _("解析成功")
+    PARSING_SUCCEED = "parsing_succeed", _("已解析")
+    # 存储成功
+    STORE_SUCCEED = "store_succeed", _("已存储")
+    # 存储失败
+    STORE_FAILED = "store_failed", _("存储失败")
 
 
 class ProfileUploadRecord(models.Model):

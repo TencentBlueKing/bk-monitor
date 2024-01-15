@@ -35,6 +35,7 @@ class APIParams:
     biz_id: str
     app: str
     type: str
+    service_name: str
     start: int
     end: int
 
@@ -48,6 +49,7 @@ class APIParams:
             "biz_id": self.biz_id,
             "app": self.app,
             "type": self.type,
+            "service_name": self.service_name,
             "start": self.start,
             "end": self.end,
         }

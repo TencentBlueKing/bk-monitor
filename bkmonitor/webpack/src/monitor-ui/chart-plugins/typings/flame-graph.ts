@@ -25,8 +25,6 @@
  */
 import { HierarchyNode } from 'd3-hierarchy';
 
-import traceIcons from '../../utls/icons';
-
 export const ColorTypes = {
   http: '#aea2e0',
   db: '#f9ba8f',
@@ -48,7 +46,6 @@ export interface IOtherData {
 }
 export interface BaseRect {
   preDepth?: number;
-  clickId?: number | string;
   clickDepth?: number;
   startTime?: number;
   endTime?: number;
@@ -71,7 +68,6 @@ export interface BaseDataType {
   v?: number;
   children: Iterable<BaseDataType>;
   c?: BaseDataType[];
-  icon_type?: keyof typeof traceIcons;
   id: string;
   hide?: boolean;
   start_time?: number;
@@ -126,6 +122,11 @@ export interface IBaseTraceInfo {
   trace_duration: number; // trace 持续时间
 }
 export const CommonMenuList: ICommonMenuItem[] = [
+  // {
+  //   id: 'span',
+  //   name: window.i18n.tc('Span 详情'),
+  //   icon: 'icon-menu-view'
+  // },
   {
     id: 'reset',
     name: window.i18n.tc('重置图表'),

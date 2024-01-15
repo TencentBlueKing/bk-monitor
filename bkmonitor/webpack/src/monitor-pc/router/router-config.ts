@@ -137,6 +137,17 @@ export const getRouteConfig = () => {
           usePath: true,
           // isBeta: window.platform?.te === false,
           canStore: true
+        },
+        {
+          name: 'Profiling检索',
+          icon: 'icon-monitor icon-mc-menu-trace menu-icon',
+          navName: 'Profiling检索',
+          id: 'profiling',
+          path: '/trace/profiling',
+          href: '#/trace/profiling',
+          usePath: true,
+          // isBeta: window.platform?.te === false,
+          canStore: true
         }
       ]
     },
