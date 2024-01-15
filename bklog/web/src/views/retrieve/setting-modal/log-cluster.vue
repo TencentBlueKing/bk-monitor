@@ -573,7 +573,7 @@ export default {
     },
     initValueList() {
       this.formData.filter_rules.forEach((item) => {
-        item.valueList =          this.aggsItems[item.fields_name].map(item => ({
+        item.valueList = this.aggsItems[item.fields_name]?.map(item => ({
           id: item.toString(),
           name: item.toString(),
         })) ?? [];
