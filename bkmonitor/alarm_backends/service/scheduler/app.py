@@ -24,7 +24,6 @@ from django.db import close_old_connections
 
 from alarm_backends.core.cluster import get_cluster
 from bkmonitor.utils.common_utils import package_contents
-from core.prometheus.tools import celery_app_timer
 
 try:
     # 加载后台动态配置
@@ -238,11 +237,6 @@ if conf_type == "rabbitmq_conf":
     app.config_from_object(rabbitmq_conf())
 else:
     app.config_from_object(redis_conf())
-
-
-# 任务执行时间统计
-celery_app_timer(app)
-
 
 TASK_ROOT_MODULES = [
     "alarm_backends.service",

@@ -140,8 +140,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
                   : {
                       content: this.$t('由匹配规则{0}生成', [this.getDisableTip(item.id)]),
                       placements: ['right'],
-                      boundary: 'window',
-                      allowHTML: false
+                      boundary: 'window'
                     }
               }
             ></Option>

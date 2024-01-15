@@ -15,9 +15,6 @@ import datetime
 import logging
 import time
 
-from django.conf import settings
-from django.db.models import Q
-
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
@@ -25,11 +22,12 @@ from apm.core.application_config import ApplicationConfig
 from apm.core.discover.base import TopoHandler
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
-from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
+from apm.core.handlers.virtual_metric.metric_handler import BkBaseVirtualMetricHandler
 from apm.core.platform_config import PlatformConfig
 from apm.models import ApmApplication, EbpfApplicationConfig, MetricDataSource
 from core.errors.alarm_backends import LockError
+from django.conf import settings
+from django.db.models import Q
 
 logger = logging.getLogger("apm")
 
@@ -89,22 +87,13 @@ def refresh_apm_application_config(bk_biz_id, app_name):
 
 @app.task(ignore_result=True, queue="celery_cron")
 def create_virtual_metric(bk_biz_id, app_name):
-    """创建APM应用在计算平台的虚拟指标计算Flow"""
-    logger.info(f"[create_virtual_metric] start create virtual metric, bk_biz_id: {bk_biz_id} app_name: {app_name}")
     metric = MetricDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
     if not metric:
-        logger.info(f"[create_virtual_metric] bk_biz_id: {bk_biz_id} app_name: {app_name} metric table not found, skip")
         return
 
     # 空间下应用不创建虚拟指标
     if int(metric.bk_biz_id) > 0 and settings.IS_ACCESS_BK_DATA:
-        VirtualMetricFlow(metric).update_or_create()
-
-
-@app.task(ignore_result=True, queue="celery_cron")
-def create_or_update_tail_sampling(trace_datasource, data):
-    """创建/更新尾部采样Flow"""
-    TailSamplingFlow(trace_datasource, data).start()
+        BkBaseVirtualMetricHandler(metric).update_or_create()
 
 
 @app.task(ignore_result=True, queue="celery_cron")

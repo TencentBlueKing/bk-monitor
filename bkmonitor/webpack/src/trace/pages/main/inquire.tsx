@@ -116,7 +116,7 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
     const store = useTraceStore();
-    const { t } = useI18n();
+
     const selectedListType = computed(() => store.listType);
     // TODO：后续补上类型
     const tempSortList: any[] = [];
@@ -138,6 +138,7 @@ export default defineComponent({
     const conditionFilter = [];
     // 自定义筛选组件信息列表
     const conditionList = reactive([]);
+    const { t } = useI18n();
     // 应用列表
     const appList = shallowRef<IAppItem[]>([]);
     const searchStore = useSearchStore();
@@ -178,14 +179,14 @@ export default defineComponent({
     const defaultViewOptions = ref<IViewOptions>({});
     /** 查询语句提示文本 */
     const tipsContentList: IEventRetrieval.ITipsContentListItem[] = [
-      { label: t('精确匹配(支持AND、OR)：'), value: ['author:"John Smith" AND age:20'] },
-      { label: t('字段名匹配(*代表通配符):'), value: ['status:active', 'title:(quick brown)'] },
-      { label: t('字段名模糊匹配:'), value: ['vers\\*on:(quick brown)'] },
-      { label: t('通配符匹配:'), value: ['qu?ck bro*'] },
-      { label: t('正则匹配:'), value: ['name:/joh?n(ath[oa]n/'] },
-      { label: t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] }
+      { label: window.i18n.t('精确匹配(支持AND、OR)：'), value: ['author:"John Smith" AND age:20'] },
+      { label: window.i18n.t('字段名匹配(*代表通配符):'), value: ['status:active', 'title:(quick brown)'] },
+      { label: window.i18n.t('字段名模糊匹配:'), value: ['vers\\*on:(quick brown)'] },
+      { label: window.i18n.t('通配符匹配:'), value: ['qu?ck bro*'] },
+      { label: window.i18n.t('正则匹配:'), value: ['name:/joh?n(ath[oa]n/'] },
+      { label: window.i18n.t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] }
     ];
-    const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: t('应用设置') }];
+    const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: window.i18n.t('应用设置') }];
 
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
@@ -1453,7 +1454,7 @@ export default defineComponent({
         {formItem(
           (
             <div>
-              <span>{t('查询语句')}</span>
+              <span>{window.i18n.t('查询语句')}</span>
               <Popover
                 width='256'
                 theme='light'
@@ -1473,7 +1474,7 @@ export default defineComponent({
                 v-model={queryString.value}
                 type='textarea'
                 rows={3}
-                placeholder={t('输入')}
+                placeholder={window.i18n.t('输入')}
                 onBlur={handleScopeQueryChange}
               />
             </VerifyInput>
@@ -1482,8 +1483,8 @@ export default defineComponent({
         {formItem(
           (
             <span>
-              {t('耗时')}
-              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s）`}</span>
+              {window.i18n.t('耗时')}
+              <span class='label-tips'>{`（${window.i18n.t('支持')} ns, μs, ms, s）`}</span>
             </span>
           ) as any,
           (
@@ -1527,7 +1528,7 @@ export default defineComponent({
               class='icon-monitor icon-plus-line'
               style='margin-right: 6px;'
             ></i>
-            <span>{t('添加条件')}</span>
+            <span>{window.i18n.t('添加条件')}</span>
           </Button>
 
           <Cascader
@@ -1566,7 +1567,7 @@ export default defineComponent({
         >
           <div class={['inquire-left-main', { 'scope-inquire': state.searchType === 'scope' }]}>
             <div class='left-top'>
-              <div class='left-title'>{t('新检索')}</div>
+              <div class='left-title'>{window.i18n.t('新检索')}</div>
               <div class='left-title-operate'>
                 <span
                   class='icon-monitor icon-double-down'
@@ -1664,8 +1665,8 @@ export default defineComponent({
           v-slots={{
             default: () => (
               <DeleteDialogContent
-                title={t('确认删除该收藏？')}
-                subtitle={t('收藏名')}
+                title={window.i18n.t('确认删除该收藏？')}
+                subtitle={window.i18n.t('收藏名')}
                 name={collectDialog.name}
               ></DeleteDialogContent>
             )

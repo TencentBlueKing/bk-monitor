@@ -178,9 +178,7 @@ export default defineComponent({
     }
 
     async function getUserList(params: Record<string, any>) {
-      return await listUsersUser(params, {
-        needCancel: true
-      })
+      return await listUsersUser(params)
         .then(res => res?.results || [])
         .catch(() => []);
     }

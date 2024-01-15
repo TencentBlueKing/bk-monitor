@@ -341,8 +341,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
             v-bk-tooltips={{
               content: this.panel.fieldsKey,
               zIndex: 9999,
-              boundary: document.body,
-              allowHTML: false
+              boundary: document.body
             }}
           >
             {this.label}

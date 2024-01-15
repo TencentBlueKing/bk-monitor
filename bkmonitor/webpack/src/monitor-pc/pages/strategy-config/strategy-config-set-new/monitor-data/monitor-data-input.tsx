@@ -329,8 +329,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             trigger: 'mouseenter',
             zIndex: 9999,
             offset: '0, 6',
-            boundary: document.body,
-            allowHTML: false
+            boundary: document.body
           }}
         >
           {node.name}

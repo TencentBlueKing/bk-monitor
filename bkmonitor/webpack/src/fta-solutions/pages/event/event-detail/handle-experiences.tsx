@@ -341,14 +341,14 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       subHeader: h(DeleteSubtitle, { props: { title: titleMap[v.type] } }, [
         h('div', { slot: 'name' }, [
           v.type === EType.METRIC
-            ? v.metric?.map(id => this.metricNameMap[id] || id)?.join(',') || v.alert_name
-            : h(WhereDisplay, {
-                props: {
-                  value: v.conditions,
-                  groupByList: this.dimensionList,
-                  metric: this.metricMeta
-                }
-              })
+          ? (v.metric?.map(id => this.metricNameMap[id] || id)?.join(',') || v.alert_name)
+          : h(WhereDisplay, {
+              props: {
+                value: v.conditions,
+                groupByList: this.dimensionList,
+                metric: this.metricMeta
+              }
+            })
         ])
       ]),
       maskClose: true,
@@ -525,8 +525,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                     content: this.mode === 'edit' && this.$t('编辑模式不能切换'),
                     placements: ['top'],
                     boundary: 'window',
-                    disabled: this.mode !== 'edit',
-                    allowHTML: false
+                    disabled: this.mode !== 'edit'
                   }}
                 >
                   <Select

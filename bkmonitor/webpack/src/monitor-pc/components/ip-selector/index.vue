@@ -182,43 +182,38 @@ export default class IpSelector extends Vue {
 
 .ip-selector {
   display: flex;
-  width: 100%;
   height: 100%;
-
+  width: 100%;
   &-left {
     flex: 1;
     width: 0;
   }
-
   &-right {
-    position: relative;
     margin-left: -1px;
+    position: relative;
   }
 }
-
 .preview-toggle {
-  position: relative;
   margin-left: -1px;
+  position: relative;
 }
-
 .open-preview {
-  position: absolute;
-  top: calc(50% - 50px);
-  left: -10px;
-  z-index: 10;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  position: absolute;
+  left: -10px;
+  top: calc(50% - 50px);
   width: 10px;
   height: 100px;
   cursor: pointer;
-  background-color: #f0f1f5;
   border: 1px solid #dcdee5;
   border-right: 0;
   border-radius: 4px 0px 0px 4px;
+  background-color: #f0f1f5;
+  z-index: 10;
   outline: 0;
 }
-
 .icon-angle-left {
   display: inline-block;
   width: 16px;

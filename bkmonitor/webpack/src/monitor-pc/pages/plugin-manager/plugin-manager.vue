@@ -48,7 +48,6 @@
             theme="primary"
             @click="authority.MANAGE_AUTH ? handlePluginAdd(null) : handleShowAuthorityDetail()"
           >
-            <span class="icon-monitor icon-plus-line mr-6"></span>
             {{ $t('新建') }}
           </bk-button>
           <bk-button
@@ -1211,9 +1210,6 @@ export default {
 <style lang="scss" scoped>
 @import '../home/common/mixins';
 
-.mr-6 {
-  margin-right: 6px;
-}
 .popover-tag {
   display: flex;
   flex-direction: column;

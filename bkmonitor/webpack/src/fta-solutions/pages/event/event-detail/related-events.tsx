@@ -29,7 +29,6 @@ import { Checkbox, Pagination, Popover, Select, Table, TableColumn } from 'bk-ma
 import dayjs from 'dayjs';
 
 import { eventTopN, searchEvent } from '../../../../monitor-api/modules/alert';
-import { xssFilter } from '../../../../monitor-common/utils/xss';
 import EmptyStatus from '../../../../monitor-pc/components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../../monitor-pc/components/empty-status/types';
 import { getEventPaths } from '../../../../monitor-pc/utils/index';
@@ -159,7 +158,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           minWidth: 120,
           formatter: (row: IEventItem) => (
             <span
-              v-bk-tooltips={{ content: row.id, placements: ['top-start'], allowHTML: false }}
+              v-bk-tooltips={{ content: row.id, placements: ['top-start'] }}
               class={`event-status status-${row.severity}`}
             >
               {row.id}
@@ -231,9 +230,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             return tags.length ? (
               <span
                 v-bk-tooltips={{
-                  content: tags
-                    .map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
-                    .join(''),
+                  content: tags.map(item => `<span>${item.key}：${item.value}</span><br/>`).join(''),
                   allowHTML: true
                 }}
                 class='tags-items'
@@ -546,10 +543,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                 <div
                   class='item-content-kv-tip'
                   v-bk-tooltips={{
-                    content:
-                      child.tags
-                        ?.map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
-                        ?.join('') || '',
+                    content: child.tags?.map(item => `<span>${item.key}：${item.value}</span><br/>`)?.join('') || '',
                     allowHTML: true,
                     disabled: (child.tags?.length || 0) <= 4
                   }}

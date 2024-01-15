@@ -19,6 +19,19 @@ from typing import List
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 from elasticsearch_dsl import Q
+from fta_web.alert.handlers.base import (
+    AlertDimensionFormatter,
+    BaseBizQueryHandler,
+    BaseQueryTransformer,
+    QueryField,
+)
+from fta_web.alert.handlers.translator import (
+    BizTranslator,
+    CategoryTranslator,
+    MetricTranslator,
+    PluginTranslator,
+    StrategyTranslator,
+)
 from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
@@ -42,19 +55,6 @@ from constants.data_source import (
     OthersResultTableLabel,
 )
 from core.drf_resource import resource
-from fta_web.alert.handlers.base import (
-    AlertDimensionFormatter,
-    BaseBizQueryHandler,
-    BaseQueryTransformer,
-    QueryField,
-)
-from fta_web.alert.handlers.translator import (
-    BizTranslator,
-    CategoryTranslator,
-    MetricTranslator,
-    PluginTranslator,
-    StrategyTranslator,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,6 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("assignee", _lazy("通知人")),
         QueryField("appointee", _lazy("负责人")),
         QueryField("supervisor", _lazy("知会人")),
-        QueryField("follower", _lazy("关注人")),
         QueryField("is_ack", _lazy("是否已确认")),
         QueryField("is_shielded", _lazy("是否已屏蔽")),
         QueryField("shield_left_time", _lazy("屏蔽剩余时间")),
@@ -214,7 +213,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
     MINE_STATUS_NAME = "MINE"
     MY_APPOINTEE_STATUS_NAME = "MY_APPOINTEE"
     MY_ASSIGNEE_STATUS_NAME = "MY_ASSIGNEE"
-    MY_FOLLOW_STATUS_NAME = "MY_FOLLOW"
     SHIELD_ABNORMAL_STATUS_NAME = "SHIELDED_ABNORMAL"
     NOT_SHIELD_ABNORMAL_STATUS_NAME = "NOT_SHIELDED_ABNORMAL"
 
@@ -258,8 +256,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     queries.append(Q("term", assignee=self.request_username))
                 if status == self.MY_APPOINTEE_STATUS_NAME:
                     queries.append(Q("term", appointee=self.request_username))
-                if status == self.MY_FOLLOW_STATUS_NAME:
-                    queries.append(Q("term", follower=self.request_username))
                 elif status == self.SHIELD_ABNORMAL_STATUS_NAME:
                     queries.append(Q("term", status=EventStatus.ABNORMAL) & Q("term", is_shielded=True))
                 elif status == self.NOT_SHIELD_ABNORMAL_STATUS_NAME:
@@ -365,6 +361,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 all_series[status][ts * 1000] = 0
 
         if search_result.aggs:
+
             for time_bucket in search_result.aggs.begin_time.time.buckets:
                 key = int(time_bucket.key_as_string) * 1000
                 if key in all_series[EventStatus.ABNORMAL]:
@@ -469,7 +466,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         search_object.aggs.bucket("assignee", "filter", {"term": {"assignee": self.request_username}})
         search_object.aggs.bucket("appointee", "filter", {"term": {"appointee": self.request_username}})
-        search_object.aggs.bucket("follower", "filter", {"term": {"follower": self.request_username}})
         return search_object
 
     def add_aggs(self, search_object):
@@ -670,11 +666,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     "id": cls.MY_APPOINTEE_STATUS_NAME,
                     "name": _("我负责的"),
                     "count": search_result.aggs.appointee.doc_count if search_result.aggs else 0,
-                },
-                {
-                    "id": cls.MY_FOLLOW_STATUS_NAME,
-                    "name": _("我关注的"),
-                    "count": search_result.aggs.follower.doc_count if search_result.aggs else 0,
                 },
                 {
                     "id": cls.MY_ASSIGNEE_STATUS_NAME,

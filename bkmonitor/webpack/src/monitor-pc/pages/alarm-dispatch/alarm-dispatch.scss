@@ -10,20 +10,20 @@
   padding: 16px 16px 40px 16px;
 
   .alarm-dispath-page-wrap {
-    position: relative;
-    min-height: 100%;
-    padding: 16px;
     background: #fff;
-    border-radius: 2px;
     box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
+    border-radius: 2px;
+    padding: 16px;
+    min-height: 100%;
+    position: relative;
 
     .wrap-header {
       display: flex;
       align-items: center;
 
       .search-input {
-        width: 350px;
         margin: 0 0 0 auto;
+        width: 350px;
       }
 
       .icon-zhankai1 ,
@@ -39,18 +39,18 @@
         border: 1px solid #fff;
 
         .expan-item-header {
-          display: flex;
-          align-items: center;
           height: 40px;
-          padding: 0 16px;
-          color: #63656e;
-          cursor: pointer;
           background: #f0f1f5;
+          box-shadow: 0 1px 0 0 #dcdee5;
           border: 1px solid #dcdee5;
           border-bottom: none;
           border-radius: 2px 2px 0 0;
-          box-shadow: 0 1px 0 0 #dcdee5;
+          display: flex;
+          align-items: center;
+          color: #63656e;
+          padding: 0 16px;
           transform: translateY(1px);
+          cursor: pointer;
 
           .icon-bianji {
             font-size: 20px;
@@ -81,26 +81,26 @@
             width: 260px;
            
             .title {
-              max-width: 220px;
-              overflow: hidden;
               font-size: 14px;
-              font-weight: 700; 
-              color: #63656e; 
+              max-width: 220px;
+              overflow: hidden; 
               text-overflow: ellipsis;
-              white-space: nowrap;
+              white-space: nowrap; 
+              color: #63656e;
+              font-weight: 700;
             }
 
             .rule-count {
-              padding: 0 6px;
               color: #979ba5;
+              padding: 0 6px;
             }
 
             .count {
               height: 16px;
               padding: 0 8px;
-              margin: 0 10px 0 6px;
-              color: #979ba5;
               background: #fff;
+              color: #979ba5;
+              margin: 0 10px 0 6px;
 
               @include flex-center();
             }
@@ -114,9 +114,9 @@
             .count {
               height: 16px;
               padding: 0 8px;
-              margin: 0 8px 0 2px;
               background: #dbd4ed;
               border-radius: 2px;
+              margin: 0 8px 0 2px;
 
               @include flex-center();
             }
@@ -124,45 +124,30 @@
 
           .edit-btn-wrap {
             height: 26px;
-            padding: 0 10px;
-            margin: 0 0 0 auto;
-            color: #3a84ff;
             background: #fff;
             border: 1px solid #3a84ff;
             border-radius: 2px;
+            padding: 0 10px;
+            color: #3a84ff;
+            margin: 0 0 0 auto;
 
             @include flex-center();
 
             .icon-bianji {
               color: #3a84ff;
             }
-
-            &.edit-btn-disabled {
-              color: #c4c6cc;
-              cursor: not-allowed;
-              border: 1px solid #c4c6cc;
-
-              .icon-bianji {
-                color: #c4c6cc;
-              }
-            }
           }
 
           .del-btn-wrap {
             width: 26px;
             height: 26px;
-            margin: 0 0 0 12px;
-            color: #ea3636;
             background: #fff;
             border: 1px solid #c4c6cc;
             border-radius: 2px;
+            margin: 0 0 0 12px;
+            color: #ea3636;
 
             @include flex-center();
-
-            &.del-btn-disabled {
-              color: #c4c6cc;
-              cursor: not-allowed;
-            }
           }
         }
 
@@ -189,16 +174,16 @@
           }
 
           .alarm-tag {
-            max-width: 98%;
             overflow: hidden;
+            max-width: 98%;
             text-overflow: ellipsis;
             white-space: nowrap; 
           }
 
           .alarm-tag:hover {
-            color: #fff;
             cursor: pointer;
             background: #3b83ff;
+            color: #fff;
           }
 
           .tag-status {
@@ -287,16 +272,16 @@
         position: absolute;
         top: 50%;
         left: 50%;
+        transform: translate(-50%, -50%);
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        transform: translate(-50%, -50%);
+        flex-direction: column;
       }
 
       .empty-dispatch-text {
-        font-size: 24px;
         color: #63656e;
+        font-size: 24px;
       }
     }
   }

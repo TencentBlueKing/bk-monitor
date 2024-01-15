@@ -144,7 +144,7 @@
               <cluster-event-popover
                 :context="row.pattern"
                 :tippy-options="{ distance: -10, placement: 'top', boundary: scrollContent }"
-                @eventClick="(option, isLink) => handleMenuClick(option, row, isLink)">
+                @eventClick="(option) => handleMenuClick(option,row)">
                 <text-highlight
                   style="word-break: break-all; white-space: pre-line;"
                   :queries="getHeightLightList(row.pattern)">
@@ -441,12 +441,12 @@ export default {
     this.scrollEvent('close');
   },
   methods: {
-    handleMenuClick(option, row, isLink = false) {
+    handleMenuClick(option, row) {
       switch (option) {
         // pattern 下钻
         case 'show original':
-          this.addFilterCondition(`__dist_${this.requestData.pattern_level}`, 'is', row.signature.toString(), isLink);
-          if (!isLink) this.$emit('showOriginLog');
+          this.addFilterCondition(`__dist_${this.requestData.pattern_level}`, 'is', row.signature.toString());
+          this.$emit('showOriginLog');
           break;
         case 'copy':
           copyMessage(row.pattern);

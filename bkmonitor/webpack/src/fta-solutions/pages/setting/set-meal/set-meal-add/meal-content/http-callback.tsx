@@ -588,10 +588,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
         {hideCount ? (
           <div class='handle-hide-defult'>
             <i
-              v-bk-tooltips={{
-                content: this.headerHideTips[`${isHide}`],
-                allowHTML: false
-              }}
+              v-bk-tooltips={this.headerHideTips[`${isHide}`]}
               class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
               onClick={() => (this.curHeaderData.hide = !isHide)}
             ></i>

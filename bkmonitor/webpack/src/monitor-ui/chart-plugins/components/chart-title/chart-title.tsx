@@ -138,8 +138,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       content,
       showOnInit: false,
       trigger: 'mouseenter',
-      placements: ['top'],
-      allowHTML: false
+      placements: ['top']
     };
   }
   /** aiops title高度不一致，需要特殊向上偏移 */

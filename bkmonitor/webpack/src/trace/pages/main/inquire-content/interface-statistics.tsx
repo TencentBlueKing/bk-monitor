@@ -25,7 +25,6 @@
  */
 
 import { computed, defineComponent, PropType } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { Popover, Table } from 'bkui-vue';
 
@@ -56,7 +55,6 @@ export default defineComponent({
   setup(props) {
     const route = useRoute();
     const store = useTraceStore();
-    const { t } = useI18n();
     // 这个 table 比较特别，来源类型 和 接口类型 是基于右上角的选项去控制的，而非 settings 。
     // 所以这里需要通过 computed 返回这个对象，并进行筛选。
     const tableColumn = [
@@ -64,11 +62,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('接口名')}
+            content={window.i18n.t('接口名')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('接口名')}</span>
+            <span class='th-label'>{window.i18n.t('接口名')}</span>
           </Popover>
         ),
         field: 'span_name',
@@ -92,11 +90,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('所属Service')}
+            content={window.i18n.t('所属Service')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('所属Service')}</span>
+            <span class='th-label'>{window.i18n.t('所属Service')}</span>
           </Popover>
         ),
         field: 'service_name',
@@ -120,11 +118,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('来源类型')}
+            content={window.i18n.t('来源类型')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('来源类型')}</span>
+            <span class='th-label'>{window.i18n.t('来源类型')}</span>
           </Popover>
         ),
         field: 'source'
@@ -138,11 +136,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('接口类型')}
+            content={window.i18n.t('接口类型')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('接口类型')}</span>
+            <span class='th-label'>{window.i18n.t('接口类型')}</span>
           </Popover>
         ),
         field: 'kind',
@@ -162,11 +160,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('Span数量')}
+            content={window.i18n.t('Span数量')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('Span数量')}</span>
+            <span class='th-label'>{window.i18n.t('Span数量')}</span>
           </Popover>
         ),
         width: 120,
@@ -180,11 +178,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('错误数')}
+            content={window.i18n.t('错误数')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('错误数')}</span>
+            <span class='th-label'>{window.i18n.t('错误数')}</span>
           </Popover>
         ),
         width: 120,
@@ -198,11 +196,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('错误率')}
+            content={window.i18n.t('错误率')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('错误率')}</span>
+            <span class='th-label'>{window.i18n.t('错误率')}</span>
           </Popover>
         ),
         field: 'error_rate',
@@ -215,11 +213,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('平均耗时')}
+            content={window.i18n.t('平均耗时')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('平均耗时')}</span>
+            <span class='th-label'>{window.i18n.t('平均耗时')}</span>
           </Popover>
         ),
         field: 'avg_duration',
@@ -238,11 +236,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('P90耗时')}
+            content={window.i18n.t('P90耗时')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('P90耗时')}</span>
+            <span class='th-label'>{window.i18n.t('P90耗时')}</span>
           </Popover>
         ),
         field: 'p90_duration',
@@ -261,11 +259,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={t('P50耗时')}
+            content={window.i18n.t('P50耗时')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{t('P50耗时')}</span>
+            <span class='th-label'>{window.i18n.t('P50耗时')}</span>
           </Popover>
         ),
         field: 'p50_duration',
@@ -281,7 +279,7 @@ export default defineComponent({
         )
       },
       {
-        label: t('操作'),
+        label: window.i18n.t('操作'),
         width: 160,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: Record<string, string>; data: any }) => (
@@ -293,9 +291,9 @@ export default defineComponent({
             >
               <span
                 class='link-text'
-                title={t('检索')}
+                title={window.i18n.t('检索')}
               >
-                {t('检索')}
+                {window.i18n.t('检索')}
               </span>
               <i class='icon-monitor icon-fenxiang'></i>
             </div>
@@ -307,9 +305,9 @@ export default defineComponent({
             >
               <span
                 class='link-text'
-                title={t('去观测')}
+                title={window.i18n.t('去观测')}
               >
-                {t('去观测')}
+                {window.i18n.t('去观测')}
               </span>
               <i class='icon-monitor icon-fenxiang'></i>
             </div>

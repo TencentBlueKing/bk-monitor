@@ -395,7 +395,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                   key={index}
                   v-bk-tooltips={{
                     content: item.allowHtml ? `#${item.tip}` : item.tip,
-                    allowHTML: item.allowHtml,
+                    allowHtml: item.allowHtml,
                     delay: [500, 0],
                     theme: 'light',
                     placements: ['top'],

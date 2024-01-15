@@ -70,8 +70,7 @@ export default class CopyText extends tsc<IProps> {
           delay: 200,
           boundary: 'window',
           disabled: !this.tipsText,
-          placement: 'right',
-          allowHTML: false
+          placement: 'right'
         }}
         style='font-size: 12px;'
         onClick={this.handleCopyText}

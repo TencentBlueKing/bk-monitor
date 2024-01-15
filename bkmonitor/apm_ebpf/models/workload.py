@@ -28,7 +28,7 @@ class DeepflowWorkload(models.Model):
     update_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        verbose_name = "deepflow集群管理表"
+        verbose_name = _("deepflow集群管理表")
 
 
 class ClusterRelation(models.Model):
@@ -41,7 +41,7 @@ class ClusterRelation(models.Model):
     update_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        verbose_name = "BCS集群关联信息表"
+        verbose_name = _("BCS集群关联信息表")
 
     @classmethod
     def all_cluster_ids(cls):

@@ -123,8 +123,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
                     onClick={() => this.handleTypeChange(item)}
                     v-bk-tooltips={{
                       content: item.disabled ? item.disabledTip : item.tip,
-                      disabled: !item.disabled,
-                      allowHTML: false
+                      disabled: !item.disabled
                     }}
                   >
                     <img
@@ -146,8 +145,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
                     onClick={() => this.handleTypeChange(item)}
                     v-bk-tooltips={{
                       content: item.disabled ? item.disabledTip : item.tip,
-                      disabled: !item.disabled,
-                      allowHTML: false
+                      disabled: !item.disabled
                     }}
                   >
                     <img

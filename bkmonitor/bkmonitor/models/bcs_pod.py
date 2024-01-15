@@ -190,7 +190,7 @@ class BCSPod(BCSBase, BCSBaseResources):
             [
                 {
                     "id": "pod_ip",
-                    "name": "Pod IP",
+                    "name": _("Pod IP"),
                     "type": "string",
                     "disabled": False,
                     "checked": True,

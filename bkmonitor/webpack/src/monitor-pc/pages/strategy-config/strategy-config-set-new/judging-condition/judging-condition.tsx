@@ -547,8 +547,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                               content: this.localData.noDataConfig.dimensions.join('; '),
                               trigger: 'mouseenter',
                               zIndex: 9999,
-                              boundary: document.body,
-                              allowHTML: false
+                              boundary: document.body
                             }
                       }
                       on-change={this.emitValueChange}
@@ -563,8 +562,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                             placement: 'right',
                             zIndex: 9999,
                             boundary: document.body,
-                            appendTo: document.body,
-                            allowHTML: false
+                            appendTo: document.body
                           }}
                         ></Option>
                       ))}
@@ -697,7 +695,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     return this.isAlert
       ? this.getAlertComponent()
       : this.isDetailMode
-        ? this.getReadonlyComponent()
-        : this.getNormalComponent();
+      ? this.getReadonlyComponent()
+      : this.getNormalComponent();
   }
 }

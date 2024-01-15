@@ -13,9 +13,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
-from constants.action import GLOBAL_BIZ_ID, ActionPluginType, UserGroupType
+from constants.action import GLOBAL_BIZ_ID, ActionPluginType
 from constants.alert import AlertAssignSeverity
-from constants.strategy import DATALINK_SOURCE
 
 
 class ConditionSerializer(serializers.Serializer):
@@ -93,7 +92,6 @@ class BaseAlertAssignRuleSlz(serializers.Serializer):
 class AssignRuleSlz(serializers.ModelSerializer, BaseAlertAssignRuleSlz):
     bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
     assign_group_id = serializers.IntegerField(label="分派组ID", required=True)
-    user_type = serializers.ChoiceField(label="通知人员类型", choices=UserGroupType.CHOICE, default=UserGroupType.MAIN)
 
     class Meta:
         model = AlertAssignRule
@@ -107,7 +105,6 @@ class AssignRuleSlz(serializers.ModelSerializer, BaseAlertAssignRuleSlz):
             "actions",
             "alert_severity",
             "additional_tags",
-            "user_type",
         )
 
     def validate_actions(self, value):
@@ -130,7 +127,7 @@ class AssignGroupSlz(serializers.ModelSerializer):
 
     class Meta:
         model = AlertAssignGroup
-        fields = ("id", "name", "bk_biz_id", "priority", "settings", "source")
+        fields = ("id", "name", "bk_biz_id", "priority", "settings")
 
     def validate_priority(self, value):
         query_result = AlertAssignGroup.objects.filter(
@@ -143,8 +140,6 @@ class AssignGroupSlz(serializers.ModelSerializer):
         return value
 
     def validate_name(self, value):
-        if value.startswith("集成内置") or value.startswith("Datalink BuiltIn"):
-            raise ValidationError(detail="Name starts with 'Datalink BuiltIn' and '集成内置' is forbidden")
         query_result = AlertAssignGroup.objects.filter(
             name=value, bk_biz_id__in=[self.initial_data["bk_biz_id"], GLOBAL_BIZ_ID]
         )
@@ -153,17 +148,6 @@ class AssignGroupSlz(serializers.ModelSerializer):
         if query_result.exists():
             raise ValidationError(detail=_("当前业务下已经存在名称为({})的分派规则组，请重新确认").format(value))
         return value
-
-    def validate(self, attrs):
-        if self.instance and self.instance == DATALINK_SOURCE:
-            # 数据链路内置策略无法修改
-            raise ValidationError(detail="Edit datalink builtin rules is forbidden")
-        return super(AssignGroupSlz, self).validate(attrs)
-
-    def to_representation(self, instance):
-        data = super(AssignGroupSlz, self).to_representation(instance)
-        data["edit_allowed"] = False if instance.source == DATALINK_SOURCE else True
-        return data
 
 
 class BatchAssignRulesSlz(serializers.Serializer):
@@ -200,11 +184,8 @@ class BatchAssignRulesSlz(serializers.Serializer):
 
     def validate_name(self, value):
         """
-        分派名称校验，同一个业务下的优先级别需要唯一
+        优先级校验，同一个业务下的优先级别需要唯一
         """
-        if value.startswith("集成内置") or value.startswith("Datalink BuiltIn"):
-            raise ValidationError(detail="Name starts with 'Datalink BuiltIn' and '集成内置' is forbidden")
-
         query_result = AlertAssignGroup.objects.filter(
             name=value, bk_biz_id__in=[self.initial_data["bk_biz_id"], GLOBAL_BIZ_ID]
         )
@@ -229,14 +210,6 @@ class BatchAssignRulesSlz(serializers.Serializer):
 class BatchSaveAssignRulesSlz(BatchAssignRulesSlz):
     priority = serializers.IntegerField(label="优先级", required=True)
     name = serializers.CharField(label="规则组名称", required=True)
-
-    def validate_group_name(self, value):
-        return self.validate_name(value)
-
-    def validate_assign_group_id(self, value):
-        if value and AlertAssignGroup.objects.filter(id=value, source=DATALINK_SOURCE).exists():
-            raise ValidationError(detail="Edit datalink builtin rules is forbidden")
-        return value
 
     @staticmethod
     def save(validated_data):

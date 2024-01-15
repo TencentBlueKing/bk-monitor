@@ -808,32 +808,32 @@ export default defineComponent({
     provide('SpanDetailActiveTab', activeTab);
     const tabList = [
       {
-        label: t('基础信息'),
+        label: window.i18n.t('基础信息'),
         name: 'BasicInfo'
       },
       {
-        label: t('异常事件'),
+        label: window.i18n.t('异常事件'),
         name: 'Event'
       },
       {
-        label: t('日志'),
+        label: window.i18n.t('日志'),
         name: 'Log'
       },
       {
-        label: t('主机'),
+        label: window.i18n.t('主机'),
         name: 'Host'
       }
       // 20230525 这期暂时不需要
       // {
-      //   label: t('进程'),
+      //   label: window.i18n.t('进程'),
       //   name: 'Process'
       // },
       // {
-      //   label: t('容器'),
+      //   label: window.i18n.t('容器'),
       //   name: 'Container'
       // },
       // {
-      //   label: t('指标'),
+      //   label: window.i18n.t('指标'),
       //   name: 'Index'
       // }
     ];
@@ -919,7 +919,7 @@ export default defineComponent({
     );
     if (window.enable_apm_profiling) {
       tabList.push({
-        label: t('性能分析'),
+        label: window.i18n.t('性能分析'),
         name: 'Profiling'
       });
     }
@@ -1058,7 +1058,7 @@ export default defineComponent({
                               onClick={handleEventErrLink}
                               style='margin-top: 16px;'
                             >
-                              {t('错误分析')}
+                              {window.i18n.t('错误分析')}
                               <span
                                 class='icon-monitor icon-fenxiang'
                                 style='margin-left: 8px;'

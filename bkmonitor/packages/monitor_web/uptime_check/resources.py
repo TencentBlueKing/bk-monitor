@@ -467,7 +467,7 @@ class TestTaskResource(Resource):
                         q_params = Q(ip=success_info["ip"]) | Q(bk_host_id=success_info["bk_host_id"])
                     node = all_nodes.filter(q_params).first()
                     fail_result.append(
-                        "node:{node}, log:{log}".format(node=node.name, log=" | ".join(error_message))
+                        _("node:{node}, log:{log}".format(node=node.name, log=" | ".join(error_message)))
                     )
 
             if len(fail_result):
@@ -1597,10 +1597,11 @@ class ExportUptimeCheckConfResource(Resource):
                 node_conf = resource.uptime_check.export_uptime_check_node_conf.get_node_conf(node)
                 task_conf["target_conf"]["node_list"].append(node_conf)
 
-        real_task_config = task.config
-        if task.protocol != "HTTP" and "hosts" in real_task_config:
+        if task.protocol == "HTTP":
+            real_task_config = task.config
+        else:
+            real_task_config = {k: v for k, v in list(task.config.items()) if k != "hosts"}
             real_task_config["ip_list"] = [i["ip"] for i in task.config["hosts"]]
-            del real_task_config["hosts"]
 
         task_conf["collector_conf"] = {
             "groups": ",".join([group.name for group in task.groups.all()]),
@@ -1779,7 +1780,7 @@ class FileParseResource(Resource):
                     "cnkey": _("DNS查询模式"),
                     "enkey": "dns_check_mode",
                     "required": False,
-                    "default": "single",
+                    "default": _("single"),
                     "regex": r"^all$|^single$",
                 },
                 {"cnkey": _("期望响应信息"), "enkey": "response", "required": False, "default": _("包含:")},
@@ -1846,7 +1847,7 @@ class FileParseResource(Resource):
                     "cnkey": _("DNS查询模式"),
                     "enkey": "dns_check_mode",
                     "required": False,
-                    "default": "single",
+                    "default": _("single"),
                     "regex": r"^all$|^single$",
                 },
             ]
@@ -1901,7 +1902,7 @@ class FileParseResource(Resource):
                     "cnkey": _("DNS查询模式"),
                     "enkey": "dns_check_mode",
                     "required": False,
-                    "default": "single",
+                    "default": _("single"),
                     "regex": r"^all$|^single$",
                 },
             ]

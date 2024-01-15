@@ -10,10 +10,6 @@
 .custom-report-page {
   position: relative;
 
-  .mr-6 {
-    margin-right: 6px;
-  }
-
   @include layout-flex(row, stretch, flex-start);
 
   .content-left {

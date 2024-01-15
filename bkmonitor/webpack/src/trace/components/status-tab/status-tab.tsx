@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, PropType } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { Popover } from 'bkui-vue';
 
 import { ITableFilterItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
@@ -54,11 +53,10 @@ export default defineComponent({
   props: IProps,
   emits: ['change'],
   setup(props, { emit }) {
-    const { t } = useI18n();
     const defaultList = [
       {
         id: 'all',
-        name: t('全部')
+        name: window.i18n.t('全部')
       }
     ];
 

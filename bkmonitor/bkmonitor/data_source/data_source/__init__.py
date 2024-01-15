@@ -925,7 +925,6 @@ class TimeSeriesDataSource(DataSource):
             order_by=self.order_by,
             start_time=start_time,
             end_time=end_time,
-            interval=kwargs.get("interval"),
         )
         records = self._filter_by_advance_method(q.raw_data)
         return [record[dimension_field] for record in records]
@@ -1506,7 +1505,6 @@ class BkMonitorLogDataSource(DataSource):
             start_time=start_time,
             end_time=end_time,
             query_string=self.query_string,
-            interval=kwargs.get("interval"),
         )
         records = self._remove_dimensions_prefix(q.raw_data)
         records = self._filter_by_advance_method(records)

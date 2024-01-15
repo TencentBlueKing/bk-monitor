@@ -1028,11 +1028,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     outline
                     style={{ width: '88px', margin: '0 8px 0 24px' }}
                     v-authority={{ active: !this.authority.MANAGE_AUTH }}
-                    disabled={!this.detailData?.edit_allowed}
                     onClick={() =>
-                      this.authority.MANAGE_AUTH
-                        ? !!this.detailData?.edit_allowed && this.handleToEdit()
-                        : this.handleShowAuthorityDetail()
+                      this.authority.MANAGE_AUTH ? this.handleToEdit() : this.handleShowAuthorityDetail()
                     }
                   >
                     {this.$t('编辑')}

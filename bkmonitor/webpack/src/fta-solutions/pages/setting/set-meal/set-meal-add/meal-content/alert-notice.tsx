@@ -330,7 +330,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                 </i18n>
                 <span
                   class='icon-monitor icon-hint'
-                  v-bk-tooltips={{ content: intervalModeTips[this.alertData.intervalNotifyMode], allowHTML: false }}
+                  v-bk-tooltips={{ content: intervalModeTips[this.alertData.intervalNotifyMode] }}
                   style={{ color: '#979ba5', marginTop: '-3px' }}
                 ></span>
               </span>

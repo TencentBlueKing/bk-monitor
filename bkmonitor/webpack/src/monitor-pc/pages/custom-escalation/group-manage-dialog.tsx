@@ -667,8 +667,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                               v-bk-tooltips={{
                                 placements: ['right'],
                                 content: !!row.description ? `${row.name}  (${row.description})` : row.name,
-                                boundary: 'window',
-                                allowHTML: false
+                                boundary: 'window'
                               }}
                             >
                               <span class='name'>{row.name}</span>
@@ -730,8 +729,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                     content: this.$t('由匹配规则{0}生成', [this.ruleOfMetrics.get(item.name)]),
                     placement: 'right',
                     boundary: 'window',
-                    disabled: !this.ruleOfMetrics.has(item.name),
-                    allowHTML: false
+                    disabled: !this.ruleOfMetrics.has(item.name)
                   }}
                   key={`${item.name}-${index}`}
                 >
@@ -745,8 +743,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                       v-bk-tooltips={{
                         placements: ['right'],
                         content: !!item.description ? `${item.name}  (${item.description})` : item.name,
-                        boundary: 'window',
-                        allowHTML: false
+                        boundary: 'window'
                       }}
                     >
                       <span class='title'>{this.highLightContent(this.manualCheck.search, item.name)}</span>

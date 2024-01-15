@@ -28,14 +28,7 @@ import './alarm-dispatch-action.scss';
 
 const AlarmDispatchAction = ctx => {
   const {
-    props: {
-      actions = [],
-      alarmGroupList = [],
-      showAlarmGroup = () => {},
-      showDetail = () => {},
-      processPackage = [],
-      userType = ''
-    }
+    props: { actions = [], alarmGroupList = [], showAlarmGroup = () => {}, showDetail = () => {}, processPackage = [] }
   } = ctx;
   const { i18n } = window;
 
@@ -44,17 +37,12 @@ const AlarmDispatchAction = ctx => {
   const noticeConfig = actions.find(item => item.action_type === 'notice') || {};
   const processConfig = actions.find(item => item.action_type === 'itsm') || {};
 
-  const userTypeMap = {
-    main: i18n.t('负责人'),
-    follower: i18n.t('关注人')
-  };
-
   const getAlarmGroupNames = (id: number) => alarmGroupList.find(item => item.id === id)?.name || '';
 
   const getProcessPackageName = (id: number) => processPackage.find(item => item.id === id)?.name || id;
   return (
     <div class='alarm-dispatch-action'>
-      <div class='action-row'>
+      <div>
         <span>{i18n.t(noticeConfig?.upgrade_config?.is_enabled ? '通知升级' : '通知')} : </span>
         {noticeConfig?.is_enabled ? (
           <span>
@@ -97,12 +85,6 @@ const AlarmDispatchAction = ctx => {
           <span>{i18n.t('未配置')}</span>
         )}
       </div>
-      {!!userType && (
-        <div class='action-row'>
-          <span>{i18n.t('通知人员类型')} : </span>
-          <span>{userTypeMap?.[userType] || userType}</span>
-        </div>
-      )}
     </div>
   );
 };

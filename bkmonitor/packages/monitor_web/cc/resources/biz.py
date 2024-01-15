@@ -171,11 +171,7 @@ def get_notify_roles():
     """
     roles = settings.NOTIRY_MAN_DICT.copy()
     for attr in api.cmdb.get_object_attribute(bk_obj_id="biz"):
-        if (
-            attr["bk_property_type"] == "objuser"
-            and attr["bk_property_group"] == "role"
-            and attr["bk_property_id"] not in roles
-        ):
+        if attr["bk_property_type"] == "objuser" and attr["bk_property_id"] not in roles:
             roles[attr["bk_property_id"]] = attr["bk_property_name"]
     return roles
 

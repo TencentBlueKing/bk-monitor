@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 
 import { tailEventPluginData } from '../../../../../monitor-api/modules/event_plugin';
 import { copyText } from '../../../../../monitor-common/utils/utils';
-import MonacoEditor from '../../../../../monitor-pc/components/editors/monaco-editor.vue';
+import MonacoEditor from '../../../../../monitor-pc/components/editors/monaco-editor';
 
 import './data-status.scss';
 
@@ -83,6 +83,32 @@ export default class RulesViewer extends tsc<IDataStatus> {
         this.sourceData = data;
       })
       .finally(() => (this.sourceDataLoading = false));
+    // this.sourceData = [
+    //   {
+    //     bk_ingest_time: 1618280218,
+    //     data: [
+    //       {
+    //         alert_name: 'CPU使用率告警',
+    //         description: 'sum(单点可用率) > 95%, 当前值98%',
+    //         event_id: 2,
+    //         target: '10.0.0.2',
+    //         time: 1618226718
+    //       }
+    //     ]
+    //   },
+    //   {
+    //     bk_ingest_time: 1618232223,
+    //     data: [
+    //       {
+    //         alert_name: 'CPU使用率告警',
+    //         description: 'sum(单点可用率) > 95%, 当前值100%',
+    //         event_id: 2,
+    //         target: '10.0.0.2',
+    //         time: 1618226728
+    //       }
+    //     ]
+    //   }
+    // ]
   }
 
   handleRefresh() {
@@ -139,7 +165,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
           );
         }
         if (prop === 'data') {
-          if (!row.data?.length) return '--';
+          if (!row.data || !row.data.length) return '--';
           return (
             <div
               class='data-item-list'

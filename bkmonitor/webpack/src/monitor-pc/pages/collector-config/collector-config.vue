@@ -102,7 +102,6 @@
             class="mc-btn-add"
             style="margin-right: 8px"
           >
-            <span class="icon-monitor icon-plus-line mr-6"></span>
             {{ $t('新建') }}
           </bk-button>
           <!-- <bk-button theme="default" @click="handleToLogCollection"> {{ $t('日志采集') }} </bk-button> -->
@@ -1018,15 +1017,9 @@ export default {
         update.data = data;
       }
     },
-    handleShowDetail({ id /*  name, status */ }) {
-      // this.side.data = { id, name, status };
-      // this.side.show = true;
-      this.$router.push({
-        name: 'collect-config-detail',
-        params: {
-          id
-        }
-      });
+    handleShowDetail({ id, name, status }) {
+      this.side.data = { id, name, status };
+      this.side.show = true;
     },
     handleChangeCollectName(id, name) {
       const curCollect = this.table.data.find(item => item.id === id);
@@ -1301,9 +1294,6 @@ export default {
   lang="scss"
   scoped
 >
-.mr-6 {
-  margin-right: 6px;
-}
 .collector-config {
   margin: 24px;
   font-size: 12px;

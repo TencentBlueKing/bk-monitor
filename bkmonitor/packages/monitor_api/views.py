@@ -122,7 +122,7 @@ class AlarmTypeViewSet(ListModelMixin, GenericViewSet):
     def list(self, request, *args, **kwargs):
         info_list = []
         fields = {
-            "cpu": "CPU",
+            "cpu": _("CPU"),
             "net": _("网卡"),
             "mem": _("内存"),
             "disk": _("磁盘"),

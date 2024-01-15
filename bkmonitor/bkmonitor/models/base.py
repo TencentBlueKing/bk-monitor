@@ -789,7 +789,7 @@ class Shield(AbstractRecordModel):
 
     SCOPE_TYPE = (
         ("instance", _lazy("实例")),
-        ("ip", "IP"),
+        ("ip", _lazy("IP")),
         ("node", _lazy("节点")),
         ("biz", _lazy("业务")),
     )

@@ -73,8 +73,7 @@ export default class PositionLink extends tsc<IProps> {
           delay: 200,
           boundary: 'window',
           disabled: !this.tipsText,
-          placement: 'right',
-          allowHTML: false
+          placement: 'right'
         }}
         onClick={this.handleCopyText}
       >

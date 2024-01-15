@@ -254,14 +254,6 @@ export const getRouteConfig = () => {
               href: '#/alarm-group'
             },
             {
-              name: '轮值',
-              icon: 'icon-monitor icon-mc-lunliu menu-icon',
-              id: 'rotation',
-              path: '/trace/rotation',
-              canStore: true,
-              href: '#/trace/rotation'
-            },
-            {
               name: '指标管理',
               icon: 'icon-monitor icon-mc-custom-scene menu-icon',
               id: 'metrics-manager',

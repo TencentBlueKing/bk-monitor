@@ -23,8 +23,8 @@
 <template>
   <bk-popover
     ref="eventPopover"
-    :class="['retrieve-event-popover', { 'is-inline': !isCluster }]"
-    :ext-cls="`event-tippy${!isCluster ? ' is-cluster' : ''}`"
+    :class="['retrieve-event-popover', { 'is-inline': !isSearch }]"
+    :ext-cls="`event-tippy-content${!isSearch ? ' is-search' : ''}`"
     :trigger="trigger"
     :placement="placement"
     :tippy-options="tippyOptions"
@@ -34,19 +34,19 @@
     <slot />
     <div slot="content" class="event-icons">
       <span
-        v-if="isCluster"
-        class="icon bk-icon icon-eye"
-        v-bk-tooltips.top="{ content: $t('查询命中pattern的日志'), delay: 300 }"
-        @click="handleClick('show original')">
+        v-if="isSearch"
+        class="icon bk-icon icon-close-circle"
+        v-bk-tooltips.top="{ content: $t('添加 {n} 过滤项', { n: '=' }), delay: 300 }"
+        @click="handleClick('is')">
       </span>
-      <!-- <span
-        v-if="isCluster"
-        class="icon log-icon icon-chart"
-        v-bk-tooltips.top="{ content: $t(''), delay: 300 }"
-        @click="handleClick('a')">
-      </span> -->
       <span
-        v-if="isHavePattern"
+        v-if="isSearch"
+        class="icon bk-icon icon-minus-circle"
+        v-bk-tooltips.top="{ content: $t('添加 {n} 过滤项', { n: '!=' }), delay: 300 }"
+        @click="handleClick('is not')">
+      </span>
+      <!-- <span class="icon log-icon icon-chart"></span> -->
+      <span
         class="icon log-icon icon-copy"
         v-bk-tooltips.top="{ content: $t('复制'), delay: 300 }"
         @click="handleClick('copy')">
@@ -54,8 +54,8 @@
     </div>
   </bk-popover>
 </template>
-
 <script>
+
 export default {
   props: {
     placement: {
@@ -66,22 +66,13 @@ export default {
       type: String,
       default: 'click',
     },
-    isCluster: {
+    isSearch: {
       type: Boolean,
       default: true,
     },
     tippyOptions: {
       type: Object,
       default: () => {},
-    },
-    context: {
-      type: String,
-      require: true,
-    },
-  },
-  computed: {
-    isHavePattern() {
-      return this.context !== '';
     },
   },
   methods: {
@@ -126,9 +117,8 @@ export default {
     position: relative;
   }
 
-  .event-tippy {
+  .event-tippy-content {
     .event-icons {
-      min-height: 24px;
       display: flex;
       align-items: center;
     }
@@ -139,7 +129,7 @@ export default {
 
     .icon {
       display: inline-block;
-      margin-right: 8px;
+      margin-right: 10px;
       font-size: 14px;
       cursor: pointer;
 
@@ -148,10 +138,11 @@ export default {
       }
     }
 
-    .log-icon {
-      font-size: 12px;
+    .bk-icon {
+      transform: rotate(45deg);
     }
 
+    .icon-minus-circle,
     .icon-chart {
       margin-right: 4px;
     }
@@ -160,13 +151,12 @@ export default {
       margin-right: 3px;
       font-size: 24px;
 
-      &::before {
-        /* stylelint-disable-next-line declaration-no-important */
-        content: '\e109' !important;
+      &:before {
+        content: '\e109';
       }
     }
 
-    &.is-cluster {
+    &.is-search {
       .tippy-tooltip {
         padding-left: 4px;
       }
@@ -180,11 +170,6 @@ export default {
       &:hover {
         color: #3a84ff;
       }
-    }
-
-    mark {
-      color: #313238;
-      background: #f0f1f5;
     }
 
     &.is-inline {

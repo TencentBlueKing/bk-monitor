@@ -60,14 +60,12 @@
           <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
             <div
-              :class="['str-content', 'origin-str', { 'is-limit': !cacheExpandStr.includes($index) }]">
+              :class="['str-content', 'origin-str', { 'is-limit': !cacheExpandStr.includes($index) }]"
+              :title="isWrap ? '' : JSON.stringify(row)"
+              @mouseenter="(e) => handleHoverFavoriteName(e, JSON.stringify(row))">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
-              <original-light-height
-                :is-wrap="isWrap"
-                :visible-fields="getShowTableVisibleFields"
-                :origin-json="row"
-                @menuClick="({ option, isLink }) => handleMenuClick(option, isLink)" />
+              <original-light-height v-bind="$attrs" :origin-json="row" />
               <p
                 v-if="!cacheExpandStr.includes($index)"
                 class="show-whole-btn"
@@ -107,21 +105,30 @@
         <retrieve-loader
           is-loading
           :is-original-field="true"
-          :visible-fields="getShowTableVisibleFields">
+          :visible-fields="visibleFields">
         </retrieve-loader>
       </bk-table-column>
       <template v-else slot="empty">
         <empty-view v-bind="$attrs" v-on="$listeners" />
       </template>
       <!-- 下拉刷新骨架屏loading -->
-      <template slot="append" v-if="tableList.length && getShowTableVisibleFields.length && isPageOver">
+      <template slot="append" v-if="tableList.length && visibleFields.length && isPageOver">
         <retrieve-loader
           :is-page-over="isPageOver"
           :is-original-field="true"
-          :visible-fields="getShowTableVisibleFields">
+          :visible-fields="visibleFields">
         </retrieve-loader>
       </template>
     </bk-table>
+    <div v-show="false">
+      <div class="copy-popover" ref="copyTools">
+        <span
+          class="icon log-icon icon-copy"
+          v-bk-tooltips.top="{ content: $t('复制'), delay: 300 }"
+          @click="() => handleMenuClick({ operation: 'copy', value: hoverOriginStr })">
+        </span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -140,4 +147,17 @@ export default {
 </script>
 
 <style lang="scss">
+  .copy-popover {
+    position: relative;
+    width: 14px;
+    height: 20px;
+
+    .icon-copy {
+      position: absolute;
+      font-size: 24px;
+      cursor: pointer;
+      left: -5px;
+      top: -2px;
+    }
+  }
 </style>

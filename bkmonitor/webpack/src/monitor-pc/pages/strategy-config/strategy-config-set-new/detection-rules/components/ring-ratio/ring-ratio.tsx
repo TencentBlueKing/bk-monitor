@@ -292,8 +292,7 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
                   name={level.name}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
-                    disabled: !level.disabled,
-                    allowHTML: false
+                    disabled: !level.disabled
                   }}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>
@@ -320,8 +319,7 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
                     content: this.$t('已有相同算法,设置为{name}级别', {
                       name: this.levelList[this.localData.level - 1].name
                     }),
-                    disabled: !type.disabled,
-                    allowHTML: false
+                    disabled: !type.disabled
                   }}
                 >
                   {type.name}
