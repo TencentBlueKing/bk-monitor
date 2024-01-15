@@ -3569,9 +3569,9 @@ class CollectorHandler(object):
             )
             if x < len(container_configs):
                 container_configs[x].namespaces = data["configs"][x]["namespaces"]
-                container_configs[x].namespaces = data["configs"][x]["namespaces_exclude"]
-                container_configs[x].any_namespace = not (
-                    data["configs"][x]["namespaces"] and data["configs"][x]["namespaces_exclude"]
+                container_configs[x].namespaces_exclude = data["configs"][x]["namespaces_exclude"]
+                container_configs[x].any_namespace = not any(
+                    [data["configs"][x]["namespaces"], data["configs"][x]["namespaces_exclude"]]
                 )
                 container_configs[x].data_encoding = data["configs"][x]["data_encoding"]
                 container_configs[x].params = (
@@ -3602,7 +3602,7 @@ class CollectorHandler(object):
                     collector_config_id=collector_config_id,
                     namespaces=data["configs"][x]["namespaces"],
                     namespaces_exclude=data["configs"][x]["namespaces_exclude"],
-                    any_namespace=not (data["configs"][x]["namespaces"] and data["configs"][x]["namespaces_exclude"]),
+                    any_namespace=not any([data["configs"][x]["namespaces"], data["configs"][x]["namespaces_exclude"]]),
                     data_encoding=data["configs"][x]["data_encoding"],
                     params={
                         "paths": data["configs"][x]["paths"],
