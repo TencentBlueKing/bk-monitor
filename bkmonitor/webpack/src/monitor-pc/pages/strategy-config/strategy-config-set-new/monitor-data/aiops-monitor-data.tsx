@@ -55,6 +55,13 @@ interface IProps {
   onTargetTypeChange?: (type: string) => void;
   onTargetChange?: (value) => void;
 }
+
+const levelParamsMap = {
+  1: [1],
+  2: [1, 2],
+  3: [1, 2, 3]
+};
+
 @Component({
   components: {
     StrategyTargetTable
@@ -144,17 +151,20 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     const metrics = [];
     this.scene?.metrics?.forEach(item => {
       if (metricsSet.has(item.metric_id)) {
-        metrics.push(item);
+        metrics.push({
+          ...item,
+          metric: undefined
+        });
       }
     });
     const algorithm = {
-      level: this.formModel.level,
       type: MetricType.MultivariateAnomalyDetection,
       config: {
         scene_id: this.formModel.scene,
-        metrics
+        metrics,
+        sensitivity: this.formModel.sensitivity,
+        level: levelParamsMap[this.formModel.level]
       },
-      sensitivity: this.formModel.sensitivity,
       unit_prefix: ''
     };
     return {
@@ -236,8 +246,13 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     this.isLoading = true;
     const sceneId = this.metricData?.[0]?.sceneConfig?.algorithms?.[0]?.config?.scene_id;
     if (sceneId) {
-      this.formModel.level = this.metricData[0].sceneConfig.algorithms[0].level;
-      this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0].sensitivity || 0;
+      const level = this.metricData[0].sceneConfig.algorithms[0]?.config?.level || [];
+      if (level.length) {
+        this.formModel.level = Math.max(...level);
+      } else {
+        this.formModel.level = 0;
+      }
+      this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0]?.config?.sensitivity || 0;
       this.metrics = this.metricData[0].sceneConfig.algorithms[0]?.config?.metrics?.map(item => item.metric_id) || [];
     }
     multivariateAnomalyScenes()
