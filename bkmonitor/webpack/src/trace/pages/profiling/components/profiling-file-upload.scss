@@ -86,8 +86,18 @@
             color: #63656e;
 
             .cancel-btn {
-              color: #3a84ff;
-              cursor: pointer;
+              &.running {
+                color: #3a84ff;
+                cursor: pointer;
+              }
+
+              &.success {
+                color: #3a84ff;
+              }
+
+              &.failure {
+                color: #ea3636;
+              }
             }
           }
 

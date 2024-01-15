@@ -28,9 +28,11 @@ import { useI18n } from 'vue-i18n';
 import { Button, Exception, Select } from 'bkui-vue';
 import { Spinner, Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
+import { listProfileUploadRecord } from '../../../../monitor-api/modules/apm_profile';
 import { ConditionType, RetrievalFormData } from '../typings';
 
 import ProfilingFileUpload from './profiling-file-upload';
+import ProfilingRetrievalView from './profiling-retrieval-view';
 
 import './upload-retrieval-view.scss';
 
@@ -43,11 +45,8 @@ export default defineComponent({
     }
   },
   emits: ['showFileDetail'],
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const { t } = useI18n();
-    function handleShowFileDetail(item) {
-      emit('showFileDetail', item);
-    }
 
     const uploadDialogShow = ref(false);
     const active = ref<ConditionType>(ConditionType.Where);
@@ -56,52 +55,53 @@ export default defineComponent({
     /* 查询项 */
     const searchObj = reactive({
       selectFile: '',
-      list: [
-        {
-          id: '1',
-          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
-          status: 'running'
-        },
-        {
-          id: '2',
-          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
-          status: 'success'
-        },
-        {
-          id: '3',
-          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
-          status: 'failed'
-        }
-      ]
+      list: []
     });
-    /* 对比项 */
+    /* 对比项   暂时不做 */
     const compareObj = reactive({
       selectFile: '',
-      list: [
-        {
-          id: '1',
-          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
-          status: 'running'
-        },
-        {
-          id: '2',
-          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
-          status: 'success'
-        },
-        {
-          id: '3',
-          name: 'Profile-2023-11-22-06-02-27.json （原文件名）',
-          status: 'failed'
-        }
-      ]
+      list: []
     });
+    const loading = ref(false);
+
+    init();
+
+    /**
+     * @description 初始化
+     */
+    async function init() {
+      const data = await listProfileUploadRecord({
+        app_name: props.formData.server.app_name,
+        service_name: props.formData.server.service_name
+      }).catch(() => []);
+      searchObj.list = data;
+      if (data.length) {
+        searchObj.selectFile = data[0].id;
+      }
+    }
+
+    function handleShowFileDetail(item) {
+      emit('showFileDetail', item);
+    }
 
     function handleUploadTypeChange(type: ConditionType) {
       active.value = type;
     }
 
+    /**
+     * @description 文件上传弹窗
+     * @param v
+     */
     function handleUploadShowChange(v: boolean) {
       uploadDialogShow.value = v;
+    }
+
+    function handleSelectFile(v) {
+      searchObj.selectFile = v;
+      loading.value = true;
+      setTimeout(() => {
+        loading.value = false;
+      }, 3000);
     }
 
     function statusRender(status) {
@@ -138,10 +138,12 @@ export default defineComponent({
       selectFile,
       searchObj,
       compareObj,
+      loading,
       handleUploadTypeChange,
       handleUploadShowChange,
       statusRender,
-      handleShowFileDetail
+      handleShowFileDetail,
+      handleSelectFile
     };
   },
   render() {
@@ -160,22 +162,24 @@ export default defineComponent({
           <div class='file-select'>
             {this.formData.isComparison && <div class='label where'>{this.t('查询项')}</div>}
             <Select
-              v-model={this.searchObj.selectFile}
+              modelValue={this.searchObj.selectFile}
               popoverOptions={{
                 extCls: 'upload-select-popover'
               }}
+              clearable={false}
+              onSelect={v => this.handleSelectFile(v)}
             >
               {this.searchObj.list.map(item => (
                 <Select.Option
                   id={item.id}
                   key={item.id}
-                  name={item.name}
+                  name={item.app_name}
                 >
                   <div class='upload-select-item'>
                     <div class='left'>
                       {this.statusRender(item.status)}
                       <div class='divider'></div>
-                      <div class='name'>{item.name}</div>
+                      <div class='name'>{item.app_name}</div>
                     </div>
                     <i
                       class='icon-monitor icon-mc-detail'
@@ -190,7 +194,7 @@ export default defineComponent({
             <div class='file-select'>
               {this.formData.isComparison && <div class='label comparison'>{this.t('对比项')}</div>}
               <Select
-                v-model={this.compareObj.selectFile}
+                modelValue={this.compareObj.selectFile}
                 popoverOptions={{
                   extCls: 'upload-select-popover'
                 }}
@@ -204,7 +208,7 @@ export default defineComponent({
                       <div class='left'>
                         {this.statusRender(item.status)}
                         <div class='divider'></div>
-                        <div class='name'>{item.name}</div>
+                        <div class='name'>{item.app_name}</div>
                       </div>
                       <i class='icon-monitor icon-mc-detail'></i>
                     </div>
@@ -216,13 +220,25 @@ export default defineComponent({
         </div>
 
         <div class='chart-wrap'>
-          <Exception
-            class='loading-wrap'
-            type='search-empty'
-          >
-            <div class='text'>{this.t('文件解析中')}</div>
-            <div class='desc'>{this.t('文件解析可能耗费较长时间，可先选择已解析文件查看')}</div>
-          </Exception>
+          {this.loading || !this.searchObj.selectFile ? (
+            <div class='exception-wrap'>
+              <Exception
+                class='loading-wrap'
+                type='search-empty'
+              >
+                <div class='text'>
+                  {!!this.searchObj.selectFile ? `${this.t('文件解析中')}...` : this.t('暂无数据')}
+                </div>
+                <div class='desc'>
+                  {!!this.searchObj.selectFile
+                    ? this.t('文件解析可能耗费较长时间，可先选择已解析文件查看')
+                    : this.t('请上传文件后查看')}
+                </div>
+              </Exception>
+            </div>
+          ) : (
+            <ProfilingRetrievalView></ProfilingRetrievalView>
+          )}
         </div>
 
         <ProfilingFileUpload

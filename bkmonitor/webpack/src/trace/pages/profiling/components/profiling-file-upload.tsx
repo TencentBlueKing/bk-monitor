@@ -300,13 +300,13 @@ export default defineComponent({
                           <span class='name'>{item.name}</span>
                           {(() => {
                             if (item.status === EFileStatus.running) {
-                              return <span class='cancel-btn'>{this.t('取消上传')}</span>;
+                              return <span class='cancel-btn running'>{this.t('取消上传')}</span>;
                             }
                             if (item.status === EFileStatus.success) {
-                              return <span class='cancel-btn'>{this.t('上传成功')}</span>;
+                              return <span class='cancel-btn success'>{this.t('上传成功')}</span>;
                             }
                             if (item.status === EFileStatus.failure) {
-                              return <span class='cancel-btn'>{this.t('上传失败')}</span>;
+                              return <span class='cancel-btn failure'>{this.t('上传失败')}</span>;
                             }
                           })()}
                         </div>
