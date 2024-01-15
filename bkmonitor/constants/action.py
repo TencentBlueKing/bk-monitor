@@ -825,7 +825,7 @@ ASSIGN_CONDITION_KEYS = {
     "alert.strategy_id": _lazy("策略"),
     "alert.name": _lazy("告警名称"),
     "alert.metric": _lazy("指标"),
-    "alert.labels": _lazy("告警标签"),
+    "alert.labels": _lazy("策略标签"),
     "is_empty_users": _lazy("通知人员为空"),
     "notice_users": _lazy("通知人员"),
     "dimensions": _lazy("维度"),
