@@ -29,9 +29,16 @@ import { useI18n } from 'vue-i18n';
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 
-import { listApplicationServices, queryServicesDetail } from '../../../../monitor-api/modules/apm_profile';
+import { listApplicationServices, queryLabels, queryServicesDetail } from '../../../../monitor-api/modules/apm_profile';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { ApplicationList, ConditionType, RetrievalFormData, SearchType, ToolsFormData } from '../typings';
+import {
+  ApplicationList,
+  ConditionType,
+  IConditionItem,
+  RetrievalFormData,
+  SearchType,
+  ToolsFormData
+} from '../typings';
 
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
@@ -106,6 +113,7 @@ export default defineComponent({
       const [appName, serviceName] = val;
       localFormData.server.app_name = appName;
       localFormData.server.service_name = serviceName;
+      getLabelList();
       handleEmitChange();
     }
 
@@ -114,8 +122,8 @@ export default defineComponent({
       if (!localFormData.server.app_name || !localFormData.server.service_name) return;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       selectApplicationData.value = await queryServicesDetail({
-        start_time: start * 1000,
-        end_time: end * 1000,
+        start_time: start * 1000 * 1000,
+        end_time: end * 1000 * 1000,
         app_name: localFormData.server.app_name,
         service_name: localFormData.server.service_name
       }).catch(() => ({}));
@@ -131,6 +139,7 @@ export default defineComponent({
       handleEmitChange();
     }
 
+    const labelList = ref<string[]>([]);
     /**
      * 添加条件
      * @param type 条件类型
@@ -157,7 +166,7 @@ export default defineComponent({
      * @param index 条件索引
      * @param type 条件类型
      */
-    function handleConditionChange(val, index, type: ConditionType) {
+    function handleConditionChange(val: IConditionItem, index: number, type: ConditionType) {
       if (type === ConditionType.Where) {
         localFormData.where[index] = val;
       } else {
@@ -168,14 +177,28 @@ export default defineComponent({
 
     onMounted(() => {
       getApplicationList();
+      getLabelList();
     });
 
+    /** 获取应用/服务列表 */
     async function getApplicationList() {
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       applicationList.value = await listApplicationServices({
-        start_time: start * 1000,
-        end_time: end * 1000
+        start_time: start * 1000 * 1000,
+        end_time: end * 1000 * 1000
       }).catch(() => ({ normal: [], no_data: [] }));
+    }
+
+    /** 获取过滤项列表 */
+    async function getLabelList() {
+      if (!localFormData.server.app_name || !localFormData.server.service_name) return;
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      labelList.value = await queryLabels({
+        app_name: localFormData.server.app_name,
+        service_name: localFormData.server.service_name,
+        start: start * 1000 * 1000,
+        end: end * 1000 * 1000
+      }).catch(() => ({ label_keys: [] }));
     }
 
     function handleEmitChange() {
@@ -187,6 +210,7 @@ export default defineComponent({
       applicationList,
       localFormData,
       retrievalType,
+      labelList,
       handleTypeChange,
       handleApplicationChange,
       handleDetailClick,
@@ -248,6 +272,7 @@ export default defineComponent({
                 <ConditionItem
                   class='condition-item'
                   data={item}
+                  labelList={this.labelList}
                   onChange={val => this.handleConditionChange(val, index, ConditionType.Where)}
                 />
               ))}
@@ -266,6 +291,7 @@ export default defineComponent({
                   <ConditionItem
                     class='condition-item'
                     data={item}
+                    labelList={this.labelList}
                     onChange={val => this.handleConditionChange(val, index, ConditionType.Comparison)}
                   />
                 ))}
