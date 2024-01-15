@@ -89,6 +89,7 @@ INSTALLED_APPS += (
     "apps.log_desensitize",
     "log_adapter",
     "bkm_search_module",
+    "bk_notice_sdk"
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库

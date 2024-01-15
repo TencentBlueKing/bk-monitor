@@ -36,6 +36,7 @@ from django.conf.urls import include, url
 from django.contrib import admin
 from django.views import static
 from version_log import config
+from bk_notice_sdk import config as notice_config
 
 urlpatterns = [
     url(r"^bklog_manage/", admin.site.urls),
@@ -66,6 +67,7 @@ urlpatterns = [
     url(r"^api/v1/", include("apps.log_measure.urls")),
     url(r"^api/v1/ipchooser/", include("bkm_ipchooser.urls")),
     url(r"^api/v1/search_module/", include("bkm_search_module.urls")),
+    url(r'^{}'.format(notice_config.ENTRANCE_URL), include(('bk_notice_sdk.urls', 'notice'), namespace='notice')),
 ]
 
 if settings.IS_K8S_DEPLOY_MODE:
