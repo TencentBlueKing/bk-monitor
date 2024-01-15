@@ -754,9 +754,9 @@ export default {
     },
     // 由添加条件来修改的过滤条件
     searchAddChange(addObj) {
-      const { addition, isQuery } = addObj;
+      const { addition, isQuery, isForceQuery } = addObj;
       this.retrieveParams.addition = addition;
-      if (isQuery && this.isAutoQuery) this.retrieveLog();
+      if ((isQuery && this.isAutoQuery) || isForceQuery) this.retrieveLog();
     },
     getFieldType(field) {
       const target = this.totalFields.find(item => item.field_name === field);
