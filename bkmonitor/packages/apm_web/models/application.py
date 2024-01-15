@@ -166,6 +166,7 @@ class Application(AbstractRecordModel):
     trace_result_table_id = models.CharField("Trace结果表", max_length=255, default="")
     time_series_group_id = models.IntegerField("时序分组ID", default=0)
     data_status = models.CharField("数据状态", default=DataStatus.NO_DATA, max_length=50)
+    profiling_data_status = models.CharField("Profiling 数据状态", default=DataStatus.NO_DATA, max_length=50)
     source = models.CharField("来源系统", default=get_source_app_code, max_length=32)
     plugin_config = JsonField("log-trace 插件配置", null=True, blank=True)
 
@@ -279,6 +280,8 @@ class Application(AbstractRecordModel):
     def set_data_status(self):
         start_time, end_time = get_datetime_range("minute", self.no_data_period)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+
+        # Step1: 查询 Trace 数据状态
         count = RequestCountInstance(self, start_time, end_time).query_instance()
         if count:
             logger.info(
@@ -287,10 +290,15 @@ class Application(AbstractRecordModel):
             )
 
             self.data_status = DataStatus.NORMAL
-            self.save()
-            return
+        else:
+            self.data_status = DataStatus.NO_DATA
 
-        self.data_status = DataStatus.NO_DATA
+        # Step2: 查询 profile 数据状态
+        from apm_web.profile.doris.querier import QueryTemplate
+
+        profile_has_data = QueryTemplate(self.bk_biz_id, self.app_name).exist_data(start_time, end_time)
+        self.data_status = DataStatus.NORMAL if profile_has_data else DataStatus.NO_DATA
+
         self.save()
 
     @property

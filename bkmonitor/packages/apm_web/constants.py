@@ -97,6 +97,9 @@ class CategoryEnum:
     ALL = "all"
     OTHER = "other"
 
+    # profile 为新的展示类型 只用来展示在 serviceList 无实际作用
+    PROFILING = "profiling"
+
     @classmethod
     def get_label_by_key(cls, key: str):
         return {
