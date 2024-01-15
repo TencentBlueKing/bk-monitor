@@ -58,9 +58,14 @@ interface IProps {
   isFavoriteSearch: boolean;
   isShowUiType: boolean;
   favSearchList: Array<string>;
-  datePickerValue:  Array<any>;
+  datePickerValue: Array<any>;
   fieldAliasMap: object;
   totalFields: Array<any>;
+}
+
+interface ITagFocusInputObj {
+  index?: number;
+  str?: string;
 }
 
 @Component
@@ -94,6 +99,10 @@ export default class SearchComp extends tsc<IProps> {
   conditionList = []; // 条件列表
   isShowFilterOption = false; // 添加条件下拉框是否是展开状态
   aggsItems = []; // 接口返回输入框可选值
+  tagFocusInputObj: ITagFocusInputObj = {
+    index: 0,
+    str: '',
+  };
 
   get isCanUseUiType() { // 判断当前的检索语句生成的键名和操作符是否相同 不相等的话不能切换表单模式
     return this.inputSearchList.some(v => this.favSearchList.includes(v));
@@ -221,8 +230,8 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   @Emit('searchAddChange') // 添加条件检索
-  handleSearchAddChange(addition, isQuery: boolean) {
-    return { addition, isQuery };
+  handleSearchAddChange(addition, isQuery: boolean, isForceQuery: boolean) {
+    return { addition, isQuery, isForceQuery };
   }
 
   @Emit('openIpQuick')
@@ -430,7 +439,9 @@ export default class SearchComp extends tsc<IProps> {
   handleAdditionValueChange(index, additionVal) {
     const { newReplaceObj, isQuery } = additionVal;
     Object.assign(this.conditionList[index], newReplaceObj); // 更新操作符和数据
-    if (this.conditionList[index].isInclude) this.searchAdditionQuery(isQuery); // 操作需要请求且条件为打开时请求
+    if (this.conditionList[index].isInclude && !this.tagFocusInputObj?.str) {
+      this.searchAdditionQuery(isQuery); // 操作需要请求且条件为打开时请求
+    }
     this.setRouteParams();
   }
 
@@ -447,7 +458,7 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   @Debounce(300)
-  searchAdditionQuery(isQuery = true) { // 获得当前开启的字段并且有有效值进行检索
+  searchAdditionQuery(isQuery = true, isForceQuery = false) { // 获得当前开启的字段并且有有效值进行检索
     const addition = this.conditionList
       .filter((item) => {
         if (item.conditionType !== 'filed' || !item.isInclude) return false;
@@ -459,7 +470,7 @@ export default class SearchComp extends tsc<IProps> {
         operator: item.operator,
         value: item.value.join(','),
       }));
-    this.handleSearchAddChange(addition, isQuery);
+    this.handleSearchAddChange(addition, isQuery, isForceQuery);
   }
 
   isExistsOperator(operator: string) { // 是否是包含和不包含
@@ -493,6 +504,16 @@ export default class SearchComp extends tsc<IProps> {
       if (item.conditionType === 'ip-select') return;
       item.valueList = this.aggsItems[item.id] ?? [];
     });
+  }
+
+  tagInputStrChange(index: number, str: string) {
+    this.tagFocusInputObj = str ? { index, str } : {};
+  }
+
+  handleClickRequestBtn() {
+    const { index, str } = this.tagFocusInputObj;
+    if (str) this.conditionList[index].value.push(str); // 更新操作符和数据
+    this.searchAdditionQuery(true, true);
   }
 
   render() {
@@ -550,6 +571,7 @@ export default class SearchComp extends tsc<IProps> {
             onAdditionValueChange={additionVal => this.handleAdditionValueChange(index, additionVal)}
             onFiledChange={v => this.handleFiledChange(index, v)}
             onIpChange={() => this.handleOpenIpQuick()}
+            onInputChange={v => this.tagInputStrChange(index, v)}
             style='margin-bottom: 16px;'
           />)
         }
@@ -598,7 +620,7 @@ export default class SearchComp extends tsc<IProps> {
           visibleFields={this.visibleFields}
           indexSetList={this.indexSetList}
           isSqlSearchType={this.isSqlSearchType}
-          onRetrieveLog={this.handleRetrieveLog}
+          onRetrieveLog={this.handleClickRequestBtn}
           onClearCondition={this.handleClearCondition}/>
       </div>
     );
