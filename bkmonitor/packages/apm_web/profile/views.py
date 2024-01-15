@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 import datetime
 import hashlib
 import logging
-from collections import defaultdict
 from typing import Optional, Tuple, Union
 
 from django.utils import timezone
@@ -157,7 +156,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         start: int,
         end: int,
         result_table_id: str,
-        label_key: Optional[str] = None,
+        extra_params: Optional[dict] = None,
         api_type: APIType = APIType.QUERY_SAMPLE,
         profile_id: Optional[str] = None,
         filter_labels: Optional[dict] = None,
@@ -166,15 +165,22 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         """
         获取 profile 数据
         """
-        if api_type.value == APIType.LABEL_VALUES and label_key is None:
+        if api_type.value == APIType.LABEL_VALUES and "label_key" not in extra_params:
             raise ValueError(_("查询 label values 时 label_key 不能为空"))
 
-        extra_params = defaultdict(dict)
+        filter_labels = filter_labels or {}
+        extra_params = extra_params or {}
         for k, v in filter_labels.items():
-            extra_params["label_filter"][k] = v
+            if "label_filter" not in extra_params:
+                extra_params["label_filter"] = {k: v}
+            else:
+                extra_params["label_filter"][k] = v
 
         if profile_id:
             extra_params["label_filter"]["profile_id"] = profile_id
+
+        if api_type.value == APIType.LABEL_VALUES:
+            extra_params["label_key"] = label_key  # noqa
 
         q = Query(
             api_type=api_type,
@@ -189,8 +195,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             ),
             result_table_id=result_table_id,
         )
-        if q.api_type.value == APIType.LABEL_VALUES:
-            q.api_params.label_key = label_key
 
         r = q.execute()
 
@@ -335,6 +339,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         bk_biz_id = validated_data["bk_biz_id"]
         app_name = validated_data["app_name"]
+        offset, rows = validated_data["offset"], validated_data["rows"]
         service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
         application_info = self._examine_application(bk_biz_id, app_name)
         start, end = self._enlarge_duration(
@@ -346,14 +351,18 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             bk_biz_id=validated_data["bk_biz_id"],
             service_name=service_name,
             data_type=validated_data["data_type"],
-            label_key=validated_data["label_key"],
+            extra_params={
+                "label_key": validated_data["label_key"],
+                "limit": {"offset": offset, "rows": rows},
+            },
             result_table_id=application_info["profiling_config"]["result_table_id"],
             start=start,
             end=end,
             converted=False,
         )
 
-        label_values = [label["label_value"] for label in results["list"]]
+        # TODO: offset/limit not working in bkbase now, handle it manually
+        label_values = [label["label_value"] for label in results["list"][offset * rows : (offset + 1) * rows]]
         return Response(data={"label_values": label_values})
 
 
