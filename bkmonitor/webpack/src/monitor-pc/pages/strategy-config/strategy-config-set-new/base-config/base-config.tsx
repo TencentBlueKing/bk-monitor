@@ -185,10 +185,6 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     };
   }
 
-  handleBaseConfigPriorityInput(value) {
-    this.errorsMsg.priority = value < 0 || value > 10000 ? this.$tc('优先级应为 0 - 10000 之间的整数') : '';
-  }
-
   render() {
     return (
       <div class='base-config'>
@@ -287,7 +283,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
               maxlength={5}
               minlength={1}
               readonly={this.readonly}
-              on-input={v => this.handleBaseConfigPriorityInput(v)}
+              on-input={() => (this.errorsMsg.priority = '')}
               on-change={this.handleBaseConfigChange}
             />
           </ErrorMsg>

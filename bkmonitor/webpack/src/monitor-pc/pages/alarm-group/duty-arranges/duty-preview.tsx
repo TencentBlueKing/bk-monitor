@@ -240,8 +240,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
                           content: r.time,
                           theme: 'light',
                           placement: 'top',
-                          extCls: 'duty-preview-component-leisure-tip',
-                          allowHTML: false
+                          extCls: 'duty-preview-component-leisure-tip'
                         }}
                       ></div>
                     ))}

@@ -96,8 +96,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
               content: item?.tip,
               placement: 'top',
               boundary: 'window',
-              disabled: !Boolean(item?.tip),
-              allowHTML: false
+              disabled: !Boolean(item?.tip)
             }}
           >
             <Button

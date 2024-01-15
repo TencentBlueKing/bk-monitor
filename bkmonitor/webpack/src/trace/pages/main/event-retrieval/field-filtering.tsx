@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType, reactive, ref, toRefs, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { Exception } from 'bkui-vue';
 
 import { deepClone } from '../../../../monitor-common/utils/utils';
@@ -63,7 +62,6 @@ export default defineComponent({
   props: IProps,
   emits: ['addCondition', 'change'],
   setup(props, { emit }) {
-    const { t } = useI18n();
     const store = useTraceStore();
     const localValue = ref<TraceFieldValue[]>([]);
     const statusCodes = reactive<TraceFieldValue>({
@@ -71,7 +69,7 @@ export default defineComponent({
       key: 'statusCodes',
       // field: 'status.code',
       field: 'root_service_status_code',
-      fieldName: t('状态码'),
+      fieldName: window.i18n.t('状态码'),
       list_key: 'root_service_status_code'
     });
     const rootService = reactive<TraceFieldValue>({
@@ -79,7 +77,7 @@ export default defineComponent({
       key: 'rootService',
       // field: 'resource.service.name',
       field: 'root_service',
-      fieldName: t('入口服务'),
+      fieldName: window.i18n.t('入口服务'),
       list_key: 'root_service'
     });
     const rootEndpoint = reactive<TraceFieldValue>({
@@ -87,7 +85,7 @@ export default defineComponent({
       key: 'rootEndpoint',
       // field: 'span_name',
       field: 'root_span_name',
-      fieldName: t('入口接口'),
+      fieldName: window.i18n.t('入口接口'),
       list_key: 'root_span_name'
     });
     const category = reactive<TraceFieldValue>({
@@ -95,7 +93,7 @@ export default defineComponent({
       key: 'category',
       // field: 'kind',
       field: 'root_service_category',
-      fieldName: t('调用类型'),
+      fieldName: window.i18n.t('调用类型'),
       list_key: 'root_service_category'
     });
 
@@ -103,28 +101,28 @@ export default defineComponent({
       ...FIELD_VALUE_BASE_INFO,
       key: 'service.name',
       field: 'resource.service.name',
-      fieldName: t('所属服务'),
+      fieldName: window.i18n.t('所属服务'),
       list_key: 'service.name'
     });
     const spanName = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'span_name',
       field: 'span_name',
-      fieldName: t('Span 名称'),
+      fieldName: window.i18n.t('Span 名称'),
       list_key: 'span_name'
     });
     const statusCode = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'status',
       field: 'status.code',
-      fieldName: t('状态码'),
+      fieldName: window.i18n.t('状态码'),
       list_key: 'status'
     });
     const kind = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'kind',
       field: 'kind',
-      fieldName: t('调用类型'),
+      fieldName: window.i18n.t('调用类型'),
       list_key: 'kind'
     });
 
@@ -132,21 +130,21 @@ export default defineComponent({
       ...FIELD_VALUE_BASE_INFO,
       key: 'kind',
       field: 'kind',
-      fieldName: t('接口类型'),
+      fieldName: window.i18n.t('接口类型'),
       list_key: 'kind'
     });
     const interfaceName = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'span_name',
       field: 'span_name',
-      fieldName: t('接口名'),
+      fieldName: window.i18n.t('接口名'),
       list_key: 'span_name'
     });
     const interfaceServiceName = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'service_name',
       field: 'resource.service.name',
-      fieldName: t('所属Service'),
+      fieldName: window.i18n.t('所属Service'),
       list_key: 'service_name'
     });
 
@@ -161,7 +159,7 @@ export default defineComponent({
       ...FIELD_VALUE_BASE_INFO,
       key: 'kind',
       field: 'kind',
-      fieldName: t('服务类型'),
+      fieldName: window.i18n.t('服务类型'),
       list_key: 'kind'
     });
 

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from django.utils import translation
 from django.utils.functional import cached_property
+from monitor_web.statistics.v2.base import BaseCollector
 
 from bkmonitor.models import (
     MetricListCache,
@@ -21,7 +22,6 @@ from constants.alert import EVENT_SEVERITY_DICT
 from constants.data_source import DataSourceLabel
 from core.drf_resource import resource
 from core.statistics.metric import Metric, register
-from monitor_web.statistics.v2.base import BaseCollector
 
 
 class StrategyCollector(BaseCollector):
@@ -75,11 +75,8 @@ class StrategyCollector(BaseCollector):
                 "1" if strategy_config["notice"]["options"]["converge_config"].get("need_biz_converge") else "0"
             )
             use_action = "1" if strategy_config["id"] in use_action_strategy_ids else "0"
-            try:
-                item = strategy_config["items"][0]
-                query_config = item["query_configs"][0]
-            except IndexError:
-                continue
+            item = strategy_config["items"][0]
+            query_config = item["query_configs"][0]
             status = "enabled" if strategy_config["is_enabled"] else "disabled"
             invalid_type = strategy_config.get("invalid_type")
             metric.labels(
@@ -128,11 +125,8 @@ class StrategyCollector(BaseCollector):
             )
             fta_metric_plugins[metric_key] = fta_metric.extend_fields.get("plugin_ids", [])
         for strategy_config in self.strategy_configs_list:
-            try:
-                item = strategy_config["items"][0]
-                query_config = item["query_configs"][0]
-            except IndexError:
-                continue
+            item = strategy_config["items"][0]
+            query_config = item["query_configs"][0]
 
             if query_config["data_source_label"] != DataSourceLabel.BK_FTA:
                 continue

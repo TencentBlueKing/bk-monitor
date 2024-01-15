@@ -12,11 +12,15 @@ import fnmatch
 import logging
 import os
 import typing
+from typing import List
 
 from blueapps.conf import settings
 
+from apm_ebpf.constants import DeepflowComp
+from apm_ebpf.handlers.deepflow import DeepflowHandler
 from bk_dataview.provisioning import Dashboard, Datasource, SimpleProvisioning
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.utils.cache import CacheType, using_cache
 from core.drf_resource import api
 from monitor_web.grafana.utils import patch_home_panels
 
@@ -24,31 +28,21 @@ logger = logging.getLogger(__name__)
 
 
 class ApmEbpfProvisioning(SimpleProvisioning):
-    """
-    APM EBPF仪表盘创建
-    此Provisioning没有注册在PROVISIONING_CLASSES中的原因是
-    因为如果访问时才创建的话
-    那么多个用户同时访问仪表盘页面时会出现并发问题导致仪表盘创建了(API无异常)但没有显示到页面的Bug
-    所以实际创建逻辑在apm_ebpf定时任务后
-    写在这里的原因是防止代码分散
-    """
-
     _FOLDER_NAME = "eBPF"
     # eBPF的仪表盘模版插件Id 需要与apm_ebpf/*.json文件下__inputs.pluginId一致
     _TEMPLATE_PLUGIN_ID = "deepflowio-deepflow-datasource"
 
-    @classmethod
-    def convert_to_datasource(cls, datasources, _type):
-        """
-        将APM发现的有效数据源转换为Grafana处定义的数据源格式
-        """
-
+    @using_cache(CacheType.GRAFANA)
+    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
         res = []
+        # 增加EBPF数据源
+        datasources = DeepflowHandler(org_name).list_datasources()
+
         for datasource in datasources:
             res.append(
                 Datasource(
                     name=datasource.name,
-                    type=_type,
+                    type=DeepflowComp.GRAFANA_DATASOURCE_TYPE_NAME,
                     url="",
                     access="proxy",
                     withCredentials=False,
@@ -58,8 +52,23 @@ class ApmEbpfProvisioning(SimpleProvisioning):
 
         return res
 
-    @classmethod
-    def get_dashboard_mapping(cls, _):
+    def dashboards(self, request, org_name: str, org_id: int):
+        """
+        注册默认仪表盘
+        @ApmEbpfProvisioning返回空列表 不走外层sync_dashboards逻辑
+        注册仪表盘操作在@method: self.upsert_dashboards里完成
+        """
+        if not DeepflowHandler(org_name).list_datasources():
+            yield from []
+
+        # 接入APM EBPF仪表盘
+        dashboard_mapping = self.get_dashboard_mapping(org_name)
+
+        self.upsert_dashboards(org_id, org_name, dashboard_mapping)
+
+        yield from []
+
+    def get_dashboard_mapping(self, _):
         """
         获取此业务下所有的默认仪表盘
         """

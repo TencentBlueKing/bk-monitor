@@ -93,8 +93,6 @@ export interface IEventItem {
   shield_operator?: string[];
   ack_operator?: string;
   failure_type?: string;
-  follower?: string[];
-  followerDisabled?: boolean;
 }
 
 export interface IPagination {

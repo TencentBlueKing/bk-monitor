@@ -108,7 +108,7 @@ export default class HttpUrlInput extends tsc<
             />
             {this.isError && (
               <i
-                v-bk-tooltips={{ content: this.errorTips, allowHTML: false }}
+                v-bk-tooltips={{ content: this.errorTips }}
                 class='bk-icon icon-exclamation-circle-shape terror-tips-icon'
               />
             )}

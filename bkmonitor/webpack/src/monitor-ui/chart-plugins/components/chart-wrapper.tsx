@@ -539,8 +539,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             v-bk-tooltips={{
               content: this.errorMsg,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start',
-              allowHTML: false
+              placement: 'top-start'
             }}
           ></span>
         )}

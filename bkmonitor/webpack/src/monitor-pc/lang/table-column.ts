@@ -137,12 +137,5 @@ export default {
   发送结果: 'Send Result',
   通知渠道: 'Notification Channel',
   接收人: 'Recipient',
-  变量说明: 'Variable Description',
-
-  关联告警组: 'Related Alarm Group',
-  设计值班时间: 'Design Duty Time',
-  设置轮值规则: 'Set Rotation Rules',
-  添加轮值人员: 'Add Rotation Members',
-  告警: 'Alarm',
-  关注人: 'Follower'
+  变量说明: 'Variable Description'
 };

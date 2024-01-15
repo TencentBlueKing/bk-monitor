@@ -617,9 +617,5 @@ export default {
   观测场景: 'Observations',
   选择时间范围: 'Select Time Range',
   '{0}-日志聚类统计报表-{1}': '{0}-Log clustering statistics report-{1}',
-  请至少选择一种订阅方式: 'Please select at least one subscription method',
-  添加到本次检索: 'Add to this search',
-  从本次检索中排除: 'Exclude from this search',
-  当前显示全部字段: 'Currently showing all fields',
-  显示全部字段: 'Currently showing all fields'
+  请至少选择一种订阅方式: 'Please select at least one subscription method'
 };

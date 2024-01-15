@@ -71,8 +71,6 @@ export interface IDetail {
   category?: string;
   assignee?: string[];
   stage_display?: string; // 处理阶段
-  appointee?: string[];
-  follower?: string[];
 }
 
 export const setBizIdToPanel = (panels, bkBizId) =>

@@ -152,15 +152,11 @@ class BaseSender(object):
         """
         notice_result = {}
         message = api_result.get("message", "")
-        msg_id = api_result.get("data", {}).get("msg_id")
-        if msg_id:
-            # 记录msg_id信息
-            message = f"{message} msg_id: {msg_id}"
         for notice_receiver in notice_receivers:
             if notice_receiver in api_result["username_check"]["invalid"]:
-                notice_result[notice_receiver] = {"message": message, "result": False, "msg_id": msg_id}
+                notice_result[notice_receiver] = {"message": message, "result": False}
             else:
-                notice_result[notice_receiver] = {"message": message, "result": True, "msg_id": msg_id}
+                notice_result[notice_receiver] = {"message": message, "result": True}
         return notice_result
 
     @classmethod

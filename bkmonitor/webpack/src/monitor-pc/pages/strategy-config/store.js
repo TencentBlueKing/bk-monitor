@@ -187,8 +187,7 @@ export default class TableStore {
         mealTips,
         configSource: item.config_source,
         app: item.app,
-        shieldAlertCount: item.shield_alert_count || 0,
-        editAllowed: !!item?.edit_allowed
+        shieldAlertCount: item.shield_alert_count || 0
       });
       i += 1;
     }

@@ -262,10 +262,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     }
   }
   handleResetChecked() {
-    if (this.$store.getters.bizIdChangePedding) {
-      const list = this.$store.getters.bizIdChangePedding?.split('/') || [];
-      this.checked = list.length < 2 ? GRAFANA_HOME_ID : list[2] || GRAFANA_HOME_ID;
-    } else if (this.$route.name === 'grafana-home') {
+    if (this.$route.name === 'grafana-home' || this.$store.getters.bizIdChangePedding) {
       this.checked = GRAFANA_HOME_ID;
     } else if (this.$route.name === 'favorite-dashboard') {
       this.checked = this.$route.params?.url || '';
@@ -739,8 +736,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 <span
                   v-bk-tooltips={{
                     content: item.tips,
-                    extCls: 'garfana-link-tips',
-                    allowHTML: false
+                    extCls: 'garfana-link-tips'
                   }}
                   class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}

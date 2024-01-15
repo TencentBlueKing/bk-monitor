@@ -389,7 +389,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           <label class='form-item-label'>
             <span
               class={{ 'tooltip-text': this.tooltips.length }}
-              v-bk-tooltips={{ content: this.tooltips, disabled: !this.tooltips.length, allowHTML: false }}
+              v-bk-tooltips={{ content: this.tooltips, disabled: !this.tooltips.length }}
             >
               {this.label}
             </span>

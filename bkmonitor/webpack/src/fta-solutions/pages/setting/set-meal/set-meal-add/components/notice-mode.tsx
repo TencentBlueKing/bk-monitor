@@ -25,9 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox, Option, Select } from 'bk-magic-vue';
-
-import AutoHeightTextarea from './auto-height-textarea';
+import { Checkbox, Input, Option, Select } from 'bk-magic-vue';
 
 import './notice-mode.scss';
 
@@ -134,7 +132,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
               // bkchat的情况还要判断数据里的值是否已过期
               // 根据值是否存在bkchatlist里来判断过期
               const newReceivers = [];
-              ways.receivers?.forEach(receiver => {
+              ways.receivers.forEach(receiver => {
                 const filter = this.bkchatList.find(bkchat => bkchat.id === receiver);
                 filter && newReceivers.push(filter.id);
               });
@@ -167,7 +165,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
         }
         return {
           name: set.type,
-          checked: !!config[key]?.notice_ways?.map(item => item.name).includes(set.type)
+          checked: config[key].notice_ways.map(item => item.name).includes(set.type)
         };
       });
       tableData.push({
@@ -262,8 +260,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               content: item.tip,
                               boundary: 'window',
                               placements: ['top'],
-                              width: item.width,
-                              allowHTML: false
+                              width: item.width
                             }}
                           ></i>
                         ) : undefined}
@@ -316,23 +313,15 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                             {this.readonly ? (
                               <span>{notice.receivers}</span>
                             ) : (
-                              <AutoHeightTextarea
+                              <Input
                                 v-model={notice.receivers}
-                                placeholder={this.$tc('输入群ID')}
+                                placeholder={this.$t('输入群ID')}
+                                type='textarea'
                                 on-change={v => {
                                   notice.checked = !!v;
                                   this.handleParams();
                                 }}
-                              ></AutoHeightTextarea>
-                              // <Input
-                              //   v-model={notice.receivers}
-                              //   placeholder={this.$t('输入群ID')}
-                              //   type='textarea'
-                              //   on-change={v => {
-                              //     notice.checked = !!v;
-                              //     this.handleParams();
-                              //   }}
-                              // ></Input>
+                              ></Input>
                             )}
                           </div>
                         )}

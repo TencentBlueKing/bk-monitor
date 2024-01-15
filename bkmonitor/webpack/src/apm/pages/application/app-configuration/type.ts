@@ -37,19 +37,9 @@ export interface IApdexConfig {
   apdex_messaging: number;
 }
 
-export interface ISamplingRule {
-  key: string;
-  method: string;
-  value: any;
-  key_alias: string;
-  condition?: string;
-  type: string;
-}
-
 export interface IApplicationSamplerConfig {
   sampler_type: string;
-  sampler_percentage?: number;
-  tail_conditions: ISamplingRule[];
+  sampler_percentage: number;
 }
 
 export interface IApplicationInstanceNameConfig {

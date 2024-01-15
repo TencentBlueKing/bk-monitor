@@ -308,7 +308,7 @@ class EndpointErrorRateTopNHandler(TopNHandler):
                 {
                     "name": self.JOIN_CHAR.join(keys),
                     "value": rate,
-                    "unit": "%",
+                    "unit": _("%"),
                     "total": 100,  # present
                     "target": "event",
                     "type": "link",

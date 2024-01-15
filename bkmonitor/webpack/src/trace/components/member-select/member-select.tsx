@@ -47,7 +47,7 @@ export interface TagItemModel {
   type: 'group' | 'user';
 }
 
-type FilterMethod = (list: TagItemModel[], val: string) => TagItemModel[];
+type FilterMethod = (list: TagItemModel[]) => TagItemModel[];
 
 export default defineComponent({
   name: 'MemberSelect',
@@ -75,10 +75,6 @@ export default defineComponent({
     placeholder: {
       type: String,
       default: ''
-    },
-    tagTpl: {
-      type: Function as PropType<(item: TagItemModel, index: number) => JSX.Element | JSX.Element[]>,
-      default: undefined
     }
   },
   emits: ['update:modelValue', 'change', 'selectEnd', 'drop'],
@@ -195,7 +191,7 @@ export default defineComponent({
         tags.splice(0, tags.length, ...val);
         setUserMap(tags);
       },
-      { immediate: true, deep: true }
+      { immediate: true }
     );
 
     /** 点击容器，把输入框显示在最后 */
@@ -234,7 +230,6 @@ export default defineComponent({
     /** 根据不同的显示方式类型渲染tag */
     function renderTagItemContent(name: string, ind: number) {
       const tag = userAndGroupMap.get(name);
-      if (props.tagTpl) return props.tagTpl(tag, ind);
       if (props.showType === 'avatar') {
         return [renderUserLogo(tag), <span class='user-name'>{tag?.username}</span>];
       }
@@ -266,8 +261,7 @@ export default defineComponent({
       const tag = tags[startIndex];
       tags.splice(startIndex, 1);
       tags.splice(index, 0, tag);
-      handleEmitData();
-      emit('drop', startIndex, index);
+      emit('drop');
     }
 
     // --------------输入框--------------
@@ -359,9 +353,9 @@ export default defineComponent({
     /** 弹窗选择列表 */
     const selectList = computed<TagItemModel[]>(() => {
       if (props.filterMethod) {
-        return props.filterMethod([...userAndGroupList.group, ...userAndGroupList.user], inputValue.value);
+        return props.filterMethod([...userAndGroupList.group, ...userAndGroupList.user]);
       }
-      return inputValue.value ? userAndGroupList.user : [...userAndGroupList.group, ...userAndGroupList.user];
+      return inputValue.value ? userAndGroupList.user : userAndGroupList.group;
     });
     function handleAfterHidden({ isShow }) {
       popoverShow.value = isShow;

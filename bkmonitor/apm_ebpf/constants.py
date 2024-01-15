@@ -13,9 +13,9 @@ from django.utils.translation import ugettext_lazy as _
 
 
 class WorkloadType(TextChoices):
-    DEPLOYMENT = "deployment", "deployment"
+    DEPLOYMENT = "deployment", _("deployment")
 
-    SERVICE = "service", "service"
+    SERVICE = "service", _("service")
 
 
 class DeepflowComp:

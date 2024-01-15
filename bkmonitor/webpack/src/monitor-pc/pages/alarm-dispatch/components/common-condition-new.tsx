@@ -1222,8 +1222,7 @@ export default class CommonCondition extends tsc<IProps> {
             class='err-tag'
             v-bk-tooltips={{
               content: this.errorMsg,
-              placements: ['top'],
-              allowHTML: false
+              placements: ['top']
             }}
           >
             <span class='icon-monitor icon-mind-fill'></span>
@@ -1258,8 +1257,7 @@ export default class CommonCondition extends tsc<IProps> {
                         v-bk-tooltips={{
                           content: tag.id,
                           placements: ['top'],
-                          delay: [500, 0],
-                          allowHTML: false
+                          delay: [500, 0]
                         }}
                         onClick={e => this.handleClickKeyTag(e, index, tagIndex)}
                       >
@@ -1275,8 +1273,7 @@ export default class CommonCondition extends tsc<IProps> {
                         v-bk-tooltips={{
                           content: tag.id,
                           placements: ['top'],
-                          delay: [500, 0],
-                          allowHTML: false
+                          delay: [500, 0]
                         }}
                         onClick={e => this.handleClickTagMethod(e, index, tagIndex)}
                       >
@@ -1292,8 +1289,7 @@ export default class CommonCondition extends tsc<IProps> {
                         v-bk-tooltips={{
                           content: tag.id,
                           placements: ['top'],
-                          delay: [500, 0],
-                          allowHTML: false
+                          delay: [500, 0]
                         }}
                         onClick={e => this.handleClickTagValue(e, index, tagIndex)}
                       >
@@ -1423,8 +1419,7 @@ export default class CommonCondition extends tsc<IProps> {
                       v-bk-tooltips={{
                         content: item.id,
                         placements: ['right'],
-                        delay: [300, 0],
-                        allowHTML: false
+                        delay: [300, 0]
                       }}
                       onMousedown={() =>
                         this.selectType === TypeEnum.method
@@ -1452,8 +1447,7 @@ export default class CommonCondition extends tsc<IProps> {
                             content: item.id,
                             placements: ['right'],
                             delay: [300, 0],
-                            disabled: !item.id,
-                            allowHTML: false
+                            disabled: !item.id
                           }}
                           onMousedown={() => this.handleSelectValue(item)}
                         >
@@ -1477,8 +1471,7 @@ export default class CommonCondition extends tsc<IProps> {
                           content: item.id,
                           placements: ['right'],
                           delay: [300, 0],
-                          disabled: !item.id,
-                          allowHTML: false
+                          disabled: !item.id
                         }}
                         onMousedown={() => this.handleSelectValue(item)}
                       >
@@ -1528,8 +1521,7 @@ export default class CommonCondition extends tsc<IProps> {
                       v-bk-tooltips={{
                         content: item.id,
                         placements: ['right'],
-                        delay: [300, 0],
-                        allowHTML: false
+                        delay: [300, 0]
                       }}
                     >
                       <span>{item.name}</span>

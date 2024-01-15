@@ -239,11 +239,9 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
-      this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
-      this.compareValue.tools.timeRange = value;
-      this.showRestore = true;
-    }
+    this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
+    this.compareValue.tools.timeRange = value;
+    this.showRestore = true;
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {

@@ -671,8 +671,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
             style='display: inline-block;'
             v-bk-tooltips={{
               content: this.$t('关联告警需选择多个'),
-              disabled: this.isCanAdd,
-              allowHTML: false
+              disabled: this.isCanAdd
             }}
           >
             <Button

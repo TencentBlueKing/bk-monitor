@@ -271,8 +271,7 @@ class ResourceChart extends CommonSimpleChart {
                     content: item.tips,
                     showOnInit: false,
                     trigger: 'mouseenter',
-                    placements: ['top'],
-                    allowHTML: false
+                    placements: ['top']
                   }}
                 />
               )}

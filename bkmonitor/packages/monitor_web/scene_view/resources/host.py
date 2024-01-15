@@ -54,13 +54,18 @@ class GetHostProcessPortStatusResource(Resource):
         else:
             ip, bk_cloud_id = params["bk_target_ip"], params["bk_target_cloud_id"]
 
-        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        promql_statement = f"system:proc_port:proc_exists{{bk_target_ip='{ip}', " \
-                           f"display_name='{params['display_name']}', bk_cloud_id='{bk_cloud_id}'}}"
-        query_config = {"promql": promql_statement, "interval": 60}
-        data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
-        query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
-        data: List = query.query_data(limit=1, slimit=1)
+        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+        data_source = data_source_class(
+            table=f"{params['bk_biz_id']}_{settings.PROC_PORT_TABLE_NAME}",
+            metrics=[{"field": "*"}],
+            filter_dict={
+                "display_name": params["display_name"],
+                "ip": ip,
+                "bk_cloud_id": str(bk_cloud_id),
+            },
+            group_by=[],
+        )
+        data: List = data_source.query_data(limit=1, slimit=1)
         if not data:
             return []
         else:
@@ -207,12 +212,12 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 },
                 "children": [
                     {
-                        "name": "IPv4",
+                        "name": _("IPv4"),
                         "type": "string",
                         "value": host.bk_host_innerip,
                     },
                     {
-                        "name": "IPv6",
+                        "name": _("IPv6"),
                         "type": "string",
                         "value": host.bk_host_innerip_v6,
                     },
@@ -226,12 +231,12 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 "need_copy": bool(host.bk_host_outerip),
                 "children": [
                     {
-                        "name": "IPv4",
+                        "name": _("IPv4"),
                         "type": "string",
                         "value": host.bk_host_outerip,
                     },
                     {
-                        "name": "IPv6",
+                        "name": _("IPv6"),
                         "type": "string",
                         "value": host.bk_host_outerip_v6,
                     },
@@ -265,11 +270,11 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                     },
                 ],
             },
-            {"name": "CPU", "type": "string", "value": str(getattr(host, "bk_cpu", ""))},
+            {"name": _("CPU"), "type": "string", "value": str(getattr(host, "bk_cpu", ""))},
             {"name": _("内存容量(MB)"), "type": "string", "value": str(getattr(host, "bk_mem", ""))},
             {"name": _("磁盘容量(GB)"), "type": "string", "value": str(getattr(host, "bk_disk", ""))},
             {
-                "name": "Docker",
+                "name": _("Docker"),
                 "type": "string",
                 "value": docker_info,
                 "count": 2,
@@ -408,7 +413,7 @@ class GetHostProcessListResource(Resource):
             if not attrs.get("bk_host_id") and (
                 not attrs.get("bk_target_ip") or attrs.get("bk_target_cloud_id") is None
             ):
-                raise ValidationError("bk_host_id or bk_target_ip and bk_target_cloud_id must be provided")
+                raise ValidationError(_("bk_host_id or bk_target_ip and bk_target_cloud_id must be provided"))
             return attrs
 
     def perform_request(self, params):

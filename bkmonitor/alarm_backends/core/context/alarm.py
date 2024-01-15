@@ -12,7 +12,7 @@ import base64
 import copy
 import json
 import logging
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
 from django.utils.functional import cached_property
@@ -215,7 +215,6 @@ class Alarm(BaseContextObject):
 
         # 拓扑维度特殊处理
         display_dimensions = copy.deepcopy(self.display_dimensions)
-
         dimension_string_list = []
         if self.parent.alert.agg_dimensions:
             # 当存在agg_dimensions的顺序列表是，直接使用
@@ -427,31 +426,35 @@ class Alarm(BaseContextObject):
         )
 
     @cached_property
-    def operate_allowed(self):
-        """
-        是否允许操作
-        """
-        if self.parent.is_external_channel or self.parent.followed:
-            # 如果有channel信息，并且不是内部渠道，直接忽略链接
-            # 如果有关注人，也不出现
-            return False
-        return True
-
-    @cached_property
     def quick_ack_url(self):
-        if self.operate_allowed:
-            return f"{self.detail_url}&batchAction=ack"
-        return None
+        if self.parent.is_external_channel:
+            # 如果有channel信息，并且不是内部渠道，直接忽略链接
+            return None
+        return f"{self.detail_url}&batchAction=ack"
 
     @cached_property
     def quick_shield_url(self):
-        if not self.operate_allowed:
+        if self.parent.is_external_channel:
             # 如果有channel信息，并且不是内部渠道，直接忽略链接
             return None
         if self.collect_count > 1:
             # 当有汇总的告警多余1个的时候，直接返回空
             return None
         return f"{self.detail_url}&batchAction=shield"
+
+    @cached_property
+    def quick_action_path(self):
+        monitor_host = settings.BK_MONITOR_HOST
+        if getattr(self.parent, "notice_way", None) in settings.ALARM_MOBILE_NOTICE_WAY and settings.ALARM_MOBILE_URL:
+            mobile_host = urlparse(settings.ALARM_MOBILE_URL)
+            if urlparse(monitor_host).hostname != mobile_host.hostname:
+                # 如果域名不一致，则认为是微信端的独立域名
+                monitor_host = "{}://{}".format(mobile_host.scheme, mobile_host.hostname)
+            else:
+                monitor_host = urljoin(monitor_host, "weixin/")
+            return urljoin(monitor_host, "rest/v1/event/")
+        else:
+            return urljoin(monitor_host, "fta/alert/")
 
     @cached_property
     def notice_from(self):
@@ -708,24 +711,6 @@ class Alarm(BaseContextObject):
         return ",".join(self.parent.alert.assignee)
 
     @cached_property
-    def receivers(self):
-        """
-        通知人列表
-        """
-        if not self.parent.alert:
-            return []
-        return self.parent.alert.assignee or []
-
-    @cached_property
-    def appointees(self):
-        """
-        负责人列表
-        """
-        if not self.parent.alert:
-            return []
-        return self.parent.alert.appointee or []
-
-    @cached_property
     def ack_operator(self):
         if not self.parent.alert:
             return ""
@@ -775,9 +760,8 @@ class Alarm(BaseContextObject):
     @cached_property
     def assign_detail(self):
         if not self.latest_assign_group:
-            # 最近一次没有的话，表示没有命中分派
             return None
-        route_path = base64.b64encode(f"#/alarm-dispatch?group_id={self.latest_assign_group}".encode("utf8")).decode(
+        route_path = base64.b64encode(f"#/alarm-dispatch-config/{self.latest_assign_group}".encode("utf8")).decode(
             "utf8"
         )
         return urljoin(

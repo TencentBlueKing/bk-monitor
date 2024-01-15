@@ -54,7 +54,7 @@ DATA_CATEGORY = [
     },
     {
         "type": "prometheus_time_series",
-        "name": "Prometheus",
+        "name": _lazy("Prometheus"),
         "data_type_label": DataTypeLabel.TIME_SERIES,
         "data_source_label": DataSourceLabel.PROMETHEUS,
     },
@@ -126,7 +126,7 @@ DATA_CATEGORY = [
     },
     {
         "type": "bk_apm_trace",
-        "name": "Trace",
+        "name": _lazy("Trace"),
         "data_type_label": DataTypeLabel.LOG,
         "data_source_label": DataSourceLabel.BK_APM,
     },

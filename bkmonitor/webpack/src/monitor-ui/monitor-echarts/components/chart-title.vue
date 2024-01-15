@@ -146,8 +146,7 @@ export default class ChartTitle extends Vue {
       content,
       showOnInit: false,
       trigger: 'mouseenter',
-      placements: ['top'],
-      allowHTML: false
+      placements: ['top']
     };
   }
   get hasMetric() {
@@ -259,33 +258,33 @@ export default class ChartTitle extends Vue {
 $alarmColor: #dcdee5 #63656e #ea3636;
 
 .title-wrapper {
-  flex: 1;
   width: 100%;
+  flex: 1;
 
   .chart-title {
     padding: 5px 10px;
     margin-left: -10px;
-    font-size: 12px;
+    border-radius: 2px;
     // background-color: white;
     color: #63656e;
-    border-radius: 2px;
+    font-size: 12px;
 
     .main-title {
-      display: flex;
-      flex-wrap: nowrap;
-      align-items: center;
       font-weight: 700;
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
 
       .alarm-icon {
-        z-index: 9;
+        color: #dcdee5;
+        height: 14px;
+        width: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 14px;
-        height: 14px;
-        margin-right: 6px;
         font-size: 14px;
-        color: #dcdee5;
+        margin-right: 6px;
+        z-index: 9;
 
         @for $i from 1 through 3 {
           &.status-#{$i} {
@@ -300,39 +299,39 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       }
 
       .title-name {
-        display: flex;
-        align-items: center;
-        height: 20px;
         overflow: hidden;
-        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
+        line-height: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
       }
 
       .title-interval {
         display: flex;
         align-items: center;
         justify-content: center;
-        height: 16px;
         padding: 0 2px;
-        margin-left: 6px;
-        font-size: 12px;
-        font-weight: normal;
-        color: #63656e;
-        border: 1px solid rgba(151, 155, 165, .3);
+        border: 1px solid rgba(151, 155, 165, 0.3);
         border-radius: 2px;
+        font-weight: normal;
+        margin-left: 6px;
+        color: #63656e;
+        height: 16px;
+        font-size: 12px;
       }
 
       .tips-icon,
       %tips-icon {
+        margin-left: auto;
+        height: 14px;
+        width: 14px;
+        font-size: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 14px;
-        height: 14px;
         margin-right: 10px;
-        margin-left: auto;
-        font-size: 14px;
         color: #979ba5;
 
         &::before {
@@ -349,8 +348,8 @@ $alarmColor: #dcdee5 #63656e #ea3636;
     }
 
     &:hover {
-      cursor: pointer;
       background-color: #f4f6fa;
+      cursor: pointer;
 
       .main-title {
         color: black;
@@ -363,13 +362,13 @@ $alarmColor: #dcdee5 #63656e #ea3636;
     }
 
     .sub-title {
-      height: 16px;
-      margin-left: 20px;
-      overflow: hidden;
       line-height: 16px;
+      height: 16px;
       color: #979ba5;
+      overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      margin-left: 20px;
     }
   }
 }

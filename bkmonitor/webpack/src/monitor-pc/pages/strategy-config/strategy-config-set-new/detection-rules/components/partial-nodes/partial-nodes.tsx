@@ -177,8 +177,7 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
                   name={level.name}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
-                    disabled: !level.disabled,
-                    allowHTML: false
+                    disabled: !level.disabled
                   }}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>

@@ -91,7 +91,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
 
   /** 查询语句提示tooltios配置 */
   tipsConfig = {
-    allowHTML: true,
+    allowHtml: true,
     width: 255,
     trigger: 'mouseenter',
     theme: 'light',

@@ -31,7 +31,7 @@ from apm.core.handlers.query.statistics_query import StatisticsQuery
 from apm.core.handlers.query.trace_query import TraceQuery
 from apm.models import ApmApplication, EbpfApplicationConfig
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from constants.apm import OtlpKey, TraceWaterFallDisplayKey
+from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
 
@@ -103,17 +103,15 @@ class QueryProxy:
         )
         return asdict(TraceInfoList(total=size, data=data))
 
-    def query_trace_detail(self, trace_id, displays, bk_biz_id=None):
+    def query_trace_detail(self, trace_id, bk_biz_id=None):
         """Trace详情"""
-        # query otel data
         client = Permission()
         spans = self.span_query.query_by_trace_id(trace_id)
 
-        # query ebpf data
-        if TraceWaterFallDisplayKey.SOURCE_CATEGORY_EBPF in displays:
-            ebpf_spans = DeepFlowQuery.get_ebpf(trace_id, bk_biz_id)
-            if ebpf_spans:
-                spans += ebpf_spans
+        # ebpf_spans query and transfer
+        ebpf_spans = DeepFlowQuery.get_ebpf(trace_id, bk_biz_id)
+        if ebpf_spans:
+            spans += ebpf_spans
 
         relation_mapping = {}
         if not self.is_trace_query_valid:
@@ -189,6 +187,7 @@ class QueryProxy:
 
         res = {}
         for index_name, client in client_mapping.items():
+
             trace_infos = TraceQuery.query_by_trace_ids(client, index_name, trace_ids, start_time, end_time)
 
             for item in trace_infos:
@@ -197,6 +196,7 @@ class QueryProxy:
         return res
 
     def query_simple_info(self, start_time, end_time, offset, limit):
+
         trace_infos, total = self.trace_query.query_simple_info(start_time, end_time, offset, limit)
 
         res = {}

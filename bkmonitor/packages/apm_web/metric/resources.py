@@ -667,7 +667,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             ),
             StringTableFormat(
                 id="endpoint",
-                name="Span Name",
+                name=_lazy("Span Name"),
                 checked=True,
                 min_width=120,
             ),
@@ -1880,7 +1880,7 @@ class ServiceQueryExceptionResource(PageListResource):
 
     def get_columns(self, column_type=None):
         return [
-            StringTableFormat(id="span_name", name="Span Name", checked=True),
+            StringTableFormat(id="span_name", name=_lazy("Span Name"), checked=True),
             NumberTableFormat(id="count", name=_lazy("出现次数"), checked=True, sortable=True),
             LinkTableFormat(
                 id="operate",

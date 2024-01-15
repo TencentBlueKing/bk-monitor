@@ -346,8 +346,6 @@ export default {
   添加监控策略: 'Add Alert Rule',
   添加监控项: 'Add Monitoring Item',
   添加采集插件运行主机: 'Add Hosts for Running Collection Plugins',
-  新增值班组: 'Addition Duty Team',
-  新增值班: 'Addition Duty',
 
   // 编辑
   编辑告警组: 'Edit',
@@ -437,18 +435,5 @@ export default {
   测试发送: 'Test Send',
   跳转至场景查看: 'Jump to Scene View',
   发送给自己: 'Send to yourself',
-  查看单据详情: 'View document details',
-
-  值班规则: 'Duty Rules',
-  值班通知设置: 'On-duty notification settings',
-  新增轮值排班: 'New shift rotation',
-  排班预览: 'Schedule Preview',
-  显示未排班: 'Show unscheduled',
-  排班明细: 'Schedule details',
-  轮值历史: 'Rotation history',
-  确认启用: 'Confirm Enable',
-  确认停用: 'Confirm Disable',
-  确认删除: 'Confirm Delete',
-  手动分组: 'Manual grouping',
-  自动分组: 'Automatic grouping'
+  查看单据详情: 'View document details'
 };

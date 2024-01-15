@@ -257,10 +257,6 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         name: this.$t('通知人')
       },
       {
-        id: 'follower',
-        name: this.$t('关注人')
-      },
-      {
         id: 'strategy_name',
         name: this.$t('策略名称')
       },

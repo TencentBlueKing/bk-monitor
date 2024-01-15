@@ -37,64 +37,27 @@ import {
   RadioButton,
   RadioGroup,
   Select,
-  Switcher,
-  TagInput
+  Switcher
 } from 'bk-magic-vue';
-import dayjs from 'dayjs';
 
 import {
   getDataEncoding,
   instanceDiscoverKeys,
   queryBkDataToken,
-  samplingOptions,
   setup,
   start,
   stop
 } from '../../../../monitor-api/modules/apm_meta';
-import { getFieldOptionValues } from '../../../../monitor-api/modules/apm_trace';
-import { deepClone, typeTools } from '../../../../monitor-common/utils/utils';
 import ChangeRcord from '../../../../monitor-pc/components/change-record/change-record';
-// import CycleInput from '../../../components/cycle-input/cycle-input';
-import CycleInput from '../../../../monitor-pc/components/cycle-input/cycle-input';
-// import {
-// defaultCycleOptionMicroSec,
-// defaultCycleOptionMillisec,
-// defaultCycleOptionMin,
-// defaultCycleOptionSec
-// } from '../../../../monitor-pc/components/cycle-input/utils';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../monitor-pc/components/monitor-ip-selector/utils';
-import { CONDITION } from '../../../../monitor-pc/constant/constant';
-import SimpleSelectInput from '../../../../monitor-pc/pages/alarm-shield/components/simple-select-input';
-import SelectMenu from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/components/select-menu';
 import StrategyIpv6 from '../../../../monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
 
-import { IApdexConfig, IAppInfo, IApplicationSamplerConfig, IInstanceOption, ISamplingRule } from './type';
+import { IApdexConfig, IAppInfo, IApplicationSamplerConfig, IInstanceOption } from './type';
 
-const TIME_CONDITION_METHOD_LIST = [
-  { id: 'gt', name: '>' },
-  { id: 'gte', name: '>=' },
-  { id: 'lt', name: '<' },
-  { id: 'lte', name: '<=' }
-];
-const STRING_CONDITION_METHOD_LIST = [
-  { id: 'eq', name: '=' },
-  { id: 'gt', name: '>' },
-  { id: 'gte', name: '>=' },
-  { id: 'lt', name: '<' },
-  { id: 'lte', name: '<=' },
-  { id: 'neq', name: '!=' },
-  { id: 'reg', name: 'regex' },
-  { id: 'nreg', name: 'nregex' }
-];
-const nullOptions = {
-  // 下拉选项第一为空值
-  id: '',
-  name: `- ${window.i18n.tc('空')} -`
-};
 interface IProps {
   appInfo: IAppInfo;
   recordData: Record<string, string>;
@@ -115,12 +78,6 @@ type IFormData = IApdexConfig &
       bk_biz_id: number | string;
     };
   };
-
-type ISamplingOption = {
-  name: string;
-  id: string;
-  type: string;
-};
 
 @Component
 export default class BasicInfo extends tsc<IProps> {
@@ -158,7 +115,6 @@ export default class BasicInfo extends tsc<IProps> {
     apdex_messaging: 0,
     sampler_type: '',
     sampler_percentage: 0,
-    tail_conditions: [],
     plugin_config: {
       target_nodes: [],
       paths: [''],
@@ -227,15 +183,9 @@ export default class BasicInfo extends tsc<IProps> {
     { id: 'apdex_messaging', name: window.i18n.tc('消息队列') },
     { id: 'apdex_backend', name: window.i18n.tc('后台任务') }
   ];
-  samplingTypeList = [
-    { id: 'random', name: window.i18n.tc('随机') },
-    { id: 'tail', name: window.i18n.tc('尾部采样') },
-    { id: 'empty', name: window.i18n.tc('不采样') }
-  ];
+  samplingTypeList = [{ id: 'random', name: window.i18n.tc('随机') }];
   samplingTypeMaps = {
-    random: window.i18n.tc('随机'),
-    tail: window.i18n.tc('尾部采样'),
-    empty: window.i18n.tc('不采样')
+    random: window.i18n.tc('随机')
   };
   localInstanceList: IInstanceOption[] = [];
   dimessionList = [
@@ -307,25 +257,6 @@ export default class BasicInfo extends tsc<IProps> {
     origin: '原始命令'
   };
 
-  samplingRules: ISamplingRule[] = [];
-  samplingRulesGroup: ISamplingRule[][] = []; // 用于渲染必采规则根据or按行排列
-  samplingRuleOptions: ISamplingOption[] = [];
-
-  samplingRuleValueMap: Record<string, { id: string; name: string }[]> = {};
-
-  curSelectTarget = null;
-  showSelectMenu = false;
-  menuList = [];
-  curGroupConditionIndex = -1;
-  curConditionIndex = -1;
-  curConditionProp = '';
-  // cycleInputOptions = [
-  //   { id: 'μs', name: window.i18n.tc('微秒'), children: defaultCycleOptionMicroSec },
-  //   { id: 'ms', name: window.i18n.tc('毫秒'), children: defaultCycleOptionMillisec },
-  //   { id: 's', name: window.i18n.tc('秒'), children: defaultCycleOptionSec },
-  //   { id: 'm', name: window.i18n.tc('分'), children: defaultCycleOptionMin }
-  // ];
-
   /** 应用ID */
   get appId() {
     return Number(this.$route.params?.id || 0);
@@ -350,25 +281,6 @@ export default class BasicInfo extends tsc<IProps> {
   @Watch('appInfo', { immediate: true, deep: true })
   handleAppInfoChange(data: IAppInfo) {
     this.localInstanceList = [...data.application_instance_name_config?.instance_name_composition];
-
-    if (data.application_sampler_config.sampler_type === 'tail') {
-      // 尾部采样处理展示规则
-      const { tail_conditions: conditions } = data.application_sampler_config;
-      this.samplingRules.splice(
-        0,
-        this.samplingRules.length,
-        ...conditions.map(item => {
-          if (item.type === 'string') {
-            this.getSamplingVariableValueList(item.key);
-          }
-          return {
-            ...item,
-            value: item.type === 'time' ? Number(item.value[0] / Math.pow(10, 6)) : item.value
-          };
-        })
-      );
-      this.handleConditionChange();
-    }
   }
 
   @Emit('change')
@@ -417,8 +329,6 @@ export default class BasicInfo extends tsc<IProps> {
         }
       ];
     });
-    this.getSamplingOptions();
-    this.handleConditionChange();
   }
 
   /**
@@ -480,11 +390,9 @@ export default class BasicInfo extends tsc<IProps> {
     if (show) {
       if (!this.logAsciiList.length && this.isShowLog2TracesFormItem) this.fetchEncodingList();
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { app_alias: appAlias, description, plugin_config, application_sampler_config } = this.appInfo;
+      const { app_alias: appAlias, description, plugin_config } = this.appInfo;
       const apdexConfig = this.appInfo.application_apdex_config || {};
-      const samplerConfig = Object.assign({}, application_sampler_config, {
-        sampler_percentage: application_sampler_config.sampler_percentage || 0
-      });
+      const samplerConfig = this.appInfo.application_sampler_config || {};
       Object.assign(this.formData, apdexConfig, samplerConfig, { app_alias: appAlias, description, plugin_config });
     }
     if (!isSubmit) {
@@ -577,13 +485,14 @@ export default class BasicInfo extends tsc<IProps> {
     } = this.formData;
     Object.keys(apdexConfig).map(val => (apdexConfig[val] = Number(apdexConfig[val])));
     const instanceList = this.localInstanceList.map(item => item.name);
-    const params: Record<string, any> = {
+    const params = {
       application_id: this.appInfo.application_id,
       is_enabled: this.appInfo.is_enabled,
       app_alias: appAlias,
       description,
       application_sampler_config: {
-        sampler_type: samplerType
+        sampler_type: samplerType,
+        sampler_percentage: Number(samplerPercentage)
       },
       application_apdex_config: apdexConfig,
       application_instance_name_config: {
@@ -592,22 +501,6 @@ export default class BasicInfo extends tsc<IProps> {
       application_db_config: this.appInfo.application_db_config,
       application_db_system: this.appInfo.application_db_system
     };
-
-    // 处理采样配置
-    if (params.application_sampler_config.sampler_type === 'random') {
-      params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
-    } else if (params.application_sampler_config.sampler_type === 'tail') {
-      params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
-      params.application_sampler_config.tail_conditions = this.samplingRules
-        .map(item => {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          const { key_alias, type, ...rest } = item;
-          // 时间类型输入组件默认单位为秒 后端传参要求单位为纳秒
-          return { ...rest, value: type === 'time' ? [String(rest.value * Math.pow(10, 6))] : rest.value };
-        })
-        .filter(item => item.value.length);
-    }
-
     if (this.isShowLog2TracesFormItem) {
       plugin_config.bk_data_id = this.appInfo.plugin_config.bk_data_id;
       // @ts-ignore
@@ -717,257 +610,6 @@ export default class BasicInfo extends tsc<IProps> {
       .catch(console.log)
       .finally(() => (this.isFetchingEncodingList = false));
     if (Array.isArray(encodingList)) this.logAsciiList = encodingList;
-  }
-
-  /** 采样规则条件key值改变 */
-  async handleRuleKeyChange(item: ISamplingRule, v: string, gIndex: number, index: number) {
-    await this.$nextTick();
-    if (!v && this.samplingRules.length > 1) this.handleDeleteKey(gIndex, index);
-    item.key_alias = v;
-
-    let id = v;
-    this.samplingRuleOptions.forEach(opt => {
-      if (opt.id === v || opt.name === v) {
-        id = opt.id as string;
-        item.type = opt.type;
-      }
-    });
-    if (item.key !== id) {
-      item.value = item.type === 'time' ? 10 : [];
-    }
-    item.key = id;
-    if (item.type === 'string' && id && !this.samplingRuleValueMap[id]) {
-      await this.getSamplingVariableValueList(id);
-    }
-
-    if (
-      item.type === 'time' &&
-      (item.method === '' || !TIME_CONDITION_METHOD_LIST.some(val => val.id === item.method))
-    ) {
-      item.method = 'gt';
-    } else if (item.method === '') {
-      item.method = 'eq';
-    }
-
-    this.samplingRules = this.samplingRules.slice();
-    this.handleConditionChange();
-  }
-
-  /** 获取采样配置常量 */
-  async getSamplingOptions() {
-    await samplingOptions().then(data => {
-      this.samplingTypeList = this.samplingTypeList.filter(item => (data?.sampler_types || []).includes(item.id));
-      this.samplingRuleOptions = (data?.tail_sampling_options || []).map(item => {
-        return {
-          id: item.key,
-          ...item
-        };
-      });
-    });
-  }
-
-  // 获取采样规则候选值列表数据
-  async getSamplingVariableValueList(keyId: string) {
-    const params = {
-      app_name: this.appInfo.app_name,
-      start_time: dayjs().add(-1, 'h').unix(),
-      end_time: dayjs().unix(),
-      bk_biz_id: window.bk_biz_id,
-      fields: [keyId]
-      // mode: 'span' // TODO
-    };
-    const data = await getFieldOptionValues(params).catch(() => []);
-    const result = (data?.[keyId] || []).map(item => ({ name: item.text, id: item.value })) || [];
-    this.samplingRuleValueMap[keyId] = result || [];
-  }
-
-  /* 弹出条件选择 */
-  handleToggleCondition(e, { gIndex, index, prop }) {
-    this.curSelectTarget = e.target;
-    this.showSelectMenu = true;
-    this.menuList = CONDITION;
-    this.curGroupConditionIndex = gIndex;
-    this.curConditionIndex = index;
-    this.curConditionProp = prop;
-  }
-
-  /* 弹出判断方式 */
-  handleToggleMethod(e, { gIndex, index, prop }) {
-    this.curSelectTarget = e.target;
-    this.showSelectMenu = true;
-    const { key } = this.samplingRulesGroup[gIndex][index];
-    const { type } = this.samplingRuleOptions.find(item => item.id === key) || { type: 'string' };
-    this.menuList = this.handleGetMethodList(type as any);
-    this.curGroupConditionIndex = gIndex;
-    this.curConditionIndex = index;
-    this.curConditionProp = prop;
-    this.handleConditionChange();
-  }
-
-  handleGetMethodNameById(id: string) {
-    return STRING_CONDITION_METHOD_LIST.find(item => item.id === id)?.name || '';
-  }
-
-  // value变化时触发
-  async handleSamplingRuleValueChange(item, v: string[] | number) {
-    await this.$nextTick();
-    if (typeTools.isNumber(v)) {
-      item.value = v;
-    } else {
-      if (item.value.includes(nullOptions.id)) {
-        if ((v as any).length > 1) {
-          item.value = (v as any).filter(str => str !== nullOptions.id);
-        } else {
-          item.value = v;
-        }
-      } else {
-        if ((v as any).includes(nullOptions.id)) {
-          item.value = [nullOptions.id];
-        } else {
-          item.value = v;
-        }
-      }
-    }
-
-    this.samplingRules = this.samplingRules.slice();
-    this.handleConditionChange();
-  }
-
-  handleSamplingRuleValueUnitChange(item, v) {
-    item.unit = v;
-    this.samplingRules = this.samplingRules.slice();
-    this.handleConditionChange();
-  }
-
-  /**
-   * @description: 维度数据类型不同所需的method
-   * @param {*} type 维度的数据类型
-   */
-  handleGetMethodList(type: 'string' | 'time') {
-    if (type === 'time') {
-      return TIME_CONDITION_METHOD_LIST;
-    }
-    return STRING_CONDITION_METHOD_LIST;
-  }
-
-  /** 选中条件下拉值 */
-  handelMenuSelect(item) {
-    const condition = this.samplingRulesGroup[this.curGroupConditionIndex][this.curConditionIndex];
-    if (!condition) return;
-    condition[this.curConditionProp] = item?.id;
-    this.handleConditionChange();
-  }
-
-  /** 隐藏条件下拉选框 */
-  handleMenuHidden() {
-    this.curSelectTarget = null;
-    this.menuList = [];
-    this.showSelectMenu = false;
-  }
-
-  /**
-   * @description: 添加条件
-   */
-  async handleAddCondition(gIndex) {
-    const key = this.samplingRulesGroup[gIndex][this.samplingRulesGroup[gIndex].length - 1]?.key;
-    const keyIndex = this.samplingRules.findIndex(item => item.key === key);
-    this.samplingRules.splice(keyIndex + 1, 0, this.handleGetDefaultCondition());
-
-    this.handleConditionChange();
-    setTimeout(() => {
-      (
-        this.$refs[`selectInput-${gIndex}-${this.samplingRulesGroup[gIndex].length - 1}`] as SimpleSelectInput
-      ).inputWrapRef.click();
-      (
-        this.$refs[`selectInput-${gIndex}-${this.samplingRulesGroup[gIndex].length - 1}`] as SimpleSelectInput
-      ).inputRef.focus();
-    }, 100);
-  }
-
-  /** 添加默认规则 */
-  handleGetDefaultCondition(needCondition = true) {
-    return Object.assign(
-      {},
-      {
-        key: '',
-        method: '',
-        value: [],
-        key_alias: '',
-        type: ''
-      },
-      needCondition ? { condition: 'and' } : {}
-    );
-  }
-
-  /* 删除条件 */
-  handleDeleteKey(gIndex: number, index: number) {
-    const groups = deepClone(this.samplingRulesGroup);
-    const groupItem = groups[gIndex];
-    const deleteList = groupItem.splice(index, 1);
-
-    if (!gIndex && !groupItem.length && groups.length === 1) {
-      groups.push([this.handleGetDefaultCondition(false)]);
-    }
-
-    if (groupItem[index]) {
-      if (gIndex === 0) {
-        delete groupItem[index].condition;
-      } else if (index === 0) {
-        groupItem[index].condition = 'or';
-      }
-    }
-
-    if (!!deleteList?.[0]?.key) {
-      const list = groups.reduce((prev, cur) => prev.concat(cur), []);
-      if (list[0]?.condition === 'or') {
-        delete list[0].condition;
-      }
-      this.samplingRules.splice(0, this.samplingRules.length, ...list);
-      this.handleConditionChange();
-    }
-  }
-
-  /** 格式化规则列表渲染 */
-  handleConditionChange() {
-    this.samplingRules = this.samplingRules.map((item, index) => {
-      const result = item;
-      if (index && !item.condition) {
-        result.condition = 'and';
-      }
-      return result;
-    });
-
-    let groupIndex = 0;
-    const parseList = [];
-
-    this.samplingRules.forEach(item => {
-      const curIndex = item.condition === 'or' ? groupIndex + 1 : groupIndex;
-      groupIndex = curIndex;
-      if (!parseList[curIndex]) {
-        parseList.push([]);
-      }
-
-      parseList[groupIndex].push(item);
-    });
-    this.samplingRulesGroup.splice(0, this.samplingRulesGroup.length, ...parseList);
-  }
-
-  /** 是否显示添加规则按钮 */
-  showRuleAdd(index) {
-    if (!this.samplingRules.length) return false;
-    const { key, value } = this.samplingRulesGroup[index][this.samplingRulesGroup[index].length - 1];
-    return key && (typeTools.isNumber(value) ? value : (value as any)?.length > 0);
-  }
-
-  /** 修改采样类型 */
-  handleSamplerTypeChange() {
-    if (this.formData.sampler_type === 'tail') {
-      this.samplingRules = this.formData.tail_conditions || [];
-      if (!this.samplingRules.length) {
-        this.samplingRules.push(this.handleGetDefaultCondition(false));
-        this.handleConditionChange();
-      }
-    }
   }
 
   render() {
@@ -1351,7 +993,6 @@ export default class BasicInfo extends tsc<IProps> {
                     class='sampling-type-select'
                     vModel={this.formData.sampler_type}
                     clearable={false}
-                    onChange={this.handleSamplerTypeChange}
                   >
                     {this.samplingTypeList.map(option => (
                       <Option
@@ -1361,143 +1002,23 @@ export default class BasicInfo extends tsc<IProps> {
                       ></Option>
                     ))}
                   </Select>
-                  <i class='icon-monitor icon-hint sampling-hint'>
-                    <span>{this.$t('单个 trace 中 30 分钟没有 span 上报，会自动结束；单个 trace 最大时长 1 天')}</span>
-                  </i>
                 </FormItem>
-                {this.formData.sampler_type !== 'empty' ? (
-                  <FormItem
-                    label={this.$t('采样比例')}
-                    property='sampler_percentage'
-                    error-display-type='normal'
+                <FormItem
+                  label={this.$t('采样比例')}
+                  property='sampler_percentage'
+                  error-display-type='normal'
+                >
+                  <Input
+                    v-model={this.formData.sampler_percentage}
+                    class='sampling-rate-input'
+                    type='number'
+                    show-controls={false}
                   >
-                    <Input
-                      v-model={this.formData.sampler_percentage}
-                      class='sampling-rate-input'
-                      type='number'
-                      show-controls={false}
-                    >
-                      <template slot='append'>
-                        <div class='right-unit'>%</div>
-                      </template>
-                    </Input>
-                    <i class='icon-monitor icon-hint sampling-hint'>
-                      <span>{this.$t('对非必采的部分按TraceID进行采样')}</span>
-                    </i>
-                  </FormItem>
-                ) : (
-                  ''
-                )}
-                {this.formData.sampler_type === 'tail' ? (
-                  <FormItem
-                    label={this.$t('必采规则')}
-                    property='sampler_rules'
-                    class='sampling-rule-form-item'
-                  >
-                    {this.samplingRulesGroup.length > 1 ? (
-                      <div class='sampling-rule-brackets'>
-                        <div class='or-condition'>OR</div>
-                      </div>
-                    ) : (
-                      ''
-                    )}
-                    {this.samplingRulesGroup.map((group, gIndex) => (
-                      <div class='sampling-rule-item'>
-                        {group.map((item, index) => [
-                          item.condition && item.key && index > 0 ? (
-                            <input
-                              style={{ display: item.condition ? 'block' : 'none' }}
-                              key={`condition-${index}-${item.key}`}
-                              class='condition-item-condition'
-                              readonly
-                              value={item.condition.toLocaleUpperCase()}
-                              on-click={e => this.handleToggleCondition(e, { gIndex, index, prop: 'condition' })}
-                            />
-                          ) : undefined,
-                          <SimpleSelectInput
-                            ref={`selectInput-${gIndex}-${index}`}
-                            placeholder={window.i18n.t('请输入') as string}
-                            value={item.key_alias}
-                            list={this.samplingRuleOptions}
-                            v-bk-tooltips={{
-                              content: item.key,
-                              trigger: 'mouseenter',
-                              zIndex: 9999,
-                              disabled: !item.key,
-                              boundary: document.body,
-                              allowHTML: false
-                            }}
-                            onChange={v => this.handleRuleKeyChange(item, v, gIndex, index)}
-                          >
-                            <div
-                              slot='extension'
-                              class='extension'
-                              on-click={() => this.handleDeleteKey(gIndex, index)}
-                            >
-                              <i class='icon-monitor icon-chahao'></i>
-                              <span>{this.$t('删除')}</span>
-                            </div>
-                          </SimpleSelectInput>,
-                          item.key_alias
-                            ? [
-                                <span
-                                  class='condition-item-method'
-                                  key={`method-${index}-${item.key}`}
-                                  on-click={e => this.handleToggleMethod(e, { gIndex, index, prop: 'method' })}
-                                >
-                                  {this.handleGetMethodNameById(item.method)}
-                                </span>,
-                                item.type === 'time' ? (
-                                  // <CycleInput
-                                  //   class='form-interval'
-                                  //   v-model={item.value}
-                                  //   needAuto={false}
-                                  //   options={this.cycleInputOptions}
-                                  //   defaultUnit={'ms'}
-                                  //   onUnitChange={(v: string) => this.handleSamplingRuleValueUnitChange(item, v)}
-                                  //   onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
-                                  // />
-                                  <CycleInput
-                                    class='form-interval'
-                                    v-model={item.value}
-                                    needAuto={false}
-                                    minSec={1}
-                                    onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
-                                  />
-                                ) : (
-                                  <TagInput
-                                    key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
-                                      this.samplingRuleValueMap[item.key] || []
-                                    )}`}
-                                    class='condition-item-value'
-                                    list={
-                                      this.samplingRuleValueMap[item.key] ? this.samplingRuleValueMap[item.key] : []
-                                    }
-                                    trigger='focus'
-                                    has-delete-icon
-                                    allow-create
-                                    allow-auto-match
-                                    value={item.value}
-                                    // paste-fn={v => this.handlePaste(v, item)}
-                                    on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
-                                  ></TagInput>
-                                )
-                              ]
-                            : undefined
-                        ])}
-                        <span
-                          class='condition-add'
-                          style={{ display: this.showRuleAdd(gIndex) ? 'flex' : 'none' }}
-                          on-click={() => this.handleAddCondition(gIndex)}
-                        >
-                          <i class='bk-icon icon-plus'></i>
-                        </span>
-                      </div>
-                    ))}
-                  </FormItem>
-                ) : (
-                  ''
-                )}
+                    <template slot='append'>
+                      <div class='right-unit'>%</div>
+                    </template>
+                  </Input>
+                </FormItem>
                 {/* <div class="panel-tips">
                 <label>{this.$t('强调说明')}</label>
                 <span>{this.$t('错误的Span一定会采集')}</span>
@@ -1509,50 +1030,14 @@ export default class BasicInfo extends tsc<IProps> {
                   <label>{this.$t('采样类型')}</label>
                   <span>{this.samplingTypeMaps[this.appInfo.application_sampler_config?.sampler_type] || '--'}</span>
                 </div>
-                {this.appInfo.application_sampler_config.sampler_type !== 'empty' ? (
-                  <div class='display-item'>
-                    <label>{this.$t('采样比例')}</label>
-                    <span>
-                      {this.appInfo.application_sampler_config?.sampler_percentage
-                        ? `${this.appInfo.application_sampler_config?.sampler_percentage}%`
-                        : '--'}
-                    </span>
-                  </div>
-                ) : (
-                  ''
-                )}
-                {this.appInfo.application_sampler_config.sampler_type === 'tail' ? (
-                  <div class='display-item sampling-rules-item'>
-                    <label>{this.$t('必采规则')}</label>
-                    <div class='sampling-rules'>
-                      {this.samplingRulesGroup.length > 1 ? (
-                        <div class='sampling-rule-brackets'>
-                          <div class='or-condition'>OR</div>
-                        </div>
-                      ) : (
-                        ''
-                      )}
-                      {this.samplingRulesGroup.map(group => (
-                        <div class='rule-item'>
-                          {group.map((item, index) => (
-                            <span class='condition-item'>
-                              {index && item.condition ? (
-                                <span class='and-condition'>{item.condition.toLocaleUpperCase()}</span>
-                              ) : (
-                                ''
-                              )}
-                              <span>{item.key_alias}</span>
-                              <span class='method'>{this.handleGetMethodNameById(item.method)}</span>
-                              <span>{item.type === 'string' ? item.value.join(',') : `${item.value}s`}</span>
-                            </span>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  ''
-                )}
+                <div class='display-item'>
+                  <label>{this.$t('采样比例')}</label>
+                  <span>
+                    {this.appInfo.application_sampler_config?.sampler_percentage
+                      ? `${this.appInfo.application_sampler_config?.sampler_percentage}%`
+                      : '--'}
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -1625,8 +1110,7 @@ export default class BasicInfo extends tsc<IProps> {
                       }
                       v-bk-tooltips={{
                         content: this.$t('已经没有可用的维度'),
-                        disabled: this.instanceOptionList.length !== this.localInstanceList.length,
-                        allowHTML: false
+                        disabled: this.instanceOptionList.length !== this.localInstanceList.length
                       }}
                     >
                       <span class='icon-monitor icon-plus-line'></span>
@@ -1651,8 +1135,7 @@ export default class BasicInfo extends tsc<IProps> {
                               class='instance-config-option'
                               v-bk-tooltips={{
                                 content: this.$t('已经添加'),
-                                disabled: !this.localInstanceList.some(val => val.id === option.id),
-                                allowHTML: false
+                                disabled: !this.localInstanceList.some(val => val.id === option.id)
                               }}
                             >
                               <span class='instance-name'>{option.name}</span>
@@ -1915,7 +1398,7 @@ export default class BasicInfo extends tsc<IProps> {
           )}
           <div
             class='history-btn'
-            v-bk-tooltips={{ content: this.$t('变更记录'), allowHTML: false }}
+            v-bk-tooltips={{ content: this.$t('变更记录') }}
             onClick={() => (this.record.show = true)}
           >
             <i class='icon-monitor icon-lishijilu'></i>
@@ -1953,15 +1436,6 @@ export default class BasicInfo extends tsc<IProps> {
             onCloseDialog={v => (this.selectorDialog.isShow = v)}
           ></StrategyIpv6>
         )}
-
-        <SelectMenu
-          show={this.showSelectMenu}
-          target={this.curSelectTarget}
-          list={this.menuList}
-          min-width={60}
-          on-on-select={item => this.handelMenuSelect(item)}
-          on-on-hidden={() => this.handleMenuHidden()}
-        ></SelectMenu>
       </div>
     );
   }

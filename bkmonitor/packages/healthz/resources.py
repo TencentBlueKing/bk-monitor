@@ -260,7 +260,7 @@ class BkDataTestRootApiResource(ApiTestRootApiResource):
 
     def perform_request(self, validated_request_data):
         api_name = validated_request_data["api_name"]
-        status, message, args, result = (True, "OK", {}, {"data": "计算平台未接入"})
+        status, message, args, result = (True, "OK", {}, {"data": _("计算平台未接入")})
         if settings.IS_ACCESS_BK_DATA:
             status, api_name, message, args, result = self._healthz_checker.test_root_api(api_name)
         return {"status": status, "api_name": api_name, "message": message, "args": args, "result": result}

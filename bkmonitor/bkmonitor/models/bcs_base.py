@@ -208,7 +208,7 @@ class BCSBase(models.Model):
         return [
             {
                 "id": "resource_requests_cpu",
-                "name": "cpu request",
+                "name": _("cpu request"),
                 "type": "string",
                 "disabled": False,
                 "checked": False,
@@ -217,7 +217,7 @@ class BCSBase(models.Model):
             },
             {
                 "id": "resource_limits_cpu",
-                "name": "cpu limit",
+                "name": _("cpu limit"),
                 "type": "string",
                 "disabled": False,
                 "checked": False,
@@ -226,7 +226,7 @@ class BCSBase(models.Model):
             },
             {
                 "id": "resource_requests_memory",
-                "name": "memory request",
+                "name": _("memory request"),
                 "type": "string",
                 "disabled": False,
                 "checked": False,
@@ -235,7 +235,7 @@ class BCSBase(models.Model):
             },
             {
                 "id": "resource_limits_memory",
-                "name": "memory limit",
+                "name": _("memory limit"),
                 "type": "string",
                 "disabled": False,
                 "checked": False,

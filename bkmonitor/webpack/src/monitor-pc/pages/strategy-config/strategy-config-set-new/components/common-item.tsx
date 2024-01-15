@@ -66,8 +66,7 @@ export default class MyComponent extends tsc<ICommonProps> {
               v-bk-tooltips={{
                 content: this.tips,
                 width: 200,
-                placement: 'top-start',
-                allowHTML: false
+                placement: 'top-start'
               }}
             ></i>
           )}

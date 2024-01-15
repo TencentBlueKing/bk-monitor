@@ -368,14 +368,10 @@ class RelatedLogChart extends CommonSimpleChart {
    * @desc 关联日志
    */
   handleRelated() {
-    // const { app_name: appName, service_name: serviceName } = this.viewOptions as Record<string, string>;
-    // const hash = `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`;
-    // const url = location.href.replace(location.hash, hash);
-    // window.open(url, '_blank');
-    const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
-      this.bkBizId || this.relatedBkBizId
-    }`;
-    window.open(url);
+    const { app_name: appName, service_name: serviceName } = this.viewOptions as Record<string, string>;
+    const hash = `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`;
+    const url = location.href.replace(location.hash, hash);
+    window.open(url, '_blank');
   }
   /** 选择索引集 */
   handleSelectIndexSet(v) {
@@ -492,8 +488,7 @@ class RelatedLogChart extends CommonSimpleChart {
                     v-bk-tooltips={{
                       content: this.selectedOptionAlias,
                       theme: 'light',
-                      placement: 'top-start',
-                      allowHTML: false
+                      placement: 'top-start'
                     }}
                   >
                     {this.relatedIndexSetList.map(option => (
@@ -550,7 +545,7 @@ class RelatedLogChart extends CommonSimpleChart {
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
-                    {this.$t('日志采集')}
+                    {this.$t('关联日志')}
                   </Button>
                 </div>
               </Exception>

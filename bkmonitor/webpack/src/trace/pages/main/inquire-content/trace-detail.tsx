@@ -35,7 +35,6 @@ import {
   toRefs,
   watch
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab } from 'bkui-vue';
 import dayjs from 'dayjs';
 
@@ -113,7 +112,6 @@ export default defineComponent({
   setup(props) {
     /** 取消请求方法 */
     let searchCancelFn = () => {};
-    const { t } = useI18n();
     const store = useTraceStore();
     /** 缓存不同tab下的过滤选项 */
     const cacheFilterToolsValues = {
@@ -135,11 +133,11 @@ export default defineComponent({
       traceMainStyle: '',
       /** tab panel 配置 */
       tabPanels: [
-        { id: 'timeline', name: t('瀑布列表'), icon: 'Waterfall' },
-        { id: 'topo', name: t('节点拓扑'), icon: 'Component' },
-        { id: 'statistics', name: t('表格统计'), icon: 'table' },
-        { id: 'sequence', name: t('时序图'), icon: 'Sequence' },
-        { id: 'flame', name: t('火焰图'), icon: 'Flame' }
+        { id: 'timeline', name: window.i18n.t('瀑布列表'), icon: 'Waterfall' },
+        { id: 'topo', name: window.i18n.t('节点拓扑'), icon: 'Component' },
+        { id: 'statistics', name: window.i18n.t('表格统计'), icon: 'table' },
+        { id: 'sequence', name: window.i18n.t('时序图'), icon: 'Sequence' },
+        { id: 'flame', name: window.i18n.t('火焰图'), icon: 'Flame' }
       ],
       isClassifyFilter: false,
       filterSpanIds: [],
@@ -239,7 +237,7 @@ export default defineComponent({
         props.isInTable ? '.trace-content-table-wrap' : ''
       );
       Message({
-        message: t('复制成功'),
+        message: window.i18n.t('复制成功'),
         theme: 'success',
         width: 200
       });
@@ -639,7 +637,7 @@ export default defineComponent({
       if (traceData.value.trace_id === traceID) {
         // 相同的traceID不对比
         Message({
-          message: t('对比的TraceID相同'),
+          message: window.i18n.t('对比的TraceID相同'),
           theme: 'warning',
           width: 200
         });

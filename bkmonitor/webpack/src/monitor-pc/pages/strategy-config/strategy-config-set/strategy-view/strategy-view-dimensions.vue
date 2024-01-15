@@ -32,7 +32,7 @@
     >
       <div
         class="item-title"
-        v-bk-tooltips="{content: item.id, allowHTML: false}"
+        v-bk-tooltips="item.id"
       >{{ item.name }}</div>
       <div class="item-content">
         <bk-input

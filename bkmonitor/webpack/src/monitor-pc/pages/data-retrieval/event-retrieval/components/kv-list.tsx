@@ -113,7 +113,7 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
               {this.toolMenuList.map(option => (
                 <span
                   class={`icon ${option.icon} ${this.checkDisable(option.id, item.field)}`}
-                  v-bk-tooltips={{ content: this.getIconPopover(option.id, item.field), delay: 300, allowHTML: false }}
+                  v-bk-tooltips={{ content: this.getIconPopover(option.id, item.field), delay: 300 }}
                   onClick={() => this.handleMenuClick(option.id, item.value, item.field)}
                 ></span>
               ))}

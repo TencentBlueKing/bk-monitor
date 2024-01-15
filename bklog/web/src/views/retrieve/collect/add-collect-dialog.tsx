@@ -576,11 +576,9 @@ export default class CollectDialog extends tsc<IProps> {
                 on-change={value => this.handleClickDisplayFields(value)}
               ></Switcher>
               <span class="current-filed">{this.showFieldsLabel}: </span>
-              {
-                this.favoriteData.display_fields.length
-                  ? this.favoriteData.display_fields.map(item => <Tag>{item}</Tag>)
-                  : <span class="current-filed">{this.$t('显示全部字段')}</span>
-              }
+              {this.favoriteData.display_fields.map(item => (
+                <Tag>{item}</Tag>
+              ))}
             </div>
           </FormItem>
         </Form>

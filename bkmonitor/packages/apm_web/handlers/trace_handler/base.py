@@ -30,13 +30,14 @@ from apm_web.constants import (
     EbpfTapSideType,
     SpanSourceCategory,
     Status,
+    TraceWaterFallDisplayKey,
 )
 from apm_web.handlers.trace_handler.display_handler import DisplayHandler
 from apm_web.handlers.trace_handler.virtual_span import VirtualSpanHandler
 from apm_web.icon import TraceIcon, get_icon_url
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import group_by, percentile
-from constants.apm import OtlpKey, SpanKind, TraceWaterFallDisplayKey
+from constants.apm import OtlpKey, SpanKind
 from core.unit import load_unit
 
 
@@ -53,7 +54,7 @@ class ErrorPredicate(AttributePredicate):
 
     @classmethod
     def predicate(cls, attribute_key, attribute_value):
-        if attribute_value == "ERROR":
+        if attribute_value == _("ERROR"):
             return True
         return False
 
@@ -234,10 +235,11 @@ class TraceHandler:
 
     @classmethod
     def handle_trace(cls, app_name, trace_data: list, trace_id: str, relation_mapping: dict, displays: list = None):
-        # otel data must be in displays choice
-        displays = displays or []
-        if TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY not in displays:
-            displays.append(TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY)
+        if displays is None:
+            displays = [TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY]
+
+        if not displays:
+            return {}
 
         # 节点隐藏处理
         trace_data = cls.display_filter(trace_data, displays)

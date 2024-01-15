@@ -1,4 +1,4 @@
 module.exports = {
   "extends": ['../../stylelint.config.js'],
-  "ignoreFiles": ["**/*.js"]
+  "ignoreFiles": ["**/*.js", "icons/**"]
 }

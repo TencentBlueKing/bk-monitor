@@ -83,8 +83,7 @@ export default class StatusTab extends tsc<IProps, IEvents> {
               placements: ['top'],
               boundary: 'window',
               disabled: !item.tips,
-              delay: 200,
-              allowHTML: false
+              delay: 200
             }}
             onClick={() => this.handleClickItem(item)}
           >

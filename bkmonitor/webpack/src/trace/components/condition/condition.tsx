@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { Cascader, Dropdown, Select, Switcher } from 'bkui-vue';
 
 import DurationFilter from '../../pages/main/duration-filter/duration-filter';
@@ -42,7 +41,6 @@ interface IConditionValueList {
 }
 
 export default defineComponent({
-  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Condition',
   props: {
     isInclude: {
@@ -97,8 +95,7 @@ export default defineComponent({
     'conditionValueClear'
   ],
   setup(props, { emit }) {
-    const { t } = useI18n();
-    const label = ref(t('请选择'));
+    const label = ref(window.i18n.t('请选择'));
     const traverseIds = (obj: any, targetID: string) => {
       if (obj.id === targetID) {
         label.value = obj.name;
@@ -219,7 +216,7 @@ export default defineComponent({
           {props.conditionType === 'duration' && (
             <div style='margin-left: 8px;font-size: 12px;color: #9B9DA1;'>
               <span>is between</span>
-              <span>{`（${t('支持')} ns, μs, ms, s）`}</span>
+              <span>{`（${window.i18n.t('支持')} ns, μs, ms, s）`}</span>
             </div>
           )}
           <i
@@ -238,7 +235,7 @@ export default defineComponent({
         {props.conditionType === 'select' && (
           <Select
             modelValue={props.selectedConditionValue}
-            placeholder={t('请选择')}
+            placeholder={window.i18n.t('请选择')}
             multiple
             filterable
             onChange={v => emit('conditionValueChange', v)}
