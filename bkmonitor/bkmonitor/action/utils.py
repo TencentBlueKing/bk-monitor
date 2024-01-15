@@ -17,6 +17,7 @@ from django.db.models import Q
 
 from bkmonitor.models import (
     AlertAssignRule,
+    DutyRuleRelation,
     StrategyActionConfigRelation,
     StrategyModel,
     UserGroup,
@@ -212,11 +213,42 @@ def get_assign_rule_related_resource_dict(assign_group_ids):
     return relations
 
 
-def validate_time_range(value):
+def get_duty_rule_user_groups(duty_rule_ids):
+    if not duty_rule_ids:
+        return {}
+
+    duty_rule_user_groups = defaultdict(list)
+    for relation in DutyRuleRelation.objects.filter(duty_rule_id__in=duty_rule_ids):
+        duty_rule_user_groups[relation.duty_rule_id].append(relation.user_group_id)
+    return duty_rule_user_groups
+
+
+def get_user_group_duty_rules(user_group_ids):
+    if not user_group_ids:
+        return {}
+    user_group_duty_rules = defaultdict(list)
+    for relation in DutyRuleRelation.objects.filter(user_group_id__in=user_group_ids):
+        user_group_duty_rules[relation.user_group_id].append(relation.duty_rule_id)
+
+
+def validate_time_range(value, format_str="%H:%M"):
     try:
         [start_time, end_time] = value.split("--")
-        datetime.strptime(start_time, "%H:%M")
-        datetime.strptime(end_time, "%H:%M")
+        datetime.strptime(start_time, format_str)
+        datetime.strptime(end_time, format_str)
+    except ValueError:
+        return False
+    return True
+
+
+def validate_datetime_range(value, format_str="%d %H:%M"):
+    """
+    校验前端的日期时间格式
+    """
+    try:
+        [start_time, end_time] = value.split("--")
+        datetime.strptime(start_time, format_str)
+        datetime.strptime(end_time, format_str)
     except ValueError:
         return False
     return True

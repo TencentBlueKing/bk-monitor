@@ -28,7 +28,8 @@ import alarmDispath from './alarm-dispath';
 import alarmGroupRoutes from './alarm-group';
 import alarmShieldRoutes from './alarm-shield';
 import ftaRoutes from './fta-meal';
-import MetricsManagerRoutes from './metrics-manager';
+import metricsManagerRoutes from './metrics-manager';
+import rotationRoutes from './rotation';
 import newReportRoutes from './new-report';
 import strategyRoutes from './strategy-config';
 
@@ -37,8 +38,9 @@ export default [
   ...ftaRoutes,
   ...strategyRoutes,
   ...alarmShieldRoutes,
-  ...MetricsManagerRoutes,
+  ...metricsManagerRoutes,
   ...alarmDispath,
   ...aiSettingsRoutes,
+  ...rotationRoutes,
   ...newReportRoutes
 ];

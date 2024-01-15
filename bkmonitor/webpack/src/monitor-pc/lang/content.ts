@@ -183,6 +183,7 @@ export default {
   瞬间值: 'Last',
   '来源：{0}': 'Source: {0}',
   内部通知人: 'Internal Notifier',
+  通知人员类型: 'Notification person type',
   多: 'Multi',
   少: 'Less',
   日志聚类: 'Log Clustering',

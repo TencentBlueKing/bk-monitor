@@ -28,11 +28,12 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import alarmShield from './modules/alarm-shield';
 import Report from './modules/email-subscription';
 import homeRoutes from './modules/home';
+import rotationRoutes from './modules/rotation';
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    ...[...homeRoutes, ...alarmShield, ...Report].map(item => ({
+    ...[...homeRoutes, ...alarmShield, ...rotationRoutes, ...Report].map(item => ({
       ...item,
       path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
     })),

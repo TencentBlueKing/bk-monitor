@@ -290,6 +290,7 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   public setNoticeWay(data) {
     this.noticeWayList = data.map(item => {
       const data = {
+        ...item,
         type: item.type,
         label: item.label,
         icon: item.icon,

@@ -14,6 +14,7 @@ from schema import And, Optional, Or, Regex, Schema, SchemaError, Use
 
 from bkmonitor.as_code.constants import MaxVersion, MinVersion
 from constants.action import ActionSignal
+from constants.common import DutyCategory, DutyGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 DEFAULT_TEMPLATE_TITLE = "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
@@ -268,6 +269,7 @@ UserGroupSchema = Schema(
                 "effective_time": Regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"),
             }
         ],
+        Optional("duty_rules", default=[]): [str],
     },
     ignore_extra_keys=True,
 )
@@ -323,6 +325,40 @@ AssignGroupRuleSchema = Schema(
                 ],
                 Optional("alert_severity", default=0): int,
                 Optional("additional_tags", default=[]): [{"key": str, "value": str}],
+            }
+        ],
+    },
+    ignore_extra_keys=True,
+)
+
+DutyRuleSchema = Schema(
+    {
+        "name": str,
+        Optional("labels", default=lambda: []): [str],
+        "enabled": bool,
+        "effective_time": Regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"),
+        Optional("end_time", default=""): str,
+        Optional("category", default=DutyCategory.REGULAR): Or(DutyCategory.REGULAR, DutyCategory.HANDOFF),
+        "arranges": [
+            {
+                "time": [
+                    {
+                        Optional("is_custom"): bool,
+                        "type": str,
+                        "work": {
+                            "days": [int],
+                            "date_range": [Regex(r"^\d{4}-\d{2}-\d{2} *-- *\d{4}-\d{2}-\d{2}$")],
+                            Optional("time_range"): [Regex(r"^\d{2}:\d{2} *--*\d{2}:\d{2}$")],
+                            Optional("datetime_range"): [Regex(r"^\d{2} \d{2}:\d{2} *-- *\d{2} \d{2}:\d{2}$")],
+                        },
+                        Optional("period_settings", default=lambda: {}): {
+                            "window_unit": Or("day", "hour"),
+                            "duration": int,
+                        },
+                    }
+                ],
+                "users": [[UserSchema]],
+                "group": {"type": Or(DutyGroupType.SPECIFIED, DutyGroupType.AUTO), Optional("number", default=0): int},
             }
         ],
     },
