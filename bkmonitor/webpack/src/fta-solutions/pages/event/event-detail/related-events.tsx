@@ -221,7 +221,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       },
       {
         id: 'tag',
-        name: window.i18n.tc('标签'),
+        name: window.i18n.tc('维度'),
         checked: true,
         disabled: false,
         props: {
@@ -540,7 +540,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         children: [
           { title: this.$t('事件时间'), content: dayjs.tz(child.time * 1000).format('YYYY-MM-DD HH:mm:ss') },
           {
-            title: <span>{this.$t('标签')}</span>,
+            title: <span>{this.$t('维度')}</span>,
             content: child.tags?.length ? (
               <div class='item-content-kv'>
                 <div
