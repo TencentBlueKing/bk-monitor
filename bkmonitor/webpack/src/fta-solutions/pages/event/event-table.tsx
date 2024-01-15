@@ -502,7 +502,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         },
         {
           id: 'tags',
-          name: this.$t('标签'),
+          name: this.$t('维度'),
           disabled: false,
           checked: false,
           props: {
