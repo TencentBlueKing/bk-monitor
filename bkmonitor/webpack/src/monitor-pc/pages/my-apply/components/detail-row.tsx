@@ -28,7 +28,7 @@ import { Component as tsc, ofType } from 'vue-tsx-support';
 
 interface IProps {
   label: any;
-  value: string | number;
+  value?: string | number;
 }
 
 @Component
@@ -44,12 +44,7 @@ class DetailRow extends tsc<IProps> {
         <div class='label'>
           <span>{this.label}</span>
         </div>
-        <span
-          class='value'
-          style='align-self: center;'
-        >
-          {this.value}
-        </span>
+        {this.$slots.value ? <span class='value'>{this.$slots.value}</span> : <span class='value'>{this.value}</span>}
       </div>
     );
   }

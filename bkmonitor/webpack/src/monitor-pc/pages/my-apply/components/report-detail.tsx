@@ -29,7 +29,7 @@ import dayjs from 'dayjs';
 
 import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
 import { Scenario } from '../../my-subscription/mapping';
-import { Report, ReportQueryType } from '../../my-subscription/types';
+import { FrequencyType, Report, ReportQueryType } from '../../my-subscription/types';
 import { getDefaultReportData, getSendFrequencyText } from '../../my-subscription/utils';
 
 import DetailRow from './detail-row';
@@ -166,21 +166,24 @@ class ReportDetail extends tsc<IProps> {
                 </div>
               ) : (
                 <div class='subscribers-row'>
-                  <span
-                    class='subscribers-value'
-                    style='padding-top: 3px;'
-                  >
-                    -
-                  </span>
+                  <span class='subscribers-value'>-</span>
                 </div>
               )}
             </span>
           </div>
 
-          <DetailRow
-            label={this.$t('发送频率')}
-            value={getSendFrequencyText(this.detailInfo)}
-          />
+          <DetailRow label={this.$t('发送频率')}>
+            {this.detailInfo.frequency.type === FrequencyType.onlyOnce ? (
+              <span slot='value'>
+                <span>{getSendFrequencyText(this.detailInfo)}</span>
+                <span style='margin-left: 10px;'>
+                  {dayjs(this.detailInfo.frequency.run_time).format('YYYY-MM-DD HH:mm')}
+                </span>
+              </span>
+            ) : (
+              <span slot='value'>{getSendFrequencyText(this.detailInfo)}</span>
+            )}
+          </DetailRow>
 
           <DetailRow
             label={this.$t('有效时间范围')}
