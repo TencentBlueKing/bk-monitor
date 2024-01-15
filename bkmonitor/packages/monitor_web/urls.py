@@ -40,5 +40,6 @@ urlpatterns = [
     url(r"^", include("monitor_web.share.urls")),
     url(r"^", include("monitor_web.promql_import.urls")),
     url(r"^", include("monitor_web.aiops.urls")),
+    url(r"^", include("monitor_web.datalink.urls")),
     url(r"^", include("monitor_web.new_report.urls")),
 ]

@@ -260,7 +260,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
    */
   get isMultivariateAnomalyDetection() {
     return (
-      this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.MultivariateAnomalyDetection
+      this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection
     );
   }
 

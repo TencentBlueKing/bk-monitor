@@ -95,6 +95,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
                   : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建节点')}
             </Button>
           )}
@@ -107,6 +108,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
                 this.authority.MANAGE_AUTH ? this.handleCreate('createTask') : this.handleShowAuthorityDetail()
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建拨测')}
             </Button>
           )}
@@ -118,6 +120,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
                 this.authority.MANAGE_AUTH ? this.handleCreate('createGroup') : this.handleShowAuthorityDetail()
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建任务组')}
             </Button>
           )}

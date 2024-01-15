@@ -277,11 +277,11 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   // 改变条件时 更新路由参数
-  setRouteParams(ipChooser = {}, deleteIpValue = false) {
+  setRouteParams(ipChooser = {}, deleteIpValue = false, linkAddition = null) {
     const { params, query } = this.$route;
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
     const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
-    const newQueryObj = { addition: this.getFiledAdditionStr() }; // 新的query对象
+    const newQueryObj = { addition: this.getFiledAdditionStr(linkAddition) }; // 新的query对象
     const newIPChooser = Object.keys(ipChooser).length ? ipChooser : query.ip_chooser;
 
     if (newIPChooser && Object.keys(newIPChooser).length) { // ip值更新
@@ -297,16 +297,17 @@ export default class SearchComp extends tsc<IProps> {
     }
 
     Object.assign(filterQuery, newQueryObj);
-
-    this.$router.replace({
+    const routeData = {
       name: 'retrieve',
       params,
       query: filterQuery,
-    });
+    };
+    if (linkAddition) return this.$router.resolve(routeData).href;
+    this.$router.replace(routeData);
   }
 
   // 获取有效的字段条件字符串
-  getFiledAdditionStr() {
+  getFiledAdditionStr(linkAddition = null) {
     const filterAddition = this.conditionList
       .filter((item) => {
         if (item.conditionType === 'filed') {
@@ -316,14 +317,17 @@ export default class SearchComp extends tsc<IProps> {
         }
         return false;
       });
-    if (!filterAddition.length) return undefined;
-    return JSON.stringify(
-      filterAddition.map(item => ({
-        field: item.id,
-        operator: item.operator,
-        value: item.value.join(','),
-        isInclude: item.isInclude,
-      })));
+    if (!filterAddition.length && !linkAddition) return undefined;
+    const stringifyList = filterAddition.map(item => ({
+      field: item.id,
+      operator: item.operator,
+      value: item.value.join(','),
+      isInclude: item.isInclude,
+    }));
+    if (linkAddition && JSON.stringify(linkAddition) !== '{}') {
+      stringifyList.push(linkAddition);
+    }
+    return JSON.stringify(stringifyList);
   }
 
   getIPChooserStr(ipChooser) {
@@ -364,7 +368,7 @@ export default class SearchComp extends tsc<IProps> {
 
   initAdditionDefault(addition = []) {
     // 如果初始化时没有路由传过来的条件则默认展示path和log条件
-    if (!addition.length) {
+    if (!addition.length && !this.conditionList.length) {
       // log / path 操作默认展示
       addition = this.filterFields
         .filter(item => ['path', 'log'].includes(item.name))
@@ -391,8 +395,9 @@ export default class SearchComp extends tsc<IProps> {
     this.conditionList.splice(index, 1);
     if (conditionType === 'ip-select') {
       this.handleIPSelectorValueChange({}, true);
-    } else if ((condition.isInclude && condition.value.length) || this.isExistsOperator(condition.operate)) {
-      this.searchAdditionQuery(); // 删除的条件有值并且开启检索或者是操作符包含exists 则搜索一次
+    } else if (condition.isInclude) {
+      const isQuery = this.isExistsOperator(condition.operate) || condition.value.length;
+      this.searchAdditionQuery(isQuery); // 删除的条件有值并且开启检索或者是操作符包含exists 则搜索一次
     };
     this.setRouteParams({}, conditionType === 'ip-select');
   }

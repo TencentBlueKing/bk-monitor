@@ -12,16 +12,22 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from bkmonitor.action.serializers import UserGroupDetailSlz, UserGroupSlz
+from bkmonitor.action.serializers import (
+    DutyRuleDetailSlz,
+    DutyRuleSlz,
+    UserGroupDetailSlz,
+    UserGroupSlz,
+)
 from bkmonitor.models import (
     ActionConfig,
     DutyArrange,
+    DutyRule,
     StrategyActionConfigRelation,
     UserGroup,
 )
 from bkmonitor.strategy.serializers import NoticeGroupSerializer
 from constants.action import ActionSignal, NoticeWay, NotifyStep
-from core.drf_resource import Resource
+from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.errors.notice_group import NoticeGroupHasStrategy
 
@@ -139,7 +145,6 @@ class SaveNoticeGroupResource(Resource):
         return super(SaveNoticeGroupResource, self).validate_request_data(request_data)
 
     def perform_request(self, validated_request_data):
-
         if validated_request_data.get("id"):
             user_group_id = validated_request_data["id"]
             user_group = UserGroup.objects.get(id=user_group_id, bk_biz_id=validated_request_data["bk_biz_id"])
@@ -353,8 +358,6 @@ class SaveUserGroupResource(Resource):
         校验请求数据
         """
         self._request_serializer = None
-        if not self.RequestSerializer:
-            return request_data
         user_group = None
         if request_data.get("id"):
             try:
@@ -392,7 +395,7 @@ class DeleteUserGroupResource(Resource):
         if not_allowed_groups:
             # 如果存在不允许删除的告警组，直接返回错误
             raise NoticeGroupHasStrategy(
-                "Follow groups(%s) art to not allowed to delete because of "
+                "Follow groups(%s) are to not allowed to delete because of "
                 "these user groups have been related to some strategies" % ",".join(not_allowed_groups)
             )
         deleted_group_ids = list(deleted_user_group_queryset.values_list("id", flat=True))
@@ -400,6 +403,111 @@ class DeleteUserGroupResource(Resource):
         deleted_user_group_queryset.delete()
 
         return {"ids": deleted_group_ids}
+
+
+class SearchDutyRuleResource(Resource):
+    """
+    查询通知组
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(required=True, label="业务ID"), required=False)
+        ids = serializers.ListField(child=serializers.IntegerField(required=True, label="规则组ID"), required=False)
+        name = serializers.CharField(required=False)
+
+    def perform_request(self, params):
+        # 告警规则列表的获取
+
+        duty_rules = DutyRule.objects.all().order_by("-update_time")
+
+        if params.get("bk_biz_ids"):
+            duty_rules = duty_rules.filter(bk_biz_id__in=params.get("bk_biz_ids"))
+
+        if params.get("ids"):
+            duty_rules = duty_rules.filter(id__in=params.get("ids"))
+
+        if params.get("name"):
+            duty_rules = duty_rules.filter(name__icontains=params["name"])
+
+        return DutyRuleSlz(duty_rules, many=True).data
+
+
+class SearchDutyRuleDetailResource(Resource):
+    """
+    查询告警规则详细内容
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=True, label="轮值规则组ID")
+
+    def perform_request(self, params):
+        # 告警组列表的获取
+        try:
+            duty_rule = DutyRule.objects.get(id=params["id"])
+        except DutyRule.DoesNotExist:
+            # 如果不存在，直接返回空
+            return {}
+        return DutyRuleDetailSlz(instance=duty_rule).data
+
+
+class SaveDutyRuleResource(Resource):
+    """
+    保存告警规则组, 有ID就新建，没有ID就更新
+    """
+
+    class RequestSerializer(DutyRuleDetailSlz):
+        id = serializers.IntegerField(required=False, label="规则组ID")
+
+    def validate_request_data(self, request_data):
+        """
+        校验请求数据
+        """
+        self._request_serializer = None
+        duty_rule = None
+        if request_data.get("id"):
+            try:
+                duty_rule = DutyRule.objects.get(id=request_data.pop("id"), bk_biz_id=request_data["bk_biz_id"])
+            except DutyRule.DoesNotExist:
+                raise ValidationError("duty rule not existed")
+        self._request_serializer = self.RequestSerializer(data=request_data, instance=duty_rule)
+        self._request_serializer.is_valid(raise_exception=True)
+        return self._request_serializer.validated_data
+
+    def perform_request(self, validated_request_data):
+        duty_rule = self._request_serializer.save()
+        return DutyRuleDetailSlz(instance=duty_rule).data
+
+
+class DeleteDutyRuleResource(Resource):
+    """
+    删除通知组
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(required=True, label="业务ID"), required=True)
+        ids = serializers.ListField(child=serializers.IntegerField(required=True, label="规则ID"), required=True)
+
+    def perform_request(self, validated_request_data):
+        deleted_duty_rule_queryset = DutyRule.objects.filter(
+            id__in=validated_request_data["ids"], bk_biz_id__in=validated_request_data["bk_biz_ids"]
+        )
+        duty_rules = DutyRuleSlz(deleted_duty_rule_queryset, many=True).data
+        not_allowed_rules = []
+        for rule in duty_rules:
+            if not rule["delete_allowed"]:
+                # 当查询出来的告警组有关联关系
+                not_allowed_rules.append(str(rule["id"]))
+        if not_allowed_rules:
+            # 如果存在不允许删除的告警规则组，直接返回错误
+            raise NoticeGroupHasStrategy(
+                "Follow duty rules(%s) are to not allowed to delete because of "
+                "these rules have been related to some user groups" % ",".join(not_allowed_rules)
+            )
+        deleted_rule_ids = list(deleted_duty_rule_queryset.values_list("id", flat=True))
+        DutyArrange.objects.filter(duty_rule_id__in=deleted_rule_ids).delete()
+        deleted_duty_rule_queryset.delete()
+
+        return {"ids": deleted_rule_ids}
 
 
 class NoticeGroupViewSet(ResourceViewSet):
@@ -424,4 +532,19 @@ class UserGroupViewSet(ResourceViewSet):
         ResourceRoute("POST", SearchUserGroupDetailResource, endpoint="search_detail"),
         ResourceRoute("POST", DeleteUserGroupResource, endpoint="delete"),
         ResourceRoute("POST", SaveUserGroupResource, endpoint="save"),
+        ResourceRoute("POST", resource.user_group.preview_user_group_plan, endpoint="preview"),
+    ]
+
+
+class DutyRuleViewSet(ResourceViewSet):
+    """
+    轮值规则API
+    """
+
+    resource_routes = [
+        ResourceRoute("POST", SearchDutyRuleResource, endpoint="search"),
+        ResourceRoute("POST", SearchDutyRuleDetailResource, endpoint="search_detail"),
+        ResourceRoute("POST", DeleteDutyRuleResource, endpoint="delete"),
+        ResourceRoute("POST", SaveDutyRuleResource, endpoint="save"),
+        ResourceRoute("POST", resource.user_group.preview_duty_rule_plan, endpoint="preview"),
     ]
