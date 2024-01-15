@@ -29,7 +29,7 @@ import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
 import { debounce } from 'throttle-debounce';
 
-import { profileQuery } from '../../../../monitor-api/modules/apm_profile';
+import { query } from '../../../../monitor-api/modules/apm_profile';
 import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import { getSingleDiffColor } from '../../../utils/compare';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
@@ -129,7 +129,7 @@ export default defineComponent({
         showException.value = false;
         try {
           const { bizId, appName, start, end, profileId } = props;
-          const data = await profileQuery(
+          const data = await query(
             {
               bk_biz_id: bizId,
               app_name: appName,
