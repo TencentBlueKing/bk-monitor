@@ -1171,6 +1171,13 @@ for origin in allowed_cors_from_settings:
     if origin:
         CORS_ALLOWED_ORIGINS.append(origin)
 
+#  通知中心配置
+BK_NOTICE = {
+    # 添加默认值防止本地调试无法启动
+    "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
+}
+
+
 """
 以下为框架代码 请勿修改
 """
