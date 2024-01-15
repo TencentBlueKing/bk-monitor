@@ -163,7 +163,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
         scene_id: this.formModel.scene,
         metrics,
         sensitivity: this.formModel.sensitivity,
-        level: levelParamsMap[this.formModel.level]
+        level: levelParamsMap[this.formModel.level] || []
       },
       unit_prefix: ''
     };
