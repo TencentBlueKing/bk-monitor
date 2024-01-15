@@ -19,7 +19,7 @@
 </style>
 <body>
 {% if send_text %}
-<p>提示: {{ send_text }}</p>
+<p style="color: red;">提示: {{ send_text }}</p>
 {% endif %}
 <p>时间范围: {{ time_config.start_time }} - {{ time_config.end_time }}</p>
 <p>空间名称: {{ space_name }}</p>
