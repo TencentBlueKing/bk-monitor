@@ -97,13 +97,7 @@
                 :value="labItem.id">
                 <match-label-item
                   is-dialog-item
-                  v-bk-tooltips.top="{
-                    disabled: !labItem.disabled,
-                  }"
-                  :class="{
-                    disabled: labItem.disabled,
-                    'is-checked': isSelectItem('matchSelectList', labItem.id),
-                  }"
+                  :class="{ 'is-checked': isSelectItem('matchSelectList', labItem.id) }"
                   :match-item="labItem" />
               </bk-checkbox>
             </bk-checkbox-group>
