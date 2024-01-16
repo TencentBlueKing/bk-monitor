@@ -1,0 +1,11 @@
+{
+  "id": "profiling",
+  "type": "overview",
+  "mode": "custom",
+  "name": "Profiling",
+  "variables": [],
+  "overview_panels": [],
+  "panels": [],
+  "order": [],
+  "options": {}
+}
