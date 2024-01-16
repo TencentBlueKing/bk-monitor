@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
 import { Exception, Loading } from 'bkui-vue';
 import { debounce } from 'throttle-debounce';
 
-// import { query } from '../../../../monitor-api/modules/apm_profile';
+import { query } from '../../../../monitor-api/modules/apm_profile';
 import { BaseDataType, ProfilingTableItem, ViewModeType } from '../../../../monitor-ui/chart-plugins/typings';
-// import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { ToolsFormData } from '../../../pages/profiling/typings';
 import { DirectionType, IQueryParams } from '../../../typings';
 
@@ -52,6 +52,7 @@ export default defineComponent({
   setup(props) {
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
 
+    const frameGraphRef = ref(FrameGraph);
     const empty = ref(true);
     // 当前视图模式
     const activeMode = ref<ViewModeType>(ViewModeType.Combine);
@@ -66,6 +67,8 @@ export default defineComponent({
     const unit = ref('');
     const highlightId = ref(-1);
     const filterKeyword = ref('');
+
+    const flameFilterKeywords = computed(() => (filterKeyword.value?.trim?.().length ? [filterKeyword.value] : []));
 
     watch(
       [() => props.queryParams],
@@ -89,14 +92,17 @@ export default defineComponent({
       try {
         isLoading.value = true;
         highlightId.value = -1;
-        // const { queryParams } = props;
-        // const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-        // const params = Object.assign({}, queryParams, {
-        //   start,
-        //   end
-        // });
-        // const data = await query(params).catch(() => false);
-        const data = PROFILING_QUERY_DATA;
+        const { queryParams } = props;
+        const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+        const params = Object.assign({}, queryParams, {
+          start: start * Math.pow(10, 6),
+          end: end * Math.pow(10, 6),
+          diagram_types: ['table', 'flamegraph'],
+          // TODO
+          app_name: 'profiling_bar'
+        });
+        let data = await query(params).catch(() => false);
+        data = PROFILING_QUERY_DATA; // TODO
         if (data) {
           unit.value = data.unit || '';
           tableData.value = data.table_data || [];
@@ -119,8 +125,39 @@ export default defineComponent({
     const handleTextDirectionChange = (val: DirectionType) => {
       textDirection.value = val;
     };
+    /** 表格排序 */
+    const handleSortChange = async (sortKey: string) => {
+      const { queryParams } = props;
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      const params = Object.assign({}, queryParams, {
+        start: start * Math.pow(10, 6),
+        end: end * Math.pow(10, 6),
+        // TODO
+        app_name: 'profiling_bar',
+        diagram_types: ['table'],
+        sort: sortKey
+      });
+      const data = await query(params).catch(() => false);
+      if (data) {
+        highlightId.value = -1;
+        tableData.value = data.table_data || [];
+      }
+    };
+    /** 下载 */
+    const handleDownload = (type: string) => {
+      switch (type) {
+        case 'png':
+          frameGraphRef.value?.handleStoreImg();
+          break;
+        case 'pprof':
+          break;
+        default:
+          break;
+      }
+    };
 
     return {
+      frameGraphRef,
       empty,
       tableData,
       flameData,
@@ -131,7 +168,10 @@ export default defineComponent({
       handleModeChange,
       handleTextDirectionChange,
       highlightId,
-      filterKeyword
+      filterKeyword,
+      flameFilterKeywords,
+      handleSortChange,
+      handleDownload
     };
   },
   render() {
@@ -146,6 +186,7 @@ export default defineComponent({
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
           onKeywordChange={val => (this.filterKeyword = val)}
+          onDownload={this.handleDownload}
         />
         {this.empty ? (
           <Exception
@@ -162,15 +203,17 @@ export default defineComponent({
                 highlightId={this.highlightId}
                 filterKeyword={this.filterKeyword}
                 onUpdateHighlightId={id => (this.highlightId = id)}
+                onSortChange={this.handleSortChange}
               />
             )}
             {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
               <FrameGraph
+                ref='frameGraphRef'
                 textDirection={this.textDirection}
                 showGraphTools={false}
                 data={this.flameData}
                 highlightId={this.highlightId}
-                filterKeywords={[this.filterKeyword]}
+                filterKeywords={this.flameFilterKeywords}
                 onUpdateHighlightId={id => (this.highlightId = id)}
               />
             )}

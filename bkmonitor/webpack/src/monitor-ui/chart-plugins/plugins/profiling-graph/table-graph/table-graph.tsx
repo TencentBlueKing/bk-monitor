@@ -46,6 +46,7 @@ interface ITableChartProps {
 
 interface ITableChartEvents {
   onUpdateHighlightId: number;
+  onSortChange: string;
 }
 
 @Component
@@ -76,6 +77,11 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   @Emit('updateHighlightId')
   handleHighlightIdChange(val: number) {
     return val;
+  }
+
+  @Emit('sortChange')
+  handleSortChange(sortKey) {
+    return sortKey;
   }
 
   @Watch('data', { immediate: true, deep: true })
@@ -134,7 +140,21 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   }
   /** 列字段排序 */
   handleSort(col: TableColumn) {
-    col.sort = col.sort === 'desc' ? 'asc' : 'desc';
+    let sortKey;
+    switch (col.sort) {
+      case 'asc':
+        col.sort = 'desc';
+        sortKey = `-${col.id}`;
+        break;
+      case 'desc':
+        col.sort = '';
+        sortKey = undefined;
+        break;
+      default:
+        col.sort = 'asc';
+        sortKey = col.id;
+    }
+    this.handleSortChange(sortKey);
     this.tableColumns = this.tableColumns.map(item => {
       return {
         ...item,

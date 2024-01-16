@@ -40,6 +40,7 @@ interface IChartTitleEvent {
   onModeChange: ViewModeType;
   onTextDirectionChange: TextDirectionType;
   onKeywordChange: string;
+  onDownload: string;
 }
 
 @Component
@@ -47,7 +48,12 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ required: true, type: String }) activeMode: string;
   @Prop({ required: true, type: String }) textDirection: string;
 
-  downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
+  downloadTypeMaps = [
+    'png',
+    // 'json',
+    'pprof'
+    // 'html'
+  ];
   viewModeList: ViewModeItem[] = [
     { id: ViewModeType.Table, icon: 'table' },
     { id: ViewModeType.Combine, icon: 'mc-fenping' },
@@ -70,6 +76,11 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Emit('keywordChange')
   handleKeywordChange() {
     return this.keyword;
+  }
+
+  @Emit('download')
+  handleDownload(type: string) {
+    return type;
   }
 
   render() {
@@ -115,7 +126,10 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             slot='dropdown-content'
           >
             {this.downloadTypeMaps.map(item => (
-              <li class='profiling-view-download-menu-item'>
+              <li
+                class='profiling-view-download-menu-item'
+                onClick={() => this.handleDownload(item)}
+              >
                 <a class='profiling-view-download-menu-item'>{item}</a>
               </li>
             ))}

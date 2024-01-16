@@ -45,9 +45,14 @@ export default defineComponent({
       default: 'ltr'
     }
   },
-  emits: ['modeChange', 'textDirectionChange', 'keywordChange'],
+  emits: ['modeChange', 'textDirectionChange', 'keywordChange', 'download'],
   setup(props, { emit }) {
-    const downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
+    const downloadTypeMaps = [
+      'png',
+      //  'json',
+      'pprof'
+      //  'html'
+    ];
     const viewModeList: ViewModeItem[] = [
       { id: ViewModeType.Table, icon: 'table' },
       { id: ViewModeType.Combine, icon: 'mc-fenping' },
@@ -67,6 +72,9 @@ export default defineComponent({
     const handleKeywordChange = debounce(300, async () => {
       emit('keywordChange', keyword.value);
     });
+    const menuClick = (type: string) => {
+      emit('download', type);
+    };
 
     return {
       keyword,
@@ -74,7 +82,8 @@ export default defineComponent({
       viewModeList,
       handleModeChange,
       handleEllipsisDirectionChange,
-      handleKeywordChange
+      handleKeywordChange,
+      menuClick
     };
   },
   render() {
@@ -119,7 +128,12 @@ export default defineComponent({
             content: () => (
               <Dropdown.DropdownMenu>
                 {this.downloadTypeMaps.map(item => (
-                  <Dropdown.DropdownItem class='profiling-view-download-menu-item'>{item}</Dropdown.DropdownItem>
+                  <Dropdown.DropdownItem
+                    class='profiling-view-download-menu-item'
+                    onClick={() => this.menuClick(item)}
+                  >
+                    {item}
+                  </Dropdown.DropdownItem>
                 ))}
               </Dropdown.DropdownMenu>
             )
