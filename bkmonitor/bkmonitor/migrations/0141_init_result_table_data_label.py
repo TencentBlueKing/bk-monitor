@@ -12,9 +12,9 @@ import re
 
 from django.conf import settings
 from django.db import migrations
-from monitor_web.plugin.constant import PluginType
 
 from bkmonitor.data_source import is_build_in_process_data_source
+from monitor_web.plugin.constant import PluginType
 
 
 def init_result_table_data_label(apps, *args, **kwargs):

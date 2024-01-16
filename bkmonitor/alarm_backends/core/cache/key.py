@@ -247,7 +247,6 @@ TRIGGER_EVENT_LIST_KEY = register_key_with_config(
     }
 )
 
-
 #####################################################
 # service(db:10) [重要，不可清理] service自身的数据      #
 #####################################################
@@ -280,7 +279,6 @@ ACCESS_RUN_TIMESTAMP_KEY = register_key_with_config(
         "backend": "service",
     }
 )
-
 
 ACCESS_DUPLICATE_KEY = register_key_with_config(
     {

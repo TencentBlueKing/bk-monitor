@@ -1,0 +1,42 @@
+.field-details-component {
+  .title {
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 22px;
+    color: #63656e;
+  }
+
+  .table-wrap {
+    .table-item {
+      & + .table-item {
+        margin-top: 10px;
+      }
+
+      &-title {
+        display: flex;
+        align-items: center;
+        height: 40px;
+        padding: 0 16px;
+        font-weight: bold;
+        color: #63656e;
+        cursor: pointer;
+        background-color: #f0f1f5;
+        border: 1px solid #dcdee5;
+
+        &.is-collapse {
+          border-bottom: none;
+        }
+
+        .title-icon {
+          margin-right: 5px;
+          font-size: 14px;
+
+          &:hover {
+            cursor: pointer;
+          }
+        }
+      }
+    }
+  }
+}

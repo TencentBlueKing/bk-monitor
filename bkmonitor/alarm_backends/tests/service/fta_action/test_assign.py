@@ -26,7 +26,7 @@ from alarm_backends.tests.service.access.data.config import (
     USER_GROUP_DATA,
     USER_GROUP_WXBOT_DATA,
 )
-from constants.action import ActionPluginType, AssignMode
+from constants.action import ActionPluginType, AssignMode, UserGroupType
 from constants.alert import EventStatus
 
 pytestmark = pytest.mark.django_db
@@ -107,6 +107,35 @@ def setup():
         "assign_group_id": assign_group.id,
         "user_groups": [1],
         "conditions": [],
+        "actions": [
+            {
+                "action_type": ActionPluginType.NOTICE,
+                "is_enabled": True,
+                "upgrade_config": {"is_enabled": True, "user_groups": [2, 1], "upgrade_interval": 30},
+            },
+            {"action_type": ActionPluginType.ITSM, "action_id": 4444},
+        ],
+        "alert_severity": 2,
+        "additional_tags": [{"key": "ip123", "value": "127.0.0.1"}],
+        "bk_biz_id": 2,
+        "is_enabled": True,
+    }
+    yield AlertAssignRule.objects.create(**rule)
+
+
+@pytest.fixture()
+def follow_setup():
+    ActionInstance.objects.all().delete()
+    AlertAssignGroup.objects.all().delete()
+    AlertAssignRule.objects.all().delete()
+    ConvergeRelation.objects.all().delete()
+
+    assign_group = AlertAssignGroup.objects.create(name="test cache", bk_biz_id=2, priority=1)
+    rule = {
+        "assign_group_id": assign_group.id,
+        "user_groups": [1],
+        "conditions": [],
+        "user_type": UserGroupType.FOLLOWER,
         "actions": [
             {
                 "action_type": ActionPluginType.NOTICE,
@@ -468,6 +497,11 @@ class TestAlertAssignRule:
         assert AssignCacheManager.get_assign_groups_by_priority(2, 1) == {setup.assign_group_id}
         assert AssignCacheManager.get_assign_rules_by_group(2, setup.assign_group_id) == [rule]
 
+        # 默认的规则配置的用户类型都是负责人
+        assert (
+            AssignCacheManager.get_assign_rules_by_group(2, setup.assign_group_id)[0]["user_type"] == UserGroupType.MAIN
+        )
+
     def test_host_cmdb_dimension_matched(self, alert, host_mock):
         rule = {
             "conditions": [
@@ -765,6 +799,7 @@ class TestAssignManager:
         assert rule_obj.itsm_action == {"action_type": ActionPluginType.ITSM, "action_id": 4444}
         assert rule_obj.alert_severity == 2
         assert rule_obj.additional_tags == [{"key": "ip", "value": "127.0.0.1"}]
+        assert rule_obj.user_type == UserGroupType.MAIN
 
     def test_change_alert_severity(self, setup, alert, user_group_setup, biz_mock, init_configs):
         assert ActionConfigCacheManager.get_action_config_by_id(4444)
@@ -903,6 +938,46 @@ class TestAssignManager:
         new_alert = AlertDocument.get(id=alert.id)
         assert new_alert.severity == 2
         assert new_alert.assign_tags == setup.additional_tags
+
+    def test_default_assign_follower_notice(self, follow_setup, alert, user_group_setup, biz_mock, init_configs):
+        """
+        原生测试
+        """
+        alert.extra_info.strategy = {}
+        AlertDocument.bulk_create([alert])
+        assert biz_mock.call_count == 1
+        actions = create_actions(0, "abnormal", alerts=[alert])
+        assert len(actions) == 3
+        p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
+        p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
+        p_ai.inputs["follow_notify_info"].pop("wxbot_mention_users", None)
+        assert p_ai.inputs["follow_notify_info"] == {'mail': ['lisa']}
+        new_alert = AlertDocument.get(id=alert.id)
+        assert new_alert.severity == 2
+        assert new_alert.assign_tags == follow_setup.additional_tags
+        assert new_alert.follower == ["lisa"]
+
+    def test_assign_follower_with_appointee_notice(self, follow_setup, alert, user_group_setup, biz_mock, init_configs):
+        """
+        原生测试
+        """
+        alert.extra_info.strategy = {}
+        alert.appointee = ["admin1", "admin2"]
+        AlertDocument.bulk_create([alert])
+        assert biz_mock.call_count == 1
+        actions = create_actions(0, "abnormal", alerts=[alert])
+        # 5个人通知，两个负责人需要通知， 一个lisa的邮件通知，两个企业微信通知
+        assert len(actions) == 5
+        p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
+        p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
+        p_ai.inputs["follow_notify_info"].pop("wxbot_mention_users", None)
+        assert p_ai.inputs["follow_notify_info"] == {'mail': ['lisa']}
+        assert p_ai.inputs["notify_info"] == {'mail': ['admin1', "admin2"]}
+        new_alert = AlertDocument.get(id=alert.id)
+        assert new_alert.severity == 2
+        assert new_alert.assign_tags == follow_setup.additional_tags
+        assert new_alert.follower == ["lisa"]
+        assert new_alert.appointee == ["admin1", "admin2"]
 
     def test_default_assign_without_notice(self, alert, user_group_setup, biz_mock, init_configs):
         """
