@@ -3454,7 +3454,7 @@ class CollectorHandler(object):
                             "conditions": conf["conditions"]
                             if conf.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
-                            **conf.get("multiline", {})
+                            **conf.get("multiline", {}),
                         },
                         "container": {
                             "workload_type": conf["container"].get("workload_type", ""),
@@ -3482,7 +3482,7 @@ class CollectorHandler(object):
                             "conditions": conf["conditions"]
                             if conf.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
-                            **conf.get("multiline", {})
+                            **conf.get("multiline", {}),
                         },
                         "container": {
                             "workload_type": conf["container"].get("workload_type", ""),
@@ -3654,6 +3654,17 @@ class CollectorHandler(object):
         else:
             deal_collector_scenario_param(container_config.params)
             request_params = self.collector_container_config_to_raw_config(self.data, container_config)
+
+        # 如果是边缘存查配置，还需要追加 output 配置
+        data_link_id = CollectorConfig.objects.get(
+            collector_config_id=container_config.collector_config_id
+        ).data_link_id
+        edge_transport_params = CollectorScenario.get_edge_transport_output_params(data_link_id)
+        if edge_transport_params:
+            ext_options = request_params.get("extOptions") or {}
+            ext_options["output.kafka"] = edge_transport_params
+            request_params["extOptions"] = ext_options
+
         name = self.generate_bklog_config_name(container_config.id)
 
         container_config.status = ContainerCollectStatus.PENDING.value
