@@ -150,7 +150,7 @@ export default defineComponent({
             <span class='value'>
               <div
                 class='subscribers-row'
-                style='padding-bottom: 13px;'
+                style='padding-bottom: 11px;'
               >
                 <span
                   class='subscribers-label'

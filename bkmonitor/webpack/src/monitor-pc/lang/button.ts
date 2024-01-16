@@ -440,7 +440,6 @@ export default {
   待审批: 'Pending',
   审批通过: 'Approved',
   审批驳回: 'Rejected',
-  生效中: 'Taking Effect',
   重新发送: 'Resend',
   发送记录: 'Send Records',
   管理员创建的: 'Administrator Created',

@@ -99,7 +99,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     scenario_config: {
       index_set_id: 0,
       // 需要从 slider 上进行转换
-      pattern_level: '01',
+      pattern_level: '09',
       log_display_count: 30,
       year_on_year_hour: 1,
       generate_attachment: true,
