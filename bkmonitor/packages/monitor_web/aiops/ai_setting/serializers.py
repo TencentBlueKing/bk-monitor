@@ -10,11 +10,11 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.conf import settings
-from monitor_web.aiops.ai_setting.constant import DEFAULT_SENSITIVITY
 from django.utils.translation import ugettext as _
 
 from bkmonitor.strategy.new_strategy import Item
 from bkmonitor.views import serializers
+from constants.aiops import DEFAULT_SENSITIVITY
 
 
 class AiSettingTemplateSerializer(serializers.Serializer):
