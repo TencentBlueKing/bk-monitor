@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 from abc import abstractmethod
 
+from alarm_backends.core.i18n import i18n
 from bkmonitor.models.report import (
     ChannelEnum,
     Report,
@@ -96,6 +97,8 @@ class SendChannelHandler(object):
 
     def send(self, context, send_round, bk_biz_id=None):
         subscribers = self.fetch_subscribers(bk_biz_id)
+        if bk_biz_id:
+            i18n.set_biz(bk_biz_id)
         # 补充提示词
         if self.channel.send_text:
             context["send_text"] = self.channel.send_text
