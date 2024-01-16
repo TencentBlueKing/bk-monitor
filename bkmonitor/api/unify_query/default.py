@@ -129,6 +129,28 @@ class QueryDataResource(UnifyQueryAPIResource):
         timezone = serializers.CharField(required=False)
 
 
+class QueryClusterMetricsDataResource(UnifyQueryAPIResource):
+    """
+    查询数据
+    """
+
+    method = "POST"
+    path = "/query/ts/cluster_metrics"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField(required=False)
+        end_time = serializers.CharField()
+        step = serializers.CharField(required=False)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+
+        def validate(self, attrs):
+            logger.info(f"ClusterMetrics Query: {json.dumps(attrs)}")
+            return attrs
+
+
 class QueryDataByPromqlResource(UnifyQueryAPIResource):
     """
     使用PromQL查询数据
