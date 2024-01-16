@@ -12,15 +12,16 @@ import json
 from itertools import chain
 from typing import Dict, List, Optional, Set
 
+from django.utils.translation import gettext as _
+from rest_framework import serializers
+
 from apm_web.constants import HostAddressType
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.utils import list_remote_service_callers
-from django.utils.translation import gettext as _
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
-from rest_framework import serializers
 
 
 class ApmBuiltinProcessor(BuiltinProcessor):
@@ -32,6 +33,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_application-endpoint",
         "apm_application-error",
         "apm_application-overview",
+        "apm_application-profiling",
         "apm_application-service",
         "apm_application-topo",
         "apm_service-component-default-error",
@@ -45,6 +47,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-instance",
         "apm_service-service-default-log",
         "apm_service-service-default-overview",
+        "apm_service-service-default-profiling",
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
         # ⬇️ APMTrace检索场景视图
@@ -141,7 +144,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         # APM观测场景处
         if builtin_view == "apm_service-service-default-host":
-
             if all(list(params.values())) and HostHandler.list_application_hosts(
                 view.bk_biz_id, params.get("app_name"), params.get("service_name")
             ):
@@ -178,7 +180,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             for panel in overview_panel.get("panels", []):
                 for target in panel.get("targets"):
                     for query_config in target.get("data", {}).get("query_configs", []):
-
                         if "$current_target" not in query_config.get("filter_dict", {}).get("targets", []):
                             continue
                         current_target = {}
@@ -278,14 +279,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error"]},
+                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error", "profiling"]},
             )
         if scene_id == f"{cls.SCENE_ID}_service":
             SceneViewOrderModel.objects.update_or_create(
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "endpoint", "db", "error", "instance", "host", "log"]},
+                defaults={
+                    "config": ["overview", "topo", "endpoint", "db", "error", "instance", "host", "log", "profiling"]
+                },
             )
 
     @classmethod

@@ -3454,6 +3454,7 @@ class CollectorHandler(object):
                             "conditions": conf["conditions"]
                             if conf.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
+                            **conf.get("multiline", {})
                         },
                         "container": {
                             "workload_type": conf["container"].get("workload_type", ""),
@@ -3481,6 +3482,7 @@ class CollectorHandler(object):
                             "conditions": conf["conditions"]
                             if conf.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
+                            **conf.get("multiline", {})
                         },
                         "container": {
                             "workload_type": conf["container"].get("workload_type", ""),

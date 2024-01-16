@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, ref } from 'vue';
+import { defineComponent, provide, reactive, Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { debounce } from '../../../monitor-common/utils/utils';
@@ -41,7 +41,7 @@ import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
 import { ToolsFormData } from './typings/page-header';
-import { DetailType, PanelType, SearchState, SearchType, ServicesDetail } from './typings';
+import { DetailType, PanelType, RetrievalFormData, SearchState, SearchType, ServicesDetail } from './typings';
 
 import './profiling.scss';
 
@@ -56,6 +56,7 @@ export default defineComponent({
       timezone: getDefautTimezone(),
       refreshInterval: -1
     });
+    provide<Ref<ToolsFormData>>('toolsFormData', toolsFormData);
 
     /** 查询数据状态 */
     const searchState = reactive<SearchState>({
@@ -63,18 +64,19 @@ export default defineComponent({
       autoQueryTimer: null,
       autoQuery: true,
       loading: false,
-      canQuery: true,
+      canQuery: false,
       formData: {
         type: SearchType.Profiling,
         isComparison: false,
         server: {
-          app_name: 'app1',
-          service_name: 'load-generator'
+          app_name: '',
+          service_name: ''
         },
         where: [],
         comparisonWhere: []
       }
     });
+    provide<RetrievalFormData>('formData', searchState.formData);
     const isEmpty = ref(false);
     const dataType = ref('cpu');
     /**
@@ -106,6 +108,7 @@ export default defineComponent({
      */
     function handleSearchFormDataChange(val: SearchState['formData']) {
       searchState.formData = val;
+      searchState.canQuery = !!(val.server.app_name && val.server.service_name);
       handleQueryDebounce();
     }
     /** 切换自动查询 */
@@ -264,39 +267,38 @@ export default defineComponent({
               <FavoriteList></FavoriteList>
             </div>
           )} */}
-          {this.searchState.isShow && (
-            <div
-              class='search-form-wrap'
-              v-monitor-drag={{
-                minWidth: 200,
-                maxWidth: 800,
-                defaultWidth: 400,
-                autoHidden: true,
-                theme: 'simple',
-                isShow: this.searchState.isShow,
-                onHidden: () => this.handleShowTypeChange(PanelType.Search, false)
-              }}
+          <div
+            class='search-form-wrap'
+            v-monitor-drag={{
+              minWidth: 200,
+              maxWidth: 800,
+              defaultWidth: 400,
+              autoHidden: true,
+              theme: 'simple',
+              isShow: this.searchState.isShow,
+              onWidthChange: () => {},
+              onHidden: () => this.handleShowTypeChange(PanelType.Search, false)
+            }}
+          >
+            <RetrievalSearch
+              formData={this.searchState.formData}
+              onChange={this.handleSearchFormDataChange}
+              onShowDetail={detail => this.handleShowDetail(DetailType.Application, detail)}
             >
-              <RetrievalSearch
-                formData={this.searchState.formData}
-                onChange={this.handleSearchFormDataChange}
-                onShowDetail={detail => this.handleShowDetail(DetailType.Application, detail)}
-              >
-                {{
-                  query: () => (
-                    <HandleBtn
-                      autoQuery={this.searchState.autoQuery}
-                      canQuery={this.searchState.canQuery}
-                      loading={this.searchState.loading}
-                      onChangeAutoQuery={this.handleAutoQueryChange}
-                      onQuery={this.handleQueryDebounce}
-                      onClear={this.handleQueryClear}
-                    ></HandleBtn>
-                  )
-                }}
-              </RetrievalSearch>
-            </div>
-          )}
+              {{
+                query: () => (
+                  <HandleBtn
+                    autoQuery={this.searchState.autoQuery}
+                    canQuery={this.searchState.canQuery}
+                    loading={this.searchState.loading}
+                    onChangeAutoQuery={this.handleAutoQueryChange}
+                    onQuery={this.handleQueryDebounce}
+                    onClear={this.handleQueryClear}
+                  ></HandleBtn>
+                )
+              }}
+            </RetrievalSearch>
+          </div>
           <div class='view-wrap'>{renderView()}</div>
         </div>
 

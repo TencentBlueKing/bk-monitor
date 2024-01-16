@@ -9,6 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 from enum import Enum
 
+DEFAULT_SERVICE_NAME = "default"
+DEFAULT_PROFILE_DATA_TYPE = "cpu"
+
 
 class InputType(Enum):
     PPROF = "pprof"

@@ -50,6 +50,7 @@ export interface BaseRect {
   startTime?: number;
   endTime?: number;
   highlightName?: string;
+  highlightId?: number;
   keywords?: string[];
   value?: number;
 }
@@ -68,7 +69,7 @@ export interface BaseDataType {
   v?: number;
   children: Iterable<BaseDataType>;
   c?: BaseDataType[];
-  id: string;
+  id: string | number;
   hide?: boolean;
   start_time?: number;
   end_time?: number;
@@ -147,7 +148,7 @@ export interface ITipsDetail {
   duration?: string;
   diffDuration?: string;
   diffValue?: number | string;
-  id?: string;
+  id?: string | number;
   mark?: BaseDataType['diff_info']['mark'];
 }
 export interface IAxisRect {
@@ -160,7 +161,7 @@ export interface IAxisRect {
 export interface IContextMenuRect {
   left: number;
   top: number;
-  spanId: string;
+  spanId: string | number;
   spanName: string;
 }
 /**

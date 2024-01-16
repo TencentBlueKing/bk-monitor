@@ -9,7 +9,7 @@
   }
 }
 
-.bk-popover.application-cascade-popover {
+.bk-popover.bk-pop2-content.application-cascade-popover {
   padding: 0;
 
   .application-cascade-popover-content {
@@ -80,15 +80,17 @@
             }
           }
 
-          .left {
-            display: flex;
-            align-items: center;
-          }
-
           .name {
             flex: 1;
-            margin-right: 5px;
+            overflow: hidden;
             color: #63656e;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+
+            .desc {
+              margin-left: 5px;
+              color: #c4c6cc;
+            }
           }
 
           .icon-mc-menu-apm {
@@ -109,6 +111,10 @@
 
           .group-item {
             padding-left: 12px;
+
+            &:hover {
+              background: #f5f7fa;
+            }
 
             &.active {
               background-color: #e1ecff;

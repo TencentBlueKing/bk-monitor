@@ -117,7 +117,7 @@ class TopoViewSet(ResourceViewSet):
     ]
 
 
-class ProfileViewSet(ResourceViewSet):
+class ProfilingViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", QueryProfileServiceDetailResource, endpoint="services_detail"),
     ]

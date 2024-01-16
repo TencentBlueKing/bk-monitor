@@ -36,7 +36,7 @@ export enum ConditionType {
   Comparison = 'comparison'
 }
 
-export interface ConditionItem {
+export interface IConditionItem {
   key: string;
   method: 'eq';
   value: string | string[];
@@ -52,9 +52,9 @@ export interface RetrievalFormData {
     service_name: string;
   };
   /** 查询项条件 */
-  where: ConditionItem[];
+  where: IConditionItem[];
   /** 对比项条件 */
-  comparisonWhere: ConditionItem[];
+  comparisonWhere: IConditionItem[];
 }
 
 export const retrievalDataTypeList = [
@@ -76,6 +76,22 @@ export const retrievalDataTypeList = [
   }
 ] as const;
 
+export interface ServiceItem {
+  id: number;
+  name: string;
+  has_data: boolean;
+}
+
 export interface ApplicationItem {
-  [key: string]: any;
+  bk_biz_id: number;
+  application_id: number;
+  app_name: string;
+  app_alias: string;
+  description: string;
+  services: ServiceItem[];
+}
+
+export interface ApplicationList {
+  normal: ApplicationItem[];
+  no_data: ApplicationItem[];
 }

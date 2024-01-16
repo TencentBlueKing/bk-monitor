@@ -7,16 +7,22 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.urls import path
 from django.conf.urls import include
+from django.urls import path
+from rest_framework.routers import SimpleRouter
 
 from apm_web.profile import views
 from core.drf_resource.routers import ResourceRouter
 
-router = ResourceRouter()
-router.register_module(views)
-router.register(r"profiling", views.ProfileViewSet, basename="profiling")
+router = SimpleRouter()
+router.register(r"query", views.ProfileQueryViewSet, basename="query")
+router.register(r"upload", views.ProfileUploadViewSet, basename="upload")
+
+resource_router = ResourceRouter()
+resource_router.register(r"query", views.ResourceQueryViewSet, basename="query")
+
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("", include(resource_router.urls)),
 ]

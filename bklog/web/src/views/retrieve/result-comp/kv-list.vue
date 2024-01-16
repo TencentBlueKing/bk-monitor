@@ -44,9 +44,8 @@
         <div class="field-value">
           <text-segmentation
             :content="formatterStr(data, field)"
-            :field-name="field"
             :field-type="getFieldType(field)"
-            :menu-click="(type, content) => handleMenuClick(type, content, field)"
+            :menu-click="(type, content, isLink) => handleMenuClick(type, content, field, isLink)"
           />
           <span
             v-if="getRelationMonitorField(field)"
@@ -210,7 +209,7 @@ export default {
       const isDisplay = this.visibleFields.some(item => item.field_name === field);
       return this.toolMenuTips[isDisplay ? 'hiddenField' : 'displayField'];
     },
-    handleMenuClick(operator, item, field) {
+    handleMenuClick(operator, item, field, isLink = false) {
       let params = {};
       const curValue = this.tableRowDeepView(this.data, item, this.getFieldType(item), false);
       if (!field) {  // disable时操作禁用
@@ -247,10 +246,9 @@ export default {
         }
         params.operation = 'display';
         params.displayFieldNames = displayFieldNames;
-        if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
       }
 
-      if (Object.keys(params).length) this.$emit('menuClick', params);
+      if (Object.keys(params).length) this.$emit('menuClick', params, isLink);
     },
     /**
      * @desc 关联跳转

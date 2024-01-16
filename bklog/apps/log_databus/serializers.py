@@ -260,7 +260,7 @@ class ContainerConfigSerializer(serializers.Serializer):
 
 class MultilineSerializer(serializers.Serializer):
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
-    multiline_maxLines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
+    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
     multiline_timeout = serializers.CharField(label=_("最大耗时"), required=False, allow_blank=True, allow_null=True)
 
 

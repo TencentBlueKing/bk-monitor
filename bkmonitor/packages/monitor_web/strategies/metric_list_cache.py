@@ -39,7 +39,7 @@ from bkmonitor.utils import get_metric_category
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from constants.alert import IGNORED_TAGS, EventTargetType
-from constants.apm import OtlpKey
+from constants.apm import ApmMetrics, OtlpKey
 from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
@@ -481,53 +481,12 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
                     "label": "apm",
                     "metric_info_list": [
                         {
-                            "field_name": "bk_apm_duration",
-                            "description": _("trace请求耗时"),
-                            "unit": "ns",
+                            "field_name": name,
+                            "description": alias,
+                            "unit": unit,
                             "tag_list": tag_list,
-                        },
-                        {
-                            "field_name": "bk_apm_count",
-                            "description": _("trace分钟请求数"),
-                            "unit": "",
-                            "tag_list": tag_list,
-                        },
-                        {
-                            "field_name": "bk_apm_total",
-                            "description": _("trace总请求数"),
-                            "unit": "",
-                            "tag_list": tag_list,
-                        },
-                        {
-                            "field_name": "bk_apm_duration_max",
-                            "description": _("trace分钟请求最大耗时"),
-                            "unit": "ns",
-                            "tag_list": tag_list,
-                        },
-                        {
-                            "field_name": "bk_apm_duration_min",
-                            "description": _("trace分钟请求最小耗时"),
-                            "unit": "ns",
-                            "tag_list": tag_list,
-                        },
-                        {
-                            "field_name": "bk_apm_duration_sum",
-                            "description": _("trace总请求耗时"),
-                            "unit": "ns",
-                            "tag_list": tag_list,
-                        },
-                        {
-                            "field_name": "bk_apm_duration_delta",
-                            "description": _("trace分钟总请求耗时"),
-                            "unit": "ns",
-                            "tag_list": tag_list,
-                        },
-                        {
-                            "field_name": "bk_apm_duration_bucket",
-                            "description": _("trace总请求耗时bucket"),
-                            "unit": "ns",
-                            "tag_list": tag_list + [{"field_name": "le", "description": "le"}],
-                        },
+                        }
+                        for name, alias, unit in ApmMetrics.all()
                     ],
                 }
             )
