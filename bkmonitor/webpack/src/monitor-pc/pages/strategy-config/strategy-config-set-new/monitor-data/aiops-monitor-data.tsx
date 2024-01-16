@@ -248,7 +248,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     this.isLoading = true;
     const sceneId = this.metricData?.[0]?.sceneConfig?.algorithms?.[0]?.config?.scene_id;
     if (sceneId) {
-      const level = this.metricData[0].sceneConfig.algorithms[0]?.config?.level || [];
+      const level = this.metricData[0].sceneConfig.algorithms[0]?.config?.levels || [];
       if (level.length) {
         this.formModel.level = Math.max(...level);
       } else {
