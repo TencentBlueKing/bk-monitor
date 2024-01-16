@@ -69,8 +69,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Debounce(300)
   @Emit('keywordChange')
   handleKeywordChange() {
-    console.log(this.keyword, 123);
-
     return this.keyword;
   }
 
