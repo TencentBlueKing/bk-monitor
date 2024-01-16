@@ -135,6 +135,7 @@ export default defineComponent({
                 <img
                   src={loadingImg}
                   class='status-loading'
+                  alt=''
                 />
               ) : (
                 <span class={`icon-monitor icon-${this.autoQuery ? 'weibiaoti519' : 'kaishi11'}`}></span>

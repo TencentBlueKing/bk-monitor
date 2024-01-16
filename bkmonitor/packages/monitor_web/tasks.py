@@ -969,8 +969,8 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
     @return:
     """
 
+    from bkmonitor.aiops.utils import AiSetting
     from bkmonitor.data_source.handler import DataQueryHandler
-    from monitor_web.aiops.ai_setting.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=bk_biz_id)
@@ -1109,7 +1109,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
 
     :param access_bk_biz_id: 待接入的业务id
     """
-    from monitor_web.aiops.ai_setting.utils import AiSetting
+    from bkmonitor.aiops.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=access_bk_biz_id)
@@ -1126,6 +1126,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
         metric_recommend_task.create_flow()
         metric_recommend_task.start_flow(consuming_mode=ConsumingMode.Current)
         metric_recommend.is_enabled = True
+        metric_recommend.result_table_id = metric_recommend_task.node_list[-1].output_table_name
         ai_setting.save()
         # 此处记得从继续启动
     except Exception as e:  # noqa

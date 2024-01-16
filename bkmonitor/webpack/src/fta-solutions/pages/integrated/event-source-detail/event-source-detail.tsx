@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Dialog } from 'bk-magic-vue';
 
 // import { getPluginDetail } from './mock'
 import { getEventPluginInstance } from '../../../../monitor-api/modules/event_plugin';
@@ -298,7 +297,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
 
   protected render() {
     return (
-      <Dialog
+      <bk-dialog
         show-mask={true}
         show-footer={false}
         mask-close={true}
@@ -400,7 +399,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
           {/* 测试控件 */}
           {false && this.tabActive === ETabKey.config && <TestControl v-model={this.isShowTest}></TestControl>}
         </div>
-      </Dialog>
+      </bk-dialog>
     );
   }
 }

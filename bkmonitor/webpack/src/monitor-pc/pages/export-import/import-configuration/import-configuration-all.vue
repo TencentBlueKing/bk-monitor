@@ -217,7 +217,7 @@
 </template>
 <script>
 import { mapActions } from 'vuex';
-import { bkOption, bkSelect } from 'bk-magic-vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { debounce } from 'throttle-debounce';
 

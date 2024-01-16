@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox, Pagination, Popover, Select, Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { eventTopN, searchEvent } from '../../../../monitor-api/modules/alert';
@@ -113,11 +112,7 @@ interface IEventItem {
 }
 
 @Component({
-  name: 'RelatedEvents',
-  components: {
-    Pagination,
-    Select
-  }
+  name: 'RelatedEvents'
 })
 export default class RelatedEvents extends tsc<IRelatedEventsProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -221,7 +216,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       },
       {
         id: 'tag',
-        name: window.i18n.tc('标签'),
+        name: window.i18n.tc('维度'),
         checked: true,
         disabled: false,
         props: {
@@ -540,7 +535,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         children: [
           { title: this.$t('事件时间'), content: dayjs.tz(child.time * 1000).format('YYYY-MM-DD HH:mm:ss') },
           {
-            title: <span>{this.$t('标签')}</span>,
+            title: <span>{this.$t('维度')}</span>,
             content: child.tags?.length ? (
               <div class='item-content-kv'>
                 <div
@@ -637,7 +632,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     };
 
     return (
-      <Table
+      <bk-table
         {...{
           props: {
             data: this.data.events,
@@ -660,15 +655,15 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           slot='empty'
           onOperation={this.handleOperation}
         />
-        <TableColumn
+        <bk-table-column
           type='expand'
           width={30}
           scopedSlots={childSlots}
-        ></TableColumn>
+        ></bk-table-column>
         {this.tableColumns.map(column => {
           if (!(column.disabled || column.checked)) return undefined;
           return (
-            <TableColumn
+            <bk-table-column
               key={`${column.id}`}
               label={column.name}
               prop={column.id}
@@ -677,7 +672,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             />
           );
         })}
-      </Table>
+      </bk-table>
     );
   }
 
@@ -694,7 +689,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
   getRelatedeventsSettingComponent() {
     return (
       <div class='relatedevents-filter-btn'>
-        <Popover
+        <bk-popover
           placement='bottom-end'
           width='515'
           theme='light strategy-setting'
@@ -715,18 +710,18 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                   key={item.id}
                   class='tool-popover-content-item'
                 >
-                  <Checkbox
+                  <bk-checkbox
                     value={item.checked}
                     on-change={() => this.handleCheckColChange(item)}
                     disabled={item.disabled}
                   >
                     {item.name}
-                  </Checkbox>
+                  </bk-checkbox>
                 </li>
               ))}
             </ul>
           </div>
-        </Popover>
+        </bk-popover>
       </div>
     );
   }
