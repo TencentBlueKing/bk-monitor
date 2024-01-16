@@ -217,5 +217,6 @@ export default {
   他人订阅: 'Others subscribe',
   内部邮件不可为空: 'Internal email cannot be empty',
   外部邮件不可为空: 'External email cannot be empty',
-  企业微信群不可为空: 'Enterprise WeChat group cannot be empty'
+  企业微信群不可为空: 'Enterprise WeChat group cannot be empty',
+  '是否发送给自己?': 'Send to yourself?'
 };

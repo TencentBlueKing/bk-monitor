@@ -478,7 +478,9 @@ class QuickCreateSubscription extends tsc<IProps> {
       case 'business_name':
         switchedText = this.bizName;
         break;
-
+      default:
+        switchedText = `{{${text}}}`;
+        break;
     }
     copyText(switchedText, msg => {
       this.$bkMessage({
