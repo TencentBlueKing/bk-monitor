@@ -2195,6 +2195,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   value={this.bizIds}
                   spaceList={this.$store.getters.bizList}
                   hasAuthApply={true}
+                  currentSpace={this.$store.getters.bizId}
                   onApplyAuth={this.handleCheckAllowedByIds}
                   onChange={this.handleBizIdsChange}
                 ></SpaceSelect>

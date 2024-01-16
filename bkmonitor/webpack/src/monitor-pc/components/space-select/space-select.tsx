@@ -25,14 +25,14 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Checkbox, Input } from 'bk-magic-vue';
 
 import { bizWithAlertStatistics } from '../../../monitor-api/modules/home';
 import { Debounce } from '../../../monitor-common/utils';
-import { SPACE_TYPE_MAP } from '../../common/constant';
 import { ISpaceItem } from '../../types';
 import { getEventPaths } from '../../utils';
 import { ETagsType } from '../biz-select/list';
+
+import { SPACE_TYPE_MAP } from './utils';
 
 import './space-select.scss';
 
@@ -59,6 +59,7 @@ interface IProps {
   needDefalutOptions?: boolean;
   disabled?: boolean;
   hasAuthApply?: boolean;
+  currentSpace?: number | string;
   onChange?: (value: number[]) => void;
 }
 
@@ -89,6 +90,8 @@ export default class SpaceSelect extends tsc<
 > {
   /* 当前选中的空间 */
   @Prop({ default: () => [], type: Array }) value: number[];
+  /* 当前的主空间（勾选的第一个空间） */
+  @Prop({ default: () => null, type: [Number, String] }) currentSpace: number;
   /* 所有空间列表 */
   @Prop({ default: () => [], type: Array }) spaceList: ISpaceItem[];
   /* 是否为多选 */
@@ -103,14 +106,22 @@ export default class SpaceSelect extends tsc<
   @Prop({ default: false, type: Boolean }) disabled: boolean;
   /* 是否包含申请权限功能 */
   @Prop({ default: false, type: Boolean }) hasAuthApply: boolean;
+
   @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('select') selectRef: HTMLDivElement;
+  @Ref('typeList') typeListRef: HTMLDivElement;
 
   localValue: number[] = [];
+  /* 当前的主空间 */
+  localCurrentSpace: number = null;
   /* 搜索 */
   searchValue = '';
   /* 空间列表 */
   localSpaceList: IlocalSpaceList[] = [];
+  /* 空间类型列表 */
+  spaceTypeIdList = [];
+  /* 当前选中的空间类型 */
+  searchTypeId = '';
   /* 弹出实例 */
   popInstance = null;
   /* 添加可被移除的事件监听器 */
@@ -133,6 +144,12 @@ export default class SpaceSelect extends tsc<
     limit: 20,
     data: []
   };
+  /* type栏左右切换数据 */
+  typeWrapInfo = {
+    showBtn: false,
+    nextDisable: false,
+    preDisable: false
+  };
 
   @Watch('value')
   handleWatchValue(v: number[]) {
@@ -152,6 +169,13 @@ export default class SpaceSelect extends tsc<
     this.valueStr = strs.join(',');
     this.sortSpaceList();
   }
+  @Watch('currentSpace', { immediate: true })
+  handleWatchCureentSpace(v: number) {
+    if (v) {
+      this.localCurrentSpace = Number(v);
+    }
+  }
+
   @Emit('change')
   handleChange() {
     return this.localValue;
@@ -293,6 +317,7 @@ export default class SpaceSelect extends tsc<
   /* 整理space_list */
   getSpaceList(spaceList: ISpaceItem[]) {
     const list = [];
+    const spaceTypeMap: Record<string, any> = {};
     spaceList.forEach(item => {
       const tags = [{ id: item.space_type_id, name: item.type_name, type: item.space_type_id }];
       if (item.space_type_id === 'bkci' && item.space_code) {
@@ -306,7 +331,17 @@ export default class SpaceSelect extends tsc<
         show: true
       };
       list.push(newItem);
+      /* 空间类型 */
+      spaceTypeMap[item.space_type_id] = 1;
+      if (item.space_type_id === 'bkci' && item.space_code) {
+        spaceTypeMap.bcs = 1;
+      }
     });
+    this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
+      id: key,
+      name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
+      styles: SPACE_TYPE_MAP[key] || SPACE_TYPE_MAP.default
+    }));
     return list;
   }
   /* 显示弹出层 */
@@ -337,6 +372,7 @@ export default class SpaceSelect extends tsc<
     this.controller?.abort?.();
     this.controller = new AbortController();
     document.addEventListener('mousedown', this.handleMousedownRemovePop, { signal: this.controller.signal });
+    this.typeListWrapNextPreShowChange();
   }
   /* 清除弹出实例 */
   handleMousedownRemovePop(event: Event) {
@@ -479,6 +515,59 @@ export default class SpaceSelect extends tsc<
     this.handlePopoverHidden();
     return [bizId];
   }
+  /**
+   * @description 切换当前空间类型
+   * @param typeId
+   */
+  handleSearchType(typeId: string) {
+    this.searchTypeId = typeId === this.searchTypeId ? '' : typeId;
+  }
+
+  /* 是否展示type栏左右切换按钮 */
+  typeListWrapNextPreShowChange() {
+    this.$nextTick(() => {
+      const hasScroll = this.typeListRef.scrollWidth > this.typeListRef.clientWidth;
+      this.typeWrapInfo.showBtn = hasScroll;
+      this.typeWrapInfo.preDisable = true;
+    });
+  }
+
+  /**
+   * @description 左右切换type栏
+   * @param type
+   */
+  handleTypeWrapScrollChange(type: 'pre' | 'next') {
+    const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
+      const startPosition = element.scrollLeft;
+      const distance = targetPosition - startPosition;
+      const startTime = new Date().getTime();
+      const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+      const scroll = () => {
+        const elapsed = new Date().getTime() - startTime;
+        const progress = easeOutCubic(Math.min(elapsed / duration, 1));
+        element.scrollLeft = startPosition + distance * progress;
+        if (progress < 1) requestAnimationFrame(scroll);
+        callback();
+      };
+      scroll();
+    };
+    let target = 0;
+    const speed = 100;
+    const duration = 300;
+    const { scrollWidth, scrollLeft, clientWidth } = this.typeListRef;
+    const total = scrollWidth - clientWidth;
+    if (type === 'next') {
+      const temp = scrollLeft + speed;
+      target = temp > total ? total : temp;
+    } else {
+      const temp = scrollLeft - speed;
+      target = temp < 0 ? 0 : temp;
+    }
+    smoothScrollTo(this.typeListRef, target, duration, () => {
+      this.typeWrapInfo.nextDisable = this.typeListRef.scrollLeft > total - 1;
+      this.typeWrapInfo.preDisable = this.typeListRef.scrollLeft === 0;
+    });
+  }
 
   render() {
     return (
@@ -503,13 +592,45 @@ export default class SpaceSelect extends tsc<
             ref='wrap'
           >
             <div class='search-input'>
-              <Input
+              <bk-input
                 placeholder={this.$t('请输入关键字')}
                 v-model={this.searchValue}
                 left-icon='bk-icon icon-search'
                 behavior={'simplicity'}
                 onChange={this.handleSearchChange}
-              ></Input>
+              ></bk-input>
+            </div>
+            <div class='space-type-list-wrap'>
+              <ul
+                class={'space-type-list'}
+                ref='typeList'
+              >
+                {this.spaceTypeIdList.map(item => (
+                  <li
+                    class='space-type-item'
+                    style={{
+                      ...item.styles,
+                      borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent'
+                    }}
+                    key={item.id}
+                    onClick={() => this.handleSearchType(item.id)}
+                  >
+                    {item.name}
+                  </li>
+                ))}
+              </ul>
+              <div
+                class={['pre-btn', { disable: this.typeWrapInfo.preDisable }]}
+                onClick={() => !this.typeWrapInfo.preDisable && this.handleTypeWrapScrollChange('pre')}
+              >
+                <span class='icon-monitor icon-arrow-left'></span>
+              </div>
+              <div
+                class={['next-btn', { disable: this.typeWrapInfo.nextDisable }]}
+                onClick={() => !this.typeWrapInfo.nextDisable && this.handleTypeWrapScrollChange('next')}
+              >
+                <span class='icon-monitor icon-arrow-right'></span>
+              </div>
             </div>
             <div
               class='space-list'
@@ -517,17 +638,23 @@ export default class SpaceSelect extends tsc<
             >
               {this.pagination.data.map(item => (
                 <div
-                  class={['space-list-item', { active: !this.multiple && item.isCheck }]}
+                  class={[
+                    'space-list-item',
+                    { active: !this.multiple && item.isCheck },
+                    {
+                      'no-hover-btn': this.currentSpace === item.id || specialIds.includes(item.id)
+                    }
+                  ]}
                   key={item.id}
                   onClick={() => this.handleSelectOption(item)}
                 >
                   {this.multiple && (
                     <div onClick={(e: Event) => e.stopPropagation()}>
-                      <Checkbox
+                      <bk-checkbox
                         disabled={!!item.noAuth && !item.hasData}
                         value={item.isCheck}
                         onChange={v => this.handleCheckOption(v, item)}
-                      ></Checkbox>
+                      ></bk-checkbox>
                     </div>
                   )}
                   <span class='space-name'>
@@ -545,10 +672,11 @@ export default class SpaceSelect extends tsc<
                         ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
                       </span>
                     )}
+                    {this.currentSpace === item.id && <span class='icon-monitor icon-map-fill cur-position'></span>}
                   </span>
                   <span class='space-tags'>
                     {!!item.noAuth && !item.hasData ? (
-                      <Button
+                      <bk-button
                         class='auth-button'
                         size='small'
                         text
@@ -556,17 +684,27 @@ export default class SpaceSelect extends tsc<
                         onClick={() => this.handleApplyAuth(item.id)}
                       >
                         {this.$t('申请权限')}
-                      </Button>
+                      </bk-button>
                     ) : (
                       item.tags?.map?.(tag => (
                         <span
                           class='space-tags-item'
-                          style={{ ...SPACE_TYPE_MAP[tag.id]?.light }}
+                          style={{ ...(SPACE_TYPE_MAP[tag.id] || SPACE_TYPE_MAP.default) }}
                         >
-                          {SPACE_TYPE_MAP[tag.id]?.name || ''}
+                          {SPACE_TYPE_MAP[tag.id]?.name || this.$t('未知')}
                         </span>
                       ))
                     )}
+                  </span>
+                  <span class='space-hover-btn'>
+                    <bk-button
+                      class='auth-button'
+                      size='small'
+                      text
+                      theme='primary'
+                    >
+                      {this.$t('设为当前空间')}
+                    </bk-button>
                   </span>
                 </div>
               ))}
