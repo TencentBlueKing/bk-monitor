@@ -760,20 +760,6 @@ class UpdateFavoriteUnionSearchSerializer(serializers.Serializer):
     )
 
 
-class KeywordSerializer(serializers.Serializer):
-    """
-    检索关键词序列化
-    """
-
-    keyword = serializers.CharField(label=_("检索关键词"), required=True, allow_null=True, allow_blank=True)
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        if attrs["keyword"].strip() == "":
-            attrs["keyword"] = WILDCARD_PATTERN
-        return attrs
-
-
 class GetSearchFieldsSerializer(KeywordSerializer):
     """获取检索语句中的字段序列化"""
 
