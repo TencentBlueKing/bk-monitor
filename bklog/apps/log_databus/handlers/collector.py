@@ -2702,7 +2702,7 @@ class CollectorHandler(object):
                     collector_type=config["collector_type"],
                     namespaces=config["namespaces"],
                     namespaces_exclude=config["namespaces_exclude"],
-                    any_namespace=not config["namespaces"],
+                    any_namespace=not any([config["namespaces"], config["namespaces_exclude"]]),
                     data_encoding=config["data_encoding"],
                     params=config["params"],
                     workload_type=config["container"]["workload_type"],
@@ -4430,7 +4430,7 @@ class CollectorHandler(object):
                         container_config["match_expressions"],
                     ]
                 ),
-                "any_namespace": not container_config["namespaces"],
+                "any_namespace": not any([container_config["namespaces"], container_config["namespaces_exclude"]]),
             }
             container_config.update(computed_fields)
 
