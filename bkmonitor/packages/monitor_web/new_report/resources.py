@@ -397,10 +397,6 @@ class CreateOrUpdateReportResource(Resource):
         params["is_manager_created"] = is_manager_created
         report_channels = params.pop("channels", [])
         params["send_mode"] = get_send_mode(params["frequency"])
-        frequency = params["frequency"]
-        if frequency["type"] == 1:
-            params["start_time"] = arrow.now().timestamp
-            params["end_time"] = arrow.get(frequency["run_time"]).timestamp
         if params.get("id"):
             # 编辑
             try:
