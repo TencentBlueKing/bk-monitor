@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox, Option, Select, Switcher } from 'bk-magic-vue';
 
 import AlarmGroup from '../../strategy-config/strategy-config-set-new/components/alarm-group';
 import VerifyItem from '../../strategy-config/strategy-config-set-new/components/verify-item';
@@ -108,7 +107,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
   @Prop({ default: false, type: Boolean }) isListPage: boolean;
   @Prop({ default: true, type: Boolean }) canDebug: boolean;
 
-  @Ref('alarmGroupSelect') readonly alarmGroupSelectRef: Select;
+  @Ref('alarmGroupSelect') readonly alarmGroupSelectRef: any;
   @Ref('conditionFindReplace') readonly conditionFindReplaceRef: ConditionFindReplace;
 
   data = {};
@@ -374,7 +373,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
       case 'upgradeConfig':
         return (
           <div class='upgrade-config-edit'>
-            <Checkbox
+            <bk-checkbox
               v-model={this.data[this.filed].isEnabled}
               disabled={!this.data[this.filed].noticeIsEnabled}
               onChange={() => {
@@ -383,7 +382,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
               }}
             >
               <span class='upgrade-label'>{this.$t('通知升级')} : </span>
-            </Checkbox>
+            </bk-checkbox>
             <div class='upgrade-form'>
               <VerifyItem errorMsg={this.errorMsg.upgradeInterval}>
                 <i18n
@@ -391,7 +390,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                   class='text'
                   path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
                 >
-                  <Select
+                  <bk-select
                     behavior='simplicity'
                     v-model={this.data[this.filed].upgradeInterval}
                     onChange={value => this.handleVerifyInterval(value)}
@@ -403,23 +402,23 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                     allow-enter
                     class='notice-select'
                   >
-                    <Option
+                    <bk-option
                       id={1}
                       name={1}
                     />
-                    <Option
+                    <bk-option
                       id={5}
                       name={5}
                     />
-                    <Option
+                    <bk-option
                       id={10}
                       name={10}
                     />
-                    <Option
+                    <bk-option
                       id={30}
                       name={30}
                     />
-                  </Select>
+                  </bk-select>
                 </i18n>
               </VerifyItem>
               <div class='user-group-add'>
@@ -445,13 +444,13 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
         );
       case 'actionId':
         return (
-          <Select
+          <bk-select
             v-model={this.data[this.filed]}
             ext-popover-cls={'alarm-dispatch-alarm-group-select-component-pop'}
             zIndex={99999}
           >
             {this.processPackage.map(option => (
-              <Option
+              <bk-option
                 key={option.id}
                 id={option.id}
                 name={option.name}
@@ -475,6 +474,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                 {this.processLoading ? (
                   /* eslint-disable-next-line @typescript-eslint/no-require-imports */
                   <img
+                    alt=''
                     src={require('../../../static/images/svg/spinner.svg')}
                     class='status-loading'
                   ></img>
@@ -483,7 +483,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                 )}
               </div>
             </div>
-          </Select>
+          </bk-select>
         );
 
       case 'conditions':
@@ -539,7 +539,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
         );
       case 'isEnabled':
         return (
-          <Switcher
+          <bk-switcher
             v-model={this.data[this.filed]}
             theme='primary'
           />
@@ -556,7 +556,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
           <div class='alarm-batch-edit-header'>
             {configFiled[this.filed]}
             {['upgradeConfig', 'notice'].includes(this.filed) && (
-              <Switcher
+              <bk-switcher
                 theme='primary'
                 class='notice-switcher'
                 onChange={() => {

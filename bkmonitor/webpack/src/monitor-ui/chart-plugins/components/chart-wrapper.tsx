@@ -511,6 +511,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           <img
             class='loading-icon'
             src={loadingIcon}
+            alt=''
           ></img>
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (

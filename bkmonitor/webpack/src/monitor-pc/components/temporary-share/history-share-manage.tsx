@@ -26,7 +26,6 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
-import { Button, Checkbox, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { INavItem } from '@/pages/monitor-k8s/typings';
@@ -184,7 +183,9 @@ export default class HistoryShareManage extends tsc<IProps> {
       this.init();
     }
   }
-
+  /**
+   * 隐藏弹层
+   */
   handleHideDialog() {
     //
     this.$emit('showChange', false);
@@ -570,14 +571,14 @@ export default class HistoryShareManage extends tsc<IProps> {
             </span>
           </span>
           <div class='opreate-wrap'>
-            <Button
+            <bk-button
               disabled={!Array.from(this.selected).length}
               theme={'primary'}
               class='mr18'
               onClick={this.handleBatchRecycle}
             >
               {this.$t('批量回收')}
-            </Button>
+            </bk-button>
             <div class='status-list'>
               {STATUS_LIST.map((item: any, index) => (
                 <div
@@ -596,7 +597,7 @@ export default class HistoryShareManage extends tsc<IProps> {
             </div>
           </div>
           <div class='url-table-wrap'>
-            <Table
+            <bk-table
               size={this.tableSize}
               pagination={this.pagination}
               {...{
@@ -615,27 +616,27 @@ export default class HistoryShareManage extends tsc<IProps> {
                   switch (item.id) {
                     case 'url': {
                       return (
-                        <TableColumn
+                        <bk-table-column
                           key={item.id}
                           width={300}
                           renderHeader={() => (
                             <div>
-                              <Checkbox
+                              <bk-checkbox
                                 indeterminate={this.isIndeterminate}
                                 v-model={this.isAll}
                                 onChange={this.handleSelectAll}
-                              ></Checkbox>
+                              ></bk-checkbox>
                               <span class='ml8'>{item.name}</span>
                             </div>
                           )}
                           scopedSlots={{
                             default: ({ row }: { row: ITableItem }) => (
                               <div class='url-wrap'>
-                                <Checkbox
+                                <bk-checkbox
                                   v-model={row.isCheck}
                                   disabled={row.status !== EStatus.isEnabled}
                                   onChange={v => this.handleSelect(v, row)}
-                                ></Checkbox>
+                                ></bk-checkbox>
                                 <MiddleOmitted
                                   v-bk-tooltips={{
                                     content: row.link,
@@ -650,12 +651,12 @@ export default class HistoryShareManage extends tsc<IProps> {
                               </div>
                             )
                           }}
-                        ></TableColumn>
+                        ></bk-table-column>
                       );
                     }
                     case 'accessCount': {
                       return (
-                        <TableColumn
+                        <bk-table-column
                           key={item.id}
                           label={item.name}
                           sortable={'custom'}
@@ -672,12 +673,12 @@ export default class HistoryShareManage extends tsc<IProps> {
                               </span>
                             )
                           }}
-                        ></TableColumn>
+                        ></bk-table-column>
                       );
                     }
                     case 'status': {
                       return (
-                        <TableColumn
+                        <bk-table-column
                           key={item.id}
                           label={this.$t('状态')}
                           scopedSlots={{
@@ -688,12 +689,12 @@ export default class HistoryShareManage extends tsc<IProps> {
                               </span>
                             )
                           }}
-                        ></TableColumn>
+                        ></bk-table-column>
                       );
                     }
                     case 'create_time': {
                       return (
-                        <TableColumn
+                        <bk-table-column
                           key={item.id}
                           label={this.$t('产生时间')}
                           sortable={'custom'}
@@ -705,67 +706,67 @@ export default class HistoryShareManage extends tsc<IProps> {
                               <span>{dayjs.tz(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</span>
                             )
                           }}
-                        ></TableColumn>
+                        ></bk-table-column>
                       );
                     }
                     case 'create_user': {
                       return (
-                        <TableColumn
+                        <bk-table-column
                           key={item.id}
                           label={this.$t('分享人')}
                           sortable={'custom'}
                           prop={'create_user'}
-                        ></TableColumn>
+                        ></bk-table-column>
                       );
                     }
                     case 'sort': {
                       return (
-                        <TableColumn
+                        <bk-table-column
                           key={item.id}
                           label={this.$t('链接有效期')}
                           prop={'expire_time'}
                           scopedSlots={{
                             default: ({ row }: { row: ITableItem }) => <span>{row.expireTimeStr}</span>
                           }}
-                        ></TableColumn>
+                        ></bk-table-column>
                       );
                     }
                   }
                 })}
-              <TableColumn
+              <bk-table-column
                 label={this.$t('操作')}
                 scopedSlots={{
                   default: ({ row }: { row: ITableItem }) => (
                     <div>
-                      <Button
+                      <bk-button
                         disabled={row.status !== EStatus.isEnabled}
                         text
                         class='mr16'
                         onClick={() => this.handleRecycle(row)}
                       >
                         {this.$t('回收')}
-                      </Button>
-                      <Button
+                      </bk-button>
+                      <bk-button
                         text
                         onClick={event => this.handleDetail(event, row)}
                       >
                         {this.$t('变量详情')}
-                      </Button>
+                      </bk-button>
                     </div>
                   )
                 }}
-              ></TableColumn>
-              <TableColumn type='setting'>
-                <TableSettingContent
+              ></bk-table-column>
+              <bk-table-column type='setting'>
+                <bk-table-setting-content
                   fields={this.tableColumns}
                   value-key='id'
                   label-key='name'
                   size={this.tableSize}
                   selected={this.tableColumns.filter(item => item.checked || item.disabled)}
                   on-setting-change={this.handleSettingChange}
-                ></TableSettingContent>
-              </TableColumn>
-            </Table>
+                ></bk-table-setting-content>
+              </bk-table-column>
+            </bk-table>
           </div>
         </div>
         <div style={{ display: 'none' }}>
@@ -774,7 +775,7 @@ export default class HistoryShareManage extends tsc<IProps> {
             class='history-share-manage-access-count-detail'
             ref='accessDetail'
           >
-            <Table
+            <bk-table
               {...{
                 props: {
                   data: this.accessDetail
@@ -784,47 +785,47 @@ export default class HistoryShareManage extends tsc<IProps> {
               stripe
               on-sort-change={this.handleAccessDataSortChange}
             >
-              <TableColumn
+              <bk-table-column
                 label={this.$t('访问人')}
                 prop={'user'}
                 sortable={'custom'}
-              ></TableColumn>
-              <TableColumn
+              ></bk-table-column>
+              <bk-table-column
                 label={this.$t('访问时间')}
                 prop={'time'}
                 sortable={'custom'}
-              ></TableColumn>
-            </Table>
+              ></bk-table-column>
+            </bk-table>
           </div>
           {/* 变量详情 */}
           <div
             class='history-share-manage-variable-detail'
             ref='variableDetail'
           >
-            <Table
+            <bk-table
               {...{
                 props: {
                   data: this.variableDetail
                 }
               }}
             >
-              <TableColumn
+              <bk-table-column
                 label={this.$t('变量名称')}
                 prop={'name'}
-              ></TableColumn>
-              <TableColumn
+              ></bk-table-column>
+              <bk-table-column
                 label={this.$t('是否可更改')}
                 prop={'isUpdate'}
                 scopedSlots={{
                   default: ({ row }) => <span>{this.$t(row.isUpdate ? '是' : '否')}</span>
                 }}
-              ></TableColumn>
-              <TableColumn
+              ></bk-table-column>
+              <bk-table-column
                 label={this.$t('默认选项')}
                 prop={'timeRange'}
                 width={280}
-              ></TableColumn>
-            </Table>
+              ></bk-table-column>
+            </bk-table>
           </div>
         </div>
       </MonitorDialog>

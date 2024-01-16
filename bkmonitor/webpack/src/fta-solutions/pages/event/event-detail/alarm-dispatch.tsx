@@ -26,7 +26,6 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkUserSelector from '@blueking/user-selector';
-import { Button, Checkbox, CheckboxGroup, Dialog, Input } from 'bk-magic-vue';
 
 import { assignAlert } from '../../../../monitor-api/modules/action';
 import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
@@ -157,7 +156,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
 
   render() {
     return (
-      <Dialog
+      <bk-dialog
         extCls={'alarm-dispatch-component-dialog'}
         value={this.show}
         width={480}
@@ -208,12 +207,12 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
               class='content mr0'
               onClick={this.handleFocus}
             >
-              <Input
+              <bk-input
                 v-model={this.reason}
                 type={'textarea'}
                 row={3}
                 maxlength={100}
-              ></Input>
+              ></bk-input>
             </div>
             {!!this.errorMsg.reason && <div class='err-msg'>{this.errorMsg.reason}</div>}
           </div>
@@ -223,26 +222,26 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
               class='content'
               onClick={this.handleFocus}
             >
-              <CheckboxGroup v-model={this.noticeWay}>
+              <bk-checkbox-group v-model={this.noticeWay}>
                 {this.noticeWayList.map(item => (
-                  <Checkbox value={item.type}>{item.label}</Checkbox>
+                  <bk-checkbox value={item.type}>{item.label}</bk-checkbox>
                 ))}
-              </CheckboxGroup>
+              </bk-checkbox-group>
             </div>
             {!!this.errorMsg.notice && <div class='err-msg'>{this.errorMsg.notice}</div>}
           </div>
         </div>
         <div slot='footer'>
-          <Button
+          <bk-button
             theme='primary'
             style={{ 'margin-right': '8px' }}
             onClick={this.handleSubmit}
           >
             {this.$t('确定')}
-          </Button>
-          <Button onClick={this.handleCancel}>{this.$t('取消')}</Button>
+          </bk-button>
+          <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
         </div>
-      </Dialog>
+      </bk-dialog>
     );
   }
 }
