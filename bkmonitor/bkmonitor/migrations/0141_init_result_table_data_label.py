@@ -22,10 +22,7 @@ def init_result_table_data_label(apps, *args, **kwargs):
         return
     ResultTable = apps.get_model("metadata", "ResultTable")
     TimeSeriesGroup = apps.get_model("metadata", "TimeSeriesGroup")
-    # try:
     CustomTSTable = apps.get_model("monitor_web", "CustomTSTable")
-    # except:
-    #     from monitor_web.models import CustomTSTable
 
     plugin_type_list = [
         f"{getattr(PluginType, attr).lower()}_"
