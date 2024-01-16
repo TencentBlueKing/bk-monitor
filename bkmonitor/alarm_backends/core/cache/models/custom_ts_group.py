@@ -37,14 +37,17 @@ class CustomTSGroupCacheManager(CacheManager):
         if not protocol:
             try:
                 ts_group = TimeSeriesGroup.objects.get(bk_data_id=bk_data_id)
+            except TimeSeriesGroup.DoesNotExist:
+                return None
+            try:
                 ts_info = api.metadata.custom_time_series_detail(
                     time_series_group_id=ts_group.time_series_group_id, bk_biz_id=ts_group.bk_biz_id, model_only=True
                 )
-            except (TimeSeriesGroup.DoesNotExist, BKAPIError):
-                return None
+                protocol = ts_info["protocol"]
+                cls.set(bk_data_id, protocol)
+            except BKAPIError:
+                protocol = "json"
 
-            protocol = ts_info["protocol"]
-            cls.set(bk_data_id, protocol)
         return protocol
 
     @classmethod
