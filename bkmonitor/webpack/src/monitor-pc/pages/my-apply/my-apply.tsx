@@ -126,15 +126,18 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <bk-button
-                      text
-                      theme='primary'
-                      onClick={() => {
-                        this.handleGetSubscriptionID(row.report_id);
-                      }}
-                    >
-                      {row.content_title}
-                    </bk-button>
+                    <div style='padding: 14px 0;'>
+                      <bk-button
+                        text
+                        theme='primary'
+                        onClick={() => {
+                          this.handleGetSubscriptionID(row.report_id);
+                        }}
+                        style='height: auto;'
+                      >
+                        {row.content_title}
+                      </bk-button>
+                    </div>
                   );
                 }
               }}
@@ -145,7 +148,7 @@ class MyApply extends tsc<{}> {
               label={this.$t('当前步骤')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{row.approval_step[0].name || '--'}</div>;
+                  return <div>{row.approval_step?.[0]?.name || '--'}</div>;
                 }
               }}
             ></bk-table-column>
@@ -154,7 +157,7 @@ class MyApply extends tsc<{}> {
               label={this.$t('当前处理人')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{row.approvers.toString()}</div>;
+                  return <div>{row.approvers?.toString?.()}</div>;
                 }
               }}
             ></bk-table-column>
@@ -183,18 +186,21 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <bk-button
-                      text
-                      onClick={() => {
-                        window.open(row.approval_url, '_blank');
-                      }}
-                    >
-                      {this.$t('查看单据详情')}
-                      <i
-                        class='icon-monitor icon-mc-link'
-                        style='margin-left: 5px;'
-                      ></i>
-                    </bk-button>
+                    <div style='padding: 14px 0;'>
+                      <bk-button
+                        text
+                        onClick={() => {
+                          window.open(row.approval_url, '_blank');
+                        }}
+                        style='height: auto;'
+                      >
+                        {this.$t('查看单据详情')}
+                        <i
+                          class='icon-monitor icon-mc-link'
+                          style='margin-left: 5px;'
+                        ></i>
+                      </bk-button>
+                    </div>
                   );
                 }
               }}

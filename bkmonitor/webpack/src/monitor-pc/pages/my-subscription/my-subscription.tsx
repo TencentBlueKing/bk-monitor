@@ -557,7 +557,7 @@ class MySubscription extends tsc<{}> {
                         }}
                         style='height: auto;'
                       >
-                        {row.content_config.title}
+                        {row.content_config?.title}
                       </bk-button>
                     </div>
                   );
