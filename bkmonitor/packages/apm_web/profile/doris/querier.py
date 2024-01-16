@@ -37,6 +37,7 @@ class APIParams:
     biz_id: str
     app: str
 
+    service_name: Optional[str] = None
     start: int = None
     end: int = None
     type: Optional[str] = None
@@ -62,6 +63,8 @@ class APIParams:
             r["limit"] = self.limit
         if self.order:
             r["order"] = self.order
+        if self.service_name:
+            r["service_name"] = self.service_name
         if self.start:
             r["start"] = self.start
         if self.end:

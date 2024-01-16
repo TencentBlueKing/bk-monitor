@@ -53,7 +53,7 @@ class CollectorHandler:
     """Collector handler for profile"""
 
     @classmethod
-    def send(cls, profile: Profile):
+    def send_to_builtin_datasource(cls, profile: Profile):
         """Send profile to collector"""
         builtin_profile_datasource = api.apm_api.query_builtin_profile_datasource()
 
