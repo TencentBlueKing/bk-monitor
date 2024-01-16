@@ -5,7 +5,20 @@
   "name": "Profiling",
   "variables": [],
   "overview_panels": [],
-  "panels": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "profiling",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets":[]
+    }
+  ],
   "order": [],
   "options": {}
 }
