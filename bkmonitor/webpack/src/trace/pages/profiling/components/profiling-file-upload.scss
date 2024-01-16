@@ -1,5 +1,6 @@
 .profiling-file-upload-component {
   .upload-file-wrap {
+    min-height: 258px;
     margin-bottom: 24px;
 
     .bk-upload-trigger--draggable {
@@ -85,8 +86,18 @@
             color: #63656e;
 
             .cancel-btn {
-              color: #3a84ff;
-              cursor: pointer;
+              &.running {
+                color: #3a84ff;
+                cursor: pointer;
+              }
+
+              &.success {
+                color: #3a84ff;
+              }
+
+              &.failure {
+                color: #ea3636;
+              }
             }
           }
 

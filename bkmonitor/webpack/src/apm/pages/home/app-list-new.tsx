@@ -90,6 +90,11 @@ interface IAppListItem {
   tableDataLoading: boolean;
   tableSortKey: string;
   tableFilters: IFilterDict;
+  profiling_data_status: {
+    text: string;
+    tips: string;
+    type: string;
+  };
 }
 
 @Component
@@ -731,7 +736,9 @@ export default class AppList extends tsc<{}> {
                         </div>
                         <div class='item-label'>Profiling:</div>
                         <div class='item-content'>
-                          <span>正常</span>
+                          <div class={['trace-status', item.profiling_data_status?.type]}>
+                            {item.profiling_data_status?.text || '--'}
+                          </div>
                         </div>
                       </div>
                       <div class='header-right'>
