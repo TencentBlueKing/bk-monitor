@@ -1,0 +1,145 @@
+.rotation-page {
+  width: 100%;
+  height: 100%;
+
+  .mr-6 {
+    margin-right: 6px;
+  }
+
+  .mt-14 {
+    margin-top: 14px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .ml-7 {
+    margin-left: 7px;
+  }
+
+  .width-350 {
+    width: 350px;
+  }
+
+  .rotation-page-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 52px;
+    padding-left: 24px;
+    font-size: 16px;
+    color: #313238;
+    background: #fff;
+    box-shadow: 0 3px 4px 0 #0000000a;
+  }
+
+  .rotation-page-content-wrap {
+    max-height: calc(100vh - 104px);
+    overflow: auto;
+  }
+
+  .rotation-page-content {
+    padding: 24px;
+    margin: 24px;
+    background: #fff;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    .table-content {
+      margin-top: 16px;
+
+      .rotation-name {
+        color: #3a84ff;
+        cursor: pointer;
+
+        &:hover {
+          color: #5594fa;
+        }
+      }
+    }
+
+    & > .content-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-label {
+      .point {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 13px;
+        height: 13px;
+        background: #3fc06d29;
+        border-radius: 50%;
+
+        .small-point {
+          width: 7px;
+          height: 7px;
+          background: #3fc06d;
+          border-radius: 50%;
+        }
+      }
+
+      &.status-red {
+        .point {
+          background: #ea363629;
+
+          .small-point {
+            background: #ea3636;
+          }
+        }
+      }
+
+      &.status-green {
+        .point {
+          background: #3fc06d29;
+
+          .small-point {
+            background: #3fc06d;
+          }
+        }
+      }
+
+      &.status-yellow {
+        .point {
+          background: #ff9c0129;
+
+          .small-point {
+            background: #ff9c01;
+          }
+        }
+      }
+
+      &.status-grey {
+        .point {
+          background: #979ba529;
+
+          .small-point {
+            background: #979ba5;
+          }
+        }
+      }
+    }
+  }
+
+  .bk-pagination .is-last {
+    margin-left: auto;
+  }
+
+  .bk-pagination-total {
+    display: flex;
+    align-items: center;
+  }
+
+  .bk-switcher.is-checked.bk-switcher-small:after {
+    top: 50%;
+    transform: translate(-100%,-50%);
+  }
+
+  .bk-switcher.bk-switcher-small:after {
+    top: 50%;
+    transform: translate(0,-50%);
+  }
+}

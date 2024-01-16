@@ -268,7 +268,7 @@ export default class SearchComp extends tsc<IProps> {
    * @param {Boolean} chooserSwitch 路由的ip选择器是否打开
    */
   initConditionList(initAddition, initIPChooser, chooserSwitch = true) {
-    const addition = initAddition ?? this.retrieveParams.addition;
+    let addition = initAddition ?? this.retrieveParams.addition;
     const ipChooser = initIPChooser ?? this.retrieveParams.ip_chooser;
     this.conditionList = [];
     const isHaveIP = Boolean(Object.keys(ipChooser).length);

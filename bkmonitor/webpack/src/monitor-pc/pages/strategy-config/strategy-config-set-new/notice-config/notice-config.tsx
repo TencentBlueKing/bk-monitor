@@ -829,7 +829,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 </i18n>
                 <span
                   class='icon-monitor icon-hint'
-                  v-bk-tooltips={{ content: intervalModeTips[this.data.config.interval_notify_mode] }}
+                  v-bk-tooltips={{ content: intervalModeTips[this.data.config.interval_notify_mode], allowHTML: false }}
                   style={{ color: '#979ba5', marginTop: '-3px' }}
                 ></span>
               </span>
@@ -887,7 +887,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           trigger: 'mouseenter',
                           zIndex: 9999,
                           boundary: document.body,
-                          disabled: !this.data.options.noise_reduce_config.dimensions.length
+                          disabled: !this.data.options.noise_reduce_config.dimensions.length,
+                          allowHTML: false
                         }}
                         onSelected={this.handleDimensionsSelected}
                       >
@@ -902,7 +903,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                               zIndex: 9999,
                               boundary: document.body,
                               appendTo: document.body,
-                              disabled: item.id === 'all'
+                              disabled: item.id === 'all',
+                              allowHTML: false
                             }}
                           ></Option>
                         ))}

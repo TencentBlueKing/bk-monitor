@@ -145,7 +145,8 @@
                     content: wxworkBotTips,
                     showOnInit: false,
                     duration: 200,
-                    placements: ['right']
+                    placements: ['right'],
+                    allowHTML: false
                   }"
                 />
               </div>

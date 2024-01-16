@@ -179,6 +179,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
           }
           v-authority={{ active: !this.authority.MANAGE_ACTION_CONFIG }}
         >
+          <span class='icon-monitor icon-plus-line mr-6'></span>
           {this.$t('添加套餐')}
         </Button>
         <Input

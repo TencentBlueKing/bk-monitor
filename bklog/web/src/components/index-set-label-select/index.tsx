@@ -155,8 +155,9 @@ export default class QueryStatement extends tsc<IProps> {
                 name: this.verifyData.labelEditName.trim(),
               },
             })
-            .then(() => {
+            .then((res) => {
               this.initLabelSelectList();
+              this.addLabelToIndexSet(res.data.tag_id);
             })
             .finally(() => {
               this.verifyData.labelEditName = '';

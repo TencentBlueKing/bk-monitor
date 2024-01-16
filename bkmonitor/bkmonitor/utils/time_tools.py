@@ -358,6 +358,11 @@ def datetime_to_tz_timestamp(datetime, offset):
     return arrow.get(datetime).replace(hours=-offset).timestamp
 
 
+def datetime2str(date_time: datetime.datetime, format="%Y-%m-%d %H:%M:%S"):
+    # datetime 转换为时间字符串
+    return date_time.strftime(format)
+
+
 def time_interval_align(timestamp: int, interval: int):
     """
     时间对齐函数

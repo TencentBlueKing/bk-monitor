@@ -164,7 +164,7 @@
           :label="$t('标签')"
           :render-header="$renderHeader">
           <template slot-scope="props">
-            <IndexSetLabelSelect
+            <index-set-label-select
               :row-data="props.row"
               :label.sync="props.row.tags"
               :select-label-list="selectLabelList"
