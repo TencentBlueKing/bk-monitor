@@ -177,7 +177,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 extra_params["label_filter"][k] = v
 
         if profile_id:
-            extra_params["label_filter"]["profile_id"] = profile_id
+            if "label_filter" not in extra_params:
+                extra_params["label_filter"] = {"profile_id": profile_id}
+            else:
+                extra_params["label_filter"]["profile_id"] = profile_id
 
         if api_type.value == APIType.LABEL_VALUES:
             extra_params["label_key"] = label_key  # noqa
