@@ -537,7 +537,10 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
    */
   async handleQueryConfigData(srcData = this.detailData) {
     const [{ expression, query_configs: queryConfigs, functions = [], algorithms }] = srcData.items;
-    if (algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection) {
+    if (
+      algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection ||
+      algorithms?.[0]?.type === MetricType.HostAnomalyDetection
+    ) {
       const curMetricData = new MetricDetail({
         targetType: this.targetDetail?.node_type,
         objectType: this.targetDetail?.instance_type,

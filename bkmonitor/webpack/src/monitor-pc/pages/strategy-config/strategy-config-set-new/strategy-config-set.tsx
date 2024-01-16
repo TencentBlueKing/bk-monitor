@@ -468,7 +468,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 提交按钮禁用提示状态 */
   get submitBtnTipDisabled() {
     if (this.isMultivariateAnomalyDetection) {
-      return false;
+      return true;
     }
     if (!this.editAllowed) {
       return false;
@@ -1121,7 +1121,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.defaultCheckedTarget = targetDetail || { target_detail: [] };
     this.target = targetDetail?.target_detail || [];
     /* 是否为场景智能检测 */
-    if (algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection) {
+    if (
+      algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection ||
+      algorithms?.[0]?.type === MetricType.HostAnomalyDetection
+    ) {
       const curMetricData = new MetricDetail({
         targetType: targetDetail?.node_type,
         objectType: targetDetail?.instance_type,

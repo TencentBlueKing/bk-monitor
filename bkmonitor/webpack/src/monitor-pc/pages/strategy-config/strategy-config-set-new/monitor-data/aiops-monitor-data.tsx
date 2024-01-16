@@ -158,13 +158,15 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
       }
     });
     const algorithm = {
-      type: MetricType.MultivariateAnomalyDetection,
+      // type: MetricType.MultivariateAnomalyDetection,
+      type: MetricType.HostAnomalyDetection,
       config: {
         scene_id: this.formModel.scene,
         metrics,
         sensitivity: this.formModel.sensitivity,
-        level: levelParamsMap[this.formModel.level] || []
+        levels: levelParamsMap[this.formModel.level] || []
       },
+      level: this.formModel.level,
       unit_prefix: ''
     };
     return {

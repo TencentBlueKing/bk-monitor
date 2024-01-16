@@ -104,7 +104,9 @@ export enum MetricType {
   LOG = 'log',
   EVENT = 'event',
   ALERT = 'alert',
-  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection'
+  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
+  /* 场景智能检测type传参用此字段 */
+  HostAnomalyDetection = 'HostAnomalyDetection'
 }
 export class MetricDetail {
   alias?: string = '';
