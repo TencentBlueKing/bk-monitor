@@ -25,7 +25,6 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Divider, Input, Table, TableColumn } from 'bk-magic-vue';
 
 import './storage-state.scss';
 
@@ -121,14 +120,14 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
       switch (field.type) {
         case 'number':
           return (
-            <Input
+            <bk-input
               type='number'
               min={1}
               v-model={field.editValue}
             />
           );
         case 'input':
-          return <Input v-model={field.editValue} />;
+          return <bk-input v-model={field.editValue} />;
       }
     };
 
@@ -184,11 +183,11 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
         </div>
 
         {this.tableList.map(table => [
-          <Divider class='divider' />,
+          <bk-divider class='divider' />,
           <div class='table-wrap'>
             <div class='title'>{table.name}</div>
             <div class='table-content'>
-              <Table
+              <bk-table
                 class='data-table'
                 data={table.content.values}
                 outer-border={false}
@@ -197,14 +196,14 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
               >
                 {table.content.keys.map(column => {
                   return (
-                    <TableColumn
+                    <bk-table-column
                       key={column.key}
                       label={column.name}
                       prop={column.key}
                     />
                   );
                 })}
-              </Table>
+              </bk-table>
             </div>
           </div>
         ])}
