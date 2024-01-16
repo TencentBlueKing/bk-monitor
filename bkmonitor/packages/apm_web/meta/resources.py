@@ -700,6 +700,8 @@ class SetupResource(Resource):
 
 
 class ListApplicationResource(PageListResource):
+    """APM 观测场景应用列表接口"""
+
     def get_columns(self, column_type=None):
         return [
             ScopedSlotsFormat(
@@ -747,16 +749,21 @@ class ListApplicationResource(PageListResource):
     class ApplicationSerializer(serializers.ModelSerializer):
         class Meta:
             model = Application
-            fields = ["bk_biz_id", "application_id", "app_name", "app_alias", "description", "is_enabled"]
+            fields = [
+                "bk_biz_id",
+                "application_id",
+                "app_name",
+                "app_alias",
+                "description",
+                "is_enabled",
+                "profiling_data_status",
+                "data_status",
+            ]
 
         def to_representation(self, instance):
             data = super(ListApplicationResource.ApplicationSerializer, self).to_representation(instance)
-            data["retention"] = instance.storage_plan
-            data["status"] = instance.data_status
             if not data["is_enabled"]:
-                data["status"] = DataStatus.STOP
-            data["no_data_period"] = instance.no_data_period
-            data["apdex"] = None
+                data["data_status"] = DataStatus.STOP
             return data
 
     def get_filter_fields(self):
@@ -766,7 +773,13 @@ class ListApplicationResource(PageListResource):
         applications = Application.objects.filter(bk_biz_id=validate_data["bk_biz_id"])
         data = self.ApplicationSerializer(applications, many=True).data
         data = sorted(
-            data, key=lambda i: (1 if i["status"] == DataStatus.NORMAL else 0, i["application_id"]), reverse=True
+            data,
+            key=lambda i: (
+                1 if i["data_status"] == DataStatus.NORMAL else 0,
+                1 if i["profiling_data_status"] == DataStatus.NORMAL else 0,
+                i["application_id"],
+            ),
+            reverse=True,
         )
 
         return self.get_pagination_data(data, validate_data)

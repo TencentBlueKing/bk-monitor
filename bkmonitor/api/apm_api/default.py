@@ -399,5 +399,5 @@ class QueryProfileServicesDetail(ApmAPIGWResource):
     查询Profile服务详情
     """
 
-    action = "/apm/profile/services_detail/"
+    action = "/apm/profiling/services_detail/"
     method = "GET"

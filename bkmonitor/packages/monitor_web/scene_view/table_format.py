@@ -55,6 +55,7 @@ class TableFormat(DefaultTableFormat):
         overview_calculator=None,
         overview_calculate_handler=None,
         asyncable: bool = False,
+        display_handler=None,
     ):
         self.id = id
         self.name = name
@@ -70,6 +71,8 @@ class TableFormat(DefaultTableFormat):
         self.overview_calculator = overview_calculator
         self.asyncable = asyncable
         self.overview_calculate_handler = overview_calculate_handler
+        # display_handler 为觉得此列是否需要展示的 handler
+        self.display_handler = display_handler
 
     def get_filter_key(self, row):
         """获取筛选的键"""
@@ -108,6 +111,16 @@ class TableFormat(DefaultTableFormat):
             "actionId": self.action_id,
             "asyncable": self.asyncable,
         }
+
+    def display(self, request_data) -> bool:
+        """
+        决定是否展示这一列
+        @param request_data 接口请求参数
+        """
+        if self.display_handler:
+            return self.display_handler(request_data)
+
+        return True
 
 
 class StringTableFormat(TableFormat):
