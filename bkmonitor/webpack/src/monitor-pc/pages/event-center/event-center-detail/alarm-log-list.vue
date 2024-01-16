@@ -114,6 +114,7 @@
       v-show="loading"
     >
       <img
+        alt=''
         class="loading-img"
         src="../../../static/images/svg/spinner.svg"
       > {{ $t('正加载更多内容…') }}

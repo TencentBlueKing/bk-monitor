@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Dialog, Option, Select } from 'bk-magic-vue';
 
 import { batchCreate, getActionParams, getPluginTemplates } from '../../../../monitor-api/modules/action';
 import { listActionConfig } from '../../../../monitor-api/modules/model';
@@ -412,7 +411,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
 
   render() {
     return (
-      <Dialog
+      <bk-dialog
         ext-cls='manual-process-dialog-wrap'
         value={this.show}
         mask-close={true}
@@ -447,20 +446,20 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
           {this.curMeal?.plugin_type !== 'webhook' && (
             <div class='template-list'>
               <div class='title'>{this.templateData.name}</div>
-              <Select
+              <bk-select
                 class='wrap-select'
                 v-model={this.templateData.id}
                 behavior='simplicity'
                 readonly
               >
                 {(this.templateData.allList?.[this.curMeal?.plugin_id] || []).map(item => (
-                  <Option
+                  <bk-option
                     key={item.id}
                     id={item.id}
                     name={item.name}
-                  ></Option>
+                  ></bk-option>
                 ))}
-              </Select>
+              </bk-select>
             </div>
           )}
           <div class='meal-content'>
@@ -506,21 +505,21 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
           ) : undefined}
         </div>
         <div slot='footer'>
-          <Button
+          <bk-button
             theme='primary'
             loading={this.confirmLoading}
             onClick={() => !this.confirmLoading && this.handleConfirm()}
           >
             {window.i18n.t('确定')}
-          </Button>
-          <Button
+          </bk-button>
+          <bk-button
             style={{ marginLeft: '10px' }}
             onClick={() => this.handleCancel()}
           >
             {window.i18n.t('取消')}
-          </Button>
+          </bk-button>
         </div>
-      </Dialog>
+      </bk-dialog>
     );
   }
 }

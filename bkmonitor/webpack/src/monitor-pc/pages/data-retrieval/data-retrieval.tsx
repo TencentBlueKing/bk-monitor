@@ -31,7 +31,6 @@
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
-import { Collapse, CollapseItem, Input, Popover } from 'bk-magic-vue';
 
 import { getMainlineObjectTopo } from '../../../monitor-api/modules/commons';
 import { getGraphQueryConfig } from '../../../monitor-api/modules/data_explorer';
@@ -52,7 +51,7 @@ import {
   queryConfigToPromql
 } from '../../../monitor-api/modules/strategies';
 import { monitorDrag } from '../../../monitor-common/utils/drag-directive';
-import { Debounce, copyText, deepClone, getUrlParam, random } from '../../../monitor-common/utils/utils';
+import { copyText, Debounce, deepClone, getUrlParam, random } from '../../../monitor-common/utils/utils';
 import PromqlEditor from '../../../monitor-ui/promql-editor/promql-editor';
 import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
@@ -2919,7 +2918,7 @@ export default class DataRetrieval extends tsc<{}> {
                 style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
               ></i>
             )}
-            {/* <Popover
+            {/* <bk-popover
               ref="autoQueryPopover"
               theme="light"
               trigger="click"
@@ -2927,14 +2926,14 @@ export default class DataRetrieval extends tsc<{}> {
               <i class="icon-monitor icon-menu-setting" onClick={() => this.handleIseeCache()}></i>
               <div slot="content" class="setting-pop-centent">
                 <span class="text">{this.$t('是否开启自动查询')}</span>
-                <Switcher
+                <bk-switcher
                   vModel={this.autoQuery}
-                  class="switcher" size="small" theme="primary" onChange={this.handleAutoQueryChange}></Switcher>
+                  class="switcher" size="small" theme="primary" onChange={this.handleAutoQueryChange}></bk-switcher>
                 { this.isShowTips
                   ? <span class="i-see-btn" onClick={() => this.handleIseeCache(true)}>{this.$t('知道了!')}</span>
                   : undefined }
               </div>
-            </Popover> */}
+            </bk-popover> */}
             {/* <span class="icon-monitor icon-double-down"
                   onClick={() => this.handleLeftHiddenAndShow(false)}></span> */}
           </div>
@@ -2952,7 +2951,7 @@ export default class DataRetrieval extends tsc<{}> {
       </div>
     );
     const metricRetrieval = () => [
-      <Collapse
+      <bk-collapse
         class='collapse-wrap collapse-wrap-data'
         vModel={this.expandedData}
       >
@@ -2971,7 +2970,7 @@ export default class DataRetrieval extends tsc<{}> {
               onDragenter={() => this.handleDragEnter(index)}
               onDragover={evt => this.handleDragOver(evt)}
             >
-              <CollapseItem
+              <bk-collapse-item
                 v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 class='collapse-item'
                 name={item.key}
@@ -2979,11 +2978,11 @@ export default class DataRetrieval extends tsc<{}> {
                   default: () => titleSlot(item, index),
                   content: () => contentSlot(item, index)
                 }}
-              ></CollapseItem>
+              ></bk-collapse-item>
             </li>
           ))}
         </transition-group>
-      </Collapse>,
+      </bk-collapse>,
       <div class='query-add-btn-wrap'>
         <span
           class='query-add-btn'
@@ -3031,7 +3030,7 @@ export default class DataRetrieval extends tsc<{}> {
           onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
           onSelected={this.handleSelectMetric}
         ></MetricSelector>
-        <Collapse
+        <bk-collapse
           class='collapse-wrap collapse-wrap-data'
           v-model={this.promqlExpandedData}
         >
@@ -3040,7 +3039,7 @@ export default class DataRetrieval extends tsc<{}> {
               class='drag-item'
               key={item.key}
             >
-              <CollapseItem
+              <bk-collapse-item
                 class='collapse-item'
                 name={item.key}
                 scopedSlots={{
@@ -3091,7 +3090,7 @@ export default class DataRetrieval extends tsc<{}> {
                         </div>
                       </div>
                       <span class='step-content'>
-                        <Input
+                        <bk-input
                           class='step-input'
                           value={item.step}
                           onChange={value => this.handleSourceStepChange(value, index)}
@@ -3111,16 +3110,16 @@ export default class DataRetrieval extends tsc<{}> {
                               }}
                             ></span>
                           </div>
-                        </Input>
+                        </bk-input>
                       </span>
                       {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
                     </div>
                   )
                 }}
-              ></CollapseItem>
+              ></bk-collapse-item>
             </li>
           ))}
-        </Collapse>
+        </bk-collapse>
         <div class='query-add-btn-wrap'>
           <span
             class='query-add-btn'

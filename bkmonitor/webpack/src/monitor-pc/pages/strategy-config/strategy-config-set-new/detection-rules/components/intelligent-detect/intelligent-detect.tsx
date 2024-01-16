@@ -343,7 +343,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
             ></div>
           </bk-alert>
         )}
-        <Form
+        <bk-form
           ref='formRef'
           rules={this.rules}
           readonly={this.readonly}
@@ -351,7 +351,7 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
           label-width={126}
           onChange={this.handleValueChange}
           class='time-serise-forecast-wrap'
-        ></Form>
+        ></bk-form>
       </div>
     );
   }

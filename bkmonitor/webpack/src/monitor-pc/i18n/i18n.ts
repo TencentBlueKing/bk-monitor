@@ -38,6 +38,7 @@ const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
 
 // 判断当前语言是否为英文
 export const isEn = currentLang === 'en';
+document.documentElement.setAttribute('lang', currentLang);
 
 // 设置网页标题
 document.title = isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云';

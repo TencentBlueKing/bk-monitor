@@ -236,6 +236,7 @@ export default defineComponent({
                 <img
                   class='span-icon'
                   src={icon}
+                  alt=''
                 />
                 <span>{serviceName}</span>
                 <i class='icon-monitor icon-fenxiang' />
