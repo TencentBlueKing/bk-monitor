@@ -85,7 +85,7 @@ def migrate_duty_groups(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('bkmonitor', '0155_auto_20231229_1136'),
+        ('bkmonitor', '0156_aifeaturesettings'),
     ]
 
     operations = [
