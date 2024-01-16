@@ -122,11 +122,14 @@ class CustomReportSubscription(models.Model):
             }
             return cls.create_or_update_config(subscription_params, bk_biz_id)
         for item in items:
+            # bk-collector 默认自定义事件，和json的自定义指标使用bk-collector-report-v2.conf
+            sub_config_name = "bk-collector-report-v2.conf"
+
             is_ts_item = isinstance(item, tuple)
             if is_ts_item:
                 # 自定义指标，对应json和Prometheus 两种格式
-                proxy_item, collector_item = item
-                item = item[0]
+                item, sub_config_name = item
+
             subscription_params = {
                 "scope": scope,
                 "steps": [
@@ -136,31 +139,29 @@ class CustomReportSubscription(models.Model):
                         "config": {
                             "plugin_name": plugin_name,
                             "plugin_version": "latest",
-                            "config_templates": [{"name": "bk-collector-report-v2.conf", "version": "latest"}],
+                            "config_templates": [{"name": sub_config_name, "version": "latest"}],
                         },
                         "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
                     },
                 ],
             }
-            if is_ts_item:
-                subscription_params["steps"].append(
-                    {
-                        "id": plugin_name,
-                        "type": "PLUGIN",
-                        "config": {
-                            "plugin_name": plugin_name,
-                            "plugin_version": "latest",
-                            "config_templates": [{"name": "bk-collector-application.conf", "version": "latest"}],
-                        },
-                        "params": {"context": {"bk_biz_id": bk_biz_id, **collector_item}},
-                    }
-                )
+
             cls.create_or_update_config(subscription_params, bk_biz_id, plugin_name, item["bk_data_id"])
+
+    @classmethod
+    def get_protocol(cls, bk_data_id):
+        from alarm_backends.core.cache.models.custom_ts_grouop import CustomTSGroupCacheManager
+        return CustomTSGroupCacheManager.get(bk_data_id) or "json"
 
     @classmethod
     def get_custom_config(
         cls, query_set, group_table_name, data_source_table_name, datatype="event", plugin_name="bkmonitorproxy"
     ):
+        # 0. 定义不同上报格式对应配置文件模板关系
+        SUB_CONFIG_MAP = {
+            "json": "bk-collector-report-v2.conf",
+            "prometheus": "bk-collector-application.conf",
+        }
         # 1. 从数据库查询到bk_biz_id到自定义上报配置的数据
         result = (
             query_set.extra(
@@ -192,9 +193,12 @@ class CustomReportSubscription(models.Model):
                 "max_future_time_offset": MAX_FUTURE_TIME_OFFSET,
             }
             if plugin_name == "bk-collector":
-                data_id_config = (
+                protocol = cls.get_protocol(r["bk_data_id"])
+                sub_config_name = SUB_CONFIG_MAP[protocol]
+                # 根据格式决定使用那种配置
+                if protocol == "json":
                     # json格式: bk-collector-report-v2.conf
-                    {
+                    item = {
                         "bk_data_token": r["token"],
                         "bk_data_id": r["bk_data_id"],
                         "token_config": {
@@ -213,9 +217,10 @@ class CustomReportSubscription(models.Model):
                             "version": "v2",
                             "max_future_time_offset": MAX_FUTURE_TIME_OFFSET,
                         },
-                    },
+                    }
+                else:
                     # prometheus格式: bk-collector-application.conf
-                    {
+                    item = {
                         "bk_data_token": transform_data_id_to_token(r["bk_data_id"]),
                         "bk_biz_id": r["bk_biz_id"],
                         "bk_data_id": r["bk_data_id"],
@@ -225,8 +230,8 @@ class CustomReportSubscription(models.Model):
                             "type": "token_bucket",
                             "qps": max_rate,
                         },
-                    },
-                )
+                    }
+                data_id_config = (item, sub_config_name)
 
             biz_id_to_data_id_config.setdefault(r["bk_biz_id"], []).append(
                 data_id_config,

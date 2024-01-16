@@ -124,7 +124,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
       },
       {
         id: 'tag',
-        name: this.$t('button-标签')
+        name: this.$t('维度')
       }
     ];
     this.mockFieldList = this.analyzeFields;
