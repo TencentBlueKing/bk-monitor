@@ -51,21 +51,23 @@ import './frame-graph.scss';
 
 interface IFlameGraphProps {
   data: BaseDataType;
-  appName: string;
+  appName?: string;
   diffTraceId?: string;
   filterKeywords?: string[];
   textDirection?: 'ltr' | 'rtl';
-  profileId: string;
-  start: number;
-  end: number;
+  profileId?: string;
+  start?: number;
+  end?: number;
   bizId?: number;
   showGraphTools?: boolean;
+  highlightId?: number;
 }
 
 interface IFlameGraphEvent {
   onUpdateLoading: void;
   onShowSpanDetail: void;
   onDiffTraceSuccess: void;
+  onUpdateHighlightId: number;
 }
 
 const usFormat = getValueFormat('µs');
@@ -79,15 +81,16 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   @Ref() flameToolsPopoverContent: HTMLElement;
 
   @Prop({ required: true, type: Object as () => BaseDataType }) data: BaseDataType;
-  @Prop({ required: true, type: String }) appName: string;
+  @Prop({ default: '', type: String }) appName: string;
   @Prop({ default: '', type: String }) diffTraceId: string;
   @Prop({ default: () => [] as string[], type: Array }) filterKeywords: [];
   @Prop({ default: 'ltr', type: String }) textDirection: 'ltr' | 'rtl';
   @Prop({ default: '', type: String }) profileId: string;
-  @Prop({ required: true, type: Number }) start: number;
-  @Prop({ required: true, type: Number }) end: number;
-  @Prop({ required: true, type: Number }) bizId: number;
+  @Prop({ default: 0, type: Number }) start: number;
+  @Prop({ default: 0, type: Number }) end: number;
+  @Prop({ default: 0, type: Number }) bizId: number;
   @Prop({ default: true, type: Boolean }) showGraphTools: boolean;
+  @Prop({ default: -1, type: Number }) highlightId: number;
 
   showException = true;
   showDiffLegend = false;
@@ -259,6 +262,11 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     this.graphInstance?.filterGraph(this.filterKeywords);
   }
 
+  @Watch('highlightId')
+  handleHighlightIdChange() {
+    this.graphInstance?.highlightNodeId(this.highlightId);
+  }
+
   beforeDestroy() {
     this.wrapperRef && removeListener(this.wrapperRef!, this.handleResize);
     this.handleUpdateloadingChange(false);
@@ -310,6 +318,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     // }
     if (item.id === 'reset') {
       this.initScale();
+      this.$emit('updateHighlightId', -1);
       return this.graphInstance?.resetGraph();
     }
     if (item.id === 'highlight') {
@@ -336,7 +345,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
    */
   handleStoreImg() {
     const svgDom = this.chartRef.querySelector('svg');
-    this.convertSvgToPngAndDownload(svgDom, `${this.appName}_${this.profileId}.png`);
+    this.convertSvgToPngAndDownload(svgDom, `${this.profileId}.png`);
   }
   /**
    *

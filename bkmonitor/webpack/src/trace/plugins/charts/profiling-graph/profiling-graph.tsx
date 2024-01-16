@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref, watch } from 'vue';
-// import { profileQuery } from '@api/modules/apm_profile';
-import { Loading } from 'bkui-vue';
+import { defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
+import { Exception, Loading } from 'bkui-vue';
 import { debounce } from 'throttle-debounce';
 
+// import { query } from '../../../../monitor-api/modules/apm_profile';
 import { BaseDataType, ProfilingTableItem, ViewModeType } from '../../../../monitor-ui/chart-plugins/typings';
+// import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { ToolsFormData } from '../../../pages/profiling/typings';
 import { DirectionType, IQueryParams } from '../../../typings';
 
 import ChartTitle from './chart-title/chart-title';
@@ -44,14 +46,17 @@ export default defineComponent({
   props: {
     queryParams: {
       type: Object as PropType<IQueryParams>,
-      default: () => {}
+      default: () => ({})
     }
   },
   setup(props) {
+    const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
+
+    const empty = ref(true);
     // 当前视图模式
     const activeMode = ref<ViewModeType>(ViewModeType.Combine);
     const textDirection = ref<DirectionType>('ltr');
-    const isLoaing = ref(false);
+    const isLoading = ref(false);
     const tableData = ref<ProfilingTableItem[]>([]);
     const flameData = ref<BaseDataType>({
       name: '',
@@ -59,6 +64,8 @@ export default defineComponent({
       id: ''
     });
     const unit = ref('');
+    const highlightId = ref(-1);
+    const filterKeyword = ref('');
 
     watch(
       [() => props.queryParams],
@@ -68,22 +75,41 @@ export default defineComponent({
         deep: true
       }
     );
+    watch(
+      () => toolsFormData.value.timeRange,
+      () => {
+        handleQuery();
+      },
+      {
+        deep: true
+      }
+    );
 
     const handleQuery = async () => {
       try {
-        // isLoaing.value = true;
+        isLoading.value = true;
+        highlightId.value = -1;
         // const { queryParams } = props;
-        // const params = Object.assign({}, queryParams);
-        // const data = await profileQuery(params).catch(() => false);
+        // const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+        // const params = Object.assign({}, queryParams, {
+        //   start,
+        //   end
+        // });
+        // const data = await query(params).catch(() => false);
         const data = PROFILING_QUERY_DATA;
         if (data) {
           unit.value = data.unit || '';
           tableData.value = data.table_data || [];
-          flameData.value = data.flame_data as any;
+          flameData.value = data.flame_data;
+          empty.value = false;
+        } else {
+          empty.value = true;
         }
+        isLoading.value = false;
       } catch (e) {
         console.error(e);
-        // isLoaing.value = false;
+        isLoading.value = false;
+        empty.value = true;
       }
     };
     /** 切换视图模式 */
@@ -95,20 +121,23 @@ export default defineComponent({
     };
 
     return {
+      empty,
       tableData,
       flameData,
       unit,
-      isLoaing,
+      isLoading,
       activeMode,
       textDirection,
       handleModeChange,
-      handleTextDirectionChange
+      handleTextDirectionChange,
+      highlightId,
+      filterKeyword
     };
   },
   render() {
     return (
       <Loading
-        loading={this.isLoaing}
+        loading={this.isLoading}
         class='profiling-graph'
       >
         <ChartTitle
@@ -116,28 +145,37 @@ export default defineComponent({
           textDirection={this.textDirection}
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
+          onKeywordChange={val => (this.filterKeyword = val)}
         />
-        <div class='profiling-graph-content'>
-          {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
-            <TableGraph
-              data={this.tableData}
-              unit={this.unit}
-              textDirection={this.textDirection}
-            />
-          )}
-          {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
-            <FrameGraph
-              data={this.flameData}
-              appName={'bkmonitor_production'}
-              profileId={'3d0d77e0669cdb72'}
-              start={1703747947993154}
-              end={1703747948022443}
-              bizId={2}
-              showGraphTools={false}
-              textDirection={this.textDirection}
-            />
-          )}
-        </div>
+        {this.empty ? (
+          <Exception
+            type='empty'
+            description={this.$t('暂无数据')}
+          />
+        ) : (
+          <div class='profiling-graph-content'>
+            {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
+              <TableGraph
+                data={this.tableData}
+                unit={this.unit}
+                textDirection={this.textDirection}
+                highlightId={this.highlightId}
+                filterKeyword={this.filterKeyword}
+                onUpdateHighlightId={id => (this.highlightId = id)}
+              />
+            )}
+            {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
+              <FrameGraph
+                textDirection={this.textDirection}
+                showGraphTools={false}
+                data={this.flameData}
+                highlightId={this.highlightId}
+                filterKeywords={[this.filterKeyword]}
+                onUpdateHighlightId={id => (this.highlightId = id)}
+              />
+            )}
+          </div>
+        )}
       </Loading>
     );
   }
