@@ -27,6 +27,7 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { DropdownMenu, Input } from 'bk-magic-vue';
 
+import { Debounce } from '../../../../../monitor-common/utils/utils';
 import { TextDirectionType, ViewModeItem, ViewModeType } from '../../../typings/profiling-graph';
 
 import './chart-title.scss';
@@ -38,6 +39,7 @@ interface IChartTitleProps {
 interface IChartTitleEvent {
   onModeChange: ViewModeType;
   onTextDirectionChange: TextDirectionType;
+  onKeywordChange: string;
 }
 
 @Component
@@ -52,6 +54,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     { id: ViewModeType.Flame, icon: 'mc-flame' },
     { id: ViewModeType.Topo, icon: 'Component' }
   ];
+  keyword = '';
 
   @Emit('modeChange')
   handleModeChange(val: ViewModeType) {
@@ -61,6 +64,14 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Emit('textDirectionChange')
   handleTextDirectionChange(val: TextDirectionType) {
     return val;
+  }
+
+  @Debounce(300)
+  @Emit('keywordChange')
+  handleKeywordChange() {
+    console.log(this.keyword, 123);
+
+    return this.keyword;
   }
 
   render() {
@@ -76,7 +87,11 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             </div>
           ))}
         </div>
-        <Input right-icon='bk-icon icon-search' />
+        <Input
+          right-icon='bk-icon icon-search'
+          v-model={this.keyword}
+          onInput={this.handleKeywordChange}
+        />
         <div class='ellipsis-direction button-group'>
           {Object.values(TextDirectionType).map(item => (
             <div

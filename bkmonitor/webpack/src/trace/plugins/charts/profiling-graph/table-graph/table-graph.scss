@@ -5,7 +5,7 @@
   background-color: #fff;
   height: fit-content;
   min-height: 100%;
-  border-right: 1px solid #EAEBF0;
+  // border-right: 1px solid #EAEBF0;
 
   .profiling-table {
     width: 100%;
@@ -64,7 +64,7 @@
         .icon-monitor {
           position: absolute;
           top: -2px;
-          color: #C4C6CC;
+          color: #c4c6cc;
         }
 
         .asc {
@@ -73,7 +73,7 @@
         }
 
         .active {
-          color: #3A84FF;
+          color: #3a84ff;
         }
       }
     }
@@ -85,20 +85,29 @@
     }
 
     tbody tr:nth-child(even) {
-      background-color: #FAFBFD;
+      background-color: #fafbfd;
 
       &:hover {
-        background-color: #EDEEF3;
+        background-color: #edeef3;
       }
     }
 
     tr {
       &:hover {
-        background-color: #EDEEF3;
+        background-color: #edeef3;
       }
 
       &:last-child td {
-        border-bottom: 1px solid #EAEBF0;
+        border-bottom: 1px solid #eaebf0;
+      }
+
+      &.hightlight {
+        outline: 1px solid #3a84ff;
+        background-color: #e1edff !important;
+
+        td {
+          border-color: #e1edff;
+        }
       }
     }
 

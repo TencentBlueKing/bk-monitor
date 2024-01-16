@@ -71,7 +71,7 @@ export class FlameChart<D extends BaseDataType> {
   threadPosMap: Record<string, ThreadPos> = {};
   mainData: D = null;
   threadsData: D[] = [];
-  lineMap: Map<string, ILineData<D>> = new Map();
+  lineMap: Map<string | number, ILineData<D>> = new Map();
   maxDepth = 0;
   isInviewNodeId = [];
   constructor(
@@ -105,6 +105,7 @@ export class FlameChart<D extends BaseDataType> {
       value: this.mainData.value,
       clickDepth: 0,
       highlightName: '',
+      highlightId: -1,
       keywords: this.keywords ?? []
     };
     this.getInViewNode();
@@ -116,16 +117,16 @@ export class FlameChart<D extends BaseDataType> {
   }
   initEvent() {}
   zoomGraph(options: BaseRect) {
-    const { value, clickDepth, highlightName } = options;
+    const { value, clickDepth, highlightName, highlightId } = options;
     let preDepth = 1;
     preDepth = this.updateSelection(
       select(this.chartDom).select('g.main-thread') as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-      { preDepth, value, clickDepth, highlightName }
+      { preDepth, value, clickDepth, highlightName, highlightId }
     );
     this.threadsData.forEach(thread => {
       const threadPreDepth = this.updateSelection(
         select(this.chartDom).select(`g.thread-${thread.id}`) as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-        { preDepth: preDepth + 1, value, clickDepth, highlightName }
+        { preDepth: preDepth + 1, value, clickDepth, highlightName, highlightId }
       );
       if (threadPreDepth === preDepth + 1) {
         preDepth = threadPreDepth - 1;
@@ -206,7 +207,8 @@ export class FlameChart<D extends BaseDataType> {
       ...this.zoomData,
       value: this.mainData.value,
       clickDepth: 0,
-      highlightName: ''
+      highlightName: '',
+      highlightId: -1
     };
     this.zoomGraph(this.zoomData);
   }
@@ -227,6 +229,18 @@ export class FlameChart<D extends BaseDataType> {
     this.zoomGraph({
       ...this.zoomData,
       highlightName
+    });
+  }
+  /**
+   *
+   * @param highlightId 高亮节点ID
+   * @description 高亮节点
+   */
+  highlightNodeId(highlightId: number) {
+    this.zoomData.highlightId = highlightId;
+    this.zoomGraph({
+      ...this.zoomData,
+      highlightId
     });
   }
   /**
@@ -273,7 +287,7 @@ export class FlameChart<D extends BaseDataType> {
    */
   updateSelection(
     selection: Selection<BaseType, HierarchyNode<D>, null, undefined>,
-    { preDepth, value = this.mainData.value, clickDepth = 0, highlightName = '' }: BaseRect
+    { preDepth, value = this.mainData.value, clickDepth = 0, highlightName = '', highlightId = -1 }: BaseRect
   ) {
     const x = scaleLinear([0, this.w]).domain([0, value]);
     const y = (x: number) => x * this.c;
@@ -335,6 +349,7 @@ export class FlameChart<D extends BaseDataType> {
             return '#aaa';
           }
           if (highlightName) return d.data.name === highlightName ? defColor : '#aaa';
+          if (highlightId > -1) return d.data.id === highlightId ? defColor : '#aaa';
           return d.depth < clickDepth ? '#aaa' : defColor;
         };
         const getStrokeColor = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
