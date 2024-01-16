@@ -18,7 +18,20 @@
       "targets": []
     }
   ],
-  "overview_panels": [],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "profiling",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": []
+    }
+  ],
   "order": [],
   "options": {}
 }
