@@ -58,6 +58,8 @@ import introduce from '../common/introduce';
 import { isAuthority } from '../router/router';
 import { getDashboardCache } from './grafana/utils';
 import { getDashboardList } from '../../monitor-api/modules/grafana';
+import NoticeComponent from '@blueking/notice-component-vue2';
+import '@blueking/notice-component-vue2/dist/style.css';
 
 const changeNoticeRouteList = [
   'strategy-config-add',
@@ -82,7 +84,7 @@ if (currentLang === 'en') {
 }
 @Component
 export default class App extends tsc<{}> {
-  @Ref('menuSearchInput') menuSearchInputRef: Input;
+  @Ref('menuSearchInput') menuSearchInputRef: any;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
   @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
   routeList = getRouteConfig();
@@ -104,6 +106,7 @@ export default class App extends tsc<{}> {
   spacestickyList: string[] = []; /** 置顶的空间列表 */
   headerSettingShow = false;
   userStoreRoutes: IRouteConfigItem[] = [];
+  showAlert = false; // 是否展示跑马灯
   // 全局设置弹窗
   globalSettingShow = false;
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
@@ -638,6 +641,9 @@ export default class App extends tsc<{}> {
     this.headerSettingShow = v;
     (this.$refs.commonHeaderDrop as any)?.hide();
   }
+  showAlertChange(v: boolean) {
+    this.showAlert = v;
+  }
   render() {
     /** 页面内容部分 */
     const pageMain = [
@@ -673,8 +679,15 @@ export default class App extends tsc<{}> {
     ];
     return (
       <div class='bk-monitor'>
+        <NoticeComponent
+          apiUrl='/notice/sdk/announments'
+          onShowAlertChange={this.showAlertChange}
+        />
         <bk-navigation
-          class={{ 'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share' }}
+          class={{
+            'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
+            'is-show-notice': this.showAlert
+          }}
           navigation-type='top-bottom'
           on-toggle={this.handleToggle}
           themeColor='#2c354d'
