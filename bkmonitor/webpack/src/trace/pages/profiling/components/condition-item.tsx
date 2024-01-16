@@ -92,13 +92,14 @@ export default defineComponent({
         return;
       }
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      valueList.value = await queryLabelValues({
+      const res = await queryLabelValues({
         app_name: formData.server.app_name,
         service_name: formData.server.service_name,
         start: start * 1000 * 1000,
         end: end * 1000 * 1000,
         label_key: localValue.key
       }).catch(() => ({ label_values: [] }));
+      valueList.value = res.label_values;
       labelValueMap.set(localValue.key, valueList.value);
     }
 
