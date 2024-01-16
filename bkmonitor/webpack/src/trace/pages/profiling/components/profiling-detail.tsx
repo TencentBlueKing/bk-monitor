@@ -54,9 +54,16 @@ export default defineComponent({
       emit('showChange', val);
     }
 
+    function handleViewAppDetail() {
+      const hash = `#/apm/home?queryString=${props.detailData.app_name}`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_self');
+    }
+
     return {
       t,
-      handleShowChange
+      handleShowChange,
+      handleViewAppDetail
     };
   },
   render() {
@@ -74,7 +81,13 @@ export default defineComponent({
               <div class='profiling-detail-header'>
                 <span class='title'>{this.t('基础信息')}</span>
                 <span class='jump-link'>
-                  {this.t('Profile 接入文档')}
+                  <a
+                    class='link'
+                    target='_blank'
+                    href='https://doc.weixin.qq.com/doc/w3_AFMARgbdAFwV8Lqpcb7TdKbZ5lu8p?scode=AJEAIQdfAAoBLVgXR0AfYAcQbPAFM'
+                  >
+                    {this.t('Profile 接入文档')}
+                  </a>
                   <i class='icon-monitor icon-fenxiang'></i>
                 </span>
               </div>
@@ -87,7 +100,10 @@ export default defineComponent({
                       <Form.FormItem label={`${this.t('模块名称')}:`}>{this.detailData.service_name}</Form.FormItem>
                       <Form.FormItem label={`${this.t('所属应用')}:`}>
                         {this.detailData.app_name}
-                        <span class='jump-link'>
+                        <span
+                          class='jump-link'
+                          onClick={this.handleViewAppDetail}
+                        >
                           {this.t('应用详情')}
                           <i class='icon-monitor icon-fenxiang'></i>
                         </span>
