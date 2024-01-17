@@ -10,6 +10,30 @@
   font-size: $font-size-base;
   color: $font-color-base;
 
+  .bk-navigation {
+    &.is-show-notice {
+      height: calc(100vh - 40px) !important;
+
+      .container-content {
+        max-height: calc(100vh - 52px - 40px) !important
+      }
+
+      .nav-slider-list {
+        height: calc(100vh - 108px - 40px) !important;
+      }
+
+      .setting-modal {
+        top: 92px !important;
+
+        .monitor-dialog {
+          &.full-screen {
+            top: 92px !important;
+          }
+        }
+      }
+    }
+  }
+
   @include flex-column;
 
   &-header {
