@@ -279,7 +279,7 @@ export default defineComponent({
     /** 当选择 发送频率 为 仅一次 要保留当前所生成或选择的时间。否则就看起来是 bug 。 */
     let isNotChooseOnlyOnce = true;
     function handleSliderChange() {
-      formData.scenario_config.pattern_level = PatternLevelEnum[pattenLevelSlider.value] || '01';
+      formData.scenario_config.pattern_level = PatternLevelEnum[pattenLevelSlider.value] || '09';
     }
     function handleDataRangeExchange() {
       formData.frequency.data_range = getTimeRangeObj(dataRange.value);

@@ -1278,6 +1278,8 @@ export default defineComponent({
                   style='width: 88px;margin-right: 8px;'
                   onClick={() => {
                     this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
+                      // 由于表单会返回 id 的默认值，这里特殊处理删掉。
+                      delete response.id;
                       createOrUpdateReport(response).then(() => {
                         Message({
                           theme: 'success',

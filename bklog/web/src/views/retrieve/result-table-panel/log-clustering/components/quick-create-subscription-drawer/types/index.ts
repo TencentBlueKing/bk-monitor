@@ -28,12 +28,12 @@ export type TestSendingTarget = 'all' | 'self';
 export enum FrequencyType {
   /** 按小时 */
   hourly = 5,
-  /** 按天 */
-  dayly = 4,
+  /** 按月 */
+  monthly = 4,
   /** 按周 */
   weekly = 3,
-  /** 按月 */
-  monthly = 2,
+  /** 按天 */
+  dayly = 2,
   /** 仅一次 */
   onlyOnce = 1
 }
