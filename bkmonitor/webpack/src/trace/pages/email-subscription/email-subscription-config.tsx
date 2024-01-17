@@ -126,7 +126,10 @@ export default defineComponent({
                     'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {data.channels.map(item => t(ChannelName[item.channel_name])).toString()}
+                  {data.channels
+                    .filter(item => item.is_enabled)
+                    .map(item => t(ChannelName[item.channel_name]))
+                    .toString()}
                 </div>
               );
             }
@@ -184,7 +187,9 @@ export default defineComponent({
                     'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {getSendFrequencyText(data)}
+                  {data?.frequency?.type === FrequencyType.onlyOnce
+                    ? `${getSendFrequencyText(data)} ${dayjs(data.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
+                    : getSendFrequencyText(data)}
                 </div>
               );
             }
@@ -1252,6 +1257,7 @@ export default defineComponent({
           title={'编辑'}
           width={960}
           ext-cls='edit-subscription-sideslider-container'
+          transfer
           onHidden={() => {
             this.isShowDropdownMenu = false;
           }}

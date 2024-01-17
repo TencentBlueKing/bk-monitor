@@ -25,7 +25,7 @@
  */
 import { useI18n } from 'vue-i18n';
 
-import { Report } from '../types';
+import { FrequencyType, Report } from '../types';
 
 export function getSendFrequencyText(data: Report) {
   const { t } = useI18n();
@@ -40,27 +40,27 @@ export function getSendFrequencyText(data: Report) {
   let str = '';
   if (!data?.frequency?.type) return '';
   switch (data.frequency.type) {
-    case 1: {
+    case FrequencyType.onlyOnce: {
       str = t('仅一次');
       break;
     }
-    case 2: {
-      str = `${t('每月 {0} 号', [data.frequency.day_list.toString()])} ${data.frequency.run_time}`;
+    case FrequencyType.dayly: {
+      str = `${t('每天')} ${data.frequency.run_time}`;
       break;
     }
-    case 3: {
+    case FrequencyType.weekly: {
       const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
       const weekStr = weekStrArr.join(', ');
       str = `${weekStr} ${data.frequency.run_time}`;
       break;
     }
-    case 4: {
+    case FrequencyType.monthly: {
       const dayArr = data.frequency.day_list.map(item => `${item}号`);
       const dayStr = dayArr.join(', ');
       str = `${dayStr} ${data.frequency.run_time}`;
       break;
     }
-    case 5: {
+    case FrequencyType.hourly: {
       str = hourTextMap[data.frequency.hour];
       break;
     }
