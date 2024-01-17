@@ -174,7 +174,7 @@
                 v-show="right.scrollLoading"
                 class="footer-loading"
               >
-                <img src="../../../../static/images/svg/spinner.svg"> {{ $t('正加载更多内容…') }}
+                <img src="../../../../static/images/svg/spinner.svg"  alt=''> {{ $t('正加载更多内容…') }}
               </div>
             </template>
           </bk-table>

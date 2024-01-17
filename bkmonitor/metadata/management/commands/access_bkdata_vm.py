@@ -173,9 +173,9 @@ class Command(BaseCommand):
         # 过数据源对应的结果表
         table_id_data_id = {
             ds_rt["table_id"]: ds_rt["bk_data_id"]
-            for ds_rt in models.DataSourceResultTable.objects.filter(
-                table_id__in=input_table_id_list, default_storage="influxdb"
-            ).values("table_id", "bk_data_id")
+            for ds_rt in models.DataSourceResultTable.objects.filter(table_id__in=input_table_id_list).values(
+                "table_id", "bk_data_id"
+            )
         }
         k8s_metric_data = {
             obj["K8sMetricDataID"]: obj["cluster_id"]

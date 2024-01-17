@@ -126,7 +126,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("target_type", _lazy("告警目标类型"), es_field="event.target_type", is_char=True),
         QueryField("target", _lazy("告警目标"), es_field="event.target", is_char=True),
         QueryField("category", _lazy("分类"), es_field="event.category"),
-        QueryField("tags", _lazy("标签"), es_field="event.tags", is_char=True),
+        QueryField("tags", _lazy("维度"), es_field="event.tags", is_char=True),
         QueryField("category_display", _lazy("分类名称"), searchable=False),
         QueryField("duration", _lazy("持续时间")),
         QueryField("ack_duration", _lazy("确认时间")),
@@ -134,9 +134,8 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("action_id", _lazy("处理记录ID"), es_field="id"),
         QueryField("converge_id", _lazy("收敛记录ID"), es_field="id"),
         QueryField("event_id", _lazy("事件ID"), es_field="event.event_id", is_char=True),
-        QueryField("plugin_id", _lazy("告警"), es_field="event.plugin_id", is_char=True),
+        QueryField("plugin_id", _lazy("告警源"), es_field="event.plugin_id", is_char=True),
         QueryField("plugin_display_name", _lazy("告警源名称"), searchable=False),
-        # TODO: 后续需要改为根据策略名搜索出策略ID，再根据策略ID过滤告警。这里的实现，可能会搜索出第三方告警
         QueryField("strategy_name", _lazy("策略名称"), es_field="alert_name", agg_field="alert_name.raw", is_char=True),
     ]
 

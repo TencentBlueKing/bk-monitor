@@ -25,7 +25,6 @@
  */
 import { Component, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Checkbox, Popover, Tab, TabPanel } from 'bk-magic-vue';
 
 import { type TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
@@ -96,7 +95,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
   @Prop({ type: String, default: '' }) sceneId: string;
   /* 用于场景视图tab跳转到场景详情页 */
   @Prop({ type: String, default: '' }) sceneName: string;
-  @Ref('setPopover') setPopoverRef: Popover;
+  @Ref('setPopover') setPopoverRef: any;
 
   public panels = [
     { name: EPanelsNames.viewInfo, label: i18n.t('视图信息') },
@@ -312,7 +311,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
   getCirculationFilterComponent() {
     return (
       <div class='circulation-filter-btn'>
-        <Popover
+        <bk-popover
           ref='setPopover'
           placement='bottom-end'
           width='515'
@@ -334,34 +333,34 @@ export default class TabContainer extends tsc<ITabContainerProps> {
                   key={item.id}
                   class='tool-popover-content-item'
                 >
-                  <Checkbox
+                  <bk-checkbox
                     value={item.checked}
                     on-change={() => this.handleCheckColChange(item)}
                     disabled={item.disabled}
                   >
                     {item.name}
-                  </Checkbox>
+                  </bk-checkbox>
                 </li>
               ))}
             </ul>
             <div class='tool-popover-footer'>
-              <Button
+              <bk-button
                 on-click={this.handleConfirmPopover}
                 theme='primary'
                 class='footer-btn'
               >
                 {this.$t('确定')}
-              </Button>
-              <Button
+              </bk-button>
+              <bk-button
                 on-click={() => {
                   this.setPopoverRef.instance.hide(0);
                 }}
               >
                 {this.$t('取消')}
-              </Button>
+              </bk-button>
             </div>
           </div>
-        </Popover>
+        </bk-popover>
       </div>
     );
   }
@@ -369,19 +368,19 @@ export default class TabContainer extends tsc<ITabContainerProps> {
   render() {
     return (
       <div class='event-detail-tab'>
-        <Tab
+        <bk-tab
           on-tab-change={this.tabChange}
           active={this.active}
           type={'unborder-card'}
           key={`tab-key-${this.panelsFilter.length}`}
         >
           {this.panelsFilter.map(item => (
-            <TabPanel
+            <bk-tab-panel
               {...{ props: item }}
               key={item.name}
-            ></TabPanel>
+            ></bk-tab-panel>
           ))}
-        </Tab>
+        </bk-tab>
         {this.active === EPanelsNames.circulationRecord ? this.getCirculationFilterComponent() : undefined}
         <ViewInfo
           show={this.active === EPanelsNames.viewInfo}

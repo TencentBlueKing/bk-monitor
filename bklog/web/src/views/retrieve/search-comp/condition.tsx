@@ -67,6 +67,7 @@ export default class Condition extends tsc<IProps> {
   tagInputValueList = []; // taginput值列表
   matchSwitch = false; // 模糊匹配开关
   catchValue = []; // 切换exists时缓存的值
+  catchTagInputStr = '';
   valueScopeMap = { // number类型最大值
     long: {
       max: LONG_MAX_NUMBER,
@@ -170,6 +171,12 @@ export default class Condition extends tsc<IProps> {
     return v;
   }
 
+  @Debounce(100)
+  @Emit('inputChange')
+  emitInputChange(v: string) {
+    return v;
+  }
+
   @Debounce(300)
   @Emit('additionValueChange')
   handleAdditionChange(newReplaceObj: object, isQuery = true) {
@@ -250,6 +257,8 @@ export default class Condition extends tsc<IProps> {
   // 当有对比的操作时 值改变
   handleValueBlur(val: string) {
     if (val !== '' && this.isHaveCompared) this.localValue = [val];
+    this.emitInputChange(this.catchTagInputStr);
+    this.catchTagInputStr = '';
     // if (this.localValue.length) {
     //   this.handleAdditionChange({ value: this.localValue });
     // }
@@ -429,7 +438,7 @@ export default class Condition extends tsc<IProps> {
             v-model={this.localValue}
             data-test-id="addConditions_input_valueFilter"
             allow-create
-            // allow-auto-match
+            allow-auto-match
             tpl={this.tpl}
             placeholder={this.inputPlaceholder}
             list={this.tagInputValueList}
@@ -437,6 +446,7 @@ export default class Condition extends tsc<IProps> {
             onChange={this.handleValueChange}
             onBlur={this.handleValueBlur}
             onRemoveAll={this.handleValueRemoveAll}
+            onInputchange={v => this.catchTagInputStr = v}
             trigger="focus">
           </TagInput>
         }

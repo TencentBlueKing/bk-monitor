@@ -120,7 +120,6 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
 import TableLog from './table-log.vue';
 import FieldsSetting from '../../result-comp/fields-setting';
 import ExportLog from '../../result-comp/export-log.vue';
@@ -153,7 +152,6 @@ export default {
       showAsyncExport: false, // 异步下载弹窗
       exportLoading: false,
       fieldsConfigList: [],
-      selectConfigID: null,
     };
   },
   computed: {
@@ -205,10 +203,10 @@ export default {
     },
     closeDropdown() {
       this.showFieldsSetting = false;
-      this.$refs.fieldsSettingPopper.instance?.hide();
+      this.$refs.fieldsSettingPopper?.instance.hide();
     },
     setPopperInstance(status = true) {
-      this.$refs.fieldsSettingPopper.instance?.set({
+      this.$refs.fieldsSettingPopper?.instance.set({
         hideOnClick: status,
       });
     },
@@ -245,7 +243,7 @@ export default {
     },
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
-      this.$refs.fieldsSettingPopper.instance?.show();
+      this.$refs.fieldsSettingPopper?.instance.show();
     },
   },
 };

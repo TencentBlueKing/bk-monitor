@@ -260,7 +260,7 @@ class ContainerConfigSerializer(serializers.Serializer):
 
 class MultilineSerializer(serializers.Serializer):
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
-    multiline_maxLines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
+    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
     multiline_timeout = serializers.CharField(label=_("最大耗时"), required=False, allow_blank=True, allow_null=True)
 
 
@@ -283,7 +283,7 @@ class CollectorCreateSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
@@ -326,7 +326,7 @@ class CreateContainerCollectorSerializer(serializers.Serializer):
     collector_plugin_id = serializers.IntegerField(label=_("采集插件ID"), required=False)
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
@@ -357,7 +357,7 @@ class CollectorUpdateSerializer(serializers.Serializer):
 
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     target_object_type = serializers.CharField(label=_("目标类型"))
     target_node_type = serializers.CharField(label=_("节点类型"))
@@ -376,7 +376,7 @@ class UpdateContainerCollectorSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     description = serializers.CharField(
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
@@ -951,7 +951,7 @@ class PreCheckSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     bk_data_name = serializers.CharField(label=_("采集链路data_name"), required=False)
     result_table_id = serializers.CharField(label=_("结果表ID"), required=False)
@@ -1034,7 +1034,7 @@ class CreateCollectorPluginInstanceSerializer(serializers.Serializer):
     platform_username = serializers.CharField(label=_("平台用户"), required=False)
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     description = serializers.CharField(
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
@@ -1052,7 +1052,7 @@ class UpdateCollectorPluginInstanceSerializer(serializers.Serializer):
     collector_config_id = serializers.IntegerField(label=_("采集项ID"))
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     target_object_type = serializers.CharField(label=_("目标类型"))
     target_node_type = serializers.CharField(label=_("节点类型"))
@@ -1151,7 +1151,12 @@ class BCSCollectorSerializer(serializers.Serializer):
     project_id = serializers.CharField(label=_("项目id"))
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX, required=False, default=""
+        label=_("采集英文名称"),
+        min_length=5,
+        max_length=100,
+        regex=COLLECTOR_CONFIG_NAME_EN_REGEX,
+        required=False,
+        default="",
     )
     custom_type = serializers.CharField(label=_("日志类型"), required=False, default="log")
     category_id = serializers.CharField(label=_("分类"), required=False, default="kubernetes")
@@ -1298,7 +1303,7 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
 
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     custom_type = serializers.ChoiceField(label=_("日志类型"), choices=CustomTypeEnum.get_choices())
@@ -1325,7 +1330,7 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), min_length=5, max_length=100, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())

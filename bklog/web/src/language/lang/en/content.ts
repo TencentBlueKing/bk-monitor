@@ -371,7 +371,7 @@ export default {
   '链接可重复获取，每个链接只能下载一次。': 'Links can be repeatedly retrieved, each link can only be downloaded once.',
   选择Service以获取Label列表: 'Select Service to get Label list',
   '配置项{n}未选择指定容器或指定标签。': 'Configuration {n} has not selected a specified container or tag.',
-  '支持数字、字母、下划线，长短5～50字符': 'Supports numbers, letters, and underscores, with a length of 5-50 characters',
+  '支持数字、字母、下划线，长短5～100字符': 'Supports numbers, letters, and underscores, with a length of 5-100 characters',
   '复杂的过滤条件（超过5个）会影响机器性能': 'Complex filtering conditions (more than 5) will affect machine performance',
   '当前还没有共享集群，请联系平台管理员提供': 'There is currently no shared cluster, please contact the platform administrator to provide.',
   '可见类型为多业务时，可见业务范围不能为空': 'When visibility type is multiple businesses, visibility business scope cannot be empty',
@@ -552,5 +552,9 @@ export default {
   暂无采样日志: 'No sampling log',
   '正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…': 'The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...',
   '脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。': 'The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results.',
-  '分组模式下，暂不支持添加{n}' : 'In group mode, adding {n} is not supported for the time being.'
+  '分组模式下，暂不支持添加{n}' : 'In group mode, adding {n} is not supported for the time being.',
+  添加到本次检索: 'Add to this search',
+  从本次检索中排除: 'Exclude from this search',
+  当前显示全部字段: 'Currently showing all fields',
+  显示全部字段: 'Currently showing all fields'
 };

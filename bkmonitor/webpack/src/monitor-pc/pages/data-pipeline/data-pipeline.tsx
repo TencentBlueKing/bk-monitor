@@ -27,7 +27,6 @@
 /* eslint-disable max-len  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input, Switcher, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
 
 import {
   checkClusterHealth,
@@ -551,12 +550,12 @@ export default class DataPipeline extends tsc<{}> {
       case EColunm.isEnable: {
         return (
           <div onClick={(e: Event) => e.stopPropagation()}>
-            <Switcher
+            <bk-switcher
               theme='primary'
               size='small'
               value={row.is_enable}
               pre-check={() => this.handleEnable(row)}
-            ></Switcher>
+            ></bk-switcher>
           </div>
         );
       }
@@ -568,7 +567,7 @@ export default class DataPipeline extends tsc<{}> {
               this.handleEdit(row);
             }}
           >
-            <Button text>{this.$t('编辑')}</Button>
+            <bk-button text>{this.$t('编辑')}</bk-button>
           </div>
         );
       }
@@ -619,33 +618,33 @@ export default class DataPipeline extends tsc<{}> {
       <div class='data-pipline-page'>
         <div class='head-operate'>
           <div class='left'>
-            <Button
+            <bk-button
               icon='plus'
               theme='primary'
               class='mr24'
               onClick={this.handleShowConfigAdd}
             >
               {this.$t('新增')}
-            </Button>
+            </bk-button>
             <span class='update-time'>
               {this.$t('数据更新时间')}：{this.dataUpdateTime}
             </span>
           </div>
           <div class='right'>
-            <Input
+            <bk-input
               placeholder={this.$t('输入')}
               right-icon={'bk-icon icon-search'}
               value={this.searchValue}
               on-blur={this.handleSearchBlur}
               on-enter={this.handleSearchEnter}
-            ></Input>
+            ></bk-input>
           </div>
         </div>
         <div
           class='table-content'
           v-bkloading={{ isLoading: this.loading }}
         >
-          <Table
+          <bk-table
             key={this.tableKey}
             outer-border={false}
             header-border={false}
@@ -661,7 +660,7 @@ export default class DataPipeline extends tsc<{}> {
             on-filter-change={this.handleFilterChange}
           >
             {
-              <TableColumn
+              <bk-table-column
                 type='expand'
                 width={0}
                 scopedSlots={{
@@ -672,7 +671,7 @@ export default class DataPipeline extends tsc<{}> {
                       v-bkloading={{ isLoading: this.childTableLoading }}
                       // onScroll={this.throttleHandleScroll}
                     >
-                      <Table
+                      <bk-table
                         outer-border={false}
                         header-border={false}
                         row-class-name={'child-row'}
@@ -689,22 +688,22 @@ export default class DataPipeline extends tsc<{}> {
                         on-scroll-end={this.handleScrollEnd}
                       >
                         {this.childTableColumns.map(childColumn => (
-                          <TableColumn
+                          <bk-table-column
                             key={childColumn.id}
                             label={childColumn.name}
                             width={childColumn.width}
                             formatter={(row: any) => this.handleSetChildFormatter(childColumn.id as any, row)}
-                          ></TableColumn>
+                          ></bk-table-column>
                         ))}
-                      </Table>
+                      </bk-table>
                     </div>
                   )
                 }}
-              ></TableColumn>
+              ></bk-table-column>
             }
             {
-              <TableColumn type='setting'>
-                <TableSettingContent
+              <bk-table-column type='setting'>
+                <bk-table-setting-content
                   key={'__settings'}
                   class='event-table-setting'
                   fields={this.tableData.columns}
@@ -714,14 +713,14 @@ export default class DataPipeline extends tsc<{}> {
                   selected={this.tableData.columns.filter(item => item.checked || item.disabled)}
                   on-setting-change={this.handleSettingChange}
                 />
-              </TableColumn>
+              </bk-table-column>
             }
             {this.tableData.columns
               .filter(column => column.checked)
               .map(column => {
                 const key = `column_${column.id}`;
                 return (
-                  <TableColumn
+                  <bk-table-column
                     key={key}
                     prop={column.id}
                     label={column.name}
@@ -732,10 +731,10 @@ export default class DataPipeline extends tsc<{}> {
                     formatter={(row, _column, _cellValue, index) =>
                       this.handleSetFormatter(column.id as EColunm, row, index)
                     }
-                  ></TableColumn>
+                  ></bk-table-column>
                 );
               })}
-          </Table>
+          </bk-table>
         </div>
         <DataPipelineConfig
           show={this.configData.show}

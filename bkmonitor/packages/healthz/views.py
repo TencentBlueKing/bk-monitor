@@ -16,29 +16,6 @@ from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class HealthzViewSet(ResourceViewSet):
-    """
-    告警配置页面的告警策略
-    """
-
-    # 自监控权限豁免
-    permission_classes = []
-
-    resource_routes = [
-        ResourceRoute("GET", resource.healthz.get_global_status),
-        ResourceRoute("GET", resource.healthz.server_graph_point, endpoint="graph_point"),
-        ResourceRoute("GET", resource.healthz.server_host_alarm, endpoint="host_alarm"),
-        ResourceRoute("POST", resource.healthz.job_test_root_api, endpoint="job_test_root"),
-        ResourceRoute("POST", resource.healthz.job_test_non_root_api, endpoint="job_test_non_root"),
-        ResourceRoute("POST", resource.healthz.cc_test_root_api, endpoint="cc_test_root"),
-        ResourceRoute("POST", resource.healthz.cc_test_non_root_api, endpoint="cc_test_non_root"),
-        ResourceRoute("POST", resource.healthz.metadata_test_root_api, endpoint="metadata_test_root"),
-        ResourceRoute("POST", resource.healthz.nodeman_test_root_api, endpoint="nodeman_test_root"),
-        ResourceRoute("POST", resource.healthz.bk_data_test_root_api, endpoint="bk_data_test_root"),
-        ResourceRoute("POST", resource.healthz.gse_test_root_api, endpoint="gse_test_root"),
-    ]
-
-
 def index(request, cc_biz_id):
     return render(request, "/monitor/healthz/dashboard.html", {"cc_biz_id": cc_biz_id})
 
