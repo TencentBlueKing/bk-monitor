@@ -360,7 +360,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
 
         # 默认按status聚合
-        if not group_by:
+        if group_by is None:
             group_by = ["status"]
 
         # status 会被单独处理
