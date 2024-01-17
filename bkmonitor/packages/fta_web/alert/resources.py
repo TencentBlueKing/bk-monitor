@@ -1502,7 +1502,7 @@ class SearchEventResource(ApiAuthResource):
             + conditions,
             **validated_request_data,
         )
-        alert_result = handler.search_raw()
+        alert_result, _ = handler.search_raw()
 
         result = {
             "total": min(alert_result.hits.total.value, 10000),

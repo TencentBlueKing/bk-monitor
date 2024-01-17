@@ -14,11 +14,12 @@ import time
 from collections import defaultdict
 from functools import reduce
 from itertools import chain
-from typing import List
+from typing import Dict, List, Tuple
 
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 from elasticsearch_dsl import Q
+from elasticsearch_dsl.response.aggs import BucketData
 from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
@@ -274,7 +275,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         return search_object
 
-    def search_raw(self, show_overview=False, show_aggs=False):
+    def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
@@ -288,16 +289,20 @@ class AlertQueryHandler(BaseBizQueryHandler):
             search_object = self.add_aggs(search_object)
 
         search_result = search_object.params(track_total_hits=True).execute()
-        return search_result
+
+        if show_dsl:
+            return search_result, search_object.to_dict()
+
+        return search_result, None
 
     def search(self, show_overview=False, show_aggs=False, show_dsl=False):
         exc = None
-        search_object = None
         try:
-            search_result = self.search_raw(show_overview, show_aggs)
+            search_result, dsl = self.search_raw(show_overview, show_aggs, show_dsl)
         except Exception as e:
             logger.exception("search alerts error: %s", e)
             search_result = self.make_empty_response()
+            dsl = None
             exc = e
 
         alerts = self.handle_hit_list(search_result)
@@ -323,8 +328,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
         if show_aggs:
             result["aggs"] = self.handle_aggs(search_result)
 
-        if show_dsl and search_object:
-            result["dsl"] = search_object.to_dict()
+        if dsl:
+            result["dsl"] = dsl
 
         if exc:
             exc.data = result
@@ -332,10 +337,29 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         return result
 
+    def _get_buckets(
+        self,
+        result: Dict[Tuple[Tuple[str, any]], any],
+        dimensions: Dict[str, any],
+        aggregation: BucketData,
+        agg_fields: List[str],
+    ):
+        """
+        获取聚合结果
+        """
+        if agg_fields:
+            field = agg_fields[0]
+            for bucket in aggregation[field].buckets:
+                dimensions[field] = bucket.key
+                self._get_buckets(result, dimensions, bucket, agg_fields[1:])
+        else:
+            dimension_tuple: Tuple = tuple(dimensions.items())
+            result[dimension_tuple] = aggregation.doc_count
+
     def date_histogram(self, interval: str = "auto", group_by: List[str] = None):
         interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
 
-        # 是否按status聚合
+        # 默认按status聚合
         if not group_by:
             group_by = ["status"]
 
@@ -376,45 +400,56 @@ class AlertQueryHandler(BaseBizQueryHandler):
         new_anomaly_object.bucket("time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s")
         search_result = search_object[:0].execute()
 
-        all_series = defaultdict(dict)
-        for ts in range(start_time, min(now_time, end_time), interval):
-            for status in EVENT_STATUS_DICT:
-                all_series[status][ts * 1000] = 0
+        # 获取聚合结果
+        begin_time_result, dimensions = {}, {}
+        self._get_buckets(begin_time_result, dimensions, search_result.aggs.begin_time, group_by)
 
-        if search_result.aggs:
-            for time_bucket in search_result.aggs.begin_time.time.buckets:
-                key = int(time_bucket.key_as_string) * 1000
-                if key in all_series[EventStatus.ABNORMAL]:
-                    all_series[EventStatus.ABNORMAL][key] = time_bucket.doc_count
+        end_time_result, dimensions = {}, {}
+        self._get_buckets(end_time_result, dimensions, search_result.aggs.end_time.end_alert, group_by)
 
-            for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
-                for status_bucket in time_bucket.status.buckets:
+        init_alert_result, dimensions = {}, {}
+        self._get_buckets(init_alert_result, dimensions, search_result.aggs.init_alert, group_by)
+
+        # 获取全部维度
+        all_dimensions = set(begin_time_result.keys()) | set(end_time_result.keys()) | set(init_alert_result.keys())
+
+        # 按维度分别统计事件数量
+        result = {}
+        for dimension_tuple in all_dimensions:
+            all_series = defaultdict(dict)
+
+            # 补全时间序列
+            for ts in range(start_time, min(now_time, end_time), interval):
+                for status in EVENT_STATUS_DICT:
+                    all_series[status][ts * 1000] = 0
+
+            if search_result.aggs:
+                for time_bucket in search_result.aggs.begin_time.time.buckets:
                     key = int(time_bucket.key_as_string) * 1000
-                    if key in all_series[status_bucket.key]:
-                        all_series[status_bucket.key][key] = status_bucket.doc_count
+                    if key in all_series[EventStatus.ABNORMAL]:
+                        all_series[EventStatus.ABNORMAL][key] = time_bucket.doc_count
 
-            current_abnormal_count = search_result.aggs.init_alert.doc_count
+                for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
+                    for status_bucket in time_bucket.status.buckets:
+                        key = int(time_bucket.key_as_string) * 1000
+                        if key in all_series[status_bucket.key]:
+                            all_series[status_bucket.key][key] = status_bucket.doc_count
 
-            for ts in all_series[EventStatus.ABNORMAL]:
-                # 异常是一个持续的状态，会随着时间的推移不断叠加
-                # 一旦有恢复或关闭的告警，异常告警将会相应减少
-                all_series[EventStatus.ABNORMAL][ts] = (
-                    current_abnormal_count
-                    + all_series[EventStatus.ABNORMAL][ts]
-                    - all_series[EventStatus.CLOSED][ts]
-                    - all_series[EventStatus.RECOVERED][ts]
-                )
-                current_abnormal_count = all_series[EventStatus.ABNORMAL][ts]
+                current_abnormal_count = search_result.aggs.init_alert.doc_count
 
-        result_data = {
-            "series": [
-                {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
-                for status, series in all_series.items()
-            ],
-            "unit": "",
-        }
+                for ts in all_series[EventStatus.ABNORMAL]:
+                    # 异常是一个持续的状态，会随着时间的推移不断叠加
+                    # 一旦有恢复或关闭的告警，异常告警将会相应减少
+                    all_series[EventStatus.ABNORMAL][ts] = (
+                        current_abnormal_count
+                        + all_series[EventStatus.ABNORMAL][ts]
+                        - all_series[EventStatus.CLOSED][ts]
+                        - all_series[EventStatus.RECOVERED][ts]
+                    )
+                    current_abnormal_count = all_series[EventStatus.ABNORMAL][ts]
 
-        return result_data
+            result[dimension_tuple] = all_series
+        return result
 
     def parse_condition_item(self, condition: dict) -> Q:
         if condition["key"] == "stage":
@@ -445,7 +480,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             | Q("term", appointee=self.request_username)
             | Q("term", supervisor=self.request_username)
         )
-        if self.bk_biz_ids == []:
+        if not self.bk_biz_ids:
             # 如果不带任何业务信息，表示获取跟自己相关的告警
             queries.append(user_condition)
 
