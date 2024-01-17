@@ -82,7 +82,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   formModel = {
     level: 0,
     scene: '',
-    sensitivity: 50
+    sensitivity: 0
   };
   target: any = {
     targetType: '',
@@ -552,7 +552,9 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
             <bk-slider
               class='process-item'
               show-custom-label={true}
-              custom-content={{ 0: { label: this.$t('较少告警') }, 100: { label: this.$t('较多告警') } }}
+              min-value={0}
+              max-value={10}
+              custom-content={{ 0: { label: this.$t('较少告警') }, 10: { label: this.$t('较多告警') } }}
               value={this.formModel.sensitivity}
               disable={this.readonly}
               onInput={this.handleSensitivity}
