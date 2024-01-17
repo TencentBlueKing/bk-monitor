@@ -157,7 +157,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         end: int,
         result_table_id: str,
         extra_params: Optional[dict] = None,
-        api_type: APIType = APIType.QUERY_SAMPLE,
+        api_type: APIType = APIType.QUERY_SAMPLE_BY_JSON,
         profile_id: Optional[str] = None,
         filter_labels: Optional[dict] = None,
         converted: bool = True,
@@ -259,7 +259,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
-        return Response(data={k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()})
+
+        statistics = doris_converter.statistics_by_time()
+        data = {
+            "statistics": statistics,
+            "diagrams": {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()},
+        }
+        return Response(data=data)
 
     @staticmethod
     def _enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:

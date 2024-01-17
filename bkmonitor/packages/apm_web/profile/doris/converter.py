@@ -8,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, field
 from typing import ClassVar, Optional
 
 from apm_web.profile.constants import InputType
@@ -29,6 +30,7 @@ class DorisConverter(Converter):
     """Convert data in doris(pprof json) to Profile object"""
 
     DESCRIBING_SAMPLE_UNIT: ClassVar[str] = "count"
+    _samples_info: list = field(default_factory=list)
 
     def convert(self, raw: dict) -> Optional[Profile]:
         """parse single raw json data to Profile object"""
@@ -36,6 +38,7 @@ class DorisConverter(Converter):
         if not samples_info:
             return
 
+        self._samples_info = samples_info
         first_sample = samples_info[0]
         period_type, period_unit = first_sample["period_type"].split("/")
         self.profile.period_type = ValueType(self.add_string(period_type), self.add_string(period_unit))
@@ -118,6 +121,17 @@ class DorisConverter(Converter):
                 location.line.append(Line(function_id=function.id, line=line_info["line"]))
 
         return location
+
+    def statistics_by_time(self) -> list:
+        """statistics profile data by time"""
+
+        statistics = defaultdict(int)
+        for s in self._samples_info:
+            if s["sample_type"].split("/")[1] != self.DESCRIBING_SAMPLE_UNIT:
+                continue
+            statistics[s["dtEventTimeStamp"]] += int(s["value"])
+
+        return [{"time": k, "count": v} for k, v in statistics.items()]
 
 
 register_converter(InputType.DORIS.value, DorisConverter)

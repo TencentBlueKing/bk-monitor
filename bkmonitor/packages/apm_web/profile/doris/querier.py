@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 class APIType(Enum):
     LABELS = "labels"
     LABEL_VALUES = "label_values"
+    # bkdata legacy type, may be removed in the future
     QUERY_SAMPLE = "query_sample"
+    QUERY_SAMPLE_BY_JSON = "query_sample_by_json"
     COL_TYPE = "col_type"
     SERVICE_NAME = "service_name"
 
