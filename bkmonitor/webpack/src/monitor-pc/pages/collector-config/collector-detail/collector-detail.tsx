@@ -26,7 +26,6 @@
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { random } from '@common/utils';
-import { TabPanel } from 'bk-magic-vue';
 
 import {
   collectConfigList,
@@ -301,7 +300,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           active={this.active}
           on-tab-change={v => this.handleTabChange(v)}
         >
-          <TabPanel
+          <bk-tab-panel
             label={this.$t('配置信息')}
             name={TabEnum.Configuration}
           >
@@ -314,8 +313,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
                 collectConfigData={this.collectConfigData}
               ></CollectorConfiguration>
             )}
-          </TabPanel>
-          <TabPanel
+          </bk-tab-panel>
+          <bk-tab-panel
             label={this.$t('采集状态')}
             name={TabEnum.TargetDetail}
           >
@@ -334,8 +333,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               onCanPolling={this.handlePolling}
               onRefresh={this.handleRefreshData}
             ></CollectorStatusDetails>
-          </TabPanel>
-          <TabPanel
+          </bk-tab-panel>
+          <bk-tab-panel
             label={this.$t('链路状态')}
             name={TabEnum.DataLink}
           >
@@ -352,8 +351,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               show={this.active === TabEnum.DataLink}
               collectId={this.collectId}
             />
-          </TabPanel>
-          <TabPanel
+          </bk-tab-panel>
+          <bk-tab-panel
             label={this.$t('存储状态')}
             name={TabEnum.StorageState}
           >
@@ -371,13 +370,13 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               data={this.allData[TabEnum.StorageState].data}
               collectId={this.collectId}
             />
-          </TabPanel>
-          <TabPanel
+          </bk-tab-panel>
+          <bk-tab-panel
             label={this.$t('指标/维度')}
             name={TabEnum.FieldDetails}
           >
             <FieldDetails detailData={this.detailData} />
-          </TabPanel>
+          </bk-tab-panel>
           <span
             slot='setting'
             class='tab-right-tip'

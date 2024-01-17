@@ -26,7 +26,6 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import Big from 'big.js';
-import { Button, Exception, Input, Option, Select } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 import { throttle } from 'throttle-debounce';
 
@@ -459,7 +458,7 @@ export default class Home extends tsc<IHomeProps> {
                   <span class='msg'>{this.updataTimeStr}</span>
                 </span>
                 <span class='right'>
-                  <Select
+                  <bk-select
                     v-model={this.dataOverview.timeChecked}
                     ext-cls='time-select'
                     clearable={false}
@@ -467,21 +466,21 @@ export default class Home extends tsc<IHomeProps> {
                     on-change={() => this.init(true)}
                   >
                     {this.dataOverview.timeOption.map(option => (
-                      <Option
+                      <bk-option
                         key={option.id}
                         id={option.id}
                         name={option.name}
-                      ></Option>
+                      ></bk-option>
                     ))}
-                  </Select>
-                  <Button
+                  </bk-select>
+                  <bk-button
                     theme={'primary'}
                     onClick={() => {
                       window.open(this.newBizApply);
                     }}
                   >
                     {this.$t('接入业务')}
-                  </Button>
+                  </bk-button>
                 </span>
               </div>
               <div class='overview-content'>
@@ -502,7 +501,10 @@ export default class Home extends tsc<IHomeProps> {
                       <span class='unit'>{item.unit}</span>
                     </span>
                     <span class='item-bottom'>
-                      <img src={this.getSvgIcon(item.icon)} />
+                      <img
+                        src={this.getSvgIcon(item.icon)}
+                        alt=''
+                      />
                       <span class='title'>{item.name}</span>
                     </span>
                   </div>
@@ -516,28 +518,28 @@ export default class Home extends tsc<IHomeProps> {
                   <span class='msg'>{this.updataTimeStr}</span>
                 </span>
                 <span class='right'>
-                  <Input
+                  <bk-input
                     placeholder={this.$t('输入')}
                     right-icon='bk-icon icon-search'
                     v-model={this.businessOverview.searchValue}
                     on-right-icon-click={() => this.isCanSearch() && this.init()}
                     on-enter={() => this.isCanSearch() && this.init()}
                     on-blur={() => this.isCanSearch() && this.init()}
-                  ></Input>
-                  <Select
+                  ></bk-input>
+                  <bk-select
                     v-model={this.businessOverview.filterItem}
                     clearable={false}
                     ext-cls='filter-select'
                     on-change={() => this.init()}
                   >
                     {this.businessOverview.filterList.map(option => (
-                      <Option
+                      <bk-option
                         key={option.id}
                         id={option.id}
                         name={option.name}
-                      ></Option>
+                      ></bk-option>
                     ))}
-                  </Select>
+                  </bk-select>
                 </span>
               </div>
               {this.businessOverview.data.length ? (
@@ -556,13 +558,13 @@ export default class Home extends tsc<IHomeProps> {
                   ))}
                 </div>
               ) : (
-                <Exception
+                <bk-exception
                   v-bkloading={{ isLoading: this.businessLoading }}
                   type='empty'
                   ext-cls='home-no-data'
                 >
                   <span class='home-no-data-msg'>{this.$t('无数据')}</span>
-                </Exception>
+                </bk-exception>
               )}
             </div>
           </div>

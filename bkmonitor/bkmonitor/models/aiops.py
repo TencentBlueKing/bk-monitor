@@ -9,4 +9,22 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .checker import CheckerTask, HealthChecker
+
+from django.db import models
+
+from bkmonitor.utils.db.fields import JsonField
+
+
+class AIFeatureSettings(models.Model):
+    """AI功能配置."""
+
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
+    config = JsonField("配置信息")
+    create_at = models.DateTimeField("创建时间", auto_now_add=True)
+    update_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "AI功能配置"
+        verbose_name_plural = "AI功能配置"
+        db_table = "ai_feature_settings"
+        unique_together = (("bk_biz_id",),)

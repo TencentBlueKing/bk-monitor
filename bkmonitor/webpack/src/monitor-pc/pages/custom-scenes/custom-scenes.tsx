@@ -26,7 +26,6 @@
 import { Component, Mixins } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 import axios from 'axios';
-import { Button, DropdownMenu, Input } from 'bk-magic-vue';
 
 import { getLabel } from '../../../monitor-api/modules/commons';
 import { getObservationSceneList, getObservationSceneStatusList } from '../../../monitor-api/modules/scene_view';
@@ -407,14 +406,14 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
         <div class='custom-scenes-page-wrapper'>
           <div class='table-wrapper'>
             <div class='wrapper-header'>
-              <DropdownMenu positionFxed>
-                <Button
+              <bk-dropdown-menu positionFxed>
+                <bk-button
                   slot='dropdown-trigger'
                   icon='plus'
                   theme='primary'
                 >
                   {this.$t('新建')}
-                </Button>
+                </bk-button>
                 <ul
                   class='header-select-list'
                   slot='dropdown-content'
@@ -428,8 +427,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                     </li>
                   ))}
                 </ul>
-              </DropdownMenu>
-              <Input
+              </bk-dropdown-menu>
+              <bk-input
                 class='search-wrapper-input'
                 placeholder={window.i18n.t('搜索')}
                 v-model={this.keyword}
@@ -475,12 +474,12 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 strategy: (row: ITableItem) => (
                   <div class='column-count'>
                     {row.strategy_count > 0 ? (
-                      <Button
+                      <bk-button
                         text
                         onClick={() => this.handleToStrategy(row)}
                       >
                         {row.strategy_count}
-                      </Button>
+                      </bk-button>
                     ) : (
                       '--'
                     )}
@@ -489,12 +488,12 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 collector: (row: ITableItem) => (
                   <div class='column-count'>
                     {row.collect_config_count > 0 ? (
-                      <Button
+                      <bk-button
                         text
                         onClick={() => this.handleToCollect(row)}
                       >
                         {row.collect_config_count}
-                      </Button>
+                      </bk-button>
                     ) : (
                       '--'
                     )}
@@ -502,13 +501,13 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 ),
                 operate: (row: ITableItem) => [
                   row.scene_type === ESceneType.plugin ? (
-                    <Button
+                    <bk-button
                       style={{ marginLeft: '10px' }}
                       text
                       onClick={() => this.handleAddItem(row)}
                     >
                       {window.i18n.t('新建采集')}
-                    </Button>
+                    </bk-button>
                   ) : (
                     ''
                   )

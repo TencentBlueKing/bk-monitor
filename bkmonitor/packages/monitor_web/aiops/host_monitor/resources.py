@@ -16,13 +16,13 @@ from django.db.models import Value
 from django.db.models.functions import Concat
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.views import serializers
 from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, resource
-from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.aiops.host_monitor.constant import (
     GROUP_BY_METRIC_FIELDS,
     NO_ACCESS_METRIC_ANOMALY_RANGE_COLOR,
@@ -157,7 +157,6 @@ class HostIntelligenAnomalyRangeResource(Resource):
             raise ValidationError(f"Invalid time format: {attr}")
 
         def validate(self, attrs):
-
             start_time = attrs.get('start_time')
             end_time = attrs.get('end_time')
             interval = attrs.get('interval')
