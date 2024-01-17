@@ -25,7 +25,6 @@
  */
 import { Component, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import './auto-height-textarea.scss';
 
@@ -60,14 +59,14 @@ export default class AutoHeightTextarea extends tsc<IProps> {
 
   render() {
     return (
-      <Input
+      <bk-input
         class='auto-height-textarea-component'
         value={this.value}
         placeholder={this.placeholder}
         type='textarea'
         row={1}
         onChange={this.handleChange}
-      ></Input>
+      ></bk-input>
     );
   }
 }

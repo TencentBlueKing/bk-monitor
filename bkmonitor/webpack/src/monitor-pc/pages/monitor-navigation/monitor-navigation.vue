@@ -141,6 +141,7 @@
         <img
           class="monitor-logo-icon"
           src="../../static/images/svg/monitor-logo.svg"
+          alt=''
         >
       </div>
       <div

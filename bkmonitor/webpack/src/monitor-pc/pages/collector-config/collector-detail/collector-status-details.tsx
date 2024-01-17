@@ -26,7 +26,6 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Sideslider, Spin, Table, TableColumn } from 'bk-magic-vue';
 
 import {
   batchRetry,
@@ -454,10 +453,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   }
                   if (item.id === EStatus.RUNNING) {
                     return (
-                      <Spin
+                      <bk-spin
                         size='mini'
                         class='mr-3'
-                      ></Spin>
+                      ></bk-spin>
                     );
                   }
                   return undefined;
@@ -475,7 +474,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             ))}
           </div>
           <div class='batch-opreate'>
-            <Button
+            <bk-button
               class='mr-10'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
               disabled={
@@ -486,8 +485,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             >
               <span class='icon-monitor icon-zhongzhi1 mr-6'></span>
               <span>{this.$t('批量重试')}</span>
-            </Button>
-            <Button
+            </bk-button>
+            <bk-button
               class='mr-10'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
               icon={this.disBatch ? 'loading' : ''}
@@ -496,13 +495,13 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchStop() : this.handleShowAuthorityDetail())}
             >
               {this.$t('批量终止')}
-            </Button>
-            <Button
+            </bk-button>
+            <bk-button
               hover-theme='primary'
               onClick={() => this.handleCopyTargets()}
             >
               {this.$t('复制目标')}
-            </Button>
+            </bk-button>
           </div>
         </div>
         <div class='table-content'>
@@ -600,7 +599,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                 slot='content'
                 class='table-content-wrap'
               >
-                <Table
+                <bk-table
                   {...{
                     props: {
                       data: content.table
@@ -612,7 +611,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                     .map(column => {
                       const key = `column_${column.id}`;
                       return (
-                        <TableColumn
+                        <bk-table-column
                           key={key}
                           prop={column.id}
                           label={column.name}
@@ -631,10 +630,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                   <span class='col-status'>
                                     {[
                                       this.isRunning && STATUS_LIST.includes(row.status) ? (
-                                        <Spin
+                                        <bk-spin
                                           size='mini'
                                           class='mr-3'
-                                        ></Spin>
+                                        ></bk-spin>
                                       ) : undefined,
                                       this.isRunning &&
                                       [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
@@ -709,15 +708,15 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                               }
                             }
                           }}
-                        ></TableColumn>
+                        ></bk-table-column>
                       );
                     })}
-                </Table>
+                </bk-table>
               </div>
             </ExpandWrapper>
           ))}
         </div>
-        <Sideslider
+        <bk-sideslider
           class='fix-same-code'
           is-show={this.side.show}
           quick-close={true}
@@ -737,7 +736,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               }}
             ></pre>
           </div>
-        </Sideslider>
+        </bk-sideslider>
       </div>
     );
   }
