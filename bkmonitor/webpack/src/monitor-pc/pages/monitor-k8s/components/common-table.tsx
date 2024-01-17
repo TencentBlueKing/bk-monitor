@@ -221,7 +221,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   commonFormatter(val: ITableItem<'string'>) {
     if (typeof val !== 'number' && !val) return '--';
     return (
-      <span class='string-col'>
+      <span
+        class='string-col'
+        v-text-overflow-copy='has-copy'
+      >
         {val.icon ? (
           val.icon.length > 30 ? (
             <img

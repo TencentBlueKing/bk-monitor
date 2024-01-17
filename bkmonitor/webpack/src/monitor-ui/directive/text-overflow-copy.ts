@@ -23,16 +23,42 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue from 'vue';
+import { VueConstructor } from 'vue';
+import { DirectiveBinding } from 'vue/types/options';
 
-import Authority from './authority';
-import EnClass from './en-class';
-import EnStyle from './en-style';
-import MonitorLoading from './monitor-loading';
-import TextOverflowCopy from './text-overflow-copy';
+import { copyText } from '../../monitor-common/utils/utils';
 
-Vue.use(MonitorLoading);
-Vue.use(Authority);
-Vue.use(EnStyle);
-Vue.use(EnClass);
-Vue.use(TextOverflowCopy);
+export default class TextOverflowCopyDirective {
+  public static install(Vue: VueConstructor) {
+    Vue.directive('textOverflowCopy', {
+      componentUpdated(el: HTMLDivElement, binding: DirectiveBinding) {
+        const eleWidth = el.clientWidth;
+        const contentWidth = el.scrollWidth;
+        if (contentWidth > eleWidth) {
+          el.classList.add(binding.value);
+          const copyBtn = document.createElement('span');
+          copyBtn.className = 'icon-monitor icon-mc-copy';
+          copyBtn.style.position = 'absolute';
+          copyBtn.style.right = '0';
+          copyBtn.style.top = '50%';
+          copyBtn.style.transform = 'translateY(-50%)';
+          copyBtn.style.cursor = 'pointer';
+          el.addEventListener('click', () => {
+            copyText(el.innerText, msg => {
+              Vue.prototype.$bkMessage({
+                message: msg,
+                theme: 'error'
+              });
+              return;
+            });
+            Vue.prototype.$bkMessage({
+              message: window.i18n.tc('复制成功'),
+              theme: 'success'
+            });
+          });
+          el.appendChild(copyBtn);
+        }
+      }
+    });
+  }
+}
