@@ -313,7 +313,7 @@ class AlertDateHistogramResource(Resource):
     def perform_request(self, validated_request_data):
         interval = validated_request_data.pop("interval")
         handler = AlertQueryHandler(**validated_request_data)
-        return handler.date_histogram(interval=interval)
+        return handler.date_histogram(interval=interval).values()[0]
 
 
 class AlertDetailResource(Resource):

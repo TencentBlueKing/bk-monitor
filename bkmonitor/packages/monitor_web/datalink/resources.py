@@ -86,7 +86,7 @@ class BaseStatusResource(Resource):
             "end_time": end_time,
         }
         handler = AlertQueryHandler(**request_data)
-        series = handler.date_histogram()["series"]
+        series = handler.date_histogram().values()[0]["series"]
         abnormal_series = [s for s in series if s["name"] == EventStatus.ABNORMAL][0]
         return abnormal_series["data"]
 

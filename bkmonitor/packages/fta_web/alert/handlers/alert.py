@@ -354,7 +354,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 self._get_buckets(result, dimensions, bucket, agg_fields[1:])
         else:
             dimension_tuple: Tuple = tuple(dimensions.items())
-            result[dimension_tuple] = aggregation.doc_count
+            result[dimension_tuple] = aggregation
 
     def date_histogram(self, interval: str = "auto", group_by: List[str] = None):
         interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
@@ -364,7 +364,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
             group_by = ["status"]
 
         # status 会被单独处理
+        status_group = False
         if "status" in group_by:
+            status_group = True
             group_by.remove("status")
 
         # 查询时间对齐
@@ -423,31 +425,43 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 for status in EVENT_STATUS_DICT:
                     all_series[status][ts * 1000] = 0
 
-            if search_result.aggs:
-                for time_bucket in search_result.aggs.begin_time.time.buckets:
+            if dimension_tuple in begin_time_result:
+                for time_bucket in begin_time_result[dimension_tuple].time.buckets:
                     key = int(time_bucket.key_as_string) * 1000
                     if key in all_series[EventStatus.ABNORMAL]:
                         all_series[EventStatus.ABNORMAL][key] = time_bucket.doc_count
 
-                for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
+            if dimension_tuple in end_time_result:
+                for time_bucket in end_time_result[dimension_tuple].time.buckets:
                     for status_bucket in time_bucket.status.buckets:
                         key = int(time_bucket.key_as_string) * 1000
                         if key in all_series[status_bucket.key]:
                             all_series[status_bucket.key][key] = status_bucket.doc_count
 
-                current_abnormal_count = search_result.aggs.init_alert.doc_count
+            if dimension_tuple in init_alert_result:
+                current_abnormal_count = init_alert_result[dimension_tuple].doc_count
+            else:
+                current_abnormal_count = 0
 
+            for ts in all_series[EventStatus.ABNORMAL]:
+                # 异常是一个持续的状态，会随着时间的推移不断叠加
+                # 一旦有恢复或关闭的告警，异常告警将会相应减少
+                all_series[EventStatus.ABNORMAL][ts] = (
+                    current_abnormal_count
+                    + all_series[EventStatus.ABNORMAL][ts]
+                    - all_series[EventStatus.CLOSED][ts]
+                    - all_series[EventStatus.RECOVERED][ts]
+                )
+                current_abnormal_count = all_series[EventStatus.ABNORMAL][ts]
+
+            # 如果不按status聚合，需要将status聚合的结果合并到一起
+            if not status_group:
                 for ts in all_series[EventStatus.ABNORMAL]:
-                    # 异常是一个持续的状态，会随着时间的推移不断叠加
-                    # 一旦有恢复或关闭的告警，异常告警将会相应减少
-                    all_series[EventStatus.ABNORMAL][ts] = (
-                        current_abnormal_count
-                        + all_series[EventStatus.ABNORMAL][ts]
-                        - all_series[EventStatus.CLOSED][ts]
-                        - all_series[EventStatus.RECOVERED][ts]
+                    all_series[EventStatus.ABNORMAL][ts] += (
+                        all_series[EventStatus.CLOSED][ts] + all_series[EventStatus.RECOVERED][ts]
                     )
-                    current_abnormal_count = all_series[EventStatus.ABNORMAL][ts]
-
+                all_series.pop(EventStatus.CLOSED, None)
+                all_series.pop(EventStatus.RECOVERED, None)
             result[dimension_tuple] = all_series
         return result
 
