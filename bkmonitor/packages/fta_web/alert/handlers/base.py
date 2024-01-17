@@ -481,7 +481,7 @@ class BaseQueryHandler:
 
         for field in fields:
             search_object = self.add_agg_bucket(
-                search_object, field, size=size, bucket_count_suffix=bucket_count_suffix
+                search_object.aggs, field, size=size, bucket_count_suffix=bucket_count_suffix
             )
 
         search_result = search_object.execute()
