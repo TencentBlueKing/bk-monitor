@@ -1346,3 +1346,9 @@ TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 
 # 是否启用 influxdb 写入，默认 True
 ENABLE_INFLUXDB_STORAGE = True
+
+# 内网collector域名
+INNER_COLLOCTOR_HOST = ""
+
+# 外网collector域名
+OUTER_COLLOCTOR_HOST = ""

@@ -576,8 +576,11 @@ class ProxyHostInfo(Resource):
 
     DEFAULT_PROXY_PORT = 10205
 
+    def get_listen_port(self):
+        return getattr(settings, "BK_MONITOR_PROXY_LISTEN_PORT", ProxyHostInfo.DEFAULT_PROXY_PORT)
+
     def perform_request(self, validated_request_data):
-        port = getattr(settings, "BK_MONITOR_PROXY_LISTEN_PORT", ProxyHostInfo.DEFAULT_PROXY_PORT)
+        port = self.get_listen_port()
         proxy_host_info = []
         bk_biz_id = validated_request_data["bk_biz_id"]
         proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
