@@ -1,4 +1,5 @@
 import { request } from '../base';
+
 export const query = request('POST', 'apm/profile_api/query/samples/');
 export const queryLabels = request('GET', 'apm/profile_api/query/labels/');
 export const queryLabelValues = request('GET', 'apm/profile_api/query/label_values/');

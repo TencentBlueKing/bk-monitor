@@ -54,6 +54,8 @@ class ProfileQueryLabelValuesSerializer(QueryBaseSerializer):
     """Query Label Values"""
 
     label_key = serializers.CharField(label="标签Key")
+    offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=0)
+    rows = serializers.IntegerField(label="返回数量", required=False, default=10)
 
 
 class ProfileUploadSerializer(serializers.Serializer):

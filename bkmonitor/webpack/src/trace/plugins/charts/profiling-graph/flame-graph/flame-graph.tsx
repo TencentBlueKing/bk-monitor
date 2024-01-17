@@ -29,6 +29,7 @@ import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
 import { debounce } from 'throttle-debounce';
 
+import { query } from '../../../../../monitor-api/modules/apm_profile';
 import { FlameChart } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
 import {
   BaseDataType,
@@ -45,6 +46,7 @@ import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueF
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
+import { PROFILING_QUERY_DATA } from '../mock';
 
 import '../../flame-graph-v2/flame-graph.scss';
 import './flame-graph.scss';
@@ -65,7 +67,7 @@ export default defineComponent({
     },
     appName: {
       type: String,
-      required: true
+      default: ''
     },
     diffTraceId: {
       type: String,
@@ -85,27 +87,31 @@ export default defineComponent({
     },
     start: {
       type: Number,
-      required: true
+      default: 0
     },
     end: {
       type: Number,
-      required: true
+      default: 0
     },
     bizId: {
       type: [Number, String],
-      required: true
+      default: ''
     },
     showGraphTools: {
       type: Boolean,
       default: true
+    },
+    highlightId: {
+      type: Number,
+      default: -1
     }
   },
-  emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess'],
-  setup(props, { emit }) {
+  emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
+  setup(props, { emit, expose }) {
     const chartRef = ref<HTMLElement>(null);
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
-    const showException = ref(false);
+    const showException = ref(true);
     const showDiffLegend = ref(false);
     const tipDetail = shallowRef<ITipsDetail>({});
     const contextMenuRect = ref<IContextMenuRect>({
@@ -133,13 +139,30 @@ export default defineComponent({
       }
     );
     watch(
-      [() => props.data],
+      [() => props.data, props.appName],
       debounce(16, async () => {
         contextMenuRect.value.left = -1;
         emit('update:loading', true);
         showException.value = false;
         try {
-          if (props.data) {
+          const { bizId, appName, start, end, profileId } = props;
+          const data = !!props.data
+            ? props.data
+            : (await query(
+                {
+                  bk_biz_id: bizId,
+                  app_name: appName,
+                  start,
+                  end,
+                  profile_id: profileId,
+                  diagram_types: ['flamegraph']
+                },
+                {
+                  needCancel: true
+                }
+              ).catch(() => false)) || PROFILING_QUERY_DATA.flame_data; // TODO
+
+          if (data) {
             if (props.diffTraceId) {
               emit('diffTraceSuccess');
             }
@@ -149,7 +172,7 @@ export default defineComponent({
             if (!chartRef.value?.clientWidth) return;
 
             graphInstance = new FlameChart(
-              initGraphData(toRaw(props.data)),
+              initGraphData(!!props.data ? toRaw(data) : data),
               {
                 w: chartRef.value.clientWidth - paddingLeft * 2,
                 c: 20,
@@ -287,6 +310,13 @@ export default defineComponent({
         graphInstance?.filterGraph(props.filterKeywords);
       }
     );
+    watch(
+      () => props.highlightId,
+      () => {
+        graphInstance?.highlightNodeId(props.highlightId);
+      }
+    );
+
     onBeforeUnmount(() => {
       wrapperRef.value && removeListener(wrapperRef.value!, handleResize);
       emit('update:loading', false);
@@ -337,6 +367,7 @@ export default defineComponent({
       }
       if (item.id === 'reset') {
         initScale();
+        emit('updateHighlightId', -1);
         return graphInstance?.resetGraph();
       }
       if (item.id === 'highlight') {
@@ -363,7 +394,8 @@ export default defineComponent({
      */
     function handleStoreImg() {
       const svgDom = chartRef.value.querySelector('svg');
-      convertSvgToPngAndDownload(svgDom, `${props.appName}_${props.profileId}.png`);
+      // convertSvgToPngAndDownload(svgDom, `${props.appName}_${props.profileId}.png`);
+      convertSvgToPngAndDownload(svgDom, `${props.profileId}.png`);
     }
     /**
      *
@@ -426,6 +458,11 @@ export default defineComponent({
     const handleShowLegend = () => {
       showLegend.value = !showLegend.value;
     };
+
+    expose({
+      handleStoreImg
+    });
+
     return {
       chartRef,
       wrapperRef,
@@ -476,7 +513,7 @@ export default defineComponent({
               </div>
             ),
             <div
-              class='flame-graph-wrapper profiling-flame-graph'
+              class={`flame-graph-wrapper profiling-flame-graph ${this.showDiffLegend ? 'has-diff-legend' : ''}`}
               tabindex={1}
               onBlur={this.handleClickWrapper}
               onClick={this.handleClickWrapper}

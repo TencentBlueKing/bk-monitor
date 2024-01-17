@@ -24,10 +24,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import { query } from '../../../../monitor-api/modules/apm_profile';
 import { Debounce } from '../../../../monitor-common/utils/utils';
+import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import { PROFILING_QUERY_DATA } from '../../../../trace/plugins/charts/profiling-graph/mock';
 import {
   BaseDataType,
@@ -47,11 +49,13 @@ import './profiling-graph.scss';
 
 interface IProfilingChartProps {
   panel: PanelModel;
-  queryParams: IQueryParams;
+  queryParams?: IQueryParams;
 }
 
 @Component
 class ProfilingChart extends CommonSimpleChart {
+  @Ref() frameGraphRef: FrameGraph;
+
   @Prop({ default: () => {}, type: Object }) queryParams: IQueryParams;
 
   isLoading = false;
@@ -62,11 +66,17 @@ class ProfilingChart extends CommonSimpleChart {
     id: ''
   };
   unit = '';
-  empty = false;
-  emptyText = '查无数据';
+  empty = true;
+  emptyText = window.i18n.t('查无数据');
   // 视图模式
   activeMode: ViewModeType = ViewModeType.Combine;
   textDirection: TextDirectionType = TextDirectionType.Ltr;
+  highlightId = -1;
+  filterKeyword = '';
+
+  get flameFilterKeywords() {
+    return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
+  }
 
   @Debounce(16)
   @Watch('queryParams', { immediate: true, deep: true })
@@ -74,21 +84,32 @@ class ProfilingChart extends CommonSimpleChart {
     this.handleQuery();
   }
 
-  handleQuery() {
+  async handleQuery() {
     try {
-      // isLoaing.value = true;
-      // const { queryParams } = this.$props;
-      // const params = Object.assign({}, queryParams);
-      // const data = await profileQuery(params).catch(() => false);
-      const data = PROFILING_QUERY_DATA;
+      this.isLoading = true;
+      this.highlightId = -1;
+      const { queryParams } = this.$props;
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      const params = Object.assign({}, queryParams, {
+        start: startTime * Math.pow(10, 6),
+        end: endTime * Math.pow(10, 6),
+        // TODO
+        app_name: 'profiling_bar'
+      });
+      let data = await query(params).catch(() => false);
+      data = PROFILING_QUERY_DATA; // TODO
       if (data) {
         this.unit = data.unit || '';
         this.tableData = data.table_data || [];
         this.flameData = data.flame_data as any;
+        this.empty = false;
+      } else {
+        this.empty = true;
       }
+      this.isLoading = false;
     } catch (e) {
       console.error(e);
-      // isLoaing.value = false;
+      this.isLoading = false;
     }
   }
   handleModeChange(val: ViewModeType) {
@@ -97,11 +118,37 @@ class ProfilingChart extends CommonSimpleChart {
   handleTextDirectionChange(val: TextDirectionType) {
     this.textDirection = val;
   }
+  /** 表格排序 */
+  async handleSortChange(sortKey: string) {
+    const { queryParams } = this.$props;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const params = Object.assign({}, queryParams, {
+      start: startTime * Math.pow(10, 6),
+      end: endTime * Math.pow(10, 6),
+      // TODO
+      app_name: 'profiling_bar',
+      diagram_types: ['table'],
+      sort: sortKey
+    });
+    const data = await query(params).catch(() => false);
+    if (data) {
+      this.highlightId = -1;
+      this.tableData = data.table_data || [];
+    }
+  }
+  handleDownload(type: string) {
+    switch (type) {
+      case 'png':
+        this.frameGraphRef?.handleStoreImg();
+        break;
+      case 'pprof':
+        break;
+      default:
+        break;
+    }
+  }
 
   render() {
-    if (this.empty) {
-      return <div class='empty-chart'>{this.emptyText}</div>;
-    }
     return (
       <div
         class='profiling-graph'
@@ -112,27 +159,37 @@ class ProfilingChart extends CommonSimpleChart {
           textDirection={this.textDirection}
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
+          onKeywordChange={val => (this.filterKeyword = val)}
+          onDownload={this.handleDownload}
         />
-        <div class='profiling-graph-content'>
-          {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
-            <TableGraph
-              data={this.tableData}
-              unit={this.unit}
-              textDirection={this.textDirection}
-            />
-          )}
-          {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
-            <FrameGraph
-              data={this.flameData}
-              appName={'bkmonitor_production'}
-              profileId={'3d0d77e0669cdb72'}
-              start={1703747947993154}
-              end={1703747948022443}
-              bizId={2}
-              textDirection={this.textDirection}
-            />
-          )}
-        </div>
+        {this.empty ? (
+          <div class='empty-chart'>{this.emptyText}</div>
+        ) : (
+          <div class='profiling-graph-content'>
+            {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
+              <TableGraph
+                data={this.tableData}
+                unit={this.unit}
+                textDirection={this.textDirection}
+                highlightId={this.highlightId}
+                filterKeyword={this.filterKeyword}
+                onUpdateHighlightId={id => (this.highlightId = id)}
+                onSortChange={this.handleSortChange}
+              />
+            )}
+            {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
+              <FrameGraph
+                ref='frameGraphRef'
+                textDirection={this.textDirection}
+                showGraphTools={false}
+                data={this.flameData}
+                highlightId={this.highlightId}
+                filterKeywords={this.flameFilterKeywords}
+                onUpdateHighlightId={id => (this.highlightId = id)}
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }

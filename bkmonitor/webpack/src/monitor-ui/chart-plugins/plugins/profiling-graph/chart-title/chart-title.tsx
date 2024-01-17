@@ -27,6 +27,7 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { DropdownMenu, Input } from 'bk-magic-vue';
 
+import { Debounce } from '../../../../../monitor-common/utils/utils';
 import { TextDirectionType, ViewModeItem, ViewModeType } from '../../../typings/profiling-graph';
 
 import './chart-title.scss';
@@ -38,6 +39,8 @@ interface IChartTitleProps {
 interface IChartTitleEvent {
   onModeChange: ViewModeType;
   onTextDirectionChange: TextDirectionType;
+  onKeywordChange: string;
+  onDownload: string;
 }
 
 @Component
@@ -45,13 +48,19 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ required: true, type: String }) activeMode: string;
   @Prop({ required: true, type: String }) textDirection: string;
 
-  downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
+  downloadTypeMaps = [
+    'png',
+    // 'json',
+    'pprof'
+    // 'html'
+  ];
   viewModeList: ViewModeItem[] = [
     { id: ViewModeType.Table, icon: 'table' },
     { id: ViewModeType.Combine, icon: 'mc-fenping' },
     { id: ViewModeType.Flame, icon: 'mc-flame' },
     { id: ViewModeType.Topo, icon: 'Component' }
   ];
+  keyword = '';
 
   @Emit('modeChange')
   handleModeChange(val: ViewModeType) {
@@ -61,6 +70,17 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Emit('textDirectionChange')
   handleTextDirectionChange(val: TextDirectionType) {
     return val;
+  }
+
+  @Debounce(300)
+  @Emit('keywordChange')
+  handleKeywordChange() {
+    return this.keyword;
+  }
+
+  @Emit('download')
+  handleDownload(type: string) {
+    return type;
   }
 
   render() {
@@ -76,7 +96,11 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             </div>
           ))}
         </div>
-        <Input right-icon='bk-icon icon-search' />
+        <Input
+          right-icon='bk-icon icon-search'
+          v-model={this.keyword}
+          onInput={this.handleKeywordChange}
+        />
         <div class='ellipsis-direction button-group'>
           {Object.values(TextDirectionType).map(item => (
             <div
@@ -102,7 +126,10 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             slot='dropdown-content'
           >
             {this.downloadTypeMaps.map(item => (
-              <li class='profiling-view-download-menu-item'>
+              <li
+                class='profiling-view-download-menu-item'
+                onClick={() => this.handleDownload(item)}
+              >
                 <a class='profiling-view-download-menu-item'>{item}</a>
               </li>
             ))}

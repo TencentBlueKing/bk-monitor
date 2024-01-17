@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
+import { Exception } from 'bkui-vue';
 
 import { getHashVal } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
 import { ColorTypes } from '../../../../../monitor-ui/chart-plugins/typings';
@@ -57,9 +58,18 @@ export default defineComponent({
     data: {
       type: Array as PropType<ProfilingTableItem[]>,
       default: () => []
+    },
+    highlightId: {
+      type: Number,
+      default: -1
+    },
+    filterKeyword: {
+      type: String,
+      default: ''
     }
   },
-  setup(props) {
+  emits: ['updateHighlightId', 'sortChange'],
+  setup(props, { emit }) {
     /** 表格数据 */
     const tableData = ref<ProfilingTableItem[]>([]);
     const tableColumns = ref<TableColumn[]>([
@@ -84,7 +94,24 @@ export default defineComponent({
           self: Math.max(...val.map(item => item.self)),
           total: Math.max(...val.map(item => item.total))
         };
-        tableData.value = val.map(item => {
+        getTableData();
+      },
+      {
+        immediate: true,
+        deep: true
+      }
+    );
+    watch(
+      () => props.filterKeyword,
+      () => {
+        getTableData();
+      }
+    );
+
+    function getTableData() {
+      tableData.value = props.data
+        .filter(item => (!!props.filterKeyword ? item.name.includes(props.filterKeyword) : true))
+        .map(item => {
           const palette = Object.values(ColorTypes);
           const colorIndex = getHashVal(item.name) % palette.length;
           const color = palette[colorIndex];
@@ -95,15 +122,9 @@ export default defineComponent({
             displayTotal: formatColValue(item.total)
           };
         });
-      },
-      {
-        immediate: true,
-        deep: true
-      }
-    );
-
+    }
     // Self 和 Total 值的展示
-    const formatColValue = (val: number) => {
+    function formatColValue(val: number) {
       switch (props.unit) {
         case 'nanoseconds': {
           const nsFormat = getValueFormat('ns');
@@ -113,8 +134,8 @@ export default defineComponent({
         default:
           return '';
       }
-    };
-    const getColStyle = (row: ProfilingTableItem, field: string) => {
+    }
+    function getColStyle(row: ProfilingTableItem, field: string) {
       const { color } = row;
       const value = row[field] || 0;
       const percent = (value * TABLE_BGCOLOR_COLUMN_WIDTH) / maxItem.value[field];
@@ -125,18 +146,32 @@ export default defineComponent({
         'background-position': `-${xPosition}px 0px`,
         'background-repeat': 'no-repeat'
       };
-    };
+    }
     /** 列字段排序 */
-    const handleSort = (col: TableColumn) => {
-      col.sort = col.sort === 'desc' ? 'asc' : 'desc';
+    function handleSort(col: TableColumn) {
+      let sortKey;
+      switch (col.sort) {
+        case 'asc':
+          col.sort = 'desc';
+          sortKey = `-${col.id}`;
+          break;
+        case 'desc':
+          col.sort = '';
+          sortKey = undefined;
+          break;
+        default:
+          col.sort = 'asc';
+          sortKey = col.id;
+      }
+      emit('sortChange', sortKey);
       tableColumns.value = tableColumns.value.map(item => {
         return {
           ...item,
           sort: col.id === item.id ? col.sort : ''
         };
       });
-    };
-    const handleRowMouseMove = (e: MouseEvent, row: ProfilingTableItem) => {
+    }
+    function handleRowMouseMove(e: MouseEvent, row: ProfilingTableItem) {
       let axisLeft = e.pageX;
       let axisTop = e.pageY;
       if (axisLeft + 394 > window.innerWidth) {
@@ -162,10 +197,17 @@ export default defineComponent({
         selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
         totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`
       };
-    };
-    const handleRowMouseout = () => {
+    }
+    function handleRowMouseout() {
       tipDetail.value = {};
-    };
+    }
+    function handleHighlightClick(id) {
+      let hightlightId = -1;
+      if (props.highlightId !== id) {
+        hightlightId = id;
+      }
+      return emit('updateHighlightId', hightlightId);
+    }
 
     return {
       tableData,
@@ -176,7 +218,7 @@ export default defineComponent({
       handleRowMouseMove,
       handleRowMouseout,
       diffMode,
-      formatColValue
+      handleHighlightClick
     };
   },
   render() {
@@ -204,35 +246,52 @@ export default defineComponent({
             </tr>
           </thead>
           <tbody>
-            {this.tableData.map(row => (
-              <tr
-                onMousemove={e => this.handleRowMouseMove(e, row)}
-                onMouseout={() => this.handleRowMouseout()}
-              >
-                <td>
-                  <div class='location-info'>
-                    <span
-                      class='color-reference'
-                      style={`background-color: ${row.color}`}
-                    ></span>
-                    <span class={`text direction-${this.textDirection}`}>{row.name}</span>
-                    {/* <div class='trace-mark'>Trace</div> */}
-                  </div>
+            {this.tableData.length ? (
+              <>
+                {this.tableData.map(row => (
+                  <tr
+                    class={row.id === this.highlightId ? 'hightlight' : ''}
+                    onMousemove={e => this.handleRowMouseMove(e, row)}
+                    onMouseout={() => this.handleRowMouseout()}
+                    onClick={() => this.handleHighlightClick(row.id)}
+                  >
+                    <td>
+                      <div class='location-info'>
+                        <span
+                          class='color-reference'
+                          style={`background-color: ${row.color}`}
+                        ></span>
+                        <span class={`text direction-${this.textDirection}`}>{row.name}</span>
+                        {/* <div class='trace-mark'>Trace</div> */}
+                      </div>
+                    </td>
+                    {this.diffMode
+                      ? [
+                          <td>59%</td>,
+                          <td>59%</td>,
+                          <td>
+                            <span class={`diff-value ${false ? 'is-rise' : 'is-decline'}`}>+45%</span>
+                          </td>
+                        ]
+                      : [
+                          <td style={this.getColStyle(row, 'self')}>{row.displaySelf}</td>,
+                          <td style={this.getColStyle(row, 'total')}>{row.displayTotal}</td>
+                        ]}
+                  </tr>
+                ))}
+              </>
+            ) : (
+              <tr>
+                <td colspan='3'>
+                  <Exception
+                    class='empty-table-exception'
+                    type='search-empty'
+                    scene='part'
+                    description={this.$t('搜索为空')}
+                  />
                 </td>
-                {this.diffMode
-                  ? [
-                      <td>59%</td>,
-                      <td>59%</td>,
-                      <td>
-                        <span class={`diff-value ${false ? 'is-rise' : 'is-decline'}`}>+45%</span>
-                      </td>
-                    ]
-                  : [
-                      <td style={this.getColStyle(row, 'self')}>{row.displaySelf}</td>,
-                      <td style={this.getColStyle(row, 'total')}>{row.displayTotal}</td>
-                    ]}
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
 

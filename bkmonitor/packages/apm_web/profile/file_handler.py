@@ -57,6 +57,7 @@ class ProfilingFileHandler:
 
         param = {"file_type": file_type, "profile_id": profile_id, "bk_biz_id": bk_biz_id, "app_name": app_name}
         queryset = ProfileUploadRecord.objects.filter(**param)
+
         if p is None:
             queryset.update(status=UploadedFileStatus.PARSING_FAILED)
             logger.error(_("无法转换 profiling 数据"))

@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType } from 'vue';
+import { defineComponent, PropType, ref } from 'vue';
 import { Dropdown, Input } from 'bkui-vue';
+import { debounce } from 'throttle-debounce';
 
 import { ViewModeItem, ViewModeType } from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
 import { DirectionType } from '../../../../typings';
@@ -44,15 +45,22 @@ export default defineComponent({
       default: 'ltr'
     }
   },
-  emits: ['modeChange', 'textDirectionChange'],
+  emits: ['modeChange', 'textDirectionChange', 'keywordChange', 'download'],
   setup(props, { emit }) {
-    const downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
+    const downloadTypeMaps = [
+      'png',
+      //  'json',
+      'pprof'
+      //  'html'
+    ];
     const viewModeList: ViewModeItem[] = [
       { id: ViewModeType.Table, icon: 'table' },
       { id: ViewModeType.Combine, icon: 'mc-fenping' },
       { id: ViewModeType.Flame, icon: 'mc-flame' },
       { id: ViewModeType.Topo, icon: 'Component' }
     ];
+
+    const keyword = ref('');
 
     /** 切换视图模式 */
     const handleModeChange = (val: ViewModeType) => {
@@ -61,12 +69,21 @@ export default defineComponent({
     const handleEllipsisDirectionChange = (val: DirectionType) => {
       emit('textDirectionChange', val);
     };
+    const handleKeywordChange = debounce(300, async () => {
+      emit('keywordChange', keyword.value);
+    });
+    const menuClick = (type: string) => {
+      emit('download', type);
+    };
 
     return {
+      keyword,
       downloadTypeMaps,
       viewModeList,
       handleModeChange,
-      handleEllipsisDirectionChange
+      handleEllipsisDirectionChange,
+      handleKeywordChange,
+      menuClick
     };
   },
   render() {
@@ -82,7 +99,11 @@ export default defineComponent({
             </div>
           ))}
         </div>
-        <Input type='search' />
+        <Input
+          type='search'
+          v-model={this.keyword}
+          onInput={this.handleKeywordChange}
+        />
         <div class='ellipsis-direction button-group'>
           <div
             class={`button-group-item ${this.textDirection === 'ltr' ? 'active' : ''}`}
@@ -107,7 +128,12 @@ export default defineComponent({
             content: () => (
               <Dropdown.DropdownMenu>
                 {this.downloadTypeMaps.map(item => (
-                  <Dropdown.DropdownItem class='profiling-view-download-menu-item'>{item}</Dropdown.DropdownItem>
+                  <Dropdown.DropdownItem
+                    class='profiling-view-download-menu-item'
+                    onClick={() => this.menuClick(item)}
+                  >
+                    {item}
+                  </Dropdown.DropdownItem>
                 ))}
               </Dropdown.DropdownMenu>
             )
