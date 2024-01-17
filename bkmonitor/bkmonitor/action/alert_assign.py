@@ -299,6 +299,9 @@ class AlertAssignMatchManager:
         self.severity_source = ""
 
     def get_match_cmdb_dimensions(self, cmdb_attrs):
+        """
+        获取CMDB相关的维度信息
+        """
         if not cmdb_attrs:
             return {}
         host = cmdb_attrs["host"]
@@ -333,7 +336,10 @@ class AlertAssignMatchManager:
             "alert.strategy_id": str(self.alert.strategy["id"]) if self.alert.strategy else "",
             "alert.name": self.alert.alert_name,
             "alert.metric": [m for m in self.alert.event.metric],
+            "alert.labels": list(getattr(self.alert, "labels", [])),
+            "labels": list(getattr(self.alert, "labels", [])),
             "is_empty_users": "true" if not self.notice_users else "false",
+            "notice_users": self.notice_users,
             "ip": getattr(self.alert.event, "ip", None),
             "bk_cloud_id": str(self.alert.event.bk_cloud_id) if hasattr(self.alert.event, "bk_cloud_id") else None,
         }

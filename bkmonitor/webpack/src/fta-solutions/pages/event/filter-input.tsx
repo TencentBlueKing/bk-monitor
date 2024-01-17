@@ -29,7 +29,6 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Input } from 'bk-magic-vue';
 
 import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
 import { getEventPaths } from '../../../monitor-pc/utils';
@@ -274,7 +273,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       },
       {
         id: 'tags',
-        name: this.$t('标签'),
+        name: this.$t('维度'),
         special: true
       },
       {
@@ -1077,7 +1076,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
               ]}
             {id === 'favorite' &&
               item.edit && [
-                <Input
+                <bk-input
                   ref={`favorite-input-${item.id}`}
                   class='favorite-input'
                   type='text'

@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import copy
 import json
 from typing import Dict, List, Optional, Tuple
 
@@ -67,7 +67,7 @@ class DatalinkDefaultAlarmStrategyLoader:
 
     def get_default_strategy(self):
         """获得默认告警策略 ."""
-        return DEFAULT_DATALINK_STRATEGIES
+        return copy.deepcopy(DEFAULT_DATALINK_STRATEGIES)
 
     def init_notice_group(self) -> int:
         """获得告警通知组 ."""

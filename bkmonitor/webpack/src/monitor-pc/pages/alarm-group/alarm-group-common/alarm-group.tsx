@@ -26,7 +26,6 @@
 import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { SearchSelect } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 import { debounce } from 'throttle-debounce';
 
@@ -564,7 +563,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
               </bk-button>
-              <SearchSelect
+              <bk-search-select
                 class='tool-search'
                 values={this.searchCondition}
                 placeholder={this.$t('ID / 告警组名称')}
@@ -585,7 +584,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 strink={false}
                 show-condition={false}
                 onChange={this.handleSearchCondition}
-              ></SearchSelect>
+              ></bk-search-select>
               {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}

@@ -25,7 +25,6 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input, Table, TableColumn } from 'bk-magic-vue';
 
 import { renameCollectConfig } from '../../../../monitor-api/modules/collecting';
 import { copyText } from '../../../../monitor-common/utils/utils.js';
@@ -298,7 +297,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
     return (
       <div class='collector-configuration-component'>
         <div class='header-right-link'>
-          <Button
+          <bk-button
             theme='primary'
             v-authority={{ active: !this.authority.MANAGE_AUTH && this.collectConfigData?.status !== 'STOPPED' }}
             class='width-88 mr-8'
@@ -310,7 +309,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
             }
           >
             {this.$t('编辑')}
-          </Button>
+          </bk-button>
           <HistoryDialog list={this.historyList}></HistoryDialog>
         </div>
         <div class='detail-wrap-item'>
@@ -324,14 +323,14 @@ export default class CollectorConfiguration extends tsc<IProps> {
                     return (
                       <span>
                         {this.input.show ? (
-                          <Input
+                          <bk-input
                             class='edit-input width-150'
                             ref={`input${key}`}
                             maxlength={50}
                             v-model={this.input.copyName}
                             onKeydown={this.handleLabelKey}
                             onBlur={this.handleTagClickout}
-                          ></Input>
+                          ></bk-input>
                         ) : (
                           <span
                             class='edit-span'
@@ -428,7 +427,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         <div class='detail-wrap-item'>
           <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
           {!!this.targetInfo?.table_data?.length && (
-            <Button
+            <bk-button
               class='mt-10'
               theme='primary'
               size='small'
@@ -436,11 +435,11 @@ export default class CollectorConfiguration extends tsc<IProps> {
               onClick={() => this.handleCopyTarget()}
             >
               {this.$t('复制目标')}
-            </Button>
+            </bk-button>
           )}
           <div class='wrap-item-content mt-12'>
             {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo?.target_node_type) ? (
-              <Table
+              <bk-table
                 {...{
                   props: {
                     data: this.targetInfo?.table_data || []
@@ -450,7 +449,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 {this.nodeColumns.map(column => {
                   const key = `column_${column.id}`;
                   return (
-                    <TableColumn
+                    <bk-table-column
                       key={key}
                       prop={column.id}
                       label={(() => {
@@ -489,12 +488,12 @@ export default class CollectorConfiguration extends tsc<IProps> {
                           }
                         }
                       }}
-                    ></TableColumn>
+                    ></bk-table-column>
                   );
                 })}
-              </Table>
+              </bk-table>
             ) : (
-              <Table
+              <bk-table
                 {...{
                   props: {
                     data: this.targetInfo?.table_data || []
@@ -504,7 +503,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 {this.ipColumns.map(column => {
                   const key = `column_${column.id}`;
                   return (
-                    <TableColumn
+                    <bk-table-column
                       key={key}
                       prop={column.id}
                       label={column.name}
@@ -529,10 +528,10 @@ export default class CollectorConfiguration extends tsc<IProps> {
                           }
                         }
                       }}
-                    ></TableColumn>
+                    ></bk-table-column>
                   );
                 })}
-              </Table>
+              </bk-table>
             )}
           </div>
         </div>
