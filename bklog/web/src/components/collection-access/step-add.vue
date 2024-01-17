@@ -63,10 +63,10 @@
                 class="w520"
                 v-model="formData.collector_config_name_en"
                 show-word-limit
-                maxlength="100"
+                maxlength="50"
                 data-test-id="baseMessage_input_fillEnglishName"
                 :disabled="isUpdate && !!formData.collector_config_name_en"
-                :placeholder="$t('支持数字、字母、下划线，长短5～100字符')">
+                :placeholder="$t('支持数字、字母、下划线，长短5～50字符')">
               </bk-input>
               <span v-if="!isTextValid" class="text-error">{{formData.collector_config_name_en}}</span>
             </div>
@@ -754,8 +754,8 @@ export default {
             trigger: 'blur',
           },
           {
-            max: 100,
-            message: this.$t('不能多于{n}个字符', { n: 100 }),
+            max: 50,
+            message: this.$t('不能多于{n}个字符', { n: 50 }),
             trigger: 'blur',
           },
           {

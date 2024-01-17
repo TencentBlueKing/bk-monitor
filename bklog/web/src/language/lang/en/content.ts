@@ -371,7 +371,7 @@ export default {
   '链接可重复获取，每个链接只能下载一次。': 'Links can be repeatedly retrieved, each link can only be downloaded once.',
   选择Service以获取Label列表: 'Select Service to get Label list',
   '配置项{n}未选择指定容器或指定标签。': 'Configuration {n} has not selected a specified container or tag.',
-  '支持数字、字母、下划线，长短5～100字符': 'Supports numbers, letters, and underscores, with a length of 5-100 characters',
+  '支持数字、字母、下划线，长短5～50字符': 'Supports numbers, letters, and underscores, with a length of 5-50 characters',
   '复杂的过滤条件（超过5个）会影响机器性能': 'Complex filtering conditions (more than 5) will affect machine performance',
   '当前还没有共享集群，请联系平台管理员提供': 'There is currently no shared cluster, please contact the platform administrator to provide.',
   '可见类型为多业务时，可见业务范围不能为空': 'When visibility type is multiple businesses, visibility business scope cannot be empty',
