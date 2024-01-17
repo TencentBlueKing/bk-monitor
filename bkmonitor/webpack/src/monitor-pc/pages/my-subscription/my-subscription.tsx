@@ -615,7 +615,14 @@ class MySubscription extends tsc<{}> {
               label={this.$t('发送时间')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{getSendFrequencyText(row)}</div>;
+                  return (
+                    <div>
+                      {/* {getSendFrequencyText(row)} */}
+                      {row?.frequency?.type === FrequencyType.onlyOnce
+                        ? `${getSendFrequencyText(row)} ${dayjs(row.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
+                        : getSendFrequencyText(row)}
+                    </div>
+                  );
                 }
               }}
             ></bk-table-column>

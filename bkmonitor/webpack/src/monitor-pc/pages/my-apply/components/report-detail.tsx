@@ -109,6 +109,11 @@ class ReportDetail extends tsc<IProps> {
             label={this.$t('生成附件')}
             value={this.$t(this.detailInfo.scenario_config.generate_attachment ? '是' : '否').toString()}
           />
+
+          <DetailRow
+            label={this.$t('只展示新类')}
+            value={this.$t(this.detailInfo.scenario_config.is_show_new_pattern ? '是' : '否').toString()}
+          />
         </div>
 
         <div class='title'>{this.$t('邮件配置')}</div>

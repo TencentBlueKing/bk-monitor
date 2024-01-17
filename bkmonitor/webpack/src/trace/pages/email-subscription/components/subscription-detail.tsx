@@ -68,6 +68,18 @@ export default defineComponent({
       return indexSetIDList.value.find(item => item.id === props.detailInfo.scenario_config.index_set_id)?.name || '';
     });
 
+    const userChannel = computed(() => {
+      return props.detailInfo.channels.find(item => item.channel_name === 'user');
+    });
+
+    const emailChannel = computed(() => {
+      return props.detailInfo.channels.find(item => item.channel_name === 'email');
+    });
+
+    const wxgroupChannel = computed(() => {
+      return props.detailInfo.channels.find(item => item.channel_name === 'wxbot');
+    });
+
     onMounted(() => {
       logServiceRelationBkLogIndexSet().then(response => {
         indexSetIDList.value = response;
@@ -78,7 +90,10 @@ export default defineComponent({
       getSendFrequencyText,
       getTimeRange,
       indexSetName,
-      getYearOnYearHour
+      getYearOnYearHour,
+      userChannel,
+      emailChannel,
+      wxgroupChannel
     };
   },
   render() {
@@ -117,6 +132,11 @@ export default defineComponent({
             label={this.t('生成附件')}
             value={this.detailInfo.scenario_config.generate_attachment ? this.t('是') : this.t('否')}
           />
+
+          <DetailRow
+            label={this.t('只展示新类')}
+            value={this.detailInfo.scenario_config.is_show_new_pattern ? this.t('是') : this.t('否')}
+          />
         </div>
 
         <div class='title'>{this.t('邮件配置')}</div>
@@ -147,21 +167,20 @@ export default defineComponent({
             <div class='label'>
               <span>{this.t('订阅人')}</span>
             </div>
-            <span class='value'>
-              <div
-                class='subscribers-row'
-                style='padding-bottom: 11px;'
-              >
-                <span
-                  class='subscribers-label'
-                  style='margin-bottom: 7px;'
-                >
-                  {this.t('内部用户')}
-                </span>
-                <span class='subscribers-value'>
-                  {this.detailInfo.channels
-                    .find(item => item.channel_name === 'user')
-                    ?.subscribers?.map?.(item => {
+            <span
+              class='value'
+              style='display: flex;flex-direction: column;row-gap: 13px;'
+            >
+              {this.userChannel?.is_enabled && (
+                <div class='subscribers-row'>
+                  <span
+                    class='subscribers-label'
+                    style='margin-bottom: 7px;'
+                  >
+                    {this.t('内部用户')}
+                  </span>
+                  <span class='subscribers-value'>
+                    {this.userChannel?.subscribers?.map?.(item => {
                       return (
                         <div style='display: inline-flex;margin-right: 24px;margin-bottom: 7px;align-items: center;'>
                           {/* {item.src && (
@@ -176,23 +195,20 @@ export default defineComponent({
                         </div>
                       );
                     })}
-                </span>
-              </div>
+                  </span>
+                </div>
+              )}
 
-              <div
-                class='subscribers-row'
-                style='padding-bottom: 13px;'
-              >
-                <span
-                  class='subscribers-label'
-                  style='margin-bottom: 7px;'
-                >
-                  {this.t('外部邮件')}
-                </span>
-                <span class='subscribers-value'>
-                  {this.detailInfo.channels
-                    .find(item => item.channel_name === 'email')
-                    ?.subscribers?.map?.(item => {
+              {this.emailChannel?.is_enabled && (
+                <div class='subscribers-row'>
+                  <span
+                    class='subscribers-label'
+                    style='margin-bottom: 7px;'
+                  >
+                    {this.t('外部邮件')}
+                  </span>
+                  <span class='subscribers-value'>
+                    {this.emailChannel?.subscribers?.map?.(item => {
                       return (
                         <span
                           class='email'
@@ -202,20 +218,20 @@ export default defineComponent({
                         </span>
                       );
                     })}
-                </span>
-              </div>
+                  </span>
+                </div>
+              )}
 
-              <div class='subscribers-row'>
-                <span
-                  class='subscribers-label'
-                  style='margin-bottom: 7px;'
-                >
-                  {this.t('企业微信群')}
-                </span>
-                <span class='subscribers-value'>
-                  {this.detailInfo.channels
-                    .find(item => item.channel_name === 'wxbot')
-                    ?.subscribers?.map?.(item => {
+              {this.wxgroupChannel?.is_enabled && (
+                <div class='subscribers-row'>
+                  <span
+                    class='subscribers-label'
+                    style='margin-bottom: 7px;'
+                  >
+                    {this.t('企业微信群')}
+                  </span>
+                  <span class='subscribers-value'>
+                    {this.wxgroupChannel?.subscribers?.map?.(item => {
                       return (
                         <span
                           class='group-id'
@@ -225,8 +241,9 @@ export default defineComponent({
                         </span>
                       );
                     })}
-                </span>
-              </div>
+                  </span>
+                </div>
+              )}
             </span>
           </div>
 
