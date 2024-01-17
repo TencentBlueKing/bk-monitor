@@ -332,8 +332,16 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         return result
 
-    def date_histogram(self, interval: str = "auto"):
+    def date_histogram(self, interval: str = "auto", group_by: List[str] = None):
         interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
+
+        # 是否按status聚合
+        if not group_by:
+            group_by = ["status"]
+
+        # status 会被单独处理
+        if "status" in group_by:
+            group_by.remove("status")
 
         # 查询时间对齐
         start_time = self.start_time // interval * interval
@@ -344,18 +352,28 @@ class AlertQueryHandler(BaseBizQueryHandler):
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
 
-        search_object.aggs.bucket("end_time", "filter", {"range": {"end_time": {"lte": end_time}}}).bucket(
-            "end_alert", "filter", {"terms": {"status": [EventStatus.RECOVERED, EventStatus.CLOSED]}}
-        ).bucket("time", "date_histogram", field="end_time", fixed_interval=f"{interval}s").bucket(
+        # 已经恢复或关闭的告警，按end_time聚合
+        ended_object = search_object.aggs.bucket(
+            "end_time", "filter", {"range": {"end_time": {"lte": end_time}}}
+        ).bucket("end_alert", "filter", {"terms": {"status": [EventStatus.RECOVERED, EventStatus.CLOSED]}})
+        # 查询时间范围内产生的告警，按begin_time聚合
+        new_anomaly_object = search_object.aggs.bucket(
+            "begin_time", "filter", {"range": {"begin_time": {"gte": start_time, "lte": end_time}}}
+        )
+        # 开始时间在查询时间范围之前的告警总数
+        old_anomaly_object = search_object.aggs.bucket(
+            "init_alert", "filter", {"range": {"begin_time": {"lt": start_time}}}
+        )
+        for field in group_by:
+            ended_object = self.add_agg_bucket(ended_object, field)
+            new_anomaly_object = self.add_agg_bucket(new_anomaly_object, field)
+            old_anomaly_object = self.add_agg_bucket(old_anomaly_object, field)
+
+        # 时间聚合
+        ended_object.bucket("time", "date_histogram", field="end_time", fixed_interval=f"{interval}s").bucket(
             "status", "terms", field="status"
         )
-
-        search_object.aggs.bucket(
-            "begin_time", "filter", {"range": {"begin_time": {"gte": start_time, "lte": end_time}}}
-        ).bucket("time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s")
-
-        search_object.aggs.bucket("init_alert", "filter", {"range": {"begin_time": {"lt": start_time}}})
-
+        new_anomaly_object.bucket("time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s")
         search_result = search_object[:0].execute()
 
         all_series = defaultdict(dict)

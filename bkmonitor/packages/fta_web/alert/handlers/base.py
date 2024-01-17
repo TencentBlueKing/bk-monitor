@@ -14,6 +14,7 @@ from typing import Callable, Dict, List, Optional
 
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
+from elasticsearch_dsl.aggs import Bucket
 from elasticsearch_dsl.response import Response
 from luqum.auto_head_tail import auto_head_tail
 from luqum.elasticsearch import ElasticsearchQueryBuilder, SchemaAnalyzer
@@ -382,6 +383,67 @@ class BaseQueryHandler:
         result = {"hits": {"total": {"value": 0, "relation": "eq"}, "max_score": 1.0, "hits": []}}
         return Response(Search(), result)
 
+    def add_agg_bucket(self, search_object: Bucket, field: str, size: int = 10, bucket_count_suffix: str = ""):
+        """
+        按字段添加聚合桶
+        """
+        # 处理桶排序
+        if field.startswith("-"):
+            order = {"_count": "desc"}
+            actual_field = field[1:]
+        elif field.startswith("+"):
+            order = {"_count": "asc"}
+            actual_field = field[1:]
+        else:
+            # 默认情况
+            order = {"_count": "desc"}
+            actual_field = field
+
+        if actual_field.startswith("tags."):
+            # tags 标签需要做嵌套查询
+            tag_key = actual_field[len("tags.") :]
+
+            # 进行桶聚合
+            search_object = (
+                search_object.bucket(field, "nested", path="event.tags")
+                .bucket("key", "filter", {"term": {"event.tags.key": tag_key}})
+                .bucket(
+                    "value",
+                    "terms",
+                    field="event.tags.value.raw",
+                    size=size,
+                    order=order,
+                )
+            )
+
+            # 计算桶的个数
+            if bucket_count_suffix:
+                search_object.bucket(f"{field}{bucket_count_suffix}", "nested", path="event.tags").bucket(
+                    "key", "filter", {"term": {"event.tags.key": tag_key}}
+                ).bucket("value", "cardinality", field="event.tags.value.raw")
+        else:
+            agg_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
+            if agg_field == "duration":
+                # 对于Duration，需要进行范围桶聚合
+                search_object = search_object.bucket(
+                    field,
+                    "range",
+                    ranges=list(self.DurationOption.AGG.values()),
+                    field=agg_field,
+                )
+            else:
+                search_object = search_object.bucket(
+                    field,
+                    "terms",
+                    field=agg_field,
+                    order=order,
+                    size=size,
+                )
+            if bucket_count_suffix:
+                search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
+
+        return search_object
+
     def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None):
         """
         字段值 TOP N 统计
@@ -418,56 +480,9 @@ class BaseQueryHandler:
         bucket_count_suffix = ".bucket_count"
 
         for field in fields:
-            # 处理桶排序
-            if field.startswith("-"):
-                order = {"_count": "desc"}
-                actual_field = field[1:]
-            elif field.startswith("+"):
-                order = {"_count": "asc"}
-                actual_field = field[1:]
-            else:
-                # 默认情况
-                order = {"_count": "desc"}
-                actual_field = field
-
-            if actual_field.startswith("tags."):
-                # tags 标签需要做嵌套查询
-                tag_key = actual_field[len("tags.") :]
-
-                # 进行桶聚合
-                search_object.aggs.bucket(field, "nested", path="event.tags").bucket(
-                    "key", "filter", {"term": {"event.tags.key": tag_key}}
-                ).bucket(
-                    "value",
-                    "terms",
-                    field="event.tags.value.raw",
-                    size=size,
-                    order=order,
-                )
-
-                # 计算桶的个数
-                search_object.aggs.bucket(f"{field}{bucket_count_suffix}", "nested", path="event.tags").bucket(
-                    "key", "filter", {"term": {"event.tags.key": tag_key}}
-                ).bucket("value", "cardinality", field="event.tags.value.raw")
-            else:
-                agg_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
-                if agg_field == "duration":
-                    # 对于Duration，需要进行范围桶聚合
-                    search_object.aggs.bucket(
-                        field,
-                        "range",
-                        ranges=list(self.DurationOption.AGG.values()),
-                        field=agg_field,
-                    )
-                else:
-                    search_object.aggs.bucket(
-                        field,
-                        "terms",
-                        field=agg_field,
-                        order=order,
-                        size=size,
-                    )
-                search_object.aggs.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
+            search_object = self.add_agg_bucket(
+                search_object, field, size=size, bucket_count_suffix=bucket_count_suffix
+            )
 
         search_result = search_object.execute()
 
