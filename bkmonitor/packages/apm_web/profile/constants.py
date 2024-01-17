@@ -35,3 +35,5 @@ class CallGraphResponseDataMode:
 
 
 PROFILE_UPLOAD_RECORD_NEW_FILE_NAME = "Profile-{}.pprof"
+
+PROFILE_EXPORT_FILE_NAME = "{app_name}-{data_type}-{time}.{format}"

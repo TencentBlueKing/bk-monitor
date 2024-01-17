@@ -26,6 +26,7 @@ from apm_web.profile.constants import (
     DEFAULT_EXPORT_FORMAT,
     DEFAULT_SERVICE_NAME,
     EXPORT_FORMAT_MAP,
+    PROFILE_EXPORT_FILE_NAME,
     PROFILE_UPLOAD_RECORD_NEW_FILE_NAME,
     CallGraphResponseDataMode,
 )
@@ -40,6 +41,7 @@ from apm_web.profile.resources import (
 )
 from apm_web.profile.serializers import (
     ProfileListFileSerializer,
+    ProfileQueryExportSerializer,
     ProfileQueryLabelsSerializer,
     ProfileQueryLabelValuesSerializer,
     ProfileQuerySerializer,
@@ -375,7 +377,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     @action(methods=["GET"], detail=False, url_path="export")
     def export(self, request: Request):
         # query data
-        serializer = ProfileQuerySerializer(data=request.query_params)
+        serializer = ProfileQueryExportSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
@@ -404,7 +406,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         if export_format not in EXPORT_FORMAT_MAP:
             raise ValueError(f"({export_format}) format is currently not supported")
         now_str = timezone.now().strftime("%Y-%m-%d-%H-%M-%S")
-        file_name = "-".join([app_name, validated_data["data_type"], now_str]) + "." + export_format
+        file_name = PROFILE_EXPORT_FILE_NAME.format(
+            app_name=app_name, data_type=validated_data["data_type"], time=now_str, format=export_format
+        )
         serialized_data = doris_converter.profile.SerializeToString()
         compressed_data = gzip.compress(serialized_data)
 

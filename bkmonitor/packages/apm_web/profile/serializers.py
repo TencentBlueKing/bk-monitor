@@ -42,6 +42,8 @@ class ProfileQuerySerializer(QueryBaseSerializer):
     diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="")
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
 
+
+class ProfileQueryExportSerializer(ProfileQuerySerializer):
     # export
     format = serializers.CharField(label="数据导出格式", default=DEFAULT_EXPORT_FORMAT, required=False)
 
