@@ -45,7 +45,7 @@ def new_report_detect():
     last_send_record_map = get_last_send_record_map(reports)
     for report in reports:
         # 判断订阅是否有效
-        if Report.is_invalid(report.end_time):
+        if Report.is_invalid(report.end_time, report.frequency):
             logger.info(f"[new_report_detect] report({report.id}) is invalid.")
             continue
         # 判断订阅是否到执行时间
@@ -67,7 +67,7 @@ def new_report_detect():
         # 根据渠道分别发送，记录最新发送轮次
         send_round = report.send_round + 1 if report.send_round else 1
         report.send_round = send_round
-        report.save()
+        report.save(update_fields=["send_round"])
         channels = ReportChannel.objects.filter(report_id=report.id)
         create_send_record(channels, send_round)
         # 异步执行订阅发送任务

@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from datetime import datetime
+
 import arrow
 from django.db import models
 
@@ -82,9 +84,13 @@ class Report(AbstractRecordModel):
         db_table = "report"
 
     @staticmethod
-    def is_invalid(end_time):
+    def is_invalid(end_time, frequency):
         now_timestamp = arrow.now().timestamp
         if end_time and now_timestamp > end_time:
+            return True
+        now_datetime = datetime.now()
+        run_time = datetime.strptime(frequency["run_time"], '%Y-%m-%d %H:%M:%S')
+        if frequency["type"] == 1 and now_datetime > run_time:
             return True
         return False
 

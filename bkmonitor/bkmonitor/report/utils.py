@@ -27,11 +27,16 @@ def parse_frequency(frequency, last_send_time=None) -> list:
     解析发送频率
     """
     today = datetime.datetime.today().strftime("%Y-%m-%d")
+    current_hour = datetime.datetime.today().strftime("%H")
     run_time_strings = []
     if frequency["type"] == 1:
-        run_time_strings = [frequency["run_time"]]
+        if last_send_time:
+            last_send_hour = last_send_time.strftime("%H")
+            last_send_min = last_send_time.strftime("%M")
+            minute = frequency["run_time"].strftime("%M")
+            if not (last_send_hour == current_hour and last_send_min >= minute):
+                run_time_strings = [frequency["run_time"]]
     elif frequency["type"] == 5:
-        current_hour = datetime.datetime.today().strftime("%H")
         run_time_config = HourFrequencyTime.TIME_CONFIG.get(str(frequency["hour"]))
         if run_time_config:
             hours = run_time_config.get("hours", [current_hour])
