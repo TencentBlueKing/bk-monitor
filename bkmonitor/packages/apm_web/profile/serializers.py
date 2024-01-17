@@ -10,7 +10,11 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.models import ProfileUploadRecord
-from apm_web.profile.constants import DEFAULT_PROFILE_DATA_TYPE, DEFAULT_SERVICE_NAME
+from apm_web.profile.constants import (
+    DEFAULT_EXPORT_FORMAT,
+    DEFAULT_PROFILE_DATA_TYPE,
+    DEFAULT_SERVICE_NAME,
+)
 
 
 class QueryBaseSerializer(serializers.Serializer):
@@ -37,6 +41,9 @@ class ProfileQuerySerializer(QueryBaseSerializer):
     is_compared = serializers.BooleanField(label="是否开启对比模式", required=False, default=False)
     diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="")
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
+
+    # export
+    format = serializers.CharField(label="数据导出格式", default=DEFAULT_EXPORT_FORMAT, required=False)
 
 
 class ProfileQueryLabelsSerializer(QueryBaseSerializer):

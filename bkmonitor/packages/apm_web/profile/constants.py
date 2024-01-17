@@ -11,6 +11,9 @@ from enum import Enum
 
 DEFAULT_SERVICE_NAME = "default"
 DEFAULT_PROFILE_DATA_TYPE = "cpu"
+DEFAULT_EXPORT_FORMAT = "pprof"
+
+EXPORT_FORMAT_MAP = {"pprof": "pprof"}
 
 
 class InputType(Enum):

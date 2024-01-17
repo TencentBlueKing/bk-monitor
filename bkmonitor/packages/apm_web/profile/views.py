@@ -8,11 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+import gzip
 import hashlib
 import logging
 from collections import defaultdict
 from typing import Optional, Tuple, Union
 
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from rest_framework.decorators import action
@@ -22,7 +24,9 @@ from rest_framework.viewsets import ViewSet
 
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
+    DEFAULT_EXPORT_FORMAT,
     DEFAULT_SERVICE_NAME,
+    EXPORT_FORMAT_MAP,
     PROFILE_UPLOAD_RECORD_NEW_FILE_NAME,
     CallGraphResponseDataMode,
 )
@@ -356,6 +360,48 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         label_values = [label["label_value"] for label in results["list"]]
         return Response(data={"label_values": label_values})
+
+    @action(methods=["GET"], detail=False, url_path="export")
+    def export(self, request: Request):
+        # query data
+        serializer = ProfileQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        bk_biz_id = validated_data["bk_biz_id"]
+        app_name = validated_data["app_name"]
+        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
+        application_info = self._examine_application(bk_biz_id, app_name)
+
+        start, end = self._enlarge_duration(
+            validated_data["start"], validated_data["end"], offset=validated_data["offset"]
+        )
+        doris_converter = self._query(
+            bk_biz_id=validated_data['bk_biz_id'],
+            app_name=app_name,
+            service_name=service_name,
+            data_type=validated_data["data_type"],
+            start=start,
+            end=end,
+            profile_id=validated_data.get("profile_id"),
+            filter_labels=validated_data.get("filter_labels"),
+            result_table_id=application_info["profiling_config"]["result_table_id"],
+        )
+
+        # transfer data
+        export_format = validated_data.get("format", DEFAULT_EXPORT_FORMAT)
+        if export_format not in EXPORT_FORMAT_MAP:
+            raise ValueError(f"({export_format}) format is currently not supported")
+        now_str = timezone.now().strftime("%Y-%m-%d-%H-%M-%S")
+        file_name = "-".join([app_name, validated_data["data_type"], now_str]) + "." + export_format
+        serialized_data = doris_converter.profile.SerializeToString()
+        compressed_data = gzip.compress(serialized_data)
+
+        response = HttpResponse(compressed_data, content_type="application/octet-stream")
+        response["Content-Encoding"] = "gzip"
+        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+
+        return response
 
 
 class ResourceQueryViewSet(ResourceViewSet):
