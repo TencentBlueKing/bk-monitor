@@ -68,7 +68,7 @@ export default defineComponent({
       default: ''
     }
   },
-  emits: ['updateHighlightId'],
+  emits: ['updateHighlightId', 'sortChange'],
   setup(props, { emit }) {
     /** 表格数据 */
     const tableData = ref<ProfilingTableItem[]>([]);
@@ -149,7 +149,21 @@ export default defineComponent({
     }
     /** 列字段排序 */
     function handleSort(col: TableColumn) {
-      col.sort = col.sort === 'desc' ? 'asc' : 'desc';
+      let sortKey;
+      switch (col.sort) {
+        case 'asc':
+          col.sort = 'desc';
+          sortKey = `-${col.id}`;
+          break;
+        case 'desc':
+          col.sort = '';
+          sortKey = undefined;
+          break;
+        default:
+          col.sort = 'asc';
+          sortKey = col.id;
+      }
+      emit('sortChange', sortKey);
       tableColumns.value = tableColumns.value.map(item => {
         return {
           ...item,
