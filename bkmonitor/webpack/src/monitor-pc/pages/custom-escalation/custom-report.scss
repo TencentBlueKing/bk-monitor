@@ -10,16 +10,16 @@
 .custom-report-page {
   position: relative;
 
+  @include layout-flex(row, stretch, flex-start);
+
   .mr-6 {
     margin-right: 6px;
   }
 
-  @include layout-flex(row, stretch, flex-start);
-
   .content-left {
     flex: 1 1 auto;
-    padding: 0 20px;
     height: calc(100vh - 52px);
+    padding: 0 20px;
     overflow-y: auto;
 
     &-operator {
@@ -34,15 +34,15 @@
 
     &-table {
       margin-top: 16px;
-      border: 1px solid #dfe0e5;
-      border-radius: 2px;
-      border-top: 0;
       background: #fff;
+      border: 1px solid #dfe0e5;
+      border-top: 0;
+      border-radius: 2px;
 
       .col-strategy {
         width: 48px;
-        text-align: right;
         color: $unsetColor;
+        text-align: right;
       }
 
       .col-btn {
@@ -69,8 +69,8 @@
       }
 
       .table-empty-title {
-        font-size: $fontSmSize;
         margin-top: 10px;
+        font-size: $fontSmSize;
       }
 
       .bk-table-pagination-wrapper {
@@ -79,25 +79,25 @@
       }
 
       .platform-tag {
-        height: 20px;
-        padding: 4px;
-        font-size: 12px;
-        color: #fff;
-        background: #979ba5;
-        border-radius: 2px;
-        margin-left: 6px;
-        white-space: nowrap;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        height: 20px;
+        padding: 4px;
+        margin-left: 6px;
+        font-size: 12px;
+        color: #fff;
+        white-space: nowrap;
+        background: #979ba5;
+        border-radius: 2px;
       }
     }
   }
 
   .content-right {
     flex-basis: 246px;
+    background: $whiteColor;
     border-left: 1px solid $defaultBorderColor;
     border-radius: 0 0 2px 2px;
-    background: $whiteColor;
   }
 }
