@@ -314,6 +314,7 @@ export default {
           key,
           operator: this.matchOperator,
           value: this.expressInputIsDisabled ? '' : value,
+          isExternal: true,
         });
       } else {
         if (this.isHaveCompared) {

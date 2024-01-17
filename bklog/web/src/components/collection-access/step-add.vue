@@ -1907,10 +1907,10 @@ export default {
         if (!isRepeat) {
           const newMatchObject = { ...labelSelector[labelIndex], ...newValue, type };
           labelSelector.splice(labelIndex, 1, newMatchObject);
-          resolve(true);
         } else {
-          resolve(false);
+          if (newValue?.isExternal) labelSelector.splice(labelIndex, 1);
         };
+        resolve(true);
       });
     },
     // 手动添加表达式
