@@ -1346,3 +1346,13 @@ TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 
 # 是否启用 influxdb 写入，默认 True
 ENABLE_INFLUXDB_STORAGE = True
+
+# bk-notice-sdk requirment
+if not os.getenv("BK_API_URL_TMPL"):
+    os.environ["BK_API_URL_TMPL"] = ""
+
+# 内网collector域名
+INNER_COLLOCTOR_HOST = ""
+
+# 外网collector域名
+OUTER_COLLOCTOR_HOST = ""
