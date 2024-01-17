@@ -680,7 +680,7 @@ export default class App extends tsc<{}> {
     return (
       <div class='bk-monitor'>
         <NoticeComponent
-          apiUrl='/notice/sdk/announments'
+          apiUrl='/notice/announments'
           onShowAlertChange={this.showAlertChange}
         />
         <bk-navigation
