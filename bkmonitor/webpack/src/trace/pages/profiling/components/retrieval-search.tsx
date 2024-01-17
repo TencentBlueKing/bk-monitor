@@ -186,19 +186,58 @@ export default defineComponent({
       applicationList.value = await listApplicationServices({
         start_time: start * 1000 * 1000,
         end_time: end * 1000 * 1000
-      }).catch(() => ({ normal: [], no_data: [] }));
+      }).catch(() => ({
+        normal: [
+          {
+            bk_biz_id: 100605,
+            application_id: 2,
+            app_name: 'profiling_bar',
+            app_alias: 'demo应用',
+            description: 'xxx',
+            services: [
+              {
+                id: 2,
+                name: 'service2',
+                has_data: false
+              },
+              {
+                id: 3,
+                name: 'service3',
+                has_data: true
+              }
+            ]
+          }
+        ],
+        no_data: [
+          {
+            bk_biz_id: 100605,
+            application_id: 2,
+            app_name: 'profiling_bar2',
+            app_alias: 'demo应用2',
+            description: 'xxx',
+            services: [
+              {
+                id: 2,
+                name: 'service3',
+                has_data: false
+              }
+            ]
+          }
+        ]
+      }));
     }
 
     /** 获取过滤项列表 */
     async function getLabelList() {
       if (!localFormData.server.app_name || !localFormData.server.service_name) return;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      labelList.value = await queryLabels({
+      const labels = await queryLabels({
         app_name: localFormData.server.app_name,
         service_name: localFormData.server.service_name,
         start: start * 1000 * 1000,
         end: end * 1000 * 1000
       }).catch(() => ({ label_keys: [] }));
+      labelList.value = labels.label_keys;
     }
 
     function handleEmitChange() {

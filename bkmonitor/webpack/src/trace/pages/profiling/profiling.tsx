@@ -64,6 +64,7 @@ export default defineComponent({
       autoQueryTimer: null,
       autoQuery: true,
       loading: false,
+      /** 选择了应用/服务后才能查询 */
       canQuery: false,
       formData: {
         type: SearchType.Profiling,
