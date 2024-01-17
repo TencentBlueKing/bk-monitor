@@ -548,7 +548,7 @@ class GetEventPluginInstanceResource(Resource):
         instance = instances[0]
         if instances[0].bk_biz_id:
             # 不是全局的，需要单独配置
-            collect_url = urllib.parse.urljoin(collect_host,  f"/event/{instance.plugin_id}_{instance.data_id}/")
+            collect_url = urllib.parse.urljoin(collect_host, f"/event/{instance.plugin_id}_{instance.data_id}/")
         alert_sources = ingest_config.get("alert_sources", [])
         if ingest_config.get("collect_type") == CollectType.BK_COLLECTOR:
             collect_host = (
@@ -567,7 +567,6 @@ class GetEventPluginInstanceResource(Resource):
                 "updatable": inst_data["version"] != plugin_info["version"],
                 "push_url": collect_url,
                 "alert_sources": alert_sources,
-                "proxy_hosts": CollectorProxyHostInfo().request(bk_biz_id=instance.bk_biz_id)
             }
             for inst_data in serializer_data
         ]
