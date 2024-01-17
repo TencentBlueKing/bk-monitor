@@ -60,7 +60,7 @@ import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
-import { TestSendingTarget } from './types';
+import { FrequencyType, TestSendingTarget } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
 
 import './email-subscription-config.scss';
@@ -1100,18 +1100,25 @@ export default defineComponent({
                   >
                     {this.getSendFrequencyText(this.subscriptionDetail)}
                   </div>
+                  {this.subscriptionDetail.frequency.type === FrequencyType.onlyOnce && (
+                    <div class='value'>
+                      {dayjs(this.subscriptionDetail.frequency.run_time).format('YYYY-MM-DD HH:mm')}
+                    </div>
+                  )}
                 </div>
-                <div class='label-container'>
-                  <div
-                    class='label'
-                    style='margin-left: 55px;'
-                  >
-                    {this.t('有效时间范围')}:
+                {this.subscriptionDetail.frequency.type !== FrequencyType.onlyOnce && (
+                  <div class='label-container'>
+                    <div
+                      class='label'
+                      style='margin-left: 55px;'
+                    >
+                      {this.t('有效时间范围')}:
+                    </div>
+                    <div class='value'>
+                      {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
+                    </div>
                   </div>
-                  <div class='value'>
-                    {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
-                  </div>
-                </div>
+                )}
               </div>
               <div>
                 <Button
