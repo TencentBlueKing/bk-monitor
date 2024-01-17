@@ -25,7 +25,6 @@
  */
 import { Component, Inject, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input } from 'bk-magic-vue';
 
 import CustomTab from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import { templateSignalName } from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
@@ -1023,7 +1022,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                 </div>,
                 { marginTop: 0 },
                 [
-                  <Button
+                  <bk-button
                     theme={'primary'}
                     outline
                     style={{ width: '88px', margin: '0 8px 0 24px' }}
@@ -1036,7 +1035,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     }
                   >
                     {this.$t('编辑')}
-                  </Button>,
+                  </bk-button>,
                   <HistoryDialog list={this.historyList} />
                 ]
               )}
@@ -1073,7 +1072,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                               ></PromqlEditor>
                             </div>
                             <div class='step-wrap'>
-                              <Input
+                              <bk-input
                                 class='step-input'
                                 type='number'
                                 min={10}
@@ -1093,7 +1092,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                                     }}
                                   ></span>
                                 </div>
-                              </Input>
+                              </bk-input>
                             </div>
                           </div>
                         );

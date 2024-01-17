@@ -57,7 +57,7 @@ export default defineComponent({
     }
 
     const getTimeRange = computed(() => {
-      if (!props.detailInfo.start_time) return '';
+      if (!props.detailInfo.start_time || !props.detailInfo.end_time) return '';
       const startTime = dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm');
       const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm');
       return `${startTime} ~ ${endTime}`;
@@ -248,10 +248,12 @@ export default defineComponent({
             }}
           />
 
-          <DetailRow
-            label={this.t('有效时间范围')}
-            value={this.getTimeRange}
-          />
+          {this.detailInfo.frequency.type !== FrequencyType.onlyOnce && (
+            <DetailRow
+              label={this.t('有效时间范围')}
+              value={this.getTimeRange}
+            />
+          )}
         </div>
       </div>
     );

@@ -26,7 +26,6 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Exception, Option, Select } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import Viewer from '../../../../fta-solutions/pages/event/event-detail/custom-view';
@@ -211,8 +210,8 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       `${this.metricData.data_source_label}_${this.metricData.data_type_label}` === 'log_time_series'
         ? `${this.metricData.related_name}.${this.metricData.metric_field}`
         : this.metricData.result_table_id
-        ? `${this.metricData.result_table_id}.${this.metricData.metric_field}`
-        : this.metricData.metric_field;
+          ? `${this.metricData.result_table_id}.${this.metricData.metric_field}`
+          : this.metricData.metric_field;
     return metricName;
   }
   /* 切换至指标类型回填数据 */
@@ -398,12 +397,12 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         {/* 空样式 */}
         {!this.experienceList.length && this.mode === 'list' && (
           <div>
-            <Exception
+            <bk-exception
               type='empty'
               class='empty-bg'
             >
               <span>{this.$t('当前暂无处理经验')}</span>
-            </Exception>
+            </bk-exception>
           </div>
         )}
         {/* 经验列表 */}
@@ -476,7 +475,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                     disabled: this.mode !== 'edit'
                   }}
                 >
-                  <Select
+                  <bk-select
                     class='bind-select'
                     value={this.curBind}
                     clearable={false}
@@ -485,13 +484,13 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                     onSelected={this.handleBindSelect}
                   >
                     {bindList.map(item => (
-                      <Option
+                      <bk-option
                         key={item.id}
                         name={item.name}
                         id={item.id}
-                      ></Option>
+                      ></bk-option>
                     ))}
-                  </Select>
+                  </bk-select>
                 </div>
               </div>
               <div class='bind-condition'>
@@ -529,19 +528,19 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
               {this.errMsg ? <div class='err-red'>{this.errMsg}</div> : undefined}
             </div>
             <div class='content-bottom'>
-              <Button
+              <bk-button
                 theme='primary'
                 class='save'
                 onClick={this.handleSave}
               >
                 {this.$t('保存')}
-              </Button>
-              <Button
+              </bk-button>
+              <bk-button
                 class='cancel'
                 onClick={this.handleCancel}
               >
                 {this.$t('取消')}
-              </Button>
+              </bk-button>
             </div>
           </div>
         )}
