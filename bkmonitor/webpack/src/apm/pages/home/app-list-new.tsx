@@ -727,6 +727,7 @@ export default class AppList extends tsc<{}> {
                   data={SEARCH_KEYS}
                   strink={false}
                   filter={true}
+                  wrap-zindex={0}
                   show-condition={false}
                   show-popover-tag-change={false}
                   onChange={this.handleSearchCondition}
@@ -784,7 +785,7 @@ export default class AppList extends tsc<{}> {
                         <div class='item-content'>
                           <div
                             class='trace-status'
-                            style={STATUS_MAP[item.data_status].style}
+                            style={STATUS_MAP[item.data_status]?.style}
                           >
                             {STATUS_MAP[item.data_status]?.name || '--'}
                           </div>
@@ -793,7 +794,7 @@ export default class AppList extends tsc<{}> {
                         <div class='item-content'>
                           <div
                             class='trace-status'
-                            style={STATUS_MAP[item.profiling_data_status].style}
+                            style={STATUS_MAP[item.profiling_data_status]?.style}
                           >
                             {STATUS_MAP[item.profiling_data_status]?.name || '--'}
                           </div>

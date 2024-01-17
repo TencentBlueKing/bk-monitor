@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, ref } from 'vue';
+import { computed, defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Exception, Select } from 'bkui-vue';
 import { Spinner, Upload as UploadIcon } from 'bkui-vue/lib/icon';
@@ -63,6 +63,11 @@ export default defineComponent({
       list: []
     });
     const loading = ref(false);
+
+    const isCompare = computed(() => {
+      return false;
+      // return !!props.formData.isComparison;
+    });
 
     init();
 
@@ -139,6 +144,7 @@ export default defineComponent({
       searchObj,
       compareObj,
       loading,
+      isCompare,
       handleUploadTypeChange,
       handleUploadShowChange,
       statusRender,
@@ -160,7 +166,7 @@ export default defineComponent({
           </Button>
 
           <div class='file-select'>
-            {this.formData.isComparison && <div class='label where'>{this.t('查询项')}</div>}
+            {this.isCompare && <div class='label where'>{this.t('查询项')}</div>}
             <Select
               modelValue={this.searchObj.selectFile}
               popoverOptions={{
@@ -190,9 +196,9 @@ export default defineComponent({
               ))}
             </Select>
           </div>
-          {this.formData.isComparison && (
+          {this.isCompare && (
             <div class='file-select'>
-              {this.formData.isComparison && <div class='label comparison'>{this.t('对比项')}</div>}
+              {this.isCompare && <div class='label comparison'>{this.t('对比项')}</div>}
               <Select
                 modelValue={this.compareObj.selectFile}
                 popoverOptions={{
@@ -244,7 +250,7 @@ export default defineComponent({
         <ProfilingFileUpload
           show={this.uploadDialogShow}
           appName={this.formData.server.app_name}
-          isCompare={this.formData.isComparison}
+          isCompare={this.isCompare}
           onShowChange={this.handleUploadShowChange}
         ></ProfilingFileUpload>
       </div>
