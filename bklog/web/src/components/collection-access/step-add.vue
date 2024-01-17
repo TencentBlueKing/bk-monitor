@@ -360,7 +360,7 @@
                         :disabled="isNode || !formData.bcs_cluster_id || nameSpaceRequest"
                         @selected="(option) => handleNameSpaceSelect(option, conIndex)">
                         <bk-option
-                          v-for="oItem in showNameSpacesSelectList(conItem.noQuestParams.namespacesExclude)"
+                          v-for="oItem in showNameSpacesSelectList(conIndex)"
                           :key="oItem.id"
                           :name="oItem.name"
                           :id="oItem.id"
@@ -451,7 +451,6 @@
                         free-paste
                         has-delete-icon
                         ext-cls="container-input"
-                        @change="() => handleContainerNameChange(conIndex)"
                         @blur="(inputStr, list) => handleContainerNameBlur(inputStr, list, conIndex)">
                       </bk-tag-input>
                     </div>
@@ -1120,7 +1119,7 @@ export default {
           label_selector: yamlSelector,
           collector_type,
         } = item;
-        const showNameSpace = itemNamespacesExclude.length ? itemNamespacesExclude : itemNamespace;
+        const showNameSpace = itemNamespacesExclude?.length ? itemNamespacesExclude : itemNamespace;
         const namespaces = item.any_namespace ? ['*'] : showNameSpace;
         const container =  {
           workload_type,
@@ -1137,8 +1136,8 @@ export default {
             pre.push(...labelVal.map(item => ({ ...item, id: random(10), type: labelKey })));
             return pre;
           }, []);
-          const { container_name: containerName, container_name_exclude: containerNameExclude } = yamlContainer;
-          containerNameList = this.getContainerNameList(containerName || containerNameExclude);
+          const { container_name: yamlContainerName, container_name_exclude: yamlContainerNameExclude } = yamlContainer;
+          containerNameList = this.getContainerNameList(yamlContainerName || yamlContainerNameExclude);
           params.paths = params.paths.length ? params.paths.map(item => ({ value: item })) : [{ value: '' }];
         } else {
           labelSelector = [
@@ -1684,7 +1683,6 @@ export default {
         const {
           workload_type: workloadType,
           workload_name: workloadName,
-          container_name: containerName,
         } = config.container;
         const namespaces = (config.namespaces.length === 1 && config.namespaces[0] === '*') ? [] : config.namespaces;
         this.viewQueryParams = {
@@ -1696,7 +1694,7 @@ export default {
           container: {
             workload_type: workloadType,
             workload_name: workloadName,
-            [containerKey]: containerName,
+            [containerKey]: config.containerNameList.join(','),
           },
         };
       }
@@ -1768,9 +1766,12 @@ export default {
           this.nameSpaceRequest = false;
         });
     },
-    showNameSpacesSelectList(operate) {
+    showNameSpacesSelectList(conIndex) {
+      const config = this.formData.configs[conIndex];
+      const operate = config.noQuestParams.namespacesExclude;
       if (!this.nameSpacesSelectList.length) return [];
       if (operate === '!=' && this.nameSpacesSelectList.some(item => item.id === '*')) {
+        if (config.namespaces.length === 1 && config.namespaces[0] === '*') config.namespaces = [];
         return this.nameSpacesSelectList.slice(1);
       }
       return this.nameSpacesSelectList;
@@ -1976,7 +1977,6 @@ export default {
           break;
         case 'containerName':
           config.containerNameList = [];
-          config.container.container_name = '';
           break;
         default:
           break;
@@ -1988,13 +1988,6 @@ export default {
       if (!input) return;
       const config = this.formData.configs[conIndex];
       config.containerNameList = !list.length ? [input] : [...new Set([...config.containerNameList, input])];
-      const containerKey = config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-      config.container[containerKey] = config.containerNameList.join(',');
-    },
-    handleContainerNameChange(conIndex) {
-      const config = this.formData.configs[conIndex];
-      const containerKey = config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-      config.container[containerKey] = config.containerNameList.join(',');
     },
     // 获取config里添加范围的列表
     getScopeSelectShow(conIndex) {
