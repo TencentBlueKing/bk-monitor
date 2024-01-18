@@ -3,9 +3,14 @@
   flex-direction: column;
   width: 360px;
   height: 346px;
+  cursor: pointer;
   background: #fff;
   border-radius: 2px;
   box-shadow: 0 2px 4px 0 #1919290d;
+
+  &:hover {
+    outline: 2px solid #3a84ff;
+  }
 
   &-title {
     display: flex;
@@ -35,6 +40,6 @@
     justify-content: center;
     width: 270px;
     height: 216px;
-    margin-top: 16px;
+    margin: 16px auto 0;
   }
 }

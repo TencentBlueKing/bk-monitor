@@ -27,7 +27,8 @@ import { defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Form, Sideslider } from 'bkui-vue';
 
-import { DetailType, ServicesDetail } from '../typings';
+import { transformByte } from '../../../utils';
+import { DetailType, FileDetail, ServicesDetail } from '../typings';
 
 import './profiling-detail.scss';
 
@@ -38,7 +39,7 @@ export default defineComponent({
       default: DetailType.Application
     },
     detailData: {
-      type: Object as PropType<ServicesDetail>,
+      type: Object as PropType<ServicesDetail | FileDetail>,
       default: () => null
     },
     show: {
@@ -49,6 +50,29 @@ export default defineComponent({
   emits: ['showChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    const statusMap = {
+      uploaded: {
+        type: 'success',
+        name: t('已上传')
+      },
+      parsing_failed: {
+        type: 'error',
+        name: t('解析失败')
+      },
+      parsing_succeed: {
+        type: 'success',
+        name: t('解析成功')
+      },
+      store_succeed: {
+        type: 'success',
+        name: t('已存储')
+      },
+      store_failed: {
+        type: 'error',
+        name: t('存储失败')
+      }
+    };
 
     function handleShowChange(val: boolean) {
       emit('showChange', val);
@@ -62,11 +86,60 @@ export default defineComponent({
 
     return {
       t,
+      statusMap,
       handleShowChange,
       handleViewAppDetail
     };
   },
   render() {
+    const renderContent = () => {
+      if (!this.detailData) return undefined;
+      if (this.detailType === DetailType.Application) {
+        const data = this.detailData as ServicesDetail;
+        return (
+          <Form labelWidth={144}>
+            <Form.FormItem label={`${this.t('模块名称')}:`}>{data.service_name}</Form.FormItem>
+            <Form.FormItem label={`${this.t('所属应用')}:`}>
+              {data.app_name}
+              <span
+                class='jump-link'
+                onClick={this.handleViewAppDetail}
+              >
+                {this.t('应用详情')}
+                <i class='icon-monitor icon-fenxiang'></i>
+              </span>
+            </Form.FormItem>
+            <Form.FormItem label={`${this.t('采样频率')}:`}>{data.frequency}</Form.FormItem>
+            <Form.FormItem label={`${this.t('上报数据类型')}:`}>***SDK</Form.FormItem>
+            <Form.FormItem label={`${this.t('SDK版本')}:`}>1.1.0</Form.FormItem>
+            <Form.FormItem label={`${this.t('数据语言')}:`}>java</Form.FormItem>
+            <Form.FormItem label={`${this.t('创建时间')}:`}>{data.create_time}</Form.FormItem>
+            <Form.FormItem label={`${this.t('最近上报时间')}:`}>{data.last_report_time}</Form.FormItem>
+          </Form>
+        );
+      }
+      const data = this.detailData as FileDetail;
+      return (
+        <Form labelWidth={144}>
+          <Form.FormItem label={`${this.t('文件名称')}:`}>
+            {data.file_name} （{data.origin_file_name}）
+          </Form.FormItem>
+          <Form.FormItem label={`${this.t('文件大小')}:`}>{transformByte(data.file_size)}</Form.FormItem>
+          <Form.FormItem label={`${this.t('协议类型')}:`}>{data.file_type || '-'}</Form.FormItem>
+          <Form.FormItem label={`${this.t('解析状态')}:`}>
+            <div class='status'>
+              <div class={['circle', this.statusMap[data.status].type]}></div>
+              <span class='label'>{this.statusMap[data.status].name}</span>
+              {data.status}
+            </div>
+          </Form.FormItem>
+          <Form.FormItem label={`${this.t('文件md5')}:`}>{data.file_md5 || '-'}</Form.FormItem>
+          <Form.FormItem label={`${this.t('上传人')}:`}>{data.operator || '-'}</Form.FormItem>
+          <Form.FormItem label={`${this.t('上传时间')}:`}>{data.uploaded_time || '-'}</Form.FormItem>
+        </Form>
+      );
+    };
+
     return (
       <>
         <Sideslider
@@ -92,60 +165,7 @@ export default defineComponent({
                 </span>
               </div>
             ),
-            default: () => (
-              <div class='profiling-detail-content'>
-                {this.detailType === DetailType.Application ? (
-                  this.detailData && (
-                    <Form labelWidth={144}>
-                      <Form.FormItem label={`${this.t('模块名称')}:`}>{this.detailData.service_name}</Form.FormItem>
-                      <Form.FormItem label={`${this.t('所属应用')}:`}>
-                        {this.detailData.app_name}
-                        <span
-                          class='jump-link'
-                          onClick={this.handleViewAppDetail}
-                        >
-                          {this.t('应用详情')}
-                          <i class='icon-monitor icon-fenxiang'></i>
-                        </span>
-                      </Form.FormItem>
-                      <Form.FormItem label={`${this.t('采样频率')}:`}>{this.detailData.frequency}</Form.FormItem>
-                      <Form.FormItem label={`${this.t('上报数据类型')}:`}>***SDK</Form.FormItem>
-                      <Form.FormItem label={`${this.t('SDK版本')}:`}>1.1.0</Form.FormItem>
-                      <Form.FormItem label={`${this.t('数据语言')}:`}>java</Form.FormItem>
-                      <Form.FormItem label={`${this.t('创建时间')}:`}>{this.detailData.create_time}</Form.FormItem>
-                      <Form.FormItem label={`${this.t('最近上报时间')}:`}>
-                        {this.detailData.last_report_time}
-                      </Form.FormItem>
-                    </Form>
-                  )
-                ) : (
-                  <Form labelWidth={144}>
-                    <Form.FormItem label={`${this.t('文件名称')}:`}>
-                      Profile-2023-11-22-06-02-27.json （原文件名）
-                    </Form.FormItem>
-                    <Form.FormItem label={`${this.t('文件大小')}:`}>1.1 MB</Form.FormItem>
-                    <Form.FormItem label={`${this.t('协议类型')}:`}>pprof</Form.FormItem>
-                    <Form.FormItem label={`${this.t('解析状态')}:`}>
-                      <div class='status'>
-                        <div class='success circle'></div>
-                        <span class='label'>{this.t('解析成功')}</span>
-                        {/* {this.detailData.status === 'loading' && [
-                          <Spinner class='loading'></Spinner>,
-                          <span class='label'>{this.t('解析中')}</span>
-                        ]}
-                        {this.detailData.status === 'error' && [
-                          <div class='error circle'></div>,
-                          <span class='label'>{this.t('解析失败')}</span>
-                        ]} */}
-                      </div>
-                    </Form.FormItem>
-                    <Form.FormItem label={`${this.t('文件md5')}:`}>-</Form.FormItem>
-                    <Form.FormItem label={`${this.t('上传人')}:`}>javanzhagn</Form.FormItem>
-                    <Form.FormItem label={`${this.t('上传时间')}:`}>2023-10-31 12:49:34</Form.FormItem>
-                  </Form>
-                )}
-              </div>
-            )
+            default: () => <div class='profiling-detail-content'>{renderContent()}</div>
           }}
         </Sideslider>
       </>

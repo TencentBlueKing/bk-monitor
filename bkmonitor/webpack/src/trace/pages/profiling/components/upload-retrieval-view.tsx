@@ -29,6 +29,7 @@ import { Button, Exception, Select } from 'bkui-vue';
 import { Spinner, Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
 import { listProfileUploadRecord } from '../../../../monitor-api/modules/apm_profile';
+import { IQueryParams } from '../../../typings/trace';
 import { ConditionType, RetrievalFormData } from '../typings';
 
 import ProfilingFileUpload from './profiling-file-upload';
@@ -41,6 +42,10 @@ export default defineComponent({
   props: {
     formData: {
       type: Object as PropType<RetrievalFormData>,
+      required: true
+    },
+    queryParams: {
+      type: Object as PropType<IQueryParams>,
       required: true
     }
   },
@@ -243,7 +248,7 @@ export default defineComponent({
               </Exception>
             </div>
           ) : (
-            <ProfilingRetrievalView></ProfilingRetrievalView>
+            <ProfilingRetrievalView queryParams={this.queryParams}></ProfilingRetrievalView>
           )}
         </div>
 

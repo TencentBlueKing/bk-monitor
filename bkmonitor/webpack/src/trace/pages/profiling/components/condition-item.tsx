@@ -23,13 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, PropType, reactive, Ref, ref, watch } from 'vue';
+import { defineComponent, PropType, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Select } from 'bkui-vue';
 
-import { queryLabelValues } from '../../../../monitor-api/modules/apm_profile';
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { IConditionItem, RetrievalFormData, ToolsFormData } from '../typings';
+import { IConditionItem } from '../typings';
 
 import './condition-item.scss';
 
@@ -43,13 +41,14 @@ export default defineComponent({
     labelList: {
       type: Array as PropType<string[]>,
       default: () => []
+    },
+    valueList: {
+      type: Array as PropType<string[]>,
+      default: () => []
     }
   },
-  emits: ['change'],
+  emits: ['change', 'delete'],
   setup(props, { emit }) {
-    const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
-    const formData = inject<RetrievalFormData>('formData');
-
     const { t } = useI18n();
     const localValue = reactive<IConditionItem>({
       key: '',
@@ -60,8 +59,6 @@ export default defineComponent({
       toggle: false,
       hover: false
     });
-    const labelValueMap = new Map();
-    const valueList = ref<string[]>([]);
 
     watch(
       () => props.data,
@@ -73,46 +70,20 @@ export default defineComponent({
       }
     );
 
-    watch(
-      () => localValue.key,
-      async newVal => {
-        if (!newVal) {
-          valueList.value = [];
-          return;
-        }
-        getLabelValues();
-      }
-    );
-
-    /** 获取过滤项值列表 */
-    async function getLabelValues() {
-      /** 缓存 */
-      if (labelValueMap.has(localValue.key)) {
-        valueList.value = labelValueMap.get(localValue.key);
-        return;
-      }
-      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      const res = await queryLabelValues({
-        app_name: formData.server.app_name,
-        service_name: formData.server.service_name,
-        start: start * 1000 * 1000,
-        end: end * 1000 * 1000,
-        label_key: localValue.key
-      }).catch(() => ({ label_values: [] }));
-      valueList.value = res.label_values;
-      labelValueMap.set(localValue.key, valueList.value);
-    }
-
     function handleEmitData() {
       emit('change', { ...localValue });
+    }
+
+    function handleDelete() {
+      emit('delete');
     }
 
     return {
       t,
       localValue,
       labelStatus,
-      valueList,
-      handleEmitData
+      handleEmitData,
+      handleDelete
     };
   },
 
@@ -154,6 +125,10 @@ export default defineComponent({
             </div>
           </div>
           <span class={['method', this.localValue.method]}>=</span>
+          <i
+            class='icon-monitor icon-mc-delete-line'
+            onClick={this.handleDelete}
+          ></i>
         </div>
         <div class='content'>
           <Select
