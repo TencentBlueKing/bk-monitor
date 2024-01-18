@@ -110,10 +110,7 @@ export default class AppSelect extends tsc<IProps, IEvents> {
                 onClick={() => this.handleSelect(opt)}
               >
                 <span class={['app-select-item-icon']}>
-                  <img
-                    src={opt.icon}
-                    alt=''
-                  ></img>
+                  <img src={opt.icon}></img>
                 </span>
                 <span class='app-select-content'>
                   <span class='app-select-name'>{opt.name}</span>

@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Dialog, Form, FormItem, Input, Option, Progress, Select, Switcher } from 'bk-magic-vue';
 
 import {
   addTaskUptimeCheckGroup,
@@ -719,14 +720,14 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
               </span>
             ),
             enable: (row: ItaskItem) => (
-              <bk-switcher
+              <Switcher
                 value={taskSwitch(row.status)}
                 disabled={taskSwitchDisabled(row.status)}
                 size={'small'}
                 theme={'primary'}
                 preCheck={() => this.taskSwitchChangePreCheck(row.id, row.status)}
                 on-change={this.handleTaskSwitchChange}
-              ></bk-switcher>
+              ></Switcher>
             ),
             statusText: (row: ItaskItem) => (
               <span style={{ color: taskStatusTextColor(row.status) }}>{taskStatusMap[row.status]}</span>
@@ -734,11 +735,11 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             progress: (row: ItaskItem) => (
               <div>
                 {<div>{row.available !== null ? `${row.available}%` : '--'}</div>}
-                <bk-progress
+                <Progress
                   color={tableAvailableProcessColor(row.available, row.status)}
                   showText={false}
                   percent={Number((row.available * 0.01).toFixed(2)) || 0}
-                ></bk-progress>
+                ></Progress>
               </div>
             )
           }}
@@ -837,7 +838,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   // 弹窗容器
   getDialogContent() {
     return (
-      <bk-dialog
+      <Dialog
         class='uptime-check-small-dialog'
         value={this.groupDialogData.show}
         title={this.$t('新建拨测任务组')}
@@ -846,42 +847,42 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
         on-cancel={this.handleCloseGroupData}
       >
         <div class='dialog-form-content'>
-          <bk-form
+          <Form
             formType={'vertical'}
             class='form-content'
           >
-            <bk-form-item
+            <FormItem
               label={this.$t('任务组名称')}
               required={true}
             >
-              <bk-input
+              <Input
                 v-model={this.groupDialogData.data.name}
                 placeholder={this.$t('输入拨测任务组名称')}
                 on-blur={this.handleGroupDialogBlur}
                 on-focus={this.handleGroupDialogFocus}
                 on-change={this.handleGroupDialogBlur}
-              ></bk-input>
+              ></Input>
               {this.groupDialogData.errMsg.name ? (
                 <span class='errmsg'>{this.groupDialogData.errMsg.name}</span>
               ) : undefined}
-            </bk-form-item>
-            <bk-form-item label={this.$t('选择拨测任务')}>
-              <bk-select
+            </FormItem>
+            <FormItem label={this.$t('选择拨测任务')}>
+              <Select
                 v-model={this.groupDialogData.data.tasks}
                 style={{ width: '320px' }}
                 placeholder={this.$t('选择拨测任务')}
                 multiple
               >
                 {this.data.task_data.map(item => (
-                  <bk-option
+                  <Option
                     id={item.id}
                     name={item.name}
                     key={item.id}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
-            </bk-form-item>
-          </bk-form>
+              </Select>
+            </FormItem>
+          </Form>
           <div class='upload-content'>
             <UploadContent
               imgSrc={this.groupDialogData.data.img}
@@ -890,17 +891,17 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           </div>
         </div>
         <div slot='footer'>
-          <bk-button
+          <Button
             theme='primary'
             style={{ marginRight: '5px' }}
             disabled={this.groupDialogData.validate}
             on-click={this.handleSubmitGroupData}
           >
             {this.$t('确定')}
-          </bk-button>
-          <bk-button on-click={this.handleCloseGroupData}>{this.$t('取消')}</bk-button>
+          </Button>
+          <Button on-click={this.handleCloseGroupData}>{this.$t('取消')}</Button>
         </div>
-      </bk-dialog>
+      </Dialog>
     );
   }
 }

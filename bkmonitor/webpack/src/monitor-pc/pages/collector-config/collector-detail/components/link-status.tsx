@@ -26,6 +26,7 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Divider, Sideslider, Table, TableColumn } from 'bk-magic-vue';
 
 import { transferCountSeries, transferLatestMsg } from '../../../../../monitor-api/modules/datalink';
 import { copyText } from '../../../../../monitor-common/utils/utils';
@@ -175,7 +176,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             />
           </div>
         </div>
-        <bk-divider class='divider'></bk-divider>
+        <Divider class='divider'></Divider>
         <div class='table-container'>
           <div class='title'>
             <div class='panel-title'>{this.$t('数据采样')}</div>
@@ -188,54 +189,54 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
           </div>
 
           <div class='table-content'>
-            <bk-table
+            <Table
               class='data-sample-table'
               data={this.tableList}
               outer-border={false}
               header-border={false}
               v-bkloading={{ isLoading: this.tableLoading }}
             >
-              <bk-table-column
+              <TableColumn
                 type='index'
                 label={this.$t('序号')}
                 width='120'
               />
-              <bk-table-column
+              <TableColumn
                 label={this.$t('原始数据')}
                 prop='message'
                 show-overflow-tooltip
               />
-              <bk-table-column
+              <TableColumn
                 label={this.$t('采集时间')}
                 width='250'
                 prop='time'
               />
-              <bk-table-column
+              <TableColumn
                 label={this.$t('操作')}
                 width='175'
                 scopedSlots={{
                   default: ({ row }) => [
-                    <bk-button
+                    <Button
                       class='mr8'
                       text
                       onClick={() => this.handleCopy(row.message)}
                     >
                       {this.$t('复制')}
-                    </bk-button>,
-                    <bk-button
+                    </Button>,
+                    <Button
                       text
                       onClick={() => this.handleViewData(row)}
                     >
                       {this.$t('查看上报数据')}
-                    </bk-button>
+                    </Button>
                   ]
                 }}
-              ></bk-table-column>
-            </bk-table>
+              ></TableColumn>
+            </Table>
           </div>
         </div>
 
-        <bk-sideslider
+        <Sideslider
           ext-cls='data-status-sideslider'
           transfer={true}
           isShow={this.sideslider.isShow}
@@ -249,7 +250,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             class='sideslider-title'
           >
             <span>{this.$t('上报日志详情')}</span>
-            <bk-button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</bk-button>
+            <Button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</Button>
           </div>
           <div slot='content'>
             <MonacoEditor
@@ -260,7 +261,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               style='height: calc(100vh - 60px)'
             ></MonacoEditor>
           </div>
-        </bk-sideslider>
+        </Sideslider>
       </div>
     );
   }

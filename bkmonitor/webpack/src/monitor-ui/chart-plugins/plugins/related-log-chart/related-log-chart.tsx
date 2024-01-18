@@ -27,6 +27,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import { Alert, Button, Exception, Input, Option, Select } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
@@ -398,7 +399,7 @@ class RelatedLogChart extends CommonSimpleChart {
           <div style='position:relative;height:100%;'>
             <div class='related-alert-info'>
               {this.alertText && (
-                <bk-alert showIcon={false}>
+                <Alert showIcon={false}>
                   <div slot='title'>
                     <span class='alter-text'>{this.alertText}</span>
                     {this.isBkLog ? (
@@ -419,7 +420,7 @@ class RelatedLogChart extends CommonSimpleChart {
                       </span>
                     )}
                   </div>
-                </bk-alert>
+                </Alert>
               )}
             </div>
             {this.isBkLog && (
@@ -431,7 +432,7 @@ class RelatedLogChart extends CommonSimpleChart {
                       {!this.emptyChart && (
                         <div class='title-tool'>
                           <span class='interval-label'>{this.$t('汇聚周期')}</span>
-                          <bk-select
+                          <Select
                             class='interval-select'
                             size='small'
                             behavior='simplicity'
@@ -440,15 +441,15 @@ class RelatedLogChart extends CommonSimpleChart {
                             onChange={this.handleIntervalChange}
                           >
                             {this.intervalList.map(item => (
-                              <bk-option
+                              <Option
                                 id={item.id}
                                 key={item.id}
                                 name={item.name}
                               >
                                 {item.name}
-                              </bk-option>
+                              </Option>
                             ))}
-                          </bk-select>
+                          </Select>
                         </div>
                       )}
                     </span>
@@ -483,7 +484,7 @@ class RelatedLogChart extends CommonSimpleChart {
                   </div>
                 </div>
                 <div class='query-tool'>
-                  <bk-select
+                  <Select
                     class='table-search-select'
                     v-model={this.relatedIndexSetId}
                     clearable={false}
@@ -496,25 +497,25 @@ class RelatedLogChart extends CommonSimpleChart {
                     }}
                   >
                     {this.relatedIndexSetList.map(option => (
-                      <bk-option
+                      <Option
                         key={option.index_set_id}
                         id={option.index_set_id}
                         name={option.index_set_name}
-                      ></bk-option>
+                      ></Option>
                     ))}
-                  </bk-select>
-                  <bk-input
+                  </Select>
+                  <Input
                     class='table-search-input'
                     vModel={this.keyword}
                     onEnter={this.handleSearchChange}
                     onClear={() => this.handleSearchChange('')}
                   />
-                  <bk-button
+                  <Button
                     theme='primary'
                     onClick={this.handleQueryTable}
                   >
                     {this.$t('查询')}
-                  </bk-button>
+                  </Button>
                 </div>
                 {this.columns.length ? (
                   <CommonTable
@@ -541,18 +542,18 @@ class RelatedLogChart extends CommonSimpleChart {
             {this.emptyText ? (
               this.emptyText
             ) : (
-              <bk-exception type='building'>
+              <Exception type='building'>
                 <span>{this.$t('暂无关联日志')}</span>
                 <div class='text-wrap'>
                   <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
-                  <bk-button
+                  <Button
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
                     {this.$t('日志采集')}
-                  </bk-button>
+                  </Button>
                 </div>
-              </bk-exception>
+              </Exception>
             )}
           </div>
         )}

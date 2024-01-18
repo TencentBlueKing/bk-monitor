@@ -844,12 +844,7 @@ export class LineChart
 
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
-      // 获取y轴上可设置的最小的精确度
-      const precision = this.handleGetMinPrecision(
-        item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-        unitFormatter,
-        item.unit
-      );
+
       if (item.name) {
         Object.keys(legendItem).forEach(key => {
           if (['min', 'max', 'avg', 'total'].includes(key)) {
@@ -861,6 +856,12 @@ export class LineChart
         });
         legendData.push(legendItem);
       }
+      // 获取y轴上可设置的最小的精确度
+      const precision = this.handleGetMinPrecision(
+        item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
+        unitFormatter,
+        item.unit
+      );
       return {
         ...item,
         color,

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Alert, Button, Input } from 'bk-magic-vue';
 
 import { getActionConfigByAlerts } from '../../../../monitor-api/modules/action';
 import { ackAlert } from '../../../../monitor-api/modules/alert';
@@ -143,7 +144,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
           class='alarm-confirm-dialog'
           v-bkloading={{ isLoading: this.loading }}
         >
-          <bk-alert
+          <Alert
             class='info-tips'
             type='info'
           >
@@ -155,7 +156,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
                 )}。`}
               </div>
             </div>
-          </bk-alert>
+          </Alert>
           {this.infoContent.length
             ? [
                 <div class='info-content-title'>{this.$t('关联的处理套餐')}</div>,
@@ -175,24 +176,24 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
                 </div>
               ]
             : undefined}
-          <bk-input
+          <Input
             v-model={this.content}
             type='textarea'
             class='alarm-config-content'
             placeholder={this.$t('填写告警确认备注信息')}
             rows={5}
-          ></bk-input>
+          ></Input>
         </div>
         <template slot='footer'>
-          <bk-button
+          <Button
             on-click={this.handleAlarmConfirm}
             theme='primary'
             style='margin-right: 10px'
             disabled={this.loading}
           >
             {this.$t('确认')}
-          </bk-button>
-          <bk-button on-click={() => this.handleShowChange(false)}>{this.$t('取消')}</bk-button>
+          </Button>
+          <Button on-click={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>
         </template>
       </MonitorDialog>
     );

@@ -26,6 +26,20 @@
 
 import { Component, Emit, Inject, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import {
+  Button,
+  DropdownMenu,
+  Form,
+  FormItem,
+  Icon,
+  Input,
+  Option,
+  RadioButton,
+  RadioGroup,
+  Select,
+  Switcher,
+  TagInput
+} from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import {
@@ -971,7 +985,7 @@ export default class BasicInfo extends tsc<IProps> {
               authority={this.authority.MANAGE_AUTH}
               preCheckSwitcher={val => this.handleEnablePreCheck(val)}
             /> */}
-            <bk-switcher
+            <Switcher
               v-model={this.appInfo.is_enabled}
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
               class='switcher-self'
@@ -1103,7 +1117,7 @@ export default class BasicInfo extends tsc<IProps> {
               </div>
             )}
             {this.isEditing && (
-              <bk-form
+              <Form
                 class='edit-config-form'
                 {...{
                   props: {
@@ -1114,19 +1128,19 @@ export default class BasicInfo extends tsc<IProps> {
                 label-width={116}
                 ref='editInfoForm'
               >
-                <bk-form-item
+                <FormItem
                   label={this.$t('应用别名')}
                   required
                   property='app_alias'
                   error-display-type='normal'
                 >
-                  <bk-input
+                  <Input
                     v-model={this.formData.app_alias}
                     class='alias-name-input'
                   />
-                </bk-form-item>
+                </FormItem>
                 {this.isShowLog2TracesFormItem && (
-                  <bk-form-item
+                  <FormItem
                     label={this.$t('采集目标')}
                     required
                     property='plugin_config.target_nodes'
@@ -1150,10 +1164,10 @@ export default class BasicInfo extends tsc<IProps> {
                         </i18n>
                       )}
                     </div>
-                  </bk-form-item>
+                  </FormItem>
                 )}
                 {this.isShowLog2TracesFormItem && (
-                  <bk-form-item
+                  <FormItem
                     label={this.$t('日志路径')}
                     required
                     property='plugin_config.paths'
@@ -1173,12 +1187,12 @@ export default class BasicInfo extends tsc<IProps> {
                             placeholder={this.$t('请输入')}
                             style='width: 490px;'
                           />
-                          <bk-icon
+                          <Icon
                             class='log-path-icon log-path-icon-plus'
                             type='plus-circle-shape'
                             onClick={() => this.formData.plugin_config.paths.push('')}
                           />
-                          <bk-icon
+                          <Icon
                             class={{
                               'log-path-icon': true,
                               'log-path-icon-minus': true,
@@ -1194,10 +1208,10 @@ export default class BasicInfo extends tsc<IProps> {
                         {index === 0 && <div class='log-path-hint'>{this.$t('日志文件为绝对路径，可使用通配符')}</div>}
                       </div>
                     ))}
-                  </bk-form-item>
+                  </FormItem>
                 )}
                 {this.isShowLog2TracesFormItem && (
-                  <bk-form-item
+                  <FormItem
                     label={this.$t('日志字符集')}
                     required
                     property='plugin_config.data_encoding'
@@ -1216,21 +1230,21 @@ export default class BasicInfo extends tsc<IProps> {
                         ></bk-option>
                       ))}
                     </bk-select>
-                  </bk-form-item>
+                  </FormItem>
                 )}
-                <bk-form-item
+                <FormItem
                   label={this.$t('描述')}
                   property='description'
                 >
-                  <bk-input
+                  <Input
                     v-model={this.formData.description}
                     type='textarea'
                     class='description-input'
                     show-word-limit
                     maxlength='100'
                   />
-                </bk-form-item>
-              </bk-form>
+                </FormItem>
+              </Form>
             )}
           </div>
         </PanelItem>
@@ -1260,7 +1274,7 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
           <div class='form-content'>
             {this.isEditing ? (
-              <bk-form
+              <Form
                 class='edit-config-form grid-form'
                 {...{
                   props: {
@@ -1272,12 +1286,12 @@ export default class BasicInfo extends tsc<IProps> {
                 ref='editApdexForm'
               >
                 {this.apdexOptionList.map(apdex => (
-                  <bk-form-item
+                  <FormItem
                     label={apdex.name}
                     property={apdex.id}
                     error-display-type='normal'
                   >
-                    <bk-input
+                    <Input
                       v-model={this.formData[apdex.id]}
                       class='apdex-input'
                       type='number'
@@ -1286,10 +1300,10 @@ export default class BasicInfo extends tsc<IProps> {
                       <template slot='append'>
                         <div class='right-unit'>ms</div>
                       </template>
-                    </bk-input>
-                  </bk-form-item>
+                    </Input>
+                  </FormItem>
                 ))}
-              </bk-form>
+              </Form>
             ) : (
               <div class='grid-form'>
                 {this.apdexOptionList.map(apdex => (
@@ -1317,7 +1331,7 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
           <div class='form-content'>
             {this.isEditing ? (
-              <bk-form
+              <Form
                 class='edit-config-form'
                 {...{
                   props: {
@@ -1328,36 +1342,36 @@ export default class BasicInfo extends tsc<IProps> {
                 label-width={116}
                 ref='editSamplerForm'
               >
-                <bk-form-item
+                <FormItem
                   label={this.$t('采样类型')}
                   property='sampler_type'
                   error-display-type='normal'
                 >
-                  <bk-select
+                  <Select
                     class='sampling-type-select'
                     vModel={this.formData.sampler_type}
                     clearable={false}
                     onChange={this.handleSamplerTypeChange}
                   >
                     {this.samplingTypeList.map(option => (
-                      <bk-option
+                      <Option
                         key={option.id}
                         id={option.id}
                         name={option.name}
-                      ></bk-option>
+                      ></Option>
                     ))}
-                  </bk-select>
+                  </Select>
                   <i class='icon-monitor icon-hint sampling-hint'>
                     <span>{this.$t('单个 trace 中 30 分钟没有 span 上报，会自动结束；单个 trace 最大时长 1 天')}</span>
                   </i>
-                </bk-form-item>
+                </FormItem>
                 {this.formData.sampler_type !== 'empty' ? (
-                  <bk-form-item
+                  <FormItem
                     label={this.$t('采样比例')}
                     property='sampler_percentage'
                     error-display-type='normal'
                   >
-                    <bk-input
+                    <Input
                       v-model={this.formData.sampler_percentage}
                       class='sampling-rate-input'
                       type='number'
@@ -1366,16 +1380,16 @@ export default class BasicInfo extends tsc<IProps> {
                       <template slot='append'>
                         <div class='right-unit'>%</div>
                       </template>
-                    </bk-input>
+                    </Input>
                     <i class='icon-monitor icon-hint sampling-hint'>
                       <span>{this.$t('对非必采的部分按TraceID进行采样')}</span>
                     </i>
-                  </bk-form-item>
+                  </FormItem>
                 ) : (
                   ''
                 )}
                 {this.formData.sampler_type === 'tail' ? (
-                  <bk-form-item
+                  <FormItem
                     label={this.$t('必采规则')}
                     property='sampler_rules'
                     class='sampling-rule-form-item'
@@ -1451,7 +1465,7 @@ export default class BasicInfo extends tsc<IProps> {
                                     onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
                                   />
                                 ) : (
-                                  <bk-tag-input
+                                  <TagInput
                                     key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
                                       this.samplingRuleValueMap[item.key] || []
                                     )}`}
@@ -1466,7 +1480,7 @@ export default class BasicInfo extends tsc<IProps> {
                                     value={item.value}
                                     // paste-fn={v => this.handlePaste(v, item)}
                                     on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
-                                  ></bk-tag-input>
+                                  ></TagInput>
                                 )
                               ]
                             : undefined
@@ -1480,7 +1494,7 @@ export default class BasicInfo extends tsc<IProps> {
                         </span>
                       </div>
                     ))}
-                  </bk-form-item>
+                  </FormItem>
                 ) : (
                   ''
                 )}
@@ -1488,7 +1502,7 @@ export default class BasicInfo extends tsc<IProps> {
                 <label>{this.$t('强调说明')}</label>
                 <span>{this.$t('错误的Span一定会采集')}</span>
               </div> */}
-              </bk-form>
+              </Form>
             ) : (
               <div class='grid-form'>
                 <div class='display-item'>
@@ -1618,7 +1632,7 @@ export default class BasicInfo extends tsc<IProps> {
                       <span class='icon-monitor icon-plus-line'></span>
                     </div>
                     {this.showInstanceSelector && (
-                      <bk-select
+                      <Select
                         class='instance-select'
                         ext-popover-cls='instance-select-popover'
                         searchable
@@ -1627,7 +1641,7 @@ export default class BasicInfo extends tsc<IProps> {
                         onChange={v => this.handleSelectInstance(v)}
                       >
                         {this.instanceOptionList.map(option => (
-                          <bk-option
+                          <Option
                             key={option.id}
                             id={option.id}
                             name={option.name}
@@ -1644,9 +1658,9 @@ export default class BasicInfo extends tsc<IProps> {
                               <span class='instance-name'>{option.name}</span>
                               <span class='instance-alias'>{option.alias}</span>
                             </div>
-                          </bk-option>
+                          </Option>
                         ))}
-                      </bk-select>
+                      </Select>
                     )}
                   </li>
                 )}
@@ -1671,17 +1685,17 @@ export default class BasicInfo extends tsc<IProps> {
               <div class='db-config-title-container'>
                 <div style='display: flex;align-items: center;margin-bottom: 12px;'>
                   <span>{this.$t('DB类型')}</span>
-                  <bk-dropdown-menu trigger='click'>
-                    <bk-button
+                  <DropdownMenu trigger='click'>
+                    <Button
                       text
                       size='small'
                       slot='dropdown-trigger'
                     >
                       <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                        <bk-icon type='plus-circle' />
+                        <Icon type='plus-circle' />
                         <span style='margin-left: 5px;'>{this.$t('指定DB')}</span>
                       </div>
-                    </bk-button>
+                    </Button>
 
                     <ul
                       class='bk-dropdown-list'
@@ -1706,7 +1720,7 @@ export default class BasicInfo extends tsc<IProps> {
                         );
                       })}
                     </ul>
-                  </bk-dropdown-menu>
+                  </DropdownMenu>
                 </div>
 
                 <div class='card-list-container'>
@@ -1721,7 +1735,7 @@ export default class BasicInfo extends tsc<IProps> {
                         >
                           <span class='text'>{card.db_system || this.$t('默认')}</span>
                           {index > 0 && (
-                            <bk-icon
+                            <Icon
                               class='close'
                               type='close'
                               onClick={() => this.deleteCurrentConfigCard(index)}
@@ -1731,7 +1745,7 @@ export default class BasicInfo extends tsc<IProps> {
 
                         <div class='card-container'>
                           <div>
-                            <bk-form
+                            <Form
                               label-width={120}
                               {...{
                                 props: {
@@ -1741,33 +1755,33 @@ export default class BasicInfo extends tsc<IProps> {
                               }}
                               ref={`cardForm${index}`}
                             >
-                              <bk-form-item
+                              <FormItem
                                 label={this.$t('存储方式')}
                                 required
                                 property='trace_mode'
                                 error-display-type='normal'
                               >
-                                <bk-radio-group v-model={card.trace_mode}>
-                                  <bk-radio-button value='origin'>{this.$t('原始命令')}</bk-radio-button>
-                                  <bk-radio-button value='no_parameters'>{this.$t('无参数命令')}</bk-radio-button>
-                                  <bk-radio-button value='closed'>{this.$t('不储存')}</bk-radio-button>
-                                </bk-radio-group>
-                              </bk-form-item>
-                              <bk-form-item
+                                <RadioGroup v-model={card.trace_mode}>
+                                  <RadioButton value='origin'>{this.$t('原始命令')}</RadioButton>
+                                  <RadioButton value='no_parameters'>{this.$t('无参数命令')}</RadioButton>
+                                  <RadioButton value='closed'>{this.$t('不储存')}</RadioButton>
+                                </RadioGroup>
+                              </FormItem>
+                              <FormItem
                                 label={this.$t('启用慢语句')}
                                 required={card.enabled_slow_sql}
                                 property='threshold'
                                 error-display-type='normal'
                               >
                                 <div class='low-sql-container'>
-                                  <bk-switcher
+                                  <Switcher
                                     v-model={card.enabled_slow_sql}
                                     theme='primary'
                                     size='small'
                                     onChange={() =>
                                       (this.DBTypeRules[index].threshold[0].required = card.enabled_slow_sql)
                                     }
-                                  ></bk-switcher>
+                                  ></Switcher>
                                   <span
                                     class='text'
                                     style='margin-left: 16px;'
@@ -1775,7 +1789,7 @@ export default class BasicInfo extends tsc<IProps> {
                                     {this.$t('命令执行时间')}
                                   </span>
                                   <span>{'>'}</span>
-                                  <bk-input
+                                  <Input
                                     v-model={card.threshold}
                                     behavior='simplicity'
                                     class='excution-input'
@@ -1787,11 +1801,11 @@ export default class BasicInfo extends tsc<IProps> {
                                       // eslint-disable-next-line no-param-reassign
                                       if (!card.threshold) card.threshold = 0;
                                     }}
-                                  ></bk-input>
+                                  ></Input>
                                   <span class='text'>ms</span>
                                 </div>
-                              </bk-form-item>
-                              <bk-form-item
+                              </FormItem>
+                              <FormItem
                                 label={this.$t('语句长度')}
                                 required
                                 property='length'
@@ -1800,17 +1814,17 @@ export default class BasicInfo extends tsc<IProps> {
                                 <div class='sql-length-container'>
                                   <span class='text'>{this.$t('截断')}</span>
                                   <span>{'>'}</span>
-                                  <bk-input
+                                  <Input
                                     v-model={card.length}
                                     behavior='simplicity'
                                     class='sql-cut-input'
                                     type='number'
                                     min={0}
-                                  ></bk-input>
+                                  ></Input>
                                   <span class='text'>{this.$t('字符')}</span>
                                 </div>
-                              </bk-form-item>
-                            </bk-form>
+                              </FormItem>
+                            </Form>
                           </div>
                         </div>
                       </div>
@@ -1886,7 +1900,7 @@ export default class BasicInfo extends tsc<IProps> {
       </PanelItem> */}
         <div class='header-tool'>
           {!this.isEditing && (
-            <bk-button
+            <Button
               class='edit-btn'
               theme='primary'
               size='normal'
@@ -1897,7 +1911,7 @@ export default class BasicInfo extends tsc<IProps> {
               }}
             >
               {this.$t('编辑')}
-            </bk-button>
+            </Button>
           )}
           <div
             class='history-btn'
@@ -1909,15 +1923,15 @@ export default class BasicInfo extends tsc<IProps> {
         </div>
         {this.isEditing ? (
           <div class='submit-handle'>
-            <bk-button
+            <Button
               class='mr10'
               theme='primary'
               loading={this.isLoading}
               onClick={() => this.handleSubmit()}
             >
               {this.$t('保存')}
-            </bk-button>
-            <bk-button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</bk-button>
+            </Button>
+            <Button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</Button>
           </div>
         ) : (
           <div></div>

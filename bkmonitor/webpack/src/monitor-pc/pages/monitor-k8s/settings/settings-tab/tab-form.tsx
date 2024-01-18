@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Form, FormItem, Input, Switcher } from 'bk-magic-vue';
 
 import { IBookMark, SettingsTabType } from '../../typings';
 
@@ -129,7 +130,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
   render() {
     return (
       <div class='tab-from-wrapper'>
-        <bk-form
+        <Form
           ref='tabForm'
           class='tab-form'
           form-type='vertical'
@@ -140,55 +141,55 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
             }
           }}
         >
-          <bk-form-item
+          <FormItem
             label={this.$t('页签名称')}
             property='name'
           >
-            <bk-input
+            <Input
               class='input-title'
               v-model={this.localForm.name}
               onBlur={this.handleValueChange}
-            ></bk-input>
-          </bk-form-item>
-          {/* <bk-form-item label={this.$t('链接内容')} property="link">
-            <bk-input
+            ></Input>
+          </FormItem>
+          {/* <FormItem label={this.$t('链接内容')} property="link">
+            <Input
               class="input-title"
               v-model={this.localForm.link}
               onBlur={this.handleValueChange}
-            ></bk-input>
-          </bk-form-item> */}
-          <bk-form-item
+            ></Input>
+          </FormItem> */}
+          <FormItem
             label={this.$t('是否展示数字')}
             property='link'
           >
-            <bk-switcher
+            <Switcher
               size='large'
               theme='primary'
               v-model={this.localForm.show_panel_count}
               onChange={this.handleValueChange}
-            ></bk-switcher>
-          </bk-form-item>
-          <bk-form-item>
+            ></Switcher>
+          </FormItem>
+          <FormItem>
             <div class='handle-footer'>
-              <bk-button
+              <Button
                 class='handle-btn'
                 theme='primary'
                 onClick={this.handleSave}
               >
                 {this.$t('保存')}
-              </bk-button>
-              {/* <bk-button class="handle-btn" onClick={this.handleReset}>{ this.$t('重置') }</bk-button> */}
+              </Button>
+              {/* <Button class="handle-btn" onClick={this.handleReset}>{ this.$t('重置') }</Button> */}
               {this.canAddTab && this.checkNewTab && (
-                <bk-button
+                <Button
                   class='handle-btn'
                   onClick={this.handleDelete}
                 >
                   {this.$t('删除')}
-                </bk-button>
+                </Button>
               )}
             </div>
-          </bk-form-item>
-        </bk-form>
+          </FormItem>
+        </Form>
       </div>
     );
   }

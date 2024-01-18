@@ -27,6 +27,7 @@
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkPaasLogin from '@blueking/paas-login';
+import { Input, Navigation, NavigationMenu, NavigationMenuGroup, NavigationMenuItem } from 'bk-magic-vue';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
@@ -675,7 +676,7 @@ export default class App extends tsc<{}> {
     ];
     return (
       <div class='bk-monitor'>
-        <bk-navigation
+        <Navigation
           class={{ 'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share' }}
           navigation-type='top-bottom'
           on-toggle={this.handleToggle}
@@ -778,7 +779,7 @@ export default class App extends tsc<{}> {
                     onChange={this.handleBizChange}
                   />
                 </div>
-                <bk-navigation-menu
+                <NavigationMenu
                   style={{ marginTop: this.headerNav === 'data' ? '8px' : '0px' }}
                   toggle-active={this.menuToggle}
                   default-active={this.routeId}
@@ -789,14 +790,14 @@ export default class App extends tsc<{}> {
                     .filter(item => !item.hidden)
                     .map(item =>
                       item?.children?.length ? (
-                        <bk-navigation-menu-group
+                        <NavigationMenuGroup
                           key={item.id}
                           group-name={this.menuToggle ? this.$t(item.name) : this.$t(item.shortName)}
                         >
                           {item.children
                             .filter(child => !child.hidden)
                             .map(child => (
-                              <bk-navigation-menu-item
+                              <NavigationMenuItem
                                 onClick={() => this.handleMenuItemClick(child)}
                                 key={child.id}
                                 href={child.href}
@@ -804,7 +805,7 @@ export default class App extends tsc<{}> {
                                 scopedSlots={{
                                   child: () =>
                                     child?.children?.map(set => (
-                                      <bk-navigation-menu-item
+                                      <NavigationMenuItem
                                         class={{ 'disabled-event': !set.href && !set.path }}
                                         onClick={() => this.handleMenuItemClick(set)}
                                         key={set.id}
@@ -812,7 +813,7 @@ export default class App extends tsc<{}> {
                                         {...{ props: set }}
                                       >
                                         {this.$t(set.name)}
-                                      </bk-navigation-menu-item>
+                                      </NavigationMenuItem>
                                     ))
                                 }}
                                 {...{ props: child }}
@@ -822,11 +823,11 @@ export default class App extends tsc<{}> {
                                   {child.isBeta && <span class='nav-menu-item-beta'>BETA</span>}
                                   {child.navIcon && <i class={child.navIcon} />}
                                 </span>
-                              </bk-navigation-menu-item>
+                              </NavigationMenuItem>
                             ))}
-                        </bk-navigation-menu-group>
+                        </NavigationMenuGroup>
                       ) : (
-                        <bk-navigation-menu-item
+                        <NavigationMenuItem
                           onClick={() => this.handleMenuItemClick(item)}
                           key={item.id}
                           href={item.href}
@@ -838,10 +839,10 @@ export default class App extends tsc<{}> {
                             {item.isBeta && <span class='nav-menu-item-beta'>BETA</span>}
                             {item.navIcon && <i class={item.navIcon} />}
                           </span>
-                        </bk-navigation-menu-item>
+                        </NavigationMenuItem>
                       )
                     )}
-                </bk-navigation-menu>
+                </NavigationMenu>
               </div>
             ) : undefined
             // #endif
@@ -885,7 +886,7 @@ export default class App extends tsc<{}> {
             class='monitor-logo'
             slot='side-icon'
           />
-        </bk-navigation>
+        </Navigation>
         {
           // #if APP !== 'external'
           !(this.readonly || window.__POWERED_BY_BK_WEWEB__) &&

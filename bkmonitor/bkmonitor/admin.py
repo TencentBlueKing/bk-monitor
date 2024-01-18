@@ -285,19 +285,6 @@ class StatisticsMetricAdmin(admin.ModelAdmin):
     search_fields = ("name",)
 
 
-class AIFeatureSettingsAdmin(admin.ModelAdmin):
-    list_display = (
-        "bk_biz_id",
-        "config",
-        "create_at",
-        "update_at",
-    )
-    search_fields = ("bk_biz_id",)
-    list_filter = ("bk_biz_id",)
-
-    formfield_overrides = {JsonField: {"widget": PrettyJSONWidget}}
-
-
 admin.site.register(models.Strategy, StrategyAdmin)
 admin.site.register(models.Item, ItemAdmin)
 admin.site.register(models.ResultTableSQLConfig, ResultTableSQLConfigAdmin)
@@ -328,7 +315,6 @@ admin.site.register(models.DetectModel, models.DetectModelAdmin)
 admin.site.register(models.StrategyHistoryModel, models.StrategyHistoryModelAdmin)
 admin.site.register(models.ApiAuthToken, ApiAuthTokenAdmin)
 admin.site.register(models.StatisticsMetric, StatisticsMetricAdmin)
-admin.site.register(models.AIFeatureSettings, AIFeatureSettingsAdmin)
 
 
 # 因为配置admin界面时，list_display, search_fields, list_filter 都是全部字段中排除效果不好的几个，

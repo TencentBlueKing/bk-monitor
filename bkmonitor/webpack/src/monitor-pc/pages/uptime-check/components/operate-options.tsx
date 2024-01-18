@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button } from 'bk-magic-vue';
 
 import './operate-options.scss';
 
@@ -100,7 +101,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
               allowHTML: false
             }}
           >
-            <bk-button
+            <Button
               text
               theme='primary'
               class='options-item'
@@ -111,7 +112,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
               }
             >
               {item.name}
-            </bk-button>
+            </Button>
           </span>
         ))}
         {this.options?.popover?.length ? (

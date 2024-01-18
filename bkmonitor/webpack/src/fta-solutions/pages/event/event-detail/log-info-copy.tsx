@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Exception } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { listIndexByHost } from '../../../../monitor-api/modules/alert_events';
@@ -203,18 +204,18 @@ export default class LogInfo extends tsc<IProps> {
           ></CommonTable>
         ) : (
           <div class='no-data'>
-            <bk-exception type='building'>
+            <Exception type='building'>
               <div class='no-data-msg'>
                 <span class='title'>{this.$t('通过目标{0}，找不到日志索引集', [this.ip])}</span>
-                <bk-button
+                <Button
                   class='btn'
                   theme='primary'
                   onClick={() => this.handleToLog()}
                 >
                   {this.$t('前往日志检索')}
-                </bk-button>
+                </Button>
               </div>
-            </bk-exception>
+            </Exception>
           </div>
         )}
       </div>

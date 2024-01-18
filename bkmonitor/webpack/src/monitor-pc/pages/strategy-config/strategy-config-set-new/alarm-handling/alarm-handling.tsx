@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input, Option, Select, Switcher } from 'bk-magic-vue';
 
 import SetMealDeail from '../../../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import { deepClone } from '../../../../../monitor-common/utils/utils';
@@ -240,7 +241,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
             </div>
           </GroupSelect>
           {!this.isSimple ? (
-            <bk-button
+            <Button
               text
               title='primary'
               size='small'
@@ -249,28 +250,28 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
               on-click={this.handleShowMealDetail}
             >
               {this.$t('button-预览')}
-            </bk-button>
+            </Button>
           ) : undefined}
         </CommonItem>
         <CommonItem
           title={this.$t('防御规则')}
           show-semicolon
         >
-          <bk-switcher
+          <Switcher
             style={{ marginRight: '8px' }}
             v-model={this.data.options.converge_config.is_enabled}
             theme='primary'
             size='small'
             disabled={this.readonly}
             on-change={this.handleChange}
-          ></bk-switcher>
+          ></Switcher>
           {this.data.options.converge_config.is_enabled && (
             <i18n
               path='当{0}分钟内执行{1}次时，防御动作{2}'
               class={`defense-wrap ${this.isSimple ? 'simple' : ''}`}
             >
               {!this.readonly ? (
-                <bk-input
+                <Input
                   type='number'
                   size='small'
                   class='small-input'
@@ -279,12 +280,12 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                   readonly={this.readonly}
                   v-model={this.data.options.converge_config.timedelta}
                   on-change={this.handleChange}
-                ></bk-input>
+                ></Input>
               ) : (
                 <span>{this.data.options.converge_config.timedelta}</span>
               )}
               {!this.readonly ? (
-                <bk-input
+                <Input
                   type='number'
                   size='small'
                   class='small-input'
@@ -293,11 +294,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                   readonly={this.readonly}
                   v-model={this.data.options.converge_config.count}
                   on-change={this.handleChange}
-                ></bk-input>
+                ></Input>
               ) : (
                 <span>{this.data.options.converge_config.count}</span>
               )}
-              <bk-select
+              <Select
                 class='select-inline'
                 popover-min-width={140}
                 v-model={this.data.options.converge_config.converge_func}
@@ -309,13 +310,13 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                 on-change={this.handleChange}
               >
                 {this.allDefense.map(option => (
-                  <bk-option
+                  <Option
                     key={option.key}
                     id={option.key}
                     name={option.name}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
+              </Select>
             </i18n>
           )}
         </CommonItem>

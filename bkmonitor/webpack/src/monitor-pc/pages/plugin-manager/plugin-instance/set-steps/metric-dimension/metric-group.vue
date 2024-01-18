@@ -477,6 +477,7 @@
 <script>
 /* eslint-disable vue/no-mutating-props */
 import { mapActions } from 'vuex';
+import { bkPopconfirm } from 'bk-magic-vue';
 
 import { collapseMixin } from '../../../../../common/mixins';
 import ColumnCheck from '../../../../performance/column-check/column-check.vue';
@@ -484,6 +485,9 @@ import { judgeIsIllegal, metricNameTransFrom } from '../../../utils';
 
 export default {
   name: 'MetricGroup',
+  components: {
+    bkPopconfirm
+  },
   mixins: [collapseMixin],
   props: {
     isDefaultGroup: {

@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Option, Select } from 'bk-magic-vue';
 
 import { createSpace, listDevopsSpaces } from '../../../../monitor-api/modules/commons';
 
@@ -378,17 +379,17 @@ export default class ResearchForm extends tsc<IProps> {
                   error-display-type={'normal'}
                 >
                   <div class='project-type'>
-                    <bk-select
+                    <Select
                       v-model={this.addValue.project_type}
                       clearable={false}
                     >
                       {projectTypeList.map(item => (
-                        <bk-option
+                        <Option
                           id={item.id}
                           name={item.name}
-                        ></bk-option>
+                        ></Option>
                       ))}
-                    </bk-select>
+                    </Select>
                   </div>
                 </bk-form-item>
               </bk-form>

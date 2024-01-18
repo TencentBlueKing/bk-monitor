@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Switcher } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../monitor-common/utils/utils';
 import { ITableFilterItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
@@ -122,12 +123,12 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
             )}
             {this.isOverview && (
               <div class='empty-node-switcher'>
-                <bk-switcher
+                <Switcher
                   v-model={this.showEmptyNode}
                   theme='primary'
                   size='small'
                   onChange={(v: boolean) => this.handleShowNodata(v)}
-                ></bk-switcher>
+                ></Switcher>
                 <span class='switcher-text'>{window.i18n.t('无数据节点')}</span>
               </div>
             )}

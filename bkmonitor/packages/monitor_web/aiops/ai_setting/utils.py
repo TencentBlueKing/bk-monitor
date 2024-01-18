@@ -12,10 +12,8 @@ import logging
 from dataclasses import asdict, dataclass, field, fields
 
 from django.conf import settings
-
-from bkmonitor.dataflow.constant import AccessStatus
-from bkmonitor.models.aiops import AIFeatureSettings
-from constants.aiops import (
+from monitor.models import ApplicationConfig
+from monitor_web.aiops.ai_setting.constant import (
     AI_SETTING_APPLICATION_CONFIG_KEY,
     DEFAULT_SENSITIVITY,
     DIMENSION_DRILL,
@@ -24,7 +22,9 @@ from constants.aiops import (
     MULTIVARIATE_ANOMALY_DETECTION,
 )
 
-logger = logging.getLogger("bkmonitor.aiops")
+from bkmonitor.dataflow.constant import AccessStatus
+
+logger = logging.getLogger("monitor_web")
 
 
 class AiSettingException(Exception):
@@ -103,7 +103,6 @@ class DimensionDrill(BaseAnomalyConfig):
 class MetricRecommend(BaseAnomalyConfig):
     # 指标推荐
     is_enabled: bool = field(default=False)
-    result_table_id: str = field(default="")
 
 
 class AiSetting:
@@ -118,10 +117,11 @@ class AiSetting:
         dimension_drill = DimensionDrill()
         metric_recommend = MetricRecommend()
 
-        self.ai_setting, created = AIFeatureSettings.objects.get_or_create(
-            bk_biz_id=bk_biz_id,
+        self.ai_setting, created = ApplicationConfig.objects.get_or_create(
+            cc_biz_id=bk_biz_id,
+            key=AI_SETTING_APPLICATION_CONFIG_KEY,
             defaults={
-                "config": {
+                "value": {
                     KPI_ANOMALY_DETECTION: kpi_anomaly_detection,
                     MULTIVARIATE_ANOMALY_DETECTION: multivariate_anomaly_detection,
                     DIMENSION_DRILL: dimension_drill,
@@ -131,14 +131,14 @@ class AiSetting:
         )
 
         if not created:
-            kpi_anomaly_detection = KpiAnomalyConfig().from_dict(self.ai_setting.config[KPI_ANOMALY_DETECTION])
+            kpi_anomaly_detection = KpiAnomalyConfig().from_dict(self.ai_setting.value[KPI_ANOMALY_DETECTION])
             multivariate_anomaly_detection = MultivariateAnomalyDetection.from_dict(
-                self.ai_setting.config[MULTIVARIATE_ANOMALY_DETECTION]
+                self.ai_setting.value[MULTIVARIATE_ANOMALY_DETECTION]
             )
-            if DIMENSION_DRILL in self.ai_setting.config:
-                dimension_drill = DimensionDrill.from_dict(self.ai_setting.config[DIMENSION_DRILL])
-            if METRIC_RECOMMEND in self.ai_setting.config:
-                metric_recommend = MetricRecommend.from_dict(self.ai_setting.config[METRIC_RECOMMEND])
+            if DIMENSION_DRILL in self.ai_setting.value:
+                dimension_drill = DimensionDrill.from_dict(self.ai_setting.value[DIMENSION_DRILL])
+            if METRIC_RECOMMEND in self.ai_setting.value:
+                metric_recommend = MetricRecommend.from_dict(self.ai_setting.value[METRIC_RECOMMEND])
 
         self.kpi_anomaly_detection = kpi_anomaly_detection
         self.multivariate_anomaly_detection = multivariate_anomaly_detection
@@ -161,7 +161,7 @@ class AiSetting:
             DIMENSION_DRILL: self.dimension_drill.to_dict(),
             METRIC_RECOMMEND: self.metric_recommend.to_dict(),
         }
-        AIFeatureSettings.objects.create(cc_biz_id=self.bk_biz_id, key=AI_SETTING_APPLICATION_CONFIG_KEY, value=value)
+        ApplicationConfig.objects.create(cc_biz_id=self.bk_biz_id, key=AI_SETTING_APPLICATION_CONFIG_KEY, value=value)
 
     def save(self, kpi_anomaly_detection=None, multivariate_anomaly_detection=None):
         kpi_anomaly_detection = (
@@ -173,7 +173,7 @@ class AiSetting:
             else self.multivariate_anomaly_detection.to_dict()
         )
 
-        self.ai_setting.config = {
+        self.ai_setting.value = {
             KPI_ANOMALY_DETECTION: kpi_anomaly_detection,
             MULTIVARIATE_ANOMALY_DETECTION: multivariate_anomaly_detection,
             DIMENSION_DRILL: self.dimension_drill.to_dict(),

@@ -25,6 +25,18 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import {
+  Button,
+  Checkbox,
+  CheckboxGroup,
+  Dialog,
+  Input,
+  Option,
+  Radio,
+  RadioGroup,
+  Select,
+  Switcher
+} from 'bk-magic-vue';
 
 import ResizeContainer from '../../../../fta-solutions/components/resize-container/resize-container';
 import AutoInput from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
@@ -556,7 +568,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               class='i18n'
               path='在{0}个周期内{1}满足{2}次检测算法触发异常告警'
             >
-              <bk-input
+              <Input
                 behavior='simplicity'
                 onChange={(v: number) => this.handleFormatNumber(v, 'triggerCondition', 'cycleOne')}
                 class='number-input w56'
@@ -565,22 +577,22 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 min={1}
                 max={60}
                 v-model={this.data.triggerCondition.cycleOne}
-              ></bk-input>
-              <bk-select
+              ></Input>
+              <Select
                 behavior='simplicity'
                 style='width: 64px'
                 clearable={false}
                 v-model={this.data.triggerCondition.type}
               >
                 {this.triggerTypeList.map((item, index) => (
-                  <bk-option
+                  <Option
                     key={index}
                     id={item.id}
                     name={item.name}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
-              <bk-input
+              </Select>
+              <Input
                 behavior='simplicity'
                 onChange={(v: number) => this.handleFormatNumber(v, 'triggerCondition', 'count')}
                 class='number-input w56'
@@ -589,7 +601,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 min={1}
                 max={this.numbersScope.countMax}
                 v-model={this.data.triggerCondition.count}
-              ></bk-input>
+              ></Input>
             </i18n>
             {this.data.triggerError ? (
               <span class='trigger-condition-tips'>
@@ -605,13 +617,13 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               class='i18n'
               path='{0}当数据连续丢失{1}个周期触发无数据告警'
             >
-              <bk-switcher
+              <Switcher
                 class='inline-switcher'
                 v-model={this.data.openAlarmNoData}
                 size='small'
                 theme='primary'
-              ></bk-switcher>
-              <bk-input
+              ></Switcher>
+              <Input
                 behavior='simplicity'
                 disabled={!this.data.openAlarmNoData}
                 onChange={(v: number) => this.handleFormatNumber(v, 'noDataAlarm', 'cycle')}
@@ -620,7 +632,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 showControls={false}
                 min={1}
                 v-model={this.data.noDataAlarm.cycle}
-              ></bk-input>
+              ></Input>
             </i18n>
           </div>,
           this.data.noDataCycleError ? (
@@ -631,7 +643,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         return [
           <div class='modify-trigger-condition'>
             <i18n path='连续{0}个周期内不满足触发条件表示恢复'>
-              <bk-input
+              <Input
                 behavior='simplicity'
                 onChange={(v: number) => this.handleFormatNumber(v, 'recover', 'val')}
                 class='number-input'
@@ -639,7 +651,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 showControls={false}
                 min={1}
                 v-model={this.data.recover.val}
-              ></bk-input>
+              ></Input>
             </i18n>
           </div>,
           this.data.recoverCycleError ? (
@@ -649,15 +661,15 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       case 6 /* 启停策略 */:
         return (
           <div class='alarm-recover'>
-            <bk-radio-group v-model={this.data.enAbled}>
-              <bk-radio
+            <RadioGroup v-model={this.data.enAbled}>
+              <Radio
                 style='margin-right: 58px'
                 value={true}
               >
                 {this.$t('启用')}
-              </bk-radio>
-              <bk-radio value={false}>{this.$t('停用')}</bk-radio>
-            </bk-radio-group>
+              </Radio>
+              <Radio value={false}>{this.$t('停用')}</Radio>
+            </RadioGroup>
           </div>
         );
       case 7 /* 删除策略 */:
@@ -730,27 +742,27 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             <div class='content-item'>
               <span class='title'>{this.$t('告警阶段')}:</span>
               <span class='effective-conditions'>
-                <bk-checkbox-group
+                <CheckboxGroup
                   value={this.data.signal}
                   on-change={v => this.handleSignalChange(v, 'notice')}
                 >
                   {noticeOptions.map(item => (
-                    <bk-checkbox value={item.key}>{item.text}</bk-checkbox>
+                    <Checkbox value={item.key}>{item.text}</Checkbox>
                   ))}
-                </bk-checkbox-group>
+                </CheckboxGroup>
               </span>
             </div>
             <div class='content-item'>
               <span class='title'>{this.$t('处理阶段')}:</span>
               <span class='effective-conditions'>
-                <bk-checkbox-group
+                <CheckboxGroup
                   value={this.data.signal}
                   on-change={v => this.handleSignalChange(v, 'action')}
                 >
                   {actionOption.map(item => (
-                    <bk-checkbox value={item.key}>{item.text}</bk-checkbox>
+                    <Checkbox value={item.key}>{item.text}</Checkbox>
                   ))}
-                </bk-checkbox-group>
+                </CheckboxGroup>
               </span>
             </div>
           </div>
@@ -764,7 +776,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                 class='content-interval'
               >
-                <bk-select
+                <Select
                   class='select select-inline'
                   clearable={false}
                   behavior='simplicity'
@@ -772,14 +784,14 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   v-model={this.data.noticeInterval.interval_notify_mode}
                 >
                   {intervalModeList.map(item => (
-                    <bk-option
+                    <Option
                       key={item.id}
                       id={item.id}
                       name={item.name}
-                    ></bk-option>
+                    ></Option>
                   ))}
-                </bk-select>
-                <bk-input
+                </Select>
+                <Input
                   class='input-inline input-center'
                   behavior='simplicity'
                   v-model={this.data.noticeInterval.notify_interval}
@@ -787,7 +799,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   type='number'
                   size='small'
                   onFocus={() => (this.data.noticeIntervalError = false)}
-                ></bk-input>
+                ></Input>
               </i18n>
               <span
                 class='icon-monitor icon-hint'
@@ -857,11 +869,11 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           <div class='alarm-storm'>
             <span class='title'>{this.$t('告警风暴')}:</span>
             <span class='content'>
-              <bk-switcher
+              <Switcher
                 v-model={this.data.needBizConverge}
                 theme='primary'
                 size='small'
-              ></bk-switcher>
+              ></Switcher>
               <i class='icon-monitor icon-hint'></i>
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}
@@ -876,7 +888,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
 
   render() {
     return (
-      <bk-dialog
+      <Dialog
         class='strategy-list-dialog'
         title={this.curItem.title}
         width={this.curItem.width}
@@ -895,25 +907,25 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         </div>
         <div slot='footer'>
           {this.setType === 6 || this.setType === 7 ? (
-            <bk-button
+            <Button
               theme='primary'
               onClick={this.handleConfirm}
             >
               {this.$t('确认')}
-            </bk-button>
+            </Button>
           ) : (
-            <bk-button
+            <Button
               theme='primary'
               onClick={this.handleConfirm}
               disabled={this.loading}
             >
               {' '}
               {this.$t('保存')}{' '}
-            </bk-button>
+            </Button>
           )}
           <bk-button onClick={this.handleCancel}> {this.$t('取消')} </bk-button>
         </div>
-      </bk-dialog>
+      </Dialog>
     );
   }
 }

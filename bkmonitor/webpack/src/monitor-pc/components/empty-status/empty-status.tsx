@@ -26,6 +26,7 @@
 
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Exception } from 'bk-magic-vue';
 
 import { EmptyStatusOperationType, EmptyStatusType, IEmptyStatusTextMap } from './types';
 
@@ -104,7 +105,7 @@ export default class EmptyStatus extends tsc<IEmptyStatusProps, IEmptyStatusEven
   render() {
     return (
       <div class='empty-status-container'>
-        <bk-exception
+        <Exception
           type={this.type}
           scene={this.scene}
           {...{ props: this.$attrs }}
@@ -113,7 +114,7 @@ export default class EmptyStatus extends tsc<IEmptyStatusProps, IEmptyStatusEven
             <p class='empty-text'>{this.typeText}</p>
             {this.showOperation && (this.$slots.default || this.defaultOperation)}
           </div>
-        </bk-exception>
+        </Exception>
       </div>
     );
   }

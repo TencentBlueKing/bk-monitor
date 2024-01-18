@@ -26,6 +26,7 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox, CheckboxGroup, Exception, Input, Radio, RadioGroup, Spin } from 'bk-magic-vue';
 
 import { CancelToken } from '../../monitor-api/index';
 import { globalSearch } from '../../monitor-api/modules/search';
@@ -487,7 +488,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
       >
         <div class='global-search-wrap'>
           <div class='search-input'>
-            <bk-input
+            <Input
               ref='input'
               v-model={this.searchVal}
               placeholder={this.$t('请输入关键词搜索')}
@@ -498,9 +499,9 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
               }}
               on-enter={() => this.handleSearch()}
               on-clear={() => this.handleSearch()}
-            ></bk-input>
+            ></Input>
             {this.isLoading && (
-              <bk-spin
+              <Spin
                 size='mini'
                 theme='info'
               />
@@ -540,13 +541,13 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
             {this.showDefaultResult && !this.searchHistoryList.length ? (
               <div class='search-default-empty'>
                 <div class='search-empty'>
-                  <bk-exception
+                  <Exception
                     class='search-empty-item'
                     type='search-empty'
                     scene='part'
                   >
                     <div class='empty-text'>{this.$t('输入关键词进行搜索')}</div>
-                  </bk-exception>
+                  </Exception>
                 </div>
               </div>
             ) : (
@@ -608,10 +609,10 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
               <div class='loading-bar'>
                 <div class='bar-content'>
                   <span class='loading-text-default'>
-                    <bk-spin
+                    <Spin
                       theme='info'
                       size='mini'
-                    ></bk-spin>
+                    ></Spin>
                     {`${this.$t('加载中...')}`}
                   </span>
                   <span class='laoding-text-module'>{this.curSearchSceneName}</span>
@@ -621,7 +622,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
             {/* 搜素结果为空 */}
             {!this.showDefaultResult && !this.searchResultList.length && !this.isLoading && (
               <div class='search-empty'>
-                <bk-exception
+                <Exception
                   class='search-empty-item'
                   type='search-empty'
                   scene='part'
@@ -637,7 +638,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                       {this.$t('全站搜索')}
                     </div>
                   )}
-                </bk-exception>
+                </Exception>
               </div>
             )}
           </div>
@@ -647,13 +648,13 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
               <div class='title'>
                 <span class='text'>{this.$t('空间范围')}</span>
               </div>
-              <bk-radio-group
+              <RadioGroup
                 class='range-radio'
                 v-model={this.activeRange}
                 onChange={this.handleChangeSearchRange}
               >
                 {this.searchRangeMenu.map(item => (
-                  <bk-radio
+                  <Radio
                     key={item.id}
                     value={item.id}
                     class={`${item.id === 'BIZ' ? 'biz-radio' : ''}`}
@@ -681,38 +682,38 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                     ) : (
                       item.name
                     )}
-                  </bk-radio>
+                  </Radio>
                 ))}
-              </bk-radio-group>
+              </RadioGroup>
             </div>
             {/* 内容范围 */}
             <div class='search-scene'>
               <div class='title'>
                 <span class='text'>{this.$t('内容范围')}</span>
               </div>
-              <bk-checkbox
+              <Checkbox
                 class='scene-item all-scene'
                 v-model={this.isAllScene}
                 before-change={this.handleBeforeChangeSceneAll}
                 onChange={this.handleChangeSceneAll}
               >
                 {this.$t('全部')}
-              </bk-checkbox>
-              <bk-checkbox-group
+              </Checkbox>
+              <CheckboxGroup
                 class='scene-list'
                 v-model={this.selectSceneList}
                 onChange={this.handleChangeSceneItem}
               >
                 {this.sceneViewList.map(scene => (
-                  <bk-checkbox
+                  <Checkbox
                     key={scene.id}
                     value={scene.id}
                     class='scene-item'
                   >
                     {scene.name}
-                  </bk-checkbox>
+                  </Checkbox>
                 ))}
-              </bk-checkbox-group>
+              </CheckboxGroup>
             </div>
           </div>
         </div>

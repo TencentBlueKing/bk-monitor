@@ -12,14 +12,14 @@ from copy import deepcopy
 
 import mock
 from django.test import TestCase
-
-from constants.aiops import AI_SETTING_APPLICATION_CONFIG_KEY
 from monitor.models import ApplicationConfig
+from monitor_web.aiops.ai_setting.constant import AI_SETTING_APPLICATION_CONFIG_KEY
 from monitor_web.aiops.ai_setting.resources import SaveAiSettingResource
 
 APPLICATION_CONFIG_INIT_DATA = {
-    "bk_biz_id": 1,
-    "config": {
+    "cc_biz_id": 1,
+    "key": AI_SETTING_APPLICATION_CONFIG_KEY,
+    "value": {
         "kpi_anomaly_detection": {"is_enabled": False, "default_sensitivity": 5, "default_plan_id": 87},
         "multivariate_anomaly_detection": {
             "host": {
@@ -48,8 +48,9 @@ APPLICATION_CONFIG_INIT_DATA = {
 }
 
 APPLICATION_CONFIG_INIT_CLOSE_DATA = {
-    "bk_biz_id": 1,
-    "config": {
+    "cc_biz_id": 3,
+    "key": AI_SETTING_APPLICATION_CONFIG_KEY,
+    "value": {
         "kpi_anomaly_detection": {"is_enabled": False, "default_sensitivity": 5, "default_plan_id": 87},
         "multivariate_anomaly_detection": {
             "host": {

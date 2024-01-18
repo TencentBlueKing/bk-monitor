@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Select } from 'bk-magic-vue';
 
 import { IOption } from '../../pages/monitor-k8s/typings';
 import { getPopoverWidth } from '../../utils';
@@ -47,7 +48,7 @@ export interface ICustomSelectEvents {
 export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectEvents> {
   @Model('emitValue') value: string | string[];
   @Prop({ default: () => [], type: Array }) options: IOption[];
-  @Ref() bkSelectRef: any;
+  @Ref() bkSelectRef: Select;
   // 是否只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   isShow = false;

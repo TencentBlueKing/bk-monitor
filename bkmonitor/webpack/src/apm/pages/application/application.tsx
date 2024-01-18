@@ -25,6 +25,7 @@
  */
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-property-decorator';
+import { Dialog, Spin } from 'bk-magic-vue';
 
 import { random } from '../../../monitor-common/utils/utils';
 import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
@@ -122,8 +123,8 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           this.tabName === window.i18n.tc('服务')
           ? window.i18n.tc('列表')
           : this.tabId === 'topo'
-            ? window.i18n.tc('拓扑')
-            : window.i18n.tc('概览')
+          ? window.i18n.tc('拓扑')
+          : window.i18n.tc('概览')
         : this.subName;
     return `${this.tabName}：${value}`;
   }
@@ -251,7 +252,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
               <div slot='noData'>
                 <CommonAlert class='no-data-alert'>
                   <div slot='title'>
-                    <bk-spin
+                    <Spin
                       theme='warning'
                       size='mini'
                     />
@@ -295,7 +296,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           pluginId={this.pluginId}
           v-model={this.showAddDialog}
         ></AppAddForm>
-        <bk-dialog
+        <Dialog
           value={this.showGuideDialog}
           mask-close={true}
           ext-cls='no-data-guide-dialog'
@@ -308,7 +309,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
             type='noData'
             appName={this.appInfo?.app_name}
           />
-        </bk-dialog>
+        </Dialog>
       </div>
     );
   }

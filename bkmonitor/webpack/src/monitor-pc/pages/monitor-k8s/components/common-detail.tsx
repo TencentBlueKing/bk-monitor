@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input } from 'bk-magic-vue';
 
 import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from '../../../../monitor-api/index';
@@ -629,7 +630,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                     onClick={e => e.stopPropagation()}
                   >
                     {this.showIndexSearchInput ? (
-                      <bk-input
+                      <Input
                         v-model={this.indexSearchKeyword}
                         behavior='simplicity'
                         right-icon='bk-icon icon-search'

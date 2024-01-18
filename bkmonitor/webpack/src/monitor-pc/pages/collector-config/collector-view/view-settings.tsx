@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Tab, TabPanel } from 'bk-magic-vue';
 
 import { deleteScenePanelConfig, saveScenePanelConfig } from '../../../../monitor-api/modules/data_explorer';
 import { random } from '../../../../monitor-common/utils/utils';
@@ -187,7 +188,7 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
         v-bkloading={{ isLoading: this.isLoading }}
       >
         {this.sceneList?.length ? (
-          <bk-tab
+          <Tab
             active={this.active}
             addable
             key={this.tabKey}
@@ -198,7 +199,7 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
             on-add-panel={this.tabAdd}
           >
             {this.sceneList.map((item, index) => (
-              <bk-tab-panel
+              <TabPanel
                 name={item.name}
                 key={item.name}
               >
@@ -219,9 +220,9 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
                     </div>
                   </div>
                 </template>
-              </bk-tab-panel>
+              </TabPanel>
             ))}
-          </bk-tab>
+          </Tab>
         ) : undefined}
         <ViewSettingsSide
           show={this.sideShow}

@@ -94,11 +94,11 @@
               <bk-input
                 class="form-input"
                 show-word-limit
-                maxlength="100"
+                maxlength="50"
                 data-test-id="addNewCustomBox_input_englishName"
                 v-model="formData.collector_config_name_en"
                 :disabled="submitLoading || isEdit"
-                :placeholder="$t('支持数字、字母、下划线，长短5～100字符')"></bk-input>
+                :placeholder="$t('支持数字、字母、下划线，长短5～50字符')"></bk-input>
               <span v-if="!isTextValid" class="text-error">{{formData.collector_config_name_en}}</span>
             </div>
             <span v-bk-tooltips.top="$t('自动转换成正确的数据名格式')">
@@ -384,8 +384,8 @@ export default {
             trigger: 'blur',
           },
           {
-            max: 100,
-            message: this.$t('不能多于{n}个字符', { n: 100 }),
+            max: 50,
+            message: this.$t('不能多于{n}个字符', { n: 50 }),
             trigger: 'blur',
           },
           {

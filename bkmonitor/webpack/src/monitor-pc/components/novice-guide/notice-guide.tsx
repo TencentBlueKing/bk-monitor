@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button } from 'bk-magic-vue';
 import { debounce } from 'throttle-debounce';
 
 import './notice-guide.scss';
@@ -239,7 +240,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
                     {this.step === this.stepList.length - 1 ? this.$t('button-完成') : this.$t('下一步')}
                   </div>
                 }
-                <bk-button
+                <Button
                   text={true}
                   title='primary'
                   ext-cls='ukown-btn'
@@ -247,7 +248,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
                   v-show={this.step !== 3}
                 >
                   {this.$t('知道了!')}
-                </bk-button>
+                </Button>
               </div>
               <div class='target-arrow'></div>
             </div>

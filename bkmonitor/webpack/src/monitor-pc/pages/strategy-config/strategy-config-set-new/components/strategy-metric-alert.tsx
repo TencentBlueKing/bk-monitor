@@ -26,6 +26,7 @@
 /* eslint-disable camelcase */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Checkbox, SearchSelect, Table, TableColumn } from 'bk-magic-vue';
 import { debounce, throttle } from 'throttle-debounce';
 
 import { getMetricListV2 } from '../../../../../monitor-api/modules/strategies';
@@ -89,7 +90,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
   @Prop({ default: 'application_check', type: String }) monitorType: string;
   @Prop({ default: () => [], type: Array }) metricData: MetricDetail[];
-  @Ref('alertTable') tableRef: any;
+  @Ref('alertTable') tableRef: Table;
 
   isLoading = false;
   // 数据来源
@@ -488,19 +489,19 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       default: ({ row }) => {
         const isCheck = this.checkData.map((item: any) => item.metric_id).includes(row.metric_id);
         return (
-          <bk-checkbox
+          <Checkbox
             checked={isCheck}
             on-change={v => this.handleCheck(v, row)}
-          ></bk-checkbox>
+          ></Checkbox>
         );
       }
     };
     const seeCheckedSlot = {
       default: ({ row }) => (
-        <bk-checkbox
+        <Checkbox
           checked={true}
           on-change={() => this.handleDeleteCheckedMetric(row)}
-        ></bk-checkbox>
+        ></Checkbox>
       )
     };
     const renderHeader = () => {
@@ -509,67 +510,67 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       const isAllChecked =
         curMetricIdList.every(item => checkedMetricIdList.includes(item)) && this.curTableData.list.length > 0;
       return (
-        <bk-checkbox
+        <Checkbox
           checked={isAllChecked}
           on-change={this.handleAllCheck}
           disabled={this.curTableData.list.length === 0}
-        ></bk-checkbox>
+        ></Checkbox>
       );
     };
     const renderSeeCheckedHeader = () => (
-      <bk-checkbox
+      <Checkbox
         checked={true}
         on-change={() => (this.checkData = [])}
         disabled
-      ></bk-checkbox>
+      ></Checkbox>
     );
     const checkBox = (
-      <bk-table-column
+      <TableColumn
         width={48}
         scopedSlots={checkboxSlot}
         render-header={renderHeader}
-      ></bk-table-column>
+      ></TableColumn>
     );
     const columnMap = {
       bk_monitor_alert: () => [
         checkBox,
-        <bk-table-column
+        <TableColumn
           label={this.$t('策略ID')}
           prop='metric_field'
           width='80'
           show-overflow-tooltip
-        ></bk-table-column>,
-        <bk-table-column
+        ></TableColumn>,
+        <TableColumn
           label={this.$t('策略名称')}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
+        ></TableColumn>
       ],
       bk_fta_alert: () => [
         checkBox,
-        <bk-table-column
+        <TableColumn
           label={this.$t('告警名称')}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
+        ></TableColumn>
       ],
       seeChecked: () => [
-        <bk-table-column
+        <TableColumn
           width={48}
           key={String(this.isSeeSelected)}
           scopedSlots={seeCheckedSlot}
           render-header={renderSeeCheckedHeader}
-        ></bk-table-column>,
-        <bk-table-column
+        ></TableColumn>,
+        <TableColumn
           label={`${this.$t('策略名称')}/${this.$t('告警名称')}`}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
+        ></TableColumn>
       ]
     };
     return (
       <div class='metric-alert-table'>
-        <bk-table
+        <Table
           {...{
             props: {
               data: this.isSeeSelected ? this.checkData : this.curTableData.list
@@ -581,7 +582,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           outer-border={false}
         >
           {this.isSeeSelected ? columnMap.seeChecked() : columnMap[this.sourceType]()}
-        </bk-table>
+        </Table>
       </div>
     );
   }
@@ -598,7 +599,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         <div v-bkloading={{ isLoading: this.isLoading }}>
           <div class='metric-wrap-common'>
             <div class='metric-handle-row'>
-              <bk-search-select
+              <SearchSelect
                 class='search-select'
                 ref='searchSelect'
                 v-model={this.searchObj.keyWord}
@@ -608,14 +609,14 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
                 placeholder={this.$t('关键字搜索')}
                 on-change={this.handleSearch}
                 show-condition={false}
-              ></bk-search-select>
-              <bk-button
+              ></SearchSelect>
+              <Button
                 class='btn-refresh'
                 icon='icon-refresh'
                 onClick={this.handleRefresh}
-              ></bk-button>
+              ></Button>
               <div class='see-selected'>
-                <bk-checkbox
+                <Checkbox
                   checked={false}
                   true-value={true}
                   false-value={false}
@@ -626,7 +627,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
                     {this.$t('只看已选')}
                     <span class='num'>{`(${this.checkData.length})`}</span>
                   </div>
-                </bk-checkbox>
+                </Checkbox>
               </div>
             </div>
           </div>
@@ -674,20 +675,20 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
               allowHTML: false
             }}
           >
-            <bk-button
+            <Button
               theme='primary'
               onClick={this.handleAdd}
               disabled={!this.isCanAdd}
             >
               {this.$t('添加')}
-            </bk-button>
+            </Button>
           </span>
-          <bk-button
+          <Button
             style='margin-left: 10px;'
             onClick={() => this.handleShowChange(false)}
           >
             {this.$t('取消')}
-          </bk-button>
+          </Button>
         </div>
       </MonitorDialog>
     );

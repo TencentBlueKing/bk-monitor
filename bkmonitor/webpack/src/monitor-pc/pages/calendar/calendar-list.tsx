@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { VirtualRender } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { deleteItem, itemList } from '../../../monitor-api/modules/calendar';
@@ -60,7 +61,11 @@ interface IEvents {
 /**
  * 日历服务事项列表
  */
-@Component
+@Component({
+  components: {
+    VirtualRender
+  }
+})
 export default class CalendarList extends tsc<IProps, IEvents> {
   /** 日历列表 */
   @Prop({ type: Array, default: () => [] }) calendarList: IOptionsItem[];

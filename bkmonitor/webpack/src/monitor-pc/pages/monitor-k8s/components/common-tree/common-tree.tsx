@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers as m } from 'vue-tsx-support';
+import { BigTree, Button, Exception } from 'bk-magic-vue';
 
 import { Debounce, deepClone, typeTools } from '../../../../../monitor-common/utils/utils';
 import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
@@ -320,12 +321,12 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
-          <bk-button
+          <Button
             class='reflesh-btn'
             onClick={this.handleRefresh}
           >
             <i class='icon-monitor icon-shuaxin'></i>
-          </bk-button>
+          </Button>
         </div>
         <StatusTab
           class='status-tab'
@@ -335,7 +336,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           onChange={this.handleStatusChange}
         />
         <div class='list-wrapper'>
-          <bk-big-tree
+          <BigTree
             class={['big-tree', { 'clear-selected': !this.activeId }]}
             ref='bigTreeRef'
             expand-on-click={false}
@@ -350,12 +351,12 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               slot='empty'
               class='search-empty-wrap'
             >
-              <bk-exception
+              <Exception
                 type='search-empty'
                 scene='part'
               />
             </div>
-          </bk-big-tree>
+          </BigTree>
         </div>
       </div>
     );

@@ -27,6 +27,17 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import {
+  Checkbox,
+  Dialog,
+  DropdownMenu,
+  Input,
+  Option,
+  Select,
+  Table,
+  TableColumn,
+  TableSettingContent
+} from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import {
@@ -524,16 +535,16 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
     const nameSlot = {
       default: ({ row }) => [
         <div class='group-container'>
-          <bk-checkbox
+          <Checkbox
             class='group-check-box'
             checked={this.getCheckedStatus(row)}
             on-change={status => this.handleRowCheckChange(row, status)}
-          ></bk-checkbox>
+          ></Checkbox>
           <div class='manage-input'>
-            <bk-input
+            <Input
               vModel={row.name}
               onBlur={val => this.handleChangeFavoriteName(row, val)}
-            ></bk-input>
+            ></Input>
           </div>
         </div>
       ]
@@ -541,7 +552,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
 
     const groupSlot = {
       default: ({ row }) => [
-        <bk-select
+        <Select
           vModel={row.group_id}
           searchable
           clearable={false}
@@ -551,11 +562,11 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           on-change={id => this.handleChangeGroup(row, id)}
         >
           {row[row.visible_type === 'private' ? 'group_option_private' : 'group_option'].map(item => (
-            <bk-option
+            <Option
               id={`${item.group_id}`}
               key={`${item.group_id}`}
               name={item.group_name}
-            ></bk-option>
+            ></Option>
           ))}
           <div slot='extension'>
             {this.isShowAddGroup ? (
@@ -570,11 +581,11 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               </div>
             ) : (
               <li class='add-new-page-input'>
-                <bk-input
+                <Input
                   vModel={this.groupName}
                   maxlength={30}
                   behavior={'simplicity'}
-                ></bk-input>
+                ></Input>
                 <div class='operate-button'>
                   <span
                     class='bk-icon icon-check-line'
@@ -591,25 +602,25 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               </li>
             )}
           </div>
-        </bk-select>
+        </Select>
       ]
     };
 
     const visibleSlot = {
       default: ({ row }) => [
-        <bk-select
+        <Select
           vModel={row.visible_type}
           on-selected={nVal => this.handleSelectVisible(row, nVal)}
           clearable={false}
         >
           {row.visible_option.map(item => (
-            <bk-option
+            <Option
               id={item.id}
               key={item.id}
               name={item.name}
-            ></bk-option>
+            ></Option>
           ))}
-        </bk-select>
+        </Select>
       ]
     };
 
@@ -627,17 +638,17 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
     };
 
     const renderHeader = () => (
-      <bk-checkbox
+      <Checkbox
         class='all-check-box'
         value={this.checkValue === 2}
         indeterminate={this.checkValue === 1}
         on-change={this.handleSelectionChange}
         disabled={this.searchAfterList.length === 0}
-      ></bk-checkbox>
+      ></Checkbox>
     );
 
     return (
-      <bk-dialog
+      <Dialog
         value={this.value}
         title={this.$t('管理')}
         header-position='left'
@@ -657,7 +668,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               &nbsp;
             </i18n>
           </div>
-          <bk-input
+          <Input
             class='operate-input'
             rightIcon='bk-icon icon-search'
             vModel={this.searchValue}
@@ -674,7 +685,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
                 <span class='operate-message'>{this.selectCount}</span>
               </i18n>
             </span>
-            <bk-dropdown-menu trigger='click'>
+            <DropdownMenu trigger='click'>
               <div
                 class='dropdown-trigger-text'
                 slot='dropdown-trigger'
@@ -694,10 +705,10 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
                   ))}
                 </ul>
               </div>
-            </bk-dropdown-menu>
+            </DropdownMenu>
           </div>
         ) : undefined}
-        <bk-table
+        <Table
           data={this.searchAfterList}
           size='small'
           header-border={true}
@@ -707,14 +718,14 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           v-bkloading={{ isLoading: this.tableLoading }}
           ext-cls={`${!this.selectCount && 'is-not-select'}`}
         >
-          <bk-table-column
+          <TableColumn
             width='64'
             type='expand'
             render-header={renderHeader}
             scopedSlots={expandSlot}
-          ></bk-table-column>
+          ></TableColumn>
 
-          <bk-table-column
+          <TableColumn
             label={this.$t('收藏名')}
             key={'column_name'}
             width='200'
@@ -722,10 +733,10 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             class-name='group-input'
             label-class-name='group-title'
             scopedSlots={nameSlot}
-          ></bk-table-column>
+          ></TableColumn>
 
           {this.checkFields('group_name') ? (
-            <bk-table-column
+            <TableColumn
               label={this.$t('所属组')}
               min-width='112'
               key={'column_group_name'}
@@ -736,11 +747,11 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               filters={this.sourceFilters}
               filter-multiple={false}
               filter-method={this.sourceFilterMethod}
-            ></bk-table-column>
+            ></TableColumn>
           ) : undefined}
 
           {this.checkFields('visible_type') ? (
-            <bk-table-column
+            <TableColumn
               label={this.$t('可见范围')}
               min-width='112'
               key={'column_visible_type'}
@@ -748,49 +759,49 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               scopedSlots={visibleSlot}
               label-class-name='group-title'
               class-name='group-select'
-            ></bk-table-column>
+            ></TableColumn>
           ) : undefined}
 
           {this.checkFields('updated_by') ? (
-            <bk-table-column
+            <TableColumn
               label={this.$t('最近更新人')}
               prop={'update_user'}
               key={'column_update_by'}
               filters={this.updateSourceFilters}
               filter-multiple={false}
               filter-method={this.sourceFilterMethod}
-            ></bk-table-column>
+            ></TableColumn>
           ) : undefined}
 
           {this.checkFields('updated_at') ? (
-            <bk-table-column
+            <TableColumn
               label={this.$t('最近更新时间')}
               prop={'update_time'}
               key={'column_update_time'}
               scopedSlots={{
                 default: ({ row }) => [<span>{this.getShowTime(row.update_time)}</span>]
               }}
-            ></bk-table-column>
+            ></TableColumn>
           ) : undefined}
 
-          <bk-table-column
+          <TableColumn
             class-name='group-input'
             width='1'
             label-class-name='group-title'
             key={'column_switch'}
             scopedSlots={switchSlot}
-          ></bk-table-column>
+          ></TableColumn>
 
-          <bk-table-column type='setting'>
-            <bk-table-setting-content
+          <TableColumn type='setting'>
+            <TableSettingContent
               fields={this.tableSetting.fields}
               size={this.tableSetting.size}
               selected={this.tableSetting.selectedFields}
               on-setting-change={this.handleSettingChange}
-            ></bk-table-setting-content>
-          </bk-table-column>
-        </bk-table>
-      </bk-dialog>
+            ></TableSettingContent>
+          </TableColumn>
+        </Table>
+      </Dialog>
     );
   }
 }

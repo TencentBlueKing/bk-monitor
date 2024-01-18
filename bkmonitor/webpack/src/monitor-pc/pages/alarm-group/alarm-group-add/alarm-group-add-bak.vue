@@ -96,7 +96,6 @@
           v-if="isShowOverInput"
         >
           <img
-            alt=''
             src="../../../static/images/svg/spinner.svg"
             class="status-loading"
           >
@@ -137,7 +136,6 @@
                 <img
                   class="item-img"
                   :src="item.icon"
-                  alt=''
                 >
                 {{ item.label }}
                 <i

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Sideslider } from 'bk-magic-vue';
 
 import { retrieveDutyRule } from '../../../../monitor-api/modules/model';
 import { previewDutyRulePlan } from '../../../../monitor-api/modules/user_groups';
@@ -116,13 +117,7 @@ export default class RotationDetail extends tsc<IProps> {
   }
 
   renderUserLogo(user) {
-    if (user.logo)
-      return (
-        <img
-          src={user.logo}
-          alt=''
-        ></img>
-      );
+    if (user.logo) return <img src={user.logo}></img>;
     if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
     return <span class='icon-monitor icon-mc-user-one no-img'></span>;
   }
@@ -137,7 +132,7 @@ export default class RotationDetail extends tsc<IProps> {
       );
     }
     return (
-      <bk-sideslider
+      <Sideslider
         ext-cls='alarm-group-rotation-detail-side'
         {...{ on: { 'update:isShow': this.emitIsShow } }}
         width={960}
@@ -150,14 +145,14 @@ export default class RotationDetail extends tsc<IProps> {
         >
           <span class='header-left'>{this.$t('轮值详情')}</span>
           <span class='header-right'>
-            <bk-button
+            <Button
               class='mr-8'
               theme='primary'
               outline
               onClick={() => this.handleToEdit()}
             >
               {this.$t('编辑')}
-            </bk-button>
+            </Button>
             <HistoryDialog
               style='margin: 0 0 0 8px'
               list={this.historyList}
@@ -235,7 +230,7 @@ export default class RotationDetail extends tsc<IProps> {
           )}
           {formItem(this.$t('轮值预览'), <RotationCalendarPreview value={this.previewData}></RotationCalendarPreview>)}
         </div>
-      </bk-sideslider>
+      </Sideslider>
     );
   }
 }

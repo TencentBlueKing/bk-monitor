@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox, CheckboxGroup, Form, FormItem, Input, Option, Radio, RadioGroup, Select } from 'bk-magic-vue';
 
 import { deepClone } from '../../../../../../../monitor-common/utils/utils';
 import SetMealAddModule from '../../../../../../store/modules/set-meal-add';
@@ -54,7 +55,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
 
   // isPass: boolean = true
 
-  @Ref('createForm') readonly createFormEl: any;
+  @Ref('createForm') readonly createFormEl: Form;
 
   @Emit('change')
   emitModel() {
@@ -75,7 +76,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
   protected render() {
     return (
       <div class='dynamic-form-wrap'>
-        <bk-form
+        <Form
           class='form-wrap'
           ref='createForm'
           form-type='vertical'
@@ -88,7 +89,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
           }}
         >
           {this.formList.map((item, index) => (
-            <bk-form-item
+            <FormItem
               class='create-form-item'
               key={index}
               {...{
@@ -96,59 +97,59 @@ export default class DynamicForm extends tsc<IDynamicForm> {
               }}
             >
               {item.type === 'select' ? (
-                <bk-select
+                <Select
                   class='width-520'
                   behavior={'simplicity'}
                   {...item.formChildProps}
                   vModel={this.formModel[item.formItemProps.property]}
                 >
                   {item.formChildProps.options.map(option => (
-                    <bk-option
+                    <Option
                       key={option.id}
                       id={option.id}
                       name={option.name}
-                    ></bk-option>
+                    ></Option>
                   ))}
-                </bk-select>
+                </Select>
               ) : undefined}
               {item.type === 'checkbox-group' ? (
-                <bk-checkbox-group
+                <CheckboxGroup
                   {...item.formChildProps}
                   vModel={this.formModel[item.formItemProps.property]}
                 >
                   {item.formChildProps.options.map(option => (
-                    <bk-checkbox
+                    <Checkbox
                       key={option.id}
                       value={option.id}
-                    ></bk-checkbox>
+                    ></Checkbox>
                   ))}
-                </bk-checkbox-group>
+                </CheckboxGroup>
               ) : undefined}
               {item.type === 'RadioGroup' ? (
-                <bk-radio-group
+                <RadioGroup
                   {...item.formChildProps}
                   vModel={this.formModel[item.formItemProps.property]}
                 >
                   {item.formChildProps.options.map(option => (
-                    <bk-radio
+                    <Radio
                       key={option.id}
                       value={option.id}
-                    ></bk-radio>
+                    ></Radio>
                   ))}
-                </bk-radio-group>
+                </RadioGroup>
               ) : undefined}
               {
                 (() => {
                   if (item.type === 'input') {
                     if (item.formItemProps.sensitive) {
                       return (
-                        <bk-input
+                        <Input
                           v-model={this.formModel[item.formItemProps.property]}
                           placeholder={item.formChildProps.placeholder}
                           type={'password'}
                           behavior={'simplicity'}
                           on-change={this.emitModel}
-                        ></bk-input>
+                        ></Input>
                       );
                     }
                     return (
@@ -162,17 +163,17 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                   }
                   return undefined;
                 })()
-                // ? <bk-input
+                // ? <Input
                 //   class="width-520"
                 //   behavior={'simplicity'}
                 //   onChange={ this.emitModel }
                 //   {...item.formChildProps}
-                //   vModel={ this.formModel[item.formItemProps.property] }></bk-input> : undefined
+                //   vModel={ this.formModel[item.formItemProps.property] }></Input> : undefined
               }
               {item.formItemProps.help_text ? <div class='form-desc'>{item.formItemProps.help_text}</div> : undefined}
-            </bk-form-item>
+            </FormItem>
           ))}
-        </bk-form>
+        </Form>
       </div>
     );
   }

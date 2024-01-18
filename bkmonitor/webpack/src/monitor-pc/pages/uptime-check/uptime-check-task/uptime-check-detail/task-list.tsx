@@ -25,9 +25,10 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Exception, Input } from 'bk-magic-vue';
 
 import { Debounce, deepClone } from '../../../../../monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
+import { PanelModel, ViewOptions } from '../../../../../monitor-ui/chart-plugins/typings';
 import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
 
 import './task-list.scss';
@@ -47,7 +48,7 @@ export interface IViewOption {
 
 export interface IProps {
   panel: PanelModel;
-  viewOptions: IViewOptions;
+  viewOptions: ViewOptions;
   isStatusFilter?: boolean;
   showOverview?: boolean;
   isTargetCompare?: boolean;
@@ -55,7 +56,7 @@ export interface IProps {
 
 export interface IEvents {
   onTitleChange: string;
-  onChange: IViewOptions;
+  onChange: ViewOptions;
   onListChange?: { id: string; name: string }[];
   onOverviewChange?: void;
 }
@@ -63,7 +64,7 @@ export interface IEvents {
 @Component({})
 export default class TaskList extends tsc<IProps, IEvents> {
   /** 当前输入的viewOptions数据 */
-  @Prop({ type: Object }) viewOptions: IViewOptions;
+  @Prop({ type: Object }) viewOptions: ViewOptions;
   /** 接口数据 */
   @Prop({ type: Object }) panel: PanelModel;
   /** 是否存在目标对比 */
@@ -76,7 +77,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
   activeTask = '';
   taskData: TaskDataItem[] = [];
   localTaskData: TaskDataItem[] = [];
-  localViewOptions: IViewOptions = {};
+  localViewOptions: ViewOptions = {};
 
   get apiData() {
     return this.panel?.targets?.[0];
@@ -108,7 +109,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
 
   /** 对外输出一个viewOptions格式数据 */
   @Emit('change')
-  handleViewOptionsChange(viewOptions: IViewOptions): IViewOptions {
+  handleViewOptionsChange(viewOptions: ViewOptions): ViewOptions {
     return viewOptions;
   }
 
@@ -162,7 +163,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
   handleTaskChange(task: TaskDataItem) {
     if (this.activeTask === task.id) return;
     const filterDictList = this.queryFileds;
-    const viewOptions: IViewOptions = deepClone(this.viewOptions);
+    const viewOptions: ViewOptions = deepClone(this.viewOptions);
     this.activeTask = String(task.id);
     this.handleTitleChange(task);
     Object.keys(filterDictList).forEach(item => {
@@ -190,18 +191,18 @@ export default class TaskList extends tsc<IProps, IEvents> {
           v-bkloading={{ isLoading: this.loading }}
         >
           <div class='task-list-search-row'>
-            <bk-input
+            <Input
               v-model={this.searchKeyword}
               right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
               onInput={this.handleSearch}
-            ></bk-input>
-            <bk-button
+            ></Input>
+            <Button
               class='refresh-btn'
               onClick={this.handleRefresh}
             >
               <i class='icon-monitor icon-shuaxin'></i>
-            </bk-button>
+            </Button>
           </div>
           {this.localTaskData.length ? (
             <div class='task-list-content'>
@@ -221,7 +222,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
               </ul>
             </div>
           ) : (
-            <bk-exception
+            <Exception
               class='exception-wrap-item exception-part'
               type='search-empty'
               scene='part'

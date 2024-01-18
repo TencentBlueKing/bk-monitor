@@ -620,9 +620,9 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   )
                 ) : undefined
               }
-              {/* <bk-exception style="margin-top: 150px;" type="empty">
+              {/* <Exception style="margin-top: 150px;" type="empty">
                     <span>{this.$t('查无数据')}</span>
-                  </bk-exception> */}
+                  </Exception> */}
               {this.retrievalType === 'event' ? (
                 <EventRetrievalView
                   ref='eventRetrievalViewRef'

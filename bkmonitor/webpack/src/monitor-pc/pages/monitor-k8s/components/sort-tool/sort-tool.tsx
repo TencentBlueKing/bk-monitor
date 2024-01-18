@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { DropdownMenu } from 'bk-magic-vue';
 
 import './sort-tool.scss';
 
@@ -121,7 +122,7 @@ export default class SortTool extends tsc<IProps, IEvents> {
   render() {
     return (
       <div class='sort-tool-wrap'>
-        <bk-dropdown-menu
+        <DropdownMenu
           class='sort-dropdown-menu'
           trigger='click'
           onShow={() => this.handleDropdownShow(true)}
@@ -165,7 +166,7 @@ export default class SortTool extends tsc<IProps, IEvents> {
               </li>
             ))}
           </ul>
-        </bk-dropdown-menu>
+        </DropdownMenu>
       </div>
     );
   }

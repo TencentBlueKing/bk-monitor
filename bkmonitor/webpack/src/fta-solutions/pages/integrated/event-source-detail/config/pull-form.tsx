@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button } from 'bk-magic-vue';
 
 import { updateEventPluginInstance } from '../../../../../monitor-api/modules/event_plugin';
 import DynamicForm from '../../../setting/set-meal/set-meal-add/components/dynamic-form/dynamic-form';
@@ -100,14 +101,14 @@ export default class PullForm extends tsc<IProps> {
           formModel={this.formModel}
           formRules={this.formRules}
         ></DynamicForm>
-        <bk-button
+        <Button
           theme='primary'
           class='submit'
           loading={this.loading}
           onClick={this.handleSave}
         >
           {this.$t('保存配置')}
-        </bk-button>
+        </Button>
       </div>
     );
   }

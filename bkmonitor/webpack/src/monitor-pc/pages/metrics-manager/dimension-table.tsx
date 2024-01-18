@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input } from 'bk-magic-vue';
 
 import { getVariableValue } from '../../../monitor-api/modules/grafana';
 import { Debounce } from '../../../monitor-common/utils/utils';
@@ -190,14 +191,14 @@ export default class DimensionTable extends tsc<IProps> {
   render() {
     return (
       <div class={['metrics-manager-dimension-table', { displaynone: !this.show }]}>
-        <bk-input
+        <Input
           class='dimension-search'
           v-model={this.search}
           clearable
           placeholder={this.$t('输入')}
           rightIcon='bk-icon icon-search'
           on-change={this.handleSearch}
-        ></bk-input>
+        ></Input>
         <CommonTable
           class='dimension-table'
           data={this.tableData}

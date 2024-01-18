@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Checkbox, Input } from 'bk-magic-vue';
 
 import { Debounce } from '../../../monitor-common/utils/utils';
 import { secToString } from '../../components/cycle-input/utils';
@@ -237,30 +238,30 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
                 class='item'
                 key={item.checked}
               >
-                <bk-checkbox
+                <Checkbox
                   value={item.value}
                   trueValue={item.checked}
                   falseValue={item.cancel}
                   on-change={() => this.handleCheckTabelHeader(item.checked)}
-                ></bk-checkbox>
+                ></Checkbox>
                 <span class='name'>{item.name}</span>
               </li>
             ))}
           </ul>
           <div class='footer'>
             <div class='btn-group'>
-              <bk-button
+              <Button
                 text
                 onClick={() => confirm()}
               >
                 {window.i18n.t('确定')}
-              </bk-button>
-              <bk-button
+              </Button>
+              <Button
                 text
                 onClick={() => cancel()}
               >
                 {window.i18n.t('重置')}
-              </bk-button>
+              </Button>
             </div>
           </div>
         </div>
@@ -422,8 +423,8 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
         {/* <div class="header">
           <div class="left">
             {this.$slots?.headerLeft}
-            <bk-button class="left-button">{window.i18n.t('分位数统计')}</bk-button>
-            <bk-button>{window.i18n.t('多指标计算')}</bk-button>
+            <Button class="left-button">{window.i18n.t('分位数统计')}</Button>
+            <Button>{window.i18n.t('多指标计算')}</Button>
           </div>
           <div class="right">
             <div class={['filter-btn', { active: this.showSearch }]} onClick={this.handleShowSearch}>
@@ -434,7 +435,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
         {this.showSearch && (
           <div class='search-header'>
             {this.$slots?.headerLeft}
-            <bk-input
+            <Input
               class='metric-input'
               v-model={this.filter.metric_id}
               clearable
@@ -448,14 +449,14 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
               >
                 {window.i18n.t('指标')}
               </div>
-            </bk-input>
-            <bk-input
+            </Input>
+            <Input
               v-model={this.filter.query}
               right-icon='bk-icon icon-search'
               placeholder={this.$t('输入')}
               clearable
               on-change={this.handleConditionChange}
-            ></bk-input>
+            ></Input>
           </div>
         )}
         <div class={['content', { 'show-search': this.showSearch }]}>
@@ -501,12 +502,12 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
               resultTableLabelName: row => row.result_table_label_name || '--',
               enable: () => this.$t('启用'),
               operate: row => [
-                <bk-button
+                <Button
                   text
                   onClick={() => this.handleToDataRetrieval(row.metric_id)}
                 >
                   {this.$t('检索')}
-                </bk-button>
+                </Button>
               ]
             }}
             onPageChange={this.handlePageChange}

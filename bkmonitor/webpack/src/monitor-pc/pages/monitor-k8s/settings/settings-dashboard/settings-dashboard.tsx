@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input, Option, Select, Tab } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { deepClone } from '../../../../../monitor-common/utils/utils';
@@ -573,7 +574,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
       <div class='settings-dashboard-wrap'>
         <div class='settings-title'>{this.title}</div>
         {this.bookMarkData.length ? (
-          <bk-tab
+          <Tab
             class='settings-tab'
             active={this.tabActive}
             type='unborder-card'
@@ -591,20 +592,18 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                   ></bk-tab-panel>
                 )
             )}
-          </bk-tab>
+          </Tab>
         ) : null}
         {this.orderList?.length ? (
           <div class='settings-dashboard-content'>
             <div class='bk-button-group'>
-              <bk-button class={['range-button', { 'is-selected': this.rangeType === 'tiled' }]}>
-                {this.$t('平铺')}
-              </bk-button>
-              <bk-button
+              <Button class={['range-button', { 'is-selected': this.rangeType === 'tiled' }]}>{this.$t('平铺')}</Button>
+              <Button
                 class={['range-button']}
                 disabled={true}
               >
                 {this.$t('自定义')}
-              </bk-button>
+              </Button>
             </div>
             <div
               class='sort-setting-title'
@@ -645,11 +644,11 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                 </span>
               ) : (
                 <div class='create-input'>
-                  <bk-input
+                  <Input
                     v-model={this.createName}
                     maxlength={20}
                     show-word-limit
-                  ></bk-input>
+                  ></Input>
                   <i
                     class='ml5 bk-icon icon-check-1'
                     onClick={() => this.createGroup(true)}
@@ -689,26 +688,26 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                 }
                 return this.isChecked ? (
                   <div class='sort-setting-content'>
-                    <bk-select
+                    <Select
                       ext-cls='setting-content-select'
                       v-model={this.order}
                       searchable
                     >
                       {this.groupList.map(item => (
-                        <bk-option
+                        <Option
                           id={item.id}
                           name={item.title}
                           key={item.id}
-                        ></bk-option>
+                        ></Option>
                       ))}
-                    </bk-select>
-                    <bk-button
+                    </Select>
+                    <Button
                       theme='primary'
                       outline
                       onClick={this.addGroupPanels}
                     >
                       {this.$t('加进分组')}
-                    </bk-button>
+                    </Button>
                   </div>
                 ) : undefined;
               })()}

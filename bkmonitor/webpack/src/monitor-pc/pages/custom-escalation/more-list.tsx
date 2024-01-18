@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input } from 'bk-magic-vue';
 
 import './more-list.scss';
 
@@ -237,13 +238,13 @@ export default class MoreList extends tsc<IProps> {
             class='match-rule-more-list-component-operate-wrap'
             ref='opreate'
           >
-            <bk-input
+            <Input
               class='edit-input'
               maxlength={40}
               v-model={this.tempInput}
               onChange={this.handleInputChange}
               onEnter={this.handleSave}
-            ></bk-input>
+            ></Input>
             <div
               class='err-msg'
               style={{ display: !!this.errMsg ? 'block' : 'none' }}
@@ -252,14 +253,14 @@ export default class MoreList extends tsc<IProps> {
             </div>
             <div class='tip-msg'>{this.$t('支持JS正则匹配方式， 如子串前缀匹配go_，模糊匹配(.*?)_total')}</div>
             <div class='operate-btn'>
-              <bk-button
+              <Button
                 class='mr8'
                 theme='primary'
                 onClick={this.handleSave}
               >
                 {this.$t('保存并匹配')}
-              </bk-button>
-              <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
+              </Button>
+              <Button onClick={this.handleCancel}>{this.$t('取消')}</Button>
             </div>
           </div>
         </div>

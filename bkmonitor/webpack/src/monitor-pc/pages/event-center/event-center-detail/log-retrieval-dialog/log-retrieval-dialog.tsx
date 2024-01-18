@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, DatePicker, Dialog, Form, FormItem, Input, Option, Select } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { isEn } from '../../../../i18n/i18n';
@@ -140,7 +141,7 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
   render() {
     return (
       <div>
-        <bk-dialog
+        <Dialog
           value={this.show}
           header-position={this.dialog.headerPosition}
           ok-text={this.dialog.okText}
@@ -161,7 +162,7 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
               <div class='tips-bottom'>{this.$t('注意：ip查找索引集依赖节点管理版本>=2.1')}</div>
             </div>
           ) : undefined}
-          <bk-form
+          <Form
             label-width={isEn ? 110 : 70}
             ref='logForm'
             {...{
@@ -171,64 +172,64 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
               }
             }}
           >
-            <bk-form-item
+            <FormItem
               label={this.$t('索引集')}
               required={true}
               property='indexSet'
               error-display-type={'normal'}
             >
-              <bk-select
+              <Select
                 v-model={this.data.indexSet}
                 searchable
               >
                 {this.indexSetList.map(item => (
-                  <bk-option
+                  <Option
                     key={item.id}
                     id={item.id}
                     name={item.name}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
-            </bk-form-item>
-            <bk-form-item
+              </Select>
+            </FormItem>
+            <FormItem
               label={this.$t('时间范围')}
               required={true}
               property={'time'}
               error-display-type={'normal'}
             >
-              <bk-date-picker
+              <DatePicker
                 v-model={this.data.time}
                 placeholder={this.$t('选择日期时间范围')}
                 type={'datetimerange'}
-              ></bk-date-picker>
-            </bk-form-item>
-            <bk-form-item
+              ></DatePicker>
+            </FormItem>
+            <FormItem
               label={this.$t('查询语句')}
               required={true}
               property={'sql'}
               error-display-type={'normal'}
             >
-              <bk-input
+              <Input
                 placeholder={''}
                 type={'textarea'}
                 rows={3}
                 maxlength={255}
                 v-model={this.data.sql}
-              ></bk-input>
-            </bk-form-item>
-          </bk-form>
+              ></Input>
+            </FormItem>
+          </Form>
           <template slot='footer'>
-            <bk-button
+            <Button
               on-click={this.confirm}
               disabled={this.showTips}
               theme='primary'
               style='margin-right: 10px'
             >
               {this.$t('确定')}
-            </bk-button>
-            <bk-button on-click={() => this.handleClose(false)}>{this.$t('取消')}</bk-button>
+            </Button>
+            <Button on-click={() => this.handleClose(false)}>{this.$t('取消')}</Button>
           </template>
-        </bk-dialog>
+        </Dialog>
       </div>
     );
   }

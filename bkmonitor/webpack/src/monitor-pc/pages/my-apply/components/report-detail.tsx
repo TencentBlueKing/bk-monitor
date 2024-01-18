@@ -57,7 +57,7 @@ class ReportDetail extends tsc<IProps> {
   }
 
   get getTimeRange() {
-    if (!this.detailInfo.start_time || !this.detailInfo.end_time) return '';
+    if (!this.detailInfo.start_time) return '';
     const startTime = dayjs.unix(this.detailInfo.start_time).format('YYYY-MM-DD HH:mm');
     const endTime = dayjs.unix(this.detailInfo.end_time).format('YYYY-MM-DD HH:mm');
     return `${startTime} ~ ${endTime}`;
@@ -190,12 +190,10 @@ class ReportDetail extends tsc<IProps> {
             )}
           </DetailRow>
 
-          {this.detailInfo.frequency.type !== FrequencyType.onlyOnce && (
-            <DetailRow
-              label={this.$t('有效时间范围')}
-              value={this.getTimeRange}
-            />
-          )}
+          <DetailRow
+            label={this.$t('有效时间范围')}
+            value={this.getTimeRange}
+          />
         </div>
       </div>
     );

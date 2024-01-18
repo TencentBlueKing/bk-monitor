@@ -17,7 +17,6 @@ from urllib.parse import parse_qs
 
 from django.conf import settings
 
-from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, MetricListCache
 from bkmonitor.strategy.new_strategy import parse_metric_id
@@ -387,10 +386,6 @@ class RecommendMetricManager(AIOPSManager):
         :param alert: 告警信息
         :param exp_config: 查询表达式配置
         """
-        # 查询该业务是否配置有ai设置
-        ai_setting = AiSetting(bk_biz_id=alert.event["bk_biz_id"])
-        metric_recommend = ai_setting.metric_recommend
-
         return {
             "json_args": json.dumps(
                 {
@@ -402,12 +397,6 @@ class RecommendMetricManager(AIOPSManager):
                     "alert_id": alert.id,
                 }
             ),
-            "reference_table": metric_recommend.result_table_id
-            or (
-                f"{settings.DEFAULT_BKDATA_BIZ_ID}_"
-                f"{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}_"
-                f"{alert.event['bk_biz_id']}"
-            ),
         }
 
     def fetch_aiops_result(self, alert):
@@ -416,7 +405,7 @@ class RecommendMetricManager(AIOPSManager):
         if len(alert.event["metric"]) != 1:
             return {}
 
-        processing_id = f'{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}'
+        processing_id = f'{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}_{alert.event["bk_biz_id"]}'
         try:
             response = api.bkdata.api_serving_execute(
                 timeout=30,

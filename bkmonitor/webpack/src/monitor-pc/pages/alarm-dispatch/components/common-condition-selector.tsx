@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { TagInput } from 'bk-magic-vue';
 
 import SimpleSelectInput from '../../alarm-shield/components/simple-select-input';
 import SelectMenu from '../../strategy-config/strategy-config-set-new/components/select-menu';
@@ -289,7 +290,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
                 >
                   {this.handleGetMethodNameById(item.method)}
                 </span>,
-                <bk-tag-input
+                <TagInput
                   key={`value-${index}-${item.field}-${JSON.stringify(this.valueMap.get(item.field) || [])}`}
                   class='condition-item condition-item-value'
                   list={
@@ -302,7 +303,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
                   value={item.value}
                   paste-fn={v => this.handlePaste(v, item)}
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
-                ></bk-tag-input>
+                ></TagInput>
               ]
             : undefined
         ])}

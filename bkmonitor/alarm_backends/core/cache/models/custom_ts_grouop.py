@@ -12,7 +12,6 @@ specific language governing permissions and limitations under the License.
 
 from alarm_backends.core.cache.base import CacheManager
 from core.drf_resource import api
-from core.errors.api import BKAPIError
 from metadata.models import TimeSeriesGroup
 
 
@@ -39,15 +38,11 @@ class CustomTSGroupCacheManager(CacheManager):
                 ts_group = TimeSeriesGroup.objects.get(bk_data_id=bk_data_id)
             except TimeSeriesGroup.DoesNotExist:
                 return None
-            try:
-                ts_info = api.metadata.custom_time_series_detail(
-                    time_series_group_id=ts_group.time_series_group_id, bk_biz_id=ts_group.bk_biz_id, model_only=True
-                )
-                protocol = ts_info["protocol"]
-                cls.set(bk_data_id, protocol)
-            except BKAPIError:
-                protocol = "json"
-
+            ts_info = api.metadata.custom_time_series_detail(
+                time_series_group_id=ts_group.time_series_group_id, bk_biz_id=ts_group.bk_biz_id, model_only=True
+            )
+            protocol = ts_info["protocol"]
+            cls.set(bk_data_id, protocol)
         return protocol
 
     @classmethod

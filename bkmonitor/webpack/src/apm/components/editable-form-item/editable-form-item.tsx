@@ -27,6 +27,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input, Option, OptionGroup, Select, Switcher, Tag } from 'bk-magic-vue';
 
 import { copyText } from '../../../monitor-common/utils/utils';
 import ExpiredSelect from '../../components/expired-select/expired-select';
@@ -83,7 +84,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   @Prop() onEditChange: (val) => any;
   @Prop() preCheckSwitcher?: (val) => Promise<any>;
 
-  @Ref('input') inputRef: any;
+  @Ref('input') inputRef: Input;
 
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
 
@@ -173,7 +174,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     switch (this.formType) {
       case 'switch': // switcher开关
         return (
-          <bk-switcher
+          <Switcher
             v-authority={{ active: !this.authority }}
             theme='primary'
             value={this.value}
@@ -181,7 +182,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           />
         );
       case 'tag': // 标签
-        return this.value.map(tag => <bk-tag>{tag}</bk-tag>);
+        return this.value.map(tag => <Tag>{tag}</Tag>);
       case 'expired': // 过期时间
         return <span>{`${this.value}${this.$t('天')}`}</span>;
       case 'password': // 密码
@@ -245,48 +246,48 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         );
       case 'select':
         return (
-          <bk-select
+          <Select
             class='edit-item select-item'
             v-model={this.lcoalValue}
             clearable={false}
             onChange={v => v && (this.errorMsg.value = '')}
           >
             {this.selectList.map(option => (
-              <bk-option
+              <Option
                 key={option.id}
                 id={option.id}
                 name={option.name}
-              ></bk-option>
+              ></Option>
             ))}
-          </bk-select>
+          </Select>
         );
       case 'unit':
         return (
-          <bk-select
+          <Select
             class='edit-item unit-select'
             v-model={this.lcoalValue}
             clearable={false}
             popover-width={180}
           >
             {this.unitList.map((group, index) => (
-              <bk-option-group
+              <OptionGroup
                 name={group.name}
                 key={index}
               >
                 {group.formats.map(option => (
-                  <bk-option
+                  <Option
                     key={option.id}
                     id={option.id}
                     name={option.name}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-option-group>
+              </OptionGroup>
             ))}
-          </bk-select>
+          </Select>
         );
       default:
         return (
-          <bk-input
+          <Input
             ref='input'
             class='edit-item input-item'
             disabled={this.isSubmiting}
@@ -351,7 +352,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   showEditSelect() {
     return (
       <div>
-        <bk-select
+        <Select
           class='edit-item select-item'
           style='margin-right: 8px;'
           v-model={this.editSubmitVal}
@@ -359,13 +360,13 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           onChange={() => this.handleEditObjChange('select')}
         >
           {this.selectEditOption?.map(option => (
-            <bk-option
+            <Option
               key={option.id}
               id={option.id}
               name={option.name}
-            ></bk-option>
+            ></Option>
           ))}
-        </bk-select>
+        </Select>
       </div>
     );
   }

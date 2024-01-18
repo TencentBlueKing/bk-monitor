@@ -26,6 +26,7 @@
 
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 import { throttle } from 'throttle-debounce';
 
 import { fetchRobotInfo } from '../../../monitor-api/modules/commons';
@@ -277,12 +278,9 @@ export default class AiWhale extends tsc<{}> {
   /* 获取告警信息，每两分钟拉取一次 */
   init() {
     this.handleGetData();
-    this.timeInstance = setInterval(
-      () => {
-        this.handleGetData();
-      },
-      2 * 60 * 1000
-    );
+    this.timeInstance = setInterval(() => {
+      this.handleGetData();
+    }, 2 * 60 * 1000);
   }
 
   /* 调取接口 */
@@ -507,11 +505,11 @@ export default class AiWhale extends tsc<{}> {
                                 </div>
                               </div>
                               <div class='table-content'>
-                                <bk-table
+                                <Table
                                   data={this.hostPreviewList}
                                   maxHeight={259}
                                 >
-                                  <bk-table-column
+                                  <TableColumn
                                     renderHeader={() => (
                                       <span>
                                         <span>{this.$t('内网IP')}</span>
@@ -531,14 +529,14 @@ export default class AiWhale extends tsc<{}> {
                                         </a>
                                       )
                                     }}
-                                  ></bk-table-column>
-                                  <bk-table-column
+                                  ></TableColumn>
+                                  <TableColumn
                                     label={this.$t('异常指标数')}
                                     prop='exception_metric_count'
                                     resizable={false}
-                                  ></bk-table-column>
-                                  {/* <bk-table-column label={this.$t('其他指标')} prop="other_metric_count"></bk-table-column> */}
-                                </bk-table>
+                                  ></TableColumn>
+                                  {/* <TableColumn label={this.$t('其他指标')} prop="other_metric_count"></TableColumn> */}
+                                </Table>
                                 <div class='bottom-options'>
                                   <div
                                     class='option'

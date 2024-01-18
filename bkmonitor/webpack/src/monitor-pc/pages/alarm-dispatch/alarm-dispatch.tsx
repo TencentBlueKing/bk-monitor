@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input, Table, TableColumn, Tag } from 'bk-magic-vue';
 
 import SetMealDetail from '../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
@@ -565,35 +566,35 @@ export default class AlarmDispatch extends tsc<{}> {
       >
         <div class='alarm-dispath-page-wrap'>
           <div class='wrap-header'>
-            <bk-button
+            <Button
               icon='plus'
               theme='primary'
               class='mr10'
               onClick={this.handleAddAlarmDispatch}
             >
               {this.$t('新建')}
-            </bk-button>
-            <bk-button
+            </Button>
+            <Button
               class='mr10'
               disabled={!this.ruleGroups.length}
               onClick={this.handleDebug}
             >
               {this.$t('调试')}
-            </bk-button>
-            <bk-button
+            </Button>
+            <Button
               class='expand-up-btn'
               onClick={this.handleExpandAll}
             >
               <span class={['icon-monitor', this.isExpandAll ? 'icon-zhankai1' : 'icon-shouqi1']}></span>
               {this.$t(this.isExpandAll ? '展开所有分组' : '收起所有分组')}
-            </bk-button>
-            <bk-input
+            </Button>
+            <Input
               class='search-input'
               placeholder={`ID/${this.$t('告警组名称')}`}
               right-icon='bk-icon icon-search'
               v-model={this.search}
               onInput={this.handleSearch}
-            ></bk-input>
+            ></Input>
           </div>
           <div class='wrap-content'>
             {this.ruleGroups.length > 0 ? (
@@ -638,12 +639,12 @@ export default class AlarmDispatch extends tsc<{}> {
                     </div>
                   </div>
                   <div class={['expan-item-content', { 'is-expan': item.isExpan }]}>
-                    <bk-table
+                    <Table
                       v-bkloading={{ isLoading: this.groupLoading }}
                       data={item.ruleData}
                       stripe
                     >
-                      <bk-table-column
+                      <TableColumn
                         label={this.$t('告警组')}
                         prop='user_groups'
                         min-width={100}
@@ -651,7 +652,7 @@ export default class AlarmDispatch extends tsc<{}> {
                           default: ({ row }) => (
                             <div class='alarm-group-list'>
                               {row.user_groups.map(groupId => (
-                                <bk-tag
+                                <Tag
                                   class='alarm-tag'
                                   v-bk-overflow-tips
                                   onClick={() => {
@@ -659,13 +660,13 @@ export default class AlarmDispatch extends tsc<{}> {
                                   }}
                                 >
                                   {this.getAlarmGroupByID(groupId)}
-                                </bk-tag>
+                                </Tag>
                               ))}
                             </div>
                           )
                         }}
-                      ></bk-table-column>
-                      <bk-table-column
+                      ></TableColumn>
+                      <TableColumn
                         label={this.$t('匹配规则')}
                         prop='rule'
                         min-width={400}
@@ -686,8 +687,8 @@ export default class AlarmDispatch extends tsc<{}> {
                               '--'
                             )
                         }}
-                      ></bk-table-column>
-                      <bk-table-column
+                      ></TableColumn>
+                      <TableColumn
                         label={this.$t('分派动作')}
                         prop='action'
                         min-width={400}
@@ -704,8 +705,8 @@ export default class AlarmDispatch extends tsc<{}> {
                             />
                           )
                         }}
-                      ></bk-table-column>
-                      <bk-table-column
+                      ></TableColumn>
+                      <TableColumn
                         label={this.$t('修改告警内容')}
                         min-width={300}
                         prop='content'
@@ -717,19 +718,19 @@ export default class AlarmDispatch extends tsc<{}> {
                             />
                           )
                         }}
-                      ></bk-table-column>
-                      <bk-table-column
+                      ></TableColumn>
+                      <TableColumn
                         label={this.$t('状态')}
                         prop='is_enabled'
                         width={160}
                         scopedSlots={{
                           default: ({ row }) => (
-                            <bk-tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
+                            <Tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
                               {this.$t(row.is_enabled ? '启用' : '停用')}
-                            </bk-tag>
+                            </Tag>
                           )
                         }}
-                      ></bk-table-column>
+                      ></TableColumn>
                       <div
                         slot='empty'
                         class='alarm-group-empty'
@@ -748,7 +749,7 @@ export default class AlarmDispatch extends tsc<{}> {
                           {this.$t('配置规则')}
                         </div>
                       </div>
-                    </bk-table>
+                    </Table>
                   </div>
                 </div>
               ))

@@ -26,6 +26,7 @@
 /* eslint-disable max-len  */
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
 
 import { getStorageClusterDetail, listClusters } from '../../../monitor-api/modules/commons';
 import { random } from '../../../monitor-common/utils';
@@ -312,7 +313,7 @@ export default class ResourceRegister extends tsc<{}> {
         return (
           <div class='operate-items'>
             {[EClusterType.Influxdb, EClusterType.Kafka, EClusterType.ES].includes(row.cluster_type) && (
-              <bk-button
+              <Button
                 class='mr20'
                 text
                 onClick={(e: Event) => {
@@ -321,10 +322,10 @@ export default class ResourceRegister extends tsc<{}> {
                 }}
               >
                 {this.$t('编辑')}
-              </bk-button>
+              </Button>
             )}
             {/* todo */}
-            {/* <bk-button text onClick={this.handleOpenInfluxdbGroupSideslider}>{this.$t('新增组')}</bk-button> */}
+            {/* <Button text onClick={this.handleOpenInfluxdbGroupSideslider}>{this.$t('新增组')}</Button> */}
           </div>
         );
       }
@@ -338,15 +339,15 @@ export default class ResourceRegister extends tsc<{}> {
       <div class='resource-register-page'>
         <div class='header-wrap'>
           <div class='header-wrap-01'>
-            <bk-button
+            <Button
               class='mr8'
               theme='primary'
               icon='plus'
               onClick={() => this.handleOpenSideSlider({ operationType: 'add' })}
             >
               {this.$tc('新增')}
-            </bk-button>
-            <bk-button
+            </Button>
+            <Button
               class='expand-button'
               onClick={this.handleExpandAllChange}
             >
@@ -361,7 +362,7 @@ export default class ResourceRegister extends tsc<{}> {
                   <span>{this.$t('全部展开')}</span>
                 </span>
               )}
-            </bk-button>
+            </Button>
             <span class='data-time'>
               {this.$t('数据更新时间')}：{this.updateTime || '--'}
             </span>
@@ -380,12 +381,12 @@ export default class ResourceRegister extends tsc<{}> {
               ))}
             </div>
             <div class='search-wrap'>
-              <bk-input
+              <Input
                 value={this.searchValue}
                 right-icon='bk-icon icon-search'
                 onEnter={this.handleSearchChange}
                 onBlur={this.handleSearchChange}
-              ></bk-input>
+              ></Input>
             </div>
           </div>
         </div>
@@ -393,7 +394,7 @@ export default class ResourceRegister extends tsc<{}> {
           class='table-content-wrap'
           v-bkloading={{ isLoading: this.loading }}
         >
-          <bk-table
+          <Table
             outer-border={false}
             header-border={false}
             size={this.tableSize}
@@ -409,7 +410,7 @@ export default class ResourceRegister extends tsc<{}> {
             on-page-change={this.handlePageChange}
             on-page-limit-change={this.handlePageLimitChange}
           >
-            <bk-table-column
+            <TableColumn
               type='expand'
               width={0}
               scopedSlots={{
@@ -424,7 +425,7 @@ export default class ResourceRegister extends tsc<{}> {
                       class='child-table'
                       key={`${row.key}_child`}
                     >
-                      <bk-table
+                      <Table
                         outer-border={false}
                         header-border={false}
                         {...{
@@ -436,7 +437,7 @@ export default class ResourceRegister extends tsc<{}> {
                         {row.childData?.columns.map(column => {
                           const key = `column__${column.id}`;
                           return (
-                            <bk-table-column
+                            <TableColumn
                               key={key}
                               prop={column.id}
                               label={column.name}
@@ -469,17 +470,17 @@ export default class ResourceRegister extends tsc<{}> {
                                   return '--';
                                 })();
                               }}
-                            ></bk-table-column>
+                            ></TableColumn>
                           );
                         })}
-                      </bk-table>
+                      </Table>
                     </div>
                   );
                 }
               }}
-            ></bk-table-column>
-            <bk-table-column type='setting'>
-              <bk-table-setting-content
+            ></TableColumn>
+            <TableColumn type='setting'>
+              <TableSettingContent
                 key={'__settings'}
                 class='event-table-setting'
                 fields={this.tableData.columns}
@@ -489,13 +490,13 @@ export default class ResourceRegister extends tsc<{}> {
                 selected={this.tableData.columns.filter(item => item.checked || item.disabled)}
                 on-setting-change={this.handleSettingChange}
               />
-            </bk-table-column>
+            </TableColumn>
             {this.tableData.columns
               .filter(column => column.checked)
               .map(column => {
                 const key = `column_${column.id}`;
                 return (
-                  <bk-table-column
+                  <TableColumn
                     key={key}
                     prop={column.id}
                     label={column.name}
@@ -504,10 +505,10 @@ export default class ResourceRegister extends tsc<{}> {
                     formatter={(row, _column, _cellValue, index) =>
                       this.handleSetFormatter(column.id as ETableColumn, row, index)
                     }
-                  ></bk-table-column>
+                  ></TableColumn>
                 );
               })}
-          </bk-table>
+          </Table>
         </div>
         <ClusterConfig
           ref='clusterOperation'

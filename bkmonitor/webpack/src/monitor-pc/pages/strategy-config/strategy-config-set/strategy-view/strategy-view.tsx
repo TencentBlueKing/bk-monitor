@@ -28,6 +28,7 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Radio, RadioGroup } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from '../../../../../monitor-api/modules/grafana';
@@ -952,9 +953,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   // 查看近20条数据
                   !!this.needNearRadio && (
                     <div class='radio-count-options'>
-                      <bk-radio-group v-model={this.shortcutsType}>
+                      <RadioGroup v-model={this.shortcutsType}>
                         {this.shortcutsList.map(sh => (
-                          <bk-radio value={sh.id}>
+                          <Radio value={sh.id}>
                             {sh.id === 'NEAR' ? (
                               <i18n
                                 path='查看{0}条数据'
@@ -968,9 +969,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                             ) : (
                               <span>{sh.name}</span>
                             )}
-                          </bk-radio>
+                          </Radio>
                         ))}
-                      </bk-radio-group>
+                      </RadioGroup>
                     </div>
                   ),
                   // <monitor-divider></monitor-divider>,
