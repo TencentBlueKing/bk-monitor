@@ -27,6 +27,7 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Sideslider, Switcher, Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import {
@@ -268,22 +269,22 @@ export default class DataStatus extends tsc<{}> {
     };
     const operatorSlot = {
       default: props => [
-        <bk-button
+        <Button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleCopyLog(JSON.stringify(props.row.raw_log))}
         >
           {this.$t('复制')}
-        </bk-button>,
-        <bk-button
+        </Button>,
+        <Button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleViewDetail(props.row.raw_log)}
         >
           {this.$t('查看上报数据')}
-        </bk-button>
+        </Button>
       ]
     };
 
@@ -309,7 +310,7 @@ export default class DataStatus extends tsc<{}> {
                 >
                   {this.$t('无数据告警')}
                 </span>
-                <bk-switcher
+                <Switcher
                   size='small'
                   theme='primary'
                   value={this.strategyInfo.is_enabled}
@@ -374,36 +375,36 @@ export default class DataStatus extends tsc<{}> {
             <i class='icon-monitor icon-shuaxin'></i>
             {this.$t('button-刷新')}
           </span>
-          <bk-table
+          <Table
             class={'sampling-table'}
             outer-border={false}
             row-auto-height={true}
             data={this.samplingList}
             v-bkloading={{ isLoading: this.tableLoading }}
           >
-            <bk-table-column
+            <TableColumn
               label={this.$t('序号')}
               type='index'
               width='80'
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('原始数据')}
               scopedSlots={logSlots}
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('采样时间')}
               width='200'
               scopedSlots={{ default: props => props.row.sampling_time }}
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('查看')}
               width='180'
               scopedSlots={operatorSlot}
             />
-          </bk-table>
+          </Table>
         </PanelItem>
 
-        <bk-sideslider
+        <Sideslider
           ext-cls='origin-log-sideslider'
           transfer={true}
           isShow={this.sideslider.show}
@@ -416,12 +417,12 @@ export default class DataStatus extends tsc<{}> {
             class='title-wrap'
           >
             <span>{this.$t('上报日志详情')}</span>
-            <bk-button
+            <Button
               class='mr10'
               onClick={() => this.handleCopyLog(JSON.stringify(this.sideslider.log))}
             >
               {this.$t('复制')}
-            </bk-button>
+            </Button>
           </div>
           <div
             class='json-text-style'
@@ -434,7 +435,7 @@ export default class DataStatus extends tsc<{}> {
               data={this.sideslider.log}
             />
           </div>
-        </bk-sideslider>
+        </Sideslider>
       </div>
     );
   }

@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Sideslider, Table, TableColumn } from 'bk-magic-vue';
 // import { copyText } from '../../../../../monitor-common/utils/utils'
 import dayjs from 'dayjs';
 
@@ -121,19 +122,19 @@ export default class RulesViewer extends tsc<IDataStatus> {
         if (prop === 'handle') {
           return (
             <div>
-              <bk-button
+              <Button
                 style='margin-right: 5px;'
                 text={true}
                 onClick={() => this.handleCopy(JSON.stringify(row.data))}
               >
                 {this.$t('复制')}
-              </bk-button>
-              <bk-button
+              </Button>
+              <Button
                 text={true}
                 onClick={() => this.handleShowSource(row)}
               >
                 {this.$t('查看上报日志')}
-              </bk-button>
+              </Button>
             </div>
           );
         }
@@ -182,18 +183,18 @@ export default class RulesViewer extends tsc<IDataStatus> {
               {i18n.t('button-刷新')}
             </span>
           </div>
-          <bk-table data={this.sourceData}>
+          <Table data={this.sourceData}>
             {this.sourceDataTableColumn.map((item, i) => (
-              <bk-table-column
+              <TableColumn
                 key={i}
                 label={item.label}
                 prop={item.prop}
                 width={item.width}
                 resizable={false}
                 {...{ scopedSlots }}
-              ></bk-table-column>
+              ></TableColumn>
             ))}
-          </bk-table>
+          </Table>
         </div>
         {/* <MonacoEditor
             class="code-viewer"
@@ -202,7 +203,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
             options={{ readOnly: true }}
             style="height: calc(100vh - 61px)">
         </MonacoEditor> */}
-        <bk-sideslider
+        <Sideslider
           ext-cls='data-status-sideslider'
           transfer={true}
           isShow={this.sideslider.isShow}
@@ -216,7 +217,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
             class='sideslider-title'
           >
             <span>{this.sideslider.title + this.$t('上报日志详情')}</span>
-            <bk-button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</bk-button>
+            <Button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</Button>
           </div>
           <div slot='content'>
             <MonacoEditor
@@ -227,7 +228,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
               style='height: calc(100vh - 60px)'
             ></MonacoEditor>
           </div>
-        </bk-sideslider>
+        </Sideslider>
       </div>
     );
   }

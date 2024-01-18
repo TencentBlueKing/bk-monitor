@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 
 import Collapse from '../../../../components/collapse/collapse';
 import { DetailData } from '../typings/detail';
@@ -76,13 +77,13 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
                   renderContent={false}
                   needCloseButton={false}
                 >
-                  <bk-table
+                  <Table
                     class='metric-wrap-table'
                     data={item.list}
                     empty-text={this.$t('无数据')}
                     max-height={350}
                   >
-                    <bk-table-column
+                    <TableColumn
                       label={this.$t('指标/维度')}
                       width='150'
                       scopedSlots={{
@@ -90,7 +91,7 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
                           row.metric === 'metric' ? this.$t('指标（Metric）') : this.$t('维度（Dimension）')
                       }}
                     />
-                    <bk-table-column
+                    <TableColumn
                       label={this.$t('英文名')}
                       min-width='150'
                       scopedSlots={{
@@ -98,28 +99,28 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
                       }}
                     />
 
-                    <bk-table-column
+                    <TableColumn
                       label={this.$t('别名')}
                       min-width='150'
                       scopedSlots={{
                         default: ({ row }) => <span title={row.aliaName}>{row.aliaName || '--'}</span>
                       }}
                     />
-                    <bk-table-column
+                    <TableColumn
                       label={this.$t('类型')}
                       width='80'
                       scopedSlots={{
                         default: ({ row }) => <span title={row.type}>{row.type || '--'}</span>
                       }}
                     />
-                    <bk-table-column
+                    <TableColumn
                       label={this.$t('单位')}
                       width='100'
                       scopedSlots={{
                         default: ({ row }) => <span title={row.unit}>{row.unit || '--'}</span>
                       }}
                     />
-                  </bk-table>
+                  </Table>
                 </Collapse>
               </div>
             ))}

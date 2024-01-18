@@ -95,7 +95,6 @@
                     class="logo-img"
                     v-if="pluginInfo.logo"
                     :src="`data:image/png;base64,${pluginInfo.logo}`"
-                    alt=''
                   >
                   <div
                     class="logo-text"

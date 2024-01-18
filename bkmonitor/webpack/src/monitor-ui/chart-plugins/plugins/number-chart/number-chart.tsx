@@ -126,7 +126,6 @@ class NumberChart extends CommonSimpleChart {
                 <span>{item.value}</span>
                 {!!this.panel.instant && (
                   <img
-                    alt=''
                     class='instant-icon'
                     // eslint-disable-next-line @typescript-eslint/no-require-imports
                     src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}

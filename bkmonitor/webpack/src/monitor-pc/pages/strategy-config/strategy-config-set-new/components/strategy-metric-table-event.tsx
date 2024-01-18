@@ -30,6 +30,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Radio, Table, TableColumn } from 'bk-magic-vue';
 import { throttle } from 'throttle-debounce';
 
 import { TMode } from './strategy-metric-wrap';
@@ -58,7 +59,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
   @Prop({ default: 'event', type: String }) mode: TMode;
   @Prop({ default: false, type: Boolean }) readonly: boolean;
   @Prop({ default: () => [], type: Array }) checked: string[];
-  @Ref('metricTable') metricTable: any;
+  @Ref('metricTable') metricTable: Table;
 
   eventTableColumnMap = {
     bk_monitor: [{ label: i18n.t('事件名称'), prop: 'metric_field_name', key: 'name' }],
@@ -135,11 +136,11 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
   render() {
     const scopedSlots = {
       default: ({ row }) => (
-        <bk-radio
+        <Radio
           disabled={this.readonly}
           value={this.checked.includes(row.metric_id)}
           onChange={v => this.hendleRadioChnage(v, row)}
-        ></bk-radio>
+        ></Radio>
       )
     };
     const scopedSlotsLog = {
@@ -147,38 +148,38 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
     };
     return (
       <div class='strategy-metric-table-event'>
-        <bk-table
+        <Table
           ref='metricTable'
           outer-border={false}
           height={397}
           max-height={397}
           data={this.data || []}
         >
-          <bk-table-column
+          <TableColumn
             width={48}
             scopedSlots={scopedSlots}
-          ></bk-table-column>
+          ></TableColumn>
           {this?.getCurTabTableColumn?.map(item => {
             // 日志平台数据源
             if (this.mode === 'log' && this.type === 'bk_log_search' && item.key === 'scenario_name') {
               return (
-                <bk-table-column
+                <TableColumn
                   label={item.label}
                   prop={item.prop}
                   width={item.width}
                   scopedSlots={scopedSlotsLog}
-                ></bk-table-column>
+                ></TableColumn>
               );
             }
             return (
-              <bk-table-column
+              <TableColumn
                 label={item.label}
                 prop={item.prop}
                 width={item.width}
-              ></bk-table-column>
+              ></TableColumn>
             );
           })}
-        </bk-table>
+        </Table>
       </div>
     );
   }

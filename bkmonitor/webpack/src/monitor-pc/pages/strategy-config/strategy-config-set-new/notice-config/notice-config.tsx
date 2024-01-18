@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox, CheckboxGroup, Input, Option, Popover, Select, Switcher } from 'bk-magic-vue';
 
 import ResizeContainer from '../../../../../fta-solutions/components/resize-container/resize-container';
 import AutoInput from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
@@ -547,18 +548,18 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
           show-semicolon
         >
           <span class='effective-conditions'>
-            <bk-checkbox-group
+            <CheckboxGroup
               value={this.data.signal}
               on-change={v => this.handleSignalChange(v, 'notice')}
             >
               {noticeOptions.map(item => (
-                <bk-checkbox
+                <Checkbox
                   v-en-style='width: 160px'
                   value={item.key}
                   disabled={this.readonly}
                 >
                   {hasExcludeNoticeWayOptions.includes(item.key) ? (
-                    <bk-popover
+                    <Popover
                       placement='top'
                       extCls='notice-config-new-component-exclude-way-pop'
                       tippyOptions={{
@@ -581,7 +582,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         onMouseleave={() => this.handleExcludeMouseleave(item.key)}
                       >
                         <span>{window.i18n.tc('明确排除通知方式')}</span>
-                        <bk-select
+                        <Select
                           v-model={this.data.options.exclude_notice_ways[item.key]}
                           behavior='simplicity'
                           multiple
@@ -589,21 +590,21 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           onToggle={v => this.handleExcludeToggle(v, item.key)}
                         >
                           {this.noticeWayList.map(way => (
-                            <bk-option
+                            <Option
                               key={way.type}
                               id={way.type}
                               name={way.label}
-                            ></bk-option>
+                            ></Option>
                           ))}
-                        </bk-select>
+                        </Select>
                       </span>
-                    </bk-popover>
+                    </Popover>
                   ) : (
                     <span>{item.text}</span>
                   )}
-                </bk-checkbox>
+                </Checkbox>
               ))}
-            </bk-checkbox-group>
+            </CheckboxGroup>
           </span>
         </CommonItem>
         <CommonItem
@@ -611,20 +612,20 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
           show-semicolon
         >
           <span class='effective-conditions'>
-            <bk-checkbox-group
+            <CheckboxGroup
               value={this.data.signal}
               on-change={v => this.handleSignalChange(v, 'action')}
             >
               {actionOption.map(item => (
-                <bk-checkbox
+                <Checkbox
                   v-en-style='width: 160px'
                   value={item.key}
                   disabled={this.readonly}
                 >
                   {item.text}
-                </bk-checkbox>
+                </Checkbox>
               ))}
-            </bk-checkbox-group>
+            </CheckboxGroup>
           </span>
         </CommonItem>
         {/* <CommonItem title={this.$t('告警组')} show-semicolon>
@@ -700,19 +701,19 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               >
                 <VerifyItem errorMsg={this.errMsg.upgrade}>
                   <div class='upgrade-warp'>
-                    <bk-switcher
+                    <Switcher
                       theme='primary'
                       size='small'
                       v-model={this.data.options.upgrade_config.is_enabled}
                       onChange={this.clearError}
-                    ></bk-switcher>
+                    ></Switcher>
                     {this.data.options.upgrade_config.is_enabled && (
                       <i18n
                         class='text'
                         tag='div'
                         path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
                       >
-                        <bk-select
+                        <Select
                           v-model={this.data.options.upgrade_config.upgrade_interval}
                           behavior='simplicity'
                           style='width: 78px'
@@ -723,23 +724,23 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           class='notice-select'
                           onChange={this.clearError}
                         >
-                          <bk-option
+                          <Option
                             id={1}
                             name={1}
                           />
-                          <bk-option
+                          <Option
                             id={5}
                             name={5}
                           />
-                          <bk-option
+                          <Option
                             id={10}
                             name={10}
                           />
-                          <bk-option
+                          <Option
                             id={30}
                             name={30}
                           />
-                        </bk-select>
+                        </Select>
                       </i18n>
                     )}
                   </div>
@@ -799,7 +800,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         <span class='bold'>{this.data.config.notify_interval}</span>
                       ]
                     : [
-                        <bk-select
+                        <Select
                           v-en-style='width: 100px'
                           class='select select-inline'
                           clearable={false}
@@ -809,21 +810,21 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           onChange={this.handleChange}
                         >
                           {intervalModeList.map(item => (
-                            <bk-option
+                            <Option
                               key={item.id}
                               id={item.id}
                               name={item.name}
-                            ></bk-option>
+                            ></Option>
                           ))}
-                        </bk-select>,
-                        <bk-input
+                        </Select>,
+                        <Input
                           class='input-inline input-center'
                           behavior='simplicity'
                           v-model={this.data.config.notify_interval}
                           type='number'
                           size='small'
                           onInput={this.handleChange}
-                        ></bk-input>
+                        ></Input>
                       ]}
                 </i18n>
                 <span
@@ -839,13 +840,13 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
             show-semicolon
           >
             <span class='alarm-storm'>
-              <bk-switcher
+              <Switcher
                 v-model={this.data.options.converge_config.need_biz_converge}
                 theme='primary'
                 size='small'
                 disabled={this.readonly}
                 on-change={this.handleChange}
-              ></bk-switcher>
+              ></Switcher>
               <i class='icon-monitor icon-hint'></i>
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}
@@ -859,19 +860,19 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
             >
               <VerifyItem errorMsg={this.errMsg.noise_reduce_config}>
                 <span class={['noise-reduce', { mt5: !this.data.options.noise_reduce_config.is_enabled }]}>
-                  <bk-switcher
+                  <Switcher
                     v-model={this.data.options.noise_reduce_config.is_enabled}
                     theme='primary'
                     size='small'
                     disabled={this.readonly}
                     on-change={this.handleChange}
-                  ></bk-switcher>
+                  ></Switcher>
                   {this.data.options.noise_reduce_config.is_enabled ? (
                     <i18n
                       path='基于维度{0},当前策略异常告警达到比例{1}%才进行发送通知。'
                       class='noise-content'
                     >
-                      <bk-select
+                      <Select
                         class='select select-inline'
                         clearable={false}
                         behavior='simplicity'
@@ -892,7 +893,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         onSelected={this.handleDimensionsSelected}
                       >
                         {[{ id: 'all', name: window.i18n.tc('全部') }, ...this.legalDimensionList].map(item => (
-                          <bk-option
+                          <Option
                             key={item.id}
                             id={item.id}
                             name={item.name}
@@ -905,10 +906,10 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                               disabled: item.id === 'all',
                               allowHTML: false
                             }}
-                          ></bk-option>
+                          ></Option>
                         ))}
-                      </bk-select>
-                      <bk-input
+                      </Select>
+                      <Input
                         class='input-inline input-center'
                         behavior='simplicity'
                         showControls={false}
@@ -916,7 +917,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         type='number'
                         size='small'
                         onInput={this.handleChange}
-                      ></bk-input>
+                      ></Input>
                     </i18n>
                   ) : undefined}
                 </span>
@@ -958,7 +959,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 <span class='label'>
                   <span>{this.$t('告警通知模板')}</span>
                   <span class='need-img-check'>
-                    <bk-checkbox
+                    <Checkbox
                       v-bk-tooltips={{
                         content: this.$t('蓝鲸监控机器人发送图片全局设置已关闭'),
                         placements: ['top'],
@@ -969,7 +970,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                       on-change={this.handleChange}
                     >
                       {this.$t('是否附带图片')}
-                    </bk-checkbox>
+                    </Checkbox>
                   </span>
                 </span>
                 <div class='wrap-right'>

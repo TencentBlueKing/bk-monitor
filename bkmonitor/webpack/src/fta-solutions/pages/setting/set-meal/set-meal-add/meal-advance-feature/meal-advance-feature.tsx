@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input, Option, Select } from 'bk-magic-vue';
 
 import VerifyItem from '../../../../../components/verify-item/verify-item';
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
@@ -48,7 +49,8 @@ interface IMealAdvanceFeature {
   mealType: string | number;
 }
 @Component({
-  name: 'MealAdvanceFeature'
+  name: 'MealAdvanceFeature',
+  components: { Input }
 })
 export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
   @Prop() public failedRetry: IFailedRetry;
@@ -161,13 +163,13 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                 class='verify-item'
                 errorMsg={this.errorMsg.timeout}
               >
-                <bk-input
+                <Input
                   class='input-inline'
                   v-model={this.failedRetry.timeout}
                   behavior={'simplicity'}
                   type={'number'}
                   onChange={v => this.clearError('timeout', v)}
-                ></bk-input>
+                ></Input>
               </VerifyItem>
             </div>
           </i18n>
@@ -185,7 +187,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
         <div class='content'>
           <i18n path='当遇到相同的{0}, 在{1}分钟内触发{2}条以上,进行{3}收敛'>
             <div class='select-wrapper-small'>
-              <bk-select
+              <Select
                 class='select-inline'
                 search-with-pinyin={true}
                 multiple
@@ -196,26 +198,26 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                 searchable
               >
                 {this.getDimensions.map(option => (
-                  <bk-option
+                  <Option
                     key={option.key}
                     id={option.key}
                     name={option.name}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
+              </Select>
             </div>
             <div class='input-wrapper-small'>
               <VerifyItem
                 class='verify-item'
                 errorMsg={this.errorMsg.timedelta}
               >
-                <bk-input
+                <Input
                   class='input-inline'
                   v-model={this.convergeConfig.timedelta}
                   behavior={'simplicity'}
                   type={'number'}
                   onChange={v => this.clearError('timedelta', v)}
-                ></bk-input>
+                ></Input>
               </VerifyItem>
             </div>
             <div class='input-wrapper-small'>
@@ -223,17 +225,17 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                 class='verify-item'
                 errorMsg={this.errorMsg.count}
               >
-                <bk-input
+                <Input
                   class='input-inline'
                   v-model={this.convergeConfig.count}
                   behavior={'simplicity'}
                   type={'number'}
                   onChange={v => this.clearError('count', v)}
-                ></bk-input>
+                ></Input>
               </VerifyItem>
             </div>
             <div class='select-wrapper-small'>
-              <bk-select
+              <Select
                 class='select-inline'
                 popover-min-width={140}
                 v-model={this.convergeConfig.convergeFunc}
@@ -242,13 +244,13 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
                 searchable
               >
                 {this.getConvergeFunctions.map(option => (
-                  <bk-option
+                  <Option
                     key={option.key}
                     id={option.key}
                     name={option.name}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
+              </Select>
             </div>
           </i18n>
         </div>

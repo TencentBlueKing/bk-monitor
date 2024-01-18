@@ -26,8 +26,6 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import '@blueking/bk-weweb';
-
 import './fta.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
@@ -57,14 +55,11 @@ export default class FTA extends tsc<{}> {
   mounted() {
     setTimeout(() => {
       window.requestIdleCallback(() => (this.loading = false));
-    });
+    },)
   }
   render() {
     return (
-      <div
-        class='fta-wrap'
-        v-monitor-loading={{ isLoading: this.loading }}
-      >
+      <div class='fta-wrap' v-monitor-loading={{ isLoading: this.loading }}>
         <bk-weweb
           class='fta-wrap-iframe'
           url={this.ftaUrl}

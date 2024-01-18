@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Sideslider } from 'bk-magic-vue';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 
@@ -141,7 +142,7 @@ export default class ClusterDetails extends tsc<IProps> {
 
   render() {
     return (
-      <bk-sideslider
+      <Sideslider
         ext-cls='resource-register-cluster-details-sides'
         isShow={this.show}
         quick-close={true}
@@ -154,14 +155,14 @@ export default class ClusterDetails extends tsc<IProps> {
           class='header-wrap'
         >
           <span class='header-title'>{this.clusterName}</span>
-          <bk-button
+          <Button
             class='edit-btn'
             theme='primary'
             outline
             onClick={this.handleEdit}
           >
             {this.$t('编辑')}
-          </bk-button>
+          </Button>
           <HistoryDialog
             class='mr24'
             list={this.historyList}
@@ -170,7 +171,7 @@ export default class ClusterDetails extends tsc<IProps> {
         <div slot='content'>
           <div class='content-wrap'>{this.contents.map((item, index) => this.detailsItem(item, index))}</div>
         </div>
-      </bk-sideslider>
+      </Sideslider>
     );
   }
 }

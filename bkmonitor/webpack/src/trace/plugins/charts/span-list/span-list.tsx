@@ -186,7 +186,6 @@ export default defineComponent({
                   <img
                     src={original.icon}
                     class='span-icon'
-                    alt=''
                   />
                   <span class='service-name'>{original.operationName}</span>
                   <span class='start-time'>

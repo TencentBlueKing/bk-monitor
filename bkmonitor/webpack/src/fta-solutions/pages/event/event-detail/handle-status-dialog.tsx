@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Dialog, Option, Select, Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { subActionDetail } from '../../../../monitor-api/modules/alert';
@@ -212,35 +213,35 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
       )
     };
     return (
-      <bk-table
+      <Table
         data={this.curTableTable}
         class='table-wrap'
         border={false}
         outer-border={false}
       >
-        <bk-table-column
+        <TableColumn
           label={this.$t('套餐类型')}
           scopedSlots={typeSlot}
-        ></bk-table-column>
-        <bk-table-column
+        ></TableColumn>
+        <TableColumn
           label={this.$t('执行对象')}
           scopedSlots={operateTargetStringSlot}
-        ></bk-table-column>
-        <bk-table-column
+        ></TableColumn>
+        <TableColumn
           label={this.$t('负责人')}
           scopedSlots={operatorSlot}
-        ></bk-table-column>
-        <bk-table-column
+        ></TableColumn>
+        <TableColumn
           label={this.$t('执行状态')}
           scopedSlots={checkSlot}
-        ></bk-table-column>
-      </bk-table>
+        ></TableColumn>
+      </Table>
     );
   }
 
   render() {
     return (
-      <bk-dialog
+      <Dialog
         ext-cls='handle-status-dialog-wrap'
         value={this.value}
         mask-close={true}
@@ -255,20 +256,20 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
         >
           <div class='handle-row'>
             <div class='handel-label'>{this.$t('处理次数')}</div>
-            <bk-select
+            <Select
               class='count-select'
               clearable={false}
               v-model={this.checkedCount}
               on-selected={v => this.handleSelected(v)}
             >
               {this.list.map((item, index) => (
-                <bk-option
+                <Option
                   key={index}
                   id={item.id}
                   name={item.name}
-                ></bk-option>
+                ></Option>
               ))}
-            </bk-select>
+            </Select>
           </div>
           <div class='handle-label mb16'>{this.$t('处理明细')}</div>
           {this.isNotice ? (
@@ -281,7 +282,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
             this.getTableComponent()
           )}
         </div>
-      </bk-dialog>
+      </Dialog>
     );
   }
 }

@@ -198,7 +198,7 @@
   </div>
 </template>
 <script>
-
+import { bkTag } from 'bk-magic-vue';
 
 import { pluginUpgradeInfo } from '../../../../monitor-api/modules/plugin';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
@@ -210,7 +210,8 @@ export default {
   components: {
     AutoCompleteInput,
     AutoMulti,
-    VerifyInput
+    VerifyInput,
+    bkTag
   },
   props: {
     updateParams: {

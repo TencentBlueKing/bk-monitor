@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button } from 'bk-magic-vue';
 
 import { DetectionRuleTypeEnum, IDetectionTypeItem } from '../typings/index';
 
@@ -90,7 +91,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
     return (
       <div class='rules-select-wrap'>
         {!this.show ? (
-          <bk-button
+          <Button
             text
             on-click={this.showChange}
             size='small'
@@ -101,7 +102,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
               <span class='icon-monitor icon-mc-add'></span>
               {this.$t('检测规则')}
             </div>
-          </bk-button>
+          </Button>
         ) : (
           <div class='select-type-panel'>
             <div class='header'>

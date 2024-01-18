@@ -26,6 +26,7 @@
 
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, SearchSelect, Spin } from 'bk-magic-vue';
 
 import { Debounce, deepClone, random } from '../../../../../monitor-common/utils/utils';
 import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
@@ -516,7 +517,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       if (this.isScrollLoading) {
         return (
           <span>
-            <bk-spin
+            <Spin
               class='loading-icon'
               size='mini'
               theme='default'
@@ -542,7 +543,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         <div class={['list-header', { 'flex-header': this.width > 1000 }]}>
           <div class='search-bar'>
             {this.conditionList.length ? (
-              <bk-search-select
+              <SearchSelect
                 placeholder={this.$t('搜索')}
                 vModel={this.searchCondition}
                 show-condition={false}
@@ -561,12 +562,12 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
                 onClear={this.handleInputSearch}
               />
             )}
-            <bk-button
+            <Button
               class='reflesh-btn'
               onClick={this.handleRefresh}
             >
               <i class='icon-monitor icon-shuaxin'></i>
-            </bk-button>
+            </Button>
           </div>
           <div class='tools-bar'>
             {this.isEnableStatusFilter && (
@@ -593,10 +594,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               class={['overview-title', { 'is-active': this.isOverview }]}
               onClick={e => this.handleOverviewTitle(e)}
             >
-              <img
-                src={this.overviewIcon}
-                alt=''
-              />
+              <img src={this.overviewIcon} />
               <span>{`${this.panel?.title}${this.$t('概览')}`}</span>
             </div>
           )}

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input } from 'bk-magic-vue';
 
 import './simple-form.scss';
 
@@ -71,7 +72,7 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
               </span>
             </div>,
             <div class='wrap'>
-              <bk-input
+              <Input
                 value={item.value}
                 behavior='simplicity'
                 placeholder={
@@ -79,7 +80,7 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
                   this.$t('输入需要调试的{0}参数', [`${item.lable?.replace(/\{\{(.*?)\}\}|(\s)/g, '') || ''}`])
                 }
                 onChange={(v: string) => this.handleInputChange(v, index)}
-              ></bk-input>
+              ></Input>
             </div>
           ])
         ) : (

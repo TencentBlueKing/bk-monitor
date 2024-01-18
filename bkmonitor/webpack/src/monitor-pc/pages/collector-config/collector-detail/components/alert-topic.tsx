@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Popover } from 'bk-magic-vue';
 
 import { alertStatus, updateAlertUserGroups } from '../../../../../monitor-api/modules/datalink';
 import { Debounce } from '../../../../../monitor-common/utils';
@@ -138,7 +139,7 @@ export default class AlertTopic extends tsc<IProps> {
           <span class='right-wrap'>
             <span class='receive-msg'>
               <span class='icon-monitor icon-mc-alarm-create mr-6'></span>
-              <bk-popover
+              <Popover
                 theme='light'
                 ext-cls='alert-topic-component-pop-alert'
               >
@@ -154,7 +155,7 @@ export default class AlertTopic extends tsc<IProps> {
                     </div>
                   ))}
                 </div>
-              </bk-popover>
+              </Popover>
             </span>
             <span class='split-line'></span>
             <span class='group-wrap'>

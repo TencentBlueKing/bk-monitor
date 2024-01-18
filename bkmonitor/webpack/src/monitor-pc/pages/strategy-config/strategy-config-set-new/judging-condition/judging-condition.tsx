@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input, Option, Select, Switcher, TagInput, TimePicker } from 'bk-magic-vue';
 
 import bus from '../../../../../monitor-common/utils/event-bus';
 import { deepClone } from '../../../../../monitor-common/utils/utils';
@@ -349,13 +350,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           show-semicolon
         >
           <span class='judging-nodata'>
-            <bk-switcher
+            <Switcher
               class='small-switch'
               disabled={true}
               v-model={this.localData.noDataConfig.isEnabled}
               theme='primary'
               size='small'
-            ></bk-switcher>
+            ></Switcher>
             <i18n
               path='当数据连续丢失{0}个周期时，触发告警通知'
               class='i18n-path'
@@ -383,7 +384,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           title={this.$t('生效时间段')}
           show-semicolon
         >
-          <bk-time-picker
+          <TimePicker
             v-model={this.timeRange}
             behavior='simplicity'
             class='time-input'
@@ -392,7 +393,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
             allowCrossDay={true}
             disabled={this.isDetailMode}
             on-change={() => this.handleTimeChange()}
-          ></bk-time-picker>
+          ></TimePicker>
         </CommonItem>
         <StrategyTemplatePreview
           dialogShow={noticeTemplate.previewTemplate}
@@ -422,23 +423,23 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'
               class='i18n-path'
             >
-              <bk-input
+              <Input
                 type='number'
                 size='small'
                 class='small-input'
                 behavior='simplicity'
                 v-model={this.localData.triggerConfig.checkWindow}
                 on-change={this.emitValueChange}
-              ></bk-input>
+              ></Input>
               {this.$t('累计')}
-              <bk-input
+              <Input
                 type='number'
                 size='small'
                 class='small-input'
                 behavior='simplicity'
                 v-model={this.localData.triggerConfig.count}
                 on-change={this.emitValueChange}
-              ></bk-input>
+              ></Input>
             </i18n>
           </VerifyItem>
         </CommonItem>
@@ -452,14 +453,14 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               path='连续{0}个周期内不满足条件表示恢复'
               class='i18n-path'
             >
-              <bk-input
+              <Input
                 type='number'
                 size='small'
                 class='small-input'
                 behavior='simplicity'
                 v-model={this.localData.recoveryConfig.checkWindow}
                 on-change={this.emitValueChange}
-              ></bk-input>
+              ></Input>
             </i18n>
           </VerifyItem>
         </CommonItem>
@@ -477,7 +478,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 }
                 class='i18n-path flex-wrap'
               >
-                <bk-switcher
+                <Switcher
                   class='small-switch'
                   v-model={this.localData.noDataConfig.isEnabled}
                   theme='primary'
@@ -489,7 +490,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   }}
                   disabled={this.isNoDataDisable}
                   onChange={this.emitNoDataChange}
-                ></bk-switcher>
+                ></Switcher>
                 <bk-input
                   type='number'
                   size='small'
@@ -509,7 +510,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 {(() => {
                   if (this.editMode === 'Source') {
                     return (
-                      <bk-tag-input
+                      <TagInput
                         class='small-select'
                         v-model={this.promqlDimensions}
                         placeholder={this.$t('输入')}
@@ -523,11 +524,11 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                             ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
                             : { disabled: true }
                         }
-                      ></bk-tag-input>
+                      ></TagInput>
                     );
                   }
                   return Array.isArray(this.localData.noDataConfig.dimensions) ? (
-                    <bk-select
+                    <Select
                       v-model={this.localData.noDataConfig.dimensions}
                       popover-min-width={140}
                       clearable={false}
@@ -553,7 +554,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                       on-change={this.emitValueChange}
                     >
                       {this.curDimensions.map(option => (
-                        <bk-option
+                        <Option
                           key={option.id}
                           id={option.id}
                           name={option.name}
@@ -565,12 +566,12 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                             appendTo: document.body,
                             allowHTML: false
                           }}
-                        ></bk-option>
+                        ></Option>
                       ))}
-                    </bk-select>
+                    </Select>
                   ) : undefined;
                 })()}
-                <bk-select
+                <Select
                   v-model={this.localData.noDataConfig.level}
                   popover-min-width={80}
                   clearable={false}
@@ -586,13 +587,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   on-change={this.emitValueChange}
                 >
                   {this.levelList.map(option => (
-                    <bk-option
+                    <Option
                       key={option.id}
                       id={option.id}
                       name={option.name}
-                    ></bk-option>
+                    ></Option>
                   ))}
-                </bk-select>
+                </Select>
               </i18n>
             </span>
           </VerifyItem>

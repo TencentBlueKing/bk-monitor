@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox, Pagination, Popover, Select, Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { eventTopN, searchEvent } from '../../../../monitor-api/modules/alert';
@@ -112,7 +113,11 @@ interface IEventItem {
 }
 
 @Component({
-  name: 'RelatedEvents'
+  name: 'RelatedEvents',
+  components: {
+    Pagination,
+    Select
+  }
 })
 export default class RelatedEvents extends tsc<IRelatedEventsProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -632,7 +637,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     };
 
     return (
-      <bk-table
+      <Table
         {...{
           props: {
             data: this.data.events,
@@ -655,15 +660,15 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           slot='empty'
           onOperation={this.handleOperation}
         />
-        <bk-table-column
+        <TableColumn
           type='expand'
           width={30}
           scopedSlots={childSlots}
-        ></bk-table-column>
+        ></TableColumn>
         {this.tableColumns.map(column => {
           if (!(column.disabled || column.checked)) return undefined;
           return (
-            <bk-table-column
+            <TableColumn
               key={`${column.id}`}
               label={column.name}
               prop={column.id}
@@ -672,7 +677,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             />
           );
         })}
-      </bk-table>
+      </Table>
     );
   }
 
@@ -689,7 +694,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
   getRelatedeventsSettingComponent() {
     return (
       <div class='relatedevents-filter-btn'>
-        <bk-popover
+        <Popover
           placement='bottom-end'
           width='515'
           theme='light strategy-setting'
@@ -710,18 +715,18 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                   key={item.id}
                   class='tool-popover-content-item'
                 >
-                  <bk-checkbox
+                  <Checkbox
                     value={item.checked}
                     on-change={() => this.handleCheckColChange(item)}
                     disabled={item.disabled}
                   >
                     {item.name}
-                  </bk-checkbox>
+                  </Checkbox>
                 </li>
               ))}
             </ul>
           </div>
-        </bk-popover>
+        </Popover>
       </div>
     );
   }

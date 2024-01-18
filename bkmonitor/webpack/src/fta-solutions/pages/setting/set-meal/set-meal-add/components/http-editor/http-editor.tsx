@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox, Input, Option, Radio, RadioGroup, Select, Switcher, Table, TableColumn } from 'bk-magic-vue';
 
 import { Debounce, deepClone, transformDataKey } from '../../../../../../../monitor-common/utils/utils';
 import ResizeContainer from '../../../../../../components/resize-container/resize-container';
@@ -448,7 +449,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
         if (prop === 'isEnabled') {
           return !isEmpty ? (
             <div class='table-checked'>
-              <bk-checkbox
+              <Checkbox
                 v-model={item[prop]}
                 disabled={item.isBuiltin || !this.isEdit}
                 onChange={handleChecked}
@@ -470,7 +471,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
         return (
           <span>
             {this.isEdit && prop ? (
-              <bk-input
+              <Input
                 class='table-input'
                 behavior='simplicity'
                 placeholder={this.$t('输入')}
@@ -497,18 +498,18 @@ export default class HttpEditor extends tsc<IHttpEditor> {
     const { type } = curHeaderData;
     return (
       <div class='header-content header-auth'>
-        <bk-radio-group
+        <RadioGroup
           v-model={curHeaderData.type}
           onChange={radioChange}
         >
           {this.authRadioList.map(item => (
-            <bk-radio
+            <Radio
               key={item.id}
               value={item.id}
               disabled={!this.isEdit}
             >
               {item.name}
-            </bk-radio>
+            </Radio>
           ))}
           {this.needSslCheckbox && this.showSSLCheckbox && (
             <bk-checkbox
@@ -518,42 +519,42 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               {this.$t('SSL证书校验')}
             </bk-checkbox>
           )}
-        </bk-radio-group>
+        </RadioGroup>
         {type === 'bearer_token' ? (
           <div class='auth-params-wrap'>
             <div class='auth-params-label'>Token</div>
-            <bk-input
+            <Input
               class='input'
               style='width: 520px'
               v-model={data.token}
               behavior='simplicity'
               disabled={!this.isEdit}
               onInput={this.authParamInput}
-            ></bk-input>
+            ></Input>
           </div>
         ) : undefined}
         {type === 'basic_auth' ? (
           <div class='auth-params-wrap horizontal'>
             <div class='input-item'>
               <div class='auth-params-label'>{this.$t('用户名')}</div>
-              <bk-input
+              <Input
                 class='input'
                 v-model={data.username}
                 behavior='simplicity'
                 disabled={!this.isEdit}
                 onInput={this.authParamInput}
-              ></bk-input>
+              ></Input>
             </div>
             <div class='input-item'>
               <div class='auth-params-label'>{this.$t('密码')}</div>
-              <bk-input
+              <Input
                 class='input'
                 type='password'
                 v-model={data.password}
                 behavior='simplicity'
                 disabled={!this.isEdit}
                 onInput={this.authParamInput}
-              ></bk-input>
+              ></Input>
             </div>
           </div>
         ) : undefined}
@@ -572,17 +573,17 @@ export default class HttpEditor extends tsc<IHttpEditor> {
     const scopedSlots = this.paramInputScopedSlots(data, this.paramInput, handleDel);
     return (
       <div class='header-content header-params'>
-        <bk-table data={data}>
+        <Table data={data}>
           {this.paramTableColumns.map((item, i) => (
-            <bk-table-column
+            <TableColumn
               key={i}
               label={item.label}
               prop={item.prop}
               width={item.width}
               {...{ scopedSlots }}
-            ></bk-table-column>
+            ></TableColumn>
           ))}
-        </bk-table>
+        </Table>
       </div>
     );
   }
@@ -623,17 +624,17 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             )}
           </div>
         ) : undefined}
-        <bk-table data={temp}>
+        <Table data={temp}>
           {this.headersTableColumns.map((item, i) => (
-            <bk-table-column
+            <TableColumn
               key={i}
               label={item.label}
               prop={item.prop}
               width={item.width}
               {...{ scopedSlots }}
-            ></bk-table-column>
+            ></TableColumn>
           ))}
-        </bk-table>
+        </Table>
       </div>
     );
   }
@@ -662,23 +663,23 @@ export default class HttpEditor extends tsc<IHttpEditor> {
     return (
       <div class='header-content header-body'>
         <div class='header-body-type'>
-          <bk-radio-group
+          <RadioGroup
             class='body-radio-group'
             v-model={curHeaderData.type}
             onChange={radioChange}
           >
             {this.bodyRadioList.map(item => (
-              <bk-radio
+              <Radio
                 key={item.id}
                 value={item.id}
                 disabled={!this.isEdit}
               >
                 <span>{item.name}</span>
-              </bk-radio>
+              </Radio>
             ))}
-          </bk-radio-group>
+          </RadioGroup>
           {curHeaderData.type === 'raw' ? (
-            <bk-select
+            <Select
               class='select select-wrap'
               v-model={data.type}
               clearable={false}
@@ -688,13 +689,13 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               onSelected={() => this.handleRawBlur(data.type, data.content)}
             >
               {rowTypeList.map(option => (
-                <bk-option
+                <Option
                   key={option.id}
                   id={option.id}
                   name={option.name}
-                ></bk-option>
+                ></Option>
               ))}
-            </bk-select>
+            </Select>
           ) : undefined}
         </div>
         {curHeaderData.type === 'default' ? <div class='header-tips'>{this.$t('该请求不含主体。')}</div> : undefined}
@@ -705,7 +706,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               // width={ 568 }
               minWidth={200}
             >
-              <bk-input
+              <Input
                 class='textarea'
                 type={'textarea'}
                 disabled={!this.isEdit}
@@ -713,26 +714,26 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 v-model={data.content}
                 onBlur={() => this.handleRawBlur(data.type, data.content)}
                 onFocus={() => (this.rawErrorMsg = '')}
-              ></bk-input>
+              ></Input>
               {this.rawErrorMsg && <p style='margin: 0; color: #ff5656;'>{this.rawErrorMsg}</p>}
             </ResizeContainer>
           </div>
         ) : undefined}
         {isTable ? (
-          <bk-table
+          <Table
             class='table'
             data={data}
           >
             {this.paramTableColumns.map((item, i) => (
-              <bk-table-column
+              <TableColumn
                 key={i}
                 label={item.label}
                 prop={item.prop}
                 width={item.width}
                 {...{ scopedSlots }}
-              ></bk-table-column>
+              ></TableColumn>
             ))}
-          </bk-table>
+          </Table>
         ) : undefined}
       </div>
     );
@@ -758,7 +759,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           if (item.id === 'needPoll') {
             return content(
               item,
-              <bk-switcher
+              <Switcher
                 class='switch'
                 theme='primary'
                 size='small'
@@ -771,7 +772,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           if (item.id === 'notifyInterval') {
             return content(
               item,
-              <bk-input
+              <Input
                 class='input'
                 behavior='simplicity'
                 onInput={this.setingChange}
@@ -785,7 +786,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           }
           return content(
             item,
-            <bk-input
+            <Input
               class='input'
               behavior='simplicity'
               onInput={this.setingChange}
@@ -842,7 +843,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           // http方法/url
           this.isEdit ? (
             <div class='http-method-url'>
-              <bk-select
+              <Select
                 class='select'
                 v-model={this.httpData.method}
                 clearable={false}
@@ -851,25 +852,25 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 onChange={this.methodChange}
               >
                 {this.localMethodList.map(option => (
-                  <bk-option
+                  <Option
                     key={option}
                     id={option}
                     name={option}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
+              </Select>
               <VerifyItem
                 class='verify-url'
                 errorMsg={this.errorMsg.url}
               >
-                <bk-input
+                <Input
                   class='url-input'
                   v-model={this.httpData.url}
                   onChange={this.urlChange}
                   onFocus={this.urlFocus}
                   placeholder={this.$i18n.tc('输入请求 URL')}
                   behavior={this.behavior}
-                ></bk-input>
+                ></Input>
               </VerifyItem>
             </div>
           ) : (

@@ -97,7 +97,6 @@
                 <img
                   v-if="item.logo"
                   :src="item.logo"
-                  alt=''
                 >
                 <i
                   v-else-if="!item.logo && item.type === 'group'"
@@ -138,7 +137,6 @@
                   <img
                     class="item-img"
                     :src="item.icon"
-                    alt=''
                   >
                   {{ item.label }}
                 </div>
@@ -333,21 +331,21 @@ export default {
   .alarm-dividing-line {
     width: 100%;
     height: 1px;
-    margin-bottom: 20px;
     background: #dcdee5;
+    margin-bottom: 20px;
   }
 
   &-content {
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
   }
 
   &-col {
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
     line-height: 16px;
+    margin-bottom: 20px;
   }
 
   &-item {
@@ -357,9 +355,9 @@ export default {
 
   &-label {
     width: 70px;
-    margin-right: 21px;
     color: #979ba5;
     text-align: right;
+    margin-right: 21px;
   }
 
   &-person {
@@ -369,8 +367,8 @@ export default {
     .person-box {
       display: flex;
       align-items: center;
-      height: 26px;
       margin-bottom: 10px;
+      height: 26px;
     }
 
     .person-image {
@@ -384,16 +382,16 @@ export default {
       }
 
       .no-img {
-        font-size: 22px;
         color: #c4c6cc;
+        font-size: 22px;
         background: #fafbfd;
         border-radius: 16px;
       }
     }
 
     .person-name {
-      margin-right: 20px;
       margin-left: 6px;
+      margin-right: 20px;
     }
   }
 
@@ -423,30 +421,30 @@ export default {
 
   .notice-table {
     width: 100%;
-    color: #63656e;
     border: 1px solid #dcdee5;
     border-bottom: 0;
+    color: #63656e;
 
     .icon {
-      margin-right: 6px;
       font-size: 16px;
+      margin-right: 6px;
     }
 
     .item-img {
       width: 16px;
       height: 16px;
-      margin-right: 6px;
       filter: grayscale(100%);
+      margin-right: 6px;
     }
 
     th {
-      height: 40px;
       padding: 0;
       margin: 0;
+      height: 40px;
       font-weight: 400;
-      background: #fafbfd;
       border-right: 1px solid #dcdee5;
       border-bottom: 1px solid #dcdee5;
+      background: #fafbfd;
 
       &:first-child {
         width: 97px;
@@ -457,21 +455,21 @@ export default {
       }
 
       div {
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
-        height: 40px;
       }
     }
 
     td {
-      height: 40px;
       padding: 0;
       margin: 0;
+      height: 40px;
       text-align: center;
-      background-color: #fff;
       border-right: 1px solid #dcdee5;
       border-bottom: 1px solid #dcdee5;
+      background-color: #fff;
 
       &:last-child {
         border-right: 0;
@@ -482,17 +480,17 @@ export default {
       }
 
       .checklist {
+        color: #2dcb56;
         font-size: 24px;
         font-weight: 600;
-        color: #2dcb56;
       }
 
       .wechat-group-id {
-        max-width: 200px;
-        padding: 0 10px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        max-width: 200px;
+        padding: 0 10px;
       }
     }
   }
@@ -510,11 +508,11 @@ export default {
   }
 
   .header-edit {
+    color: #3a84ff;
+    cursor: pointer;
     margin-left: auto;
     font-size: 12px;
     font-weight: normal;
-    color: #3a84ff;
-    cursor: pointer;
   }
 
   .header-record {

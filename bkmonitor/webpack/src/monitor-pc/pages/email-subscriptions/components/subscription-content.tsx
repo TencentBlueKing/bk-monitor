@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Tab, Table, TableColumn, TabPanel } from 'bk-magic-vue';
 import Sortable from 'sortablejs';
 
 import { deepClone } from '../../../../monitor-common/utils/utils';
@@ -186,50 +187,50 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     };
     const operateSlot = {
       default: props => [
-        <bk-button
+        <Button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleEdit(props.row, props.$index)}
         >
           {this.$t('button-编辑')}
-        </bk-button>,
-        <bk-button
+        </Button>,
+        <Button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleDel(props.$index)}
         >
           {this.$t('删除')}
-        </bk-button>
+        </Button>
       ]
     };
     return (
-      <bk-table
+      <Table
         class='drag-table-wrap'
         key={this.tableKey}
         data={this.data.viewData}
       >
-        <bk-table-column
+        <TableColumn
           width={52}
           scopedSlots={iconSlot}
-        ></bk-table-column>
+        ></TableColumn>
         {tableColumnsMap.map(item => (
-          <bk-table-column
+          <TableColumn
             key={item.key}
             label={item.label}
             prop={item.key}
             show-overflow-tooltip={['contentTitle', 'contentDetails'].includes(item.key)}
             width={item.width}
             formatter={formatterColumn}
-          ></bk-table-column>
+          ></TableColumn>
         ))}
-        <bk-table-column
+        <TableColumn
           label={this.$t('操作')}
           width={150}
           scopedSlots={operateSlot}
-        ></bk-table-column>
-      </bk-table>
+        ></TableColumn>
+      </Table>
     );
   }
   // 整屏截取表格
@@ -242,65 +243,65 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     ];
     const operateSlot = {
       default: props => [
-        <bk-button
+        <Button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleEdit(props.row, props.$index)}
         >
           {this.$t('编辑')}
-        </bk-button>,
-        <bk-button
+        </Button>,
+        <Button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleDel(props.$index)}
         >
           {this.$t('删除')}
-        </bk-button>
+        </Button>
       ]
     };
     return (
-      <bk-table data={this.data.pullData}>
-        <bk-table-column width={52}></bk-table-column>
+      <Table data={this.data.pullData}>
+        <TableColumn width={52}></TableColumn>
         {tableColumnsMap.map(item => {
           if (item.key === 'curBizId') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={item.key}
                 label={item.label}
                 width={item.width}
                 scopedSlots={{ default: ({ row }) => this.bizIdListNameMap[row.curBizId] || '--' }}
-              ></bk-table-column>
+              ></TableColumn>
             );
           }
           if (item.key === 'curGrafanaName') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={item.key}
                 label={item.label}
                 width={item.width}
                 scopedSlots={{
                   default: ({ row }) => row.curGrafanaName || <div class='status-loading'></div>
                 }}
-              ></bk-table-column>
+              ></TableColumn>
             );
           }
           return (
-            <bk-table-column
+            <TableColumn
               key={item.key}
               label={item.label}
               prop={item.key}
               width={item.width}
-            ></bk-table-column>
+            ></TableColumn>
           );
         })}
-        <bk-table-column
+        <TableColumn
           label={this.$t('操作')}
           width={150}
           scopedSlots={operateSlot}
-        ></bk-table-column>
-      </bk-table>
+        ></TableColumn>
+      </Table>
     );
   }
 
@@ -308,31 +309,31 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     return (
       <div class='subscription-content-component'>
         <div class='content-tab'>
-          <bk-tab
+          <Tab
             active={this.curTab}
             on-tab-change={this.handleTabChange}
             type='unborder-card'
           >
             {this.tabList.map(item => (
-              <bk-tab-panel
+              <TabPanel
                 {...{ props: item }}
                 key={item.name}
                 disabled={this.getTabDisable(item.name)}
-              ></bk-tab-panel>
+              ></TabPanel>
             ))}
-          </bk-tab>
+          </Tab>
         </div>
         <div class='content-tip'>
           <span class='icon-monitor icon-hint'></span>
           <span class='text'>{this.tips[this.curTab]}</span>
         </div>
-        <bk-button
+        <Button
           theme='primary'
           outline={true}
           on-click={this.handleAdd}
         >
           {this.$t('button-添加内容')}
-        </bk-button>
+        </Button>
         <div class='content-table'>
           <div style={{ display: this.curTab === this.tabList[0].name ? 'block' : 'none' }}>{this.getViewTable()}</div>
           <div style={{ display: this.curTab === this.tabList[1].name ? 'block' : 'none' }}>{this.getPullTable()}</div>

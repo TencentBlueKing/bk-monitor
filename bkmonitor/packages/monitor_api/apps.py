@@ -10,12 +10,13 @@ specific language governing permissions and limitations under the License.
 """
 import sys
 
-from django.apps import AppConfig
+from django.apps import AppConfig, apps
 from django.conf import settings
 from django.core.management import call_command
 from django.db import connections
 
 from core.errors.errors import MigrateError
+from healthz import define as healthz_metric
 
 
 class MonitorAPIConfig(AppConfig):
@@ -66,7 +67,7 @@ class MonitorAPIConfig(AppConfig):
             # 迁移DB
             self.migrate()
             # healthz指标自动更新
-            # healthz_metric.run(apps)
+            healthz_metric.run(apps)
 
         # 迁移IAM
         Migrator("iam", "bkmonitor.iam.migrations").migrate()

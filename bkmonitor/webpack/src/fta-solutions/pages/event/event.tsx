@@ -29,6 +29,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import { Alert, BigTree, Checkbox, Icon, Pagination, Popover, Select, Tab, TabPanel } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import {
@@ -216,6 +217,7 @@ const filterIconMap = {
   }
 };
 @Component({
+  components: { Popover, Pagination, Checkbox },
   name: 'Event'
 })
 class Event extends Mixins(authorityMixinCreate(eventAuth)) {
@@ -1915,13 +1917,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 监听选择器是否focus判断是否关闭选择面板
   handleToggleChange(status) {
     if (!status && !this.bizIds.length) {
-      (this.$refs.selectRef as any).show();
+      (this.$refs.selectRef as Select).show();
       this.filterSelectIsEmpty = true;
     }
   }
   // 点击清除按钮时展开选择面板
   handleClearFilterSelect() {
-    (this.$refs.selectRef as any).show();
+    (this.$refs.selectRef as Select).show();
   }
 
   /**
@@ -2000,7 +2002,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
 
   filterGroupSlot(item: IGroupData) {
     return (
-      <bk-big-tree
+      <BigTree
         class={{ 'no-multi-level': !item.children.some(child => child.children?.length) }}
         ref={`tree-${item.id}`}
         options={{ nameKey: 'name', idKey: 'id', childrenKey: 'children' }}
@@ -2019,7 +2021,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             </div>
           )
         }}
-      ></bk-big-tree>
+      ></BigTree>
     );
   }
   filterListComponent(item: ICommonTreeItem) {
@@ -2155,7 +2157,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               >
                 {this.$t('空间筛选')}
               </div>
-              {/* <bk-select
+              {/* <Select
                 class={`filter-select ${this.filterSelectIsEmpty ? 'empty-warning' : ''}`}
                 v-model={this.bizIds}
                 placeholder={this.$t('选择')}
@@ -2168,7 +2170,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 ref="selectRef"
               >
                 {this.allowedBizList.map(item => (
-                  <bk-option
+                  <Option
                     disabled={!!item.noAuth && !item.hasData}
                     key={item.id}
                     id={item.id}
@@ -2185,9 +2187,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                           {this.$t('申请权限')}</bk-button>
                         : this.bizIds.includes(item.id) && <i class="bk-option-icon bk-icon icon-check-1"></i>
                     }
-                  </bk-option>
+                  </Option>
                 ))}
-              </bk-select> */}
+              </Select> */}
               <div class='filter-select'>
                 <SpaceSelect
                   value={this.bizIds}
@@ -2217,7 +2219,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             </div>
             {`${this.bussinessTips}`.length > 0 && (
               <div class='permission-tips'>
-                <bk-icon
+                <Icon
                   type='exclamation-circle'
                   class='permission-tips-icon'
                 />
@@ -2229,7 +2231,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 >
                   {this.$t('申请权限')}
                 </bk-button>
-                <bk-icon
+                <Icon
                   type='close'
                   class='permission-tips-close'
                   onClick={() => (this.showPermissionTips = false)}
@@ -2237,7 +2239,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               </div>
             )}
             {this.numOfEmptyAssignee > 0 && (
-              <bk-alert
+              <Alert
                 class='content-alert'
                 type='error'
               >
@@ -2255,25 +2257,25 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                     <span style='display: inline-flex;'>{this.$t('button-查看')}</span>
                   </bk-button>
                 </template>
-              </bk-alert>
+              </Alert>
             )}
             <div
               class='content-table'
               ref='contentTable'
             >
-              <bk-tab
+              <Tab
                 active={this.activePanel}
                 on-tab-change={this.handleAlertTabChange}
                 type='unborder-card'
               >
                 {this.panelList.map(item => (
-                  <bk-tab-panel
+                  <TabPanel
                     key={item.id}
                     name={item.id}
                     label={item.name}
                   />
                 ))}
-              </bk-tab>
+              </Tab>
               {!this.tableData.length ? (
                 <EmptyTable
                   v-bkloading={{ isLoading: this.tableLoading, zIndex: 1000 }}

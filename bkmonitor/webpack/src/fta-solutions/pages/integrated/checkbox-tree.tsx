@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox, CheckboxGroup } from 'bk-magic-vue';
 
 import { IGroupData } from './group';
 
@@ -68,7 +69,7 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
     return (
       <div class='checkbox-tree'>
         {this.innerData.map(item => (
-          <bk-checkbox-group v-model={item.value}>{this.recursiveCheckbox(item, 0)}</bk-checkbox-group>
+          <CheckboxGroup v-model={item.value}>{this.recursiveCheckbox(item, 0)}</CheckboxGroup>
         ))}
       </div>
     );
@@ -83,13 +84,13 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
     return (
       <div style={{ marginLeft: `${level * 20}px` }}>
         <div class='mb10'>
-          <bk-checkbox
+          <Checkbox
             value={data.id}
             indeterminate={data.indeterminate}
             onChange={value => this.handleCheckChange(data, value)}
           >
             {data.name}
-          </bk-checkbox>
+          </Checkbox>
           <span class='check-count'>{data.count}</span>
         </div>
         {data?.data?.map(item => this.recursiveCheckbox(item, level + 1))}

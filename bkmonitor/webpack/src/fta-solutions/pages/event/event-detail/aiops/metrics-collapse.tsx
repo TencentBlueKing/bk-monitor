@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Transition } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../../monitor-common/utils/utils';
 import { resize } from '../../../../../monitor-pc/components/ip-selector/common/observer-directive';
@@ -192,14 +193,14 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
               )}
             </div>
           </div>
-          <bk-transition name='collapse'>
+          <Transition name='collapse'>
             <div
               v-show={!(this.isCollapse && this.showCollapse)}
               class={['correlation-metrics-collapse-content']}
             >
               {(this.$scopedSlots as any)?.default?.({ column: this.layoutActive + 1 })}
             </div>
-          </bk-transition>
+          </Transition>
         </div>
       </div>
     );

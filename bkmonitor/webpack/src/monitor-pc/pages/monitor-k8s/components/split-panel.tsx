@@ -26,13 +26,16 @@
  */
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input, Option, OptionGroup, Select } from 'bk-magic-vue';
 
+import Event from '../../../../fta-solutions/pages/event/event';
 import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
 import { queryCustomEventGroup } from '../../../../monitor-api/modules/custom_report';
 import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
 import { LANGUAGE_COOKIE_KEY } from '../../../../monitor-common/utils';
 import bus from '../../../../monitor-common/utils/event-bus';
 import { docCookies, random } from '../../../../monitor-common/utils/utils';
+import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
 import { DEFAULT_METHOD } from '../../../../monitor-ui/chart-plugins/constants';
 import { BookMarkModel, IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import { IntervalType } from '../../../components/cycle-input/typings';
@@ -69,12 +72,7 @@ interface ISplitPanelEvent {
 }
 
 type IDashbordMode = 'list' | 'chart';
-@Component({
-  components: {
-    Event: () => import('../../../../fta-solutions/pages/event/event'),
-    DashboardPanel: () => import('../../../../monitor-ui/chart-plugins/components/dashboard-panel')
-  }
-})
+@Component
 export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> {
   // 分屏最大宽度
   @Prop({ default: SPLIT_MAX_WIDTH, type: Number }) readonly splitMaxWidth: number;
@@ -361,7 +359,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
           </div>
         )}
         {this.activePage.hasSearchInput && (
-          <bk-input
+          <Input
             placeholder={this.$t('搜索并筛选')}
             class='filter-content-input'
             right-icon={'bk-icon icon-search'}
@@ -407,7 +405,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         <div class='split-panel-tools'>
           <div class='associate-query'>
             <span class='query-label mr10'>{this.$t('关联查看')}</span>
-            <bk-select
+            <Select
               class='bk-select-simplicity query-select'
               ext-popover-cls='associate-view-popover'
               clearable={false}
@@ -416,23 +414,23 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
               onChange={this.handleRelatePageChange}
             >
               {SPLIT_PANEL_LIST.map((group, index) => (
-                <bk-option-group
+                <OptionGroup
                   name={group.name}
                   key={index}
                   show-count={false}
                 >
                   {group.children.map(option => (
-                    <bk-option
+                    <Option
                       key={option.id}
                       id={option.id}
                       name={option.name}
-                    ></bk-option>
+                    ></Option>
                   ))}
-                </bk-option-group>
+                </OptionGroup>
               ))}
-            </bk-select>
+            </Select>
             {!!this.relateMiddlewareList?.length && (
-              <bk-select
+              <Select
                 class='bk-select-simplicity query-select'
                 v-model={this.relateMiddlewareId}
                 clearable={false}
@@ -440,16 +438,16 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
                 onChange={this.handleMiddlewareChange}
               >
                 {this.relateMiddlewareList.map(option => (
-                  <bk-option
+                  <Option
                     key={option.id}
                     id={option.id}
                     name={option.name}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
+              </Select>
             )}
             {this.relateTabList?.length > 0 && (
-              <bk-select
+              <Select
                 class='bk-select-simplicity query-select'
                 v-model={this.relateTab}
                 clearable={false}
@@ -457,13 +455,13 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
                 onChange={this.handleRelateTabChange}
               >
                 {this.relateTabList.map(option => (
-                  <bk-option
+                  <Option
                     key={`${option.id}_${option.type}`}
                     id={`${option.id}_${option.type}`}
                     name={option.name}
-                  ></bk-option>
+                  ></Option>
                 ))}
-              </bk-select>
+              </Select>
             )}
             <span
               class='view-detail-link mr10'

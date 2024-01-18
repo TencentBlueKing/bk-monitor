@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Option, Select } from 'bk-magic-vue';
 
 import './plugin-selector.scss';
 
@@ -155,7 +156,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
   render() {
     return (
       <div class='collector-plugin-selector-component'>
-        <bk-select
+        <Select
           class='select-big'
           value={this.pluginId}
           ext-popover-cls='collector-plugin-selector-component-options'
@@ -165,7 +166,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
           on-selected={value => this.handleSelector(value)}
         >
           {this.realList.map(item => (
-            <bk-option
+            <Option
               key={item.plugin_id}
               id={item.plugin_id}
               name={`${item.plugin_display_name || item.plugin_id}${
@@ -188,7 +189,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
                 </span>
                 <span class='type'>{pluginTypeMap[item.plugin_type]}</span>
               </span>
-            </bk-option>
+            </Option>
           ))}
           <div
             slot='extension'
@@ -202,7 +203,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
               {window.i18n.tc('新建插件')}
             </div>
           </div>
-        </bk-select>
+        </Select>
       </div>
     );
   }

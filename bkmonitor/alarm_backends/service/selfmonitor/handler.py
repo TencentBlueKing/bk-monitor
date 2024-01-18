@@ -13,10 +13,12 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from alarm_backends.core.handlers import base
+from alarm_backends.service.selfmonitor.healthz.processor import HealthzProcessor
 from alarm_backends.service.selfmonitor.log.processor import LogProcessor
 
 SELF_MONITOR_TO_CLASS_MAP = {
     "log": LogProcessor,
+    "healthz": HealthzProcessor,
 }
 
 

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox } from 'bk-magic-vue';
 
 import { getEventPaths } from '../../utils';
 
@@ -238,10 +239,10 @@ export default class CustomSelect extends tsc<IProps> {
                   onClick={() => this.handleSelectOption(item)}
                 >
                   <div onClick={(e: Event) => e.stopPropagation()}>
-                    <bk-checkbox
+                    <Checkbox
                       value={item.isCheck}
                       onChange={v => this.handleCheckOption(v, item)}
-                    ></bk-checkbox>
+                    ></Checkbox>
                   </div>
                   <span
                     class='name'

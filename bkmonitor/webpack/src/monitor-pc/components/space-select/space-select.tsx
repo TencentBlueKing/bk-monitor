@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Checkbox, Input } from 'bk-magic-vue';
 
 import { bizWithAlertStatistics } from '../../../monitor-api/modules/home';
 import { Debounce } from '../../../monitor-common/utils';
@@ -502,13 +503,13 @@ export default class SpaceSelect extends tsc<
             ref='wrap'
           >
             <div class='search-input'>
-              <bk-input
+              <Input
                 placeholder={this.$t('请输入关键字')}
                 v-model={this.searchValue}
                 left-icon='bk-icon icon-search'
                 behavior={'simplicity'}
                 onChange={this.handleSearchChange}
-              ></bk-input>
+              ></Input>
             </div>
             <div
               class='space-list'
@@ -522,11 +523,11 @@ export default class SpaceSelect extends tsc<
                 >
                   {this.multiple && (
                     <div onClick={(e: Event) => e.stopPropagation()}>
-                      <bk-checkbox
+                      <Checkbox
                         disabled={!!item.noAuth && !item.hasData}
                         value={item.isCheck}
                         onChange={v => this.handleCheckOption(v, item)}
-                      ></bk-checkbox>
+                      ></Checkbox>
                     </div>
                   )}
                   <span class='space-name'>
@@ -547,7 +548,7 @@ export default class SpaceSelect extends tsc<
                   </span>
                   <span class='space-tags'>
                     {!!item.noAuth && !item.hasData ? (
-                      <bk-button
+                      <Button
                         class='auth-button'
                         size='small'
                         text
@@ -555,7 +556,7 @@ export default class SpaceSelect extends tsc<
                         onClick={() => this.handleApplyAuth(item.id)}
                       >
                         {this.$t('申请权限')}
-                      </bk-button>
+                      </Button>
                     ) : (
                       item.tags?.map?.(tag => (
                         <span

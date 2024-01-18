@@ -25,6 +25,7 @@
  */
 import { Component, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input, Option, Select, Table, TableColumn } from 'bk-magic-vue';
 import { throttle } from 'throttle-debounce';
 
 import WhereDisplay from '../../../../fta-solutions/pages/event/event-detail/where-display';
@@ -352,20 +353,20 @@ export default class AlarmShieldDimension extends tsc<IProps> {
         <div class='set-shield-config-item'>
           <div class='item-label item-required'>{window.i18n.t('所属')}</div>
           <div class='item-container'>
-            <bk-select
+            <Select
               class='container-select'
               readonly
               v-model={this.biz.value}
               clearable={false}
             >
               {this.biz.list.map(item => (
-                <bk-option
+                <Option
                   key={item.id}
                   id={item.id}
                   name={item.text}
-                ></bk-option>
+                ></Option>
               ))}
-            </bk-select>
+            </Select>
           </div>
         </div>
         <div class='set-shield-config-item top'>
@@ -375,12 +376,12 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           <div class='item-container'>
             {this.isEdit ? (
               <div class='scope-content'>
-                <bk-table
+                <Table
                   data={[{}]}
                   maxHeight={450}
                   size={'large'}
                 >
-                  <bk-table-column
+                  <TableColumn
                     label={window.i18n.t('维度条件')}
                     scopedSlots={{
                       default: () => (
@@ -392,12 +393,12 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                         ></WhereDisplay>
                       )
                     }}
-                  ></bk-table-column>
-                </bk-table>
+                  ></TableColumn>
+                </Table>
               </div>
             ) : (
               [
-                <bk-select
+                <Select
                   class='container-select small'
                   scroll-height={216}
                   ext-popover-cls='shield-dimension-select-list-wrap'
@@ -415,15 +416,15 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                       ref='selectList'
                     >
                       {this.strategyList.map(item => (
-                        <bk-option
+                        <Option
                           key={item.id}
                           id={item.id}
                           name={item.name}
-                        ></bk-option>
+                        ></Option>
                       ))}
                     </div>
                   </div>
-                </bk-select>,
+                </Select>,
                 this.strategyId ? (
                   <div class='container-condition'>
                     <SimpleConditionInput
@@ -451,33 +452,33 @@ export default class AlarmShieldDimension extends tsc<IProps> {
         <div class='set-shield-config-item'>
           <div class='item-label'>{window.i18n.t('屏蔽内容')}</div>
           <div class='item-container'>
-            <bk-input
+            <Input
               class='content-desc'
               type='textarea'
               v-model={this.desc}
               row={3}
               maxlength={100}
-            ></bk-input>
+            ></Input>
           </div>
         </div>
         <AlarmShieldNotice ref='shieldNotice'></AlarmShieldNotice>
         <div class='set-shield-config-item'>
           <div class='item-label'></div>
           <div class='item-container mb20'>
-            <bk-button
+            <Button
               theme='primary'
               onClick={this.handleSubmit}
             >
               {' '}
               {window.i18n.t('提交')}{' '}
-            </bk-button>
-            <bk-button
+            </Button>
+            <Button
               onClick={this.handleCancel}
               class='ml10'
             >
               {' '}
               {window.i18n.t('取消')}{' '}
-            </bk-button>
+            </Button>
           </div>
         </div>
       </div>

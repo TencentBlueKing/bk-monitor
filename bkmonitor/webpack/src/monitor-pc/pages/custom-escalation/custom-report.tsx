@@ -26,6 +26,7 @@
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 // import LeftPanel from './left-panel.vue';
+import { Button, Input } from 'bk-magic-vue';
 import { debounce } from 'throttle-debounce';
 
 import {
@@ -489,7 +490,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
             doc-link={'fromCustomRreporting'}
           ></PageTips>
           <div class='content-left-operator'>
-            <bk-button
+            <Button
               v-authority={{ active: !this.hasManageAuth }}
               class='mc-btn-add'
               theme='primary'
@@ -499,14 +500,14 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
             >
               <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建')}
-            </bk-button>
-            <bk-input
+            </Button>
+            <Input
               extCls='operator-input'
               placeholder={this.$tc('搜索 ID / 名称')}
               rightIcon='bk-icon icon-search'
               v-model={this.search}
               on-change={this.handleSearch}
-            ></bk-input>
+            ></Input>
           </div>
           <CommonTable
             class='content-left-table'

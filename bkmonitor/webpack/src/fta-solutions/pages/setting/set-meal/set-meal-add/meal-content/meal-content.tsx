@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Dialog, Option, OptionGroup, Select } from 'bk-magic-vue';
 
 import { createDemoAction, getDemoActionDetail } from '../../../../../../monitor-api/modules/action';
 import { deepClone, transformDataKey } from '../../../../../../monitor-common/utils/utils';
@@ -430,7 +431,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             title={this.$tc('套餐类型')}
             required
           >
-            <bk-select
+            <Select
               value={this.data.id}
               placeholder={this.$tc('选择')}
               class='select input-width'
@@ -441,12 +442,12 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
               onSelected={this.mealTypeChange}
             >
               {this.mealTypeList.map(group => (
-                <bk-option-group
+                <OptionGroup
                   key={group.id}
                   name={group.name}
                 >
                   {group.children.map(option => (
-                    <bk-option
+                    <Option
                       key={option.id}
                       id={option.id}
                       name={option.name}
@@ -464,11 +465,11 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                           ></span>
                         )}
                       </div>
-                    </bk-option>
+                    </Option>
                   ))}
-                </bk-option-group>
+                </OptionGroup>
               ))}
-            </bk-select>
+            </Select>
           </CommonItem>
         </div>
         {this.getDebugDialog()}
@@ -588,18 +589,18 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
     const statusMap = {
       success: (
         <div class='status-operate'>
-          {/* <bk-button theme="primary" style={{ marginRight: '8px' }}>{this.$t('查看详情')}</bk-button> */}
-          <bk-button onClick={() => this.handleStopDebug()}>{this.$t('button-完成')}</bk-button>
+          {/* <Button theme="primary" style={{ marginRight: '8px' }}>{this.$t('查看详情')}</Button> */}
+          <Button onClick={() => this.handleStopDebug()}>{this.$t('button-完成')}</Button>
         </div>
       ),
       failure: (
         <div class='status-operate'>
-          <bk-button
+          <Button
             theme='primary'
             onClick={() => this.handleStopDebug(true)}
           >
             {this.$t('再次调试')}
-          </bk-button>
+          </Button>
         </div>
       )
     };
@@ -609,7 +610,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   // 调试窗口
   getDebugDialog() {
     return [
-      <bk-dialog
+      <Dialog
         value={this.isShowDebug}
         width={this.debugData.type === 'webhook' ? 766 : 480}
         extCls={'meal-content-debug-dialog'}
@@ -636,18 +637,18 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           )}
         </div>
         <div slot='footer'>
-          <bk-button
+          <Button
             theme='primary'
             style={{ marginRight: '8px' }}
             loading={this.debugActionLoading}
             onClick={() => this.handleDebugStart()}
           >
             {this.$t('调试')}
-          </bk-button>
-          <bk-button onClick={this.handleCloseDebug}>{this.$t('取消')}</bk-button>
+          </Button>
+          <Button onClick={this.handleCloseDebug}>{this.$t('取消')}</Button>
         </div>
-      </bk-dialog>,
-      <bk-dialog
+      </Dialog>,
+      <Dialog
         extCls={'meal-content-running-dialog'}
         value={!!this.debugStatusData?.status}
         width={400}
@@ -662,7 +663,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
           {this.debugStatusOperate()}
         </div>
-      </bk-dialog>
+      </Dialog>
     ];
   }
 }

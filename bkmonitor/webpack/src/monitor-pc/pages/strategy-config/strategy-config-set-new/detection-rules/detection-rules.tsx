@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Option, Select } from 'bk-magic-vue';
 
 import { getUnitInfo } from '../../../../../monitor-api/modules/strategies';
 import { deepClone } from '../../../../../monitor-common/utils/utils';
@@ -497,7 +498,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
               path='同级别的各算法之间是{0}的关系'
               class='i18n-path'
             >
-              <bk-select
+              <Select
                 class='inline-select'
                 value={this.connector}
                 behavior='simplicity'
@@ -506,13 +507,13 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 onChange={this.emitConnector}
               >
                 {this.algorithmRelationship.map(opt => (
-                  <bk-option
+                  <Option
                     key={opt.id}
                     id={opt.id}
                     name={opt.name}
                   />
                 ))}
-              </bk-select>
+              </Select>
             </i18n>
           </div>
           {this.unitList.length && this.needShowUnit ? (

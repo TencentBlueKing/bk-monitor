@@ -26,6 +26,7 @@
 
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 
 import { dimensionData, modifyMetric } from '../../../../monitor-api/modules/apm_meta';
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
@@ -247,33 +248,33 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
           showEditable={false}
         />
         <div class='divider'></div>
-        <bk-table
+        <Table
           outer-border={false}
           data={this.dimensionList}
           v-bkloading={{ isLoading: this.tableLoading }}
           on-row-mouse-enter={index => (this.hoverRowIndex = index)}
           on-row-mouse-leave={() => (this.hoverRowIndex = -1)}
         >
-          <bk-table-column
+          <TableColumn
             label={this.$t('维度名')}
             width='120'
             scopedSlots={{ default: props => props.row.field_name }}
-          ></bk-table-column>
-          <bk-table-column
+          ></TableColumn>
+          <TableColumn
             label={this.$t('维度别名')}
             width='240'
             scopedSlots={aliasNameSlot}
-          ></bk-table-column>
-          <bk-table-column
+          ></TableColumn>
+          <TableColumn
             label={this.$t('数量')}
             width='60'
             scopedSlots={{ default: props => props.row.count }}
-          ></bk-table-column>
-          <bk-table-column
+          ></TableColumn>
+          <TableColumn
             label={this.$t('纬度值')}
             scopedSlots={{ default: props => props.row.data }}
-          ></bk-table-column>
-        </bk-table>
+          ></TableColumn>
+        </Table>
       </div>
     );
   }

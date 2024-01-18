@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Collapse as BkCollapse, CollapseItem as BkCollapseItem } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { copyText, random } from '../../../../../monitor-common/utils/utils';
@@ -423,13 +424,13 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
             </div>
           )}
         </div>
-        <bk-collapse
+        <BkCollapse
           v-model={this.activeCollapseName}
           class='detail-collapse-title'
         >
           {this.labelListData.map(item => (
             <div>
-              <bk-collapse-item
+              <BkCollapseItem
                 name={item.name}
                 hide-arrow={!item?.children?.length}
               >
@@ -467,7 +468,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                     ))}
                   </div>
                 )}
-              </bk-collapse-item>
+              </BkCollapseItem>
             </div>
           ))}
 
@@ -481,7 +482,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
               </div>
             </div>
           ))}
-        </bk-collapse>
+        </BkCollapse>
       </div>
     );
   }

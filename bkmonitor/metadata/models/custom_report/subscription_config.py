@@ -150,10 +150,7 @@ class CustomReportSubscription(models.Model):
 
     @classmethod
     def get_protocol(cls, bk_data_id):
-        from alarm_backends.core.cache.models.custom_ts_group import (
-            CustomTSGroupCacheManager,
-        )
-
+        from alarm_backends.core.cache.models.custom_ts_grouop import CustomTSGroupCacheManager
         return CustomTSGroupCacheManager.get(bk_data_id) or "json"
 
     @classmethod

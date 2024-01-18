@@ -103,7 +103,6 @@ export default class AiopsChart extends tsc<IProps> {
               <img
                 class='loading-icon'
                 src={loadingIcon}
-                alt=''
               ></img>
             )}
             <LineChart

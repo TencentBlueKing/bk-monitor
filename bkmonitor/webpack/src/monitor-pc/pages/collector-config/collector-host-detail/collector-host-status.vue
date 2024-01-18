@@ -128,7 +128,6 @@
                   class="col-status-img"
                   v-if="isRunning && statusList.includes(props.row.status)"
                   src="../../../static/images/svg/spinner.svg"
-                  alt=''
                 >
                 <div
                   class="col-status-radius"

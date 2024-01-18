@@ -27,6 +27,7 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Dialog, Form, FormItem, Input, Option, Radio, RadioGroup, Select } from 'bk-magic-vue';
 
 import { createFavoriteGroup, listFavoriteGroup } from '../../../../monitor-api/modules/model';
 
@@ -63,8 +64,8 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
   @Prop({ type: String, required: true }) favoriteSearchType: string; // 收藏类型
   @Prop({ type: Object, default: () => ({}) }) editFavoriteData: object; // 编辑收藏的数据
   @Prop({ type: Array, default: () => [] }) favStrList: string[]; // 收藏类型
-  @Ref('validateForm') validateFormRef: any;
-  @Ref('checkInputForm') checkInputFormRef: any;
+  @Ref('validateForm') validateFormRef: Form;
+  @Ref('checkInputForm') checkInputFormRef: Form;
   searchFieldsList = []; // 表单模式显示字段
   isShowAddGroup = true; // 是否展示新增组
   // groupName = ''; // 组名
@@ -344,7 +345,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     );
     const eventKeywordsSlot = () => <span>{this.keyword?.queryConfig.query_string}</span>;
     return (
-      <bk-dialog
+      <Dialog
         value={this.value}
         title={this.isEditFavorite ? this.$t('编辑收藏') : this.$t('新增收藏')}
         ok-text={this.isEditFavorite ? this.$t('保存') : this.$t('确定')}
@@ -358,7 +359,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         on-value-change={this.handleValueChange}
         on-confirm={this.handleSubmitFormData}
       >
-        <bk-form
+        <Form
           form-type='vertical'
           ref='validateForm'
           v-bkloading={{ isLoading: this.formLoading }}
@@ -373,56 +374,56 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
             <span>{this.$t('查询语句')}</span>
             {this.favoriteSearchType === 'metric' ? metricKeywordsSlot() : eventKeywordsSlot()}
           </div>
-          <bk-form-item
+          <FormItem
             label={this.$t('收藏名')}
             required
             property='name'
             class='group-name'
           >
-            <bk-input
+            <Input
               class='collect-name'
               vModel={this.favoriteData.name}
               placeholder={this.$t('填写收藏名（长度30个字符）')}
-            ></bk-input>
-          </bk-form-item>
+            ></Input>
+          </FormItem>
 
-          <bk-form-item
+          <FormItem
             class='collect-radio'
             label={this.$t('可见范围')}
             required
           >
-            <bk-radio-group
+            <RadioGroup
               vModel={this.radioValue}
               on-change={this.handleClickRadio}
             >
-              <bk-radio value={'null'}>
+              <Radio value={'null'}>
                 {this.$t('公开')}({this.$t('本业务可见')})
-              </bk-radio>
-              <bk-radio
+              </Radio>
+              <Radio
                 value={'0'}
                 disabled={this.isCannotChangeVisible}
               >
                 {this.$t('私有')}
                 {this.$t('(仅个人可见)')}
-              </bk-radio>
-            </bk-radio-group>
-          </bk-form-item>
-          <bk-form-item
+              </Radio>
+            </RadioGroup>
+          </FormItem>
+          <FormItem
             label={this.$t('所属组')}
             class='affiliation-group'
           >
-            <bk-select
+            <Select
               vModel={this.favoriteData.group_id}
               disabled={this.isDisableSelect}
               ext-popover-cls='add-new-page-container'
               searchable
             >
               {this.showGroupList.map(item => (
-                <bk-option
+                <Option
                   id={item.id}
                   key={item.id}
                   name={item.name}
-                ></bk-option>
+                ></Option>
               ))}
               <div slot='extension'>
                 {this.isShowAddGroup ? (
@@ -440,7 +441,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                     class='add-new-page-input'
                     style={{ padding: '6px 0' }}
                   >
-                    <bk-form
+                    <Form
                       labelWidth={0}
                       style={{ width: '100%' }}
                       ref='checkInputForm'
@@ -451,16 +452,16 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                         }
                       }}
                     >
-                      <bk-form-item property='groupName'>
-                        <bk-input
+                      <FormItem property='groupName'>
+                        <Input
                           clearable
                           placeholder={this.$t('输入组名,30个字符')}
                           vModel={this.verifyData.groupName}
                           onEnter={this.handleCreateGroup}
                           maxlength={10}
-                        ></bk-input>
-                      </bk-form-item>
-                    </bk-form>
+                        ></Input>
+                      </FormItem>
+                    </Form>
                     <div class='operate-button'>
                       <span
                         class='bk-icon icon-check-line'
@@ -474,10 +475,10 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                   </li>
                 )}
               </div>
-            </bk-select>
-          </bk-form-item>
-        </bk-form>
-      </bk-dialog>
+            </Select>
+          </FormItem>
+        </Form>
+      </Dialog>
     );
   }
 }

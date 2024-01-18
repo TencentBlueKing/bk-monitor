@@ -50,7 +50,7 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
-
+import { bkIcon } from 'bk-magic-vue';
 
 import MonitorImport from '../../../../../components/monitor-import/monitor-import.vue';
 
@@ -62,7 +62,8 @@ interface IFileInfo {
 @Component({
   name: 'ImputFile',
   components: {
-    MonitorImport
+    MonitorImport,
+    bkIcon
   }
 })
 export default class ImportFile extends Vue {
@@ -120,15 +121,15 @@ export default class ImportFile extends Vue {
 <style lang="scss" scoped>
 .import-file-wrap {
   position: relative;
-  justify-content: start;
-  width: 100%;
   height: 100%;
-  padding: 0 10px;
-  padding-right: 29px;
+  width: 100%;
   margin: 0;
+  padding: 0 10px;
+  justify-content: start;
   font-size: 12px;
   border: 1px solid #c4c6cc;
   border-radius: 2px;
+  padding-right: 29px;
 
   .placeholder {
     color: #c4c6cc;
@@ -140,13 +141,13 @@ export default class ImportFile extends Vue {
 
   .clear-icon {
     position: absolute;
-    top: 50%;
-    right: 7px;
-    width: 14px;
     height: 14px;
-    font-size: 14px;
-    color: #c4c6cc;
+    width: 14px;
     border-radius: 50%;
+    color: #c4c6cc;
+    right: 7px;
+    top: 50%;
+    font-size: 14px;
     transform: translateY(-50%);
   }
 }

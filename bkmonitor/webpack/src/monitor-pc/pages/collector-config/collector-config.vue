@@ -177,7 +177,6 @@
                       src="../../static/images/svg/spinner.svg"
                       v-if="scope.row.doingStatus"
                       class="status-loading"
-                      alt=''
                     >
                     <div
                       v-if="['FAILED', 'WARNING', 'SUCCESS', 'STOPPED'].includes(scope.row.taskStatus)"
@@ -1305,7 +1304,6 @@ export default {
 .mr-6 {
   margin-right: 6px;
 }
-
 .collector-config {
   margin: 24px;
   font-size: 12px;

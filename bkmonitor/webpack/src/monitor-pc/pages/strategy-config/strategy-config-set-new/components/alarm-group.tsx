@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Option, Select } from 'bk-magic-vue';
 
 import { deepClone } from '../../../../../monitor-common/utils/utils';
 import AlarmGroupDetail, { IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
@@ -72,7 +73,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
   // @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail
   // @Inject('authorityMap') authorityMap
 
-  @Ref('alarmGroupSelect') readonly alarmGroupSelectRef: any;
+  @Ref('alarmGroupSelect') readonly alarmGroupSelectRef: Select;
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
 
@@ -225,7 +226,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
           ))}
           {this.readonly ? undefined : (
             <span class='add-btn'>
-              <bk-select
+              <Select
                 ext-popover-cls='alarm-group-popover'
                 class='alarm-group-select'
                 ref='alarmGroupSelect'
@@ -242,7 +243,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 zIndex={5000}
               >
                 {this.list.map(option => (
-                  <bk-option
+                  <Option
                     key={option.id}
                     id={option.id}
                     name={option.name}
@@ -265,7 +266,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                       </div>
                       {this.localValue.includes(option.id) ? <i class='bk-icon icon-check-1 check-icon' /> : undefined}
                     </div>
-                  </bk-option>
+                  </Option>
                 ))}
                 <div
                   slot='extension'
@@ -304,7 +305,6 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                         <img
                           src={require('../../../../static/images/svg/spinner.svg')}
                           class='status-loading'
-                          alt=''
                         ></img>
                       ) : (
                         <span class='icon-monitor icon-mc-retry'></span>
@@ -312,7 +312,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                     </div>
                   )}
                 </div>
-              </bk-select>
+              </Select>
               <span
                 class={['add-tag', { disabled: this.disabled }]}
                 v-en-style='width: 120px'

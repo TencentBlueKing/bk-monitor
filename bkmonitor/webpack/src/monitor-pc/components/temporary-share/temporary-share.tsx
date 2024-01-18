@@ -27,6 +27,7 @@ import { VNode } from 'vue';
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { createShareToken, deleteShareToken, updateShareToken } from '../../../monitor-api/modules/share';
@@ -35,7 +36,7 @@ import MonitorDialog from '../../../monitor-ui/monitor-dialog';
 import { NavBarMode } from '../../pages/monitor-k8s/components/common-nav-bar';
 import { INavItem } from '../../pages/monitor-k8s/typings';
 import TimeRangeComponent, { TimeRangeType } from '../time-range/time-range';
-import { shortcuts, TimeRange } from '../time-range/utils';
+import { CUSTOM_TIME_RANGE_REG, shortcuts, TimeRange } from '../time-range/utils';
 import TimeSelect, { ITimeListItem } from '../time-select/time-select';
 
 import HistoryShareManage from './history-share-manage';
@@ -530,14 +531,14 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
               {this.commonItem(
                 this.$t('查询设置'),
                 this.show && (
-                  <bk-table data={this.querySettings}>
-                    <bk-table-column
+                  <Table data={this.querySettings}>
+                    <TableColumn
                       label={this.$t('变量名称')}
                       scopedSlots={{
                         default: () => <span>{this.$t('时间选择')}</span>
                       }}
-                    ></bk-table-column>
-                    <bk-table-column
+                    ></TableColumn>
+                    <TableColumn
                       label={this.$t('是否可更改')}
                       scopedSlots={{
                         default: ({ row }) => (
@@ -548,8 +549,8 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                           ></bk-switcher>
                         )
                       }}
-                    ></bk-table-column>
-                    <bk-table-column
+                    ></TableColumn>
+                    <TableColumn
                       label={this.$t('默认选项')}
                       width={386}
                       scopedSlots={{
@@ -565,8 +566,8 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                           </div>
                         )
                       }}
-                    ></bk-table-column>
-                  </bk-table>
+                    ></TableColumn>
+                  </Table>
                 )
               )}
             </div>

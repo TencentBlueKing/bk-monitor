@@ -277,10 +277,7 @@ export default defineComponent({
               <span class='query-type'>{this.$t('精准查询')}</span>
             </i18n-t>
           </p>
-          <img
-            src={PreciseQueryImg}
-            alt=''
-          />
+          <img src={PreciseQueryImg} />
         </div>
         <div
           class='intro-card'
@@ -292,10 +289,7 @@ export default defineComponent({
               <span class='query-type'>{this.$t('范围查询')}</span>
             </i18n-t>
           </p>
-          <img
-            src={RangeQueryImg}
-            alt=''
-          />
+          <img src={RangeQueryImg} />
         </div>
       </div>
     );

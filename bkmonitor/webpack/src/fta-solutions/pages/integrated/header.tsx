@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input } from 'bk-magic-vue';
 
 import { importEventPlugin } from '../../../monitor-api/modules/event_plugin';
 
@@ -106,7 +107,7 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
     return (
       <header class='header'>
         <div class='header-left'>
-          <bk-button
+          <Button
             onClick={() => this.handleImport()}
             loading={this.fileLoading}
           >
@@ -124,7 +125,7 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
                 on-change={this.fileChange}
               />
             </span>
-          </bk-button>
+          </Button>
         </div>
         <div class='header-right'>
           <i
@@ -147,13 +148,13 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
               </span>
             ))}
           </div>
-          <bk-input
+          <Input
             class='search'
             right-icon='bk-icon icon-search'
             placeholder={this.$t('搜索事件源名称、ID、分类、方式、作者、创建人、更新人')}
             value={this.searchValue}
             onChange={this.handleSearchValueChange}
-          ></bk-input>
+          ></Input>
         </div>
       </header>
     );

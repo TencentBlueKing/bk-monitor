@@ -27,6 +27,17 @@
 import JsonViewer from 'vue-json-viewer';
 import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import {
+  Button,
+  Checkbox,
+  Pagination,
+  Popover,
+  Progress,
+  Spin,
+  Table,
+  TableColumn,
+  TableSettingContent
+} from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import bus from '../../../../monitor-common/utils/event-bus';
@@ -115,14 +126,16 @@ interface ICommonTableEvent {
   onScrollEnd: void;
   onRowClick: void;
 }
-@Component
+@Component({
+  components: { Popover, Pagination, Checkbox }
+})
 export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEvent> {
   @Inject({
     from: 'handleShowAuthorityDetail',
     default: null
   })
   handleShowAuthorityDetail;
-  @Ref('table') tableRef: any;
+  @Ref('table') tableRef: Table;
   // table loading
   @Prop({ default: false }) loading: boolean;
   // 是否显示表格列设置
@@ -224,10 +237,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       <span class='string-col'>
         {val.icon ? (
           val.icon.length > 30 ? (
-            <img
-              src={val.icon}
-              alt=''
-            />
+            <img src={val.icon} />
           ) : (
             <i class={['icon-monitor', 'string-icon', val.icon]} />
           )
@@ -353,10 +363,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       >
         {val.icon ? (
           val.icon.length > 30 ? (
-            <img
-              src={val.icon}
-              alt=''
-            />
+            <img src={val.icon} />
           ) : (
             <i class={['icon-monitor', 'link-icon', val.icon]} />
           )
@@ -383,10 +390,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           >
             {val.icon ? (
               val.icon.length > 30 ? (
-                <img
-                  src={val.icon}
-                  alt=''
-                />
+                <img src={val.icon} />
               ) : (
                 <i class={['icon-monitor', 'link-icon', val.icon]} />
               )
@@ -414,14 +418,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId)
             }
           >
-            {item.icon ? (
-              <img
-                src={item.icon}
-                alt=''
-              />
-            ) : (
-              ''
-            )}
+            {item.icon ? <img src={item.icon} /> : ''}
             {item.value}
           </a>
         ))}
@@ -493,12 +490,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return val ? (
       <div class='common-table-progress'>
         <div class='table-progress-text'>{val.label || '--'}</div>
-        <bk-progress
+        <Progress
           class={['common-progress-color', `color-${val.status}`]}
           size='small'
           showText={false}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
-        ></bk-progress>
+        ></Progress>
       </div>
     ) : (
       '--'
@@ -603,7 +600,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   handleSetFormatter(id: string, row: TableRow) {
     const column = this.columns.find(item => item.id === id);
     if (!column) return '--';
-    if (column.asyncable) return <bk-spin size='mini' />; // 用于异步加载loading
+    if (column.asyncable) return <Spin size='mini' />; // 用于异步加载loading
 
     const value: ITableItem<typeof column.type> = row[id];
     switch (column.type) {
@@ -702,7 +699,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         // header-pre-icon
         const headerPreIcon = column[HEADER_PRE_ICON_NAME];
         return (
-          <bk-table-column
+          <TableColumn
             key={`column_${column.id}`}
             label={column.name}
             prop={column.id}
@@ -713,8 +710,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               (this.hasOverviewData || !!headerPreIcon) && column.checked
                 ? () => this.renderColumnsHeader(column)
                 : !!column?.renderHeader
-                  ? () => column.renderHeader()
-                  : undefined
+                ? () => column.renderHeader()
+                : undefined
             }
             {...{
               props: {
@@ -736,7 +733,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       });
     if (this.checkable) {
       columList.unshift(
-        <bk-table-column
+        <TableColumn
           type='selection'
           width='50'
           minWidth='50'
@@ -766,7 +763,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     const headerCellname = ({ column }) => `${cellName({ column })} ${this.hasOverviewData ? 'overview-header' : ''}`;
     return (
       <div class='common-table'>
-        <bk-table
+        <Table
           class={this.tableClass}
           data={this.data}
           size={this.tableSize}
@@ -810,7 +807,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   </span>
                 </i18n>,
                 <slot name='select-content'></slot>,
-                <bk-button
+                <Button
                   slot='count'
                   text={true}
                   theme='primary'
@@ -818,20 +815,20 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   onClick={this.handleClearSelected}
                 >
                   {this.$t('取消')}
-                </bk-button>
+                </Button>
               ]}
             </div>
           ) : undefined}
           {this.showExpand && (
-            <bk-table-column
+            <TableColumn
               type='expand'
               scopedSlots={{ default: this.renderRowExpand() }}
-            ></bk-table-column>
+            ></TableColumn>
           )}
           {this.transformColumns()}
           {this.hasColnumSetting ? (
-            <bk-table-column type='setting'>
-              <bk-table-setting-content
+            <TableColumn type='setting'>
+              <TableSettingContent
                 key={`${this.tableKey}__settings`}
                 class='event-table-setting'
                 fields={this.tableColumns}
@@ -841,11 +838,11 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                 selected={this.tableColumns.filter(item => item.checked || item.disabled)}
                 on-setting-change={this.handleSettingChange}
               />
-            </bk-table-column>
+            </TableColumn>
           ) : (
             ''
           )}
-        </bk-table>
+        </Table>
       </div>
     );
   }
