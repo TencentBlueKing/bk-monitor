@@ -1209,7 +1209,6 @@ export default defineComponent({
                       theme='primary'
                       style='margin-right: 8px;'
                       onClick={() => {
-                        this.isShowSubscriptionDetailSideslider = false;
                         this.isShowEditSideslider = true;
                       }}
                     >
@@ -1260,6 +1259,9 @@ export default defineComponent({
           transfer
           onHidden={() => {
             this.isShowDropdownMenu = false;
+          }}
+          onShown={() => {
+            this.isShowSubscriptionDetailSideslider = false;
           }}
         >
           <Loading
