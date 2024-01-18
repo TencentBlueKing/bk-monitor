@@ -26,17 +26,19 @@ from typing import List
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from iam.api.http import http_post
+from iam.auth.models import Action
+from iam.auth.models import ApiBatchAuthRequest as OldApiBatchAuthRequest
+from iam.auth.models import ApiBatchAuthResourceWithPath, Subject
+from iam.contrib.iam_migration.migrator import IAMMigrator
+from iam.exceptions import AuthAPIError
 
 from apps.api import TransferApi
-from apps.iam import Permission, ActionEnum, ResourceEnum
+from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.models import LogIndexSet, Space, GlobalConfig
-from iam.api.http import http_post
-from iam.auth.models import ApiBatchAuthRequest as OldApiBatchAuthRequest, Subject, Action, ApiBatchAuthResourceWithPath
-from iam.contrib.iam_migration.migrator import IAMMigrator
-from iam.exceptions import AuthAPIError
+from apps.log_search.models import GlobalConfig, LogIndexSet, Space
 
 ACTIONS_TO_UPGRADE = [
     ActionEnum.VIEW_BUSINESS,
@@ -252,6 +254,10 @@ class Command(BaseCommand):
         query_result = self.iam_client.query_polices_with_action_id(
             self.system_id, {"action_id": action_id, "page": page, "page_size": page_size}
         )
+
+        if not query_result["results"]:
+            return policies
+
         policies.extend(query_result["results"])
 
         total = query_result["count"]
@@ -392,7 +398,10 @@ class Command(BaseCommand):
     def grant_resource_chunked(self, resource, paths):
         request = ApiBatchAuthRequest(
             system=resource["system"],
-            subject=Subject(type=resource["subject"]["type"], id=resource["subject"]["id"],),
+            subject=Subject(
+                type=resource["subject"]["type"],
+                id=resource["subject"]["id"],
+            ),
             actions=[Action(id=action["id"]) for action in resource["actions"]],
             resources=[
                 ApiBatchAuthResourceWithPath(system=r["system"], type=r["type"], paths=paths)

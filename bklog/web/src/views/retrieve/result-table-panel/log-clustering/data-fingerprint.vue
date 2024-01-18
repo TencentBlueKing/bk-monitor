@@ -124,7 +124,7 @@
           :sort-by="'year_on_year_percentage'">
           <template slot-scope="{ row }">
             <div class="fl-ac compared-change">
-              <span>{{`${toFixedNumber(row.year_on_year_percentage, 0)}%`}}</span>
+              <span>{{`${toFixedNumber(row.year_on_year_percentage, 2)}%`}}</span>
               <span :class="['bk-icon', showArrowsClass(row)]"></span>
             </div>
           </template>
@@ -468,6 +468,7 @@ export default {
     },
     toFixedNumber(value, size) {
       if (typeof value === 'number' && !isNaN(value)) {
+        if (value === 0) return 0;
         return value.toFixed(size);
       }
       return value;

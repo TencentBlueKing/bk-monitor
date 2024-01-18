@@ -556,5 +556,6 @@ export default {
   添加到本次检索: 'Add to this search',
   从本次检索中排除: 'Exclude from this search',
   当前显示全部字段: 'Currently showing all fields',
-  显示全部字段: 'Currently showing all fields'
+  显示全部字段: 'Currently showing all fields',
+  新开标签页: 'New tab'
 };
