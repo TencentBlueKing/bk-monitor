@@ -39,7 +39,7 @@ import ReportDetail from '../my-apply/components/report-detail';
 
 import QueryTypeRadio from './components/query-type-radio';
 import { Scenario, SendMode, SendStatus } from './mapping';
-import { Report, ReportQueryType, ReportSendRecord, SendResult } from './types';
+import { FrequencyType, Report, ReportQueryType, ReportSendRecord, SendResult } from './types';
 import { getDefaultReportData, getDefaultSingleSendRecord, getSendFrequencyText } from './utils';
 
 import './my-subscription.scss';
@@ -279,16 +279,23 @@ class MySubscription extends tsc<{}> {
                 <div class='label-container'>
                   <div class='label'>{this.$t('发送频率')}:</div>
                   <div class='value'>{getSendFrequencyText(this.detailInfo)}</div>
+                  {this.detailInfo.frequency.type === FrequencyType.onlyOnce && (
+                    <div class='value'>{dayjs(this.detailInfo.frequency.run_time).format('YYYY-MM-DD HH:mm')}</div>
+                  )}
                 </div>
-                <div class='label-container'>
-                  <div
-                    class='label'
-                    style='margin-left: 55px;'
-                  >
-                    {this.$t('有效时间范围')}:
+                {this.detailInfo.frequency.type !== FrequencyType.onlyOnce && (
+                  <div class='label-container'>
+                    <div
+                      class='label'
+                      style='margin-left: 55px;'
+                    >
+                      {this.$t('有效时间范围')}:
+                    </div>
+                    <div class='value'>
+                      {this.formatTimeRange(this.detailInfo.start_time, this.detailInfo.end_time)}
+                    </div>
                   </div>
-                  <div class='value'>{this.formatTimeRange(this.detailInfo.start_time, this.detailInfo.end_time)}</div>
-                </div>
+                )}
               </div>
 
               <div>

@@ -60,7 +60,7 @@ import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
-import { TestSendingTarget } from './types';
+import { FrequencyType, TestSendingTarget } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
 
 import './email-subscription-config.scss';
@@ -73,6 +73,9 @@ type TooltipsToggleMapping = {
 const keyOfTableSettingInLocalStorage = 'report_list_table_settings';
 
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
+
+/** 判断当场是否为克隆场景。若是则把表单 id 的 key 去掉，让后端生成新数据。 */
+let isOnCloneMode = false;
 
 export default defineComponent({
   name: 'EmailSubscriptionConfig',
@@ -349,10 +352,10 @@ export default defineComponent({
                                 // 将当前数据深拷贝一次，将 name 增加 _clone 后缀，再把 id 的 key 删掉（让接口直接创建新数据）
                                 // 最后赋值到 subscriptionDetail 中，打开编辑抽屉组件让用户进行修改。
                                 const clonedSubscriptionDetail = deepClone(row.data);
-                                delete clonedSubscriptionDetail.id;
                                 clonedSubscriptionDetail.name = `${clonedSubscriptionDetail.name}_clone`;
                                 subscriptionDetail.value = clonedSubscriptionDetail;
                                 isShowEditSideslider.value = true;
+                                isOnCloneMode = true;
                               }}
                             >
                               {t('克隆')}
@@ -939,7 +942,8 @@ export default defineComponent({
       isShowDropdownMenu,
       handleReportDetailChange,
       isFetchReport,
-      isShowCreateReportFormComponent
+      isShowCreateReportFormComponent,
+      isOnCloneMode
     };
   },
   render() {
@@ -1105,18 +1109,25 @@ export default defineComponent({
                   >
                     {this.getSendFrequencyText(this.subscriptionDetail)}
                   </div>
+                  {this.subscriptionDetail.frequency.type === FrequencyType.onlyOnce && (
+                    <div class='value'>
+                      {dayjs(this.subscriptionDetail.frequency.run_time).format('YYYY-MM-DD HH:mm')}
+                    </div>
+                  )}
                 </div>
-                <div class='label-container'>
-                  <div
-                    class='label'
-                    style='margin-left: 55px;'
-                  >
-                    {this.t('有效时间范围')}:
+                {this.subscriptionDetail.frequency.type !== FrequencyType.onlyOnce && (
+                  <div class='label-container'>
+                    <div
+                      class='label'
+                      style='margin-left: 55px;'
+                    >
+                      {this.t('有效时间范围')}:
+                    </div>
+                    <div class='value'>
+                      {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
+                    </div>
                   </div>
-                  <div class='value'>
-                    {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
-                  </div>
-                </div>
+                )}
               </div>
               <div>
                 <Button
@@ -1246,12 +1257,13 @@ export default defineComponent({
 
         <Sideslider
           v-model={[this.isShowEditSideslider, 'isShow']}
-          title={'编辑'}
+          title={this.t('编辑')}
           width={960}
           ext-cls='edit-subscription-sideslider-container'
           transfer
           onHidden={() => {
             this.isShowDropdownMenu = false;
+            isOnCloneMode = false;
           }}
           onShown={() => {
             this.isShowSubscriptionDetailSideslider = false;
@@ -1279,8 +1291,10 @@ export default defineComponent({
                   style='width: 88px;margin-right: 8px;'
                   onClick={() => {
                     this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
-                      // 由于表单会返回 id 的默认值，这里特殊处理删掉。
-                      delete response.id;
+                      if (isOnCloneMode) {
+                        // 由于表单会返回 id 的默认值，这里特殊处理删掉。
+                        delete response.id;
+                      }
                       createOrUpdateReport(response).then(() => {
                         Message({
                           theme: 'success',
