@@ -112,7 +112,7 @@ class GetReportListResource(Resource):
         username = get_request_username()
         # 已失效订阅列表
         for report in qs:
-            if Report.is_invalid(report.end_tim, report.frequency):
+            if Report.is_invalid(report.end_time, report.frequency):
                 invalid_report_ids.add(report.id)
         # 已取消订阅列表
         cancelled_report_ids = set(

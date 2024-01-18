@@ -88,10 +88,11 @@ class Report(AbstractRecordModel):
         now_timestamp = arrow.now().timestamp
         if end_time and now_timestamp > end_time:
             return True
-        now_datetime = datetime.now()
-        run_time = datetime.strptime(frequency["run_time"], '%Y-%m-%d %H:%M:%S')
-        if frequency["type"] == 1 and now_datetime > run_time:
-            return True
+        if frequency["type"] == 1:
+            now_datetime = datetime.now()
+            run_time = datetime.strptime(frequency["run_time"], '%Y-%m-%d %H:%M:%S')
+            if now_datetime > run_time:
+                return True
         return False
 
 
