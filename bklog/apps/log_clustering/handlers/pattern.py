@@ -306,7 +306,6 @@ class PatternHandler:
                     remark["create_time"] = now
                     break
         elif method == "delete":
-            print(configs)
             for remark in qs_obj.remark:
                 # 完全匹配才能删除成功
                 if (
