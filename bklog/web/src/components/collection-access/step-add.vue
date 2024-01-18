@@ -1908,8 +1908,8 @@ export default {
           const newMatchObject = { ...labelSelector[labelIndex], ...newValue, type };
           labelSelector.splice(labelIndex, 1, newMatchObject);
         } else {
-          labelSelector.splice(labelIndex, 1);
-        }
+          if (newValue?.isExternal) labelSelector.splice(labelIndex, 1);
+        };
         resolve(true);
       });
     },
