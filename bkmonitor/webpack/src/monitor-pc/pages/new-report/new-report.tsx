@@ -26,6 +26,8 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import '@blueking/bk-weweb';
+
 const wewebId = 'report';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
