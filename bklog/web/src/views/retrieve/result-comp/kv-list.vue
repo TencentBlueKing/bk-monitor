@@ -311,7 +311,6 @@ export default {
         case 'serverip':
         case 'ip':
         case 'bk_host_id': {
-          if (this.isHaveBkHostIDAndHaveValue && ['serverip', 'ip'].includes(key)) return; // bk_host_id有值, 不展示ip和serverIp的主机;
           const lowerKeyData = Object.entries(this.data).reduce((pre, [curKey, curVal]) => {
             pre[curKey.toLowerCase()] = curVal;
             return pre;
