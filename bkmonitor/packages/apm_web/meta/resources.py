@@ -182,6 +182,14 @@ class CreateApplicationResource(Resource):
         )
         datasource_option = DatasourceOptionSerializer(required=True)
         plugin_config = PluginConfigSerializer(required=False)
+        enable_profiling = serializers.BooleanField(label="是否开启 Profiling 功能")
+        enable_tracing = serializers.BooleanField(label="是否开启 Tracing 功能")
+
+        def validate(self, attrs):
+            res = super(CreateApplicationResource.RequestSerializer, self).validate(attrs)
+            if not attrs["enable_tracing"]:
+                raise ValueError(_(f"目前暂不支持关闭 Tracing 功能"))
+            return res
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:

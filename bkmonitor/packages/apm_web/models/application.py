@@ -359,6 +359,7 @@ class Application(AbstractRecordModel):
         language_ids,
         datasource_option,
         plugin_config=None,
+        enabled_profiling=False,
     ):
         create_params = {
             "bk_biz_id": bk_biz_id,
@@ -370,7 +371,7 @@ class Application(AbstractRecordModel):
 
         white_list = settings.APM_PROFILING_ENABLED_APPS
         # int value would be transformed to str when saved in settings
-        if str(bk_biz_id) in white_list and app_name in white_list[str(bk_biz_id)]:
+        if (str(bk_biz_id) in white_list and app_name in white_list[str(bk_biz_id)]) or enabled_profiling:
             create_params["enabled_profiling"] = True
         application_info = api.apm_api.create_application(create_params)
 
