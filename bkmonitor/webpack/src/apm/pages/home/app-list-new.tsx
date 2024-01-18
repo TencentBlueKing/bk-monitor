@@ -26,7 +26,6 @@
 
 import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Dialog, Input, Spin } from 'bk-magic-vue';
 
 import { deleteApplication, listApplication, listApplicationAsync } from '../../../monitor-api/modules/apm_meta';
 import { serviceList, serviceListAsync } from '../../../monitor-api/modules/apm_metric';
@@ -47,6 +46,7 @@ import authorityStore from '../../store/modules/authority';
 
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
+import { SEARCH_KEYS, SEARCH_STATUS_LIST, STATUS_MAP } from './utils';
 
 import './app-list-new.scss';
 
@@ -73,11 +73,6 @@ interface IAppListItem {
   service_count?: {
     value?: number;
   };
-  status: {
-    text: string;
-    tips: string;
-    type: string;
-  };
   firstCodeColor: string;
   tableData: ICommonTableProps & {
     paginationData: {
@@ -90,6 +85,8 @@ interface IAppListItem {
   tableDataLoading: boolean;
   tableSortKey: string;
   tableFilters: IFilterDict;
+  profiling_data_status: string;
+  data_status: string;
 }
 
 @Component
@@ -102,8 +99,6 @@ export default class AppList extends tsc<{}> {
   ];
   /** 时间范围 */
   timeRange: TimeRangeType = ['now-1h', 'now'];
-  /** 表格列数据项过滤 */
-  filterDict: IFilterDict = {};
   /** 显示引导页 */
   showGuidePage = false;
   // menu list
@@ -159,6 +154,8 @@ export default class AppList extends tsc<{}> {
     }
   ];
 
+  searchCondition = [];
+
   get alarmToolsPanel() {
     const data = {
       title: this.$t('应用列表'),
@@ -188,6 +185,23 @@ export default class AppList extends tsc<{}> {
   }
 
   created() {
+    const { query } = this.$route;
+    if (query?.queryString) {
+      this.searchCondition.push({
+        id: query.queryString,
+        name: query.queryString
+      });
+    }
+    if (query?.profiling_data_status) {
+      const matchingStatus = SEARCH_STATUS_LIST.find(s => s.id === query.profiling_data_status);
+      if (matchingStatus) {
+        this.searchCondition.push({
+          id: 'profiling_data_status',
+          name: 'Profiling',
+          values: [{ ...matchingStatus }]
+        });
+      }
+    }
     this.getLimitOfHeight();
     this.getAppList();
   }
@@ -208,13 +222,26 @@ export default class AppList extends tsc<{}> {
     if (this.loading) {
       return;
     }
+    let queryString = '';
+    let profilingDataStatus = '';
+    this.searchCondition.forEach(item => {
+      if (item?.values?.length) {
+        if (item.id === 'profiling_data_status') {
+          profilingDataStatus = item.values[0].id;
+        }
+      } else {
+        queryString = item.id;
+      }
+    });
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       start_time: startTime,
       end_time: endTime,
-      keyword: this.searchKeyword,
+      keyword: queryString,
       sort: '',
-      filter_dict: this.filterDict,
+      filter_dict: {
+        profiling_data_status: profilingDataStatus
+      },
       page: this.pagination.current,
       page_size: this.pagination.limit
     };
@@ -276,7 +303,8 @@ export default class AppList extends tsc<{}> {
       name: this.$route.name,
       query: {
         ...this.$route.query,
-        queryString: this.searchKeyword
+        queryString,
+        profiling_data_status: profilingDataStatus
       }
     };
     this.$router.replace(routerParams).catch(() => {});
@@ -335,6 +363,7 @@ export default class AppList extends tsc<{}> {
           page_size: item.tableData.paginationData.limit,
           keyword: '',
           condition_list: [],
+          view_mode: 'page_home',
           view_options: {
             app_name: item.app_name,
             compare_targets: [],
@@ -448,9 +477,9 @@ export default class AppList extends tsc<{}> {
   /** 列表搜索 */
   @Debounce(300)
   handleSearch() {
-    this.pagination.current = 1;
-    this.pagination.isEnd = false;
-    this.getAppList();
+    // this.pagination.current = 1;
+    // this.pagination.isEnd = false;
+    // this.getAppList();
   }
 
   /**
@@ -617,6 +646,17 @@ export default class AppList extends tsc<{}> {
     this.getServiceData([item.application_id], false, true);
   }
 
+  /**
+   * @description 条件搜索
+   * @param value
+   */
+  handleSearchCondition(value) {
+    this.searchCondition = value;
+    this.pagination.current = 1;
+    this.pagination.isEnd = false;
+    this.getAppList();
+  }
+
   render() {
     return (
       <div class='app-list-wrap-page'>
@@ -672,21 +712,33 @@ export default class AppList extends tsc<{}> {
           ) : (
             <div class='app-list-content'>
               <div class='app-list-content-top'>
-                <Button onClick={this.handleAllExpanChange}>
+                <bk-button onClick={this.handleAllExpanChange}>
                   {!this.isExpan ? (
                     <span class='icon-monitor icon-mc-merge'></span>
                   ) : (
                     <span class='icon-monitor icon-mc-full-screen'></span>
                   )}
                   <span>{this.isExpan ? this.$t('全部收起') : this.$t('全部展开')}</span>
-                </Button>
-                <Input
+                </bk-button>
+                <bk-search-select
+                  class='app-list-search'
+                  values={this.searchCondition}
+                  placeholder={this.$t('请输入搜索或筛选')}
+                  data={SEARCH_KEYS}
+                  strink={false}
+                  filter={true}
+                  wrap-zindex={0}
+                  show-condition={false}
+                  show-popover-tag-change={false}
+                  onChange={this.handleSearchCondition}
+                ></bk-search-select>
+                {/* <Input
                   class='app-list-search'
                   placeholder={this.$t('输入搜索或筛选')}
                   v-model={this.searchKeyword}
                   clearable
                   onInput={this.handleSearch}
-                ></Input>
+                ></Input> */}
               </div>
               <div class='app-list-content-data'>
                 {this.appList.map(item => (
@@ -713,29 +765,43 @@ export default class AppList extends tsc<{}> {
                         <div class='item-label'>{this.$t('服务数量')}:</div>
                         <div class='item-content'>
                           <span>
-                            {item.service_count === null ? <Spin size='mini' /> : item?.service_count?.value || 0}
+                            {item.service_count === null ? (
+                              <div class='spinner'></div>
+                            ) : (
+                              item?.service_count?.value || 0
+                            )}
                           </span>
                         </div>
                         <div
                           class='item-label'
                           v-bk-tooltips={{
                             placement: 'top',
-                            content: item.status?.tips,
-                            disabled: !item.status?.tips
+                            content: item.data_status,
+                            disabled: !item.data_status
                           }}
                         >
                           Tracing:
                         </div>
                         <div class='item-content'>
-                          <div class={['trace-status', item.status.type]}>{item.status.text}</div>
+                          <div
+                            class='trace-status'
+                            style={STATUS_MAP[item.data_status]?.style}
+                          >
+                            {STATUS_MAP[item.data_status]?.name || '--'}
+                          </div>
                         </div>
                         <div class='item-label'>Profiling:</div>
                         <div class='item-content'>
-                          <span>正常</span>
+                          <div
+                            class='trace-status'
+                            style={STATUS_MAP[item.profiling_data_status]?.style}
+                          >
+                            {STATUS_MAP[item.profiling_data_status]?.name || '--'}
+                          </div>
                         </div>
                       </div>
                       <div class='header-right'>
-                        <Button
+                        <bk-button
                           class='mr-8'
                           size='small'
                           theme='primary'
@@ -746,8 +812,8 @@ export default class AppList extends tsc<{}> {
                           }}
                         >
                           {this.$t('查看详情')}
-                        </Button>
-                        <Button
+                        </bk-button>
+                        <bk-button
                           class='mr-8'
                           size='small'
                           onClick={(event: Event) => {
@@ -756,7 +822,7 @@ export default class AppList extends tsc<{}> {
                           }}
                         >
                           {this.$t('配置')}
-                        </Button>
+                        </bk-button>
                         <OperateOptions
                           options={{
                             outside: [],
@@ -811,7 +877,7 @@ export default class AppList extends tsc<{}> {
           )}
         </div>
 
-        <Dialog
+        <bk-dialog
           value={this.showGuideDialog}
           mask-close={true}
           ext-cls='guide-create-dialog'
@@ -824,7 +890,7 @@ export default class AppList extends tsc<{}> {
             guideId='apm-home'
             guideData={this.apmIntroduceData}
           />
-        </Dialog>
+        </bk-dialog>
       </div>
     );
   }

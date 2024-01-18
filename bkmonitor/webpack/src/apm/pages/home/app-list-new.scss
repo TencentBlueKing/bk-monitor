@@ -179,11 +179,6 @@
                   height: 22px;
                   padding: 0 8px;
                   border-radius: 2px;
-
-                  &.failed {
-                    color: #ea3536;
-                    background: #fee;
-                  }
                 }
               }
             }
@@ -246,19 +241,20 @@
           color: #979ba5;
           background: #ebedf0;
           border-radius: 2px;
-
-          .spinner {
-            width: 14px;
-            height: 14px;
-            margin-right: 6px;
-            background: url(../../static/img/spinner.svg);
-          }
         }
       }
     }
 
     .app-list-search {
       width: 426px;
+      background: #fff;
     }
+  }
+
+  .spinner {
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    background: url(../../static/img/spinner.svg);
   }
 }

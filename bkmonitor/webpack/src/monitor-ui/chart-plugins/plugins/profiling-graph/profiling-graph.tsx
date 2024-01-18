@@ -24,11 +24,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-// import { query } from '../../../../monitor-api/modules/apm_profile';
+import { query } from '../../../../monitor-api/modules/apm_profile';
 import { Debounce } from '../../../../monitor-common/utils/utils';
+import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import { PROFILING_QUERY_DATA } from '../../../../trace/plugins/charts/profiling-graph/mock';
 import {
   BaseDataType,
@@ -48,11 +49,13 @@ import './profiling-graph.scss';
 
 interface IProfilingChartProps {
   panel: PanelModel;
-  queryParams: IQueryParams;
+  queryParams?: IQueryParams;
 }
 
 @Component
 class ProfilingChart extends CommonSimpleChart {
+  @Ref() frameGraphRef: FrameGraph;
+
   @Prop({ default: () => {}, type: Object }) queryParams: IQueryParams;
 
   isLoading = false;
@@ -71,6 +74,10 @@ class ProfilingChart extends CommonSimpleChart {
   highlightId = -1;
   filterKeyword = '';
 
+  get flameFilterKeywords() {
+    return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
+  }
+
   @Debounce(16)
   @Watch('queryParams', { immediate: true, deep: true })
   handleQueryParamsChange() {
@@ -81,10 +88,16 @@ class ProfilingChart extends CommonSimpleChart {
     try {
       this.isLoading = true;
       this.highlightId = -1;
-      // const { queryParams } = this.$props;
-      // const params = Object.assign({}, queryParams);
-      // const data = await query(params).catch(() => false);
-      const data = PROFILING_QUERY_DATA;
+      const { queryParams } = this.$props;
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      const params = Object.assign({}, queryParams, {
+        start: startTime * Math.pow(10, 6),
+        end: endTime * Math.pow(10, 6),
+        // TODO
+        app_name: 'profiling_bar'
+      });
+      let data = await query(params).catch(() => false);
+      data = PROFILING_QUERY_DATA; // TODO
       if (data) {
         this.unit = data.unit || '';
         this.tableData = data.table_data || [];
@@ -105,6 +118,35 @@ class ProfilingChart extends CommonSimpleChart {
   handleTextDirectionChange(val: TextDirectionType) {
     this.textDirection = val;
   }
+  /** 表格排序 */
+  async handleSortChange(sortKey: string) {
+    const { queryParams } = this.$props;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const params = Object.assign({}, queryParams, {
+      start: startTime * Math.pow(10, 6),
+      end: endTime * Math.pow(10, 6),
+      // TODO
+      app_name: 'profiling_bar',
+      diagram_types: ['table'],
+      sort: sortKey
+    });
+    const data = await query(params).catch(() => false);
+    if (data) {
+      this.highlightId = -1;
+      this.tableData = data.table_data || [];
+    }
+  }
+  handleDownload(type: string) {
+    switch (type) {
+      case 'png':
+        this.frameGraphRef?.handleStoreImg();
+        break;
+      case 'pprof':
+        break;
+      default:
+        break;
+    }
+  }
 
   render() {
     return (
@@ -118,6 +160,7 @@ class ProfilingChart extends CommonSimpleChart {
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
           onKeywordChange={val => (this.filterKeyword = val)}
+          onDownload={this.handleDownload}
         />
         {this.empty ? (
           <div class='empty-chart'>{this.emptyText}</div>
@@ -131,15 +174,17 @@ class ProfilingChart extends CommonSimpleChart {
                 highlightId={this.highlightId}
                 filterKeyword={this.filterKeyword}
                 onUpdateHighlightId={id => (this.highlightId = id)}
+                onSortChange={this.handleSortChange}
               />
             )}
             {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
               <FrameGraph
+                ref='frameGraphRef'
                 textDirection={this.textDirection}
                 showGraphTools={false}
                 data={this.flameData}
                 highlightId={this.highlightId}
-                filterKeywords={[this.filterKeyword]}
+                filterKeywords={this.flameFilterKeywords}
                 onUpdateHighlightId={id => (this.highlightId = id)}
               />
             )}

@@ -440,7 +440,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
             </div>
           )}
           <div
-            class='flame-graph-wrapper profiling-flame-graph'
+            class={`flame-graph-wrapper profiling-flame-graph ${this.showDiffLegend ? 'has-diff-legend' : ''}`}
             tabindex={1}
             onBlur={this.handleClickWrapper}
             onClick={this.handleClickWrapper}

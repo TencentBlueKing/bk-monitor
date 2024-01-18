@@ -185,5 +185,6 @@ export default {
   内部通知人: 'Internal Notifier',
   暂无数据: 'No Data',
   '支持{0}等文件格式': 'File formats such as {0} are supported',
-  通知人员类型: 'Notification person type'
+  通知人员类型: 'Notification person type',
+  到底了: 'In the end'
 };

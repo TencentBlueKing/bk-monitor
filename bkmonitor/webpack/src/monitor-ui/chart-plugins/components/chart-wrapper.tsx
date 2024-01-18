@@ -417,8 +417,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             clearErrorMsg={this.handleClearErrorMsg}
           />
         );
-      // TODO
-      case 'related-log-chart':
+      case 'profiling':
         return (
           <ProfilinGraph
             panel={this.panel}
