@@ -85,12 +85,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         serializer = ProfileUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        try:
-            application = Application.objects.get(
-                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-            )
-        except Exception:  # pylint: disable=broad-except
-            raise ValueError(_("应用({}) 不存在").format(validated_data["app_name"]))
 
         data = uploaded.read()
         md5 = hashlib.md5(data).hexdigest()
@@ -100,16 +94,16 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
         try:
             ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
-        except Exception:
+        except Exception as e:
             logger.exception("failed to upload file to bkrepo")
-            raise Exception(_("上传文件失败"))
+            raise Exception(_("上传文件失败， 失败原因: {}").format(e))
 
         profile_id = generate_profile_id()
 
         # record it if everything is ok
         record = ProfileUploadRecord.objects.create(
             bk_biz_id=validated_data["bk_biz_id"],
-            app_name=application.app_name,
+            app_name=validated_data.get("app_name", ""),
             file_md5=md5,
             file_type=validated_data["file_type"],
             profile_id=profile_id,
@@ -118,7 +112,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             file_size=uploaded.size,  # 单位Bytes
             file_name=PROFILE_UPLOAD_RECORD_NEW_FILE_NAME.format(timezone.now().strftime("%Y-%m-%d-%H-%M-%S")),
             status=UploadedFileStatus.UPLOADED,
-            service_name=validated_data.get("service_name", "default"),
+            service_name=validated_data.get("service_name", DEFAULT_SERVICE_NAME),
         )
 
         # 异步任务： 文件解析及存储
@@ -127,7 +121,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             validated_data["file_type"],
             profile_id,
             validated_data["bk_biz_id"],
-            application.app_name,
         )
 
         return Response(data=ProfileUploadRecordSLZ(record).data)
@@ -374,10 +367,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         label_values = [label["label_value"] for label in results["list"][offset * rows : (offset + 1) * rows]]
         return Response(data={"label_values": label_values})
 
-    @action(methods=["GET"], detail=False, url_path="export")
+    @action(methods=["POST"], detail=False, url_path="export")
     def export(self, request: Request):
         # query data
-        serializer = ProfileQueryExportSerializer(data=request.query_params)
+        serializer = ProfileQueryExportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
@@ -402,7 +395,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         )
 
         # transfer data
-        export_format = validated_data.get("format", DEFAULT_EXPORT_FORMAT)
+        export_format = validated_data.get("export_format", DEFAULT_EXPORT_FORMAT)
         if export_format not in EXPORT_FORMAT_MAP:
             raise ValueError(f"({export_format}) format is currently not supported")
         now_str = timezone.now().strftime("%Y-%m-%d-%H-%M-%S")

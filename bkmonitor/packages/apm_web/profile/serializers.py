@@ -11,7 +11,6 @@ from rest_framework import serializers
 
 from apm_web.models import ProfileUploadRecord
 from apm_web.profile.constants import (
-    DEFAULT_EXPORT_FORMAT,
     DEFAULT_PROFILE_DATA_TYPE,
     DEFAULT_SERVICE_NAME,
 )
@@ -45,7 +44,7 @@ class ProfileQuerySerializer(QueryBaseSerializer):
 
 class ProfileQueryExportSerializer(ProfileQuerySerializer):
     # export
-    format = serializers.CharField(label="数据导出格式", default=DEFAULT_EXPORT_FORMAT, required=False)
+    export_format = serializers.CharField(label="数据导出格式")
 
 
 class ProfileQueryLabelsSerializer(QueryBaseSerializer):
@@ -62,7 +61,7 @@ class ProfileQueryLabelValuesSerializer(QueryBaseSerializer):
 
 class ProfileUploadSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID")
-    app_name = serializers.CharField(label="应用名称")
+    service_name = serializers.CharField(label="服务名称", required=False)
     file_type = serializers.ChoiceField(choices=["perf_script", "pprof"])
 
 
@@ -70,11 +69,6 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
     class Meta:
         model = ProfileUploadRecord
         fields = "__all__"
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data["status"] = instance.get_status_display()
-        return data
 
 
 class ProfileListFileSerializer(serializers.Serializer):
