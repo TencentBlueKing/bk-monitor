@@ -105,9 +105,19 @@ class GetAlarmEventDimensionValue(CacheResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         field = serializers.CharField(label="维度字段")
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, params):
-        return []
+        handler = AlertQueryHandler(
+            bk_biz_ids=[params["bk_biz_id"]], start_time=params["start_time"], end_time=params["end_time"]
+        )
+        fields = handler.top_n(fields=[params["field"]], size=100)["fields"]
+        if not fields:
+            return []
+
+        data = fields[0]
+        return data["buckets"]
 
 
 class QueryAlarmEventGraph(Resource):
