@@ -367,7 +367,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         status_group = False
         if "status" in group_by:
             status_group = True
-            group_by.remove("status")
+            group_by = [field for field in group_by if field != "status"]
 
         # 查询时间对齐
         start_time = self.start_time // interval * interval

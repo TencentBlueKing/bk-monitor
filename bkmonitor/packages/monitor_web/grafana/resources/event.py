@@ -15,7 +15,7 @@ from rest_framework import serializers
 
 from bkmonitor.models import MetricListCache
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import CacheResource, Resource
+from core.drf_resource import Resource
 from fta_web.alert.handlers.alert import AlertQueryHandler
 
 logger = logging.getLogger(__name__)
@@ -83,10 +83,13 @@ class GetDataSourceConfigResource(Resource):
         return list(metric_dict.values())
 
 
-class GetAlarmEventField(CacheResource):
+class GetAlarmEventField(Resource):
     """
     获取告警事件字段
     """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
 
     def perform_request(self, params):
         return [
@@ -97,7 +100,7 @@ class GetAlarmEventField(CacheResource):
         ]
 
 
-class GetAlarmEventDimensionValue(CacheResource):
+class GetAlarmEventDimensionValue(Resource):
     """
     获取告警事件维度值
     """
