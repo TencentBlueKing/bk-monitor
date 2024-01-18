@@ -26,10 +26,11 @@
 import { computed, defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Exception, Select } from 'bkui-vue';
-import { Spinner, Upload as UploadIcon } from 'bkui-vue/lib/icon';
+import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
 import { listProfileUploadRecord } from '../../../../monitor-api/modules/apm_profile';
 import { ConditionType, RetrievalFormData } from '../typings';
+import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
 
 import ProfilingFileUpload from './profiling-file-upload';
 import ProfilingRetrievalView from './profiling-retrieval-view';
@@ -109,31 +110,31 @@ export default defineComponent({
       }, 3000);
     }
 
-    function statusRender(status) {
-      if (status === 'running') {
-        return (
-          <div class='status'>
-            <Spinner class='loading'></Spinner>
-            <span class='label'>{t('解析中')}</span>
-          </div>
-        );
-      }
-      if (status === 'success') {
+    function statusRender(status: EFileStatus) {
+      if ([EFileStatus.uploaded, EFileStatus.parsingSucceed, EFileStatus.storeSucceed].includes(status)) {
         return (
           <div class='status'>
             <div class='success circle'></div>
-            <span class='label'>{t('解析成功')}</span>
+            <span class='label'>{fileStatusMap[status].name}</span>
           </div>
         );
       }
-      if (status === 'failed') {
+      if ([EFileStatus.parsingFailed, EFileStatus.storeFailed].includes(status)) {
         return (
           <div class='status'>
             <div class='error circle'></div>
-            <span class='label'>{t('解析失败')}</span>
+            <span class='label'>{fileStatusMap[status].name}</span>
           </div>
         );
       }
+      // if (status === 'running') {
+      //   return (
+      //     <div class='status'>
+      //       <Spinner class='loading'></Spinner>
+      //       <span class='label'>{t('解析中')}</span>
+      //     </div>
+      //   );
+      // }
     }
 
     return {
@@ -189,7 +190,10 @@ export default defineComponent({
                     </div>
                     <i
                       class='icon-monitor icon-mc-detail'
-                      onClick={() => this.handleShowFileDetail(item)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        this.handleShowFileDetail(item);
+                      }}
                     ></i>
                   </div>
                 </Select.Option>

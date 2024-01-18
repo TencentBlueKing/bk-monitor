@@ -6,7 +6,7 @@ export const queryLabelValues = request('GET', 'apm/profile_api/query/label_valu
 export const queryServicesDetail = request('GET', 'apm/profile_api/query/services_detail/');
 export const listApplicationServices = request('GET', 'apm/profile_api/query/services/');
 export const upload = request('POST', 'apm/profile_api/upload/upload/');
-export const listProfileUploadRecord = request('GET', 'apm/profile_api/query/records/');
+export const listProfileUploadRecord = request('GET', 'apm/profile_api/upload/records/');
 
 export default {
   upload,
