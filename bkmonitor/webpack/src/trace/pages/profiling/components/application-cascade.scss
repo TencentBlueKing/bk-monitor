@@ -38,6 +38,7 @@
     .select-wrap {
       display: flex;
       flex: 1;
+      overflow-y: auto;
 
       .panel {
         height: 100%;
@@ -137,7 +138,7 @@
         }
 
         .no-data-wrap {
-          padding: 16px 16px 16px 0;
+          padding: 16px 16px 12px 0;
 
           .bk-form-item {
             margin-bottom: 12px;
