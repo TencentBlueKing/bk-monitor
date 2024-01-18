@@ -34,6 +34,7 @@ from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
     FIELD_TEMPLATE,
     EtlConfig,
+    ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -183,8 +184,12 @@ class EtlStorage(object):
             field_option["es_type"] = FieldDataTypeEnum.get_es_field_type(
                 field["field_type"], is_analyzed=field["is_analyzed"]
             )
-            if field["is_analyzed"] and field.get("option", {}).get("es_analyzer"):
-                field_option["es_analyzer"] = field["option"]["es_analyzer"]
+            if field["is_analyzed"]:
+                if field.get("option", {}).get("es_analyzer"):
+                    field_option["es_analyzer"] = field["option"]["es_analyzer"]
+                # 大小写敏感, 将TEXT的默认分词器置为大小写敏感的分词器
+                elif field.get("case_sensitive", False):
+                    field_option["es_analyzer"] = ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
 
             # ES_INCLUDE_IN_ALL
             if field["is_analyzed"] and es_version.startswith("5."):
@@ -309,6 +314,15 @@ class EtlStorage(object):
                 "index_settings": {
                     "number_of_shards": instance.storage_shards_nums,
                     "number_of_replicas": instance.storage_replies,
+                    "analysis": {
+                        "analyzer": {
+                            ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER: {
+                                "type": "custom",
+                                "tokenizer": "standard",
+                                "filter": []
+                            }
+                        },
+                    }
                 },
             },
             "is_time_field_only": True,

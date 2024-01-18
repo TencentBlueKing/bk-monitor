@@ -568,3 +568,6 @@ BK_LOG_COLLECTOR_CONTAINER_NAME = "bkunifylogbeat-bklog"
 BK_LOG_COLLECTOR_MAIN_CONFIG_NAME = "bkunifylogbeat.conf"
 # 采集器子配置路径
 BK_LOG_COLLECTOR_SUB_CONFIG_PATH = "bkunifylogbeat"
+
+# ES TEXT类型字段默认分词器(分词后大小写敏感)
+ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER = "text_field_case_sensitive_analyzer"
