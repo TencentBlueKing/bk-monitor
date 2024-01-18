@@ -180,6 +180,7 @@ class CreateApplicationResource(Resource):
             allow_empty=True,
             default=[LanguageEnum.PYTHON.id],
         )
+        enabled_profiling = serializers.BooleanField(label="是否启用性能分析", default=False)
         datasource_option = DatasourceOptionSerializer(required=True)
         plugin_config = PluginConfigSerializer(required=False)
 
@@ -209,6 +210,7 @@ class CreateApplicationResource(Resource):
             plugin_id=validated_request_data["plugin_id"],
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
+            enabled_profiling=validated_request_data["enabled_profiling"],
             datasource_option=validated_request_data["datasource_option"],
             plugin_config=plugin_config,
         )
@@ -496,7 +498,7 @@ class SetupResource(Resource):
                         raise ValueError(_("随机采样未配置采集百分比"))
                 elif attrs["sampler_type"] == SamplerTypeChoices.TAIL:
                     if "sampler_percentage" not in attrs:
-                        raise ValueError(f"尾部采样未配置采集百分比")
+                        raise ValueError("尾部采样未配置采集百分比")
 
                 if attrs.get("tail_conditions"):
                     t = [i for i in attrs["tail_conditions"] if i["key"] and i["method"] and i["value"]]

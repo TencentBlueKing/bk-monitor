@@ -67,7 +67,7 @@ RUN install -m644 /app/fonts/SourceHanSansSC-VF.ttf /usr/share/fonts/truetype/ \
 
 # install vim and chromium
 RUN apt-get update  \
-    && apt-get install -y vim chromium wget strace \
+    && apt-get install -y vim chromium wget strace graphviz \
     && groupadd -r ${username}  \
     && useradd -r -g ${username} ${username}  \
     && mkdir -p /data/ /app/ /home/${username} \
