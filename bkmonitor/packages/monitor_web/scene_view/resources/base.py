@@ -125,6 +125,8 @@ class PageListResource(ApiAuthResource, ABC):
     def check_filter(self, row: dict, filter_dict: dict, column_map: dict):
         for filter_field, values in filter_dict.items():
             value = column_map.get(filter_field, DefaultTableFormat()).get_value(row)
+            if isinstance(values, bool):
+                values = "on" if values else "off"
             if value not in values:
                 return False
         return True

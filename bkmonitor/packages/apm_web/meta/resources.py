@@ -707,11 +707,12 @@ class ListApplicationResource(PageListResource):
             ScopedSlotsFormat(
                 url_format="/application?filter-app_name={app_name}",
                 id="app_alias",
-                name=_("应用名称"),
+                name=_("应用别名"),
                 checked=True,
                 action_id=ActionEnum.VIEW_APM_APPLICATION.id,
                 disabled=True,
             ),
+            StringTableFormat(id="app_name", name=_("应用名"), checked=False),
             StringTableFormat(id="description", name=_("应用描述"), checked=False),
             StringTableFormat(id="retention", name=_("存储计划"), checked=False),
             LinkTableFormat(
@@ -727,14 +728,17 @@ class ListApplicationResource(PageListResource):
             NumberTableFormat(id="avg_duration", name=_("平均响应耗时"), sortable=True, unit="ns", decimal=2, asyncable=True),
             NumberTableFormat(id="error_rate", name=_("错误率"), sortable=True, decimal=2, unit="percent", asyncable=True),
             NumberTableFormat(id="error_count", name=_("错误次数"), checked=False, sortable=True, asyncable=True),
-            StatusTableFormat(
-                id="status",
-                name=_("状态"),
+            StringTableFormat(id="is_enabled", name=_("是否启用"), checked=False),
+            StringTableFormat(id="is_enabled_profiling", name=_("是否启用"), checked=False),
+            StringTableFormat(
+                id="profiling_data_status",
+                name=_("Profiling数据状态"),
                 checked=True,
-                status_map_cls=DataStatus,
-                show_tips=lambda x: x == "no_data",
-                tips_format=_("{no_data_period}分钟内无数据"),
-                filterable=True,
+            ),
+            StringTableFormat(
+                id="data_status",
+                name=_("Trace数据状态"),
+                checked=True,
             ),
         ]
 
@@ -756,6 +760,7 @@ class ListApplicationResource(PageListResource):
                 "app_alias",
                 "description",
                 "is_enabled",
+                "is_enabled_profiling",
                 "profiling_data_status",
                 "data_status",
             ]
