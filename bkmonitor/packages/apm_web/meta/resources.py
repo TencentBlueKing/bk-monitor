@@ -188,7 +188,7 @@ class CreateApplicationResource(Resource):
         def validate(self, attrs):
             res = super(CreateApplicationResource.RequestSerializer, self).validate(attrs)
             if not attrs["enable_tracing"]:
-                raise ValueError(_(f"目前暂不支持关闭 Tracing 功能"))
+                raise ValueError(_("目前暂不支持关闭 Tracing 功能"))
             return res
 
     class ResponseSerializer(serializers.ModelSerializer):
@@ -736,8 +736,8 @@ class ListApplicationResource(PageListResource):
             NumberTableFormat(id="avg_duration", name=_("平均响应耗时"), sortable=True, unit="ns", decimal=2, asyncable=True),
             NumberTableFormat(id="error_rate", name=_("错误率"), sortable=True, decimal=2, unit="percent", asyncable=True),
             NumberTableFormat(id="error_count", name=_("错误次数"), checked=False, sortable=True, asyncable=True),
-            StringTableFormat(id="is_enabled", name=_("是否启用"), checked=False),
-            StringTableFormat(id="is_enabled_profiling", name=_("是否启用"), checked=False),
+            StringTableFormat(id="is_enabled", name=_("应用是否启用"), checked=False),
+            StringTableFormat(id="is_enabled_profiling", name=_("Profiling是否启用"), checked=False),
             StringTableFormat(
                 id="profiling_data_status",
                 name=_("Profiling数据状态"),
