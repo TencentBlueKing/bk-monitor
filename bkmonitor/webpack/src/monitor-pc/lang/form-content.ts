@@ -111,5 +111,6 @@ export default {
   '值班开始前{0}天收到通知': 'Received notice {0} days before shift start',
   至: 'to',
   人: 'People',
-  未来: 'Next'
+  未来: 'Next',
+  已停止: 'Stop'
 };

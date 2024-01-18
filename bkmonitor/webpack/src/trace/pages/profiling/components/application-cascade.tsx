@@ -270,7 +270,13 @@ export default defineComponent({
                               </Form.FormItem>
                             </Form>
                             <div class='btn'>
-                              <span>{this.t('Profile 接入指引')}</span>
+                              <a
+                                class='link'
+                                target='_blank'
+                                href='https://doc.weixin.qq.com/doc/w3_AFMARgbdAFwV8Lqpcb7TdKbZ5lu8p?scode=AJEAIQdfAAoBLVgXR0AfYAcQbPAFM'
+                              >
+                                {this.t('Profile 接入指引')}
+                              </a>
                               <i class='icon-monitor icon-fenxiang'></i>
                             </div>
                             <div

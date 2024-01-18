@@ -25,25 +25,57 @@
  */
 import { computed, defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import axios, { CancelToken } from 'axios';
 import { Alert, Button, Dialog, Upload } from 'bkui-vue';
 import { TextFill as UploadTextFill, Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
+import { upload } from '../../../../monitor-api/modules/apm_profile';
 import { ConditionType } from '../typings/profiling-retrieval';
 
 import './profiling-file-upload.scss';
 
-const fileTypes = ['perf_script', 'pprof'];
+const fileTypes = ['json', 'perf_script', 'pprof'];
+
+function getFileType(fileName: string) {
+  const regex = /(?:\.([^.]+))?$/;
+  const extension = regex.exec(fileName)[1];
+  return extension.toLocaleLowerCase();
+}
+
+function valueFlash(set, val, limit) {
+  let v = 0; // 初始值
+  const interval = 10; // 每次执行的间隔毫秒数
+  const step = val / (limit / interval); // 每次累加的步长
+  const timer = setInterval(function () {
+    // 定义一个计时器
+    v += step; // 累加
+    if (v >= val || v >= 0.99) {
+      // 如果达到或超过目标值
+      set(val); // 显示目标值
+      clearInterval(timer); // 清除计时器
+    } else {
+      // 否则
+      set(v.toFixed(2)); // 显示目标值
+    }
+  }, interval); // 每隔interval毫秒执行一次
+  return timer;
+}
 
 const uploadTypeList = [
   { id: ConditionType.Where, name: window.i18n.t('查询项') },
   { id: ConditionType.Comparison, name: window.i18n.t('对比项') }
 ];
 
+enum EFileStatus {
+  failure = 'failure',
+  running = 'running',
+  success = 'success'
+}
 interface IFileStatus {
   name: string;
   uid: number;
   progress: number;
-  isCancel: boolean;
+  status: EFileStatus;
 }
 
 export default defineComponent({
@@ -56,15 +88,22 @@ export default defineComponent({
     isCompare: {
       type: Boolean,
       default: false
+    },
+    appName: {
+      type: String,
+      default: ''
     }
   },
   emits: ['showChange'],
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const { t } = useI18n();
     const uploadType = ref<ConditionType>(ConditionType.Where);
 
     /* 查询项 */
-    const searchObj = reactive({
+    const searchObj = reactive<{
+      files: IFileStatus[];
+      isRunning: boolean;
+    }>({
       files: [],
       isRunning: false
     });
@@ -73,6 +112,10 @@ export default defineComponent({
       files: [],
       isRunning: false
     });
+
+    const cancelObj = reactive<{
+      [uid: number]: CancelToken;
+    }>({});
 
     const isRunning = computed(() => {
       if (uploadType.value === ConditionType.Where) {
@@ -102,34 +145,68 @@ export default defineComponent({
     function handleUploadProgress(options) {
       console.log(options);
       if (uploadType.value === ConditionType.Where) {
-        searchObj.files.push(options.file);
-        const params = {
-          app_name: '',
-          file_type: '',
-          file: null
+        const fileOption = {
+          name: options.file.name,
+          uid: options.file.uid,
+          progress: 0,
+          status: EFileStatus.running
         };
-        console.log(params);
-        setTimeout(() => {
-          searchObj.isRunning = true;
-          filesStatus.value = searchObj.files.map(item => ({
-            name: item.name,
-            uid: item.uid,
-            progress: 0.5,
-            isCancel: false
-          }));
-        }, 50);
+        searchObj.files.push(fileOption);
+        filesStatus.value.push(fileOption);
+        searchObj.isRunning = true;
+        uploadFiles(options.file);
       } else {
-        compareObj.files.push(options.file);
-        setTimeout(() => {
-          compareObj.isRunning = true;
-          filesStatus.value = searchObj.files.map(item => ({
-            name: item.name,
-            uid: item.uid,
-            progress: 0.5,
-            isCancel: false
-          }));
-        }, 50);
+        // compareObj.files.push(options.file);
+        // compareObj.isRunning = true;
+        // filesStatus.value.push({
+        //   name: options.file.name,
+        //   uid: options.file.uid,
+        //   progress: 0,
+        //   isCancel: false
+        // });
       }
+    }
+    /**
+     * @description 上传文件接口
+     * @param file
+     */
+    function uploadFiles(file: any) {
+      const fileType = getFileType(file.name);
+      const params = {
+        app_name: props.appName,
+        file_type: fileType,
+        file
+      };
+      const cancelTokenSource = axios.CancelToken.source();
+      cancelObj[file.uid] = cancelTokenSource.token;
+      const fileObj = searchObj.files.find(item => item.uid === file.uid);
+      const curFileObj = filesStatus.value.find(item => item.uid === file.uid);
+      if (fileObj && curFileObj) {
+        const timer = valueFlash(
+          val => {
+            fileObj.progress = val;
+            curFileObj.progress = val;
+          },
+          0.99,
+          3000
+        );
+        upload(params, { cancelToken: cancelObj[file.uid] })
+          .then(data => {
+            console.log(data);
+            window.clearInterval(timer);
+            fileObj.progress = 1;
+            fileObj.status = EFileStatus.success;
+          })
+          .catch(() => {
+            window.clearInterval(timer);
+            fileObj.progress = 0;
+            fileObj.status = EFileStatus.failure;
+          });
+      }
+    }
+
+    function handleProgress(event, file, fileList) {
+      console.log(event, file, fileList);
     }
 
     return {
@@ -141,7 +218,8 @@ export default defineComponent({
       showChange,
       handleUploadTypeChange,
       handleUploadProgress,
-      t
+      t,
+      handleProgress
     };
   },
   render() {
@@ -171,63 +249,86 @@ export default defineComponent({
                   ))}
                 </Button.ButtonGroup>
               )}
-              {!this.isRunning ? (
+              <div
+                style={{
+                  display: this.isRunning ? 'none' : undefined
+                }}
+              >
                 <Upload
                   customRequest={this.handleUploadProgress as any}
                   accept={fileTypes.map(f => `.${f}`).join(',')}
+                  onProgress={this.handleProgress}
                 >
-                  <div class='upload-content'>
-                    <UploadIcon class='upload-icon' />
-                    <span class='title'>{this.t('点击上传或将文件拖到此处')}</span>
-                    <span class='desc'>{this.t('支持{0}等文件格式', [fileTypes.join(',')])}</span>
-                    <Button
-                      theme='primary'
-                      class='upload-btn'
-                    >
-                      {this.t('上传')}
-                    </Button>
-                  </div>
+                  {{
+                    default: () => (
+                      <div class='upload-content'>
+                        <UploadIcon class='upload-icon' />
+                        <span class='title'>{this.t('点击上传或将文件拖到此处')}</span>
+                        <span class='desc'>{this.t('支持{0}等文件格式', [fileTypes.join(',')])}</span>
+                        <Button
+                          theme='primary'
+                          class='upload-btn'
+                        >
+                          {this.t('上传')}
+                        </Button>
+                      </div>
+                    )
+                  }}
                 </Upload>
-              ) : (
-                <div class='upload-running-wrap'>
-                  <div class='file-list'>
-                    {this.filesStatus.map(item => (
-                      <div
-                        class='file-list-item'
-                        key={item.uid}
-                      >
-                        <div class='file-logo'>
-                          <UploadTextFill
-                            width={22}
-                            height={28}
-                            fill={'#A3C5FD'}
-                          ></UploadTextFill>
+              </div>
+              <div
+                class='upload-running-wrap'
+                style={{
+                  display: !this.isRunning ? 'none' : undefined
+                }}
+              >
+                <div class='file-list'>
+                  {this.filesStatus.map(item => (
+                    <div
+                      class='file-list-item'
+                      key={item.uid}
+                    >
+                      <div class='file-logo'>
+                        <UploadTextFill
+                          width={22}
+                          height={28}
+                          fill={'#A3C5FD'}
+                        ></UploadTextFill>
+                      </div>
+                      <div class='file-status'>
+                        <div class='file-name'>
+                          <span class='name'>{item.name}</span>
+                          {(() => {
+                            if (item.status === EFileStatus.running) {
+                              return <span class='cancel-btn running'>{this.t('取消上传')}</span>;
+                            }
+                            if (item.status === EFileStatus.success) {
+                              return <span class='cancel-btn success'>{this.t('上传成功')}</span>;
+                            }
+                            if (item.status === EFileStatus.failure) {
+                              return <span class='cancel-btn failure'>{this.t('上传失败')}</span>;
+                            }
+                          })()}
                         </div>
-                        <div class='file-status'>
-                          <div class='file-name'>
-                            <span class='name'>{item.name}</span>
-                            <span class='cancel-btn'>{this.t('取消上传')}</span>
-                          </div>
-                          <div class='status-progress'>
-                            <div
-                              class='progress-line'
-                              style={{
-                                width: `${item.progress * 100}%`
-                              }}
-                            ></div>
-                          </div>
+                        <div class='status-progress'>
+                          <div
+                            class='progress-line'
+                            style={{
+                              width: `${item.progress * 100}%`
+                            }}
+                          ></div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  <div class='tips-wrap'>
-                    <Alert
-                      theme='info'
-                      title={'上传成功后会自动关闭当前上传窗口，并进行文件解析;'}
-                    ></Alert>
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+                <div class='tips-wrap'>
+                  <Alert
+                    theme='info'
+                    title={'上传成功后会自动关闭当前上传窗口，并进行文件解析;'}
+                  ></Alert>
+                </div>
+              </div>
             </div>
           )
         }}

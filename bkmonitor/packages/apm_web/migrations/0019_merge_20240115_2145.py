@@ -6,7 +6,6 @@ from django.db import migrations
 class Migration(migrations.Migration):
     dependencies = [
         ("apm_web", "0018_alter_profileuploadrecord_app_name"),
-        ("apm_web", "0018_auto_20240109_1013"),
     ]
 
     operations = []

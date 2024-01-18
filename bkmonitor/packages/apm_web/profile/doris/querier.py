@@ -194,6 +194,9 @@ class QueryTemplate:
             ),
             result_table_id=self.result_table_id,
         ).execute()
+        if not services_response:
+            return {}
+
         services = [i.get("service_name") for i in services_response.get("list", []) if i.get("service_name")]
         if not services:
             return {}
