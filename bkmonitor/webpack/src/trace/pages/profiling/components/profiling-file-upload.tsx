@@ -30,16 +30,19 @@ import { Alert, Button, Dialog, Upload } from 'bkui-vue';
 import { TextFill as UploadTextFill, Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
 import { upload } from '../../../../monitor-api/modules/apm_profile';
+import { FILES_TYPE, FILES_TYPE_NAME } from '../typings/profiling-file';
 import { ConditionType } from '../typings/profiling-retrieval';
 
 import './profiling-file-upload.scss';
 
-const fileTypes = ['json', 'perf_script', 'pprof'];
-
 function getFileType(fileName: string) {
   const regex = /(?:\.([^.]+))?$/;
   const extension = regex.exec(fileName)[1];
-  return extension.toLocaleLowerCase();
+  const type = extension.toLocaleLowerCase();
+  if (type === 'prof') {
+    return 'pprof';
+  }
+  return type;
 }
 
 function valueFlash(set, val, limit) {
@@ -95,7 +98,7 @@ export default defineComponent({
     }
   },
   emits: ['showChange'],
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const { t } = useI18n();
     const uploadType = ref<ConditionType>(ConditionType.Where);
 
@@ -173,7 +176,6 @@ export default defineComponent({
     function uploadFiles(file: any) {
       const fileType = getFileType(file.name);
       const params = {
-        app_name: props.appName,
         file_type: fileType,
         file
       };
@@ -256,7 +258,7 @@ export default defineComponent({
               >
                 <Upload
                   customRequest={this.handleUploadProgress as any}
-                  accept={fileTypes.map(f => `.${f}`).join(',')}
+                  accept={FILES_TYPE.map(f => `.${f}`).join(',')}
                   onProgress={this.handleProgress}
                 >
                   {{
@@ -264,7 +266,7 @@ export default defineComponent({
                       <div class='upload-content'>
                         <UploadIcon class='upload-icon' />
                         <span class='title'>{this.t('点击上传或将文件拖到此处')}</span>
-                        <span class='desc'>{this.t('支持{0}等文件格式', [fileTypes.join(',')])}</span>
+                        <span class='desc'>{this.t('支持{0}等文件格式', [FILES_TYPE_NAME])}</span>
                         <Button
                           theme='primary'
                           class='upload-btn'
