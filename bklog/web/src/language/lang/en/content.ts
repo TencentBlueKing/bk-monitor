@@ -557,6 +557,7 @@ export default {
   从本次检索中排除: 'Exclude from this search',
   当前显示全部字段: 'Currently showing all fields',
   显示全部字段: 'Currently showing all fields',
+  新开标签页: 'New tab',
   已订阅当前页面: 'Subscribed to current page',
   邮件订阅: 'E-mail Subscriptions',
   新建订阅: 'New subscription',

@@ -32,7 +32,9 @@
         v-model="group"
         :popover-min-width="180"
         :disabled="!fingerOperateData.signatureSwitch"
-        @toggle="handleSelectGroup">
+        @toggle="handleSelectGroup"
+        @tab-remove="handleSelectTag"
+        @clear="handleDeleteAll">
         <bk-option
           v-for="item in fingerOperateData.groupList"
           :key="item.id"
@@ -179,6 +181,7 @@ export default {
       interactType: false, // false 为hover true 为click
       alarmSwitch: false,
       group: [], // 当前选择分组的值
+      catchGroup: [],
       isToggle: false, // 当前是否显示分组下拉框
       patternSize: 0,
       yearOnYearHour: 0,
@@ -218,23 +221,38 @@ export default {
   },
   methods: {
     handleSelectCompared(newVal) {
-      this.$emit('handleFingerOperate', 'compared', newVal);
+      this.$emit('handleFingerOperate', 'compared', newVal, true);
     },
     handleEnterCompared(val) {
       this.$emit('handleFingerOperate', 'enterCustomize', val);
     },
     handleShowNearPattern(state) {
-      this.$emit('handleFingerOperate', 'isShowNear', state);
+      this.$emit('handleFingerOperate', 'isShowNear', state, true);
     },
     handleChangepatternSize(val) {
-      this.$emit('handleFingerOperate', 'patternSize', this.fingerOperateData.patternList[val]);
+      this.$emit('handleFingerOperate', 'patternSize', this.fingerOperateData.patternList[val], true);
     },
     changeCustomizeState(val) {
       this.$emit('handleFingerOperate', 'customize', val);
     },
     handleSelectGroup(state) {
       this.isToggle = state;
-      !state && this.$emit('handleFingerOperate', 'group', this.group);
+      if (state) {
+        this.catchGroup = this.group;
+      } else {
+        const catchStr = this.catchGroup.join(',');
+        const groupStr = this.group.join(',');
+        if (catchStr !== groupStr) {
+          this.$emit('handleFingerOperate', 'group', this.group, true);
+        }
+      }
+    },
+    handleSelectTag(option) {
+      const filterGroup = this.group.filter(item => item !== option.id);
+      this.$emit('handleFingerOperate', 'group', filterGroup, true);
+    },
+    handleDeleteAll() {
+      this.$emit('handleFingerOperate', 'group', [], true);
     },
     handleEmitEditAlarm() {
       this.$emit('handleFingerOperate', 'editAlarm');

@@ -26,7 +26,6 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import { listUsersUser } from '../../../../monitor-api/modules/model';
 import { Debounce, deepClone, random } from '../../../../monitor-common/utils';
@@ -1441,13 +1440,13 @@ export default class CommonCondition extends tsc<IProps> {
             {/* value搜索输入框 */}
             {[TypeEnum.value, TypeEnum.key].includes(this.selectType) && (
               <div class='search-wrap'>
-                <Input
+                <bk-input
                   value={this.searchValue}
                   left-icon='bk-icon icon-search'
                   placeholder={window.i18n.t('输入关键字搜索')}
                   behavior={'simplicity'}
                   onChange={this.handleSearchChange}
-                ></Input>
+                ></bk-input>
               </div>
             )}
             {/* key选项类型筛选栏  */}
@@ -1602,13 +1601,13 @@ export default class CommonCondition extends tsc<IProps> {
             ref='secondWrap'
           >
             <div class='search-wrap'>
-              <Input
+              <bk-input
                 value={this.secondSearch}
                 left-icon='bk-icon icon-search'
                 placeholder={window.i18n.t('输入关键字搜索')}
                 behavior={'simplicity'}
                 onChange={this.handleSecondSearchChange}
-              ></Input>
+              ></bk-input>
             </div>
             {this.keyListSecond.length ? (
               <div class='wrap-list'>

@@ -502,6 +502,9 @@ importers:
       '@blueking/ip-selector':
         specifier: 0.2.0-beta
         version: 0.2.0-beta
+      '@blueking/notice-component-vue2':
+        specifier: ^2.0.0
+        version: 2.0.0(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14)
       '@blueking/paas-login':
         specifier: 0.0.6
         version: 0.0.6(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14)
@@ -2759,6 +2762,16 @@ packages:
   /@blueking/ip-selector@0.2.0-beta:
     resolution: {integrity: sha512-k7qwLXVLNk6HSBM7CAFp3FDSnTozfnjCD4qrvhu8fwMI+jSZs/jumsuDiGUgMCGkiAPRzFInk0zs/TTj+T85Aw==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
+    dev: false
+
+  /@blueking/notice-component-vue2@2.0.0(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14):
+    resolution: {integrity: sha512-RqKud1Zc+8LeNR0qurb36ArBxpadUXOk8p24TNhwewya3/Zvsmwwc3LruxgkNUVyxMXxGh7UhEKi3zHWEwgDww==}
+    peerDependencies:
+      bk-magic-vue: ^2.5.8-beta.5
+      vue: ^2.5.5
+    dependencies:
+      bk-magic-vue: 2.5.8-beta.11(vue@2.7.14)
+      vue: 2.7.14
     dev: false
 
   /@blueking/paas-login@0.0.6(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14):

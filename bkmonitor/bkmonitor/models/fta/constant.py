@@ -12,11 +12,11 @@ from django.utils.translation import ugettext as _
 
 
 class PluginType:
-
     HTTP_PUSH = "http_push"
     HTTP_PULL = "http_pull"
     EMAIL_PULL = "email_pull"
     KAFKA_PUSH = "kafka_push"
+    COLLECTOR = "bk_collector"
 
     @classmethod
     def to_choice(cls):
@@ -25,11 +25,11 @@ class PluginType:
             (cls.HTTP_PULL, _("HTTP 拉取")),
             (cls.EMAIL_PULL, _("Email 拉取")),
             (cls.KAFKA_PUSH, _("kafka 推送")),
+            (cls.COLLECTOR, _("HTTP 推送")),
         )
 
 
 class PluginMainType:
-
     PUSH = "push"
     PULL = "pull"
 

@@ -1,8 +1,0 @@
-get_agent_status:
-    method: POST
-    description: 获取当前业务下的agent信息
-    dependencies: []
-    args:
-        bk_biz_id: 2
-        bk_supplier_account: 0
-
