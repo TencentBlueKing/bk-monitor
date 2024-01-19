@@ -94,10 +94,20 @@ class TriggerProcessor(object):
         current_time = int(time.time())
         for record in event_records:
             event_record = record["event_record"]
-            if event_record.get("data", {}).get("detect_time"):
+            detect_time = event_record.get("data", {}).get("detect_time")
+            if detect_time:
                 latency = current_time - event_record["data"]["detect_time"]
                 if latency > 0:
                     metrics.TRIGGER_PROCESS_LATENCY.labels(strategy_id=metrics.TOTAL_TAG).observe(latency)
+                    if latency > 60:
+                        # 如果当前的处理延迟大于1min, 打印一行日志出来
+                        logger.info(
+                            "[push_event_to_kafka] big latency %s， detect time(%s),  strategy({})",
+                            latency,
+                            detect_time,
+                            self.strategy_id,
+                        )
+
             adapter = MonitorEventAdapter(
                 record=record["event_record"],
                 strategy=self.get_strategy_snapshot(record["event_record"]["strategy_snapshot_key"]),

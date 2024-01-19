@@ -23,7 +23,6 @@ logger = logging.getLogger("trigger")
 
 
 class TriggerHandler(base.BaseHandler):
-
     DATA_FETCH_TIMEOUT = 5
 
     def handle(self):
@@ -43,7 +42,7 @@ class TriggerHandler(base.BaseHandler):
             logger.error("ANOMALY_SIGNAL_KEY({}) parse error：{}".format(anomaly_key, e))
             return
 
-        logger.info("[start] strategy({}), item({})".format(strategy_id, item_id))
+        logger.info("[start][latency] strategy({}), item({})".format(strategy_id, item_id))
 
         exc = None
         try:
@@ -64,7 +63,7 @@ class TriggerHandler(base.BaseHandler):
                 )
             )
 
-        logger.info("[end] strategy({}), item({})".format(strategy_id, item_id))
+        logger.info("[end][latency] strategy({}), item({})".format(strategy_id, item_id))
 
         metrics.TRIGGER_PROCESS_COUNT.labels(
             strategy_id=metrics.TOTAL_TAG, status=metrics.StatusEnum.from_exc(exc), exception=exc
