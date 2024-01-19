@@ -48,9 +48,13 @@ export default defineComponent({
     queryParams: {
       type: Object as PropType<IQueryParams>,
       required: true
+    },
+    dataType: {
+      type: String,
+      default: 'cpu'
     }
   },
-  emits: ['showFileDetail', 'selectFile'],
+  emits: ['showFileDetail', 'selectFile', 'dataTypeChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
@@ -117,6 +121,10 @@ export default defineComponent({
       searchObj.list = data;
     }
 
+    function handleDataTypeChange(v: string) {
+      emit('dataTypeChange', v);
+    }
+
     function statusRender(status: EFileStatus) {
       if ([EFileStatus.uploaded, EFileStatus.parsingSucceed, EFileStatus.storeSucceed].includes(status)) {
         return (
@@ -158,7 +166,8 @@ export default defineComponent({
       statusRender,
       handleShowFileDetail,
       handleSelectFile,
-      handleRefleshFiles
+      handleRefleshFiles,
+      handleDataTypeChange
     };
   },
   render() {
@@ -255,7 +264,11 @@ export default defineComponent({
               </Exception>
             </div>
           ) : (
-            <ProfilingRetrievalView queryParams={this.queryParams}></ProfilingRetrievalView>
+            <ProfilingRetrievalView
+              dataType={this.dataType}
+              queryParams={this.queryParams}
+              onUpdate:dataType={this.handleDataTypeChange}
+            ></ProfilingRetrievalView>
           )}
         </div>
 

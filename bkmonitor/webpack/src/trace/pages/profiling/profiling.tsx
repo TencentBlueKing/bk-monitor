@@ -249,8 +249,10 @@ export default defineComponent({
           <UploadRetrievalView
             formData={this.searchState.formData}
             queryParams={this.queryParams}
+            dataType={this.dataType}
             onSelectFile={fileInfo => this.handleSelectFile(fileInfo)}
             onShowFileDetail={detail => this.handleShowDetail(DetailType.UploadFile, detail)}
+            onDataTypeChange={this.handleDataTypeChange}
           />
         );
       }
