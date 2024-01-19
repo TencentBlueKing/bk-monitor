@@ -26,7 +26,6 @@
 
 import { defineComponent, nextTick, ref, watch } from 'vue';
 
-import TopoImg from '../../../../../apm/static/img/topo.png';
 import { UseTopoChart } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/topo-graph/use-topo';
 
 import './topo-graph.scss';
@@ -49,7 +48,9 @@ export default defineComponent({
       () => props.topoSrc,
       () => {
         nextTick(() => {
-          graphInstance = new UseTopoChart(containerRef.value, imageRef.value);
+          if (props.topoSrc) {
+            graphInstance = new UseTopoChart(containerRef.value, imageRef.value);
+          }
         });
       },
       {
@@ -69,11 +70,11 @@ export default defineComponent({
         class='profiling-topo-graph'
         ref='containerRef'
       >
-        <img
+        <div
           ref='imageRef'
           class='topo-img'
-          src={TopoImg}
-        ></img>
+          v-html={this.topoSrc}
+        ></div>
       </div>
     );
   }

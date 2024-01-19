@@ -28,17 +28,18 @@ export class UseTopoChart {
   containerHtml = null;
   imageHtml = null;
 
-  scale = 1; // 当前大小缩放比例
+  scale = 10; // 当前大小缩放比例
   isDragging = false; // 当前是否拖动状态
   dragStartX = 0; // 拖动 x 坐标
   dragStartY = 0; // 拖动 y 坐标
   imgX = 0; // 图片 x 坐标
   imgY = 0; // 图片 y 坐标
-  zoomSpeed = 0.05; // 缩放步长
+  zoomSpeed = 0.1; // 缩放步长
 
   constructor(container: HTMLDivElement, image: HTMLDivElement) {
     this.containerHtml = container;
     this.imageHtml = image;
+    this.updateImageTransform();
     this.initEvents();
   }
 
@@ -67,8 +68,8 @@ export class UseTopoChart {
     this.containerHtml?.addEventListener('wheel', (event: WheelEvent) => {
       event.preventDefault();
       this.scale += event.deltaY * -this.zoomSpeed;
-      this.scale = Math.max(this.scale, 0.1); // 设置最小缩放限制
-      this.scale = Math.min(this.scale, 3); // 设置最大缩放限制
+      this.scale = Math.max(this.scale, 1); // 设置最小缩放限制
+      this.scale = Math.min(this.scale, 50); // 设置最大缩放限制
       this.updateImageTransform();
     });
   }

@@ -23,10 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import TopoImg from '../../../../../apm/static/img/topo.png';
 
 import { UseTopoChart } from './use-topo';
 
@@ -41,12 +39,16 @@ export default class TopoGraph extends tsc<ITopoGraphProps> {
   @Ref() containerRef: HTMLDivElement;
   @Ref() imageRef: HTMLDivElement;
 
+  @Prop({ default: '', type: String }) topoSrc: string;
+
   graphInstance = null;
 
   @Watch('topoSrc', { immediate: true })
   handleTopoSrcChange() {
     this.$nextTick(() => {
-      this.graphInstance = new UseTopoChart(this.containerRef, this.imageRef);
+      if (this.topoSrc) {
+        this.graphInstance = new UseTopoChart(this.containerRef, this.imageRef);
+      }
     });
   }
 
@@ -56,11 +58,11 @@ export default class TopoGraph extends tsc<ITopoGraphProps> {
         class='profiling-topo-graph'
         ref='containerRef'
       >
-        <img
+        <div
           ref='imageRef'
           class='topo-img'
-          src={TopoImg}
-        ></img>
+          v-html={this.topoSrc}
+        ></div>
       </div>
     );
   }

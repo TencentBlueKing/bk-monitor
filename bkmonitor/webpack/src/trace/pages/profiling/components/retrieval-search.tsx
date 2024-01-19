@@ -57,6 +57,10 @@ export default defineComponent({
     formData: {
       type: Object as PropType<RetrievalFormData>,
       default: () => null
+    },
+    dataType: {
+      type: String,
+      default: 'cpu'
     }
   },
   emits: ['change', 'typeChange', 'showDetail'],
@@ -91,6 +95,7 @@ export default defineComponent({
       where: [],
       comparisonWhere: []
     });
+
     watch(
       props.formData,
       newVal => {
@@ -98,6 +103,13 @@ export default defineComponent({
       },
       {
         immediate: true
+      }
+    );
+    watch(
+      () => toolsFormData.value.timeRange,
+      () => {
+        getLabelList();
+        getApplicationList();
       }
     );
 
@@ -112,8 +124,6 @@ export default defineComponent({
         // 文件上传暂时不做对比项
         localFormData.isComparison = false;
       }
-      localFormData.where = [];
-      localFormData.comparisonWhere = [];
       getLabelList();
       handleEmitChange();
       emit('typeChange', type);
@@ -129,8 +139,6 @@ export default defineComponent({
       if (localFormData.server.app_name === appName && localFormData.server.service_name === serviceName) return;
       localFormData.server.app_name = appName;
       localFormData.server.service_name = serviceName;
-      localFormData.where = [];
-      localFormData.comparisonWhere = [];
       getLabelList();
       handleEmitChange();
     }
@@ -143,7 +151,8 @@ export default defineComponent({
         start_time: start * 1000 * 1000,
         end_time: end * 1000 * 1000,
         app_name: localFormData.server.app_name,
-        service_name: localFormData.server.service_name
+        service_name: localFormData.server.service_name,
+        data_type: props.dataType
       }).catch(() => ({}));
       emit('showDetail', selectApplicationData.value);
     }
@@ -218,51 +227,20 @@ export default defineComponent({
     async function getApplicationList() {
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       applicationList.value = await listApplicationServices({
-        start_time: start * 1000 * 1000,
-        end_time: end * 1000 * 1000
+        start_time: start,
+        end_time: end
       }).catch(() => ({
-        normal: [
-          {
-            bk_biz_id: 100605,
-            application_id: 2,
-            app_name: 'profiling_bar',
-            app_alias: 'demo应用',
-            description: 'xxx',
-            services: [
-              {
-                id: 2,
-                name: 'service2',
-                has_data: false
-              },
-              {
-                id: 3,
-                name: 'service3',
-                has_data: true
-              }
-            ]
-          }
-        ],
-        no_data: [
-          {
-            bk_biz_id: 100605,
-            application_id: 2,
-            app_name: 'profiling_bar2',
-            app_alias: 'demo应用2',
-            description: 'xxx',
-            services: [
-              {
-                id: 2,
-                name: 'service3',
-                has_data: false
-              }
-            ]
-          }
-        ]
+        normal: [],
+        no_data: []
       }));
     }
 
     /** 获取过滤项列表 */
     async function getLabelList() {
+      localFormData.where = [];
+      localFormData.comparisonWhere = [];
+      labelList.value = [];
+      labelValueMap.clear();
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       const server = localFormData.type === SearchType.Profiling ? localFormData.server : {};
@@ -364,7 +342,7 @@ export default defineComponent({
                   class='condition-item'
                   data={item}
                   labelList={this.labelList}
-                  valueList={this.labelValueMap.get(item.key)}
+                  valueList={this.labelValueMap.get(item.key) || []}
                   onChange={val => this.handleConditionChange(val, index, ConditionType.Where)}
                   onDelete={() => this.deleteCondition(index, ConditionType.Where)}
                 />
@@ -385,6 +363,7 @@ export default defineComponent({
                     class='condition-item'
                     data={item}
                     labelList={this.labelList}
+                    valueList={this.labelValueMap.get(item.key) || []}
                     onChange={val => this.handleConditionChange(val, index, ConditionType.Comparison)}
                     onDelete={() => this.deleteCondition(index, ConditionType.Comparison)}
                   />

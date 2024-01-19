@@ -26,8 +26,10 @@
 
 import { computed, defineComponent, onMounted, provide, reactive, Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Dialog } from 'bkui-vue';
 
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
+import { ISelectMenuOption } from '../../components/select-menu/select-menu';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import ProfilingQueryImage from '../../static/img/profiling-query.png';
 import ProfilingUploadQueryImage from '../../static/img/profiling-upload-query.png';
@@ -41,7 +43,7 @@ import ProfilingDetail from './components/profiling-detail';
 import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
-import { ToolsFormData } from './typings/page-header';
+import { MenuEnum, ToolsFormData } from './typings/page-header';
 import {
   DetailType,
   FileDetail,
@@ -98,6 +100,9 @@ export default defineComponent({
     /** 查询参数 */
     const queryParams = ref(getParams());
 
+    /* 当前选择的文件 */
+    const curFileInfo = ref(null);
+
     /**
      * 检索面板和收藏面板显示状态切换
      * @param type 面板类型
@@ -115,6 +120,14 @@ export default defineComponent({
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
       handleQuery();
+    }
+
+    /** 是否全屏 */
+    const isFull = ref(false);
+    function handleMenuSelect(menu: ISelectMenuOption) {
+      if (menu.id === MenuEnum.FullScreen) {
+        isFull.value = true;
+      }
     }
 
     function handleDataTypeChange(v: string) {
@@ -177,7 +190,8 @@ export default defineComponent({
           if (cur.key && cur.value && type !== SearchType.Upload) pre[cur.key] = cur.value;
           return pre;
         }, {}),
-        profile_type: dataType.value
+        profile_type: dataType.value,
+        profile_id: searchState.formData.type === SearchType.Upload ? curFileInfo.value?.profile_id : undefined
       };
     }
 
@@ -205,6 +219,15 @@ export default defineComponent({
       searchState.autoQuery && startAutoQueryTimer();
     });
 
+    /**
+     * @description 当前选择profiling文件
+     * @param fileInfo
+     */
+    function handleSelectFile(fileInfo) {
+      curFileInfo.value = fileInfo;
+      handleQuery();
+    }
+
     return {
       t,
       isEmpty,
@@ -216,6 +239,7 @@ export default defineComponent({
       detailType,
       detailData,
       queryParams,
+      isFull,
       startAutoQueryTimer,
       handleToolFormDataChange,
       handleShowTypeChange,
@@ -224,7 +248,9 @@ export default defineComponent({
       handleQueryClear,
       handleSearchFormDataChange,
       handleDataTypeChange,
-      handleShowDetail
+      handleShowDetail,
+      handleSelectFile,
+      handleMenuSelect
     };
   },
 
@@ -235,7 +261,10 @@ export default defineComponent({
           <UploadRetrievalView
             formData={this.searchState.formData}
             queryParams={this.queryParams}
+            dataType={this.dataType}
+            onSelectFile={fileInfo => this.handleSelectFile(fileInfo)}
             onShowFileDetail={detail => this.handleShowDetail(DetailType.UploadFile, detail)}
+            onDataTypeChange={this.handleDataTypeChange}
           />
         );
       }
@@ -294,6 +323,7 @@ export default defineComponent({
             onShowTypeChange={this.handleShowTypeChange}
             onChange={this.handleToolFormDataChange}
             onRefreshIntervalChange={this.startAutoQueryTimer}
+            onMenuSelect={this.handleMenuSelect}
           ></PageHeader>
         </div>
         <div class='page-content'>
@@ -328,6 +358,7 @@ export default defineComponent({
           >
             <RetrievalSearch
               formData={this.searchState.formData}
+              dataType={this.dataType}
               onChange={this.handleSearchFormDataChange}
               onShowDetail={detail => this.handleShowDetail(DetailType.Application, detail)}
             >
@@ -354,6 +385,21 @@ export default defineComponent({
           detailData={this.detailData}
           onShowChange={val => (this.detailShow = val)}
         ></ProfilingDetail>
+
+        {this.isFull && (
+          <Dialog
+            is-show={this.isFull}
+            title={this.t('查看大图')}
+            zIndex={8004}
+            fullscreen
+            header-align='center'
+            draggable={false}
+            ext-cls='full-dialog'
+            onClosed={() => (this.isFull = false)}
+          >
+            <div class='view-wrap'>{renderView()}</div>
+          </Dialog>
+        )}
       </div>
     );
   }

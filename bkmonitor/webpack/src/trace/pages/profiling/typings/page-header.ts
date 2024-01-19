@@ -33,3 +33,7 @@ export interface ToolsFormData {
   /** 刷新时间 */
   refreshInterval: number;
 }
+
+export enum MenuEnum {
+  FullScreen = 'fullScreen'
+}
