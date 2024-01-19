@@ -26,8 +26,10 @@
 
 import { computed, defineComponent, onMounted, provide, reactive, Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Dialog } from 'bkui-vue';
 
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
+import { ISelectMenuOption } from '../../components/select-menu/select-menu';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import ProfilingQueryImage from '../../static/img/profiling-query.png';
 import ProfilingUploadQueryImage from '../../static/img/profiling-upload-query.png';
@@ -41,7 +43,7 @@ import ProfilingDetail from './components/profiling-detail';
 import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
-import { ToolsFormData } from './typings/page-header';
+import { MenuEnum, ToolsFormData } from './typings/page-header';
 import {
   DetailType,
   FileDetail,
@@ -115,6 +117,14 @@ export default defineComponent({
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
       handleQuery();
+    }
+
+    /** 是否全屏 */
+    const isFull = ref(false);
+    function handleMenuSelect(menu: ISelectMenuOption) {
+      if (menu.id === MenuEnum.FullScreen) {
+        isFull.value = true;
+      }
     }
 
     function handleDataTypeChange(v: string) {
@@ -216,6 +226,7 @@ export default defineComponent({
       detailType,
       detailData,
       queryParams,
+      isFull,
       startAutoQueryTimer,
       handleToolFormDataChange,
       handleShowTypeChange,
@@ -224,7 +235,8 @@ export default defineComponent({
       handleQueryClear,
       handleSearchFormDataChange,
       handleDataTypeChange,
-      handleShowDetail
+      handleShowDetail,
+      handleMenuSelect
     };
   },
 
@@ -294,6 +306,7 @@ export default defineComponent({
             onShowTypeChange={this.handleShowTypeChange}
             onChange={this.handleToolFormDataChange}
             onRefreshIntervalChange={this.startAutoQueryTimer}
+            onMenuSelect={this.handleMenuSelect}
           ></PageHeader>
         </div>
         <div class='page-content'>
@@ -328,6 +341,7 @@ export default defineComponent({
           >
             <RetrievalSearch
               formData={this.searchState.formData}
+              dataType={this.dataType}
               onChange={this.handleSearchFormDataChange}
               onShowDetail={detail => this.handleShowDetail(DetailType.Application, detail)}
             >
@@ -354,6 +368,21 @@ export default defineComponent({
           detailData={this.detailData}
           onShowChange={val => (this.detailShow = val)}
         ></ProfilingDetail>
+
+        {this.isFull && (
+          <Dialog
+            is-show={this.isFull}
+            title={this.t('查看大图')}
+            zIndex={8004}
+            fullscreen
+            header-align='center'
+            draggable={false}
+            ext-cls='full-dialog'
+            onClosed={() => (this.isFull = false)}
+          >
+            <div class='view-wrap'>{renderView()}</div>
+          </Dialog>
+        )}
       </div>
     );
   }

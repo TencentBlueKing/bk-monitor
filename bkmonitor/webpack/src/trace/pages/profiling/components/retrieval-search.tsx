@@ -57,6 +57,10 @@ export default defineComponent({
     formData: {
       type: Object as PropType<RetrievalFormData>,
       default: () => null
+    },
+    dataType: {
+      type: String,
+      default: 'cpu'
     }
   },
   emits: ['change', 'typeChange', 'showDetail'],
@@ -147,7 +151,8 @@ export default defineComponent({
         start_time: start * 1000 * 1000,
         end_time: end * 1000 * 1000,
         app_name: localFormData.server.app_name,
-        service_name: localFormData.server.service_name
+        service_name: localFormData.server.service_name,
+        data_type: props.dataType
       }).catch(() => ({}));
       emit('showDetail', selectApplicationData.value);
     }
@@ -234,14 +239,13 @@ export default defineComponent({
     async function getLabelList() {
       localFormData.where = [];
       localFormData.comparisonWhere = [];
+      labelList.value = [];
       labelValueMap.clear();
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       const server = localFormData.type === SearchType.Profiling ? localFormData.server : {};
       const labels = await queryLabels({
         ...server,
-        app_name: 'builtin_profile_app',
-        service_name: 'builtin_profile_app',
         start: start * 1000 * 1000,
         end: end * 1000 * 1000
       }).catch(() => ({ label_keys: [] }));

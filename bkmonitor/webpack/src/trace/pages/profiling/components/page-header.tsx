@@ -28,9 +28,9 @@ import { useI18n } from 'vue-i18n';
 
 import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import PageToolHeader from '../../../components/page-tool-header/page-tool-header';
+import { ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import { DEFAULT_TIME_RANGE, TimeRangeType } from '../../../components/time-range/utils';
-import { PanelType } from '../typings';
-import { ToolsFormData } from '../typings/page-header';
+import { MenuEnum, PanelType, ToolsFormData } from '../typings';
 
 import './page-header.scss';
 
@@ -50,9 +50,10 @@ export default defineComponent({
       default: null
     }
   },
-  emits: ['change', 'showTypeChange', 'refreshIntervalChange'],
+  emits: ['change', 'showTypeChange', 'refreshIntervalChange', 'menuSelect'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const menuList = [{ name: t('查看大图'), id: MenuEnum.FullScreen }];
     const toolsFormData = reactive<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefautTimezone(),
@@ -88,18 +89,24 @@ export default defineComponent({
       emit('showTypeChange', showType, status);
     }
 
+    function handleMenuSelect(menu: ISelectMenuOption) {
+      emit('menuSelect', menu);
+    }
+
     function handleEmitData() {
       emit('change', toolsFormData);
     }
 
     return {
       t,
+      menuList,
       toolsFormData,
       handleTimeRangeChange,
       handleTimezoneChange,
       handleRefreshIntervalChange,
       handleImmediateRefresh,
-      handleShowTypeChange
+      handleShowTypeChange,
+      handleMenuSelect
     };
   },
   render() {
@@ -108,11 +115,13 @@ export default defineComponent({
         class='page-header-component'
         timeRange={this.toolsFormData.timeRange}
         timezone={this.toolsFormData.timezone}
+        menuList={this.menuList}
         refreshInterval={this.toolsFormData.refreshInterval}
         onTimeRangeChange={this.handleTimeRangeChange}
         onTimezoneChange={this.handleTimezoneChange}
         onRefreshIntervalChange={this.handleRefreshIntervalChange}
         onImmediateRefresh={this.handleImmediateRefresh}
+        onMenuSelectChange={this.handleMenuSelect}
       >
         {{
           prepend: () => (
