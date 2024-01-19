@@ -37,7 +37,7 @@ import { DirectionType, IQueryParams } from '../../../typings';
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
-import { PROFILING_QUERY_DATA } from './mock';
+import TopoGraph from './topo-graph/topo-graph';
 
 import './profiling-graph.scss';
 
@@ -67,6 +67,7 @@ export default defineComponent({
     const unit = ref('');
     const highlightId = ref(-1);
     const filterKeyword = ref('');
+    const topoSrc = ref('');
 
     const flameFilterKeywords = computed(() => (filterKeyword.value?.trim?.().length ? [filterKeyword.value] : []));
 
@@ -88,25 +89,29 @@ export default defineComponent({
       }
     );
 
+    const getParams = (args: Record<string, any> = {}) => {
+      const { queryParams } = props;
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      return {
+        ...args,
+        ...queryParams,
+        start: start * Math.pow(10, 6),
+        end: end * Math.pow(10, 6),
+        // TODO
+        app_name: 'profiling_bar',
+        service_name: 'fuxi_gin'
+      };
+    };
     const handleQuery = async () => {
       try {
         isLoading.value = true;
         highlightId.value = -1;
-        const { queryParams } = props;
-        const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-        const params = Object.assign({}, queryParams, {
-          start: start * Math.pow(10, 6),
-          end: end * Math.pow(10, 6),
-          diagram_types: ['table', 'flamegraph'],
-          // TODO
-          app_name: 'profiling_bar'
-        });
-        let data = await query(params).catch(() => false);
-        data = PROFILING_QUERY_DATA; // TODO
-        if (data) {
-          unit.value = data.unit || '';
-          tableData.value = data.table_data || [];
-          flameData.value = data.flame_data;
+        const params = getParams({ diagram_types: ['table', 'flamegraph'] });
+        const data = await query(params).catch(() => false);
+        if (data.diagrams) {
+          unit.value = data.diagrams.unit || '';
+          tableData.value = data.diagrams.table_data || [];
+          flameData.value = data.diagrams.flame_data;
           empty.value = false;
         } else {
           empty.value = true;
@@ -119,28 +124,32 @@ export default defineComponent({
       }
     };
     /** 切换视图模式 */
-    const handleModeChange = (val: ViewModeType) => {
+    const handleModeChange = async (val: ViewModeType) => {
+      if (val === activeMode.value) return;
+
+      highlightId.value = -1;
       activeMode.value = val;
+
+      if (val === ViewModeType.Topo && !topoSrc.value) {
+        const params = getParams({ diagram_types: ['callgraph'] });
+        const data = await query(params).catch(() => false);
+        if (data.diagrams) {
+        }
+      }
     };
     const handleTextDirectionChange = (val: DirectionType) => {
       textDirection.value = val;
     };
     /** 表格排序 */
     const handleSortChange = async (sortKey: string) => {
-      const { queryParams } = props;
-      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      const params = Object.assign({}, queryParams, {
-        start: start * Math.pow(10, 6),
-        end: end * Math.pow(10, 6),
-        // TODO
-        app_name: 'profiling_bar',
+      const params = getParams({
         diagram_types: ['table'],
         sort: sortKey
       });
       const data = await query(params).catch(() => false);
-      if (data) {
+      if (data.diagrams) {
         highlightId.value = -1;
-        tableData.value = data.table_data || [];
+        tableData.value = data.diagrams.table_data || [];
       }
     };
     /** 下载 */
@@ -217,6 +226,7 @@ export default defineComponent({
                 onUpdateHighlightId={id => (this.highlightId = id)}
               />
             )}
+            {ViewModeType.Topo === this.activeMode && <TopoGraph />}
           </div>
         )}
       </Loading>

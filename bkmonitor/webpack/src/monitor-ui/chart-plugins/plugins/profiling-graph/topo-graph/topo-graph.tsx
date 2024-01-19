@@ -23,63 +23,45 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const STATUS_MAP = {
-  normal: {
-    name: window.i18n.tc('正常'),
-    style: {
-      background: '#fff',
-      color: '#313238'
-    }
-  },
-  no_data: {
-    name: window.i18n.tc('无数据'),
-    style: {
-      background: '#FFEEEE',
-      color: '#EA3536'
-    }
-  },
-  stop: {
-    name: window.i18n.tc('已停止'),
-    style: {
-      background: '#F0F1F5',
-      color: '#63656E'
-    }
-  }
-};
+import { Component, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-export const SEARCH_STATUS_LIST = [
-  {
-    id: 'normal',
-    name: STATUS_MAP.normal.name
-  },
-  {
-    id: 'no_data',
-    name: STATUS_MAP.no_data.name
-  },
-  {
-    id: 'stop',
-    name: STATUS_MAP.stop.name
-  }
-];
+import TopoImg from '../../../../../apm/static/img/topo.png';
 
-export const SEARCH_KEYS = [
-  {
-    name: `Profiling${window.i18n.t('数据状态')}`,
-    id: 'profiling_data_status',
-    children: SEARCH_STATUS_LIST
-  },
-  {
-    name: `Profiling${window.i18n.t('是否启用')}`,
-    id: 'is_enabled_profiling',
-    children: [
-      {
-        id: 'true',
-        name: window.i18n.t('是')
-      },
-      {
-        id: 'false',
-        name: window.i18n.t('否')
-      }
-    ]
+import { UseTopoChart } from './use-topo';
+
+import './topo-graph.scss';
+
+interface ITopoGraphProps {
+  topoSrc: string;
+}
+
+@Component
+export default class TopoGraph extends tsc<ITopoGraphProps> {
+  @Ref() containerRef: HTMLDivElement;
+  @Ref() imageRef: HTMLDivElement;
+
+  graphInstance = null;
+
+  @Watch('topoSrc', { immediate: true })
+  handleTopoSrcChange() {
+    this.$nextTick(() => {
+      this.graphInstance = new UseTopoChart(this.containerRef, this.imageRef);
+    });
   }
-];
+
+  render() {
+    return (
+      <div
+        class='profiling-topo-graph'
+        ref='containerRef'
+      >
+        <img
+          ref='imageRef'
+          class='topo-img'
+          src={TopoImg}
+        ></img>
+      </div>
+    );
+  }
+}

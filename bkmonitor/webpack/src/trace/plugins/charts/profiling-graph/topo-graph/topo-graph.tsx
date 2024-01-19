@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,63 +23,58 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const STATUS_MAP = {
-  normal: {
-    name: window.i18n.tc('正常'),
-    style: {
-      background: '#fff',
-      color: '#313238'
-    }
-  },
-  no_data: {
-    name: window.i18n.tc('无数据'),
-    style: {
-      background: '#FFEEEE',
-      color: '#EA3536'
-    }
-  },
-  stop: {
-    name: window.i18n.tc('已停止'),
-    style: {
-      background: '#F0F1F5',
-      color: '#63656E'
-    }
-  }
-};
 
-export const SEARCH_STATUS_LIST = [
-  {
-    id: 'normal',
-    name: STATUS_MAP.normal.name
-  },
-  {
-    id: 'no_data',
-    name: STATUS_MAP.no_data.name
-  },
-  {
-    id: 'stop',
-    name: STATUS_MAP.stop.name
-  }
-];
+import { defineComponent, nextTick, ref, watch } from 'vue';
 
-export const SEARCH_KEYS = [
-  {
-    name: `Profiling${window.i18n.t('数据状态')}`,
-    id: 'profiling_data_status',
-    children: SEARCH_STATUS_LIST
+import TopoImg from '../../../../../apm/static/img/topo.png';
+import { UseTopoChart } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/topo-graph/use-topo';
+
+import './topo-graph.scss';
+
+export default defineComponent({
+  name: 'TopoGraph',
+  props: {
+    topoSrc: {
+      type: String,
+      default: ''
+    }
   },
-  {
-    name: `Profiling${window.i18n.t('是否启用')}`,
-    id: 'is_enabled_profiling',
-    children: [
-      {
-        id: 'true',
-        name: window.i18n.t('是')
+  setup(props) {
+    let graphInstance = null;
+
+    const containerRef = ref(null);
+    const imageRef = ref(null);
+
+    watch(
+      () => props.topoSrc,
+      () => {
+        nextTick(() => {
+          graphInstance = new UseTopoChart(containerRef.value, imageRef.value);
+        });
       },
       {
-        id: 'false',
-        name: window.i18n.t('否')
+        immediate: true
       }
-    ]
+    );
+
+    return {
+      graphInstance,
+      containerRef,
+      imageRef
+    };
+  },
+  render() {
+    return (
+      <div
+        class='profiling-topo-graph'
+        ref='containerRef'
+      >
+        <img
+          ref='imageRef'
+          class='topo-img'
+          src={TopoImg}
+        ></img>
+      </div>
+    );
   }
-];
+});

@@ -33,7 +33,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_application-endpoint",
         "apm_application-error",
         "apm_application-overview",
-        "apm_application-profiling",
         "apm_application-service",
         "apm_application-topo",
         "apm_service-component-default-error",

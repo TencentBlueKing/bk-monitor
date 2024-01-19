@@ -14,7 +14,7 @@ import tempfile
 from bkstorages.backends.bkrepo import BKRepoStorage
 from django.utils.translation import ugettext_lazy as _
 
-from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
+from apm_web.models import ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.collector import CollectorHandler
 from apm_web.profile.converter import get_converter_by_input_type
 
@@ -32,19 +32,13 @@ class ProfilingFileHandler:
             data = fp.read()
         return data
 
-    def parse_file(self, key, file_type: str, profile_id: str, bk_biz_id: int, app_name: str):
+    def parse_file(self, key, file_type: str, profile_id: str, bk_biz_id: int):
         """
         :param key : 文件完整路径
         :param str file_type: 上传文件类型
         :param str profile_id: profile_id
         :param int bk_biz_id: 业务id
-        :param str app_name: 应用名称
         """
-        try:
-            Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(f"application ({app_name}) not exists, error{e}")
-            return
 
         try:
             converter = get_converter_by_input_type(file_type)(preset_profile_id=profile_id)
@@ -55,7 +49,8 @@ class ProfilingFileHandler:
             logger.exception(f"convert profiling data failed, error: {e}")
             p = None
 
-        param = {"file_type": file_type, "profile_id": profile_id, "bk_biz_id": bk_biz_id, "app_name": app_name}
+        param = {"file_type": file_type, "profile_id": profile_id, "bk_biz_id": bk_biz_id}
+
         queryset = ProfileUploadRecord.objects.filter(**param)
 
         if p is None:

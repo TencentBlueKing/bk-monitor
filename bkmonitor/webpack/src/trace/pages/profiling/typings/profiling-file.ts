@@ -23,63 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const STATUS_MAP = {
-  normal: {
-    name: window.i18n.tc('正常'),
-    style: {
-      background: '#fff',
-      color: '#313238'
-    }
+export enum EFileStatus {
+  uploaded = 'uploaded',
+  parsingFailed = 'parsing_failed',
+  parsingSucceed = 'parsing_succeed',
+  storeSucceed = 'store_succeed',
+  storeFailed = '"store_failed'
+}
+
+export const fileStatusMap = {
+  [EFileStatus.uploaded]: {
+    name: window.i18n.t('已上传')
   },
-  no_data: {
-    name: window.i18n.tc('无数据'),
-    style: {
-      background: '#FFEEEE',
-      color: '#EA3536'
-    }
+  [EFileStatus.parsingFailed]: {
+    name: window.i18n.t('解析失败')
   },
-  stop: {
-    name: window.i18n.tc('已停止'),
-    style: {
-      background: '#F0F1F5',
-      color: '#63656E'
-    }
+  [EFileStatus.parsingSucceed]: {
+    name: window.i18n.t('已解析')
+  },
+  [EFileStatus.storeSucceed]: {
+    name: window.i18n.t('已存储')
+  },
+  [EFileStatus.storeFailed]: {
+    name: window.i18n.t('存储失败')
   }
 };
 
-export const SEARCH_STATUS_LIST = [
-  {
-    id: 'normal',
-    name: STATUS_MAP.normal.name
-  },
-  {
-    id: 'no_data',
-    name: STATUS_MAP.no_data.name
-  },
-  {
-    id: 'stop',
-    name: STATUS_MAP.stop.name
-  }
-];
-
-export const SEARCH_KEYS = [
-  {
-    name: `Profiling${window.i18n.t('数据状态')}`,
-    id: 'profiling_data_status',
-    children: SEARCH_STATUS_LIST
-  },
-  {
-    name: `Profiling${window.i18n.t('是否启用')}`,
-    id: 'is_enabled_profiling',
-    children: [
-      {
-        id: 'true',
-        name: window.i18n.t('是')
-      },
-      {
-        id: 'false',
-        name: window.i18n.t('否')
-      }
-    ]
-  }
-];
+export const FILES_TYPE = ['json', 'perf_script', 'prof'];
+export const FILES_TYPE_NAME = ['json', 'perf_script', 'pprof'].join(',');

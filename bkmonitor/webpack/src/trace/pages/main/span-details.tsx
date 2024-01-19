@@ -1161,6 +1161,7 @@ export default defineComponent({
                       >
                         <ProfilingFlameGraph
                           appName={appName.value}
+                          serviceName={serviceNameProvider.value}
                           profileId={originalData.value.span_id}
                           start={originalData.value.start_time}
                           end={originalData.value.end_time}

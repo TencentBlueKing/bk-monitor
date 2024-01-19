@@ -40,12 +40,7 @@ def build_event_body(app: Application, bk_biz_id: int):
     event_body_map["timestamp"] = int(round(time.time() * 1000))
     event_body_map["dimension"] = {"bk_biz_id": bk_biz_id, "bk_biz_name": bk_biz_name}
     content = _("有新APM应用创建，请关注！应用名称：{}, 应用别名：{}, 业务ID：{}, 业务名称：{}, 创建者：{}，创建时间：{}").format(
-        app.app_name,
-        app.app_alias,
-        bk_biz_id,
-        bk_biz_name,
-        app.create_user,
-        strftime_local(app.create_time)
+        app.app_name, app.app_alias, bk_biz_id, bk_biz_name, app.create_user, strftime_local(app.create_time)
     )
     event_body_map["event"] = {"content": content}
     return [event_body_map]
@@ -121,28 +116,20 @@ def refresh_apm_application_metric():
 
 
 @task(ignore_result=True)
-def profile_file_upload_and_parse(key, file_type, profile_id, bk_biz_id, app_name):
+def profile_file_upload_and_parse(key, file_type, profile_id, bk_biz_id):
     """
     :param key : 文件完整路径
     :param str file_type: 上传文件类型
     :param str profile_id: profile_id
     :param int bk_biz_id: 业务id
-    :param str app_name: 应用名称
     """
-    logger.info(
-        f"[profile_file_upload_and_parse] task start, bk_biz_id({bk_biz_id}), app_name({app_name}), "
-        f"profile_id({profile_id})"
-    )
+    logger.info(f"[profile_file_upload_and_parse] task start, bk_biz_id({bk_biz_id}),  profile_id({profile_id})")
 
     ProfilingFileHandler().parse_file(
         key=key,
         file_type=file_type,
         profile_id=profile_id,
         bk_biz_id=bk_biz_id,
-        app_name=app_name,
     )
 
-    logger.info(
-        f"[profile_file_upload_and_parse] task finished, bk_biz_id({bk_biz_id}), application_id({app_name}), "
-        f"profile_id({profile_id})"
-    )
+    logger.info(f"[profile_file_upload_and_parse] task finished, bk_biz_id({bk_biz_id}), profile_id({profile_id})")
