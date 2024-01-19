@@ -97,7 +97,7 @@ export default defineComponent({
       default: ''
     }
   },
-  emits: ['showChange'],
+  emits: ['showChange', 'refleshFiles'],
   setup(_props, { emit }) {
     const { t } = useI18n();
     const uploadType = ref<ConditionType>(ConditionType.Where);
@@ -209,6 +209,10 @@ export default defineComponent({
             window.clearInterval(timerObj[file.uid]);
             fileObj.progress = 1;
             fileObj.status = EFileStatus.success;
+            if (searchObj.files.every(f => f.status === EFileStatus.success)) {
+              showChange(false);
+              emit('refleshFiles');
+            }
           })
           .catch(() => {
             window.clearInterval(timerObj[file.uid]);

@@ -215,6 +215,7 @@ export default defineComponent({
      */
     function handleSelectFile(fileInfo) {
       curFileInfo.value = fileInfo;
+      handleQuery();
     }
 
     return {

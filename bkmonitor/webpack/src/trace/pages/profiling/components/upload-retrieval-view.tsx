@@ -81,13 +81,9 @@ export default defineComponent({
      * @description 初始化
      */
     async function init() {
-      const data = await listProfileUploadRecord({
-        app_name: props.formData.server.app_name,
-        service_name: props.formData.server.service_name
-      }).catch(() => []);
-      searchObj.list = data;
-      if (data.length) {
-        searchObj.selectFile = data[0].id;
+      await handleRefleshFiles();
+      if (searchObj.list.length) {
+        handleSelectFile(searchObj.list[0].id);
       }
     }
 
@@ -109,12 +105,16 @@ export default defineComponent({
 
     function handleSelectFile(v) {
       searchObj.selectFile = v;
-      loading.value = true;
       const fileInfo = searchObj.list.find(item => item.id === v);
       emit('selectFile', fileInfo);
-      setTimeout(() => {
-        loading.value = false;
-      }, 3000);
+    }
+
+    async function handleRefleshFiles() {
+      const data = await listProfileUploadRecord({
+        app_name: props.formData.server.app_name,
+        service_name: props.formData.server.service_name
+      }).catch(() => []);
+      searchObj.list = data;
     }
 
     function statusRender(status: EFileStatus) {
@@ -157,7 +157,8 @@ export default defineComponent({
       handleUploadShowChange,
       statusRender,
       handleShowFileDetail,
-      handleSelectFile
+      handleSelectFile,
+      handleRefleshFiles
     };
   },
   render() {
@@ -263,6 +264,7 @@ export default defineComponent({
           appName={this.formData.server.app_name}
           isCompare={this.isCompare}
           onShowChange={this.handleUploadShowChange}
+          onRefleshFiles={this.handleRefleshFiles}
         ></ProfilingFileUpload>
       </div>
     );
