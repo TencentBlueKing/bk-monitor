@@ -225,18 +225,23 @@ class GetReportListResource(Resource):
         return new_reports
 
     def perform_request(self, validated_request_data):
-        report_qs = Report.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).order_by("-update_time")
+        report_qs = Report.objects.all().order_by("-update_time")
 
         # 根据角色过滤
         if validated_request_data["create_type"]:
-            if validated_request_data["create_type"] == "manager":
+            # 管理员视角需校验当前用户的订阅管理权限
+            if validated_request_data["create_type"] == ReportCreateTypeEnum.MANAGER.value:
                 self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
+            # 用户视角获取全业务下的订阅
+            if validated_request_data["create_type"] != ReportCreateTypeEnum.SELF.value:
+                report_qs = Report.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
             report_qs = self.filter_by_create_type(validated_request_data["create_type"], report_qs)
 
         # 根据搜索关键字过滤
         if validated_request_data["search_key"]:
             report_qs = self.filter_by_search_key(report_qs, validated_request_data["search_key"])
 
+        # 根据查询类型过滤
         if validated_request_data["query_type"]:
             report_qs = self.filter_by_query_type(report_qs, validated_request_data["query_type"])
 
@@ -444,6 +449,8 @@ class DeleteReportResource(Resource):
         try:
             Report.objects.filter(id=validated_request_data["report_id"]).delete()
             ReportChannel.objects.filter(report_id=validated_request_data["report_id"]).delete()
+            ReportApplyRecord.objects.filter(report_id=validated_request_data["report_id"]).delete()
+            ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"]).delete()
             return "success"
         except Exception as e:
             logger.exception(e)
@@ -515,14 +522,14 @@ class GetSendRecordsResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         report_id = serializers.IntegerField(required=True)
+        channel_name = serializers.CharField(required=False)
 
     def perform_request(self, validated_request_data):
-        return list(
-            ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"])
+        qs = ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"])\
             .exclude(send_status=SendStatusEnum.NO_STATUS.value)
-            .order_by("-send_time")
-            .values()
-        )[:100]
+        if validated_request_data.get("channel_name"):
+            qs.filter(channel_name=validated_request_data["channel_name"])
+        return list(qs.order_by("-send_time").values())[:100]
 
 
 class GetApplyRecordsResource(Resource):

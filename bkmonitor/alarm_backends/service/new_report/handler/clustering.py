@@ -14,7 +14,7 @@ import io
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -82,10 +82,10 @@ class ClusteringReportHandler(BaseReportHandler):
 
             # 按同比进行过滤
             if (
-                config["year_on_year_change"] == YearOnYearChangeEnum.RISE.value
-                and _data["year_on_year_percentage"] < 0
-                or config["year_on_year_change"] == YearOnYearChangeEnum.DECLINE.value
-                and _data["year_on_year_percentage"] > 0
+                    config["year_on_year_change"] == YearOnYearChangeEnum.RISE.value
+                    and _data["year_on_year_percentage"] < 0
+                    or config["year_on_year_change"] == YearOnYearChangeEnum.DECLINE.value
+                    and _data["year_on_year_percentage"] > 0
             ):
                 continue
 
@@ -116,7 +116,7 @@ class ClusteringReportHandler(BaseReportHandler):
         }
 
         if config.get("log_col_show_type", LogColShowTypeEnum.PATTERN.value) == LogColShowTypeEnum.LOG.value and (
-            patterns or new_patterns
+                patterns or new_patterns
         ):
             # 查询pattern对应的log, 将pattern替换为log
             log_map = {}
@@ -172,6 +172,17 @@ class ClusteringReportHandler(BaseReportHandler):
             "host_scopes": config.get("host_scopes", {}),
             "start_time": time_config["start_time"],
             "end_time": time_config["end_time"],
+            "activeTableTab": "clustering",
+            "clusterRouteParams": {
+                "activeNav": "dataFingerprint",
+                "requestData": {
+                    "pattern_level": config.get("pattern_level", "09"),
+                    "year_on_year_hour": config.get("year_on_year_hour", 0),
+                    "show_new_pattern": config.get("is_show_new_pattern", False),
+                    "group_by": [],
+                    "size": 10000
+                }
+            }
         }
 
         if signature:
@@ -181,8 +192,9 @@ class ClusteringReportHandler(BaseReportHandler):
 
         params["addition"] = json.dumps(params["addition"])
         params["host_scopes"] = json.dumps(params["host_scopes"])
+        params["clusterRouteParams"] = json.dumps(params["clusterRouteParams"])
 
-        url = f"{settings.BKLOGSEARCH_HOST}#/retrieve/{config['index_set_id']}?{urlencode(params)}"
+        url = f"{settings.BKLOGSEARCH_HOST}#/retrieve/{config['index_set_id']}?{urlencode(params, safe=',')}"
         return url
 
     def get_attachments(self, context):
