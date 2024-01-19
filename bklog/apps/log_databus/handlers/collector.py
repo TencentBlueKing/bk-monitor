@@ -3838,22 +3838,23 @@ class CollectorHandler(object):
                 continue
 
             # 工作负载匹配
-            if not pod.metadata.owner_references:
+            if workload_type and not pod.metadata.owner_references:
                 continue
 
-            pod_workload_type = pod.metadata.owner_references[0].kind
-            pod_workload_name = pod.metadata.owner_references[0].name
+            if pod.metadata.owner_references:
+                pod_workload_type = pod.metadata.owner_references[0].kind
+                pod_workload_name = pod.metadata.owner_references[0].name
 
-            if pod_workload_type == "ReplicaSet":
-                # ReplicaSet 需要做特殊处理
-                pod_workload_name = pod_workload_name.rsplit("-", 1)[0]
-                pod_workload_type = "Deployment"
+                if pod_workload_type == "ReplicaSet":
+                    # ReplicaSet 需要做特殊处理
+                    pod_workload_name = pod_workload_name.rsplit("-", 1)[0]
+                    pod_workload_type = "Deployment"
 
-            if workload_type and workload_type != pod_workload_type:
-                continue
+                if workload_type and workload_type != pod_workload_type:
+                    continue
 
-            if workload_name and not pattern.match(pod_workload_name):
-                continue
+                if workload_name and not pattern.match(pod_workload_name):
+                    continue
 
             # 容器名匹配
             if container_names:
