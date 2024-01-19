@@ -87,8 +87,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        data = uploaded.read()
-        md5 = hashlib.md5(data).hexdigest()
+        md5 = hashlib.md5(uploaded.name).hexdigest()
         if ProfileUploadRecord.objects.filter(file_md5=md5).exists():
             raise ValueError(_("相同文件已上传"))
 
