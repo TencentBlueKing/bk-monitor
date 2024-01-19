@@ -147,6 +147,13 @@ export default defineComponent({
       window.open(url, '_self');
     }
 
+    /** 新增接入 */
+    function jumpToApp() {
+      const hash = `#/apm/home?is_enabled_profiling=false`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_self');
+    }
+
     return {
       t,
       tokenLoading,
@@ -163,7 +170,8 @@ export default defineComponent({
       handleViewToken,
       handleServiceClick,
       handlePopoverShowChange,
-      handleViewApp
+      handleViewApp,
+      jumpToApp
     };
   },
   render() {
@@ -215,6 +223,7 @@ export default defineComponent({
                             {item.app_name}
                             <span class='desc'>({item.app_alias})</span>
                           </span>
+
                           <i class='icon-monitor icon-arrow-right'></i>
                         </div>
                       ))}
@@ -293,9 +302,12 @@ export default defineComponent({
                   )}
                 </div>
                 <div class='footer-wrap'>
-                  <div class='jump-btn'>
+                  <div
+                    class='jump-btn'
+                    onClick={this.jumpToApp}
+                  >
                     <i class='icon-monitor icon-jia'></i>
-                    <span class=''>{this.t('新增接入')}</span>
+                    <span>{this.t('新增接入')}</span>
                   </div>
                 </div>
               </div>

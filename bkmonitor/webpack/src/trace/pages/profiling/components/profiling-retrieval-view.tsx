@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, PropType } from 'vue';
 import { Button } from 'bkui-vue';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
+import { IQueryParams } from '../../../typings/trace';
 import { retrievalDataTypeList } from '../typings/profiling-retrieval';
 
 import TrendChart from './trend-chart';
@@ -39,6 +40,10 @@ export default defineComponent({
     dataType: {
       type: String,
       default: 'cpu'
+    },
+    queryParams: {
+      type: Object as PropType<IQueryParams>,
+      required: true
     }
   },
   emits: ['update:dataType'],
@@ -69,7 +74,7 @@ export default defineComponent({
         </div>
         <TrendChart />
         <div class='profiling-graph-view-content'>
-          <ProfilingGraph />
+          <ProfilingGraph queryParams={this.queryParams} />
         </div>
       </div>
     );

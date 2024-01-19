@@ -22,7 +22,12 @@ class TableDiagrammer:
         # 添加total节点
         total_node = FunctionNode(id=0, value=tree.root.value, name="total", filename="", system_name="")
         nodes.append(total_node)
-        sort_map = {"name": lambda x: x.display_name, "self": lambda x: x.self_time, "total": lambda x: x.value}
+        sort_map = {
+            "name": lambda x: x.display_name,
+            "self": lambda x: x.self_time,
+            "total": lambda x: x.value,
+            "location": lambda x: x.display_name
+        }
 
         sort = str(options.get("sort")).lower()
         sort_field = str(sort).replace("-", "")

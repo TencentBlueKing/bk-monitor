@@ -32,6 +32,7 @@ class APIType(Enum):
     QUERY_SAMPLE_BY_JSON = "query_sample_by_json"
     COL_TYPE = "col_type"
     SERVICE_NAME = "service_name"
+    SELECT_COUNT = "select_count"
 
 
 @dataclass
@@ -187,19 +188,12 @@ class QueryTemplate:
     def list_services_request_info(self, start, end):
         """获取此应用下各个服务的数据上报信息"""
 
-        # Step1: 获取所有 Services
-        services_response = Query(
-            api_type=APIType.SERVICE_NAME,
-            api_params=APIParams(
-                biz_id=self.bk_biz_id,
-                app=self.app_name,
-            ),
-            result_table_id=self.result_table_id,
-        ).execute()
-        if not services_response:
-            return {}
+        # Step1: 获取已发现的所有 Services
+        profile_services = api.apm_api.query_profile_services_detail(
+            **{"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
+        )
 
-        services = [i.get("service_name") for i in services_response.get("list", []) if i.get("service_name")]
+        services = [i["name"] for i in profile_services]
         if not services:
             return {}
         res = {}
@@ -209,5 +203,17 @@ class QueryTemplate:
         return res
 
     def get_service_request_info(self, start, end, service_name):
-        # TODO 补充逻辑 目前 bkbase 还没有提供查询数据量的接口 eg. {"serviceA": {"profiling_data_count": 1000}}
-        return {service_name: {"profiling_data_count": 0}}
+        count_response = Query(
+            api_type=APIType.SELECT_COUNT,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id, app=self.app_name, start=start, end=end, service_name=service_name
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+        if not count_response:
+            return {}
+
+        # 计算平台 select_count 时, 固定的列名称为 count(1) . 所以这里这样写
+        count = next((i["count(1)"] for i in count_response.get("list", []) if i.get("count(1)")), None)
+
+        return {service_name: {"profiling_data_count": count}} if count else {}

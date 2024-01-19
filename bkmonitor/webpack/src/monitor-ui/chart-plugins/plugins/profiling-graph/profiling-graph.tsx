@@ -30,7 +30,6 @@ import { ofType } from 'vue-tsx-support';
 import { query } from '../../../../monitor-api/modules/apm_profile';
 import { Debounce } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import { PROFILING_QUERY_DATA } from '../../../../trace/plugins/charts/profiling-graph/mock';
 import {
   BaseDataType,
   IQueryParams,
@@ -44,6 +43,7 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
+import TopoGraph from './topo-graph/topo-graph';
 
 import './profiling-graph.scss';
 
@@ -73,6 +73,7 @@ class ProfilingChart extends CommonSimpleChart {
   textDirection: TextDirectionType = TextDirectionType.Ltr;
   highlightId = -1;
   filterKeyword = '';
+  topoSrc = '';
 
   get flameFilterKeywords() {
     return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
@@ -84,24 +85,30 @@ class ProfilingChart extends CommonSimpleChart {
     this.handleQuery();
   }
 
+  getParams(args: Record<string, any> = {}) {
+    const { queryParams } = this.$props;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    return {
+      ...args,
+      ...queryParams,
+      start: startTime * Math.pow(10, 6),
+      end: endTime * Math.pow(10, 6),
+      // TODO
+      app_name: 'profiling_bar',
+      service_name: 'fuxi_gin_server'
+    };
+  }
   async handleQuery() {
     try {
       this.isLoading = true;
       this.highlightId = -1;
-      const { queryParams } = this.$props;
-      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-      const params = Object.assign({}, queryParams, {
-        start: startTime * Math.pow(10, 6),
-        end: endTime * Math.pow(10, 6),
-        // TODO
-        app_name: 'profiling_bar'
-      });
-      let data = await query(params).catch(() => false);
-      data = PROFILING_QUERY_DATA; // TODO
-      if (data) {
-        this.unit = data.unit || '';
-        this.tableData = data.table_data || [];
-        this.flameData = data.flame_data as any;
+      const params = this.getParams({ diagram_types: ['table', 'flamegraph'] });
+      const data = await query(params).catch(() => false);
+      // data = PROFILING_QUERY_DATA; // TODO
+      if (data.diagrams) {
+        this.unit = data.diagrams.unit || '';
+        this.tableData = data.diagrams.table_data || [];
+        this.flameData = data.diagrams.flame_data;
         this.empty = false;
       } else {
         this.empty = true;
@@ -112,28 +119,32 @@ class ProfilingChart extends CommonSimpleChart {
       this.isLoading = false;
     }
   }
-  handleModeChange(val: ViewModeType) {
+  async handleModeChange(val: ViewModeType) {
+    if (val === this.activeMode) return;
+
+    this.highlightId = -1;
     this.activeMode = val;
+
+    if (val === ViewModeType.Topo && !this.topoSrc) {
+      const params = this.getParams({ diagram_types: ['callgraph'] });
+      const data = await query(params).catch(() => false);
+      if (data.diagrams) {
+      }
+    }
   }
   handleTextDirectionChange(val: TextDirectionType) {
     this.textDirection = val;
   }
   /** 表格排序 */
   async handleSortChange(sortKey: string) {
-    const { queryParams } = this.$props;
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const params = Object.assign({}, queryParams, {
-      start: startTime * Math.pow(10, 6),
-      end: endTime * Math.pow(10, 6),
-      // TODO
-      app_name: 'profiling_bar',
+    const params = this.getParams({
       diagram_types: ['table'],
       sort: sortKey
     });
     const data = await query(params).catch(() => false);
-    if (data) {
+    if (data.diagrams) {
       this.highlightId = -1;
-      this.tableData = data.table_data || [];
+      this.tableData = data.diagrams.table_data || [];
     }
   }
   handleDownload(type: string) {
@@ -188,6 +199,7 @@ class ProfilingChart extends CommonSimpleChart {
                 onUpdateHighlightId={id => (this.highlightId = id)}
               />
             )}
+            {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}
           </div>
         )}
       </div>

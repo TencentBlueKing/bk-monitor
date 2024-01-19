@@ -23,58 +23,45 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import { RetrievalFormData } from './profiling-retrieval';
+import TopoImg from '../../../../../apm/static/img/topo.png';
 
-export interface SearchState {
-  /** 是否展示查询面板 */
-  isShow: boolean;
-  /** 自动查询时间器 */
-  autoQueryTimer: number;
-  /** 是否开启自动查询功能 */
-  autoQuery: boolean;
-  /** 查询loading */
-  loading: boolean;
-  /** 表单数据 */
-  formData: RetrievalFormData;
+import { UseTopoChart } from './use-topo';
+
+import './topo-graph.scss';
+
+interface ITopoGraphProps {
+  topoSrc: string;
 }
 
-export enum PanelType {
-  Favorite = 'favorite',
-  Search = 'search'
-}
+@Component
+export default class TopoGraph extends tsc<ITopoGraphProps> {
+  @Ref() containerRef: HTMLDivElement;
+  @Ref() imageRef: HTMLDivElement;
 
-export interface ServicesDetail {
-  /** 应用 */
-  app_name: string;
-  /** 模块 */
-  service_name: string;
-  /** 周期 */
-  period: string;
-  /** 周期类型 */
-  period_type: string;
-  /** 采样频率 */
-  frequency: string;
-  /** 创建时间 */
-  create_time: string;
-  /** 最近上报时间 */
-  last_report_time: string;
-}
+  graphInstance = null;
 
-export interface FileDetail {
-  app_name: string;
-  file_type: string;
-  file_md5: string;
-  profile_id: string;
-  operator: string;
-  uploaded_time: string;
-  file_size: number;
-  file_name: string;
-  origin_file_name: string;
-  status: string;
-}
+  @Watch('topoSrc', { immediate: true })
+  handleTopoSrcChange() {
+    this.$nextTick(() => {
+      this.graphInstance = new UseTopoChart(this.containerRef, this.imageRef);
+    });
+  }
 
-export enum DetailType {
-  Application = 'application',
-  UploadFile = 'uploadFile'
+  render() {
+    return (
+      <div
+        class='profiling-topo-graph'
+        ref='containerRef'
+      >
+        <img
+          ref='imageRef'
+          class='topo-img'
+          src={TopoImg}
+        ></img>
+      </div>
+    );
+  }
 }

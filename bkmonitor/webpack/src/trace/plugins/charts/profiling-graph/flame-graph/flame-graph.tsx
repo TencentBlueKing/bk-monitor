@@ -46,7 +46,6 @@ import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueF
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
-import { PROFILING_QUERY_DATA } from '../mock';
 
 import '../../flame-graph-v2/flame-graph.scss';
 import './flame-graph.scss';
@@ -66,6 +65,10 @@ export default defineComponent({
       default: () => {}
     },
     appName: {
+      type: String,
+      default: ''
+    },
+    serviceName: {
       type: String,
       default: ''
     },
@@ -145,22 +148,25 @@ export default defineComponent({
         emit('update:loading', true);
         showException.value = false;
         try {
-          const { bizId, appName, start, end, profileId } = props;
+          const { bizId, appName, serviceName, start, end, profileId } = props;
           const data = !!props.data
             ? props.data
-            : (await query(
-                {
-                  bk_biz_id: bizId,
-                  app_name: appName,
-                  start,
-                  end,
-                  profile_id: profileId,
-                  diagram_types: ['flamegraph']
-                },
-                {
-                  needCancel: true
-                }
-              ).catch(() => false)) || PROFILING_QUERY_DATA.flame_data; // TODO
+            : (
+                await query(
+                  {
+                    bk_biz_id: bizId,
+                    app_name: appName,
+                    service_name: serviceName,
+                    start,
+                    end,
+                    profile_id: profileId,
+                    diagram_types: ['flamegraph']
+                  },
+                  {
+                    needCancel: true
+                  }
+                ).catch(() => false)
+              )?.diagrams?.flame_data ?? false;
 
           if (data) {
             if (props.diffTraceId) {
