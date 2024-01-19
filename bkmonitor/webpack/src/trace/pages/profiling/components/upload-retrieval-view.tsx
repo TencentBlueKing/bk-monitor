@@ -50,7 +50,7 @@ export default defineComponent({
       required: true
     }
   },
-  emits: ['showFileDetail'],
+  emits: ['showFileDetail', 'selectFile'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
@@ -110,6 +110,8 @@ export default defineComponent({
     function handleSelectFile(v) {
       searchObj.selectFile = v;
       loading.value = true;
+      const fileInfo = searchObj.list.find(item => item.id === v);
+      emit('selectFile', fileInfo);
       setTimeout(() => {
         loading.value = false;
       }, 3000);

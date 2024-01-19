@@ -250,7 +250,7 @@ export default class AppList extends tsc<{}> {
       keyword: queryString,
       sort: '',
       filter_dict: {
-        profiling_data_status: profilingDataStatus,
+        profiling_data_status: profilingDataStatus || undefined,
         is_enabled_profiling: isEnabledProfiling === null ? undefined : isEnabledProfiling
       },
       page: this.pagination.current,
@@ -360,6 +360,7 @@ export default class AppList extends tsc<{}> {
       if (appIdsSet.has(item.application_id)) {
         if (isScrollEnd) {
           item.tableDataLoading = true;
+          item.tableData.scrollLoading = true;
         } else {
           item.tableData.loading = true;
         }
@@ -388,46 +389,52 @@ export default class AppList extends tsc<{}> {
             }
           },
           bk_biz_id: this.$store.getters.bizId
-        }).then(({ columns, data, total }) => {
-          if (item.tableData.paginationData.current > 1) {
-            item.tableData.data.push(...(data || []));
-          } else {
-            item.tableData.data = data || [];
-          }
-          item.tableData.columns = columns || [];
-          item.tableData.paginationData.count = total;
-          item.tableData.paginationData.isEnd = (data || []).length < item.tableData.paginationData.limit;
-          const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
-          const services = (data || []).map(d => d.service_name.value);
-          fields.forEach(field => {
-            serviceListAsync({
-              app_name: item.app_name,
-              start_time: startTime,
-              end_time: endTime,
-              column: field,
-              service_names: services,
-              bk_biz_id: this.$store.getters.bizId
-            })
-              .then(serviceData => {
-                const dataMap = {};
-                serviceData?.forEach(item => {
-                  dataMap[String(item.field)] = item[field];
-                });
-                item.tableData.data = item.tableData.data.map(d => ({
-                  ...d,
-                  [field]: d[field] || dataMap[String(d.field)] || null
-                }));
+        })
+          .then(({ columns, data, total }) => {
+            if (item.tableData.paginationData.current > 1) {
+              item.tableData.data.push(...(data || []));
+            } else {
+              item.tableData.data = data || [];
+            }
+            item.tableData.columns = columns || [];
+            item.tableData.paginationData.count = total;
+            item.tableData.paginationData.isEnd = (data || []).length < item.tableData.paginationData.limit;
+            const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
+            const services = (data || []).map(d => d.service_name.value);
+            fields.forEach(field => {
+              serviceListAsync({
+                app_name: item.app_name,
+                start_time: startTime,
+                end_time: endTime,
+                column: field,
+                service_names: services,
+                bk_biz_id: this.$store.getters.bizId
               })
-              .finally(() => {
-                item.tableData.columns = item.tableData.columns.map(col => ({
-                  ...col,
-                  asyncable: col.id === field ? false : col.asyncable
-                }));
-                item.tableDataLoading = false;
-                item.tableData.loading = false;
-              });
+                .then(serviceData => {
+                  const dataMap = {};
+                  serviceData?.forEach(item => {
+                    dataMap[String(item.field)] = item[field];
+                  });
+                  item.tableData.data = item.tableData.data.map(d => ({
+                    ...d,
+                    [field]: d[field] || dataMap[String(d.field)] || null
+                  }));
+                })
+                .finally(() => {
+                  item.tableData.columns = item.tableData.columns.map(col => ({
+                    ...col,
+                    asyncable: col.id === field ? false : col.asyncable
+                  }));
+                  // item.tableDataLoading = false;
+                  // item.tableData.loading = false;
+                });
+            });
+          })
+          .finally(() => {
+            item.tableData.scrollLoading = false;
+            item.tableDataLoading = false;
+            item.tableData.loading = false;
           });
-        });
       }
     });
   }
@@ -862,8 +869,13 @@ export default class AppList extends tsc<{}> {
                       </div>
                     </div>
                     {item.isExpan && (
-                      <div class='expan-content'>
-                        {item.tableData.data.length ? (
+                      <div
+                        class='expan-content'
+                        v-bkloading={{
+                          isLoading: item.tableDataLoading
+                        }}
+                      >
+                        {item.tableData.data.length || item.tableData.loading ? (
                           <CommonTable
                             {...{ props: item.tableData }}
                             onCollect={val => this.handleCollect(val, item)}
@@ -887,7 +899,12 @@ export default class AppList extends tsc<{}> {
                 {(this.loading || this.pagination.isEnd) && (
                   <div class='loading-box'>
                     {this.loading && <div class='spinner'></div>}
-                    {this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}
+                    {(() => {
+                      if (!this.appList.length) {
+                        return this.$t('暂无数据');
+                      }
+                      return this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…');
+                    })()}
                   </div>
                 )}
               </div>

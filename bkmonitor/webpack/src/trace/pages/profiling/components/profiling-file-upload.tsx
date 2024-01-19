@@ -130,6 +130,10 @@ export default defineComponent({
     const filesStatus = ref<IFileStatus[]>([]);
 
     function showChange(v: Boolean) {
+      if (!v) {
+        searchObj.files = [];
+        searchObj.isRunning = false;
+      }
       emit('showChange', v);
     }
 
@@ -207,6 +211,13 @@ export default defineComponent({
       }
     }
 
+    function cancelUpload(uid: number) {
+      cancelObj?.[uid]?.cancel?.();
+      const fileObj = searchObj.files.find(item => item.uid === uid);
+      fileObj.progress = 0;
+      fileObj.status = EFileStatus.failure;
+    }
+
     function handleProgress(event, file, fileList) {
       console.log(event, file, fileList);
     }
@@ -221,7 +232,8 @@ export default defineComponent({
       handleUploadTypeChange,
       handleUploadProgress,
       t,
-      handleProgress
+      handleProgress,
+      cancelUpload
     };
   },
   render() {
