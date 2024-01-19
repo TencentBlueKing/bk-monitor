@@ -64,12 +64,12 @@ export const SEARCH_STATUS_LIST = [
 
 export const SEARCH_KEYS = [
   {
-    name: `Profiling${window.i18n.t('数据状态')}`,
+    name: `Profiling ${window.i18n.t('数据状态')}`,
     id: 'profiling_data_status',
     children: SEARCH_STATUS_LIST
   },
   {
-    name: `Profiling${window.i18n.t('是否启用')}`,
+    name: `Profiling ${window.i18n.t('是否启用')}`,
     id: 'is_enabled_profiling',
     children: [
       {

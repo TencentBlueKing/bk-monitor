@@ -48,9 +48,13 @@ export default defineComponent({
     queryParams: {
       type: Object as PropType<IQueryParams>,
       required: true
+    },
+    dataType: {
+      type: String,
+      default: 'cpu'
     }
   },
-  emits: ['showFileDetail'],
+  emits: ['showFileDetail', 'selectFile', 'dataTypeChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
@@ -81,13 +85,9 @@ export default defineComponent({
      * @description 初始化
      */
     async function init() {
-      const data = await listProfileUploadRecord({
-        app_name: props.formData.server.app_name,
-        service_name: props.formData.server.service_name
-      }).catch(() => []);
-      searchObj.list = data;
-      if (data.length) {
-        searchObj.selectFile = data[0].id;
+      await handleRefleshFiles();
+      if (searchObj.list.length) {
+        handleSelectFile(searchObj.list[0].id);
       }
     }
 
@@ -109,10 +109,20 @@ export default defineComponent({
 
     function handleSelectFile(v) {
       searchObj.selectFile = v;
-      loading.value = true;
-      setTimeout(() => {
-        loading.value = false;
-      }, 3000);
+      const fileInfo = searchObj.list.find(item => item.id === v);
+      emit('selectFile', fileInfo);
+    }
+
+    async function handleRefleshFiles() {
+      const data = await listProfileUploadRecord({
+        app_name: props.formData.server.app_name,
+        service_name: props.formData.server.service_name
+      }).catch(() => []);
+      searchObj.list = data;
+    }
+
+    function handleDataTypeChange(v: string) {
+      emit('dataTypeChange', v);
     }
 
     function statusRender(status: EFileStatus) {
@@ -155,7 +165,9 @@ export default defineComponent({
       handleUploadShowChange,
       statusRender,
       handleShowFileDetail,
-      handleSelectFile
+      handleSelectFile,
+      handleRefleshFiles,
+      handleDataTypeChange
     };
   },
   render() {
@@ -252,7 +264,11 @@ export default defineComponent({
               </Exception>
             </div>
           ) : (
-            <ProfilingRetrievalView queryParams={this.queryParams}></ProfilingRetrievalView>
+            <ProfilingRetrievalView
+              dataType={this.dataType}
+              queryParams={this.queryParams}
+              onUpdate:dataType={this.handleDataTypeChange}
+            ></ProfilingRetrievalView>
           )}
         </div>
 
@@ -261,6 +277,7 @@ export default defineComponent({
           appName={this.formData.server.app_name}
           isCompare={this.isCompare}
           onShowChange={this.handleUploadShowChange}
+          onRefleshFiles={this.handleRefleshFiles}
         ></ProfilingFileUpload>
       </div>
     );

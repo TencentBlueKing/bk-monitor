@@ -100,6 +100,9 @@ export default defineComponent({
     /** 查询参数 */
     const queryParams = ref(getParams());
 
+    /* 当前选择的文件 */
+    const curFileInfo = ref(null);
+
     /**
      * 检索面板和收藏面板显示状态切换
      * @param type 面板类型
@@ -187,7 +190,8 @@ export default defineComponent({
           if (cur.key && cur.value && type !== SearchType.Upload) pre[cur.key] = cur.value;
           return pre;
         }, {}),
-        profile_type: dataType.value
+        profile_type: dataType.value,
+        profile_id: searchState.formData.type === SearchType.Upload ? curFileInfo.value?.profile_id : undefined
       };
     }
 
@@ -215,6 +219,15 @@ export default defineComponent({
       searchState.autoQuery && startAutoQueryTimer();
     });
 
+    /**
+     * @description 当前选择profiling文件
+     * @param fileInfo
+     */
+    function handleSelectFile(fileInfo) {
+      curFileInfo.value = fileInfo;
+      handleQuery();
+    }
+
     return {
       t,
       isEmpty,
@@ -236,6 +249,7 @@ export default defineComponent({
       handleSearchFormDataChange,
       handleDataTypeChange,
       handleShowDetail,
+      handleSelectFile,
       handleMenuSelect
     };
   },
@@ -247,7 +261,10 @@ export default defineComponent({
           <UploadRetrievalView
             formData={this.searchState.formData}
             queryParams={this.queryParams}
+            dataType={this.dataType}
+            onSelectFile={fileInfo => this.handleSelectFile(fileInfo)}
             onShowFileDetail={detail => this.handleShowDetail(DetailType.UploadFile, detail)}
+            onDataTypeChange={this.handleDataTypeChange}
           />
         );
       }
