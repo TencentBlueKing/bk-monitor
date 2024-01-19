@@ -261,13 +261,6 @@ export default {
           }
         }
         const isLackIndexFields = (!!unionContent && this.isUnionSearch);
-        // 字段来源判断
-        const filedDirectives = isLackIndexFields
-          ? [{
-            name: 'bk-tooltips',
-            value: { content: unionContent },
-          }]
-          : { name: 'bk-overflow-tips' };
         const isHiddenToggleDisplay = this.visibleFields.filter(item => item.tag !== 'union-source').length === 1 || isUnionSource;
 
         return h('div', {
@@ -287,8 +280,11 @@ export default {
           }),
           h('span',
             {
-              directives: filedDirectives,
-              class: isLackIndexFields ? 'lack-index-filed' : 'title-overflow',
+              directives: [{
+                name: 'bk-tooltips',
+                value: { content: isLackIndexFields ? unionContent : fieldName },
+              }],
+              class: { 'lack-index-filed': isLackIndexFields },
             },
             [fieldName],
           ),

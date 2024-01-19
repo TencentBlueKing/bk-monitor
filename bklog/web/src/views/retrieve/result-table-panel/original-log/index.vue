@@ -58,7 +58,7 @@
             <div slot="extension">
               <span class="extension-add-new-config" @click="handleAddNewConfig">
                 <span class="bk-icon icon-close-circle"></span>
-                <span>{{$t('新建配置')}}</span>
+                <span>{{$t('查看配置')}}</span>
               </span>
             </div>
           </bk-select>
@@ -155,6 +155,7 @@ export default {
       exportLoading: false,
       fieldsConfigList: [],
       fieldConfigIsLoading: false,
+      isFiledQuery: false,
     };
   },
   computed: {
@@ -185,7 +186,7 @@ export default {
     watchQueryIndexValue: {
       immediate: true,
       handler() {
-        if (this.routeIndexSet) this.requestFiledConfig();
+        if (this.routeIndexSet) this.routerAndUnionRequestFields();
       },
     },
   },
@@ -213,10 +214,10 @@ export default {
     },
     closeDropdown() {
       this.showFieldsSetting = false;
-      this.$refs.fieldsSettingPopper.instance?.hide();
+      this.$refs.fieldsSettingPopper?.instance.hide();
     },
     setPopperInstance(status = true) {
-      this.$refs.fieldsSettingPopper.instance?.set({
+      this.$refs.fieldsSettingPopper?.instance.set({
         hideOnClick: status,
       });
     },
@@ -261,6 +262,39 @@ export default {
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
       this.$refs.fieldsSettingPopper.instance?.show();
+    },
+    /** 请求字段 */
+    async routerAndUnionRequestFields() {
+      if (this.isFiledQuery) return;
+      this.isFiledQuery = true;
+      if (this.isUnionSearch) {
+        try {
+          const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+          const queryData = {
+            start_time: this.retrieveParams.start_time,
+            end_time: this.retrieveParams.end_time,
+            is_realtime: 'True',
+          };
+          if (this.isUnionSearch) {
+            Object.assign(queryData, {
+              index_set_ids: this.unionIndexList,
+            });
+          }
+          return await this.$http.request(urlStr, {
+            params: { index_set_id: this.$route.params.indexId },
+            query: !this.isUnionSearch ? queryData : undefined,
+            data: this.isUnionSearch ? queryData : undefined,
+          });
+        } catch (e) {
+          console.warn(e);
+        } finally {
+          this.requestFiledConfig();
+          this.isFiledQuery = false;
+        };
+      } else {
+        this.isFiledQuery = false;
+        this.requestFiledConfig();
+      }
     },
   },
 };
