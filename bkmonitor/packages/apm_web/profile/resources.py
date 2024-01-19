@@ -106,6 +106,8 @@ class ListApplicationServicesResource(Resource):
             [nodata_apps, apps][app_has_data].append(
                 {
                     "bk_biz_id": application.bk_biz_id,
+                    "application_id": application.application_id,
+                    "description": application.description,
                     "app_name": application.app_name,
                     "app_alias": application.app_alias,
                     "services": app_services,
