@@ -101,6 +101,8 @@ export interface IAppInfo {
   app_name: string;
   app_alias: string;
   description: string;
+  enable_profiling: boolean;
+  enable_tracing: boolean;
   application_apdex_config: IApdexConfig;
   owner: string;
   is_enabled: boolean;
