@@ -48,7 +48,7 @@ export interface ServicesDetail {
   /** 应用 */
   app_name: string;
   /** 模块 */
-  service_name: string;
+  name: string;
   /** 周期 */
   period: string;
   /** 周期类型 */

@@ -23,6 +23,7 @@ from rest_framework.viewsets import ViewSet
 
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
+    BUILTIN_APP_NAME,
     DEFAULT_EXPORT_FORMAT,
     DEFAULT_SERVICE_NAME,
     EXPORT_FORMAT_MAP,
@@ -156,7 +157,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         end: int,
         result_table_id: str,
         extra_params: Optional[dict] = None,
-        api_type: APIType = APIType.QUERY_SAMPLE,
+        api_type: APIType = APIType.QUERY_SAMPLE_BY_JSON,
         profile_id: Optional[str] = None,
         filter_labels: Optional[dict] = None,
         converted: bool = True,
@@ -212,6 +213,33 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             raise ValueError(_("无法转换 profiling 数据"))
         return c
 
+    def _get_essentials(self, validated_data: dict) -> dict:
+        """获取 app_name,service_name,bk_biz_id,result_table_id"""
+
+        # storing data in 2 ways:
+        # - global storage, bk_biz_id/space_id level
+        # - application storage, application level
+        if validated_data["global_query"]:
+            app_name = BUILTIN_APP_NAME
+            service_name = app_name
+            # TODO: fetch from apm api in the future
+            # we keep the same rule for now
+            bk_biz_id = api.cmdb.get_blueking_biz()
+            result_table_id = f"{bk_biz_id}_profile_{BUILTIN_APP_NAME}"
+        else:
+            bk_biz_id = validated_data["bk_biz_id"]
+            app_name = validated_data["app_name"]
+            service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
+            application_info = self._examine_application(bk_biz_id, app_name)
+            result_table_id = application_info["profiling_config"]["result_table_id"]
+
+        return {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+            "result_table_id": result_table_id,
+        }
+
     @action(methods=["POST", "GET"], detail=False, url_path="samples")
     def samples(self, request: Request):
         """查询 profiling samples 数据"""
@@ -219,37 +247,34 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
-        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-        application_info = self._examine_application(bk_biz_id, app_name)
-
         start, end = self._enlarge_duration(
             validated_data["start"], validated_data["end"], offset=validated_data["offset"]
         )
+        essentials = self._get_essentials(validated_data)
+
         doris_converter = self._query(
-            bk_biz_id=validated_data['bk_biz_id'],
-            app_name=app_name,
-            service_name=service_name,
+            bk_biz_id=essentials["bk_biz_id"],
+            app_name=essentials["app_name"],
+            service_name=essentials["service_name"],
             data_type=validated_data["data_type"],
             start=start,
             end=end,
             profile_id=validated_data.get("profile_id"),
             filter_labels=validated_data.get("filter_labels"),
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=essentials["result_table_id"],
         )
         diagram_types = validated_data["diagram_types"]
         if validated_data.get("is_compared"):
             diff_doris_converter = self._query(
                 bk_biz_id=validated_data['bk_biz_id'],
-                app_name=app_name,
-                service_name=service_name,
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
                 data_type=validated_data["data_type"],
                 start=start,
                 end=end,
                 profile_id=validated_data.get("diff_profile_id"),
                 filter_labels=validated_data.get("diff_filter_labels"),
-                result_table_id=application_info["profiling_config"]["result_table_id"],
+                result_table_id=essentials["result_table_id"],
             )
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter) for d_type in diagram_types
@@ -258,7 +283,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
-        return Response(data={k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()})
+
+        statistics = doris_converter.statistics_by_time()
+        data = {
+            "statistics": statistics,
+            "diagrams": {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()},
+        }
+        return Response(data=data)
 
     @staticmethod
     def _enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:
@@ -308,10 +339,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
-        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-        application_info = self._examine_application(bk_biz_id, app_name)
+        essentials = self._get_essentials(validated_data)
+        bk_biz_id = essentials["bk_biz_id"]
+        app_name = essentials["app_name"]
+        service_name = essentials["service_name"]
+        result_table_id = essentials["result_table_id"]
 
         start, end = self._enlarge_duration(
             int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
@@ -319,12 +351,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         results = self._query(
             api_type=APIType.LABELS,
-            app_name=validated_data["app_name"],
-            bk_biz_id=validated_data["bk_biz_id"],
+            app_name=app_name,
+            bk_biz_id=bk_biz_id,
             service_name=service_name,
             data_type=validated_data["data_type"],
             converted=False,
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=result_table_id,
             start=start,
             end=end,
         )
@@ -339,25 +371,27 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
         offset, rows = validated_data["offset"], validated_data["rows"]
-        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-        application_info = self._examine_application(bk_biz_id, app_name)
+        essentials = self._get_essentials(validated_data)
+        bk_biz_id = essentials["bk_biz_id"]
+        app_name = essentials["app_name"]
+        service_name = essentials["service_name"]
+        result_table_id = essentials["result_table_id"]
+
         start, end = self._enlarge_duration(
             int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
         )
         results = self._query(
             api_type=APIType.LABEL_VALUES,
-            app_name=validated_data["app_name"],
-            bk_biz_id=validated_data["bk_biz_id"],
+            app_name=app_name,
+            bk_biz_id=bk_biz_id,
             service_name=service_name,
             data_type=validated_data["data_type"],
             extra_params={
                 "label_key": validated_data["label_key"],
                 "limit": {"offset": offset, "rows": rows},
             },
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=result_table_id,
             start=start,
             end=end,
             converted=False,
