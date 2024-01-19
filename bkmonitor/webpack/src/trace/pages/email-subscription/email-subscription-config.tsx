@@ -123,17 +123,26 @@ export default defineComponent({
             label: `${t('通知渠道')}`,
             field: 'channels',
             render: ({ data }) => {
+              const content = data.channels
+                .filter(item => item.is_enabled)
+                .map(item => t(ChannelName[item.channel_name]))
+                .toString();
               return (
-                <div
-                  class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                <Popover
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                  v-slots={{
+                    content
                   }}
                 >
-                  {data.channels
-                    .filter(item => item.is_enabled)
-                    .map(item => t(ChannelName[item.channel_name]))
-                    .toString()}
-                </div>
+                  <div
+                    class={{
+                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    }}
+                  >
+                    {content}
+                  </div>
+                </Popover>
               );
             }
           },
@@ -184,16 +193,26 @@ export default defineComponent({
             label: `${t('发送时间')}`,
             field: 'send_time',
             render: ({ data }) => {
+              const content =
+                data?.frequency?.type === FrequencyType.onlyOnce
+                  ? `${getSendFrequencyText(data)} ${dayjs(data.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
+                  : getSendFrequencyText(data);
               return (
-                <div
-                  class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                <Popover
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                  v-slots={{
+                    content
                   }}
                 >
-                  {data?.frequency?.type === FrequencyType.onlyOnce
-                    ? `${getSendFrequencyText(data)} ${dayjs(data.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
-                    : getSendFrequencyText(data)}
-                </div>
+                  <div
+                    class={{
+                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    }}
+                  >
+                    {content}
+                  </div>
+                </Popover>
               );
             }
           },
@@ -219,7 +238,7 @@ export default defineComponent({
             label: `${t('发送状态')}`,
             field: 'send_status',
             render: ({ data }) => {
-              return data.send_status !== 'no_status' ? (
+              return (
                 <div
                   class={{
                     'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
@@ -230,14 +249,6 @@ export default defineComponent({
                     style='margin-right: 10px;'
                   ></i>
                   {t(SendStatus[data.send_status])}
-                </div>
-              ) : (
-                <div
-                  class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
-                  }}
-                >
-                  {t('未发送')}
                 </div>
               );
             },
@@ -446,11 +457,17 @@ export default defineComponent({
           {
             label: `${t('接收人')}`,
             render: ({ data }) => {
+              const content = data.send_results.map(item => item.id).toString();
               return (
-                // 显示的内容量会很多，这里样式调整一下。
-                <div style='white-space: normal;line-height: 16px;padding: 14px 0;'>
-                  {data.send_results.map(item => item.id).toString()}
-                </div>
+                <Popover
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                  v-slots={{
+                    content
+                  }}
+                >
+                  <div style='white-space: normal;line-height: 16px;padding: 14px 0;'>{content}</div>
+                </Popover>
               );
             }
           },
@@ -1226,9 +1243,13 @@ export default defineComponent({
                           return (
                             <div>
                               <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
-                              <div>{`${this.t('更新时间')}: ${this.subscriptionDetail.update_time}`}</div>
+                              <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
+                                'YYYY-MM-DD HH:mm:ss'
+                              )}`}</div>
                               <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
-                              <div>{`${this.t('创建时间')}: ${this.subscriptionDetail.create_time}`}</div>
+                              <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
+                                'YYYY-MM-DD HH:mm:ss'
+                              )}`}</div>
                             </div>
                           );
                         }

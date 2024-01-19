@@ -129,6 +129,11 @@
     background: #e1ecff;
     border: 1px solid #699df4;
   }
+
+  &.no_status {
+    background: #f0f1f5;
+    border: 1px solid #c4c6cc;
+  }
 }
 
 .resend-popover-container {
@@ -245,6 +250,9 @@
 }
 
 .report-tips-dialog {
+  /* stylelint-disable-next-line declaration-no-important */
+  z-index: 4000 !important;
+
   .bk-dialog-title {
     /* stylelint-disable-next-line declaration-no-important */
     height: auto !important;

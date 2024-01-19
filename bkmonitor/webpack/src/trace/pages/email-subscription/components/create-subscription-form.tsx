@@ -1074,7 +1074,7 @@ export default defineComponent({
                       ></Input>
                     </Popover>
                   </div>
-                  <div data-is-show-error-msg={this.errorTips.email.isShow}>
+                  <div data-is-show-error-msg='false'>
                     <Input
                       v-model={this.formData.channels[1].send_text}
                       prefix={this.t('提示文案')}
@@ -1208,7 +1208,7 @@ export default defineComponent({
                   {this.formData.frequency.type === FrequencyType.dayly && (
                     <Checkbox
                       v-model={this.isIncludeWeekend}
-                      style='margin-left: 10px;'
+                      style='margin-left: 10px;font-size: 12px;'
                     >
                       {this.t('包含周末')}
                     </Checkbox>

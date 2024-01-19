@@ -971,34 +971,38 @@ class QuickCreateSubscription extends tsc<IProps> {
                       {this.$t('外部邮件')}
                     </bk-checkbox>
                   </div>
-                  <div data-is-show-error-msg={String(this.errorTips.email.isShow)}>
+                  <div>
                     <bk-popover
                       trigger='click'
                       placement='right'
                       theme='light'
                       content={this.$t('多个邮箱使用逗号隔开')}
                     >
+                      <div data-is-show-error-msg={String(this.errorTips.email.isShow)}>
+                        <bk-input
+                          v-model={this.subscriberInput.email}
+                          disabled={!this.formData.channels[1].is_enabled}
+                          style="width: 465px;"
+                        >
+                          <template slot='prepend'>
+                            <div class='group-text'>{this.$t('邮件列表')}</div>
+                          </template>
+                        </bk-input>
+                      </div>
+                    </bk-popover>
+
+                    <div data-is-show-error-msg='false'>
                       <bk-input
-                        v-model={this.subscriberInput.email}
+                        v-model={this.formData.channels[1].send_text}
                         disabled={!this.formData.channels[1].is_enabled}
-                        style="width: 465px;"
+                        placeholder={this.$t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
+                        style="width: 465px; margin-top: 10px;"
                       >
                         <template slot='prepend'>
-                          <div class='group-text'>{this.$t('邮件列表')}</div>
+                          <div class='group-text'>{this.$t('提示文案')}</div>
                         </template>
                       </bk-input>
-                    </bk-popover>
-                    {/* 后期补上 */}
-                    <bk-input
-                      v-model={this.formData.channels[1].send_text}
-                      disabled={!this.formData.channels[1].is_enabled}
-                      placeholder={this.$t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
-                      style="width: 465px; margin-top: 10px;"
-                    >
-                      <template slot='prepend'>
-                        <div class='group-text'>{this.$t('提示文案')}</div>
-                      </template>
-                    </bk-input>
+                    </div>
                   </div>
                   {this.errorTips.email.isShow && <div class='form-error-tip'>{this.errorTips.email.message}</div>}
 
