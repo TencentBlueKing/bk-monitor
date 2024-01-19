@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import axios, { CancelToken } from 'axios';
+import axios from 'axios';
 import { Alert, Button, Dialog, Upload } from 'bkui-vue';
 import { TextFill as UploadTextFill, Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
@@ -117,7 +117,11 @@ export default defineComponent({
     });
 
     const cancelObj = reactive<{
-      [uid: number]: CancelToken;
+      [uid: number]: any;
+    }>({});
+
+    const timerObj = reactive<{
+      [uid: number]: any;
     }>({});
 
     const isRunning = computed(() => {
@@ -131,8 +135,12 @@ export default defineComponent({
 
     function showChange(v: Boolean) {
       if (!v) {
+        searchObj.files.forEach(item => {
+          cancelObj?.[item.uid]?.cancel?.();
+        });
         searchObj.files = [];
         searchObj.isRunning = false;
+        filesStatus.value = [...searchObj.files];
       }
       emit('showChange', v);
     }
@@ -150,7 +158,6 @@ export default defineComponent({
      * @param options
      */
     function handleUploadProgress(options) {
-      console.log(options);
       if (uploadType.value === ConditionType.Where) {
         const fileOption = {
           name: options.file.name,
@@ -184,11 +191,11 @@ export default defineComponent({
         file
       };
       const cancelTokenSource = axios.CancelToken.source();
-      cancelObj[file.uid] = cancelTokenSource.token;
+      cancelObj[file.uid] = cancelTokenSource;
       const fileObj = searchObj.files.find(item => item.uid === file.uid);
       const curFileObj = filesStatus.value.find(item => item.uid === file.uid);
       if (fileObj && curFileObj) {
-        const timer = valueFlash(
+        timerObj[file.uid] = valueFlash(
           val => {
             fileObj.progress = val;
             curFileObj.progress = val;
@@ -196,26 +203,32 @@ export default defineComponent({
           0.99,
           3000
         );
-        upload(params, { cancelToken: cancelObj[file.uid] })
+        upload(params, { cancelToken: cancelObj[file.uid].token })
           .then(data => {
             console.log(data);
-            window.clearInterval(timer);
+            window.clearInterval(timerObj[file.uid]);
             fileObj.progress = 1;
             fileObj.status = EFileStatus.success;
           })
           .catch(() => {
-            window.clearInterval(timer);
+            window.clearInterval(timerObj[file.uid]);
             fileObj.progress = 0;
             fileObj.status = EFileStatus.failure;
           });
       }
     }
 
+    /**
+     * @description 取消上传
+     * @param uid
+     */
     function cancelUpload(uid: number) {
       cancelObj?.[uid]?.cancel?.();
+      window.clearInterval(timerObj[uid]);
       const fileObj = searchObj.files.find(item => item.uid === uid);
       fileObj.progress = 0;
       fileObj.status = EFileStatus.failure;
+      filesStatus.value = [...searchObj.files];
     }
 
     function handleProgress(event, file, fileList) {
@@ -314,7 +327,14 @@ export default defineComponent({
                           <span class='name'>{item.name}</span>
                           {(() => {
                             if (item.status === EFileStatus.running) {
-                              return <span class='cancel-btn running'>{this.t('取消上传')}</span>;
+                              return (
+                                <span
+                                  class='cancel-btn running'
+                                  onClick={() => this.cancelUpload(item.uid)}
+                                >
+                                  {this.t('取消上传')}
+                                </span>
+                              );
                             }
                             if (item.status === EFileStatus.success) {
                               return <span class='cancel-btn success'>{this.t('上传成功')}</span>;
