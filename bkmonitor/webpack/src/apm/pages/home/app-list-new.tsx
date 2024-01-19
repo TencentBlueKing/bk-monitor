@@ -869,12 +869,7 @@ export default class AppList extends tsc<{}> {
                       </div>
                     </div>
                     {item.isExpan && (
-                      <div
-                        class='expan-content'
-                        v-bkloading={{
-                          isLoading: item.tableDataLoading
-                        }}
-                      >
+                      <div class='expan-content'>
                         {item.tableData.data.length || item.tableData.loading ? (
                           <CommonTable
                             {...{ props: item.tableData }}
