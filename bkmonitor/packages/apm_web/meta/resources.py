@@ -180,8 +180,17 @@ class CreateApplicationResource(Resource):
             allow_empty=True,
             default=[LanguageEnum.PYTHON.id],
         )
+        enabled_profiling = serializers.BooleanField(label="是否启用性能分析", default=False)
         datasource_option = DatasourceOptionSerializer(required=True)
         plugin_config = PluginConfigSerializer(required=False)
+        enable_profiling = serializers.BooleanField(label="是否开启 Profiling 功能")
+        enable_tracing = serializers.BooleanField(label="是否开启 Tracing 功能")
+
+        def validate(self, attrs):
+            res = super(CreateApplicationResource.RequestSerializer, self).validate(attrs)
+            if not attrs["enable_tracing"]:
+                raise ValueError(_("目前暂不支持关闭 Tracing 功能"))
+            return res
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
@@ -209,6 +218,7 @@ class CreateApplicationResource(Resource):
             plugin_id=validated_request_data["plugin_id"],
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
+            enabled_profiling=validated_request_data["enabled_profiling"],
             datasource_option=validated_request_data["datasource_option"],
             plugin_config=plugin_config,
         )
@@ -496,7 +506,7 @@ class SetupResource(Resource):
                         raise ValueError(_("随机采样未配置采集百分比"))
                 elif attrs["sampler_type"] == SamplerTypeChoices.TAIL:
                     if "sampler_percentage" not in attrs:
-                        raise ValueError(f"尾部采样未配置采集百分比")
+                        raise ValueError("尾部采样未配置采集百分比")
 
                 if attrs.get("tail_conditions"):
                     t = [i for i in attrs["tail_conditions"] if i["key"] and i["method"] and i["value"]]
@@ -707,11 +717,12 @@ class ListApplicationResource(PageListResource):
             ScopedSlotsFormat(
                 url_format="/application?filter-app_name={app_name}",
                 id="app_alias",
-                name=_("应用名称"),
+                name=_("应用别名"),
                 checked=True,
                 action_id=ActionEnum.VIEW_APM_APPLICATION.id,
                 disabled=True,
             ),
+            StringTableFormat(id="app_name", name=_("应用名"), checked=False),
             StringTableFormat(id="description", name=_("应用描述"), checked=False),
             StringTableFormat(id="retention", name=_("存储计划"), checked=False),
             LinkTableFormat(
@@ -727,14 +738,17 @@ class ListApplicationResource(PageListResource):
             NumberTableFormat(id="avg_duration", name=_("平均响应耗时"), sortable=True, unit="ns", decimal=2, asyncable=True),
             NumberTableFormat(id="error_rate", name=_("错误率"), sortable=True, decimal=2, unit="percent", asyncable=True),
             NumberTableFormat(id="error_count", name=_("错误次数"), checked=False, sortable=True, asyncable=True),
-            StatusTableFormat(
-                id="status",
-                name=_("状态"),
+            StringTableFormat(id="is_enabled", name=_("应用是否启用"), checked=False),
+            StringTableFormat(id="is_enabled_profiling", name=_("Profiling是否启用"), checked=False),
+            StringTableFormat(
+                id="profiling_data_status",
+                name=_("Profiling数据状态"),
                 checked=True,
-                status_map_cls=DataStatus,
-                show_tips=lambda x: x == "no_data",
-                tips_format=_("{no_data_period}分钟内无数据"),
-                filterable=True,
+            ),
+            StringTableFormat(
+                id="data_status",
+                name=_("Trace数据状态"),
+                checked=True,
             ),
         ]
 
@@ -756,6 +770,7 @@ class ListApplicationResource(PageListResource):
                 "app_alias",
                 "description",
                 "is_enabled",
+                "is_enabled_profiling",
                 "profiling_data_status",
                 "data_status",
             ]

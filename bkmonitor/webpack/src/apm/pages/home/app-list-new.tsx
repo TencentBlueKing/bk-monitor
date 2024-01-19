@@ -46,7 +46,7 @@ import authorityStore from '../../store/modules/authority';
 
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
-import { SEARCH_KEYS, SEARCH_STATUS_LIST, STATUS_MAP } from './utils';
+import { SEARCH_KEYS, STATUS_MAP } from './utils';
 
 import './app-list-new.scss';
 
@@ -192,16 +192,22 @@ export default class AppList extends tsc<{}> {
         name: query.queryString
       });
     }
-    if (query?.profiling_data_status) {
-      const matchingStatus = SEARCH_STATUS_LIST.find(s => s.id === query.profiling_data_status);
-      if (matchingStatus) {
-        this.searchCondition.push({
-          id: 'profiling_data_status',
-          name: 'Profiling',
-          values: [{ ...matchingStatus }]
-        });
-      }
-    }
+    const setSearchCondition = (keys: string[]) => {
+      keys.forEach(key => {
+        if (query?.[key]) {
+          const { name, children } = SEARCH_KEYS.find(item => item.id === key);
+          const matchingStatus = children.find(s => s.id === query[key]);
+          if (matchingStatus) {
+            this.searchCondition.push({
+              id: key,
+              name,
+              values: [{ ...matchingStatus }]
+            });
+          }
+        }
+      });
+    };
+    setSearchCondition(['profiling_data_status', 'is_enabled_profiling']);
     this.getLimitOfHeight();
     this.getAppList();
   }
@@ -224,10 +230,14 @@ export default class AppList extends tsc<{}> {
     }
     let queryString = '';
     let profilingDataStatus = '';
+    let isEnabledProfiling = null;
     this.searchCondition.forEach(item => {
       if (item?.values?.length) {
         if (item.id === 'profiling_data_status') {
           profilingDataStatus = item.values[0].id;
+        }
+        if (item.id === 'is_enabled_profiling') {
+          isEnabledProfiling = item.values[0].id === 'true';
         }
       } else {
         queryString = item.id;
@@ -240,7 +250,8 @@ export default class AppList extends tsc<{}> {
       keyword: queryString,
       sort: '',
       filter_dict: {
-        profiling_data_status: profilingDataStatus
+        profiling_data_status: profilingDataStatus || undefined,
+        is_enabled_profiling: isEnabledProfiling === null ? undefined : isEnabledProfiling
       },
       page: this.pagination.current,
       page_size: this.pagination.limit
@@ -303,8 +314,9 @@ export default class AppList extends tsc<{}> {
       name: this.$route.name,
       query: {
         ...this.$route.query,
-        queryString,
-        profiling_data_status: profilingDataStatus
+        queryString: queryString || undefined,
+        profiling_data_status: profilingDataStatus || undefined,
+        is_enabled_profiling: isEnabledProfiling === null ? undefined : String(isEnabledProfiling)
       }
     };
     this.$router.replace(routerParams).catch(() => {});
@@ -348,6 +360,7 @@ export default class AppList extends tsc<{}> {
       if (appIdsSet.has(item.application_id)) {
         if (isScrollEnd) {
           item.tableDataLoading = true;
+          item.tableData.scrollLoading = true;
         } else {
           item.tableData.loading = true;
         }
@@ -376,46 +389,52 @@ export default class AppList extends tsc<{}> {
             }
           },
           bk_biz_id: this.$store.getters.bizId
-        }).then(({ columns, data, total }) => {
-          if (item.tableData.paginationData.current > 1) {
-            item.tableData.data.push(...(data || []));
-          } else {
-            item.tableData.data = data || [];
-          }
-          item.tableData.columns = columns || [];
-          item.tableData.paginationData.count = total;
-          item.tableData.paginationData.isEnd = (data || []).length < item.tableData.paginationData.limit;
-          const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
-          const services = (data || []).map(d => d.service_name.value);
-          fields.forEach(field => {
-            serviceListAsync({
-              app_name: item.app_name,
-              start_time: startTime,
-              end_time: endTime,
-              column: field,
-              service_names: services,
-              bk_biz_id: this.$store.getters.bizId
-            })
-              .then(serviceData => {
-                const dataMap = {};
-                serviceData?.forEach(item => {
-                  dataMap[String(item.field)] = item[field];
-                });
-                item.tableData.data = item.tableData.data.map(d => ({
-                  ...d,
-                  [field]: d[field] || dataMap[String(d.field)] || null
-                }));
+        })
+          .then(({ columns, data, total }) => {
+            if (item.tableData.paginationData.current > 1) {
+              item.tableData.data.push(...(data || []));
+            } else {
+              item.tableData.data = data || [];
+            }
+            item.tableData.columns = columns || [];
+            item.tableData.paginationData.count = total;
+            item.tableData.paginationData.isEnd = (data || []).length < item.tableData.paginationData.limit;
+            const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
+            const services = (data || []).map(d => d.service_name.value);
+            fields.forEach(field => {
+              serviceListAsync({
+                app_name: item.app_name,
+                start_time: startTime,
+                end_time: endTime,
+                column: field,
+                service_names: services,
+                bk_biz_id: this.$store.getters.bizId
               })
-              .finally(() => {
-                item.tableData.columns = item.tableData.columns.map(col => ({
-                  ...col,
-                  asyncable: col.id === field ? false : col.asyncable
-                }));
-                item.tableDataLoading = false;
-                item.tableData.loading = false;
-              });
+                .then(serviceData => {
+                  const dataMap = {};
+                  serviceData?.forEach(item => {
+                    dataMap[String(item.field)] = item[field];
+                  });
+                  item.tableData.data = item.tableData.data.map(d => ({
+                    ...d,
+                    [field]: d[field] || dataMap[String(d.field)] || null
+                  }));
+                })
+                .finally(() => {
+                  item.tableData.columns = item.tableData.columns.map(col => ({
+                    ...col,
+                    asyncable: col.id === field ? false : col.asyncable
+                  }));
+                  // item.tableDataLoading = false;
+                  // item.tableData.loading = false;
+                });
+            });
+          })
+          .finally(() => {
+            item.tableData.scrollLoading = false;
+            item.tableDataLoading = false;
+            item.tableData.loading = false;
           });
-        });
       }
     });
   }
@@ -657,6 +676,12 @@ export default class AppList extends tsc<{}> {
     this.getAppList();
   }
 
+  /* 候选搜索列表过滤 */
+  conditionListFilter() {
+    const allKey = this.searchCondition.map(item => item.id);
+    return SEARCH_KEYS.filter(item => !allKey.includes(item.id));
+  }
+
   render() {
     return (
       <div class='app-list-wrap-page'>
@@ -724,7 +749,7 @@ export default class AppList extends tsc<{}> {
                   class='app-list-search'
                   values={this.searchCondition}
                   placeholder={this.$t('请输入搜索或筛选')}
-                  data={SEARCH_KEYS}
+                  data={this.conditionListFilter()}
                   strink={false}
                   filter={true}
                   wrap-zindex={0}
@@ -845,7 +870,7 @@ export default class AppList extends tsc<{}> {
                     </div>
                     {item.isExpan && (
                       <div class='expan-content'>
-                        {item.tableData.data.length ? (
+                        {item.tableData.data.length || item.tableData.loading ? (
                           <CommonTable
                             {...{ props: item.tableData }}
                             onCollect={val => this.handleCollect(val, item)}
@@ -869,7 +894,12 @@ export default class AppList extends tsc<{}> {
                 {(this.loading || this.pagination.isEnd) && (
                   <div class='loading-box'>
                     {this.loading && <div class='spinner'></div>}
-                    {this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}
+                    {(() => {
+                      if (!this.appList.length) {
+                        return this.$t('暂无数据');
+                      }
+                      return this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…');
+                    })()}
                   </div>
                 )}
               </div>

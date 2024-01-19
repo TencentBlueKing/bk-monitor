@@ -169,6 +169,7 @@ class Application(AbstractRecordModel):
     profiling_data_status = models.CharField("Profiling 数据状态", default=DataStatus.NO_DATA, max_length=50)
     source = models.CharField("来源系统", default=get_source_app_code, max_length=32)
     plugin_config = JsonField("log-trace 插件配置", null=True, blank=True)
+    is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
 
     class Meta:
         ordering = ["-update_time", "-application_id"]
@@ -357,6 +358,7 @@ class Application(AbstractRecordModel):
         deployment_ids,
         language_ids,
         datasource_option,
+        enabled_profiling: bool = False,
         plugin_config=None,
     ):
         create_params = {
@@ -367,9 +369,7 @@ class Application(AbstractRecordModel):
             "es_storage_config": datasource_option,
         }
 
-        white_list = settings.APM_PROFILING_ENABLED_APPS
-        # int value would be transformed to str when saved in settings
-        if str(bk_biz_id) in white_list and app_name in white_list[str(bk_biz_id)]:
+        if enabled_profiling:
             create_params["enabled_profiling"] = True
         application_info = api.apm_api.create_application(create_params)
 
@@ -469,6 +469,7 @@ class Application(AbstractRecordModel):
         self.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
         self.metric_result_table_id = datasource_info["metric_config"]["result_table_id"]
         self.time_series_group_id = datasource_info["metric_config"]["time_series_group_id"]
+        self.is_enabled_profiling = True if "profile_config" in datasource_info else False
         self.save()
         ApmMetaConfig.application_config_setup(
             self.application_id, self.APPLICATION_DATASOURCE_CONFIG_KEY, datasource_option

@@ -8,10 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+import gzip
 import hashlib
 import logging
 from typing import Optional, Tuple, Union
 
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from rest_framework.decorators import action
@@ -21,7 +23,11 @@ from rest_framework.viewsets import ViewSet
 
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
+    BUILTIN_APP_NAME,
+    DEFAULT_EXPORT_FORMAT,
     DEFAULT_SERVICE_NAME,
+    EXPORT_FORMAT_MAP,
+    PROFILE_EXPORT_FILE_NAME,
     PROFILE_UPLOAD_RECORD_NEW_FILE_NAME,
     CallGraphResponseDataMode,
 )
@@ -36,6 +42,7 @@ from apm_web.profile.resources import (
 )
 from apm_web.profile.serializers import (
     ProfileListFileSerializer,
+    ProfileQueryExportSerializer,
     ProfileQueryLabelsSerializer,
     ProfileQueryLabelValuesSerializer,
     ProfileQuerySerializer,
@@ -79,12 +86,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         serializer = ProfileUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        try:
-            application = Application.objects.get(
-                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-            )
-        except Exception:  # pylint: disable=broad-except
-            raise ValueError(_("应用({}) 不存在").format(validated_data["app_name"]))
 
         data = uploaded.read()
         md5 = hashlib.md5(data).hexdigest()
@@ -94,16 +95,16 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
         try:
             ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
-        except Exception:
+        except Exception as e:
             logger.exception("failed to upload file to bkrepo")
-            raise Exception(_("上传文件失败"))
+            raise Exception(_("上传文件失败， 失败原因: {}").format(e))
 
         profile_id = generate_profile_id()
 
         # record it if everything is ok
         record = ProfileUploadRecord.objects.create(
             bk_biz_id=validated_data["bk_biz_id"],
-            app_name=application.app_name,
+            app_name=validated_data.get("app_name", ""),
             file_md5=md5,
             file_type=validated_data["file_type"],
             profile_id=profile_id,
@@ -112,7 +113,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             file_size=uploaded.size,  # 单位Bytes
             file_name=PROFILE_UPLOAD_RECORD_NEW_FILE_NAME.format(timezone.now().strftime("%Y-%m-%d-%H-%M-%S")),
             status=UploadedFileStatus.UPLOADED,
-            service_name=validated_data.get("service_name", "default"),
+            service_name=validated_data.get("service_name", DEFAULT_SERVICE_NAME),
         )
 
         # 异步任务： 文件解析及存储
@@ -121,7 +122,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             validated_data["file_type"],
             profile_id,
             validated_data["bk_biz_id"],
-            application.app_name,
         )
 
         return Response(data=ProfileUploadRecordSLZ(record).data)
@@ -157,7 +157,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         end: int,
         result_table_id: str,
         extra_params: Optional[dict] = None,
-        api_type: APIType = APIType.QUERY_SAMPLE,
+        api_type: APIType = APIType.QUERY_SAMPLE_BY_JSON,
         profile_id: Optional[str] = None,
         filter_labels: Optional[dict] = None,
         converted: bool = True,
@@ -213,6 +213,33 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             raise ValueError(_("无法转换 profiling 数据"))
         return c
 
+    def _get_essentials(self, validated_data: dict) -> dict:
+        """获取 app_name,service_name,bk_biz_id,result_table_id"""
+
+        # storing data in 2 ways:
+        # - global storage, bk_biz_id/space_id level
+        # - application storage, application level
+        if validated_data["global_query"]:
+            app_name = BUILTIN_APP_NAME
+            service_name = app_name
+            # TODO: fetch from apm api in the future
+            # we keep the same rule for now
+            bk_biz_id = api.cmdb.get_blueking_biz()
+            result_table_id = f"{bk_biz_id}_profile_{BUILTIN_APP_NAME}"
+        else:
+            bk_biz_id = validated_data["bk_biz_id"]
+            app_name = validated_data["app_name"]
+            service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
+            application_info = self._examine_application(bk_biz_id, app_name)
+            result_table_id = application_info["profiling_config"]["result_table_id"]
+
+        return {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+            "result_table_id": result_table_id,
+        }
+
     @action(methods=["POST", "GET"], detail=False, url_path="samples")
     def samples(self, request: Request):
         """查询 profiling samples 数据"""
@@ -220,37 +247,34 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
-        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-        application_info = self._examine_application(bk_biz_id, app_name)
-
         start, end = self._enlarge_duration(
             validated_data["start"], validated_data["end"], offset=validated_data["offset"]
         )
+        essentials = self._get_essentials(validated_data)
+
         doris_converter = self._query(
-            bk_biz_id=validated_data['bk_biz_id'],
-            app_name=app_name,
-            service_name=service_name,
+            bk_biz_id=essentials["bk_biz_id"],
+            app_name=essentials["app_name"],
+            service_name=essentials["service_name"],
             data_type=validated_data["data_type"],
             start=start,
             end=end,
             profile_id=validated_data.get("profile_id"),
             filter_labels=validated_data.get("filter_labels"),
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=essentials["result_table_id"],
         )
         diagram_types = validated_data["diagram_types"]
         if validated_data.get("is_compared"):
             diff_doris_converter = self._query(
                 bk_biz_id=validated_data['bk_biz_id'],
-                app_name=app_name,
-                service_name=service_name,
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
                 data_type=validated_data["data_type"],
                 start=start,
                 end=end,
                 profile_id=validated_data.get("diff_profile_id"),
                 filter_labels=validated_data.get("diff_filter_labels"),
-                result_table_id=application_info["profiling_config"]["result_table_id"],
+                result_table_id=essentials["result_table_id"],
             )
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter) for d_type in diagram_types
@@ -259,7 +283,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
-        return Response(data={k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()})
+
+        statistics = doris_converter.statistics_by_time()
+        data = {
+            "statistics": statistics,
+            "diagrams": {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()},
+        }
+        return Response(data=data)
 
     @staticmethod
     def _enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:
@@ -309,10 +339,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
-        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-        application_info = self._examine_application(bk_biz_id, app_name)
+        essentials = self._get_essentials(validated_data)
+        bk_biz_id = essentials["bk_biz_id"]
+        app_name = essentials["app_name"]
+        service_name = essentials["service_name"]
+        result_table_id = essentials["result_table_id"]
 
         start, end = self._enlarge_duration(
             int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
@@ -320,12 +351,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         results = self._query(
             api_type=APIType.LABELS,
-            app_name=validated_data["app_name"],
-            bk_biz_id=validated_data["bk_biz_id"],
+            app_name=app_name,
+            bk_biz_id=bk_biz_id,
             service_name=service_name,
             data_type=validated_data["data_type"],
             converted=False,
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=result_table_id,
             start=start,
             end=end,
         )
@@ -340,25 +371,27 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
         offset, rows = validated_data["offset"], validated_data["rows"]
-        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-        application_info = self._examine_application(bk_biz_id, app_name)
+        essentials = self._get_essentials(validated_data)
+        bk_biz_id = essentials["bk_biz_id"]
+        app_name = essentials["app_name"]
+        service_name = essentials["service_name"]
+        result_table_id = essentials["result_table_id"]
+
         start, end = self._enlarge_duration(
             int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
         )
         results = self._query(
             api_type=APIType.LABEL_VALUES,
-            app_name=validated_data["app_name"],
-            bk_biz_id=validated_data["bk_biz_id"],
+            app_name=app_name,
+            bk_biz_id=bk_biz_id,
             service_name=service_name,
             data_type=validated_data["data_type"],
             extra_params={
                 "label_key": validated_data["label_key"],
                 "limit": {"offset": offset, "rows": rows},
             },
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=result_table_id,
             start=start,
             end=end,
             converted=False,
@@ -367,6 +400,50 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         # TODO: offset/limit not working in bkbase now, handle it manually
         label_values = [label["label_value"] for label in results["list"][offset * rows : (offset + 1) * rows]]
         return Response(data={"label_values": label_values})
+
+    @action(methods=["POST"], detail=False, url_path="export")
+    def export(self, request: Request):
+        # query data
+        serializer = ProfileQueryExportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        bk_biz_id = validated_data["bk_biz_id"]
+        app_name = validated_data["app_name"]
+        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
+        application_info = self._examine_application(bk_biz_id, app_name)
+
+        start, end = self._enlarge_duration(
+            validated_data["start"], validated_data["end"], offset=validated_data["offset"]
+        )
+        doris_converter = self._query(
+            bk_biz_id=validated_data['bk_biz_id'],
+            app_name=app_name,
+            service_name=service_name,
+            data_type=validated_data["data_type"],
+            start=start,
+            end=end,
+            profile_id=validated_data.get("profile_id"),
+            filter_labels=validated_data.get("filter_labels"),
+            result_table_id=application_info["profiling_config"]["result_table_id"],
+        )
+
+        # transfer data
+        export_format = validated_data.get("export_format", DEFAULT_EXPORT_FORMAT)
+        if export_format not in EXPORT_FORMAT_MAP:
+            raise ValueError(f"({export_format}) format is currently not supported")
+        now_str = timezone.now().strftime("%Y-%m-%d-%H-%M-%S")
+        file_name = PROFILE_EXPORT_FILE_NAME.format(
+            app_name=app_name, data_type=validated_data["data_type"], time=now_str, format=export_format
+        )
+        serialized_data = doris_converter.profile.SerializeToString()
+        compressed_data = gzip.compress(serialized_data)
+
+        response = HttpResponse(compressed_data, content_type="application/octet-stream")
+        response["Content-Encoding"] = "gzip"
+        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+
+        return response
 
 
 class ResourceQueryViewSet(ResourceViewSet):

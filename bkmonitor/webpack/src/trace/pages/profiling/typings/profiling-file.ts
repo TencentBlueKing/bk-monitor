@@ -23,17 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TimeRangeType } from '../../../components/time-range/utils';
-
-export interface ToolsFormData {
-  /** 日期时间 */
-  timeRange: TimeRangeType;
-  /** 时区 */
-  timezone: string;
-  /** 刷新时间 */
-  refreshInterval: number;
+export enum EFileStatus {
+  uploaded = 'uploaded',
+  parsingFailed = 'parsing_failed',
+  parsingSucceed = 'parsing_succeed',
+  storeSucceed = 'store_succeed',
+  storeFailed = '"store_failed'
 }
 
-export enum MenuEnum {
-  FullScreen = 'fullScreen'
-}
+export const fileStatusMap = {
+  [EFileStatus.uploaded]: {
+    name: window.i18n.t('已上传')
+  },
+  [EFileStatus.parsingFailed]: {
+    name: window.i18n.t('解析失败')
+  },
+  [EFileStatus.parsingSucceed]: {
+    name: window.i18n.t('已解析')
+  },
+  [EFileStatus.storeSucceed]: {
+    name: window.i18n.t('已存储')
+  },
+  [EFileStatus.storeFailed]: {
+    name: window.i18n.t('存储失败')
+  }
+};
+
+export const FILES_TYPE = ['json', 'perf_script', 'prof'];
+export const FILES_TYPE_NAME = ['json', 'perf_script', 'pprof'].join(',');

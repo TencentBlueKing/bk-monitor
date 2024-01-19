@@ -11,6 +11,13 @@ from enum import Enum
 
 DEFAULT_SERVICE_NAME = "default"
 DEFAULT_PROFILE_DATA_TYPE = "cpu"
+DEFAULT_EXPORT_FORMAT = "pprof"
+
+EXPORT_FORMAT_MAP = {"pprof": "pprof"}
+
+# builtin app name in global storage
+# may fetch from apm API in the future
+BUILTIN_APP_NAME = "builtin_profile_app"
 
 
 class InputType(Enum):
@@ -32,3 +39,5 @@ class CallGraphResponseDataMode:
 
 
 PROFILE_UPLOAD_RECORD_NEW_FILE_NAME = "Profile-{}.pprof"
+
+PROFILE_EXPORT_FILE_NAME = "{app_name}-{data_type}-{time}.{format}"

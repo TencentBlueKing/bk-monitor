@@ -99,6 +99,9 @@ export default defineComponent({
           trigger='click'
           onShow={() => this.showChange(true)}
           onHide={() => this.showChange(false)}
+          popoverOptions={{
+            zIndex: 8003
+          }}
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>

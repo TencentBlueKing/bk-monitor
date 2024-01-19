@@ -29,7 +29,12 @@ import { useI18n } from 'vue-i18n';
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 
-import { listApplicationServices, queryLabels, queryServicesDetail } from '../../../../monitor-api/modules/apm_profile';
+import {
+  listApplicationServices,
+  queryLabels,
+  queryLabelValues,
+  queryServicesDetail
+} from '../../../../monitor-api/modules/apm_profile';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import {
   ApplicationList,
@@ -37,6 +42,7 @@ import {
   IConditionItem,
   RetrievalFormData,
   SearchType,
+  ServicesDetail,
   ToolsFormData
 } from '../typings';
 
@@ -51,9 +57,13 @@ export default defineComponent({
     formData: {
       type: Object as PropType<RetrievalFormData>,
       default: () => null
+    },
+    dataType: {
+      type: String,
+      default: 'cpu'
     }
   },
-  emits: ['change', 'showDetail'],
+  emits: ['change', 'typeChange', 'showDetail'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
@@ -74,7 +84,7 @@ export default defineComponent({
       no_data: []
     });
     /** 当前选中的应用/服务 */
-    const selectApplicationData = ref();
+    const selectApplicationData = ref<ServicesDetail>();
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: {
@@ -85,13 +95,21 @@ export default defineComponent({
       where: [],
       comparisonWhere: []
     });
+
     watch(
-      () => props.formData,
+      props.formData,
       newVal => {
         newVal && Object.assign(localFormData, newVal);
       },
       {
         immediate: true
+      }
+    );
+    watch(
+      () => toolsFormData.value.timeRange,
+      () => {
+        getLabelList();
+        getApplicationList();
       }
     );
 
@@ -102,7 +120,13 @@ export default defineComponent({
     function handleTypeChange(type: SearchType) {
       if (localFormData.type === type) return;
       localFormData.type = type;
+      if (type === SearchType.Upload) {
+        // 文件上传暂时不做对比项
+        localFormData.isComparison = false;
+      }
+      getLabelList();
       handleEmitChange();
+      emit('typeChange', type);
     }
 
     /**
@@ -110,7 +134,9 @@ export default defineComponent({
      * @param val 选项值
      */
     function handleApplicationChange(val: string[]) {
+      if (!val.length) return;
       const [appName, serviceName] = val;
+      if (localFormData.server.app_name === appName && localFormData.server.service_name === serviceName) return;
       localFormData.server.app_name = appName;
       localFormData.server.service_name = serviceName;
       getLabelList();
@@ -125,7 +151,8 @@ export default defineComponent({
         start_time: start * 1000 * 1000,
         end_time: end * 1000 * 1000,
         app_name: localFormData.server.app_name,
-        service_name: localFormData.server.service_name
+        service_name: localFormData.server.service_name,
+        data_type: props.dataType
       }).catch(() => ({}));
       emit('showDetail', selectApplicationData.value);
     }
@@ -140,6 +167,7 @@ export default defineComponent({
     }
 
     const labelList = ref<string[]>([]);
+    const labelValueMap = new Map();
     /**
      * 添加条件
      * @param type 条件类型
@@ -161,6 +189,20 @@ export default defineComponent({
     }
 
     /**
+     * 删除条件
+     * @param index 索引
+     * @param type 条件类型
+     */
+    function deleteCondition(index: number, type: ConditionType) {
+      if (type === ConditionType.Where) {
+        localFormData.where.splice(index, 1);
+      } else {
+        localFormData.comparisonWhere.splice(index, 1);
+      }
+      handleEmitChange();
+    }
+
+    /**
      * 条件修改
      * @param val 修改后的值
      * @param index 条件索引
@@ -172,6 +214,7 @@ export default defineComponent({
       } else {
         localFormData.comparisonWhere[index] = val;
       }
+      getLabelValues(val.key);
       handleEmitChange();
     }
 
@@ -184,60 +227,44 @@ export default defineComponent({
     async function getApplicationList() {
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       applicationList.value = await listApplicationServices({
-        start_time: start * 1000 * 1000,
-        end_time: end * 1000 * 1000
+        start_time: start,
+        end_time: end
       }).catch(() => ({
-        normal: [
-          {
-            bk_biz_id: 100605,
-            application_id: 2,
-            app_name: 'profiling_bar',
-            app_alias: 'demo应用',
-            description: 'xxx',
-            services: [
-              {
-                id: 2,
-                name: 'service2',
-                has_data: false
-              },
-              {
-                id: 3,
-                name: 'service3',
-                has_data: true
-              }
-            ]
-          }
-        ],
-        no_data: [
-          {
-            bk_biz_id: 100605,
-            application_id: 2,
-            app_name: 'profiling_bar2',
-            app_alias: 'demo应用2',
-            description: 'xxx',
-            services: [
-              {
-                id: 2,
-                name: 'service3',
-                has_data: false
-              }
-            ]
-          }
-        ]
+        normal: [],
+        no_data: []
       }));
     }
 
     /** 获取过滤项列表 */
     async function getLabelList() {
-      if (!localFormData.server.app_name || !localFormData.server.service_name) return;
+      localFormData.where = [];
+      localFormData.comparisonWhere = [];
+      labelList.value = [];
+      labelValueMap.clear();
+      if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      const server = localFormData.type === SearchType.Profiling ? localFormData.server : {};
       const labels = await queryLabels({
-        app_name: localFormData.server.app_name,
-        service_name: localFormData.server.service_name,
+        ...server,
         start: start * 1000 * 1000,
         end: end * 1000 * 1000
       }).catch(() => ({ label_keys: [] }));
       labelList.value = labels.label_keys;
+    }
+
+    /** 获取过滤项值列表 */
+    async function getLabelValues(label: string) {
+      /** 缓存 */
+      if (labelValueMap.has(label)) return;
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      const server = localFormData.type === SearchType.Profiling ? localFormData.server : {};
+      const res = await queryLabelValues({
+        ...server,
+        start: start * 1000 * 1000,
+        end: end * 1000 * 1000,
+        label_key: label
+      }).catch(() => ({ label_values: [] }));
+      labelValueMap.set(label, res.label_values);
     }
 
     function handleEmitChange() {
@@ -250,11 +277,13 @@ export default defineComponent({
       localFormData,
       retrievalType,
       labelList,
+      labelValueMap,
       handleTypeChange,
       handleApplicationChange,
       handleDetailClick,
       handleComparisonChange,
       addCondition,
+      deleteCondition,
       handleConditionChange
     };
   },
@@ -276,7 +305,7 @@ export default defineComponent({
           </Button.ButtonGroup>
 
           <div class='form-wrap'>
-            {this.localFormData.type === SearchType.Profiling && (
+            {this.localFormData.type === SearchType.Profiling && [
               <div class='service form-item'>
                 <div class='label'>{this.t('应用/服务')}</div>
                 <div class='content'>
@@ -292,19 +321,20 @@ export default defineComponent({
                     <i class='icon-monitor icon-mc-detail'></i>
                   </div>
                 </div>
+              </div>,
+              <div class='comparison form-item'>
+                <div class='label'>{this.t('对比模式')}</div>
+                <div class='content'>
+                  <Switcher
+                    modelValue={this.localFormData.isComparison}
+                    theme='primary'
+                    size='small'
+                    onChange={this.handleComparisonChange}
+                  />
+                </div>
               </div>
-            )}
-            <div class='comparison form-item'>
-              <div class='label'>{this.t('对比模式')}</div>
-              <div class='content'>
-                <Switcher
-                  modelValue={this.localFormData.isComparison}
-                  theme='primary'
-                  size='small'
-                  onChange={this.handleComparisonChange}
-                />
-              </div>
-            </div>
+            ]}
+
             <div class='search-panel'>
               <div class='search-title'>{this.t('查询项')}</div>
               {this.localFormData.where.map((item, index) => (
@@ -312,7 +342,9 @@ export default defineComponent({
                   class='condition-item'
                   data={item}
                   labelList={this.labelList}
+                  valueList={this.labelValueMap.get(item.key) || []}
                   onChange={val => this.handleConditionChange(val, index, ConditionType.Where)}
+                  onDelete={() => this.deleteCondition(index, ConditionType.Where)}
                 />
               ))}
               <Button
@@ -331,7 +363,9 @@ export default defineComponent({
                     class='condition-item'
                     data={item}
                     labelList={this.labelList}
+                    valueList={this.labelValueMap.get(item.key) || []}
                     onChange={val => this.handleConditionChange(val, index, ConditionType.Comparison)}
+                    onDelete={() => this.deleteCondition(index, ConditionType.Comparison)}
                   />
                 ))}
                 <Button

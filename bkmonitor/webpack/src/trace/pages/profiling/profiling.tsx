@@ -24,12 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, provide, reactive, Ref, ref } from 'vue';
+import { computed, defineComponent, onMounted, provide, reactive, Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Dialog } from 'bkui-vue';
 
-import { debounce } from '../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
+import { ISelectMenuOption } from '../../components/select-menu/select-menu';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import ProfilingQueryImage from '../../static/img/profiling-query.png';
+import ProfilingUploadQueryImage from '../../static/img/profiling-upload-query.png';
 import { monitorDrag } from '../../utils/drag-directive';
 
 import EmptyCard from './components/empty-card';
@@ -40,8 +43,16 @@ import ProfilingDetail from './components/profiling-detail';
 import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
-import { ToolsFormData } from './typings/page-header';
-import { DetailType, PanelType, RetrievalFormData, SearchState, SearchType, ServicesDetail } from './typings';
+import { MenuEnum, ToolsFormData } from './typings/page-header';
+import {
+  DetailType,
+  FileDetail,
+  PanelType,
+  RetrievalFormData,
+  SearchState,
+  SearchType,
+  ServicesDetail
+} from './typings';
 
 import './profiling.scss';
 
@@ -64,8 +75,6 @@ export default defineComponent({
       autoQueryTimer: null,
       autoQuery: true,
       loading: false,
-      /** 选择了应用/服务后才能查询 */
-      canQuery: false,
       formData: {
         type: SearchType.Profiling,
         isComparison: false,
@@ -77,9 +86,23 @@ export default defineComponent({
         comparisonWhere: []
       }
     });
+    const canQuery = computed(() => {
+      if (searchState.formData.type === SearchType.Profiling) {
+        // 持续检索必须选择应用/服务后才能查询
+        return !!(searchState.formData.server.app_name && searchState.formData.server.service_name);
+      }
+      return true;
+    });
     provide<RetrievalFormData>('formData', searchState.formData);
-    const isEmpty = ref(false);
+    const isEmpty = ref(true);
     const dataType = ref('cpu');
+
+    /** 查询参数 */
+    const queryParams = ref(getParams());
+
+    /* 当前选择的文件 */
+    const curFileInfo = ref(null);
+
     /**
      * 检索面板和收藏面板显示状态切换
      * @param type 面板类型
@@ -96,11 +119,20 @@ export default defineComponent({
      */
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
-      handleQueryDebounce();
+      handleQuery();
+    }
+
+    /** 是否全屏 */
+    const isFull = ref(false);
+    function handleMenuSelect(menu: ISelectMenuOption) {
+      if (menu.id === MenuEnum.FullScreen) {
+        isFull.value = true;
+      }
     }
 
     function handleDataTypeChange(v: string) {
       dataType.value = v;
+      handleQuery();
     }
 
     /**
@@ -109,8 +141,7 @@ export default defineComponent({
      */
     function handleSearchFormDataChange(val: SearchState['formData']) {
       searchState.formData = val;
-      searchState.canQuery = !!(val.server.app_name && val.server.service_name);
-      handleQueryDebounce();
+      handleQuery();
     }
     /** 切换自动查询 */
     function handleAutoQueryChange(val: boolean) {
@@ -119,23 +150,16 @@ export default defineComponent({
     }
     /** 启动自动查询定时器 */
     function startAutoQueryTimer() {
-      window.clearTimeout(searchState.autoQueryTimer);
+      window.clearInterval(searchState.autoQueryTimer);
       /**
        * 以下情况不能自动查询
        * 1. 没有开启自动查询
        * 2. 没有设置自动查询间隔
-       * 3. 查询按钮禁用
-       * 4. 正在查询
        */
-      if (
-        toolsFormData.value.refreshInterval === -1 ||
-        !searchState.autoQuery ||
-        !searchState.canQuery ||
-        searchState.loading
-      )
-        return;
-
-      searchState.autoQueryTimer = window.setTimeout(startAutoQueryTimer, toolsFormData.value.refreshInterval);
+      if (toolsFormData.value.refreshInterval === -1 || !searchState.autoQuery) return;
+      searchState.autoQueryTimer = window.setInterval(() => {
+        handleQuery();
+      }, toolsFormData.value.refreshInterval);
     }
 
     /** 清除查询条件 */
@@ -147,44 +171,61 @@ export default defineComponent({
         app_name: '',
         service_name: ''
       };
+      isEmpty.value = true;
     }
-    const handleQueryDebounce = debounce(handleQuery, 300, false);
     /** 获取接口请求参数 */
     function getParams() {
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      const { server, isComparison, where, comparisonWhere } = searchState.formData;
-
+      const { server, isComparison, where, comparisonWhere, type } = searchState.formData;
       return {
         start: start * 1000 * 1000,
         end: end * 1000 * 1000,
         ...server,
         is_compared: isComparison,
         filter_label: where.reduce((pre, cur) => {
-          pre[cur.key] = cur.value;
+          if (cur.key && cur.value) pre[cur.key] = cur.value;
           return pre;
         }, {}),
         diff_filter_label: comparisonWhere.reduce((pre, cur) => {
-          pre[cur.key] = cur.value;
+          if (cur.key && cur.value && type !== SearchType.Upload) pre[cur.key] = cur.value;
           return pre;
         }, {}),
-        profile_type: dataType.value
+        profile_type: dataType.value,
+        profile_id: searchState.formData.type === SearchType.Upload ? curFileInfo.value?.profile_id : undefined
       };
     }
+
     /** 查询功能 */
     function handleQuery() {
-      isEmpty.value = false;
-      console.log(getParams());
+      if (searchState.formData.type === SearchType.Profiling) {
+        isEmpty.value = !canQuery.value;
+      }
+      if (!canQuery.value || searchState.loading) return;
+      queryParams.value = getParams();
     }
 
     // ----------------------详情-------------------------
     const detailShow = ref(false);
     const detailType = ref<DetailType>(DetailType.Application);
-    const detailData = ref<ServicesDetail>(null);
+    const detailData = ref<ServicesDetail | FileDetail>(null);
     /** 展示服务详情 */
-    function handleShowDetail(type: DetailType, detail) {
+    function handleShowDetail(type: DetailType, detail: FileDetail) {
       detailShow.value = true;
       detailType.value = type;
       detailData.value = detail;
+    }
+
+    onMounted(() => {
+      searchState.autoQuery && startAutoQueryTimer();
+    });
+
+    /**
+     * @description 当前选择profiling文件
+     * @param fileInfo
+     */
+    function handleSelectFile(fileInfo) {
+      curFileInfo.value = fileInfo;
+      handleQuery();
     }
 
     return {
@@ -192,50 +233,83 @@ export default defineComponent({
       isEmpty,
       dataType,
       searchState,
+      canQuery,
       toolsFormData,
       detailShow,
       detailType,
       detailData,
+      queryParams,
+      isFull,
       startAutoQueryTimer,
       handleToolFormDataChange,
       handleShowTypeChange,
       handleAutoQueryChange,
-      handleQueryDebounce,
+      handleQuery,
       handleQueryClear,
       handleSearchFormDataChange,
       handleDataTypeChange,
-      handleShowDetail
+      handleShowDetail,
+      handleSelectFile,
+      handleMenuSelect
     };
   },
 
   render() {
     const renderView = () => {
+      if (this.searchState.formData.type === SearchType.Upload) {
+        return (
+          <UploadRetrievalView
+            formData={this.searchState.formData}
+            queryParams={this.queryParams}
+            dataType={this.dataType}
+            onSelectFile={fileInfo => this.handleSelectFile(fileInfo)}
+            onShowFileDetail={detail => this.handleShowDetail(DetailType.UploadFile, detail)}
+            onDataTypeChange={this.handleDataTypeChange}
+          />
+        );
+      }
+
       if (this.isEmpty)
         return (
           <div class='empty-wrap'>
-            <EmptyCard
-              title={this.$t('持续 Profiling')}
-              desc={this.$t('直接进行 精准查询，定位到 Trace 详情')}
-            />
-            <EmptyCard
-              title={this.$t('上传 Profiling')}
-              desc={this.$t('可以切换到 范围查询，根据条件筛选 Trace')}
-            />
+            <div onClick={() => (this.searchState.formData.type = SearchType.Profiling)}>
+              <EmptyCard
+                title={this.$t('持续 Profiling')}
+                desc={this.$t('直接进行 精准查询，定位到 Trace 详情')}
+              >
+                {{
+                  img: () => (
+                    <img
+                      class='empty-image'
+                      src={ProfilingQueryImage}
+                    />
+                  )
+                }}
+              </EmptyCard>
+            </div>
+            <div onClick={() => (this.searchState.formData.type = SearchType.Upload)}>
+              <EmptyCard
+                title={this.$t('上传 Profiling')}
+                desc={this.$t('可以切换到 范围查询，根据条件筛选 Trace')}
+              >
+                {{
+                  img: () => (
+                    <img
+                      class='empty-image'
+                      src={ProfilingUploadQueryImage}
+                    />
+                  )
+                }}
+              </EmptyCard>
+            </div>
           </div>
         );
 
-      if (this.searchState.formData.type === SearchType.Profiling)
-        return (
-          <ProfilingRetrievalView
-            dataType={this.dataType}
-            onUpdate:dataType={this.handleDataTypeChange}
-          />
-        );
-
       return (
-        <UploadRetrievalView
-          formData={this.searchState.formData}
-          onShowFileDetail={detail => this.handleShowDetail(DetailType.UploadFile, detail)}
+        <ProfilingRetrievalView
+          dataType={this.dataType}
+          queryParams={this.queryParams}
+          onUpdate:dataType={this.handleDataTypeChange}
         />
       );
     };
@@ -249,6 +323,7 @@ export default defineComponent({
             onShowTypeChange={this.handleShowTypeChange}
             onChange={this.handleToolFormDataChange}
             onRefreshIntervalChange={this.startAutoQueryTimer}
+            onMenuSelect={this.handleMenuSelect}
           ></PageHeader>
         </div>
         <div class='page-content'>
@@ -283,6 +358,7 @@ export default defineComponent({
           >
             <RetrievalSearch
               formData={this.searchState.formData}
+              dataType={this.dataType}
               onChange={this.handleSearchFormDataChange}
               onShowDetail={detail => this.handleShowDetail(DetailType.Application, detail)}
             >
@@ -290,10 +366,10 @@ export default defineComponent({
                 query: () => (
                   <HandleBtn
                     autoQuery={this.searchState.autoQuery}
-                    canQuery={this.searchState.canQuery}
+                    canQuery={this.canQuery}
                     loading={this.searchState.loading}
                     onChangeAutoQuery={this.handleAutoQueryChange}
-                    onQuery={this.handleQueryDebounce}
+                    onQuery={this.handleQuery}
                     onClear={this.handleQueryClear}
                   ></HandleBtn>
                 )
@@ -309,6 +385,21 @@ export default defineComponent({
           detailData={this.detailData}
           onShowChange={val => (this.detailShow = val)}
         ></ProfilingDetail>
+
+        {this.isFull && (
+          <Dialog
+            is-show={this.isFull}
+            title={this.t('查看大图')}
+            zIndex={8004}
+            fullscreen
+            header-align='center'
+            draggable={false}
+            ext-cls='full-dialog'
+            onClosed={() => (this.isFull = false)}
+          >
+            <div class='view-wrap'>{renderView()}</div>
+          </Dialog>
+        )}
       </div>
     );
   }

@@ -26,10 +26,12 @@
 import { computed, defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Exception, Select } from 'bkui-vue';
-import { Spinner, Upload as UploadIcon } from 'bkui-vue/lib/icon';
+import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
 import { listProfileUploadRecord } from '../../../../monitor-api/modules/apm_profile';
+import { IQueryParams } from '../../../typings/trace';
 import { ConditionType, RetrievalFormData } from '../typings';
+import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
 
 import ProfilingFileUpload from './profiling-file-upload';
 import ProfilingRetrievalView from './profiling-retrieval-view';
@@ -42,9 +44,17 @@ export default defineComponent({
     formData: {
       type: Object as PropType<RetrievalFormData>,
       required: true
+    },
+    queryParams: {
+      type: Object as PropType<IQueryParams>,
+      required: true
+    },
+    dataType: {
+      type: String,
+      default: 'cpu'
     }
   },
-  emits: ['showFileDetail'],
+  emits: ['showFileDetail', 'selectFile', 'dataTypeChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
@@ -75,13 +85,9 @@ export default defineComponent({
      * @description 初始化
      */
     async function init() {
-      const data = await listProfileUploadRecord({
-        app_name: props.formData.server.app_name,
-        service_name: props.formData.server.service_name
-      }).catch(() => []);
-      searchObj.list = data;
-      if (data.length) {
-        searchObj.selectFile = data[0].id;
+      await handleRefleshFiles();
+      if (searchObj.list.length) {
+        handleSelectFile(searchObj.list[0].id);
       }
     }
 
@@ -103,37 +109,47 @@ export default defineComponent({
 
     function handleSelectFile(v) {
       searchObj.selectFile = v;
-      loading.value = true;
-      setTimeout(() => {
-        loading.value = false;
-      }, 3000);
+      const fileInfo = searchObj.list.find(item => item.id === v);
+      emit('selectFile', fileInfo);
     }
 
-    function statusRender(status) {
-      if (status === 'running') {
-        return (
-          <div class='status'>
-            <Spinner class='loading'></Spinner>
-            <span class='label'>{t('解析中')}</span>
-          </div>
-        );
-      }
-      if (status === 'success') {
+    async function handleRefleshFiles() {
+      const data = await listProfileUploadRecord({
+        app_name: props.formData.server.app_name,
+        service_name: props.formData.server.service_name
+      }).catch(() => []);
+      searchObj.list = data;
+    }
+
+    function handleDataTypeChange(v: string) {
+      emit('dataTypeChange', v);
+    }
+
+    function statusRender(status: EFileStatus) {
+      if ([EFileStatus.uploaded, EFileStatus.parsingSucceed, EFileStatus.storeSucceed].includes(status)) {
         return (
           <div class='status'>
             <div class='success circle'></div>
-            <span class='label'>{t('解析成功')}</span>
+            <span class='label'>{fileStatusMap[status].name}</span>
           </div>
         );
       }
-      if (status === 'failed') {
+      if ([EFileStatus.parsingFailed, EFileStatus.storeFailed].includes(status)) {
         return (
           <div class='status'>
             <div class='error circle'></div>
-            <span class='label'>{t('解析失败')}</span>
+            <span class='label'>{fileStatusMap[status].name}</span>
           </div>
         );
       }
+      // if (status === 'running') {
+      //   return (
+      //     <div class='status'>
+      //       <Spinner class='loading'></Spinner>
+      //       <span class='label'>{t('解析中')}</span>
+      //     </div>
+      //   );
+      // }
     }
 
     return {
@@ -149,7 +165,9 @@ export default defineComponent({
       handleUploadShowChange,
       statusRender,
       handleShowFileDetail,
-      handleSelectFile
+      handleSelectFile,
+      handleRefleshFiles,
+      handleDataTypeChange
     };
   },
   render() {
@@ -189,7 +207,10 @@ export default defineComponent({
                     </div>
                     <i
                       class='icon-monitor icon-mc-detail'
-                      onClick={() => this.handleShowFileDetail(item)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        this.handleShowFileDetail(item);
+                      }}
                     ></i>
                   </div>
                 </Select.Option>
@@ -243,7 +264,11 @@ export default defineComponent({
               </Exception>
             </div>
           ) : (
-            <ProfilingRetrievalView></ProfilingRetrievalView>
+            <ProfilingRetrievalView
+              dataType={this.dataType}
+              queryParams={this.queryParams}
+              onUpdate:dataType={this.handleDataTypeChange}
+            ></ProfilingRetrievalView>
           )}
         </div>
 
@@ -252,6 +277,7 @@ export default defineComponent({
           appName={this.formData.server.app_name}
           isCompare={this.isCompare}
           onShowChange={this.handleUploadShowChange}
+          onRefleshFiles={this.handleRefleshFiles}
         ></ProfilingFileUpload>
       </div>
     );

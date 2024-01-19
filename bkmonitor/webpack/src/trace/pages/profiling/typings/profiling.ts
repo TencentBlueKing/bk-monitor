@@ -33,8 +33,6 @@ export interface SearchState {
   autoQueryTimer: number;
   /** 是否开启自动查询功能 */
   autoQuery: boolean;
-  /** 是否能查询 */
-  canQuery: boolean;
   /** 查询loading */
   loading: boolean;
   /** 表单数据 */
@@ -50,7 +48,7 @@ export interface ServicesDetail {
   /** 应用 */
   app_name: string;
   /** 模块 */
-  service_name: string;
+  name: string;
   /** 周期 */
   period: string;
   /** 周期类型 */
@@ -61,6 +59,19 @@ export interface ServicesDetail {
   create_time: string;
   /** 最近上报时间 */
   last_report_time: string;
+}
+
+export interface FileDetail {
+  app_name: string;
+  file_type: string;
+  file_md5: string;
+  profile_id: string;
+  operator: string;
+  uploaded_time: string;
+  file_size: number;
+  file_name: string;
+  origin_file_name: string;
+  status: string;
 }
 
 export enum DetailType {
