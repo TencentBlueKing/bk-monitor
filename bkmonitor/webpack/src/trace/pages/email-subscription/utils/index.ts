@@ -45,7 +45,9 @@ export function getSendFrequencyText(data: Report) {
       break;
     }
     case FrequencyType.dayly: {
-      str = `${t('每天')} ${data.frequency.run_time}`;
+      const includeWeekend = [1, 2, 3, 4, 5, 6, 7];
+      const isIncludeWeekend = includeWeekend.every(item => data.frequency.week_list.includes(item));
+      str = `${t('每天')}${isIncludeWeekend ? `(${i18n.t('包含周末')})` : ''} ${data.frequency.run_time}`;
       break;
     }
     case FrequencyType.weekly: {
