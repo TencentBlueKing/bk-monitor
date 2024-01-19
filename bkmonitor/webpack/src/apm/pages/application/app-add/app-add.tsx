@@ -272,6 +272,8 @@ export default class AppAdd extends tsc<{}> {
       app_alias: this.appInfo?.enName, // 应用别名
       description: this.appInfo?.desc, // 应用描述
       plugin_id: this.appInfo?.pluginId, // 插件id
+      enable_profiling: this.appInfo.enableProfiling,
+      enable_tracing: this.appInfo.enableTracing,
       deployment_ids: deploymentIds, // 环境id
       language_ids: languageIds, // 语言
       datasource_option: clusterInfo

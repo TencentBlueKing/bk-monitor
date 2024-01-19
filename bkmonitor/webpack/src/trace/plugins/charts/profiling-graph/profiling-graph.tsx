@@ -131,10 +131,14 @@ export default defineComponent({
       activeMode.value = val;
 
       if (val === ViewModeType.Topo && !topoSrc.value) {
+        isLoading.value = true;
+
         const params = getParams({ diagram_types: ['callgraph'] });
         const data = await query(params).catch(() => false);
         if (data.diagrams) {
+          topoSrc.value = data.diagrams.call_graph_data || '';
         }
+        isLoading.value = false;
       }
     };
     const handleTextDirectionChange = (val: DirectionType) => {
@@ -180,7 +184,8 @@ export default defineComponent({
       filterKeyword,
       flameFilterKeywords,
       handleSortChange,
-      handleDownload
+      handleDownload,
+      topoSrc
     };
   },
   render() {
@@ -226,7 +231,7 @@ export default defineComponent({
                 onUpdateHighlightId={id => (this.highlightId = id)}
               />
             )}
-            {ViewModeType.Topo === this.activeMode && <TopoGraph />}
+            {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}
           </div>
         )}
       </Loading>

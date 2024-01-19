@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -105,6 +106,8 @@ type IFormData = IApdexConfig &
   IApplicationSamplerConfig & {
     app_alias: string;
     description: string;
+    enable_profiling: boolean;
+    enable_tracing: boolean;
   } & {
     plugin_config: {
       target_nodes: any[];
@@ -151,6 +154,8 @@ export default class BasicInfo extends tsc<IProps> {
   formData: IFormData = {
     app_alias: '', // 别名
     description: '', // 描述
+    enable_profiling: false,
+    enable_tracing: false,
     apdex_default: 0,
     apdex_http: 0,
     apdex_db: 0,
@@ -480,13 +485,25 @@ export default class BasicInfo extends tsc<IProps> {
     this.showInstanceSelector = !show;
     if (show) {
       if (!this.logAsciiList.length && this.isShowLog2TracesFormItem) this.fetchEncodingList();
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { app_alias: appAlias, description, plugin_config, application_sampler_config } = this.appInfo;
+      const {
+        app_alias: appAlias,
+        description,
+        plugin_config,
+        application_sampler_config,
+        enable_profiling,
+        enable_tracing
+      } = this.appInfo;
       const apdexConfig = this.appInfo.application_apdex_config || {};
       const samplerConfig = Object.assign({}, application_sampler_config, {
         sampler_percentage: application_sampler_config.sampler_percentage || 0
       });
-      Object.assign(this.formData, apdexConfig, samplerConfig, { app_alias: appAlias, description, plugin_config });
+      Object.assign(this.formData, apdexConfig, samplerConfig, {
+        app_alias: appAlias,
+        description,
+        plugin_config,
+        enable_profiling,
+        enable_tracing
+      });
     }
     if (!isSubmit) {
       this.localInstanceList = [...this.appInfo.application_instance_name_config?.instance_name_composition];
@@ -570,6 +587,8 @@ export default class BasicInfo extends tsc<IProps> {
     const {
       app_alias: appAlias,
       description,
+      enable_tracing,
+      enable_profiling,
       sampler_type: samplerType,
       sampler_percentage: samplerPercentage,
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -583,6 +602,8 @@ export default class BasicInfo extends tsc<IProps> {
       is_enabled: this.appInfo.is_enabled,
       app_alias: appAlias,
       description,
+      enable_tracing,
+      enable_profiling,
       application_sampler_config: {
         sampler_type: samplerType
       },
@@ -1057,7 +1078,7 @@ export default class BasicInfo extends tsc<IProps> {
                       <FormItem label={`Tracing ${this.$t('启/停')}`}>
                         <Switcher
                           disabled
-                          value={true}
+                          value={this.formData.enable_tracing}
                           theme='primary'
                           size='small'
                         />
@@ -1067,7 +1088,8 @@ export default class BasicInfo extends tsc<IProps> {
                         class='form-flex-item'
                       >
                         <Switcher
-                          value={true}
+                          disabled
+                          value={this.formData.enable_profiling}
                           theme='primary'
                           size='small'
                         />
@@ -1137,14 +1159,15 @@ export default class BasicInfo extends tsc<IProps> {
                   <div class='item-row'>
                     <EditableFormItem
                       label='Tracing'
-                      value={['已开启']}
-                      tagTheme='success'
+                      value={this.appInfo.enable_tracing ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      tagTheme={this.appInfo.enable_tracing ? 'success' : ''}
                       formType='tag'
                       showEditable={false}
                     />
                     <EditableFormItem
                       label='Profiling'
-                      value={['未开启']}
+                      value={this.appInfo.enable_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      tagTheme={this.appInfo.enable_tracing ? 'success' : ''}
                       formType='tag'
                       showEditable={false}
                     />

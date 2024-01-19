@@ -126,10 +126,13 @@ class ProfilingChart extends CommonSimpleChart {
     this.activeMode = val;
 
     if (val === ViewModeType.Topo && !this.topoSrc) {
+      this.isLoading = true;
       const params = this.getParams({ diagram_types: ['callgraph'] });
       const data = await query(params).catch(() => false);
       if (data.diagrams) {
+        this.topoSrc = data.diagrams.call_graph_data || '';
       }
+      this.isLoading = true;
     }
   }
   handleTextDirectionChange(val: TextDirectionType) {
