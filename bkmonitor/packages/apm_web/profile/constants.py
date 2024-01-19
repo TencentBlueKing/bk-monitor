@@ -15,6 +15,10 @@ DEFAULT_EXPORT_FORMAT = "pprof"
 
 EXPORT_FORMAT_MAP = {"pprof": "pprof"}
 
+# builtin app name in global storage
+# may fetch from apm API in the future
+BUILTIN_APP_NAME = "builtin_profile_app"
+
 
 class InputType(Enum):
     PPROF = "pprof"
