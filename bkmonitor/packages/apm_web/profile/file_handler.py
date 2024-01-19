@@ -23,7 +23,7 @@ logger = logging.getLogger("apm_web")
 
 class ProfilingFileHandler:
     def __init__(self):
-        self.bk_repo_storage = BKRepoStorage(bucket="bkmonitor_apm_profile")
+        self.bk_repo_storage = BKRepoStorage()
 
     def get_file_data(self, key):
         with tempfile.TemporaryFile() as fp:
