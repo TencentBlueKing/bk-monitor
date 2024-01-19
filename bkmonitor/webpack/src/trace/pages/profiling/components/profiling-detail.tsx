@@ -98,7 +98,7 @@ export default defineComponent({
         const data = this.detailData as ServicesDetail;
         return (
           <Form labelWidth={144}>
-            <Form.FormItem label={`${this.t('模块名称')}:`}>{data.service_name}</Form.FormItem>
+            <Form.FormItem label={`${this.t('模块名称')}:`}>{data.name || '-'}</Form.FormItem>
             <Form.FormItem label={`${this.t('所属应用')}:`}>
               {data.app_name}
               <span
@@ -109,12 +109,12 @@ export default defineComponent({
                 <i class='icon-monitor icon-fenxiang'></i>
               </span>
             </Form.FormItem>
-            <Form.FormItem label={`${this.t('采样频率')}:`}>{data.frequency}</Form.FormItem>
-            <Form.FormItem label={`${this.t('上报数据类型')}:`}>***SDK</Form.FormItem>
+            <Form.FormItem label={`${this.t('采样频率')}:`}>{data.frequency || '-'}</Form.FormItem>
+            {/* <Form.FormItem label={`${this.t('上报数据类型')}:`}>***SDK</Form.FormItem>
             <Form.FormItem label={`${this.t('SDK版本')}:`}>1.1.0</Form.FormItem>
-            <Form.FormItem label={`${this.t('数据语言')}:`}>java</Form.FormItem>
-            <Form.FormItem label={`${this.t('创建时间')}:`}>{data.create_time}</Form.FormItem>
-            <Form.FormItem label={`${this.t('最近上报时间')}:`}>{data.last_report_time}</Form.FormItem>
+            <Form.FormItem label={`${this.t('数据语言')}:`}>java</Form.FormItem> */}
+            <Form.FormItem label={`${this.t('创建时间')}:`}>{data.create_time || '-'}</Form.FormItem>
+            <Form.FormItem label={`${this.t('最近上报时间')}:`}>{data.last_report_time || '-'}</Form.FormItem>
           </Form>
         );
       }
@@ -130,7 +130,6 @@ export default defineComponent({
             <div class='status'>
               <div class={['circle', this.statusMap[data.status].type]}></div>
               <span class='label'>{this.statusMap[data.status].name}</span>
-              {data.status}
             </div>
           </Form.FormItem>
           <Form.FormItem label={`${this.t('文件md5')}:`}>{data.file_md5 || '-'}</Form.FormItem>
