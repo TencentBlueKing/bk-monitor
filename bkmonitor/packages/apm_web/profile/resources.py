@@ -44,21 +44,30 @@ class QueryServicesDetailResource(Resource):
 
         # 实时查询最近上报时间等信息
         info = QueryTemplate(validated_data["bk_biz_id"], validated_data["app_name"]).get_sample_info(
-            validated_data["start_time"], validated_data["end_time"], validated_data["data_type"]
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["data_type"],
+            service_name=validated_data["service_name"],
         )
         return {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
+            "name": services[0].get("name"),
+            "data_type": services[0].get("data_type"),
             "period": ",".join([i["period"] for i in services if i.get("period")]),
             "period_type": ",".join([i["period_type"] for i in services if i.get("period_type")]),
             "frequency": ",".join([f"{i['frequency']}Hz" for i in services if i.get("frequency")]),
             "create_time": services[0].get("created_at"),
             "last_check_time": services[0].get("last_check_time"),
             "last_report_time": self.format_time(info["last_report_time"]) if info else None,
+            "is_multiple": len(services) > 1,
         }
 
     @classmethod
     def format_time(cls, value):
+        if not value:
+            return None
+
         return datetime.datetime.fromtimestamp(int(value) / 1000).strftime("%Y-%m-%d %H:%M:%S")
 
 
