@@ -26,6 +26,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 import { getApplyRecords, getReport } from '@api/modules/new_report';
+import dayjs from 'dayjs';
 
 import QueryTypeRadio from '../my-subscription/components/query-type-radio';
 import { ApplyStatus } from '../my-subscription/mapping';
@@ -119,6 +120,11 @@ class MyApply extends tsc<{}> {
             <bk-table-column
               label={this.$t('单号')}
               prop='approval_sn'
+              scopedSlots={{
+                default: ({ row }) => {
+                  return <div v-bk-overflow-tips>{row.approval_sn}</div>;
+                }
+              }}
             ></bk-table-column>
 
             <bk-table-column
@@ -126,7 +132,10 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <div style='padding: 14px 0;'>
+                    <div
+                      style='padding: 14px 0;'
+                      v-bk-overflow-tips
+                    >
                       <bk-button
                         text
                         theme='primary'
@@ -148,7 +157,7 @@ class MyApply extends tsc<{}> {
               label={this.$t('当前步骤')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{row.approval_step?.[0]?.name || '--'}</div>;
+                  return <div v-bk-overflow-tips>{row.approval_step?.[0]?.name || '--'}</div>;
                 }
               }}
             ></bk-table-column>
@@ -157,7 +166,7 @@ class MyApply extends tsc<{}> {
               label={this.$t('当前处理人')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{row.approvers?.toString?.()}</div>;
+                  return <div v-bk-overflow-tips>{row.approvers?.toString?.()}</div>;
                 }
               }}
             ></bk-table-column>
@@ -167,7 +176,10 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <div style='display: flex; align-items: center;'>
+                    <div
+                      style='display: flex; align-items: center;'
+                      v-bk-overflow-tips
+                    >
                       <i class={['circle', row.status]}></i>
                       {ApplyStatus[row.status]}
                     </div>
@@ -179,6 +191,11 @@ class MyApply extends tsc<{}> {
             <bk-table-column
               label={this.$t('提单时间')}
               prop='create_time'
+              scopedSlots={{
+                default: ({ row }) => {
+                  return <div v-bk-overflow-tips>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
+                }
+              }}
             ></bk-table-column>
 
             <bk-table-column
@@ -213,6 +230,7 @@ class MyApply extends tsc<{}> {
           width='640'
           ext-cls='my-apply-slider'
           transfer
+          quick-close
           before-close={() => {
             this.isShowSideslider = false;
           }}

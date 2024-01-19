@@ -62,6 +62,11 @@
     background: #ffe6e6;
     border: 1px solid #ea3636;
   }
+
+  &.no_status {
+    background: #f0f1f5;
+    border: 1px solid #c4c6cc;
+  }
 }
 
 .my-subscription-slider {
@@ -134,6 +139,11 @@
     background: #ffe8c3;
     border: 1px solid #ff9c01;
   }
+
+  &.no_status {
+    background: #f0f1f5;
+    border: 1px solid #c4c6cc;
+  }
 }
 
 .email-subscription-popover {
@@ -202,6 +212,13 @@
 
 .cancel-report-dialog {
   .header {
+    /* stylelint-disable-next-line declaration-no-important */
+    white-space: normal !important;
+  }
+}
+
+.re-subscription-confirm {
+  .bk-dialog-header-inner {
     /* stylelint-disable-next-line declaration-no-important */
     white-space: normal !important;
   }

@@ -147,6 +147,7 @@ class MySubscription extends tsc<{}> {
 
   handleResubscribeReport(data: Report) {
     this.$bkInfo({
+      extCls: 're-subscription-confirm',
       title: this.$t('是否重新订阅 {0} ?', [data.name]),
       confirmLoading: true,
       confirmFn: () => {
@@ -170,7 +171,8 @@ class MySubscription extends tsc<{}> {
   getSendingRecordList() {
     this.isSendRecordListLoading = true;
     getSendRecords({
-      report_id: this.detailInfo.id
+      report_id: this.detailInfo.id,
+      channel_name: 'user'
     })
       .then(response => {
         this.sendRecordList = response;
@@ -322,6 +324,11 @@ class MySubscription extends tsc<{}> {
               <bk-table-column
                 label={this.$t('发送时间')}
                 prop='send_time'
+                scopedSlots={{
+                  default: ({ row }) => {
+                    return <div>{row.send_time ? dayjs(row.send_time).format('YYYY-MM-DD HH:mm:ss') : '--'}</div>;
+                  }
+                }}
               ></bk-table-column>
 
               <bk-table-column
@@ -548,14 +555,16 @@ class MySubscription extends tsc<{}> {
               count: this.totalReportSize,
               limit: this.pageSize
             }}
-            row-auto-height
           >
             <bk-table-column
-              label={this.$t('邮件标题')}
+              label={this.$t('订阅名称')}
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <div style='padding: 14px 0;'>
+                    <div
+                      style='padding: 14px 0;'
+                      v-bk-overflow-tips={{ content: row.name }}
+                    >
                       <bk-button
                         text
                         onClick={() => {
@@ -564,7 +573,7 @@ class MySubscription extends tsc<{}> {
                         }}
                         style='height: auto;'
                       >
-                        {row.content_config?.title}
+                        {row.name}
                       </bk-button>
                     </div>
                   );
@@ -576,7 +585,7 @@ class MySubscription extends tsc<{}> {
               label={this.$t('订阅场景')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{Scenario[row.scenario]}</div>;
+                  return <div v-bk-overflow-tips>{Scenario[row.scenario]}</div>;
                 }
               }}
             ></bk-table-column>
@@ -585,7 +594,9 @@ class MySubscription extends tsc<{}> {
               label={this.$t('来源')}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{row.is_self_subscribed ? this.$t('主动订阅') : this.$t('他人订阅')}</div>;
+                  return (
+                    <div v-bk-overflow-tips>{row.is_self_subscribed ? this.$t('主动订阅') : this.$t('他人订阅')}</div>
+                  );
                 }
               }}
             ></bk-table-column>
@@ -606,7 +617,7 @@ class MySubscription extends tsc<{}> {
               ]}
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div>{SendMode[row.send_mode]}</div>;
+                  return <div v-bk-overflow-tips>{SendMode[row.send_mode]}</div>;
                 }
               }}
             ></bk-table-column>
@@ -616,8 +627,7 @@ class MySubscription extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <div>
-                      {/* {getSendFrequencyText(row)} */}
+                    <div v-bk-overflow-tips>
                       {row?.frequency?.type === FrequencyType.onlyOnce
                         ? `${getSendFrequencyText(row)} ${dayjs(row.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
                         : getSendFrequencyText(row)}
@@ -634,8 +644,8 @@ class MySubscription extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return (
-                    <div>
-                      {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ss') : this.$t('未发送')}
+                    <div v-bk-overflow-tips>
+                      {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ss') : '--'}
                     </div>
                   );
                 }
@@ -666,16 +676,17 @@ class MySubscription extends tsc<{}> {
               ]}
               scopedSlots={{
                 default: ({ row }) => {
-                  return row.send_status !== 'no_status' ? (
-                    <div style='display: flex; align-items: center;'>
+                  return (
+                    <div
+                      style='display: flex; align-items: center;'
+                      v-bk-overflow-tips
+                    >
                       <i
                         class={['dot-circle', row.send_status]}
                         style='margin-right: 10px;'
                       ></i>
                       {SendStatus[row.send_status]}
                     </div>
-                  ) : (
-                    <div>{this.$t('未发送')}</div>
                   );
                 }
               }}
