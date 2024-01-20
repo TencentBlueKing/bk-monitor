@@ -110,6 +110,7 @@ class EtlStorage(object):
 
         # 是否保留原文
         if etl_params.get("retain_original_text"):
+            # 保留原文默认text类型大小写敏感
             field_list.append(
                 {
                     "field_name": "log",
@@ -117,9 +118,16 @@ class EtlStorage(object):
                     "tag": "metric",
                     "alias_name": "data",
                     "description": "original_text",
-                    "option": {"es_type": "text", "es_include_in_all": True}
+                    "option": {
+                        "es_type": "text",
+                        "es_analyzer": ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER,
+                        "es_include_in_all": True
+                    }
                     if es_version.startswith("5.")
-                    else {"es_type": "text"},
+                    else {
+                        "es_type": "text",
+                        "es_analyzer": ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
+                    },
                 }
             )
         # 是否保留用户未定义字段
