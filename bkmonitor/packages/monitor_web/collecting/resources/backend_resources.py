@@ -2143,10 +2143,7 @@ class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
 
             return new_target_list
         else:
-            is_split_measurement = False
             if self.config.plugin.is_split_measurement:
-                # 是单指标单表的模式
-                is_split_measurement = True
                 db_name = f"{self.config.plugin.plugin_type}_{self.config.plugin.plugin_id}".lower()
                 group_result = api.metadata.query_time_series_group(bk_biz_id=0, time_series_group_name=db_name)
                 result_tables = [ResultTable.time_series_group_to_result_table(group_result)]
@@ -2171,9 +2168,7 @@ class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
             else:
                 filter_dict["time__gt"] = f"{period // 60 * 3}m"
             ts_database = TSDataBase(db_name=db_name, result_tables=result_tables, bk_biz_id=self.config.bk_biz_id)
-            result = ts_database.no_data_test(
-                test_target_list=target_list, filter_dict=filter_dict, is_split_measurement=is_split_measurement
-            )
+            result = ts_database.no_data_test(test_target_list=target_list, filter_dict=filter_dict)
             return result
 
     @staticmethod
