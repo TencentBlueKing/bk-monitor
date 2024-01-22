@@ -446,6 +446,8 @@ export default {
     }
 
     .render-header {
+      display: inline;
+
       .field-type-icon {
         width: 12px;
         margin: 0 4px 0 0;

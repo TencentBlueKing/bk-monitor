@@ -87,6 +87,10 @@ export default class HandleBtn extends tsc<IProps> {
     return this.$store.state.spaceUid;
   }
 
+  get unionIndexItemList() {
+    return this.$store.state.unionIndexItemList;
+  }
+
   get isFavoriteUpdate() { // 判断当前收藏是否有参数更新
     if (this.tableLoading) return false;
     const { params: retrieveParams } = this.getRetrieveFavoriteData();
@@ -156,10 +160,13 @@ export default class HandleBtn extends tsc<IProps> {
     const displayFields = this.visibleFields.map(item => item.field_name);
     const indexItem = this.indexSetList.find(item => item.index_set_id === String(this.indexId));
     const { params: { ip_chooser, addition, keyword } } = this.getRetrieveFavoriteData();
+
     const favoriteData = { // 新建收藏参数
       index_set_id: this.indexId,
       space_uid: this.spaceUid,
       index_set_name: indexItem.index_set_name,
+      index_set_ids: this.unionIndexItemList?.map(item => item.index_set_id) || [],
+      index_set_names: this.unionIndexItemList?.map(item => item.index_set_name) || [],
       display_fields: displayFields,
       visible_type: 'public',
       name: '',
@@ -187,13 +194,13 @@ export default class HandleBtn extends tsc<IProps> {
         visible_type,
         id,
       } = this.activeFavorite;
-      const { search_fields } = params;
+      const { search_fields: searchFields } = params;
       const { params: { ip_chooser, addition, keyword } } = this.getRetrieveFavoriteData();
       const fRes = await $http.request('favorite/getSearchFields', {
         data: { keyword },
       });
       const searchFilterList = fRes.data
-        .filter(v => search_fields.includes(v.name))
+        .filter(v => searchFields.includes(v.name))
         .map(item => item.name);
       const data = {
         name,

@@ -329,7 +329,7 @@ export default class QueryStatement extends tsc<IProps> {
   /** 选中索引集 */
   handleSelectIndex(val) {
     if (this.isAloneType) {
-      this.selectAloneVal = val instanceof Array ? [val[1]] : [val]; // 单选赋值
+      if (val[0]) this.selectAloneVal = [val[1]];
       this.handleCloseSelectPopover();
     } else {
       this.selectTagCatchIDList = val.filter(item => item !== '-1');
