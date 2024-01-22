@@ -278,7 +278,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
    */
   async getModelList() {
     this.loading = true;
-    const resData = await listIntelligentModels({ algorithm: 'TimeSeriesForecasting' }).catch(
+    const resData = await listIntelligentModels({ algorithm: 'TimeSeriesForecasting' }).finally(
       () => (this.loading = false)
     );
     let modelItem: FormItem = null;
