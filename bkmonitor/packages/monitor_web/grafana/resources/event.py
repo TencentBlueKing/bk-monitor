@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+import time
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -90,18 +91,16 @@ class GetAlarmEventField(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        where = serializers.ListField(label="查询条件", default=[])
-        group_by = serializers.ListField(label="维度")
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
-        interval = serializers.CharField(label="时间间隔", default="auto")
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, params):
+        now = int(time.time())
         handler = AlertQueryHandler(
             bk_biz_ids=[params["bk_biz_id"]],
             conditions=params["where"],
-            start_time=params["start_time"],
-            end_time=params["end_time"],
+            start_time=params.get("start_time", now - 3600 * 24),
+            end_time=params.get("end_time", now),
         )
         tags = handler.list_tags()
         for tag in tags:
@@ -146,7 +145,7 @@ class QueryAlarmEventGraph(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         where = serializers.ListField(label="查询条件", default=[])
-        group_by = serializers.ListField(label="维度")
+        group_by = serializers.ListField(label="维度", default=[])
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
         interval = serializers.CharField(label="时间间隔", default="auto")
