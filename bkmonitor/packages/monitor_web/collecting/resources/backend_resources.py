@@ -2150,7 +2150,7 @@ class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
             else:
                 # 获取结果表配置
                 if self.config.plugin.plugin_type == PluginType.PROCESS:
-                    db_name = "process"
+                    db_name = "process:perf"
                     metric_json = PluginManagerFactory.get_manager(
                         plugin=self.config.plugin.plugin_id, plugin_type=self.config.plugin.plugin_type
                     ).gen_metric_info()
@@ -2167,7 +2167,9 @@ class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
                 filter_dict["time__gt"] = f"{period * 3 // 60 + 1}m"
             else:
                 filter_dict["time__gt"] = f"{period // 60 * 3}m"
-            ts_database = TSDataBase(db_name=db_name, result_tables=result_tables, bk_biz_id=self.config.bk_biz_id)
+            ts_database = TSDataBase(
+                db_name=db_name.lower(), result_tables=result_tables, bk_biz_id=self.config.bk_biz_id
+            )
             result = ts_database.no_data_test(test_target_list=target_list, filter_dict=filter_dict)
             return result
 
