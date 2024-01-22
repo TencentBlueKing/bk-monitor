@@ -327,7 +327,7 @@ class CollectorViewSet(ModelViewSet):
         related_list = []
         if request.GET.get("space_uid", ""):
             origin_bk_biz_id = space_uid_to_bk_biz_id(request.GET["space_uid"])
-            if origin_bk_biz_id:
+            if origin_bk_biz_id and origin_bk_biz_id > 0:
                 related_bk_biz_ids = get_bkcc_biz_id_related_spaces(origin_bk_biz_id, "bk_biz_id")
 
         for related_bk_biz_id in related_bk_biz_ids:

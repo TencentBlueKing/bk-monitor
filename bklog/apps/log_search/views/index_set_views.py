@@ -272,7 +272,12 @@ class IndexSetViewSet(ModelViewSet):
         origin_space_uid = request.GET.get("space_uid", "")
         related_list = []
         if origin_space_uid:
-            related_space_uids = get_bkcc_biz_id_related_spaces(space_uid_to_bk_biz_id(origin_space_uid))
+            try:
+                origin_bk_biz_id = space_uid_to_bk_biz_id(origin_space_uid)
+            except Exception:  # pylint: disable=broad-except
+                origin_bk_biz_id = None
+            if origin_bk_biz_id and origin_bk_biz_id > 0:
+                related_space_uids = get_bkcc_biz_id_related_spaces(origin_bk_biz_id)
 
         for related_space_uid in related_space_uids:
             request.GET["space_uid"] = related_space_uid
