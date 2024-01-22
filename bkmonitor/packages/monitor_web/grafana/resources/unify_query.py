@@ -21,7 +21,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.forms import model_to_dict
 from django.utils import timezone
-from monitor_web.grafana.utils import get_cookies_filter
+from monitor_web.grafana.utils import get_cookies_filter, remove_all_conditions
 from monitor_web.statistics.v2.query import unify_query_count
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 from rest_framework import serializers
@@ -718,6 +718,8 @@ class UnifyQueryRawResource(ApiAuthResource):
 
             if query_config["interval"] == "auto":
                 query_config["interval"] = get_auto_interval(60, params["start_time"], params["end_time"])
+            # 删除全选条件
+            query_config["where"] = remove_all_conditions(query_config["where"])
 
         # 维度top/bottom排序
         params = RankProcessor.process_params(params)
@@ -1107,6 +1109,9 @@ class GraphPromqlQueryResource(Resource):
         else:
             start_time = time_interval_align(params["start_time"], interval)
             end_time = time_interval_align(params["end_time"], interval)
+            # 删除全选条件
+            params["promql"] = re.sub(r"[a-zA-Z_][a-zA-Z0-9_]*=['\"]__ALL__['\"]\s*,?", '', params["promql"])
+            params["promql"] = re.sub(r',\s*}', r'}', params["promql"])
 
             request_params = dict(
                 promql=params["promql"],

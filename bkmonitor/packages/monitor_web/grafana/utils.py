@@ -157,3 +157,35 @@ def get_cookies_filter() -> Optional[Dict]:
     # 提取cookies中的字段作为过滤条件
     filter_dict = {field: request.COOKIES[field] for field in cookies if request.COOKIES.get(field)}
     return filter_dict
+
+
+def is_remove_all(where_list: list, select_all_tag: str) -> bool:
+    for index, item in enumerate(where_list):
+        if select_all_tag in item.get("value", []):
+            current_condition = item.get("condition")
+            next_condition = where_list[index + 1].get("condition") if index + 1 < len(where_list) else None
+            if (current_condition == "or" and next_condition == "or") \
+                    or (current_condition is None and next_condition == "or")\
+                    or (current_condition == "or" and next_condition is None):
+                return True
+    return False
+
+
+def remove_all_conditions(where_list: list) -> list:
+    """删除全选条件"""
+    # 全选标签
+    select_all_tag = "__ALL__"
+
+    if not where_list:
+        return []
+    # 条件列表中有一个全选标签条件且前后条件都是or时,直接返回空列表
+    remove_all = is_remove_all(where_list, select_all_tag)
+    if remove_all:
+        return []
+    # 删除全选条件
+    final_where_list = [condition for condition in where_list if select_all_tag not in condition["value"]]
+
+    if final_where_list and "condition" in final_where_list[0]:
+        del final_where_list[0]["condition"]
+
+    return final_where_list
