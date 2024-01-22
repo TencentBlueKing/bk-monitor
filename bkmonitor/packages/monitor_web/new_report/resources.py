@@ -234,7 +234,7 @@ class GetReportListResource(Resource):
                 self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
             # 用户视角获取全业务下的订阅
             if validated_request_data["create_type"] != ReportCreateTypeEnum.SELF.value:
-                report_qs = Report.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+                report_qs = report_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
             report_qs = self.filter_by_create_type(validated_request_data["create_type"], report_qs)
 
         # 根据搜索关键字过滤
