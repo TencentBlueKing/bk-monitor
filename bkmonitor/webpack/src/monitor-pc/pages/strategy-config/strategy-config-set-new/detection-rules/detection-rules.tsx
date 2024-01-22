@@ -293,10 +293,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
       // 智能算法规则
       if (item.type === 'ai') {
-        const hasOne = this.addType.find(set => set.id === item.id);
+        const hasOne = this.addType.find(set => set.type === 'ai');
         if (hasOne) {
           item.disabled = true;
-          item.disabledTip = this.$tc('一个策略不能同时添加两个相同的智能检测');
+          item.disabledTip = this.$tc('当前暂不支持设置两个智能算法');
         }
       }
 
