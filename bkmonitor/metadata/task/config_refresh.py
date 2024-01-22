@@ -220,7 +220,7 @@ def refresh_kafka_topic_info():
         )
 
 
-@share_lock(identify="metadata_refreshESStorage", ttl=1800)
+@share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
     # NOTE: 这是临时处理；如果在白名单中，则按照串行处理
     es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
