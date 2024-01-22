@@ -26,6 +26,7 @@ class TriggerHandler(base.BaseHandler):
     DATA_FETCH_TIMEOUT = 5
 
     def handle(self):
+        logger.info("[trigger][latency] start to fetch anomaly_key")
         if self.DATA_FETCH_TIMEOUT:
             anomaly_key = ANOMALY_SIGNAL_KEY.client.brpop(ANOMALY_SIGNAL_KEY.get_key(), self.DATA_FETCH_TIMEOUT)
         else:
@@ -55,6 +56,8 @@ class TriggerHandler(base.BaseHandler):
                 "[get service lock fail] strategy({}), item({}). will process later".format(strategy_id, item_id)
             )
             ANOMALY_SIGNAL_KEY.client.delay("rpush", ANOMALY_SIGNAL_KEY.get_key(), anomaly_key, delay=1)
+            # 如果是获取锁失败，不需要上报指标，直接可以返回
+            return
         except Exception as e:
             exc = e
             logger.exception(
