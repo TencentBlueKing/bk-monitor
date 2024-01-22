@@ -336,6 +336,9 @@
               @mouseleave="row.totalAlarmCount && handleUnresolveLeave()"
               @click="handleGoEventCenter(row)"
               :class="{ 'status-unresolve': !!row.totalAlarmCount }"
+              :style="{
+                backgroundColor: getStatusLabelBgColor(row.alarm_count)
+              }"
             >
               {{ row.totalAlarmCount >= 0 ? row.totalAlarmCount : '--' }}
             </span>
@@ -554,7 +557,7 @@
 import { CreateElement } from 'vue';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import { typeTools } from '../../../../monitor-common/utils/utils.js';
+import { deepClone, typeTools } from '../../../../monitor-common/utils/utils.js';
 // import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue'
 import TipsTpl from '../../../components/abnormal-tips/tips-tpl.vue';
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -563,6 +566,7 @@ import PerformanceModule from '../../../store/modules/performance';
 import MonitorVue from '../../../types/index';
 import ColumnCheck from '../column-check/column-check.vue';
 import { CheckType, ICheck, IPageConfig, ISort, ITableRow } from '../performance-type';
+import { AlarmStatus } from '../types';
 import UnresolveList from '../unresolve-list/unresolve-list.vue';
 
 import IpStatusTips, { handleIpStatusData } from './ip-status-tips';
@@ -1011,6 +1015,35 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     this?.tableRef?.clearSort();
   }
 
+  /**
+   * 根据警告等级调整背景色
+   * 取有告警数且等级最高的
+   * level 越低等级越高。
+   */
+  getStatusLabelBgColor(alarmCount: { count: number; level: number; }[]) {
+    /**
+     * 需要先克隆一次源数据，不然以下操作数组的方法触发重复渲染的警告
+     * You may have an infinite update loop in a component render function
+     */
+    const clonedAlarmCount: typeof alarmCount = deepClone(alarmCount || []);
+
+    // 不确定后端的返回顺序，先按等级排个序，然后就可以取出 level 最低且有告警数量的 level 最后返回 bgColor 。
+    const target = clonedAlarmCount.sort((cur, next) => {
+      return cur.level - next.level;
+    }).find((item) => {
+      return !!item.count;
+    });
+    /** 告警类型对应的颜色 */
+    const alarmColorMap: { [key in AlarmStatus]: string } = {
+      [AlarmStatus.DeadlyAlarm]: '#ea3636',
+      [AlarmStatus.WarningAlarm]: '#ff8000',
+      [AlarmStatus.RemindAlarm]: '#ffd000'
+    };
+    if (target) {
+      return alarmColorMap[target.level] || '';
+    }
+  }
+
   @Emit('empty-status-operation')
   handleOperation(type: EmptyStatusOperationType) {
     return type;
@@ -1196,8 +1229,6 @@ $processColors: #ea3636 #c4c6cc #63656e;
     }
 
     .status-unresolve {
-      background: #ff9c01;
-
       @include hover();
     }
 
