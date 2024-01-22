@@ -264,6 +264,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=essentials["result_table_id"],
         )
         diagram_types = validated_data["diagram_types"]
+        options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         if validated_data.get("is_compared"):
             diff_doris_converter = self._query(
                 bk_biz_id=validated_data['bk_biz_id'],
@@ -277,11 +278,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 result_table_id=essentials["result_table_id"],
             )
             diff_diagram_dicts = (
-                get_diagrammer(d_type).diff(doris_converter, diff_doris_converter) for d_type in diagram_types
+                get_diagrammer(d_type).diff(doris_converter, diff_doris_converter, **options)
+                for d_type in diagram_types
             )
             return Response(data={k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()})
 
-        options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
 
         statistics = doris_converter.statistics_by_time()
@@ -408,24 +409,21 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
-        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-        application_info = self._examine_application(bk_biz_id, app_name)
-
         start, end = self._enlarge_duration(
             validated_data["start"], validated_data["end"], offset=validated_data["offset"]
         )
+        essentials = self._get_essentials(validated_data)
+
         doris_converter = self._query(
-            bk_biz_id=validated_data['bk_biz_id'],
-            app_name=app_name,
-            service_name=service_name,
+            bk_biz_id=essentials["bk_biz_id"],
+            app_name=essentials["app_name"],
+            service_name=essentials["service_name"],
             data_type=validated_data["data_type"],
             start=start,
             end=end,
             profile_id=validated_data.get("profile_id"),
             filter_labels=validated_data.get("filter_labels"),
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=essentials["result_table_id"],
         )
 
         # transfer data
@@ -434,7 +432,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             raise ValueError(f"({export_format}) format is currently not supported")
         now_str = timezone.now().strftime("%Y-%m-%d-%H-%M-%S")
         file_name = PROFILE_EXPORT_FILE_NAME.format(
-            app_name=app_name, data_type=validated_data["data_type"], time=now_str, format=export_format
+            app_name=essentials["app_name"], data_type=validated_data["data_type"], time=now_str, format=export_format
         )
         serialized_data = doris_converter.profile.SerializeToString()
         compressed_data = gzip.compress(serialized_data)
