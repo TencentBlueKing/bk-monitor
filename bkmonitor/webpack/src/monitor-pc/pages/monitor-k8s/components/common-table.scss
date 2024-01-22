@@ -21,18 +21,6 @@
 
 @mixin common-item {
   .string-col {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-all;
-    white-space: nowrap;
-
-    &.has-copy {
-      padding-right: 15px;
-    }
-
     img {
       @include col-img;
     }

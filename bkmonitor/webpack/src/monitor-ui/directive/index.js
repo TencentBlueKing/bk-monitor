@@ -29,10 +29,8 @@ import Authority from './authority';
 import EnClass from './en-class';
 import EnStyle from './en-style';
 import MonitorLoading from './monitor-loading';
-import TextOverflowCopy from './text-overflow-copy';
 
 Vue.use(MonitorLoading);
 Vue.use(Authority);
 Vue.use(EnStyle);
 Vue.use(EnClass);
-Vue.use(TextOverflowCopy);
