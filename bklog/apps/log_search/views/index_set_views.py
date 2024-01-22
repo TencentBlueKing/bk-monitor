@@ -268,24 +268,26 @@ class IndexSetViewSet(ModelViewSet):
         if not request.GET.get("page") or not request.GET.get("pagesize"):
             raise ValueError(_("分页参数不能为空"))
 
+        # 获取当前业务关联空间uid列表
         related_space_uids = []
-        origin_space_uid = request.GET.get("space_uid", "")
-        related_list = []
+        origin_space_uid = request.GET.pop("space_uid", "")
         if origin_space_uid:
-            try:
-                origin_bk_biz_id = space_uid_to_bk_biz_id(origin_space_uid)
-            except Exception:  # pylint: disable=broad-except
-                origin_bk_biz_id = None
+            origin_bk_biz_id = space_uid_to_bk_biz_id(origin_space_uid)
             if origin_bk_biz_id and origin_bk_biz_id > 0:
                 related_space_uids = get_bkcc_biz_id_related_spaces(origin_bk_biz_id)
 
-        for related_space_uid in related_space_uids:
-            request.GET["space_uid"] = related_space_uid
-            related_list.extend(super().list(request, *args, **kwargs).data["list"])
+        queryset = self.filter_queryset(self.get_queryset())
+        if origin_space_uid:
+            related_space_uids.append(origin_space_uid)
+            queryset = queryset.filter(space_uid__in=related_space_uids)
 
-        request.GET["space_uid"] = origin_space_uid
-        response = super().list(request, *args, **kwargs)
-        response.data["list"].extend(related_list)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        response = Response(serializer.data)
         response.data["list"] = IndexSetHandler.post_list(response.data["list"])
         return response
 
