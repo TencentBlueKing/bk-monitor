@@ -30,8 +30,7 @@ def parse_frequency(frequency, last_send_time=None) -> list:
     current_hour = datetime.datetime.today().strftime("%H")
     run_time_strings = []
     if frequency["type"] == 1:
-        if not last_send_time:
-            run_time_strings = [frequency["run_time"]]
+        run_time_strings = [frequency["run_time"]]
     elif frequency["type"] == 5:
         run_time_config = HourFrequencyTime.TIME_CONFIG.get(str(frequency["hour"]))
         if run_time_config:

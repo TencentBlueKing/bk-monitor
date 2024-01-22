@@ -525,10 +525,11 @@ class GetSendRecordsResource(Resource):
         channel_name = serializers.CharField(required=False)
 
     def perform_request(self, validated_request_data):
-        qs = ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"])\
-            .exclude(send_status=SendStatusEnum.NO_STATUS.value)
+        qs = ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"]).exclude(
+            send_status=SendStatusEnum.NO_STATUS.value
+        )
         if validated_request_data.get("channel_name"):
-            qs.filter(channel_name=validated_request_data["channel_name"])
+            qs = qs.filter(channel_name=validated_request_data["channel_name"])
         return list(qs.order_by("-send_time").values())[:100]
 
 
