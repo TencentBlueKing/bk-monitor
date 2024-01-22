@@ -14,7 +14,7 @@ from django.utils.functional import cached_property
 from apm_ebpf.models import DeepflowWorkload
 from apm_web.constants import DataStatus
 from apm_web.models import Application
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import (
     AlgorithmModel,
     BCSCluster,
@@ -107,8 +107,9 @@ class BusinessCollector(BaseCollector):
             interval=60,
             group_by=["bk_biz_id"],
         )
+        query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
         try:
-            records = data_source.query_data(
+            records = query.query_data(
                 start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
             )
         except Exception:
@@ -134,9 +135,9 @@ class BusinessCollector(BaseCollector):
             interval=60,
             group_by=["bk_biz_id"],
         )
-
+        query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
         try:
-            records = data_source.query_data(
+            records = query.query_data(
                 start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
             )
         except Exception:

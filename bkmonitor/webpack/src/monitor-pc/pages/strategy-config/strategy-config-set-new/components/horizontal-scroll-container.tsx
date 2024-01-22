@@ -58,7 +58,7 @@ export default class HorizontalScrollContainer extends tsc<IProps> {
   }
 
   destroyed() {
-    this.resizeObserver.disconnect();
+    this.resizeObserver?.disconnect?.();
   }
 
   handleWatchScroll() {

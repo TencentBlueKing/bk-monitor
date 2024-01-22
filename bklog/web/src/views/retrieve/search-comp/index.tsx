@@ -516,6 +516,16 @@ export default class SearchComp extends tsc<IProps> {
     this.searchAdditionQuery(true, true);
   }
 
+  blurUpdateKeyword(val) {
+    const { params, query: routerQuery } = this.$route;
+    const routeData = {
+      name: 'retrieve',
+      params,
+      query: { ...routerQuery, keyword: val },
+    };
+    this.$router.replace(routeData);
+  }
+
   render() {
     return (
       <div>
@@ -535,6 +545,7 @@ export default class SearchComp extends tsc<IProps> {
                 retrieved-keyword={this.retrievedKeyword}
                 dropdown-data={this.retrieveDropdownData}
                 is-show-ui-type={this.isShowUiType}
+                onKeywordBlurUpdate={this.blurUpdateKeyword}
                 onInputBlur={this.handleBlurSearchInput}
                 onIsCanSearch={val => this.handleUserOperate('isCanStorageFavorite', val)}
                 onRetrieve={this.handleRetrieveLog}
