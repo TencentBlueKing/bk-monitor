@@ -600,7 +600,7 @@ export default class SpaceSelect extends tsc<
                 onChange={this.handleSearchChange}
               ></bk-input>
             </div>
-            <div class='space-type-list-wrap'>
+            <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }]}>
               <ul
                 class={'space-type-list'}
                 ref='typeList'
@@ -672,7 +672,7 @@ export default class SpaceSelect extends tsc<
                         ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
                       </span>
                     )}
-                    {this.currentSpace === item.id && <span class='icon-monitor icon-map-fill cur-position'></span>}
+                    {this.currentSpace === item.id && <span class='icon-monitor icon-dingwei1 cur-position'></span>}
                   </span>
                   <span class='space-tags'>
                     {!!item.noAuth && !item.hasData ? (

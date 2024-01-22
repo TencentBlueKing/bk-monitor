@@ -150,13 +150,13 @@
       width: 16px;
       height: 24px;
       cursor: pointer;
-      background: #182233;
+      background: #fff;
       opacity: 1;
 
       .icon-arrow-left,
       .icon-arrow-right {
         font-size: 20px;
-        color: #959eaf;
+        color: #444f69;
       }
 
       &.disable {
@@ -164,27 +164,8 @@
 
         .icon-arrow-left,
         .icon-arrow-right {
-          color: #444f69;
+          color: #959eaf;
         }
-      }
-    }
-
-    &.light {
-      .pre-btn,
-      .next-btn {
-        background: #fff;
-
-        &.disable {
-          .icon-arrow-left,
-          .icon-arrow-right {
-            color: #959eaf;
-          }
-        }
-      }
-
-      .icon-arrow-left,
-      .icon-arrow-right {
-        color: #444f69;
       }
     }
 
