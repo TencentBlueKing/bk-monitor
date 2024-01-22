@@ -27,7 +27,6 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.api.modules.utils import get_bkcc_biz_id_related_spaces
 from apps.exceptions import ValidationError
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -321,27 +320,10 @@ class CollectorViewSet(ModelViewSet):
 
         if not request.GET.get("page") or not request.GET.get("pagesize"):
             raise ValidationError(_("分页参数不能为空"))
-
-        # 获取当前业务关联空间uid列表
-        origin_bk_biz_id = None
-        related_bk_biz_ids = []
         if request.GET.get("space_uid", ""):
-            origin_bk_biz_id = space_uid_to_bk_biz_id(request.GET["space_uid"])
-            if origin_bk_biz_id and origin_bk_biz_id > 0:
-                related_bk_biz_ids = get_bkcc_biz_id_related_spaces(origin_bk_biz_id, "bk_biz_id")
+            request.GET["bk_biz_id"] = space_uid_to_bk_biz_id(request.GET["space_uid"])
 
-        queryset = self.filter_queryset(self.get_queryset())
-        if origin_bk_biz_id:
-            related_bk_biz_ids.append(origin_bk_biz_id)
-            queryset = queryset.filter(bk_biz_id__in=related_bk_biz_ids)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        response = Response(serializer.data)
+        response = super().list(request, *args, **kwargs)
         response.data["list"] = CollectorHandler.add_cluster_info(response.data["list"])
         response.data["list"] = CollectorHandler.add_tags_info(response.data["list"])
 

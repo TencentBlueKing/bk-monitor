@@ -24,7 +24,6 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.api.modules.utils import get_bkcc_biz_id_related_spaces
 from apps.exceptions import ValidationError
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -49,7 +48,6 @@ from apps.log_search.serializers import (
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
 from bkm_space.serializers import SpaceUIDField
-from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class IndexSetViewSet(ModelViewSet):
@@ -267,27 +265,7 @@ class IndexSetViewSet(ModelViewSet):
         # 强制前端必须传分页参数
         if not request.GET.get("page") or not request.GET.get("pagesize"):
             raise ValueError(_("分页参数不能为空"))
-
-        # 获取当前业务关联空间uid列表
-        related_space_uids = []
-        origin_space_uid = request.GET.pop("space_uid", "")
-        if origin_space_uid:
-            origin_bk_biz_id = space_uid_to_bk_biz_id(origin_space_uid)
-            if origin_bk_biz_id and origin_bk_biz_id > 0:
-                related_space_uids = get_bkcc_biz_id_related_spaces(origin_bk_biz_id)
-
-        queryset = self.filter_queryset(self.get_queryset())
-        if origin_space_uid:
-            related_space_uids.append(origin_space_uid)
-            queryset = queryset.filter(space_uid__in=related_space_uids)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        response = Response(serializer.data)
+        response = super().list(request, *args, **kwargs)
         response.data["list"] = IndexSetHandler.post_list(response.data["list"])
         return response
 
