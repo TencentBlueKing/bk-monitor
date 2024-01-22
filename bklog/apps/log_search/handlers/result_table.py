@@ -71,7 +71,7 @@ class ResultTableHandler(APIModel):
         )
         related_space_uids = []
         related_result = []
-        if bk_biz_id:
+        if bk_biz_id and bk_biz_id > 0:
             related_space_uids = get_bkcc_biz_id_related_spaces(bk_biz_id)
 
         for related_space_uid in related_space_uids:

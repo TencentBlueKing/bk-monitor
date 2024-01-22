@@ -54,7 +54,10 @@ class AbstractSpaceApi(metaclass=abc.ABCMeta):
 
     @classmethod
     def get_related_space_uids(cls, space_uid: str) -> List[str]:
-        space = cls.get_space_detail(space_uid)
+        try:
+            space = cls.get_space_detail(space_uid)
+        except Exception:  # pylint: disable=broad-except
+            space = None
         if space is None:
             return []
         related_space_list = space.extend["resources"]
