@@ -158,7 +158,6 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
    */
   getCollectConfigListItem() {
     const params = {
-      bk_biz_id: 2,
       refresh_status: false,
       order: '-create_time',
       search: {
