@@ -13,7 +13,7 @@ import sys
 from django.apps import AppConfig
 from django.conf import settings
 from django.core.management import call_command
-from django.db import connections
+from django.db import ProgrammingError, connections
 
 from core.errors.errors import MigrateError
 
@@ -69,4 +69,7 @@ class MonitorAPIConfig(AppConfig):
             # healthz_metric.run(apps)
 
         # 迁移IAM
-        Migrator("iam", "bkmonitor.iam.migrations").migrate()
+        try:
+            Migrator("iam", "bkmonitor.iam.migrations").migrate()
+        except ProgrammingError:
+            pass
