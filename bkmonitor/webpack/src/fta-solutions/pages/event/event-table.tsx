@@ -28,7 +28,6 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Checkbox, Pagination, Popover, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { checkAllowedByActionIds } from '../../../monitor-api/modules/iam';
@@ -94,9 +93,7 @@ export interface IShowDetail {
   type: TSliderType;
   activeTab?: string;
 }
-@Component({
-  components: { Popover, Pagination, Checkbox }
-})
+@Component
 export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> {
   @Prop({ required: true }) tableData: IEventItem[];
   @Prop({ required: true }) pagination: IPagination;
@@ -106,7 +103,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   @Prop({ required: true, type: String }) searchType: SearchType;
   @Prop({ type: Array, default: () => [] }) selectedList: string[];
 
-  @Ref('table') tableRef: Table;
+  @Ref('table') tableRef: any;
   @Ref('moreItems') moreItemsRef: HTMLDivElement;
 
   eventStatusMap: Record<string, IEventStatusMap> = {};
@@ -133,6 +130,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   popoperOperateIndex = -1;
   opetateRow = null;
   enableCreateChatGroup = false;
+  /* 关注人禁用操作 */
+  followerDisabled = false;
   get tableColumnMap() {
     return this.alertColumns.reduce((pre, cur) => {
       if (cur.disabled || cur.checked) {
@@ -500,7 +499,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         },
         {
           id: 'tags',
-          name: this.$t('标签'),
+          name: this.$t('维度'),
           disabled: false,
           checked: false,
           props: {
@@ -542,6 +541,18 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             minWidth: 200,
             formatter: (row: IEventItem) =>
               row.assignee?.map(assginne => <span class='tag-item'>{assginne}</span>) || '--'
+          }
+        },
+        {
+          id: 'follower',
+          name: this.$t('关注人'),
+          disabled: false,
+          checked: true,
+          props: {
+            width: 200,
+            minWidth: 200,
+            formatter: (row: IEventItem) =>
+              row.follower?.map(follower => <span class='tag-item'>{follower}</span>) || '--'
           }
         },
         // {
@@ -751,6 +762,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   @Emit('selectChange')
   handleSelectChange(selectList: IEventItem[]) {
     this.selectedCount = selectList?.length || 0;
+    this.followerDisabled = selectList.some(item => item.followerDisabled);
     return selectList.map(item => item.id);
   }
   /**
@@ -1017,11 +1029,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   }
 
   /* 告警确认文案 */
-  askTipMsg(isAak, status, ackOperator) {
+  askTipMsg(isAak, status, ackOperator, followerDisabled) {
     const statusNames = {
       RECOVERED: this.$t('告警已恢复'),
       CLOSED: this.$t('告警已关闭')
     };
+    if (followerDisabled) {
+      return this.$t('关注人禁用此操作');
+    }
     if (!isAak) {
       return statusNames[status];
     }
@@ -1056,7 +1071,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     const columList = [];
     if (this.searchType === 'alert') {
       columList.push(
-        <TableColumn
+        <bk-table-column
           type='selection'
           width='50'
           minWidth='50'
@@ -1071,7 +1086,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           // 告警id
           if (column.id === 'id') {
             return (
-              <TableColumn
+              <bk-table-column
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1093,7 +1108,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           // 告警状态
           if (column.id === 'status') {
             return (
-              <TableColumn
+              <bk-table-column
                 class-name='status-cell'
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
@@ -1101,7 +1116,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 {...{ props: column.props }}
                 scopedSlots={{
                   default: ({
-                    row: { status, is_ack: isAck, ack_operator: ackOperator },
+                    row: { status, is_ack: isAck, ack_operator: ackOperator, followerDisabled },
                     $index,
                     row
                   }: {
@@ -1138,25 +1153,38 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         <span
                           class={[
                             'operate-panel-item icon-monitor icon-duihao',
-                            { 'is-disable': isAck || ['RECOVERED', 'CLOSED'].includes(status) }
+                            { 'is-disable': isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled }
                           ]}
                           on-click={() =>
-                            !isAck && !['RECOVERED', 'CLOSED'].includes(status) && this.handleAlertConfirm(row)
+                            !isAck &&
+                            !['RECOVERED', 'CLOSED'].includes(status) &&
+                            !followerDisabled &&
+                            this.handleAlertConfirm(row)
                           }
                           v-bk-tooltips={{
                             content:
-                              isAck || ['RECOVERED', 'CLOSED'].includes(status)
-                                ? this.askTipMsg(isAck, status, ackOperator)
+                              isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled
+                                ? this.askTipMsg(isAck, status, ackOperator, followerDisabled)
                                 : this.$t('告警确认'),
                             delay: 200,
-                            appendTo: 'parent'
+                            appendTo: 'parent',
+                            allowHTML: false
                           }}
                         />
                         <span
-                          class='operate-panel-item icon-monitor icon-chuli'
+                          class={[
+                            'operate-panel-item icon-monitor icon-chuli',
+                            {
+                              'is-disable': followerDisabled
+                            }
+                          ]}
                           // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                          onClick={() => this.handleManualProcess(row)}
-                          v-bk-tooltips={{ content: this.$t('手动处理'), delay: 200, appendTo: 'parent' }}
+                          onClick={() => !followerDisabled && this.handleManualProcess(row)}
+                          v-bk-tooltips={{
+                            content: followerDisabled ? this.$t('关注人禁用此操作') : this.$t('手动处理'),
+                            delay: 200,
+                            appendTo: 'parent'
+                          }}
                         />
                         {/* <span class="operate-panel-item icon-monitor icon-mc-alarm-abnormal"/> */}
                         {/* <span
@@ -1180,7 +1208,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           // 关联信息
           if (column.id === 'extend_info') {
             return (
-              <TableColumn
+              <bk-table-column
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1201,7 +1229,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
           if (column.id === 'event_count') {
             return (
-              <TableColumn
+              <bk-table-column
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1209,12 +1237,12 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 scopedSlots={{
                   default: ({ row }: { row: IEventItem }) =>
                     row.event_count > -1 ? (
-                      <Button
+                      <bk-button
                         onClick={() => this.handleClickEventCount(row)}
                         text={true}
                       >
                         {row.event_count}
-                      </Button>
+                      </bk-button>
                     ) : (
                       '--'
                     )
@@ -1224,7 +1252,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
           if (column.id === 'description') {
             return (
-              <TableColumn
+              <bk-table-column
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1257,7 +1285,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         } else {
           if (column.id === 'id') {
             return (
-              <TableColumn
+              <bk-table-column
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1278,7 +1306,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
           if (column.id === 'alert_count' || column.id === 'converge_count') {
             return (
-              <TableColumn
+              <bk-table-column
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1286,14 +1314,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 scopedSlots={{
                   default: ({ row }: { row: IEventItem }) =>
                     row[column.id] > 0 ? (
-                      <Button
+                      <bk-button
                         onClick={() =>
                           this.handleClickActionCount(column.id === 'alert_count' ? 'trigger' : 'defense', row)
                         }
                         text={true}
                       >
                         {row[column.id]}
-                      </Button>
+                      </bk-button>
                     ) : (
                       '0'
                     )
@@ -1303,7 +1331,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
           if (column.id === 'content') {
             return (
-              <TableColumn
+              <bk-table-column
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1318,7 +1346,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
         }
         return (
-          <TableColumn
+          <bk-table-column
             key={`${this.searchType}_${column.id}`}
             label={column.name}
             prop={column.id}
@@ -1332,7 +1360,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   render() {
     return (
       <div>
-        <Table
+        <bk-table
           data={this.tableData}
           class='event-table'
           size={this.tableSize}
@@ -1366,18 +1394,19 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 </span>
               </i18n>
               {this.tableToolList.map(item => (
-                <Button
+                <bk-button
                   key={item.id}
                   slot='count'
                   text={true}
                   theme='primary'
+                  disabled={item.id === 'chat' ? false : this.followerDisabled}
                   class='table-prepend-clear'
-                  onClick={() => this.handleBatchSet(item.id)}
+                  onClick={() => !(item.id === 'chat' ? false : this.followerDisabled) && this.handleBatchSet(item.id)}
                 >
                   {item.name}
-                </Button>
+                </bk-button>
               ))}
-              <Button
+              <bk-button
                 slot='count'
                 text={true}
                 theme='primary'
@@ -1385,15 +1414,15 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 onClick={this.handleClearSelected}
               >
                 {this.$t('取消')}
-              </Button>
+              </bk-button>
             </div>
           )}
           {this.handleGetColumns()}
-          <TableColumn
+          <bk-table-column
             type='setting'
             key={`${this.tableKey}_${this.searchType}`}
           >
-            <TableSettingContent
+            <bk-table-setting-content
               class='event-table-setting'
               fields={this.tableColumn}
               value-key='id'
@@ -1401,8 +1430,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               selected={this.tableColumn.filter(item => item.checked || item.disabled)}
               on-setting-change={this.handleSettingChange}
             />
-          </TableColumn>
-        </Table>
+          </bk-table-column>
+        </bk-table>
         {this.getMoreOperate()}
       </div>
     );
@@ -1416,22 +1445,39 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           ref='moreItems'
         >
           <div
-            class={['more-item', { 'is-disable': this.opetateRow?.is_shielded }]}
+            class={['more-item', { 'is-disable': this.opetateRow?.is_shielded || this.opetateRow?.followerDisabled }]}
             v-bk-tooltips={{
-              content: this.opetateRow?.is_shielded
-                ? `${this.opetateRow.shield_operator?.[0] || ''}${this.$t('已屏蔽')}`
-                : '',
+              content: (() => {
+                if (this.opetateRow?.followerDisabled) {
+                  return this.$t('关注人禁用此操作');
+                }
+                return this.opetateRow?.is_shielded
+                  ? `${this.opetateRow.shield_operator?.[0] || ''}${this.$t('已屏蔽')}`
+                  : '';
+              })(),
               delay: 200,
-              appendTo: () => document.body
+              placements: ['left'],
+              appendTo: () => document.body,
+              allowHTML: false
             }}
-            on-click={() => !this.opetateRow?.is_shielded && this.handleQuickShield(this.opetateRow)}
+            on-click={() =>
+              !this.opetateRow?.is_shielded &&
+              !this.opetateRow?.followerDisabled &&
+              this.handleQuickShield(this.opetateRow)
+            }
           >
             <span class='icon-monitor icon-mc-notice-shield'></span>
             <span>{window.i18n.t('快捷屏蔽')}</span>
           </div>
 
           <div
-            class='more-item'
+            class={['more-item', { 'is-disable': this.opetateRow?.followerDisabled }]}
+            v-bk-tooltips={{
+              content: this.opetateRow?.followerDisabled ? this.$t('关注人禁用此操作') : '',
+              delay: 200,
+              placements: ['left'],
+              appendTo: () => document.body
+            }}
             on-click={() => this.handleAlarmDispatch(this.opetateRow)}
           >
             <span class='icon-monitor icon-fenpai'></span>

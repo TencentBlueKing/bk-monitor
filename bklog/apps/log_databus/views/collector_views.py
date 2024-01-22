@@ -59,6 +59,7 @@ from apps.log_databus.serializers import (
     CustomUpdateSerializer,
     FastCollectorCreateSerializer,
     FastCollectorUpdateSerializer,
+    GetBCSCollectorStorageSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
     ListCollectorsByHostSerializer,
@@ -2049,6 +2050,19 @@ class CollectorViewSet(ModelViewSet):
                 bcs_cluster_id=data["bcs_cluster_id"],
                 bk_biz_id=data.get("bk_biz_id"),
                 bk_app_code=auth_info["bk_app_code"],
+            )
+        )
+
+    @list_route(methods=["GET"], url_path="get_bcs_collector_storage")
+    def get_bcs_collector_storage(self, request):
+        auth_info = Permission.get_auth_info(request, raise_exception=False)
+        if not auth_info:
+            raise BkJwtVerifyException()
+        data = self.params_valid(GetBCSCollectorStorageSerializer)
+        return Response(
+            CollectorHandler().get_bcs_collector_storage(
+                bcs_cluster_id=data["bcs_cluster_id"],
+                bk_biz_id=data.get("bk_biz_id"),
             )
         )
 

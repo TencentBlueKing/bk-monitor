@@ -300,7 +300,6 @@ class CollectConfigMeta(OperateRecordModelBase):
 
     @property
     def data_id(self):
-
         if self.collect_type == self.CollectType.PROCESS:
             # 进程采集对应dataid 有两个，通过ProcessPluginManager.perf_data_id 和 port_data_id获取
             return None
@@ -592,7 +591,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
     # 主机实例
     # [
     #     {
-    #         'ip': '10.0.0.1',
+    #         'ip': '127.0.0.1',
     #         'bk_cloud_id': 0,
     #         'bk_supplier_id': 0,
     #     }
@@ -601,7 +600,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
 
     # 远程采集，若为空则代表不使用远程采集模式
     # {
-    #     'ip': '10.0.0.1',
+    #     'ip': '127.0.0.1',
     #     'bk_cloud_id': 0,
     #     'bk_supplier_id': 0,
     #     'is_collecting_only': True  # 是否为采集专用机器

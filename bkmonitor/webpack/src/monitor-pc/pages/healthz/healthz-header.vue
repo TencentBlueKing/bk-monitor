@@ -28,10 +28,10 @@
     class="pattern"
     style="margin-bottom: 15px"
   >
-    <a
+    <!-- <a
       @click="$emit('update:msg', 0)"
       :class="msg === 0 ? 'list' : 'error-btn'"
-    > {{ $t('服务状态') }} </a>
+    > {{ $t('服务状态') }} </a> -->
     <a
       v-if="isAdmin"
       @click="$emit('update:msg', 1)"

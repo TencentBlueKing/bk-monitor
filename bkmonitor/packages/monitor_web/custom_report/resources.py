@@ -576,8 +576,11 @@ class ProxyHostInfo(Resource):
 
     DEFAULT_PROXY_PORT = 10205
 
+    def get_listen_port(self):
+        return getattr(settings, "BK_MONITOR_PROXY_LISTEN_PORT", ProxyHostInfo.DEFAULT_PROXY_PORT)
+
     def perform_request(self, validated_request_data):
-        port = getattr(settings, "BK_MONITOR_PROXY_LISTEN_PORT", ProxyHostInfo.DEFAULT_PROXY_PORT)
+        port = self.get_listen_port()
         proxy_host_info = []
         bk_biz_id = validated_request_data["bk_biz_id"]
         proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
@@ -896,11 +899,14 @@ class CustomTimeSeriesDetail(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        model_only = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(pk=params["time_series_group_id"])
         serializer = CustomTSTableSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
+        if params.get("model_only"):
+            return data
         label_display_dict = get_label_display_dict()
         data["scenario_display"] = label_display_dict.get(data["scenario"], [data["scenario"]])
         data["access_token"] = config.token

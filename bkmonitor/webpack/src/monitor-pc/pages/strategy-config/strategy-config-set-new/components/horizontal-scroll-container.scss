@@ -58,4 +58,16 @@
       font-size: 24px;
     }
   }
+
+  &.small-btn {
+    padding: 0 16px;
+
+    .pre,
+    .next {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+    }
+  }
 }

@@ -161,6 +161,7 @@
                         >
                           {{ item?.value === null ? '--' : item.value }}
                           <img
+                            alt=''
                             v-if="tdIndex > 0 && (item?.max || item?.min)"
                             class="item-max-min"
                             :src="require(`../../static/images/svg/${item?.min ? 'min.svg' : 'max.svg'}`)"
@@ -239,9 +240,11 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
-    this.compareValue.tools.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
+      this.compareValue.tools.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {

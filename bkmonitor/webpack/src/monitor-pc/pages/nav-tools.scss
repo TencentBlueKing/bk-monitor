@@ -126,11 +126,13 @@
 
     .header-user-text {
       line-height: 32px;
+      color: #96a2b9;
     }
 
     .bk-icon {
       margin-left: 5px;
       font-size: 12px;
+      color: #96a2b9;
     }
 
     &.is-left {
@@ -138,8 +140,11 @@
     }
 
     &:hover {
-      color: #d3d9e4;
-      cursor: pointer;
+      .header-user-text,
+      .bk-icon {
+        color: #d3d9e4;
+        cursor: pointer;
+      }
     }
   }
 }

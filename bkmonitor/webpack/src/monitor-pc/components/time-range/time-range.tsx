@@ -26,6 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import DatePicker from '@blueking/date-picker/vue2';
+import { type Dayjs } from 'dayjs';
 
 import { updateTimezone } from '../../i18n/dayjs';
 
@@ -35,12 +36,15 @@ import '@blueking/date-picker/dist/vue2-full.css';
 
 export type TimeRangeType = [string, string];
 
+export type DateValue = [Dayjs | number | string, Dayjs | number | string];
+
 type TimeRangeDisplayType = 'normal' | 'simplicity';
 interface IProps {
   value: TimeRangeType;
   type?: TimeRangeDisplayType;
   timezone?: string;
   needTimezone?: boolean;
+  commonUseList?: DateValue[];
 }
 interface IEvents {
   onChange: TimeRangeType;
@@ -53,6 +57,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
   @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
+  @Prop({ default: () => [], type: Array }) commonUseList: DateValue[]; // 常用列表
+
   @Emit('change')
   handleModelValueChange(v: TimeRangeType) {
     return v;
@@ -71,6 +77,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           timezone={this.timezone}
           needTimezone={this.needTimezone}
           behavior={this.type}
+          commonUseList={this.commonUseList}
           onChange={this.handleModelValueChange}
           onTimezoneChange={this.handleTimezoneChange}
         />

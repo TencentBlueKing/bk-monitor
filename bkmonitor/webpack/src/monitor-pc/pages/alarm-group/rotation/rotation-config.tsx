@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Checkbox, Input } from 'bk-magic-vue';
 
 import { listDutyRule } from '../../../../monitor-api/modules/model';
 import { previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
@@ -498,7 +497,7 @@ export default class RotationConfig extends tsc<IProps> {
     return (
       <div class='alarm-group-rotation-config-component'>
         <div class='add-wrap'>
-          <Button
+          <bk-button
             outline
             theme='primary'
             loading={this.dutyLoading}
@@ -506,7 +505,7 @@ export default class RotationConfig extends tsc<IProps> {
           >
             <span class='icon-monitor icon-plus-line'></span>
             <span class='fs-12'>{this.$t('值班规则')}</span>
-          </Button>
+          </bk-button>
           <span class='icon-monitor icon-tishi'></span>
           <span class='tip-text'>{this.$t('排在前面的规则优先级高')}</span>
         </div>
@@ -636,14 +635,14 @@ export default class RotationConfig extends tsc<IProps> {
             ref='wrap'
           >
             <div class='header-wrap'>
-              <Input
+              <bk-input
                 value={this.search}
                 placeholder={this.$t('可输入规则名称，标签搜索')}
                 left-icon='bk-icon icon-search'
                 behavior='simplicity'
                 clearable
                 onChange={this.handleSearchChange}
-              ></Input>
+              ></bk-input>
             </div>
             <div class='content-wrap'>
               {!this.showNoData ? (
@@ -656,10 +655,10 @@ export default class RotationConfig extends tsc<IProps> {
                       onClick={() => this.handleSelectOption(item)}
                     >
                       <div onClick={(e: Event) => e.stopPropagation()}>
-                        <Checkbox
+                        <bk-checkbox
                           value={item.isCheck}
                           onChange={v => this.handleCheckOption(v, item)}
-                        ></Checkbox>
+                        ></bk-checkbox>
                       </div>
                       <span
                         class='item-name'
@@ -699,6 +698,7 @@ export default class RotationConfig extends tsc<IProps> {
                   <img
                     class='loading-icon'
                     src={loadingIcon}
+                    alt=''
                   ></img>
                 ) : (
                   <span class='icon-monitor icon-zhongzhi1'></span>

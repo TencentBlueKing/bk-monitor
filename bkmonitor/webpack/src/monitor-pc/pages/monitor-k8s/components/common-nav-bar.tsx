@@ -26,7 +26,7 @@
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import TemporaryShare from '../../../components/temporary-share/temporary-share';
+// import TemporaryShare from '../../../components/temporary-share/temporary-share';
 import { INavItem, IRouteBackItem } from '../typings';
 
 import './common-nav-bar.scss';
@@ -43,7 +43,13 @@ interface ICommonNavBarProps {
 }
 export type NavBarMode = 'copy' | 'share' | 'display';
 
-@Component
+@Component({
+  name: 'CommonNavBar',
+  components: {
+    TemporaryShare: () =>
+      import(/* webpackChunkName: "TemporaryShare" */ '../../../components/temporary-share/temporary-share') as any
+  }
+})
 export default class CommonNavBar extends tsc<ICommonNavBarProps> {
   @Prop({ type: Array, default: () => [] }) routeList: INavItem[];
   @Prop({ type: Boolean, default: undefined }) needBack: boolean;
