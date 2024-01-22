@@ -102,7 +102,7 @@ class TriggerProcessor(object):
                     if latency > 60:
                         # 如果当前的处理延迟大于1min, 打印一行日志出来
                         logger.info(
-                            "[push_event_to_kafka] big latency %s， detect time(%s),  strategy({})",
+                            "[push_event_to_kafka] big latency %s， detect time(%s),  strategy(%s)",
                             latency,
                             detect_time,
                             self.strategy_id,
