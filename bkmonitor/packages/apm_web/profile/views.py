@@ -94,7 +94,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
 
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
         try:
-            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
+            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(data, key=uploaded.name)
         except Exception as e:
             logger.exception("failed to upload file to bkrepo")
             raise Exception(_("上传文件失败， 失败原因: {}").format(e))
