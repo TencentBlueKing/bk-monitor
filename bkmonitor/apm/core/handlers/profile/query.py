@@ -88,6 +88,11 @@ class ProfileQueryBuilder:
         return self
 
     def with_time(self, start, end):
+        if len(str(start)) == 10:
+            start = start * 1000
+        if len(str(end)) == 10:
+            end = end * 1000
+
         if self.api_params.start:
             logger.warning(f"[ProfileQuery] start_time: {self.api_params.start} found, overwrite")
         self.api_params.start = start
@@ -131,7 +136,9 @@ class ProfileQueryBuilder:
                     "api_params": self.api_params.to_json(),
                     "result_table_id": self.table_name,
                 }
-            )
+            ),
+            "prefer_storage": "doris",
+            "_user_request": True,
         }
         logger.info(f"[ProfileQuery] origin_params: \n{json.dumps(params)}\n")
         response = api.bkdata.query_data(**params)
