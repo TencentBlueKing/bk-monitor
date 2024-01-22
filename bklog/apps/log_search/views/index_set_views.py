@@ -24,6 +24,7 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
+from apps.api.modules.utils import get_bkcc_biz_id_related_spaces
 from apps.exceptions import ValidationError
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -48,6 +49,7 @@ from apps.log_search.serializers import (
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
 from bkm_space.serializers import SpaceUIDField
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class IndexSetViewSet(ModelViewSet):
@@ -265,7 +267,20 @@ class IndexSetViewSet(ModelViewSet):
         # 强制前端必须传分页参数
         if not request.GET.get("page") or not request.GET.get("pagesize"):
             raise ValueError(_("分页参数不能为空"))
+
+        related_space_uids = []
+        origin_space_uid = request.GET.get("space_uid", "")
+        related_list = []
+        if origin_space_uid:
+            related_space_uids = get_bkcc_biz_id_related_spaces(space_uid_to_bk_biz_id(origin_space_uid))
+
+        for related_space_uid in related_space_uids:
+            request.GET["space_uid"] = related_space_uid
+            related_list.extend(super().list(request, *args, **kwargs).data["list"])
+
+        request.GET["space_uid"] = origin_space_uid
         response = super().list(request, *args, **kwargs)
+        response.data["list"].extend(related_list)
         response.data["list"] = IndexSetHandler.post_list(response.data["list"])
         return response
 

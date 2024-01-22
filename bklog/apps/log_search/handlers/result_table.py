@@ -21,24 +21,29 @@ the project delivered to anyone in the future.
 """
 from typing import List
 
-from apps.log_search.constants import TraceMatchResult, TraceMatchFieldType
+from apps.api import BkDataAuthApi, BkLogApi
+from apps.api.modules.utils import (
+    get_bkcc_biz_id_related_spaces,
+    get_non_bkcc_space_related_bkcc_biz_id,
+)
+from apps.log_search.constants import TraceMatchFieldType, TraceMatchResult
 from apps.log_search.exceptions import (
+    FieldsTypeConsistencyException,
     IndexCrossBusinessException,
     IndexCrossClusterException,
-    FieldsTypeConsistencyException,
     MappingEmptyException,
 )
+from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import Scenario
 from apps.log_trace.handlers.trace_field_handlers import (
-    TRACE_SUGGEST_FIELD,
     LOG_FIELD_ADAPTER_META,
     TRACE_DESC_MAPPING,
+    TRACE_SUGGEST_FIELD,
 )
 from apps.utils import APIModel
-from apps.api import BkLogApi, BkDataAuthApi
-from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.utils.db import array_group
 from apps.utils.local import get_request_username
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class ResultTableHandler(APIModel):
@@ -64,6 +69,26 @@ class ResultTableHandler(APIModel):
                 "with_storage": True,
             }
         )
+        related_space_uids = []
+        related_result = []
+        if bk_biz_id:
+            related_space_uids = get_bkcc_biz_id_related_spaces(bk_biz_id)
+
+        for related_space_uid in related_space_uids:
+            related_result.extend(
+                BkLogApi.indices(
+                    {
+                        "bk_biz_id": space_uid_to_bk_biz_id(related_space_uid),
+                        "indices": result_table_id,
+                        "scenario_id": self.scenario_id,
+                        "storage_cluster_id": self.storage_cluster_id,
+                        "with_storage": True,
+                    }
+                )
+            )
+
+        if related_result:
+            result.extend(related_result)
 
         # 如果是数据平台则只显示用户有管理权限的RT列表
         if self.scenario_id == Scenario.BKDATA:
@@ -143,10 +168,14 @@ class ResultTableHandler(APIModel):
             if not basic_storage_id or not append_storage_id or basic_storage_id != append_storage_id:
                 raise IndexCrossClusterException()
 
+            cluster_bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(basic_detail["bk_biz_id"])
+            related_bk_biz_ids = get_bkcc_biz_id_related_spaces(cluster_bk_biz_id, "bk_biz_id")
+            related_bk_biz_ids.append(cluster_bk_biz_id)
+
             if (
                 not basic_detail["bk_biz_id"]
                 or not append_detail["bk_biz_id"]
-                or basic_detail["bk_biz_id"] != append_detail["bk_biz_id"]
+                or append_detail["bk_biz_id"] not in related_bk_biz_ids
             ):
                 raise IndexCrossBusinessException()
 

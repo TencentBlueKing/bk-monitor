@@ -27,6 +27,7 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
+from apps.api.modules.utils import get_bkcc_biz_id_related_spaces
 from apps.exceptions import ValidationError
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -320,10 +321,22 @@ class CollectorViewSet(ModelViewSet):
 
         if not request.GET.get("page") or not request.GET.get("pagesize"):
             raise ValidationError(_("分页参数不能为空"))
-        if request.GET.get("space_uid", ""):
-            request.GET["bk_biz_id"] = space_uid_to_bk_biz_id(request.GET["space_uid"])
 
+        origin_bk_biz_id = None
+        related_bk_biz_ids = []
+        related_list = []
+        if request.GET.get("space_uid", ""):
+            origin_bk_biz_id = space_uid_to_bk_biz_id(request.GET["space_uid"])
+            if origin_bk_biz_id:
+                related_bk_biz_ids = get_bkcc_biz_id_related_spaces(origin_bk_biz_id, "bk_biz_id")
+
+        for related_bk_biz_id in related_bk_biz_ids:
+            request.GET["bk_biz_id"] = related_bk_biz_id
+            related_list.extend(super().list(request, *args, **kwargs).data["list"])
+
+        request.GET["bk_biz_id"] = origin_bk_biz_id
         response = super().list(request, *args, **kwargs)
+        response.data["list"].extend(related_list)
         response.data["list"] = CollectorHandler.add_cluster_info(response.data["list"])
         response.data["list"] = CollectorHandler.add_tags_info(response.data["list"])
 
