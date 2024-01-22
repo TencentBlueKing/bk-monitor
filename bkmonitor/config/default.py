@@ -1356,3 +1356,6 @@ INNER_COLLOCTOR_HOST = ""
 
 # 外网collector域名
 OUTER_COLLOCTOR_HOST = ""
+
+# ES 需要串行的集群的白名单
+ES_SERIAL_CLUSTER_LIST = []
