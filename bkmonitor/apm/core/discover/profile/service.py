@@ -25,7 +25,6 @@ class ServiceDiscover(Discover):
     # TODO
     #  1. 目前实现可能是临时方案 后续支持SQL查询时使用distinct+group_by实现
     #  2. Bkbase 暂不支持时间过滤 service 接口所以这里查询了所有出现过的 service
-    SERVICE_LIMIT_OFFSET = 10
 
     @classmethod
     def get_name(cls):
