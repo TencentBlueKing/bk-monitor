@@ -38,7 +38,10 @@
           <i class="icon bk-icon icon-eye"></i>
           <span>{{ $t('查询命中pattern的日志') }}</span>
         </span>
-        <div class="new-link" @click.stop="handleClick('show original', true)">
+        <div
+          class="new-link"
+          v-bk-tooltips="$t('新开标签页')"
+          @click.stop="handleClick('show original', true)">
           <i class="log-icon icon-jump"></i>
         </div>
       </div>
