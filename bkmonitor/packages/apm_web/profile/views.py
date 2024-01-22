@@ -87,13 +87,14 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        md5 = hashlib.md5(uploaded.name).hexdigest()
+        data = uploaded.read()
+        md5 = hashlib.md5(data).hexdigest()
         if ProfileUploadRecord.objects.filter(file_md5=md5).exists():
             raise ValueError(_("相同文件已上传"))
 
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
         try:
-            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(uploaded, key=uploaded.name)
+            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(data, key=uploaded.name)
         except Exception as e:
             logger.exception("failed to upload file to bkrepo")
             raise Exception(_("上传文件失败， 失败原因: {}").format(e))
