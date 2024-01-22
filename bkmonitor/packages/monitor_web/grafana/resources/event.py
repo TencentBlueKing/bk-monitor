@@ -90,8 +90,23 @@ class GetAlarmEventField(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        where = serializers.ListField(label="查询条件", default=[])
+        group_by = serializers.ListField(label="维度")
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+        interval = serializers.CharField(label="时间间隔", default="auto")
 
     def perform_request(self, params):
+        handler = AlertQueryHandler(
+            bk_biz_ids=[params["bk_biz_id"]],
+            conditions=params["where"],
+            start_time=params["start_time"],
+            end_time=params["end_time"],
+        )
+        tags = handler.list_tags()
+        for tag in tags:
+            tag["is_dimension"] = True
+
         return [
             {"id": "severity", "name": _("告警级别"), "is_dimension": True},
             {"id": "status", "name": _("告警状态"), "is_dimension": True},

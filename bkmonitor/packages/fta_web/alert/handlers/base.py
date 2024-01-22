@@ -404,7 +404,7 @@ class BaseQueryHandler:
             tag_key = actual_field[len("tags.") :]
 
             # 进行桶聚合
-            (
+            new_search_object = (
                 search_object.bucket(field, "nested", path="event.tags")
                 .bucket("key", "filter", {"term": {"event.tags.key": tag_key}})
                 .bucket(
@@ -425,14 +425,14 @@ class BaseQueryHandler:
             agg_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
             if agg_field == "duration":
                 # 对于Duration，需要进行范围桶聚合
-                search_object.bucket(
+                new_search_object = search_object.bucket(
                     field,
                     "range",
                     ranges=list(self.DurationOption.AGG.values()),
                     field=agg_field,
                 )
             else:
-                search_object.bucket(
+                new_search_object = search_object.bucket(
                     field,
                     "terms",
                     field=agg_field,
@@ -442,7 +442,7 @@ class BaseQueryHandler:
             if bucket_count_suffix:
                 search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
 
-        return search_object
+        return new_search_object
 
     def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None):
         """
@@ -480,9 +480,7 @@ class BaseQueryHandler:
         bucket_count_suffix = ".bucket_count"
 
         for field in fields:
-            self.add_agg_bucket(
-                search_object.aggs, field, size=size, bucket_count_suffix=bucket_count_suffix
-            )
+            self.add_agg_bucket(search_object.aggs, field, size=size, bucket_count_suffix=bucket_count_suffix)
 
         search_result = search_object.execute()
 
