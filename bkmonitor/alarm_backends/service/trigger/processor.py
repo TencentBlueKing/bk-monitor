@@ -85,6 +85,12 @@ class TriggerProcessor(object):
                         self.strategy_id, self.item_id, len(self.anomaly_points)
                     )
                 )
+        else:
+            logger.warning(
+                "[pull anomaly record] strategy({}), item({}) pull {} record".format(
+                    self.strategy_id, self.item_id, len(self.anomaly_points)
+                )
+            )
 
     def push_event_to_redis(self, event_records):
         pipeline = TRIGGER_EVENT_LIST_KEY.client.pipeline(transaction=False)
