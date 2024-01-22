@@ -1026,9 +1026,7 @@ export default {
               // case 'start_time':
               // case 'end_time':
               // case 'time_range':
-                if (this.retrieveParams[field] !== '') {
-                  queryParamsStr[field] = encodeURIComponent(this.retrieveParams[field]);
-                }
+                queryParamsStr[field] = this.retrieveParams[field] === '' ? '*' : encodeURIComponent(this.retrieveParams[field]);
                 break;
               case 'host_scopes':
                 if (this.retrieveParams[field].ips !== ''
@@ -1064,8 +1062,7 @@ export default {
         spaceUid: this.$store.state.spaceUid,
         bizId: this.$store.state.bkBizId,
         ...queryParamsStr,
-        // 由于要缓存过滤条件 解构route的query时会把缓存的pickerTimeRange参数携带上，故重新更新pickerTimeRange参数
-        // pickerTimeRange: queryParamsStr?.pickerTimeRange,
+        keyword: queryParamsStr?.keyword,
       };
       this.$router.push({
         name: 'retrieve',
