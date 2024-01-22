@@ -188,7 +188,8 @@ export default defineComponent({
       const fileType = getFileType(file.name);
       const params = {
         file_type: fileType,
-        file
+        file,
+        global_query: 1
       };
       const cancelTokenSource = axios.CancelToken.source();
       cancelObj[file.uid] = cancelTokenSource;

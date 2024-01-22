@@ -180,7 +180,7 @@ export default defineComponent({
       return {
         start: start * 1000 * 1000,
         end: end * 1000 * 1000,
-        ...server,
+        ...(searchState.formData.type === SearchType.Upload ? {} : server),
         is_compared: isComparison,
         filter_label: where.reduce((pre, cur) => {
           if (cur.key && cur.value) pre[cur.key] = cur.value;
