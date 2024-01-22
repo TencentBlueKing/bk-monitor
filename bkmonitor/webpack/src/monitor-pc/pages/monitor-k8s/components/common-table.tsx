@@ -47,6 +47,7 @@ import {
 import CommonStatus from './common-status/common-status';
 import CommonTagList from './common-tag-list/common-tag-list';
 import MoreOperate from './more-operate/more-operate';
+import TextOverflowCopy from './text-overflow-copy/text-overflow-copy';
 
 import './common-table.scss';
 
@@ -222,19 +223,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (typeof val !== 'number' && !val) return '--';
     return (
       <span class='string-col'>
-        {val.icon ? (
-          val.icon.length > 30 ? (
-            <img
-              src={val.icon}
-              alt=''
-            />
-          ) : (
-            <i class={['icon-monitor', 'string-icon', val.icon]} />
-          )
-        ) : (
-          ''
-        )}
-        {Array.isArray(val) ? val.join(',') : val}
+        <TextOverflowCopy val={val}></TextOverflowCopy>
       </span>
     );
   }
