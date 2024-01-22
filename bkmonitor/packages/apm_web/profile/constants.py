@@ -19,6 +19,8 @@ EXPORT_FORMAT_MAP = {"pprof": "pprof"}
 # may fetch from apm API in the future
 BUILTIN_APP_NAME = "builtin_profile_app"
 
+DESCRIBING_SAMPLE_UNIT = "count"
+
 
 class InputType(Enum):
     PPROF = "pprof"

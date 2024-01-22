@@ -8,11 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import ClassVar, Optional
+from dataclasses import dataclass
+from typing import Optional
 
-from apm_web.profile.constants import InputType
+from apm_web.profile.constants import DESCRIBING_SAMPLE_UNIT, InputType
 from apm_web.profile.converter import Converter, register_converter
 from apm_web.profile.models import (
     Function,
@@ -29,16 +28,13 @@ from apm_web.profile.models import (
 class DorisConverter(Converter):
     """Convert data in doris(pprof json) to Profile object"""
 
-    DESCRIBING_SAMPLE_UNIT: ClassVar[str] = "count"
-    _samples_info: list = field(default_factory=list)
-
     def convert(self, raw: dict) -> Optional[Profile]:
         """parse single raw json data to Profile object"""
         samples_info = raw["list"]
         if not samples_info:
             return
+        self.raw_data = samples_info
 
-        self._samples_info = samples_info
         first_sample = samples_info[0]
         period_type, period_unit = first_sample["period_type"].split("/")
         self.profile.period_type = ValueType(self.add_string(period_type), self.add_string(period_unit))
@@ -51,7 +47,7 @@ class DorisConverter(Converter):
             # with unit `count`."
             # samples_info contains lots of samples, including `sample/counts` and target values
             # `sample/counts` mainly for `describing`, ignoring it and adding after all samples added
-            if sample_info["sample_type"].split("/")[1] == self.DESCRIBING_SAMPLE_UNIT:
+            if sample_info["sample_type"].split("/")[1] == DESCRIBING_SAMPLE_UNIT:
                 continue
 
             if not default_sample_type:
@@ -121,17 +117,6 @@ class DorisConverter(Converter):
                 location.line.append(Line(function_id=function.id, line=line_info["line"]))
 
         return location
-
-    def statistics_by_time(self) -> list:
-        """statistics profile data by time"""
-
-        statistics = defaultdict(int)
-        for s in self._samples_info:
-            if s["sample_type"].split("/")[1] != self.DESCRIBING_SAMPLE_UNIT:
-                continue
-            statistics[s["dtEventTimeStamp"]] += int(s["value"])
-
-        return [{"time": k, "count": v} for k, v in statistics.items()]
 
 
 register_converter(InputType.DORIS.value, DorisConverter)

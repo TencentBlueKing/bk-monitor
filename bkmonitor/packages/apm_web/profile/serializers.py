@@ -35,7 +35,7 @@ class ProfileQuerySerializer(QueryBaseSerializer):
 
     profile_id = serializers.CharField(label="profile ID", required=False, default="")
     offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=300)
-    diagram_types = serializers.ListSerializer(
+    diagram_types = serializers.ListField(
         child=serializers.CharField(), required=False, default=["flamegraph", "table"]
     )
     sort = serializers.CharField(label="排序, 只对table有效", required=False, default="-total")

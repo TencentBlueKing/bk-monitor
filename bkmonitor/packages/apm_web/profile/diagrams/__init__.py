@@ -16,6 +16,7 @@ from apm_web.profile.converter import Converter
 from .callgraph import CallGraphDiagrammer
 from .flamegraph import FlamegraphDiagrammer
 from .table import TableDiagrammer
+from .tendency import TendencyDiagrammer
 
 
 class Diagrammer(Protocol):
@@ -41,3 +42,4 @@ def register_diagrammer_cls(diagram_type: str, diagrammer_cls: Type[Diagrammer])
 register_diagrammer_cls("flamegraph", FlamegraphDiagrammer)
 register_diagrammer_cls("callgraph", CallGraphDiagrammer)
 register_diagrammer_cls("table", TableDiagrammer)
+register_diagrammer_cls("tendency", TendencyDiagrammer)

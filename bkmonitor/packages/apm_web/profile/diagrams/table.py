@@ -26,7 +26,7 @@ class TableDiagrammer:
             "name": lambda x: x.display_name,
             "self": lambda x: x.self_time,
             "total": lambda x: x.value,
-            "location": lambda x: x.display_name
+            "location": lambda x: x.display_name,
         }
 
         sort = str(options.get("sort")).lower()
@@ -38,21 +38,15 @@ class TableDiagrammer:
         else:
             sorted_nodes = sorted(nodes, key=lambda x: x.value, reverse=True)
         return {
-            "table_data": [
-                {"id": x.id, "name": x.display_name, "self": x.self_time, "total": x.value} for x in sorted_nodes
-            ],
-            "table_all": tree.root.value,
-            **c.get_sample_type(),
+            "table_data": {
+                "total": tree.root.value,
+                "items": [
+                    {"id": x.id, "name": x.display_name, "self": x.self_time, "total": x.value} for x in sorted_nodes
+                ],
+            }
         }
 
-    @classmethod
-    def get_ratio_value(cls, value: int, total: int) -> float:
-        if value == 0 or total == 0:
-            return 0.00
-        return value / total
-
-    @classmethod
-    def diff(cls, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
+    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
         baseline_tree = FunctionTree.load_from_profile(base_doris_converter)
         comparison_tree = FunctionTree.load_from_profile(diff_doris_converter)
 
@@ -111,5 +105,4 @@ class TableDiagrammer:
             "table_data": sort_table_data,
             "table_baseline_all": baseline_all,
             "table_comparison_all": comparison_all,
-            **base_doris_converter.get_sample_type(),
         }
