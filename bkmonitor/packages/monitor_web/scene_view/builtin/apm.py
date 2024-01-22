@@ -278,7 +278,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error", "profiling"]},
+                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error"]},
             )
         if scene_id == f"{cls.SCENE_ID}_service":
             SceneViewOrderModel.objects.update_or_create(

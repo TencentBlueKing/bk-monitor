@@ -38,10 +38,8 @@ class Discover(abc.ABC):
     def discover(self, start_time, end_time):
         raise NotImplementedError
 
-    def get_builder(self, start_time, end_time):
-        return ProfileQueryBuilder.from_table(self.result_table_id, self.bk_biz_id, self.app_name).with_time(
-            start_time, end_time
-        )
+    def get_builder(self):
+        return ProfileQueryBuilder.from_table(self.result_table_id, self.bk_biz_id, self.app_name)
 
     def clear_if_overflow(self, model):
         count = model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).count()
@@ -88,5 +86,5 @@ class DiscoverHandler:
         start_time = end_time - datetime.timedelta(minutes=self.TIME_DELTA)
 
         for name, i in DiscoverContainers.all_discovers().items():
-            i(self.datasource).discover(start_time, end_time)
+            i(self.datasource).discover(int(start_time.timestamp() * 1000), int(end_time.timestamp() * 1000))
             logger.info(f"[DiscoverHandler] {name} finished")
