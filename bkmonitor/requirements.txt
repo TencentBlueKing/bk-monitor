@@ -126,7 +126,7 @@ apigw-manager==2.0.0
 bk-crypto-python-sdk==1.0.4
 
 # profile proto
-betterproto==2.0.0b5
+betterproto==2.0.0b6
 
 # graphviz
 graphviz==0.19.1
