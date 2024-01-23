@@ -57,24 +57,10 @@ export interface RetrievalFormData {
   comparisonWhere: IConditionItem[];
 }
 
-export const retrievalDataTypeList = [
-  {
-    id: 'cpu',
-    name: 'CPU'
-  },
-  {
-    id: 'mem',
-    name: 'MEM'
-  },
-  {
-    id: 'alloc',
-    name: 'ALLOC'
-  },
-  {
-    id: 'mutex',
-    name: 'MUTEX'
-  }
-] as const;
+export interface DataTypeItem {
+  key: string;
+  name: string;
+}
 
 export interface ServiceItem {
   id: number;

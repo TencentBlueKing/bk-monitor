@@ -30,7 +30,7 @@ import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
 import { listProfileUploadRecord } from '../../../../monitor-api/modules/apm_profile';
 import { IQueryParams } from '../../../typings/trace';
-import { ConditionType, RetrievalFormData } from '../typings';
+import { ConditionType, DataTypeItem, RetrievalFormData } from '../typings';
 import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
 
 import ProfilingFileUpload from './profiling-file-upload';
@@ -48,6 +48,10 @@ export default defineComponent({
     queryParams: {
       type: Object as PropType<IQueryParams>,
       required: true
+    },
+    dataTypeList: {
+      type: Array as PropType<DataTypeItem[]>,
+      default: () => []
     },
     dataType: {
       type: String,
@@ -270,6 +274,7 @@ export default defineComponent({
               dataType={this.dataType}
               queryParams={this.queryParams}
               onUpdate:dataType={this.handleDataTypeChange}
+              dataTypeList={this.dataTypeList}
             ></ProfilingRetrievalView>
           )}
         </div>

@@ -28,7 +28,7 @@ import { Button } from 'bkui-vue';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
 import { IQueryParams } from '../../../typings/trace';
-import { retrievalDataTypeList } from '../typings/profiling-retrieval';
+import { DataTypeItem } from '../typings/profiling-retrieval';
 
 import TrendChart from './trend-chart';
 
@@ -40,6 +40,10 @@ export default defineComponent({
     dataType: {
       type: String,
       default: 'cpu'
+    },
+    dataTypeList: {
+      type: Array as PropType<DataTypeItem[]>,
+      default: () => []
     },
     queryParams: {
       type: Object as PropType<IQueryParams>,
@@ -57,13 +61,13 @@ export default defineComponent({
             class='data-type-list'
             size='small'
           >
-            {retrievalDataTypeList.map(item => {
+            {this.dataTypeList.map(item => {
               return (
                 <Button
-                  key={item.id}
-                  selected={item.id === this.dataType}
+                  key={item.key}
+                  selected={item.key === this.dataType}
                   onClick={() => {
-                    this.$emit('update:dataType', item.id);
+                    this.$emit('update:dataType', item.key);
                   }}
                 >
                   {item.name}
