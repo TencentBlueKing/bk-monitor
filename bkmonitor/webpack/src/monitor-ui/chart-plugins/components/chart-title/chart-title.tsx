@@ -316,9 +316,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           onClick={this.handleShowMenu.bind(this, 'all')}
         >
           <div class='main-title'>
-            {this.showMetricAlarm &&
-            this.showTitleIcon &&
-            this.alarmStatus.status !== AlarmStatus.not_confit_strategy ? (
+            {this.showMetricAlarm && this.showTitleIcon ? (
               <i
                 v-bk-tooltips={this.alarmTips}
                 class={[
@@ -326,6 +324,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   'alarm-icon',
                   'icon-btn',
                   this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-mc-strategy status-strategy',
+                  this.alarmStatus.status === AlarmStatus.not_confit_strategy &&
+                    'icon-mc-strategy status-strategy-not-config',
                   this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3'
                 ]}
                 onClick={modifiers.stop(this.handleAlarmClick)}

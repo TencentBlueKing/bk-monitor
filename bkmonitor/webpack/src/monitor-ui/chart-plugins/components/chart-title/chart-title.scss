@@ -57,6 +57,19 @@ $alarmColor: #dcdee5 #63656e #ea3636;
           font-size: 16px !important;
           color: #699df4;
 
+          &-not-config {
+            /* stylelint-disable-next-line declaration-no-important */
+            height: 16px !important;
+
+            /* stylelint-disable-next-line declaration-no-important */
+            font-size: 16px !important;
+            color: #dcdee5;
+
+            &::before {
+              height: auto;
+            }
+          }
+
           &::before {
             height: auto;
           }
