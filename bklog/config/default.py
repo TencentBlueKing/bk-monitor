@@ -894,6 +894,8 @@ ES_QUERY_ACCESS_LIST: list = ["bkdata", "es", "log"]
 ES_QUERY_TIMEOUT = int(os.environ.get("BKAPP_ES_QUERY_TIMEOUT", 55))
 
 # ESQUERY 查询白名单，直接透传
+ESQUERY_EXTRA_WHITE_LIST = [app for app in os.getenv("BKAPP_ESQUERY_WHITE_LIST", "").split(",") if app]
+
 ESQUERY_WHITE_LIST = [
     "bk_log_search",
     "hippogriff-4",
@@ -916,7 +918,7 @@ ESQUERY_WHITE_LIST = [
     "klc_saas",
     "paasv3cli",
     "bk_paas3",
-]
+] + ESQUERY_EXTRA_WHITE_LIST
 
 # BK repo conf
 BKREPO_ENDPOINT_URL = os.getenv("BKREPO_ENDPOINT_URL") or os.getenv("BKAPP_BKREPO_ENDPOINT_URL")
