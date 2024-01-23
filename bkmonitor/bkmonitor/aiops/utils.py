@@ -122,10 +122,10 @@ class AiSetting:
             bk_biz_id=bk_biz_id,
             defaults={
                 "config": {
-                    KPI_ANOMALY_DETECTION: kpi_anomaly_detection,
-                    MULTIVARIATE_ANOMALY_DETECTION: multivariate_anomaly_detection,
-                    DIMENSION_DRILL: dimension_drill,
-                    METRIC_RECOMMEND: metric_recommend,
+                    KPI_ANOMALY_DETECTION: kpi_anomaly_detection.to_dict(),
+                    MULTIVARIATE_ANOMALY_DETECTION: multivariate_anomaly_detection.to_dict(),
+                    DIMENSION_DRILL: dimension_drill.to_dict(),
+                    METRIC_RECOMMEND: metric_recommend.to_dict(),
                 }
             },
         )
