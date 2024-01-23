@@ -822,7 +822,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             event[field] = alert.get(field)
         return event
 
-    def top_n(self, fields: List, size=10, translators: dict = None):
+    def top_n(self, fields: List, size=10, translators: dict = None, char_add_quotes=True):
         translators = {
             "metric": MetricTranslator(name_format="{name} ({id})", bk_biz_ids=self.bk_biz_ids),
             "bk_biz_id": BizTranslator(),
@@ -830,7 +830,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             "category": CategoryTranslator(),
             'plugin_id': PluginTranslator(),
         }
-        return super(AlertQueryHandler, self).top_n(fields, size, translators)
+        return super(AlertQueryHandler, self).top_n(fields, size, translators, char_add_quotes)
 
     def list_tags(self):
         """

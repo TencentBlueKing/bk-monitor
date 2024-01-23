@@ -444,12 +444,13 @@ class BaseQueryHandler:
 
         return new_search_object
 
-    def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None):
+    def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None, char_add_quotes=True):
         """
         字段值 TOP N 统计
         :param fields: 需要统计的字段，"+abc" 为升序排列，"-abc" 为降序排列，默认降序排列
         :param size: 大小
         :param translators: 翻译配置
+        :param char_add_quotes: 字符字段是否需要加上双引号
         :return:
         {
             "doc_count": 10,
@@ -549,9 +550,11 @@ class BaseQueryHandler:
             if actual_field in translators:
                 translators[actual_field].translate_from_dict(buckets, "id", "name")
 
-            for bucket in buckets:
-                if actual_field in char_fields or actual_field.startswith("tags."):
-                    bucket["id"] = '"{}"'.format(bucket["id"])
+            # 对于字符字段，需要将桶的 key 加上双引号
+            if char_add_quotes:
+                for bucket in buckets:
+                    if actual_field in char_fields or actual_field.startswith("tags."):
+                        bucket["id"] = '"{}"'.format(bucket["id"])
 
             result["fields"].append(
                 {

@@ -110,8 +110,8 @@ class GetAlarmEventField(Resource):
             {"id": "status", "name": _("告警状态"), "is_dimension": True},
             {"id": "alert_name", "name": _("告警名称"), "is_dimension": True},
             {"id": "strategy_id", "name": _("策略ID"), "is_dimension": True},
-            {"id": "ip", "name": _("IP"), "is_dimension": True},
-            {"id": "bk_cloud_id", "name": _("云区域ID"), "is_dimension": True},
+            {"id": "event.ip", "name": _("IP"), "is_dimension": True},
+            {"id": "event.bk_cloud_id", "name": _("云区域ID"), "is_dimension": True},
         ]
 
 
@@ -127,10 +127,13 @@ class GetAlarmEventDimensionValue(Resource):
         end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, params):
+        now = int(time.time())
         handler = AlertQueryHandler(
-            bk_biz_ids=[params["bk_biz_id"]], start_time=params["start_time"], end_time=params["end_time"]
+            bk_biz_ids=[params["bk_biz_id"]],
+            start_time=params.get("start_time", now - 3600 * 24 * 7),
+            end_time=params.get("end_time", now),
         )
-        fields = handler.top_n(fields=[params["field"]], size=100)["fields"]
+        fields = handler.top_n(fields=[params["field"]], size=100, char_add_quotes=False)["fields"]
         if not fields:
             return []
 
