@@ -39,6 +39,7 @@
     "html2canvas": "1.0.0-rc.5",
     "js-cookie": "2.2.0",
     "json-bignumber": "^1.0.2",
+    "lodash": "^4.17.21",
     "moment": "2.27.0",
     "monaco-editor": "^0.33.0",
     "monaco-editor-webpack-plugin": "^7.0.1",
