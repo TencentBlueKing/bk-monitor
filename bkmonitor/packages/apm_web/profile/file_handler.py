@@ -57,7 +57,14 @@ class ProfilingFileHandler:
             queryset.update(status=UploadedFileStatus.PARSING_FAILED)
             logger.error(_("无法转换 profiling 数据"))
             return
-        queryset.update(status=UploadedFileStatus.PARSING_SUCCEED)
+
+        sample_type = converter.get_sample_type()
+
+        meta_info = {
+            "data_types": [{"key": sample_type["type"], "name": str(sample_type["type"]).upper()}],
+            "sample_type": sample_type,
+        }
+        queryset.update(status=UploadedFileStatus.PARSING_SUCCEED, meta_info=meta_info)
 
         try:
             CollectorHandler.send_to_builtin_datasource(p)
