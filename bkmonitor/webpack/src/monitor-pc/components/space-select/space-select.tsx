@@ -411,6 +411,7 @@ export default class SpaceSelect extends tsc<
     this.popInstance?.hide?.(0);
     this.popInstance?.destroy?.();
     this.searchValue = '';
+    this.searchTypeId = '';
     this.popInstance = null;
     this.controller?.abort?.();
     this.isOpen = false;
@@ -721,7 +722,8 @@ export default class SpaceSelect extends tsc<
                     'space-list-item',
                     { active: !this.multiple && item.isCheck },
                     {
-                      'no-hover-btn': this.localCurrentSpace === item.id || specialIds.includes(item.id)
+                      'no-hover-btn':
+                        !this.currentSpace || this.localCurrentSpace === item.id || specialIds.includes(item.id)
                     }
                   ]}
                   key={item.id}
@@ -777,20 +779,22 @@ export default class SpaceSelect extends tsc<
                       ))
                     )}
                   </span>
-                  <span class='space-hover-btn'>
-                    <bk-button
-                      class='auth-button'
-                      size='small'
-                      text
-                      theme='primary'
-                      onClick={e => {
-                        e.stopPropagation();
-                        this.handleSetCurBiz(item);
-                      }}
-                    >
-                      {this.$t('设为当前空间')}
-                    </bk-button>
-                  </span>
+                  {!!this.currentSpace && (
+                    <span class='space-hover-btn'>
+                      <bk-button
+                        class='auth-button'
+                        size='small'
+                        text
+                        theme='primary'
+                        onClick={e => {
+                          e.stopPropagation();
+                          this.handleSetCurBiz(item);
+                        }}
+                      >
+                        {this.$t('设为当前空间')}
+                      </bk-button>
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
