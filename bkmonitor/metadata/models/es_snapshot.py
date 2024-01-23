@@ -39,6 +39,7 @@ class EsSnapshot(models.Model):
     """
 
     ES_RUNNING_STATUS = "running"
+    # 当停用后，不允许新增，也不允许过期删除
     ES_STOPPED_STATUS = "stopped"
     # 0 表示永久
     PERMANENT_PRESERVATION = 0
@@ -111,11 +112,6 @@ class EsSnapshot(models.Model):
         except cls.DoesNotExist:
             logger.exception("ES SnapShot does not exists, table_id(%s)", table_id)
             raise ValueError(_("快照仓库不存在或已经被删除"))
-
-        # 如果状态是停用的，则不需要删除 es 中数据
-        if snapshot.status == cls.ES_STOPPED_STATUS:
-            snapshot.delete()
-            return
 
         if is_sync:
             logger.info("table_id %s sync to delete snapshot %s", table_id, snapshot.target_snapshot_repository_name)
