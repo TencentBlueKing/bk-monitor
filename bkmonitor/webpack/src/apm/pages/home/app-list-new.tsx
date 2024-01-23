@@ -801,8 +801,8 @@ export default class AppList extends tsc<{}> {
                           class='item-label'
                           v-bk-tooltips={{
                             placement: 'top',
-                            content: item.data_status,
-                            disabled: !item.data_status
+                            content: this.$t('10分钟内无数据'),
+                            disabled: item.data_status !== 'no_data'
                           }}
                         >
                           Tracing:

@@ -22,8 +22,9 @@ logger = logging.getLogger("apm")
 
 class ServiceDiscover(Discover):
     # 获取service的前10条数据进行计算信息
-    # TODO 目前实现可能是临时方案 后续支持SQL查询时使用distinct+group_by实现
-    SERVICE_LIMIT_OFFSET = 10
+    # TODO
+    #  1. 目前实现可能是临时方案 后续支持SQL查询时使用distinct+group_by实现
+    #  2. Bkbase 暂不支持时间过滤 service 接口所以这里查询了所有出现过的 service
 
     @classmethod
     def get_name(cls):
@@ -34,35 +35,43 @@ class ServiceDiscover(Discover):
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
-        # Step1: 查询出现过的服务
+        # Step1: 查询所有出现过的服务
         response = (
-            self.get_builder(start_time, end_time)
-            .with_api_type(ProfileApiType.SERVICE_NAME)
-            .with_type(ProfileQueryType.CPU)
-            .execute()
+            self.get_builder().with_api_type(ProfileApiType.SERVICE_NAME).with_type(ProfileQueryType.CPU).execute()
         )
         service_names = list({i["service_name"] for i in response if i.get("service_name")})
         logger.info(f"[ProfileServiceDiscover] found {len(service_names)} services: {service_names}")
 
         instances = []
-        exist_keys = []
-        # Step2: 按照服务获取前n条sampler
         for svr in service_names:
-            samplers = (
-                self.get_builder(start_time, end_time)
-                .with_api_type(ProfileApiType.SAMPLE)
-                .with_service_filter(svr)
-                .with_offset_limit(0, self.SERVICE_LIMIT_OFFSET)
-                .execute()
-            )
+            # Step2: 按照服务下出现过的 type
+            types = self.get_builder().with_api_type(ProfileApiType.COL_TYPE).with_service_filter(svr).execute()
+            if not types:
+                logger.warning(f"[ProfileServiceDiscover] could not found types of service: {svr}")
+                continue
 
-            for sample in samplers:
-                key = (sample.get("type"),)
-                if key in exist_keys:
+            for col_type in types:
+                col_type = col_type.get("type")
+                if not col_type:
+                    logger.warning(f"[ProfileServiceDiscover] query {svr} types successfully, but return a none type")
                     continue
 
-                period = sample.get("period")
-                period_type = sample.get("period_type")
+                # Step3: 获取此 type 下的一条数据
+                type_samplers = (
+                    self.get_builder()
+                    .with_time(start_time, end_time)
+                    .with_api_type(ProfileApiType.SAMPLE)
+                    .with_service_filter(svr)
+                    .with_offset_limit(0, 1)
+                    .with_type(col_type)
+                    .execute()
+                )
+                if not type_samplers:
+                    logger.info(f"[ProfileServiceDiscover] receive a empty sample of {svr}")
+                    continue
+                sampler = type_samplers[0]
+                period = sampler.get("period")
+                period_type = sampler.get("period_type")
                 instances.append(
                     ProfileService(
                         bk_biz_id=self.bk_biz_id,
@@ -70,12 +79,11 @@ class ServiceDiscover(Discover):
                         name=svr,
                         period=period,
                         period_type=period_type,
-                        frequency=self._calculate_frequency(sample),
-                        data_type=sample.get("type"),
+                        frequency=self._calculate_frequency(sampler),
+                        data_type=col_type,
                         last_check_time=check_time,
                     )
                 )
-                exist_keys.append((sample.get("type"),))
 
         # Final: 保存到数据库
         self._upsert(instances, check_time)

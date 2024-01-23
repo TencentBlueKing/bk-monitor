@@ -568,6 +568,9 @@ class ProfileApiType:
     # sampler查询
     SAMPLE = "query_sample_by_json"
 
+    # type查询
+    COL_TYPE = "col_type"
+
 
 class ProfileQueryType:
     """Profile查询中api_params.type参数枚举值"""
