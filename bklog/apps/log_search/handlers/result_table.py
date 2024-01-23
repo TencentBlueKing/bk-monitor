@@ -86,8 +86,8 @@ class ResultTableHandler(APIModel):
                 {
                     "bk_biz_id": related_bk_biz_id,
                     "indices": result_table_id,
-                    "scenario_id": "log",
-                    "storage_cluster_id": None,
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
                     "with_storage": True,
                 },
             )
