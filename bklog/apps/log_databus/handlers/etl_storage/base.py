@@ -196,7 +196,7 @@ class EtlStorage(object):
                 if field.get("option", {}).get("es_analyzer"):
                     field_option["es_analyzer"] = field["option"]["es_analyzer"]
                 # 大小写敏感, 将TEXT的默认分词器置为大小写敏感的分词器
-                elif field.get("case_sensitive", False):
+                elif field.get("is_case_sensitive", False):
                     field_option["es_analyzer"] = ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
 
             # ES_INCLUDE_IN_ALL

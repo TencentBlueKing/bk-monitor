@@ -667,7 +667,7 @@ class CollectorEtlFieldsSerializer(serializers.Serializer):
     is_delete = serializers.BooleanField(label=_("是否删除"), required=True)
     is_built_in = serializers.BooleanField(label=_("是否内置字段"), required=False, default=False)
     option = serializers.DictField(label=_("字段配置"), required=False)
-    case_sensitive = serializers.BooleanField(label=_("是否大小写敏感"), required=False, default=False)
+    is_case_sensitive = serializers.BooleanField(label=_("是否大小写敏感"), required=False, default=False)
 
     def validate(self, field):
         built_in_keys = FieldBuiltInEnum.get_choices()

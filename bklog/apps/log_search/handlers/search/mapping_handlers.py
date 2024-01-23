@@ -33,6 +33,7 @@ from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.constants import ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -223,6 +224,7 @@ class MappingHandlers(object):
                 "is_analyzed": field.get("is_analyzed", False),
                 "field_operator": OPERATORS.get(field["field_type"], []),
                 "is_built_in": field["field_name"].lower() in built_in_fields,
+                "is_case_sensitive": field.get("is_case_sensitive", False),
             }
             for field in fields_result
         ]
@@ -447,6 +449,8 @@ class MappingHandlers(object):
                 es_doc_values = doc_values
                 if field_type in ["text", "object"]:
                     es_doc_values = False
+                # 根据text字段的分词器来判断是否大小写敏感
+                is_case_sensitive = properties_dict[key].get("analyzer", "") == ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
 
                 # @TODO tag：兼容前端代码，后面需要删除
                 tag = "metric"
@@ -466,6 +470,7 @@ class MappingHandlers(object):
                         "tag": tag,
                         "is_analyzed": cls._is_analyzed(latest_field_type),
                         "latest_field_type": latest_field_type,
+                        "is_case_sensitive": is_case_sensitive
                     }
                 )
                 fields_result.append(data)
