@@ -96,7 +96,8 @@ class ResultTableHandler(APIModel):
         multi_result = multi_execute_func.run()
         result = []
         for biz_id in bk_biz_ids:
-            result.extend(multi_result.get(biz_id))
+            if multi_result.get(biz_id):
+                result.extend(multi_result[biz_id])
 
         # 如果是数据平台则只显示用户有管理权限的RT列表
         if self.scenario_id == Scenario.BKDATA:
