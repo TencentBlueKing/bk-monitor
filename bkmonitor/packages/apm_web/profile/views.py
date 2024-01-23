@@ -264,6 +264,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=essentials["result_table_id"],
         )
         diagram_types = validated_data["diagram_types"]
+        options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         if validated_data.get("is_compared"):
             diff_doris_converter = self._query(
                 bk_biz_id=essentials['bk_biz_id'],
@@ -277,14 +278,18 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 result_table_id=essentials["result_table_id"],
             )
             diff_diagram_dicts = (
-                get_diagrammer(d_type).diff(doris_converter, diff_doris_converter) for d_type in diagram_types
+                get_diagrammer(d_type).diff(doris_converter, diff_doris_converter, **options)
+                for d_type in diagram_types
             )
             return Response(data={k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()})
 
-        options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
-        data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
-        data.update(doris_converter.get_sample_type())
+
+        statistics = doris_converter.statistics_by_time()
+        data = {
+            "statistics": statistics,
+            "diagrams": {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()},
+        }
         return Response(data=data)
 
     @staticmethod
