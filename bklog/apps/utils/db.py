@@ -21,6 +21,8 @@ the project delivered to anyone in the future.
 """
 import json
 
+from django.conf import settings
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 
 
@@ -110,5 +112,6 @@ def get_toggle_data():
                 if isinstance(toggle.biz_id_white_list, list)
             }
         ),
+        "BCS_WEB_CONSOLE_DOMAIN": settings.BCS_WEB_CONSOLE_DOMAIN,
     }
     return data
