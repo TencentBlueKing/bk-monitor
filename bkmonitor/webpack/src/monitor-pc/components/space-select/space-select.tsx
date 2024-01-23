@@ -60,6 +60,7 @@ interface IProps {
   disabled?: boolean;
   hasAuthApply?: boolean;
   currentSpace?: number | string;
+  isCommonStyle?: boolean;
   onChange?: (value: number[]) => void;
 }
 
@@ -106,6 +107,8 @@ export default class SpaceSelect extends tsc<
   @Prop({ default: false, type: Boolean }) disabled: boolean;
   /* 是否包含申请权限功能 */
   @Prop({ default: false, type: Boolean }) hasAuthApply: boolean;
+  /*  */
+  @Prop({ default: true, type: Boolean }) isCommonStyle: boolean;
 
   @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('select') selectRef: HTMLDivElement;
@@ -128,6 +131,8 @@ export default class SpaceSelect extends tsc<
   controller: AbortController = null;
   /* 已选择部分文字 */
   valueStr = '';
+  /* 已选择部分文字（包含id） */
+  valueStrList = [];
   /* 是否标红 */
   isErr = false;
   /* 是否弹出弹窗 */
@@ -159,20 +164,26 @@ export default class SpaceSelect extends tsc<
     const defaultRadioListIds = defaultRadioList.map(d => d.id);
     this.localValue = [...v].map(b => (defaultRadioListIds.includes(String(b)) ? b : Number(b)));
     const strs = [];
+    const strList = [];
     this.localSpaceList.forEach(item => {
       const has = this.localValue.includes(item.id);
       item.isCheck = has;
       if (has) {
         strs.push(item.name);
+        strList.push({
+          name: item.name,
+          id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code
+        });
       }
     });
     this.valueStr = strs.join(',');
+    this.valueStrList = strList;
     this.sortSpaceList();
   }
   @Watch('currentSpace', { immediate: true })
   handleWatchCureentSpace(v: number) {
     if (v) {
-      this.localCurrentSpace = Number(v);
+      this.localCurrentSpace = v;
     }
   }
 
@@ -362,6 +373,7 @@ export default class SpaceSelect extends tsc<
     });
     this.popInstance?.show?.();
     this.isOpen = true;
+    this.sortSpaceList();
     this.setPaginationData(true);
     setTimeout(() => {
       this.addMousedownEvent();
@@ -405,6 +417,7 @@ export default class SpaceSelect extends tsc<
     this.localSpaceList.forEach(item => {
       item.show = true;
     });
+    this.resetCurBiz();
   }
 
   /* 搜索 */
@@ -412,11 +425,20 @@ export default class SpaceSelect extends tsc<
   handleSearchChange(value: string) {
     this.localSpaceList.forEach(item => {
       const keyword = value.trim().toLocaleLowerCase();
-      item.show =
+      const typeShow = (() => {
+        if (!!this.searchTypeId) {
+          return this.searchTypeId === 'bcs'
+            ? item.space_type_id === 'bkci' && !!item.space_code
+            : item.space_type_id === this.searchTypeId;
+        }
+        return true;
+      })();
+      const searchShow =
         item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
         item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
         `${item.id}`.includes(keyword) ||
         `${item.space_id}`.toLocaleLowerCase().includes(keyword);
+      item.show = typeShow && searchShow;
     });
     this.setPaginationData(true);
   }
@@ -460,17 +482,49 @@ export default class SpaceSelect extends tsc<
     this.getLocalValue();
     this.setPaginationData(true);
   }
+  /**
+   * @description 设为当前空间
+   * @param item
+   */
+  handleSetCurBiz(item: IlocalSpaceList) {
+    this.localCurrentSpace = item.id;
+    if (!item.isCheck) {
+      this.handleSelectOption(item);
+    }
+  }
+  /**
+   * @description 如当前空间切换，则刷新页面
+   */
+  resetCurBiz() {
+    if (+this.localCurrentSpace === +this.currentSpace) {
+      return;
+    }
+    // 切换全局业务配置
+    window.cc_biz_id = +this.localCurrentSpace;
+    window.bk_biz_id = +this.localCurrentSpace;
+    window.space_uid = this.spaceList.find(item => item.bk_biz_id === +this.localCurrentSpace)?.space_uid;
+    this.$store.commit('app/SET_BIZ_ID', +this.localCurrentSpace);
+    const serachParams = new URLSearchParams({ bizId: `${this.localCurrentSpace}` });
+    const newUrl = `${window.location.pathname}?${serachParams.toString()}#${this.$route.fullPath}`;
+    history.replaceState({}, '', newUrl);
+  }
   /* 获取当前选中的值 */
   getLocalValue() {
     const value = [];
     const strs = [];
+    const strList = [];
     this.localSpaceList.forEach(item => {
       if (item.isCheck) {
         value.push(item.id);
         strs.push(item.name);
+        strList.push({
+          name: item.name,
+          id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code
+        });
       }
     });
     this.valueStr = strs.join(',');
+    this.valueStrList = strList;
     this.localValue = value;
     this.isErr = !this.localValue.length;
     if (!!this.localValue.length) {
@@ -483,6 +537,7 @@ export default class SpaceSelect extends tsc<
     if (!this.multiple || this.disabled) return;
     this.localValue = [];
     this.valueStr = '';
+    this.valueStrList = [];
     this.localSpaceList.forEach(item => {
       item.isCheck = false;
     });
@@ -495,6 +550,9 @@ export default class SpaceSelect extends tsc<
       ...item,
       sort: (() => {
         if (specialIds.includes(item.id)) {
+          return 4;
+        }
+        if (+this.localCurrentSpace === +item.id) {
           return 3;
         }
         return this.localValue.includes(item.id) ? 2 : 1;
@@ -521,6 +579,7 @@ export default class SpaceSelect extends tsc<
    */
   handleSearchType(typeId: string) {
     this.searchTypeId = typeId === this.searchTypeId ? '' : typeId;
+    this.handleSearchChange(this.searchValue);
   }
 
   /* 是否展示type栏左右切换按钮 */
@@ -571,13 +630,33 @@ export default class SpaceSelect extends tsc<
 
   render() {
     return (
-      <span class={['space-select-component', { error: this.isErr }, { active: this.isOpen }]}>
+      <span
+        class={[
+          'space-select-component',
+          { 'space-select-component-common-style': this.isCommonStyle },
+          { error: this.isErr },
+          { active: this.isOpen }
+        ]}
+      >
         <div
           ref='select'
           class={[componentClassNames.selectInput, { single: !this.multiple }, { disabled: this.disabled }]}
           onMousedown={this.handleMousedown}
         >
-          <span class='selected-text'>{this.valueStr}</span>
+          {this.isCommonStyle && <span class='selected-wrap-title'>{`${this.$t('空间筛选')} : `}</span>}
+          <span class='selected-text'>
+            {this.isCommonStyle
+              ? this.valueStrList.map((item, index) => (
+                  <span
+                    class='selected-text-item'
+                    key={index}
+                  >
+                    {index !== 0 ? `   , ${item.name}` : item.name}
+                    {!!item.id && <span class='selected-text-id'>({item.id})</span>}
+                  </span>
+                ))
+              : this.valueStr}
+          </span>
           <span
             class={rightIconClassName}
             onClick={this.handleClear}
@@ -642,7 +721,7 @@ export default class SpaceSelect extends tsc<
                     'space-list-item',
                     { active: !this.multiple && item.isCheck },
                     {
-                      'no-hover-btn': this.currentSpace === item.id || specialIds.includes(item.id)
+                      'no-hover-btn': this.localCurrentSpace === item.id || specialIds.includes(item.id)
                     }
                   ]}
                   key={item.id}
@@ -672,7 +751,9 @@ export default class SpaceSelect extends tsc<
                         ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
                       </span>
                     )}
-                    {this.currentSpace === item.id && <span class='icon-monitor icon-dingwei1 cur-position'></span>}
+                    {+this.localCurrentSpace === +item.id && (
+                      <span class='icon-monitor icon-dingwei1 cur-position'></span>
+                    )}
                   </span>
                   <span class='space-tags'>
                     {!!item.noAuth && !item.hasData ? (
@@ -702,6 +783,10 @@ export default class SpaceSelect extends tsc<
                       size='small'
                       text
                       theme='primary'
+                      onClick={e => {
+                        e.stopPropagation();
+                        this.handleSetCurBiz(item);
+                      }}
                     >
                       {this.$t('设为当前空间')}
                     </bk-button>

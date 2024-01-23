@@ -2151,12 +2151,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               onIntervalChange={this.handleChartIntervalChange}
             />
             <div class='content-wrap-filter'>
-              <div
+              {/* <div
                 class='business-screening-notes'
                 v-en-style='width: 120px;'
               >
                 {this.$t('空间筛选')}
-              </div>
+              </div> */}
               {/* <Select
                 class={`filter-select ${this.filterSelectIsEmpty ? 'empty-warning' : ''}`}
                 v-model={this.bizIds}
@@ -2190,7 +2190,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   </Option>
                 ))}
               </Select> */}
-              <div class='filter-select'>
+              {/* <div class='filter-select'>
                 <SpaceSelect
                   value={this.bizIds}
                   spaceList={this.$store.getters.bizList}
@@ -2199,7 +2199,16 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   onApplyAuth={this.handleCheckAllowedByIds}
                   onChange={this.handleBizIdsChange}
                 ></SpaceSelect>
-              </div>
+              </div> */}
+              <SpaceSelect
+                class='mr-16'
+                value={this.bizIds}
+                spaceList={this.$store.getters.bizList}
+                hasAuthApply={true}
+                currentSpace={this.$store.getters.bizId}
+                onApplyAuth={this.handleCheckAllowedByIds}
+                onChange={this.handleBizIdsChange}
+              ></SpaceSelect>
               <FilterInput
                 ref='filterInput'
                 value={this.queryString}
