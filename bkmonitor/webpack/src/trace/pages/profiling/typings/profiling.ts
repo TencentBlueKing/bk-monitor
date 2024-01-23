@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { RetrievalFormData } from './profiling-retrieval';
+import { DataTypeItem, RetrievalFormData } from './profiling-retrieval';
 
 export interface SearchState {
   /** 是否展示查询面板 */
@@ -54,24 +54,37 @@ export interface ServicesDetail {
   /** 周期类型 */
   period_type: string;
   /** 采样频率 */
-  frequency: string;
+  // frequency: string;
   /** 创建时间 */
   create_time: string;
   /** 最近上报时间 */
   last_report_time: string;
+  /** 数据类型 */
+  data_types: DataTypeItem[];
 }
 
 export interface FileDetail {
+  /** 应用名称 */
   app_name: string;
+  /** 文件类型 */
   file_type: string;
+  /** 文件md5 */
   file_md5: string;
   profile_id: string;
+  /** 操作人 */
   operator: string;
+  /** 上传时间 */
   uploaded_time: string;
+  /** 文件大小 */
   file_size: number;
+  /** 文件名 */
   file_name: string;
+  /** 原文件名 */
   origin_file_name: string;
+  /** 状态 */
   status: string;
+  /** 数据类型 */
+  data_types: DataTypeItem[];
 }
 
 export enum DetailType {

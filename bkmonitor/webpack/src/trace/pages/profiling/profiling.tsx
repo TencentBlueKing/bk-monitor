@@ -30,7 +30,7 @@ import { Dialog } from 'bkui-vue';
 
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
 import { ISelectMenuOption } from '../../components/select-menu/select-menu';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import ProfilingQueryImage from '../../static/img/profiling-query.png';
 import ProfilingUploadQueryImage from '../../static/img/profiling-upload-query.png';
 import { monitorDrag } from '../../utils/drag-directive';
@@ -95,7 +95,8 @@ export default defineComponent({
     });
     provide<RetrievalFormData>('formData', searchState.formData);
     const isEmpty = ref(true);
-    const dataType = ref('cpu');
+    const dataType = ref('');
+    const dataTypeList = ref([]);
 
     /** 查询参数 */
     const queryParams = ref(getParams());
@@ -175,12 +176,10 @@ export default defineComponent({
     }
     /** 获取接口请求参数 */
     function getParams() {
-      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       const { server, isComparison, where, comparisonWhere, type } = searchState.formData;
+      const profilingParams = { ...server };
+      const uploadParams = { profile_id: curFileInfo?.value?.profile_id };
       return {
-        start: start * 1000 * 1000,
-        end: end * 1000 * 1000,
-        ...(searchState.formData.type === SearchType.Upload ? {} : server),
         is_compared: isComparison,
         filter_label: where.reduce((pre, cur) => {
           if (cur.key && cur.value) pre[cur.key] = cur.value;
@@ -191,16 +190,14 @@ export default defineComponent({
           return pre;
         }, {}),
         profile_type: dataType.value,
-        profile_id: searchState.formData.type === SearchType.Upload ? curFileInfo.value?.profile_id : undefined
+        ...(searchState.formData.type === SearchType.Upload ? uploadParams : profilingParams)
       };
     }
 
     /** 查询功能 */
     function handleQuery() {
-      if (searchState.formData.type === SearchType.Profiling) {
-        isEmpty.value = !canQuery.value;
-      }
-      if (!canQuery.value || searchState.loading) return;
+      isEmpty.value = !canQuery.value;
+      if (!canQuery.value) return;
       queryParams.value = getParams();
     }
 
@@ -223,9 +220,15 @@ export default defineComponent({
      * @description 当前选择profiling文件
      * @param fileInfo
      */
-    function handleSelectFile(fileInfo) {
+    function handleSelectFile(fileInfo: FileDetail) {
       curFileInfo.value = fileInfo;
+      getDataTypeList(fileInfo);
       handleQuery();
+    }
+
+    function getDataTypeList(val: ServicesDetail | FileDetail) {
+      dataTypeList.value = val.data_types || [];
+      dataType.value = dataTypeList.value[0] || '';
     }
 
     return {
@@ -240,6 +243,7 @@ export default defineComponent({
       detailData,
       queryParams,
       isFull,
+      dataTypeList,
       startAutoQueryTimer,
       handleToolFormDataChange,
       handleShowTypeChange,
@@ -250,7 +254,8 @@ export default defineComponent({
       handleDataTypeChange,
       handleShowDetail,
       handleSelectFile,
-      handleMenuSelect
+      handleMenuSelect,
+      getDataTypeList
     };
   },
 
@@ -262,6 +267,7 @@ export default defineComponent({
             formData={this.searchState.formData}
             queryParams={this.queryParams}
             dataType={this.dataType}
+            dataTypeList={this.dataTypeList}
             onSelectFile={fileInfo => this.handleSelectFile(fileInfo)}
             onShowFileDetail={detail => this.handleShowDetail(DetailType.UploadFile, detail)}
             onDataTypeChange={this.handleDataTypeChange}
@@ -308,6 +314,7 @@ export default defineComponent({
       return (
         <ProfilingRetrievalView
           dataType={this.dataType}
+          dataTypeList={this.dataTypeList}
           queryParams={this.queryParams}
           onUpdate:dataType={this.handleDataTypeChange}
         />
@@ -358,8 +365,8 @@ export default defineComponent({
           >
             <RetrievalSearch
               formData={this.searchState.formData}
-              dataType={this.dataType}
               onChange={this.handleSearchFormDataChange}
+              onDetailChange={this.getDataTypeList}
               onShowDetail={detail => this.handleShowDetail(DetailType.Application, detail)}
             >
               {{

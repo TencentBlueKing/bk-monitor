@@ -109,7 +109,7 @@ export default defineComponent({
                 <i class='icon-monitor icon-fenxiang'></i>
               </span>
             </Form.FormItem>
-            <Form.FormItem label={`${this.t('采样频率')}:`}>{data.frequency || '-'}</Form.FormItem>
+            {/* <Form.FormItem label={`${this.t('采样频率')}:`}>{data.frequency || '-'}</Form.FormItem> */}
             {/* <Form.FormItem label={`${this.t('上报数据类型')}:`}>***SDK</Form.FormItem>
             <Form.FormItem label={`${this.t('SDK版本')}:`}>1.1.0</Form.FormItem>
             <Form.FormItem label={`${this.t('数据语言')}:`}>java</Form.FormItem> */}

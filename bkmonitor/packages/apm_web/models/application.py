@@ -297,7 +297,14 @@ class Application(AbstractRecordModel):
         # Step2: 查询 profile 数据状态
         from apm_web.profile.doris.querier import QueryTemplate
 
-        profile_has_data = QueryTemplate(self.bk_biz_id, self.app_name).exist_data(start_time * 1000, end_time * 1000)
+        try:
+            profile_has_data = QueryTemplate(self.bk_biz_id, self.app_name).exist_data(
+                start_time * 1000, end_time * 1000
+            )
+        except ValueError as e:
+            logger.warning(f"[Application] set profiling data_status failed: {e}")
+            profile_has_data = None
+
         self.data_status = DataStatus.NORMAL if profile_has_data else DataStatus.NO_DATA
 
         self.save()
