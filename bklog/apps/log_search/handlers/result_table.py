@@ -43,6 +43,7 @@ from apps.log_trace.handlers.trace_field_handlers import (
 from apps.utils import APIModel
 from apps.utils.db import array_group
 from apps.utils.local import get_request_username
+from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -60,35 +61,42 @@ class ResultTableHandler(APIModel):
         :param result_table_id:
         :return:
         """
-        result = BkLogApi.indices(
+        multi_execute_func = MultiExecuteFunc()
+        multi_execute_func.append(
+            bk_biz_id,
+            BkLogApi.indices,
             {
                 "bk_biz_id": bk_biz_id,
                 "indices": result_table_id,
                 "scenario_id": self.scenario_id,
                 "storage_cluster_id": self.storage_cluster_id,
                 "with_storage": True,
-            }
+            },
         )
+        bk_biz_ids = [bk_biz_id]
         related_space_uids = []
-        related_result = []
         if bk_biz_id and bk_biz_id > 0:
             related_space_uids = get_bkcc_biz_id_related_spaces(bk_biz_id)
 
         for related_space_uid in related_space_uids:
-            related_result.extend(
-                BkLogApi.indices(
-                    {
-                        "bk_biz_id": space_uid_to_bk_biz_id(related_space_uid),
-                        "indices": result_table_id,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "with_storage": True,
-                    }
-                )
+            related_bk_biz_id = space_uid_to_bk_biz_id(related_space_uid)
+            multi_execute_func.append(
+                related_bk_biz_id,
+                BkLogApi.indices,
+                {
+                    "bk_biz_id": related_bk_biz_id,
+                    "indices": result_table_id,
+                    "scenario_id": "log",
+                    "storage_cluster_id": None,
+                    "with_storage": True,
+                },
             )
+            bk_biz_ids.append(related_bk_biz_id)
 
-        if related_result:
-            result.extend(related_result)
+        multi_result = multi_execute_func.run()
+        result = []
+        for biz_id in bk_biz_ids:
+            result.extend(multi_result.get(biz_id))
 
         # 如果是数据平台则只显示用户有管理权限的RT列表
         if self.scenario_id == Scenario.BKDATA:
