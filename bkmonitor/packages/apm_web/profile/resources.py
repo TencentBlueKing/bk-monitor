@@ -44,8 +44,8 @@ class QueryServicesDetailResource(Resource):
 
         # 实时查询最近上报时间等信息
         data_type_info_mapping = QueryTemplate(validated_data["bk_biz_id"], validated_data["app_name"]).get_sample_info(
-            validated_data["start_time"],
-            validated_data["end_time"],
+            validated_data["start_time"] * 1000,
+            validated_data["end_time"] * 1000,
             data_types=[i["data_type"] for i in services],
             service_name=validated_data["service_name"],
         )
