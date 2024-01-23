@@ -99,7 +99,7 @@ class GetAlarmEventField(Resource):
         handler = AlertQueryHandler(
             bk_biz_ids=[params["bk_biz_id"]],
             conditions=params["where"],
-            start_time=params.get("start_time", now - 3600 * 24),
+            start_time=params.get("start_time", now - 3600 * 24 * 7),
             end_time=params.get("end_time", now),
         )
         tags = handler.list_tags()
@@ -111,6 +111,8 @@ class GetAlarmEventField(Resource):
             {"id": "status", "name": _("告警状态"), "is_dimension": True},
             {"id": "alert_name", "name": _("告警名称"), "is_dimension": True},
             {"id": "strategy_id", "name": _("策略ID"), "is_dimension": True},
+            {"id": "ip", "name": _("IP"), "is_dimension": True},
+            {"id": "bk_cloud_id", "name": _("云区域ID"), "is_dimension": True},
         ]
 
 
@@ -173,7 +175,7 @@ class QueryAlarmEventGraph(Resource):
                     {
                         "datapoints": datapoints,
                         "dimensions": new_dimensions,
-                        "target": "|".join([f"{k}:{v}" for k, v in {**dimensions, "status": status}.items()]),
+                        "target": "|".join([f"{k}:{v}" for k, v in new_dimensions.items()]),
                     }
                 )
         return {"series": series}
