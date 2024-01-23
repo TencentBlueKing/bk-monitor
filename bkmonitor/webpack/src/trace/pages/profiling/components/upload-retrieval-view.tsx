@@ -188,7 +188,8 @@ export default defineComponent({
             <Select
               modelValue={this.searchObj.selectFile}
               popoverOptions={{
-                extCls: 'upload-select-popover'
+                extCls: 'upload-select-popover',
+                zIndex: 1
               }}
               clearable={false}
               onSelect={v => this.handleSelectFile(v)}
@@ -197,13 +198,13 @@ export default defineComponent({
                 <Select.Option
                   id={item.id}
                   key={item.id}
-                  name={item.app_name}
+                  name={item.file_name || '--'}
                 >
                   <div class='upload-select-item'>
                     <div class='left'>
                       {this.statusRender(item.status)}
                       <div class='divider'></div>
-                      <div class='name'>{item.app_name}</div>
+                      <div class='name'>{item.file_name || '--'}</div>
                     </div>
                     <i
                       class='icon-monitor icon-mc-detail'
@@ -229,13 +230,14 @@ export default defineComponent({
                 {this.compareObj.list.map(item => (
                   <Select.Option
                     id={item.id}
+                    name={item.file_name || '--'}
                     key={item.id}
                   >
                     <div class='upload-select-item'>
                       <div class='left'>
                         {this.statusRender(item.status)}
                         <div class='divider'></div>
-                        <div class='name'>{item.app_name}</div>
+                        <div class='name'>{item.file_name}</div>
                       </div>
                       <i class='icon-monitor icon-mc-detail'></i>
                     </div>
