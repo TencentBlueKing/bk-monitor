@@ -57,13 +57,9 @@ export default defineComponent({
     formData: {
       type: Object as PropType<RetrievalFormData>,
       default: () => null
-    },
-    dataType: {
-      type: String,
-      default: 'cpu'
     }
   },
-  emits: ['change', 'typeChange', 'showDetail'],
+  emits: ['change', 'typeChange', 'showDetail', 'detailChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
@@ -140,20 +136,24 @@ export default defineComponent({
       localFormData.server.app_name = appName;
       localFormData.server.service_name = serviceName;
       getLabelList();
+      getDetail();
       handleEmitChange();
+    }
+
+    async function getDetail() {
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      selectApplicationData.value = await queryServicesDetail({
+        start_time: start,
+        end_time: end,
+        app_name: localFormData.server.app_name,
+        service_name: localFormData.server.service_name
+      }).catch(() => ({}));
+      emit('detailChange', selectApplicationData.value);
     }
 
     /** 查看详情 */
     async function handleDetailClick() {
       if (!localFormData.server.app_name || !localFormData.server.service_name) return;
-      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      selectApplicationData.value = await queryServicesDetail({
-        start_time: start * 1000 * 1000,
-        end_time: end * 1000 * 1000,
-        app_name: localFormData.server.app_name,
-        service_name: localFormData.server.service_name,
-        data_type: props.dataType
-      }).catch(() => ({}));
       emit('showDetail', selectApplicationData.value);
     }
 
