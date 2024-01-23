@@ -846,9 +846,12 @@ export default {
     height: auto; /* 设置元素高度为自动 */
     min-height: 20px; /* 根据需要设置最小高度 */
     overflow: hidden;
-    display: box;
-    box-orient: vertical;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    display: -webkit-box;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+    text-overflow: ellipsis;
   }
 
   .top-operate {
