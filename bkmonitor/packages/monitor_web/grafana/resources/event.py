@@ -98,7 +98,6 @@ class GetAlarmEventField(Resource):
         now = int(time.time())
         handler = AlertQueryHandler(
             bk_biz_ids=[params["bk_biz_id"]],
-            conditions=params["where"],
             start_time=params.get("start_time", now - 3600 * 24 * 7),
             end_time=params.get("end_time", now),
         )
