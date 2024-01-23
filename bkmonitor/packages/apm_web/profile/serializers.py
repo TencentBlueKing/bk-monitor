@@ -19,15 +19,35 @@ class QueryBaseSerializer(serializers.Serializer):
     service_name = serializers.CharField(label="服务名称", required=False)
     global_query = serializers.BooleanField(label="全局查询", required=False, default=False)
     data_type = serializers.CharField(label="Sample 数据类型", required=False, default=DEFAULT_PROFILE_DATA_TYPE)
-    start = serializers.IntegerField(label="开始时间", help_text="请使用 Microsecond")
-    end = serializers.IntegerField(label="结束时间", help_text="请使用 Microsecond")
+    start = serializers.IntegerField(label="开始时间", help_text="请使用 Microsecond", required=False)
+    start_time = serializers.IntegerField(label="开始时间", help_text="请使用 Second", required=False)
+    end = serializers.IntegerField(label="结束时间", help_text="请使用 Microsecond", required=False)
+    end_time = serializers.IntegerField(label="结束时间", help_text="请使用 Second", required=False)
 
     def validate(self, attrs):
         # 当且仅当全局查询时，不需要传递 app_name 和 service_name
         if not attrs.get("global_query"):
             if not attrs.get("app_name") or not attrs.get("service_name"):
                 raise serializers.ValidationError("app_name and service_name is required")
+
+        if not attrs.get("start") and not attrs.get("start_time"):
+            raise serializers.ValidationError("start or start_time is required")
+
+        if not attrs.get("end") and not attrs.get("end_time"):
+            raise serializers.ValidationError("end or end_time is required")
+
         return attrs
+
+    def to_internal_value(self, data: dict):
+        validated = super().to_internal_value(data)
+        # 兼容前端插件
+        # 由于前端传递的时间戳是毫秒级别的，需要转换成秒级别的
+        if not validated.get("start") and validated.get("start_time"):
+            validated["start"] = validated["start_time"] * 1000 * 1000
+        if not validated.get("end") and validated.get("end_time"):
+            validated["end"] = validated["end_time"] * 1000 * 1000
+
+        return validated
 
 
 class ProfileQuerySerializer(QueryBaseSerializer):
