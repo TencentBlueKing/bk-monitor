@@ -43,5 +43,4 @@ class BaseAbnormalPushProcessor(six.with_metaclass(ABCMeta, object)):
             pipeline.lpush(anomaly_signal_key, *anomaly_signal_list)
             pipeline.expire(anomaly_signal_key, key.ANOMALY_SIGNAL_KEY.ttl)
             pipeline.execute()
-        print(anomaly_signal_list)
         return anomaly_count

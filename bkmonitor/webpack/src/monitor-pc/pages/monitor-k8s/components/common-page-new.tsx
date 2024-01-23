@@ -508,9 +508,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -1682,7 +1684,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                       // 变量筛选
                       (!!this.sceneData.variables.length || this.sceneData.enableGroup) && (
                         <div class='dashboard-panel-filter-wrap'>
-                          <Collapse
+                          <bk-collapse
                             ref='collapseRef'
                             expand={this.filterActive}
                             renderAnimation={false}
@@ -1716,7 +1718,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                 />
                               ) : undefined}
                             </div>
-                          </Collapse>
+                          </bk-collapse>
                         </div>
                       )
                     }

@@ -60,12 +60,6 @@ class Command(BaseCommand):
                 "result_table_id", flat=True
             )
         )
-        # 过滤到单指标单表
-        table_id_list = list(
-            models.ResultTableOption.objects.filter(
-                table_id__in=table_id_list, name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT, value="true"
-            ).values_list("table_id", flat=True)
-        )
 
         # 打印出要禁用的结果表
         self.stdout.write(f"allow to disable table_id_list: {json.dumps(table_id_list)}")

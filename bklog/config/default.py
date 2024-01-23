@@ -89,6 +89,7 @@ INSTALLED_APPS += (
     "apps.log_desensitize",
     "log_adapter",
     "bkm_search_module",
+    "bk_notice_sdk",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -913,6 +914,8 @@ ESQUERY_WHITE_LIST = [
     "bk_dbm",
     "bk-audit",
     "klc_saas",
+    "paasv3cli",
+    "bk_paas3",
 ]
 
 # BK repo conf
@@ -1163,12 +1166,17 @@ allowed_cors_from_settings = os.environ.get("BKAPP_ALLOWED_CORS_ORIGINS", "").sp
 # 监控默认域名
 default_allowed_bkmonitor_origin = BK_BKLOG_HOST.replace("bklog", "bkmonitor")
 # 中间件CorsMiddleware中支持跨域的域名配置
-CORS_ALLOWED_ORIGINS = [
-    default_allowed_bkmonitor_origin
-]
+CORS_ALLOWED_ORIGINS = [default_allowed_bkmonitor_origin]
 for origin in allowed_cors_from_settings:
     if origin:
         CORS_ALLOWED_ORIGINS.append(origin)
+
+#  通知中心配置
+BK_NOTICE = {
+    # 添加默认值防止本地调试无法启动
+    "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
+}
+
 
 """
 以下为框架代码 请勿修改

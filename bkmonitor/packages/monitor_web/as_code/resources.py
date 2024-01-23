@@ -57,6 +57,7 @@ from bkmonitor.models import (
 from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.views import serializers
+from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
 from core.drf_resource.tasks import step
 from monitor_web.grafana.utils import get_org_id
@@ -149,6 +150,8 @@ class ExportConfigResource(Resource):
             action_ids[action.name] = action.id
 
         # 配置生成
+        # 所有的策略需要非告警状态采集内置策略才可以导出
+        rules = [rule for rule in rules if rule.source != DATALINK_SOURCE]
         rule_objs = Strategy.from_models(rules)
         for strategy_obj in rule_objs:
             strategy_obj.restore()
@@ -317,13 +320,18 @@ class ExportConfigResource(Resource):
         导出策略配置
         """
         # 如果rule_ids是None就查询全量数据，如果是空就不查询，否则按列表过滤
-        assign_groups = AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id)
+        assign_groups = AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id).only(
+            "id", "path", "name", "priority", "source"
+        )
         if assign_group_ids is not None:
             if not assign_group_ids:
                 return
-            assign_groups = assign_groups.filter(id__in=assign_group_ids).only("id", "path", "name", "priority")
+            assign_groups = assign_groups.filter(id__in=assign_group_ids)
         groups_dict = {}
         for group in assign_groups:
+            if group.source == DATALINK_SOURCE:
+                # 内置的，不允许导出
+                continue
             groups_dict[group.id] = {
                 "id": group.id,
                 "priority": group.priority,

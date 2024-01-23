@@ -207,10 +207,10 @@ export default class AuthorityModal extends Vue {
 
     h3 {
       margin: 6px 0 24px;
-      color: #63656e;
       font-size: 20px;
       font-weight: normal;
       line-height: 1;
+      color: #63656e;
     }
   }
 }

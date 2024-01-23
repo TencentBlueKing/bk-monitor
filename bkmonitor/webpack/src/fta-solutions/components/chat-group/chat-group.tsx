@@ -26,7 +26,6 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkUserSelector from '@blueking/user-selector';
-import { Button, Checkbox, CheckboxGroup, Dialog } from 'bk-magic-vue';
 
 import { createChatGroup } from '../../../monitor-api/modules/action';
 
@@ -111,7 +110,7 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
 
   render() {
     return (
-      <Dialog
+      <bk-dialog
         ext-cls='chat-group-dialog-wrap'
         value={this.show}
         mask-close={true}
@@ -122,19 +121,22 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
       >
         <div class='header'>
           {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
-          <img src={require('../../static/img/we-com.svg')} />
+          <img
+            src={require('../../static/img/we-com.svg')}
+            alt=''
+          />
           <span>{this.title}</span>
         </div>
         <div class='content'>
           <p class='title'>{this.$t('群聊邀请')}</p>
           <div class='checkbox-group'>
-            <Checkbox
+            <bk-checkbox
               value={true}
               disabled
             >
               {this.$t('告警关注人')}
-            </Checkbox>
-            {/* <Checkbox value={this.isHandler}>{this.$t('告警处理人')}</Checkbox> */}
+            </bk-checkbox>
+            {/* <bk-checkbox value={this.isHandler}>{this.$t('告警处理人')}</bk-checkbox> */}
           </div>
           <BkUserSelector
             class='bk-user-selector'
@@ -142,15 +144,15 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
             api={this.bkUrl}
           />
           <div class='checkbox-group'>
-            <CheckboxGroup v-model={this.contentType}>
-              <Checkbox value={'detail_url'}>{this.$t('告警事件链接')}</Checkbox>
-              <Checkbox value={'alarm_content'}>{this.$t('告警事件内容')}</Checkbox>
-              {/* <Checkbox value={''}>{this.$t('告警分析内容')}</Checkbox> */}
-            </CheckboxGroup>
+            <bk-checkbox-group v-model={this.contentType}>
+              <bk-checkbox value={'detail_url'}>{this.$t('告警事件链接')}</bk-checkbox>
+              <bk-checkbox value={'alarm_content'}>{this.$t('告警事件内容')}</bk-checkbox>
+              {/* <bk-checkbox value={''}>{this.$t('告警分析内容')}</bk-checkbox> */}
+            </bk-checkbox-group>
           </div>
         </div>
         <template slot='footer'>
-          <Button
+          <bk-button
             onClick={() => this.handleConfirm()}
             disabled={!this.localValue.length || !this.contentType.length}
             theme='primary'
@@ -158,10 +160,10 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
             style='margin-right: 10px'
           >
             {this.$t('确定')}
-          </Button>
-          <Button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>
+          </bk-button>
+          <bk-button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</bk-button>
         </template>
-      </Dialog>
+      </bk-dialog>
     );
   }
 }
