@@ -28,7 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { favorite, sticky } from '../../../monitor-api/modules/home';
 import { SPACE_TYPE_MAP } from '../../../monitor-pc/common/constant';
-// import { Tag } from 'bk-magic-vue';
 import MonitorPieEchart from '../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import { initUnit } from './home';
@@ -395,7 +394,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                   key={index}
                   v-bk-tooltips={{
                     content: item.allowHtml ? `#${item.tip}` : item.tip,
-                    allowHtml: item.allowHtml,
+                    allowHTML: item.allowHtml,
                     delay: [500, 0],
                     theme: 'light',
                     placements: ['top'],

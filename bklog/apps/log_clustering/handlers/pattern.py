@@ -267,17 +267,56 @@ class PatternHandler:
                 qs_obj.label = v
             if k == "owners":
                 qs_obj.owners = v
-            if k == "remark":
-                now = int(arrow.now().timestamp * 1000)
-                current_remark = {
-                    "username": get_request_username(),
-                    "create_time": now,
-                    "remark": v,
-                }
-                if qs_obj.remark:
-                    qs_obj.remark.append(current_remark)
-                else:
-                    qs_obj.remark = [current_remark]
+        qs_obj.save()
+        return model_to_dict(qs_obj)
+
+    def set_clustering_remark(self, signature: str, configs: dict, method: str = "create"):
+        """
+        日志聚类-数据指纹 页面展示信息修改
+        """
+        if self._clustering_config.model_output_rt:
+            qs = AiopsSignatureAndPattern.objects.filter(
+                model_id=self._clustering_config.model_output_rt, signature=signature
+            )
+        else:
+            qs = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id, signature=signature)
+        qs_obj = qs.first()
+        if not qs_obj:
+            return
+        now = int(arrow.now().timestamp * 1000)
+        if method == "create":
+            current_remark = {
+                "username": get_request_username(),
+                "create_time": now,
+                "remark": configs["remark"],
+            }
+            if qs_obj.remark:
+                qs_obj.remark.append(current_remark)
+            else:
+                qs_obj.remark = [current_remark]
+        elif method == "update":
+            for remark in qs_obj.remark:
+                # 完全匹配才能修改成功
+                if (
+                    remark["create_time"] == configs["create_time"]
+                    and remark["username"] == get_request_username()
+                    and remark["remark"] == configs["old_remark"]
+                ):
+                    remark["remark"] = configs["new_remark"]
+                    remark["create_time"] = now
+                    break
+        elif method == "delete":
+            for remark in qs_obj.remark:
+                # 完全匹配才能删除成功
+                if (
+                    remark["create_time"] == configs["create_time"]
+                    and remark["username"] == get_request_username()
+                    and remark["remark"] == configs["remark"]
+                ):
+                    qs_obj.remark.remove(remark)
+                    break
+        else:
+            return
         qs_obj.save()
         return model_to_dict(qs_obj)
 

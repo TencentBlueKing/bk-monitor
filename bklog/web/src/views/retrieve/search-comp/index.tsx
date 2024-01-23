@@ -58,9 +58,14 @@ interface IProps {
   isFavoriteSearch: boolean;
   isShowUiType: boolean;
   favSearchList: Array<string>;
-  datePickerValue:  Array<any>;
+  datePickerValue: Array<any>;
   fieldAliasMap: object;
   totalFields: Array<any>;
+}
+
+interface ITagFocusInputObj {
+  index?: number;
+  str?: string;
 }
 
 @Component
@@ -94,6 +99,10 @@ export default class SearchComp extends tsc<IProps> {
   conditionList = []; // 条件列表
   isShowFilterOption = false; // 添加条件下拉框是否是展开状态
   aggsItems = []; // 接口返回输入框可选值
+  tagFocusInputObj: ITagFocusInputObj = {
+    index: 0,
+    str: '',
+  };
 
   get isCanUseUiType() { // 判断当前的检索语句生成的键名和操作符是否相同 不相等的话不能切换表单模式
     return this.inputSearchList.some(v => this.favSearchList.includes(v));
@@ -221,8 +230,8 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   @Emit('searchAddChange') // 添加条件检索
-  handleSearchAddChange(addition, isQuery: boolean) {
-    return { addition, isQuery };
+  handleSearchAddChange(addition, isQuery: boolean, isForceQuery: boolean) {
+    return { addition, isQuery, isForceQuery };
   }
 
   @Emit('openIpQuick')
@@ -260,30 +269,14 @@ export default class SearchComp extends tsc<IProps> {
    * @param {Boolean} chooserSwitch 路由的ip选择器是否打开
    */
   initConditionList(initAddition, initIPChooser, chooserSwitch = true) {
-    let addition = initAddition ?? this.retrieveParams.addition;
+    const addition = initAddition ?? this.retrieveParams.addition;
     const ipChooser = initIPChooser ?? this.retrieveParams.ip_chooser;
     this.conditionList = [];
     const isHaveIP = Boolean(Object.keys(ipChooser).length);
     if (isHaveIP) {
       this.pushCondition('ip-select', '', ipChooser, chooserSwitch);
     }
-    // 如果初始化时没有路由传过来的条件则默认展示path和log条件
-    if (!addition.length) {
-      // log / path 操作默认展示
-      addition = this.filterFields
-        .filter(item => ['path', 'log'].includes(item.name))
-        .map(item => ({
-          field: item.name,
-          operator: item.operator,
-          value: '',
-          isInclude: true,
-        }));
-    }
-    addition.forEach((el) => {
-      const { field, operator, value, isInclude } = el;
-      this.pushCondition(field, operator, value, isInclude);
-    });
-
+    this.initAdditionDefault(addition);
     this.setRouteParams(isHaveIP ? ipChooser : {});
   }
 
@@ -293,11 +286,11 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   // 改变条件时 更新路由参数
-  setRouteParams(ipChooser = {}, deleteIpValue = false) {
+  setRouteParams(ipChooser = {}, deleteIpValue = false, linkAddition = null) {
     const { params, query } = this.$route;
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
     const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
-    const newQueryObj = { addition: this.getFiledAdditionStr() }; // 新的query对象
+    const newQueryObj = { addition: this.getFiledAdditionStr(linkAddition) }; // 新的query对象
     const newIPChooser = Object.keys(ipChooser).length ? ipChooser : query.ip_chooser;
 
     if (newIPChooser && Object.keys(newIPChooser).length) { // ip值更新
@@ -313,16 +306,17 @@ export default class SearchComp extends tsc<IProps> {
     }
 
     Object.assign(filterQuery, newQueryObj);
-
-    this.$router.replace({
+    const routeData = {
       name: 'retrieve',
       params,
       query: filterQuery,
-    });
+    };
+    if (linkAddition) return this.$router.resolve(routeData).href;
+    this.$router.replace(routeData);
   }
 
   // 获取有效的字段条件字符串
-  getFiledAdditionStr() {
+  getFiledAdditionStr(linkAddition = null) {
     const filterAddition = this.conditionList
       .filter((item) => {
         if (item.conditionType === 'filed') {
@@ -332,14 +326,17 @@ export default class SearchComp extends tsc<IProps> {
         }
         return false;
       });
-    if (!filterAddition.length) return undefined;
-    return JSON.stringify(
-      filterAddition.map(item => ({
-        field: item.id,
-        operator: item.operator,
-        value: item.value.join(','),
-        isInclude: item.isInclude,
-      })));
+    if (!filterAddition.length && !linkAddition) return undefined;
+    const stringifyList = filterAddition.map(item => ({
+      field: item.id,
+      operator: item.operator,
+      value: item.value.join(','),
+      isInclude: item.isInclude,
+    }));
+    if (linkAddition && JSON.stringify(linkAddition) !== '{}') {
+      stringifyList.push(linkAddition);
+    }
+    return JSON.stringify(stringifyList);
   }
 
   getIPChooserStr(ipChooser) {
@@ -378,6 +375,25 @@ export default class SearchComp extends tsc<IProps> {
     this.setRouteParams({}, true);
   }
 
+  initAdditionDefault(addition = []) {
+    // 如果初始化时没有路由传过来的条件则默认展示path和log条件
+    if (!addition.length && !this.conditionList.length) {
+      // log / path 操作默认展示
+      addition = this.filterFields
+        .filter(item => ['path', 'log'].includes(item.name))
+        .map(item => ({
+          field: item.name,
+          operator: item.operator,
+          value: '',
+          isInclude: true,
+        }));
+    }
+    addition.forEach((el) => {
+      const { field, operator, value, isInclude } = el;
+      this.pushCondition(field, operator, value, isInclude);
+    });
+  }
+
   /**
    * @desc: 删除条件
    * @param {Number} index 删除的下标
@@ -388,8 +404,9 @@ export default class SearchComp extends tsc<IProps> {
     this.conditionList.splice(index, 1);
     if (conditionType === 'ip-select') {
       this.handleIPSelectorValueChange({}, true);
-    } else if ((condition.isInclude && condition.value.length) || this.isExistsOperator(condition.operate)) {
-      this.searchAdditionQuery(); // 删除的条件有值并且开启检索或者是操作符包含exists 则搜索一次
+    } else if (condition.isInclude) {
+      const isQuery = this.isExistsOperator(condition.operate) || condition.value.length;
+      this.searchAdditionQuery(isQuery); // 删除的条件有值并且开启检索或者是操作符包含exists 则搜索一次
     };
     this.setRouteParams({}, conditionType === 'ip-select');
   }
@@ -422,7 +439,9 @@ export default class SearchComp extends tsc<IProps> {
   handleAdditionValueChange(index, additionVal) {
     const { newReplaceObj, isQuery } = additionVal;
     Object.assign(this.conditionList[index], newReplaceObj); // 更新操作符和数据
-    if (this.conditionList[index].isInclude) this.searchAdditionQuery(isQuery); // 操作需要请求且条件为打开时请求
+    if (this.conditionList[index].isInclude && !this.tagFocusInputObj?.str) {
+      this.searchAdditionQuery(isQuery); // 操作需要请求且条件为打开时请求
+    }
     this.setRouteParams();
   }
 
@@ -439,7 +458,7 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   @Debounce(300)
-  searchAdditionQuery(isQuery = true) { // 获得当前开启的字段并且有有效值进行检索
+  searchAdditionQuery(isQuery = true, isForceQuery = false) { // 获得当前开启的字段并且有有效值进行检索
     const addition = this.conditionList
       .filter((item) => {
         if (item.conditionType !== 'filed' || !item.isInclude) return false;
@@ -451,7 +470,7 @@ export default class SearchComp extends tsc<IProps> {
         operator: item.operator,
         value: item.value.join(','),
       }));
-    this.handleSearchAddChange(addition, isQuery);
+    this.handleSearchAddChange(addition, isQuery, isForceQuery);
   }
 
   isExistsOperator(operator: string) { // 是否是包含和不包含
@@ -487,6 +506,26 @@ export default class SearchComp extends tsc<IProps> {
     });
   }
 
+  tagInputStrChange(index: number, str: string) {
+    this.tagFocusInputObj = str ? { index, str } : {};
+  }
+
+  handleClickRequestBtn() {
+    const { index, str } = this.tagFocusInputObj;
+    if (str) this.conditionList[index].value.push(str); // 更新操作符和数据
+    this.searchAdditionQuery(true, true);
+  }
+
+  blurUpdateKeyword(val) {
+    const { params, query: routerQuery } = this.$route;
+    const routeData = {
+      name: 'retrieve',
+      params,
+      query: { ...routerQuery, keyword: val },
+    };
+    this.$router.replace(routeData);
+  }
+
   render() {
     return (
       <div>
@@ -506,6 +545,7 @@ export default class SearchComp extends tsc<IProps> {
                 retrieved-keyword={this.retrievedKeyword}
                 dropdown-data={this.retrieveDropdownData}
                 is-show-ui-type={this.isShowUiType}
+                onKeywordBlurUpdate={this.blurUpdateKeyword}
                 onInputBlur={this.handleBlurSearchInput}
                 onIsCanSearch={val => this.handleUserOperate('isCanStorageFavorite', val)}
                 onRetrieve={this.handleRetrieveLog}
@@ -542,6 +582,7 @@ export default class SearchComp extends tsc<IProps> {
             onAdditionValueChange={additionVal => this.handleAdditionValueChange(index, additionVal)}
             onFiledChange={v => this.handleFiledChange(index, v)}
             onIpChange={() => this.handleOpenIpQuick()}
+            onInputChange={v => this.tagInputStrChange(index, v)}
             style='margin-bottom: 16px;'
           />)
         }
@@ -590,7 +631,7 @@ export default class SearchComp extends tsc<IProps> {
           visibleFields={this.visibleFields}
           indexSetList={this.indexSetList}
           isSqlSearchType={this.isSqlSearchType}
-          onRetrieveLog={this.handleRetrieveLog}
+          onRetrieveLog={this.handleClickRequestBtn}
           onClearCondition={this.handleClearCondition}/>
       </div>
     );

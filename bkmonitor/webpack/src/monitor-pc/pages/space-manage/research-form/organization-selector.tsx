@@ -25,7 +25,6 @@
  */
 import { Component, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Option, Select } from 'bk-magic-vue';
 
 import { getUserDepartments, listDepartments } from '../../../../monitor-api/modules/commons';
 
@@ -150,7 +149,7 @@ export default class OrganizationSelector extends tsc<IProps> {
             class='item-wrap'
             key={item.type}
           >
-            <Select
+            <bk-select
               v-model={item.value}
               loading={item.loading}
               searchable
@@ -158,13 +157,13 @@ export default class OrganizationSelector extends tsc<IProps> {
               onSelected={() => this.handleSelected(item.type)}
             >
               {item.list.map(option => (
-                <Option
+                <bk-option
                   key={option.id}
                   id={option.id}
                   name={option.name}
-                ></Option>
+                ></bk-option>
               ))}
-            </Select>
+            </bk-select>
           </div>
         ))}
       </div>

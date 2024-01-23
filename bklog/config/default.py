@@ -73,6 +73,7 @@ INSTALLED_APPS += (
     "apps.grafana",
     "bk_monitor",
     "home_application",
+    "console",
     "pipeline",
     "pipeline.log",
     "pipeline.engine",
@@ -88,6 +89,7 @@ INSTALLED_APPS += (
     "apps.log_desensitize",
     "log_adapter",
     "bkm_search_module",
+    "bk_notice_sdk",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -846,7 +848,7 @@ BCS_CC_SSM_SWITCH = os.getenv("BKAPP_BCS_CC_SSM_SWITCH", "on")
 BCS_APIGATEWAY_HOST = os.getenv("BKAPP_BCS_APIGATEWAY_HOST", "")
 BCS_CC_APIGATEWAY_HOST = os.getenv("BKAPP_BCS_CC_APIGATEWAY_HOST", "")
 BK_SSM_HOST = os.getenv("BKAPP_SSM_HOST", "http://bkssm.service.consul:5000/api/v1/auth/access-tokens")
-BCS_WEB_CONSOLE_DOMAIN = ""
+BCS_WEB_CONSOLE_DOMAIN = os.getenv("BKAPP_BCS_WEB_CONSOLE_DOMAIN", "")
 BKLOG_CONFIG_KIND = os.getenv("BKAPP_BKLOG_CONFIG_KIND", "BkLogConfig")
 BKLOG_CONFIG_API_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_API_VERSION", "bk.tencent.com/v1alpha1")
 BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
@@ -912,6 +914,8 @@ ESQUERY_WHITE_LIST = [
     "bk_dbm",
     "bk-audit",
     "klc_saas",
+    "paasv3cli",
+    "bk_paas3",
 ]
 
 # BK repo conf
@@ -1155,6 +1159,24 @@ CHECK_COLLECTOR_SWITCH: bool = os.getenv("CHECK_COLLECTOR_SWITCH", "off") == "on
 # HTTPS 代理转发
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 # ==============================================================================
+
+# ==============================================================================
+# 支持监控跨域
+allowed_cors_from_settings = os.environ.get("BKAPP_ALLOWED_CORS_ORIGINS", "").split(",")
+# 监控默认域名
+default_allowed_bkmonitor_origin = BK_BKLOG_HOST.replace("bklog", "bkmonitor")
+# 中间件CorsMiddleware中支持跨域的域名配置
+CORS_ALLOWED_ORIGINS = [default_allowed_bkmonitor_origin]
+for origin in allowed_cors_from_settings:
+    if origin:
+        CORS_ALLOWED_ORIGINS.append(origin)
+
+#  通知中心配置
+BK_NOTICE = {
+    # 添加默认值防止本地调试无法启动
+    "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
+}
+
 
 """
 以下为框架代码 请勿修改

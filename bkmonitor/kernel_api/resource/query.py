@@ -50,10 +50,10 @@ class QueryEsResource(Resource):
         try:
             result_table = models.ResultTable.get_result_table(table_id=table_id)
         except models.ResultTable.DoesNotExist:
-            raise NotFound(_("result_table({}) not exists.".format(table_id)))
+            raise NotFound("result_table({}) not exists.".format(table_id))
         except Exception as err:
             logger.exception("get result_table({}) failed, error message is {}".format(table_id, err))
-            raise Exception(_("get result_table({}) failed, error message is {}".format(table_id, err)))
+            raise Exception("get result_table({}) failed, error message is {}".format(table_id, err))
         return result_table
 
     @staticmethod
@@ -61,12 +61,12 @@ class QueryEsResource(Resource):
         try:
             consul_config = result_table.get_storage_info(models.ClusterInfo.TYPE_ES)
         except models.storage.ESStorage.DoesNotExist:
-            raise NotFound(_("result table({}) storage info not exists.".format(result_table.table_id)))
+            raise NotFound("result table({}) storage info not exists.".format(result_table.table_id))
         except Exception as err:
             logger.exception(
                 "get result table({}) storage info failed, error message is {}".format(result_table.table_id, err)
             )
             raise Exception(
-                _("get result table({}) storage info failed, error message is {}".format(result_table.table_id, err))
+                "get result table({}) storage info failed, error message is {}".format(result_table.table_id, err)
             )
         return consul_config

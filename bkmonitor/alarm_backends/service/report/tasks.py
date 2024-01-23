@@ -94,7 +94,7 @@ def report_mail_detect():
 
     today = datetime.datetime.today().strftime("%Y-%m-%d")
     now_time = arrow.now()
-    one_minute_ago = TimeMatch.convert_datetime_to_arrow(datetime.datetime.now() - datetime.timedelta(minutes=1))
+    ten_minute_ago = TimeMatch.convert_datetime_to_arrow(datetime.datetime.now() - datetime.timedelta(minutes=10))
     report_items = list(
         ReportItems.objects.filter(
             Q(is_enabled=True) & (Q(last_send_time=None) | Q(last_send_time__lt=today) | Q(frequency__type=5))
@@ -114,9 +114,9 @@ def report_mail_detect():
         # 最后发送时间进行本地化
         last_send_time = localtime(item.last_send_time) if item.last_send_time else None
         # 补充begin_time和end_time
-        item.frequency["begin_time"] = one_minute_ago.format("HH:mm:ss")
+        item.frequency["begin_time"] = ten_minute_ago.format("HH:mm:ss")
         item.frequency["end_time"] = now_time.format("HH:mm:ss")
-        time_check = time_match_class(item.frequency, one_minute_ago, now_time)
+        time_check = time_match_class(item.frequency, ten_minute_ago, now_time)
         run_time_strings = []
         if item.frequency["type"] == 1:
             run_time_strings = [item.frequency["run_time"]]
@@ -157,7 +157,7 @@ def report_mail_detect():
 
 @app.task(ignore_result=True, queue="celery_report_cron")
 def render_mails(
-        mail_handler, report_item, report_item_contents, receivers, is_superuser, channel_name=ReportItems.Channel.USER
+    mail_handler, report_item, report_item_contents, receivers, is_superuser, channel_name=ReportItems.Channel.USER
 ):
     """
     渲染并发送邮件
@@ -170,9 +170,7 @@ def render_mails(
     """
     if not receivers:
         # 没有订阅者的情况下，直接返回
-        logger.info(
-            f"[mail_report] ignore send mail({report_item.mail_title}) due to no receivers"
-        )
+        logger.info(f"[mail_report] ignore send mail({report_item.mail_title}) due to no receivers")
         return
     status = {
         "report_item": mail_handler.item_id,
@@ -199,8 +197,9 @@ def render_mails(
             business_list = perm_client.filter_business_list_by_action(ActionEnum.VIEW_BUSINESS)
             bk_biz_ids = [biz.bk_biz_id for biz in business_list]
         except Exception as error:
-            logger.exception("[mail_report] get business info of report_item(%s)"
-                             " failed: %s", report_item.id, str(error))
+            logger.exception(
+                "[mail_report] get business info of report_item(%s)" " failed: %s", report_item.id, str(error)
+            )
             bk_biz_ids = []
 
     try:

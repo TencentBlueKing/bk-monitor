@@ -74,6 +74,9 @@ importers:
 
   src/apm:
     dependencies:
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -98,9 +101,6 @@ importers:
       monitor-ui:
         specifier: workspace:^1.0.0
         version: link:../monitor-ui
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -192,6 +192,9 @@ importers:
       '@blueking/bk-weweb':
         specifier: 0.0.2-5.beta.1
         version: 0.0.2-5.beta.1
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -204,9 +207,6 @@ importers:
       deepmerge:
         specifier: ^4.2.2
         version: 4.3.1
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -384,15 +384,15 @@ importers:
 
   src/monitor-mobile:
     dependencies:
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       dayjs:
         specifier: ^1.11.10
         version: 1.11.10
       deepmerge:
         specifier: ^4.2.2
         version: 4.3.1
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -496,9 +496,15 @@ importers:
       '@blueking/date-picker':
         specifier: ^0.0.72
         version: 0.0.72(bkui-vue@0.0.2-beta.110)(dayjs@1.11.10)(vue@2.7.14)
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@blueking/ip-selector':
-        specifier: 0.0.1-beta.134
-        version: 0.0.1-beta.134
+        specifier: 0.2.0-beta
+        version: 0.2.0-beta
+      '@blueking/notice-component-vue2':
+        specifier: ^2.0.0
+        version: 2.0.0(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14)
       '@blueking/paas-login':
         specifier: 0.0.6
         version: 0.0.6(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14)
@@ -532,12 +538,12 @@ importers:
       minimist:
         specifier: ^1.2.6
         version: 1.2.8
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       sortablejs:
         specifier: ^1.15.0
         version: 1.15.0
+      throttle-debounce:
+        specifier: ^3.0.1
+        version: 3.0.1
       vue:
         specifier: 2.7.14
         version: 2.7.14
@@ -678,6 +684,9 @@ importers:
       '@antv/g6':
         specifier: ^4.6.4
         version: 4.8.23
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@codemirror/autocomplete':
         specifier: ^0.19.9
         version: 0.19.15
@@ -741,9 +750,6 @@ importers:
       monitor-vue-grid-layout:
         specifier: 0.0.1
         version: 0.0.1(@interactjs/core@1.10.20)(@interactjs/utils@1.10.20)
-      resize-detector:
-        specifier: ^0.2.2
-        version: 0.2.2
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -840,13 +846,16 @@ importers:
         version: 4.8.23
       '@blueking/date-picker':
         specifier: ^0.0.72
-        version: 0.0.72(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8)
+        version: 0.0.72(bkui-vue@0.0.2-beta.88)(dayjs@1.11.10)(vue@3.3.8)
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@blueking/ip-selector':
-        specifier: 0.0.1-beta.134
-        version: 0.0.1-beta.134
+        specifier: 0.2.0-beta
+        version: 0.2.0-beta
       bkui-vue:
-        specifier: 0.0.2-beta.78.beta.1
-        version: 0.0.2-beta.78.beta.1(highlight.js@11.5.1)(vue@3.3.8)
+        specifier: 0.0.2-beta.88
+        version: 0.0.2-beta.88(highlight.js@11.5.1)(vue@3.3.8)
       d3-array:
         specifier: ^3.1.1
         version: 3.2.4
@@ -907,9 +916,6 @@ importers:
       reselect:
         specifier: ^4.1.5
         version: 4.1.8
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -941,9 +947,6 @@ importers:
       '@types/lodash':
         specifier: ^4.14.182
         version: 4.14.201
-      '@types/throttle-debounce':
-        specifier: ^5.0.0
-        version: 5.0.2
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.20.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0)(eslint@8.53.0)(typescript@4.9.5)
@@ -2739,7 +2742,7 @@ packages:
       vue: 2.7.14
     dev: false
 
-  /@blueking/date-picker@0.0.72(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8):
+  /@blueking/date-picker@0.0.72(bkui-vue@0.0.2-beta.88)(dayjs@1.11.10)(vue@3.3.8):
     resolution: {integrity: sha512-Mmoau1xUK/HU8uSR8DJAuauFOeCAvtMGpMGtXAkmGJlE5PiMjjU4u971LfCxXb17nO5Xl70KuHw5yt+JxoKXog==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
@@ -2747,14 +2750,28 @@ packages:
       dayjs: ^1.11.10
       vue: ^3.2.0
     dependencies:
-      bkui-vue: 0.0.2-beta.78.beta.1(highlight.js@11.5.1)(vue@3.3.8)
+      bkui-vue: 0.0.2-beta.88(highlight.js@11.5.1)(vue@3.3.8)
       dayjs: 1.11.10
       vue: 3.3.8(typescript@4.9.5)
     dev: false
 
-  /@blueking/ip-selector@0.0.1-beta.134:
-    resolution: {integrity: sha512-8KvASVB9JczKmR0eGKnEe88avcPrfvfbP7fJESgsq7oxUDWR+eJQDo3AJjPNur+myF8KRhwTp+utvqjBvYa2yQ==}
+  /@blueking/fork-resize-detector@0.0.2:
+    resolution: {integrity: sha512-gHy4ulTJzy1IG/2o+X13hkC/pN9hbD3WTJz2h9ILSMZy7jHdpQt2Utj0Ppn8MSS/go9QKm0fbHFvNUaLt1/tVw==}
+    dev: false
+
+  /@blueking/ip-selector@0.2.0-beta:
+    resolution: {integrity: sha512-k7qwLXVLNk6HSBM7CAFp3FDSnTozfnjCD4qrvhu8fwMI+jSZs/jumsuDiGUgMCGkiAPRzFInk0zs/TTj+T85Aw==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
+    dev: false
+
+  /@blueking/notice-component-vue2@2.0.0(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14):
+    resolution: {integrity: sha512-RqKud1Zc+8LeNR0qurb36ArBxpadUXOk8p24TNhwewya3/Zvsmwwc3LruxgkNUVyxMXxGh7UhEKi3zHWEwgDww==}
+    peerDependencies:
+      bk-magic-vue: ^2.5.8-beta.5
+      vue: ^2.5.5
+    dependencies:
+      bk-magic-vue: 2.5.8-beta.11(vue@2.7.14)
+      vue: 2.7.14
     dev: false
 
   /@blueking/paas-login@0.0.6(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14):
@@ -3737,20 +3754,20 @@ packages:
   /@probe.gl/env@3.6.0:
     resolution: {integrity: sha512-4tTZYUg/8BICC3Yyb9rOeoKeijKbZHRXBEKObrfPmX4sQmYB15ZOUpoVBhAyJkOYVAM8EkPci6Uw5dLCwx2BEQ==}
     dependencies:
-      '@babel/runtime': 7.23.2
+      '@babel/runtime': 7.23.6
     dev: false
 
   /@probe.gl/log@3.6.0:
     resolution: {integrity: sha512-hjpyenpEvOdowgZ1qMeCJxfRD4JkKdlXz0RC14m42Un62NtOT+GpWyKA4LssT0+xyLULCByRAtG2fzZorpIAcA==}
     dependencies:
-      '@babel/runtime': 7.23.2
+      '@babel/runtime': 7.23.6
       '@probe.gl/env': 3.6.0
     dev: false
 
   /@probe.gl/stats@3.6.0:
     resolution: {integrity: sha512-JdALQXB44OP4kUBN/UrQgzbJe4qokbVF4Y8lkIA8iVCFnjVowWIgkD/z/0QO65yELT54tTrtepw1jScjKB+rhQ==}
     dependencies:
-      '@babel/runtime': 7.23.2
+      '@babel/runtime': 7.23.6
     dev: false
 
   /@sinclair/typebox@0.27.8:
@@ -4172,10 +4189,6 @@ packages:
     dependencies:
       '@types/node': 20.9.0
     dev: false
-
-  /@types/throttle-debounce@5.0.2:
-    resolution: {integrity: sha512-pDzSNulqooSKvSNcksnV72nk8p7gRqN8As71Sp28nov1IgmPKWbOEIwAWvBME5pPTtaXJAvG3O4oc76HlQ4kqQ==}
-    dev: true
 
   /@types/ws@8.5.9:
     resolution: {integrity: sha512-jbdrY0a8lxfdTp/+r7Z4CkycbOFN8WX+IOchLJr3juT/xzbJ8URyTVSJ/hvNdadTgM1mnedb47n+Y31GsFnQlg==}
@@ -5308,8 +5321,9 @@ packages:
       vue-types: 4.1.1(vue@2.7.14)
     dev: false
 
-  /bkui-vue@0.0.2-beta.78.beta.1(highlight.js@11.5.1)(vue@3.3.8):
-    resolution: {integrity: sha512-qGVeVTXa12CtD+UZ4EdKiO14GhP3hIqE6vB/xx5CEbTXtBtMQ4J5f3iLy3ddG7t71Qd0U9HRuSEG2hAxzR2oqQ==}
+  /bkui-vue@0.0.2-beta.88(highlight.js@11.5.1)(vue@3.3.8):
+    resolution: {integrity: sha512-thHT2awh7ntvvINC0lDC0mYVj3g9rf7+PHFVaECl0ewpvaSi83X9u7NxbnQCYtb9XREgFoMc9RHt7rymbYAXow==}
+    engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
       vue: ^3.2.0
@@ -5320,7 +5334,7 @@ packages:
       highlight.js: 11.5.1
       js-calendar: 1.2.3
       json-formatter-js: 2.3.4
-      lodash-es: 4.17.21
+      lodash: 4.17.21
       tinycolor2: 1.6.0
       vue: 3.3.8(typescript@4.9.5)
       vue-types: 4.1.1(vue@3.3.8)
@@ -6667,7 +6681,7 @@ packages:
     resolution: {integrity: sha512-fnULvOpxnC5/Vg3NCiWelDsLiUc9bRwAPs/+LfTLNvetFCtCTN+yQz15C/fs4AwX1R9K5GLtLfn8QW+dWisaAw==}
     engines: {node: '>=0.11'}
     dependencies:
-      '@babel/runtime': 7.23.2
+      '@babel/runtime': 7.23.6
     dev: false
 
   /dayjs@1.11.10:
@@ -11066,7 +11080,7 @@ packages:
   /probe.gl@3.6.0:
     resolution: {integrity: sha512-19JydJWI7+DtR4feV+pu4Mn1I5TAc0xojuxVgZdXIyfmTLfUaFnk4OloWK1bKbPtkgGKLr2lnbnCXmpZEcEp9g==}
     dependencies:
-      '@babel/runtime': 7.23.2
+      '@babel/runtime': 7.23.6
       '@probe.gl/env': 3.6.0
       '@probe.gl/log': 3.6.0
       '@probe.gl/stats': 3.6.0
@@ -11393,14 +11407,6 @@ packages:
 
   /reselect@4.1.8:
     resolution: {integrity: sha512-ab9EmR80F/zQTMNeneUr4cv+jSwPJgIlvEmVwLerwrWVbpLlBuls9XHzIeTFy4cegU2NHBp3va0LKOzU5qFEYQ==}
-    dev: false
-
-  /resize-detector@0.2.2:
-    resolution: {integrity: sha512-X07ADfFqXoyfbx4/PSzr7EBF9e/RwrcS9UoPBMbau11agg5uad39ysMmXFCu0o5C3hhKbs0X/cSl85OwPIpZLQ==}
-    dev: false
-
-  /resize-detector@0.3.0:
-    resolution: {integrity: sha512-R/tCuvuOHQ8o2boRP6vgx8hXCCy87H1eY9V5imBYeVNyNVpuL9ciReSccLj2gDcax9+2weXy3bc8Vv+NRXeEvQ==}
     dev: false
 
   /resize-observer-polyfill@1.5.1:

@@ -25,6 +25,7 @@ from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
+from .tools.environment import IS_CONTAINER_MODE  # noqa
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
@@ -93,7 +94,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 # LOG_LEVEL = 'INFO'
 
 # 调试开关，生产环境请关闭
-DEBUG = TEMPLATE_DEBUG = ENVIRONMENT == "development"
+DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or ENVIRONMENT == "development"
 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
@@ -407,6 +408,7 @@ ACTIVE_VIEWS = {
         "as_code": "monitor_web.as_code.views",
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
+        "datalink": "monitor_web.datalink.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -587,6 +589,11 @@ APM_APP_DEFAULT_ES_REPLICAS = 0
 APM_APP_QUERY_TRACE_MAX_COUNT = 1000
 APM_APP_DEFAULT_ES_SHARDS = 3
 APM_APP_BKDATA_OPERATOR = ""
+APM_APP_BKDATA_MAINTAINER = []
+APM_APP_BKDATA_FETCH_STATUS_THRESHOLD = 10
+# APM计算平台尾部采样Flow配置
+APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID = 0
+# APM计算平台虚拟指标Flow配置
 APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID = 0
 APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE = 30
 APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE = ""
@@ -1083,6 +1090,8 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
+# bkdata api only for query data (not required)
+BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
@@ -1137,7 +1146,7 @@ BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", "{}{}".format(BK_PAAS_INNER_HOST, SITE_URL))
 
 # 是否跳过 iam migrate
-BK_IAM_SKIP = False
+BK_IAM_SKIP = os.getenv("BK_IAM_SKIP", "false").lower() == "true"
 
 # 采集配置文件参数最大值(M)
 COLLECTING_CONFIG_FILE_MAXSIZE = 2
@@ -1334,3 +1343,19 @@ IS_ENABLE_METADATA_FUNCTION_CONTROLLER = True
 
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
+
+# 是否启用 influxdb 写入，默认 True
+ENABLE_INFLUXDB_STORAGE = True
+
+# bk-notice-sdk requirment
+if not os.getenv("BK_API_URL_TMPL"):
+    os.environ["BK_API_URL_TMPL"] = ""
+
+# 内网collector域名
+INNER_COLLOCTOR_HOST = ""
+
+# 外网collector域名
+OUTER_COLLOCTOR_HOST = ""
+
+# ES 需要串行的集群的白名单
+ES_SERIAL_CLUSTER_LIST = []
