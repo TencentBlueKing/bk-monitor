@@ -1,7 +1,7 @@
 import { request } from '../base';
 
 export const query = request('POST', 'apm/profile_api/query/samples/');
-export const queryExport = request('POST', 'apm/profile_api/query/export/');
+export const queryExport = request('GET', 'apm/profile_api/query/export/');
 export const queryLabels = request('GET', 'apm/profile_api/query/labels/');
 export const queryLabelValues = request('GET', 'apm/profile_api/query/label_values/');
 export const queryServicesDetail = request('GET', 'apm/profile_api/query/services_detail/');

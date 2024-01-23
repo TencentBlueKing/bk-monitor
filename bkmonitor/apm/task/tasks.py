@@ -135,7 +135,6 @@ def profile_handler(bk_biz_id: int, app_name: str):
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")
 
 
-@app.task(ignore_result=True, queue="celery_cron")
 def profile_discover_cron():
     """定时发现profile服务"""
     logger.info(f"[profile_discover_cron] start at {datetime.datetime.now()}")

@@ -27,6 +27,7 @@ class Converter:
     # preset profile_id for querying
     # if preset_profile_id is not None, force insert it to labels of sample
     preset_profile_id: Optional[str] = None
+    raw_data: list = field(default_factory=list)
 
     # mappings for deduplication
     _location_mapping: Dict[str, Location] = field(default_factory=dict)

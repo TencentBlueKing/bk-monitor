@@ -52,10 +52,9 @@ class FlamegraphDiagrammer:
         for r in tree.root.children:
             root["children"].append(function_node_to_element(r))
 
-        return {"flame_data": root, **c.get_sample_type()}
+        return {"flame_data": root}
 
-    @classmethod
-    def diff(cls, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
+    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
         baseline_tree = FunctionTree.load_from_profile(base_doris_converter)
         comparison_tree = FunctionTree.load_from_profile(diff_doris_converter)
 
@@ -76,4 +75,4 @@ class FlamegraphDiagrammer:
         for r in baseline_tree.root.children:
             root["children"].append(function_node_to_element_and_add_diff_info(r, comparison_map))
 
-        return {"flame_data": root, **base_doris_converter.get_sample_type()}
+        return {"flame_data": root}

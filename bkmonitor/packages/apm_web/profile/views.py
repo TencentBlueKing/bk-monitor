@@ -266,7 +266,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         diagram_types = validated_data["diagram_types"]
         if validated_data.get("is_compared"):
             diff_doris_converter = self._query(
-                bk_biz_id=validated_data['bk_biz_id'],
+                bk_biz_id=essentials['bk_biz_id'],
                 app_name=essentials["app_name"],
                 service_name=essentials["service_name"],
                 data_type=validated_data["data_type"],
@@ -283,12 +283,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
-
-        statistics = doris_converter.statistics_by_time()
-        data = {
-            "statistics": statistics,
-            "diagrams": {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()},
-        }
+        data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
+        data.update(doris_converter.get_sample_type())
         return Response(data=data)
 
     @staticmethod
@@ -401,23 +397,23 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         label_values = [label["label_value"] for label in results["list"][offset * rows : (offset + 1) * rows]]
         return Response(data={"label_values": label_values})
 
-    @action(methods=["POST"], detail=False, url_path="export")
+    @action(methods=["GET"], detail=False, url_path="export")
     def export(self, request: Request):
-        # query data
-        serializer = ProfileQueryExportSerializer(data=request.data)
+        serializer = ProfileQueryExportSerializer(data=request.data or request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
-        service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-        application_info = self._examine_application(bk_biz_id, app_name)
+        essentials = self._get_essentials(validated_data)
+        bk_biz_id = essentials["bk_biz_id"]
+        app_name = essentials["app_name"]
+        service_name = essentials["service_name"]
+        result_table_id = essentials["result_table_id"]
 
         start, end = self._enlarge_duration(
             validated_data["start"], validated_data["end"], offset=validated_data["offset"]
         )
         doris_converter = self._query(
-            bk_biz_id=validated_data['bk_biz_id'],
+            bk_biz_id=bk_biz_id,
             app_name=app_name,
             service_name=service_name,
             data_type=validated_data["data_type"],
@@ -425,7 +421,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             end=end,
             profile_id=validated_data.get("profile_id"),
             filter_labels=validated_data.get("filter_labels"),
-            result_table_id=application_info["profiling_config"]["result_table_id"],
+            result_table_id=result_table_id,
         )
 
         # transfer data
