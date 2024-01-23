@@ -79,7 +79,7 @@ class UnifyQueryAPIResource(Resource):
             username = ""
 
         space_uid = ""
-        if params.get("space_uid"):
+        if "space_uid" in params:
             space_uid = params["space_uid"]
         elif params.get("bk_biz_ids"):
             bk_biz_id = params.pop("bk_biz_ids")[0]
