@@ -9,6 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 from enum import Enum
 
+from django.db.models import TextChoices
+from django.utils.translation import ugettext_lazy as _
+
 DEFAULT_SERVICE_NAME = "default"
 DEFAULT_PROFILE_DATA_TYPE = "cpu"
 DEFAULT_EXPORT_FORMAT = "pprof"
@@ -41,3 +44,16 @@ class CallGraphResponseDataMode:
 PROFILE_UPLOAD_RECORD_NEW_FILE_NAME = "Profile-{}.pprof"
 
 PROFILE_EXPORT_FILE_NAME = "{app_name}-{data_type}-{time}.{format}"
+
+
+class DataType(TextChoices):
+    CPU = "cpu", _("CPU")
+    MEMORY = "memory", _("MEMORY")
+    BLOCK = "block", _("BLOCK")
+    MUTEX = "mutex", _("MUTEX")
+    GOROUTINE = "goroutine", _("GOROUTINE")
+    THREADCREATE = "threadcreate", _("THREADCREATE")
+
+    @classmethod
+    def get_name(cls, key):
+        return dict(DataType.choices).get(key, key.upper())

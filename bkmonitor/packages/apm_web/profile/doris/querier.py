@@ -11,7 +11,7 @@ import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 import requests
 from django.conf import settings
@@ -138,36 +138,41 @@ class QueryTemplate:
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
 
-    def get_sample_info(self, start: int, end: int, data_type: str, service_name: str, label_filter: dict = None):
+    def get_sample_info(
+        self, start: int, end: int, data_types: List[str], service_name: str, label_filter: dict = None
+    ):
         """查询样本基本信息"""
         if not label_filter:
             label_filter = {}
 
-        res = Query(
-            api_type=APIType.QUERY_SAMPLE_BY_JSON,
-            api_params=APIParams(
-                biz_id=self.bk_biz_id,
-                app=self.app_name,
-                type=data_type,
-                start=start,
-                end=end,
-                service_name=service_name,
-                limit={"offset": 0, "rows": 1},
-                order={"expr": "dtEventTimeStamp", "sort": "desc"},
-                **label_filter,
-            ),
-            result_table_id=self.result_table_id,
-        ).execute()
-        if not res:
-            return None
+        res = {}
+        for data_type in data_types:
+            info = Query(
+                api_type=APIType.QUERY_SAMPLE_BY_JSON,
+                api_params=APIParams(
+                    biz_id=self.bk_biz_id,
+                    app=self.app_name,
+                    type=data_type,
+                    start=start,
+                    end=end,
+                    service_name=service_name,
+                    limit={"offset": 0, "rows": 1},
+                    order={"expr": "dtEventTimeStamp", "sort": "desc"},
+                    **label_filter,
+                ),
+                result_table_id=self.result_table_id,
+            ).execute()
 
-        data_list = res.get("list", [])
-        if not data_list:
-            return None
+            if not info or not info.get("list", []):
+                continue
 
-        return {
-            "last_report_time": data_list[0].get("dtEventTimeStamp"),
-        }
+            ts = info["list"][0].get("dtEventTimeStamp")
+            if not ts:
+                continue
+
+            res[data_type] = {"last_report_time": ts}
+
+        return res
 
     def exist_data(self, start: int, end: int) -> bool:
         """查询 Profile 是否有数据上报"""
