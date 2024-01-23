@@ -556,5 +556,6 @@ export default {
   从本次检索中排除: 'Exclude from this search',
   当前显示全部字段: 'Currently showing all fields',
   显示全部字段: 'Currently showing all fields',
-  新开标签页: 'New tab'
+  新开标签页: 'New tab',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。': 'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
 };
