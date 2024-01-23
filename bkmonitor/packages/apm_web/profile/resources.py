@@ -14,6 +14,7 @@ import time
 from rest_framework import serializers
 
 from apm_web.models import Application
+from apm_web.profile.constants import DataType
 from apm_web.profile.doris.querier import QueryTemplate
 from core.drf_resource import Resource, api
 
@@ -27,7 +28,6 @@ class QueryServicesDetailResource(Resource):
         service_name = serializers.CharField()
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
-        data_type = serializers.CharField(required=True, label="数据类型")
 
     def perform_request(self, validated_data):
         services = api.apm_api.query_profile_services_detail(
@@ -43,28 +43,36 @@ class QueryServicesDetailResource(Resource):
             raise ValueError(f"服务: {validated_data['service_name']} 不存在")
 
         # 实时查询最近上报时间等信息
-        info = QueryTemplate(validated_data["bk_biz_id"], validated_data["app_name"]).get_sample_info(
-            validated_data["start_time"],
-            validated_data["end_time"],
-            validated_data["data_type"],
+        data_type_info_mapping = QueryTemplate(validated_data["bk_biz_id"], validated_data["app_name"]).get_sample_info(
+            validated_data["start_time"] * 1000,
+            validated_data["end_time"] * 1000,
+            data_types=[i["data_type"] for i in services],
             service_name=validated_data["service_name"],
         )
+        last_report_time = sorted([i["last_report_time"] for i in data_type_info_mapping.values()], reverse=True)
+
         return {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
-            "name": services[0].get("name"),
-            "data_type": services[0].get("data_type"),
-            "period": ",".join([i["period"] for i in services if i.get("period")]),
-            "period_type": ",".join([i["period_type"] for i in services if i.get("period_type")]),
-            "frequency": ",".join([f"{i['frequency']}Hz" for i in services if i.get("frequency")]),
-            "create_time": services[0].get("created_at"),
-            "last_check_time": services[0].get("last_check_time"),
-            "last_report_time": self.format_time(info["last_report_time"]) if info else None,
-            "is_multiple": len(services) > 1,
+            "name": validated_data["service_name"],
+            "create_time": self.time_to_str(sorted([self.str_to_time(i["created_at"]) for i in services])[0]),
+            "last_check_time": self.time_to_str(
+                sorted([self.str_to_time(i["last_check_time"]) for i in services], reverse=True)[0]
+            ),
+            "last_report_time": self.timestamp_to_time(last_report_time[0]) if last_report_time else None,
+            "data_types": [{"key": i["data_type"], "name": DataType.get_name(i["data_type"])} for i in services],
         }
 
     @classmethod
-    def format_time(cls, value):
+    def str_to_time(cls, time_str):
+        return datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+
+    @classmethod
+    def time_to_str(cls, t):
+        return t.strftime("%Y-%m-%d %H:%M:%S")
+
+    @classmethod
+    def timestamp_to_time(cls, value):
         if not value:
             return None
 
