@@ -142,7 +142,7 @@ def profile_discover_cron():
     interval = 10
     slug = datetime.datetime.now().minute & interval
     apps = [
-        (i.bk_biz_id, i.app_name)
+        (i["bk_biz_id"], i["app_name"])
         for i in ApmApplication.objects.filter(is_enabled=True).values("bk_biz_id", "app_name")
     ]
 

@@ -475,7 +475,7 @@ class ServiceListResource(PageListResource):
         }
         profiling_request_info = QueryTemplate(
             validate_data["bk_biz_id"], validate_data["app_name"]
-        ).list_services_request_info(validate_data["start_time"], validate_data["end_time"])
+        ).list_services_request_info(validate_data["start_time"] * 1000, validate_data["end_time"] * 1000)
         # 处理响应数据
         raw_data = self.combine_data(
             services,
@@ -528,7 +528,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         )
         profiling_metric_info = QueryTemplate(
             validated_data["bk_biz_id"], validated_data["app_name"]
-        ).list_services_request_info(validated_data["start_time"], validated_data["end_time"])
+        ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
 
         services = ServiceHandler.list_services(app)
         column = validated_data["column"]
