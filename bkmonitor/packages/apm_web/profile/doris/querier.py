@@ -176,9 +176,8 @@ class QueryTemplate:
 
     def exist_data(self, start: int, end: int) -> bool:
         """查询 Profile 是否有数据上报"""
-        # 如果有时间内有查询到存在任何一个 type 即代表有数据上报
         res = Query(
-            api_type=APIType.QUERY_SAMPLE,
+            api_type=APIType.SELECT_COUNT,
             api_params=APIParams(
                 biz_id=self.bk_biz_id,
                 app=self.app_name,
@@ -188,10 +187,8 @@ class QueryTemplate:
             ),
             result_table_id=self.result_table_id,
         ).execute()
-        if not res:
-            return False
-
-        return bool(res.get("list", []))
+        count = next((i["count(1)"] for i in res.get("list", []) if i.get("count(1)")), None)
+        return bool(count)
 
     def list_services_request_info(self, start: int, end: int):
         """
