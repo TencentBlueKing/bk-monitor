@@ -43,15 +43,24 @@ class UnifyQuery:
     统一查询模块
     """
 
-    def __init__(self, bk_biz_id: int, data_sources: List[DataSource], expression: str, functions: List = None):
+    def __init__(
+        self,
+        bk_biz_id: Optional[int],
+        data_sources: List[DataSource],
+        expression: str,
+        functions: List = None,
+    ):
         self.functions = [] if functions is None else functions
-        # 不传业务指标时传 0
+        # 不传业务指标时传 0，为 None 时查询所有业务
         self.bk_biz_id = bk_biz_id
         self.data_sources = data_sources
         self.expression = expression
 
     @cached_property
     def space_uid(self):
+        if self.bk_biz_id is None:
+            return None
+
         return bk_biz_id_to_space_uid(self.bk_biz_id)
 
     @property
@@ -160,7 +169,8 @@ class UnifyQuery:
                 return True
 
         # kubernetes，直接使用查询模块
-        if not self.data_sources[0].table or int(self.bk_biz_id) < 0:
+        is_negative_biz_id = self.bk_biz_id is not None and int(self.bk_biz_id) < 0
+        if not self.data_sources[0].table or is_negative_biz_id:
             return True
 
         # 接入数据平台时，cmdb level表在白名单中的，不走统一查询模块
@@ -207,7 +217,6 @@ class UnifyQuery:
             "metric_merge": add_expression_functions(expression, self.functions),
             "order_by": ["-time"],
             "step": f"{step}s",
-            # add space_uid
             "space_uid": self.space_uid,
         }
 
