@@ -150,6 +150,25 @@ class QueryAlarmEventGraph(Resource):
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
         interval = serializers.CharField(label="时间间隔", default="auto")
+        interval_unit = serializers.ChoiceField(label="时间间隔单位", default="s", choices=["h", "m", "d", "s"])
+
+        def validate(self, attrs):
+            if attrs["interval"] == "auto":
+                return attrs
+
+            try:
+                attrs["interval"] = int(attrs["interval"])
+            except (ValueError, TypeError):
+                raise serializers.ValidationError(_("时间间隔必须为整数或auto"))
+
+            # 时间单位转换
+            if attrs["interval_unit"] == "h":
+                attrs["interval"] = attrs["interval"] * 3600
+            elif attrs["interval_unit"] == "m":
+                attrs["interval"] = attrs["interval"] * 60
+            elif attrs["interval_unit"] == "d":
+                attrs["interval"] = attrs["interval"] * 3600 * 24
+            return attrs
 
     def perform_request(self, params):
         handler = AlertQueryHandler(
