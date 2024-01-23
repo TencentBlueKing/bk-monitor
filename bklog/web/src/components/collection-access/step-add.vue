@@ -2036,7 +2036,7 @@ export default {
     handleUpdateCollector() {
       const projectItem = this.localClusterList.find(item => item.id === this.formData.bcs_cluster_id);
       const findSpace = this.mySpaceList.find(item => item.space_code === projectItem.project_id);
-      const url = `${window.BCS_WEB_CONSOLE_DOMAIN}bcs/projects/${findSpace.space_uid}/log-collector`;
+      const url = `${window.BCS_WEB_CONSOLE_DOMAIN}bcs/projects/${findSpace.space_id}/log-collector`;
       window.open(url, '_blank');
     },
   },
