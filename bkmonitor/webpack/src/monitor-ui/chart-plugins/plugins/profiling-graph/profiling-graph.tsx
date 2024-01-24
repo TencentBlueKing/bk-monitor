@@ -28,7 +28,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { query } from '../../../../monitor-api/modules/apm_profile';
-import { Debounce } from '../../../../monitor-common/utils/utils';
+import { Debounce, typeTools } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import {
   BaseDataType,
@@ -105,10 +105,10 @@ class ProfilingChart extends CommonSimpleChart {
       const params = this.getParams({ diagram_types: ['table', 'flamegraph'] });
       const data = await query(params).catch(() => false);
       // data = PROFILING_QUERY_DATA; // TODO
-      if (data.diagrams) {
-        this.unit = data.diagrams.unit || '';
-        this.tableData = data.diagrams.table_data || [];
-        this.flameData = data.diagrams.flame_data;
+      if (data) {
+        this.unit = data.unit || '';
+        this.tableData = data.table_data || [];
+        this.flameData = data.flame_data;
         this.empty = false;
       } else {
         this.empty = true;
@@ -129,8 +129,8 @@ class ProfilingChart extends CommonSimpleChart {
       this.isLoading = true;
       const params = this.getParams({ diagram_types: ['callgraph'] });
       const data = await query(params).catch(() => false);
-      if (data.diagrams) {
-        this.topoSrc = data.diagrams.call_graph_data || '';
+      if (data) {
+        this.topoSrc = data.call_graph_data || '';
       }
       this.isLoading = true;
     }
@@ -145,9 +145,9 @@ class ProfilingChart extends CommonSimpleChart {
       sort: sortKey
     });
     const data = await query(params).catch(() => false);
-    if (data.diagrams) {
+    if (data) {
       this.highlightId = -1;
-      this.tableData = data.diagrams.table_data || [];
+      this.tableData = data.table_data || [];
     }
   }
   handleDownload(type: string) {
@@ -155,11 +155,39 @@ class ProfilingChart extends CommonSimpleChart {
       case 'png':
         this.frameGraphRef?.handleStoreImg();
         break;
-      case 'pprof':
+      case 'pprof': {
+        const params = this.getParams({ export_format: 'pprof' });
+        const downloadUrl = `/apm/profile_api/query/export/?bk_biz_id=${window.bk_biz_id}${this.getUrlParamsString(
+          params
+        )}`;
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = downloadUrl;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         break;
+      }
       default:
         break;
     }
+  }
+
+  getUrlParamsString(obj) {
+    const str = Object.keys(obj)
+      .reduce((ary, key) => {
+        if (obj[key]) {
+          ary.push(
+            `${encodeURIComponent(key)}=${encodeURIComponent(
+              typeTools.isObject(obj[key]) ? JSON.stringify(obj[key]) : obj[key]
+            )}`
+          );
+        }
+        return ary;
+      }, [])
+      .join('&');
+    if (str.length) return `&${str}`;
+    return '';
   }
 
   render() {
