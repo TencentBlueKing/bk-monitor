@@ -76,7 +76,7 @@ export default defineComponent({
             })}
           </Button.ButtonGroup>
         </div>
-        <TrendChart />
+        <TrendChart queryParams={this.queryParams} />
         <div class='profiling-graph-view-content'>
           <ProfilingGraph queryParams={this.queryParams} />
         </div>

@@ -4,6 +4,7 @@
     flex: 1;
     flex-direction: column;
     padding: 16px 24px 24px;
+    overflow-y: auto;
 
     .empty-wrap {
       display: flex;

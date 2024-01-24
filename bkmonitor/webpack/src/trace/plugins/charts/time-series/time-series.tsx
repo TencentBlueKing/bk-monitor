@@ -504,7 +504,7 @@ export default defineComponent({
                   needMessage: false
                 })
                 .then((res: { metrics: any; series: any[] }) => {
-                  res.metrics.forEach((metric: { metric_id: string }) => {
+                  res.metrics?.forEach((metric: { metric_id: string }) => {
                     if (!metricList.some(set => set.metric_id === metric.metric_id)) {
                       metricList.push(metric);
                     }

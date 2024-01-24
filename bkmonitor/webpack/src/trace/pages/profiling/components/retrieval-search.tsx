@@ -167,7 +167,7 @@ export default defineComponent({
     }
 
     const labelList = ref<string[]>([]);
-    const labelValueMap = new Map();
+    const labelValueMap = reactive(new Map());
     /**
      * 添加条件
      * @param type 条件类型
@@ -243,9 +243,12 @@ export default defineComponent({
       labelValueMap.clear();
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      const server = localFormData.type === SearchType.Profiling ? localFormData.server : {};
+      const params =
+        localFormData.type === SearchType.Profiling
+          ? { ...localFormData.server, global_query: false }
+          : { global_query: true };
       const labels = await queryLabels({
-        ...server,
+        ...params,
         start: start * 1000 * 1000,
         end: end * 1000 * 1000
       }).catch(() => ({ label_keys: [] }));
@@ -257,9 +260,12 @@ export default defineComponent({
       /** 缓存 */
       if (labelValueMap.has(label)) return;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      const server = localFormData.type === SearchType.Profiling ? localFormData.server : {};
+      const params =
+        localFormData.type === SearchType.Profiling
+          ? { ...localFormData.server, global_query: false }
+          : { global_query: true };
       const res = await queryLabelValues({
-        ...server,
+        ...params,
         start: start * 1000 * 1000,
         end: end * 1000 * 1000,
         label_key: label

@@ -23,12 +23,14 @@ class TendencyDiagrammer:
                 continue
             statistics[s["dtEventTimeStamp"]] += int(s["value"])
 
+        # follow the structure of bk-ui plugin
         return {
             "series": [
                 {
-                    "datapoints": [[v, k] for k, v in statistics.items()],
+                    "alias": "_result_",
+                    "datapoints": [[v, k] for k, v in sorted(statistics.items())],
                     "type": "line",
-                    "unit": "ns",
+                    "unit": "",
                 }
             ]
         }

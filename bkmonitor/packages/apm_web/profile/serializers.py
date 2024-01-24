@@ -54,7 +54,7 @@ class ProfileQuerySerializer(QueryBaseSerializer):
     """Query Samples"""
 
     profile_id = serializers.CharField(label="profile ID", required=False, default="")
-    offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=300)
+    offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=0)
     diagram_types = serializers.ListField(
         child=serializers.CharField(), required=False, default=["flamegraph", "table"]
     )
@@ -94,6 +94,11 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
     class Meta:
         model = ProfileUploadRecord
         fields = "__all__"
+        
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["data_types"] = instance.meta_info.get("data_types", {})
+        return data  
 
 
 class ProfileListFileSerializer(serializers.Serializer):

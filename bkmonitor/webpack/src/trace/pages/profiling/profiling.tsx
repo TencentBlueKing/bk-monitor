@@ -45,6 +45,7 @@ import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
 import { MenuEnum, ToolsFormData } from './typings/page-header';
 import {
+  DataTypeItem,
   DetailType,
   FileDetail,
   PanelType,
@@ -96,7 +97,7 @@ export default defineComponent({
     provide<RetrievalFormData>('formData', searchState.formData);
     const isEmpty = ref(true);
     const dataType = ref('');
-    const dataTypeList = ref([]);
+    const dataTypeList = ref<DataTypeItem[]>([]);
 
     /** 查询参数 */
     const queryParams = ref(getParams());
@@ -177,15 +178,15 @@ export default defineComponent({
     /** 获取接口请求参数 */
     function getParams() {
       const { server, isComparison, where, comparisonWhere, type } = searchState.formData;
-      const profilingParams = { ...server };
-      const uploadParams = { profile_id: curFileInfo?.value?.profile_id };
+      const profilingParams = { ...server, global_query: false };
+      const uploadParams = { profile_id: curFileInfo?.value?.profile_id, global_query: true };
       return {
         is_compared: isComparison,
-        filter_label: where.reduce((pre, cur) => {
+        filter_labels: where.reduce((pre, cur) => {
           if (cur.key && cur.value) pre[cur.key] = cur.value;
           return pre;
         }, {}),
-        diff_filter_label: comparisonWhere.reduce((pre, cur) => {
+        diff_filter_labels: comparisonWhere.reduce((pre, cur) => {
           if (cur.key && cur.value && type !== SearchType.Upload) pre[cur.key] = cur.value;
           return pre;
         }, {}),
@@ -228,7 +229,7 @@ export default defineComponent({
 
     function getDataTypeList(val: ServicesDetail | FileDetail) {
       dataTypeList.value = val.data_types || [];
-      dataType.value = dataTypeList.value[0] || '';
+      dataType.value = dataTypeList.value[0]?.key || '';
     }
 
     return {
