@@ -24,20 +24,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { query } from '../../../../monitor-api/modules/apm_profile';
 import { Debounce, typeTools } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import {
-  BaseDataType,
-  IQueryParams,
-  PanelModel,
-  ProfilingTableItem,
-  TextDirectionType,
-  ViewModeType
-} from '../../typings';
+import { BaseDataType, PanelModel, ProfilingTableItem, TextDirectionType, ViewModeType } from '../../typings';
 import { CommonSimpleChart } from '../common-simple-chart';
 
 import ChartTitle from './chart-title/chart-title';
@@ -49,14 +42,11 @@ import './profiling-graph.scss';
 
 interface IProfilingChartProps {
   panel: PanelModel;
-  queryParams?: IQueryParams;
 }
 
 @Component
 class ProfilingChart extends CommonSimpleChart {
   @Ref() frameGraphRef: FrameGraph;
-
-  @Prop({ default: () => {}, type: Object }) queryParams: IQueryParams;
 
   isLoading = false;
   tableData: ProfilingTableItem[] = [];
@@ -79,35 +69,31 @@ class ProfilingChart extends CommonSimpleChart {
     return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
   }
 
-  @Debounce(16)
-  @Watch('queryParams', { immediate: true, deep: true })
-  handleQueryParamsChange() {
-    this.handleQuery();
+  getParams(args: Record<string, any> = {}) {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { app_name, service_name } = this.viewOptions as any;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const params = {
+      ...args,
+      app_name,
+      service_name,
+      start: startTime * Math.pow(10, 6),
+      end: endTime * Math.pow(10, 6)
+    };
+
+    return params;
   }
 
-  getParams(args: Record<string, any> = {}) {
-    const { queryParams } = this.$props;
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    return {
-      ...args,
-      ...queryParams,
-      start: startTime * Math.pow(10, 6),
-      end: endTime * Math.pow(10, 6),
-      // TODO
-      app_name: 'profiling_bar',
-      service_name: 'fuxi_gin_server'
-    };
-  }
-  async handleQuery() {
+  @Debounce(300)
+  async getPanelData() {
     try {
       this.isLoading = true;
       this.highlightId = -1;
       const params = this.getParams({ diagram_types: ['table', 'flamegraph'] });
       const data = await query(params).catch(() => false);
-      // data = PROFILING_QUERY_DATA; // TODO
       if (data) {
         this.unit = data.unit || '';
-        this.tableData = data.table_data || [];
+        this.tableData = data.table_data?.items ?? [];
         this.flameData = data.flame_data;
         this.empty = false;
       } else {
@@ -147,7 +133,7 @@ class ProfilingChart extends CommonSimpleChart {
     const data = await query(params).catch(() => false);
     if (data) {
       this.highlightId = -1;
-      this.tableData = data.table_data || [];
+      this.tableData = data.table_data?.items ?? [];
     }
   }
   handleDownload(type: string) {
@@ -222,6 +208,7 @@ class ProfilingChart extends CommonSimpleChart {
             {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
               <FrameGraph
                 ref='frameGraphRef'
+                appName={(this.viewOptions as any).app_name}
                 textDirection={this.textDirection}
                 showGraphTools={false}
                 data={this.flameData}
