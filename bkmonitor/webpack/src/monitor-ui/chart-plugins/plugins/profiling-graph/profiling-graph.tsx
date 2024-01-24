@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable max-len */
 /*
  * Tencent is pleased to support the open source community by making
@@ -26,11 +27,19 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import dayjs from 'dayjs';
 
-import { query } from '../../../../monitor-api/modules/apm_profile';
+import { query, queryServicesDetail } from '../../../../monitor-api/modules/apm_profile';
 import { Debounce, typeTools } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import { BaseDataType, PanelModel, ProfilingTableItem, TextDirectionType, ViewModeType } from '../../typings';
+import {
+  BaseDataType,
+  DataTypeItem,
+  PanelModel,
+  ProfilingTableItem,
+  TextDirectionType,
+  ViewModeType
+} from '../../typings';
 import { CommonSimpleChart } from '../common-simple-chart';
 
 import ChartTitle from './chart-title/chart-title';
@@ -64,32 +73,61 @@ class ProfilingChart extends CommonSimpleChart {
   highlightId = -1;
   filterKeyword = '';
   topoSrc = '';
+  dataTypeList: DataTypeItem[] = [];
+  dataType = '';
 
   get flameFilterKeywords() {
     return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
   }
 
-  getParams(args: Record<string, any> = {}) {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+  getParams(args: Record<string, any> = {}, start_time = '', end_time = '') {
     const { app_name, service_name } = this.viewOptions as any;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       ...args,
       app_name,
       service_name,
-      start: startTime * Math.pow(10, 6),
-      end: endTime * Math.pow(10, 6)
+      start: (start_time ? dayjs.tz(start_time).unix() : startTime) * Math.pow(10, 6),
+      end: (end_time ? dayjs.tz(end_time).unix() : endTime) * Math.pow(10, 6),
+      profile_type: this.dataType
     };
 
     return params;
   }
 
   @Debounce(300)
-  async getPanelData() {
+  async getPanelData(start_time = '', end_time = '') {
+    if (!this.dataTypeList.length) {
+      await this.getServiceDetail(start_time, end_time);
+      return;
+    }
+    this.handleQuery(start_time, end_time);
+  }
+
+  async getServiceDetail(start_time = '', end_time = '') {
+    const [start, end] = handleTransformToTimestamp(this.timeRange);
+    const { app_name, service_name } = this.viewOptions as any;
+
+    await queryServicesDetail({
+      start_time: start_time ? dayjs.tz(start_time).unix() : start,
+      end_time: end_time ? dayjs.tz(end_time).unix() : end,
+      app_name,
+      service_name
+    })
+      .then(res => {
+        if (res?.data_types?.length) {
+          this.dataTypeList = res.data_types;
+          this.dataType = this.dataTypeList[0].key;
+          this.handleQuery(start_time, end_time);
+        }
+      })
+      .catch(() => ({}));
+  }
+  async handleQuery(start_time = '', end_time = '') {
     try {
       this.isLoading = true;
       this.highlightId = -1;
-      const params = this.getParams({ diagram_types: ['table', 'flamegraph'] });
+      const params = this.getParams({ diagram_types: ['table', 'flamegraph'] }, start_time, end_time);
       const data = await query(params).catch(() => false);
       if (data) {
         this.unit = data.unit || '';
@@ -158,7 +196,9 @@ class ProfilingChart extends CommonSimpleChart {
         break;
     }
   }
-
+  handleDataTypeChange(val) {
+    this.dataType = val;
+  }
   getUrlParamsString(obj) {
     const str = Object.keys(obj)
       .reduce((ary, key) => {
@@ -175,51 +215,91 @@ class ProfilingChart extends CommonSimpleChart {
     if (str.length) return `&${str}`;
     return '';
   }
+  goLink() {
+    const url = location.href.replace(location.hash, '#/trace/profiling');
+    window.open(url, '_blank');
+  }
 
   render() {
     return (
-      <div
-        class='profiling-graph'
-        v-bkloading={{ isLoading: this.isLoading }}
-      >
-        <ChartTitle
-          activeMode={this.activeMode}
-          textDirection={this.textDirection}
-          onModeChange={this.handleModeChange}
-          onTextDirectionChange={this.handleTextDirectionChange}
-          onKeywordChange={val => (this.filterKeyword = val)}
-          onDownload={this.handleDownload}
-        />
-        {this.empty ? (
-          <div class='empty-chart'>{this.emptyText}</div>
-        ) : (
-          <div class='profiling-graph-content'>
-            {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
-              <TableGraph
-                data={this.tableData}
-                unit={this.unit}
-                textDirection={this.textDirection}
-                highlightId={this.highlightId}
-                filterKeyword={this.filterKeyword}
-                onUpdateHighlightId={id => (this.highlightId = id)}
-                onSortChange={this.handleSortChange}
-              />
-            )}
-            {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
-              <FrameGraph
-                ref='frameGraphRef'
-                appName={(this.viewOptions as any).app_name}
-                textDirection={this.textDirection}
-                showGraphTools={false}
-                data={this.flameData}
-                highlightId={this.highlightId}
-                filterKeywords={this.flameFilterKeywords}
-                onUpdateHighlightId={id => (this.highlightId = id)}
-              />
-            )}
-            {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}
+      <div class='profiling-retrieval-chart'>
+        <div class='profiling-retrieval-header'>
+          <div class='data-type'>
+            <span>{this.$t('数据类型')}</span>
+            <div class='bk-button-group data-type-list'>
+              {this.dataTypeList.map(item => {
+                return (
+                  <bk-button
+                    size='small'
+                    key={item.key}
+                    class={item.key === this.dataType ? 'is-selected' : ''}
+                    onClick={() => this.handleDataTypeChange(item.key)}
+                  >
+                    {item.name}
+                  </bk-button>
+                );
+              })}
+            </div>
           </div>
-        )}
+          <div class='link-tips'>
+            <i class='icon-monitor icon-tishi'></i>
+            <i18n
+              path='更多功能，请前往 {0}'
+              class='flex-center'
+            >
+              <span
+                class='link-text'
+                onClick={() => this.goLink()}
+              >
+                {this.$t('Profiling 检索')}
+              </span>
+            </i18n>
+          </div>
+        </div>
+
+        <div
+          class='profiling-graph'
+          v-bkloading={{ isLoading: this.isLoading }}
+        >
+          <ChartTitle
+            activeMode={this.activeMode}
+            textDirection={this.textDirection}
+            onModeChange={this.handleModeChange}
+            onTextDirectionChange={this.handleTextDirectionChange}
+            onKeywordChange={val => (this.filterKeyword = val)}
+            onDownload={this.handleDownload}
+          />
+          {this.empty ? (
+            <div class='empty-chart'>{this.emptyText}</div>
+          ) : (
+            <div class='profiling-graph-content'>
+              {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
+                <TableGraph
+                  data={this.tableData}
+                  unit={this.unit}
+                  textDirection={this.textDirection}
+                  highlightId={this.highlightId}
+                  filterKeyword={this.filterKeyword}
+                  onUpdateHighlightId={id => (this.highlightId = id)}
+                  onSortChange={this.handleSortChange}
+                />
+              )}
+              {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
+                <FrameGraph
+                  ref='frameGraphRef'
+                  appName={(this.viewOptions as any).app_name}
+                  textDirection={this.textDirection}
+                  showGraphTools={false}
+                  data={this.flameData}
+                  highlightId={this.highlightId}
+                  filterKeywords={this.flameFilterKeywords}
+                  onUpdateHighlightId={id => (this.highlightId = id)}
+                />
+              )}
+              {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
