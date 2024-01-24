@@ -42,6 +42,7 @@ import dayjs from 'dayjs';
 
 import bus from '../../../../monitor-common/utils/event-bus';
 import { random } from '../../../../monitor-common/utils/utils';
+import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
 import {
   ColumnSort,
@@ -457,7 +458,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (item.syncTime) {
       urlStr += urlStr.indexOf('?') === -1 ? '?' : '&';
       const { from, to } = this.$route.query;
-      urlStr += `from=${from}&to${to}`;
+      urlStr += `from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     }
 
     if (item.target === 'self') {
