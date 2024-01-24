@@ -1078,12 +1078,13 @@ export default class BasicInfo extends tsc<IProps> {
                       <FormItem label={`Tracing ${this.$t('启/停')}`}>
                         <Switcher
                           disabled
-                          value={this.formData.enable_tracing}
+                          // value={this.formData.enable_tracing}
+                          value={true}
                           theme='primary'
                           size='small'
                         />
                       </FormItem>
-                      <FormItem
+                      {/* <FormItem
                         label={`Profiling ${this.$t('启/停')}`}
                         class='form-flex-item'
                       >
@@ -1093,7 +1094,7 @@ export default class BasicInfo extends tsc<IProps> {
                           theme='primary'
                           size='small'
                         />
-                      </FormItem>
+                      </FormItem> */}
                     </div>
                     <div class='item-row'>
                       <FormItem label={this.$t('Tracing 的插件')}>
@@ -1159,18 +1160,20 @@ export default class BasicInfo extends tsc<IProps> {
                   <div class='item-row'>
                     <EditableFormItem
                       label='Tracing'
-                      value={this.appInfo.enable_tracing ? [this.$t('已开启')] : [this.$t('未开启')]}
-                      tagTheme={this.appInfo.enable_tracing ? 'success' : ''}
+                      // value={this.appInfo.enable_tracing ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      // tagTheme={this.appInfo.enable_tracing ? 'success' : ''}
+                      value={[this.$t('已开启')]}
+                      tagTheme={'success'}
                       formType='tag'
                       showEditable={false}
                     />
-                    <EditableFormItem
+                    {/* <EditableFormItem
                       label='Profiling'
                       value={this.appInfo.enable_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
                       tagTheme={this.appInfo.enable_tracing ? 'success' : ''}
                       formType='tag'
                       showEditable={false}
-                    />
+                    /> */}
                   </div>,
                   <div class='item-row'>
                     <EditableFormItem

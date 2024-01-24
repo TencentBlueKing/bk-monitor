@@ -139,7 +139,7 @@ def profile_discover_cron():
     """定时发现profile服务"""
     logger.info(f"[profile_discover_cron] start at {datetime.datetime.now()}")
     interval = 10
-    slug = datetime.datetime.now().minute & interval
+    slug = datetime.datetime.now().minute % interval
     apps = [
         (i["bk_biz_id"], i["app_name"])
         for i in ApmApplication.objects.filter(is_enabled=True).values("bk_biz_id", "app_name")
