@@ -47,7 +47,10 @@ export default defineComponent({
   props: {
     queryParams: {
       type: Object as PropType<IQueryParams>,
-      default: () => ({})
+      default: () => ({
+        app_name: '',
+        service_name: ''
+      })
     }
   },
   setup(props) {
@@ -267,6 +270,7 @@ export default defineComponent({
             {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
               <FrameGraph
                 ref='frameGraphRef'
+                appName={this.$props.queryParams.app_name}
                 textDirection={this.textDirection}
                 showGraphTools={false}
                 data={this.flameData}

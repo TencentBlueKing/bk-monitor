@@ -94,3 +94,8 @@ export interface IQueryParams {
   diff_filter_labels?: any;
   is_compared?: boolean;
 }
+
+export interface DataTypeItem {
+  key: string;
+  name: string;
+}

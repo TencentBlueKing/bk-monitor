@@ -345,7 +345,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
    */
   handleStoreImg() {
     const svgDom = this.chartRef.querySelector('svg');
-    this.convertSvgToPngAndDownload(svgDom, `${this.profileId}.png`);
+    this.convertSvgToPngAndDownload(svgDom, `${this.appName}.png`);
   }
   /**
    *
