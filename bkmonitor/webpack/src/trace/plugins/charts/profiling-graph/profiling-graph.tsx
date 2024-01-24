@@ -29,6 +29,7 @@ import { Exception, Loading } from 'bkui-vue';
 import { debounce } from 'throttle-debounce';
 
 import { query } from '../../../../monitor-api/modules/apm_profile';
+import { typeTools } from '../../../../monitor-common/utils';
 import { BaseDataType, ProfilingTableItem, ViewModeType } from '../../../../monitor-ui/chart-plugins/typings';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { ToolsFormData } from '../../../pages/profiling/typings';
@@ -50,6 +51,9 @@ export default defineComponent({
     }
   },
   setup(props) {
+    // 自动刷新定时任务
+    let refleshIntervalInstance = null; // 自动刷新定时任务
+
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
 
     const frameGraphRef = ref(FrameGraph);
@@ -88,6 +92,18 @@ export default defineComponent({
         deep: true
       }
     );
+    watch(
+      () => toolsFormData.value.refreshInterval,
+      (v: number) => {
+        if (refleshIntervalInstance) {
+          window.clearInterval(refleshIntervalInstance);
+        }
+        if (v <= 0) return;
+        refleshIntervalInstance = window.setInterval(() => {
+          handleQuery();
+        }, toolsFormData.value.refreshInterval);
+      }
+    );
 
     const getParams = (args: Record<string, any> = {}) => {
       const { queryParams } = props;
@@ -96,10 +112,10 @@ export default defineComponent({
         ...args,
         ...queryParams,
         start: start * Math.pow(10, 6),
-        end: end * Math.pow(10, 6),
+        end: end * Math.pow(10, 6)
         // TODO
-        app_name: 'profiling_bar',
-        service_name: 'fuxi_gin'
+        // app_name: 'profiling_bar',
+        // service_name: 'fuxi_gin'
       };
     };
     const handleQuery = async () => {
@@ -108,10 +124,10 @@ export default defineComponent({
         highlightId.value = -1;
         const params = getParams({ diagram_types: ['table', 'flamegraph'] });
         const data = await query(params).catch(() => false);
-        if (data.diagrams) {
-          unit.value = data.diagrams.unit || '';
-          tableData.value = data.diagrams.table_data || [];
-          flameData.value = data.diagrams.flame_data;
+        if (data) {
+          unit.value = data.unit || '';
+          tableData.value = data.table_data?.items ?? [];
+          flameData.value = data.flame_data;
           empty.value = false;
         } else {
           empty.value = true;
@@ -135,8 +151,8 @@ export default defineComponent({
 
         const params = getParams({ diagram_types: ['callgraph'] });
         const data = await query(params).catch(() => false);
-        if (data.diagrams) {
-          topoSrc.value = data.diagrams.call_graph_data || '';
+        if (data) {
+          topoSrc.value = data.call_graph_data || '';
         }
         isLoading.value = false;
       }
@@ -151,23 +167,51 @@ export default defineComponent({
         sort: sortKey
       });
       const data = await query(params).catch(() => false);
-      if (data.diagrams) {
+      if (data) {
         highlightId.value = -1;
-        tableData.value = data.diagrams.table_data || [];
+        tableData.value = data.table_data?.items ?? [];
       }
     };
     /** 下载 */
-    const handleDownload = (type: string) => {
+    const handleDownload = async (type: string) => {
       switch (type) {
         case 'png':
           frameGraphRef.value?.handleStoreImg();
           break;
-        case 'pprof':
+        case 'pprof': {
+          const params = getParams({ export_format: 'pprof' });
+          const downloadUrl = `/apm/profile_api/query/export/?bk_biz_id=${window.bk_biz_id}${getUrlParamsString(
+            params
+          )}`;
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = downloadUrl;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
           break;
+        }
         default:
           break;
       }
     };
+
+    function getUrlParamsString(obj) {
+      const str = Object.keys(obj)
+        .reduce((ary, key) => {
+          if (obj[key]) {
+            ary.push(
+              `${encodeURIComponent(key)}=${encodeURIComponent(
+                typeTools.isObject(obj[key]) ? JSON.stringify(obj[key]) : obj[key]
+              )}`
+            );
+          }
+          return ary;
+        }, [])
+        .join('&');
+      if (str.length) return `&${str}`;
+      return '';
+    }
 
     return {
       frameGraphRef,
