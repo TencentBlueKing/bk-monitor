@@ -589,4 +589,5 @@ export default {
   责任人: 'Responsible',
   索引字段: 'Index Set Fields',
   'label-内置字段': 'Built-in Fields',
+  是否大小写敏感: 'Case sensitive',
 };
