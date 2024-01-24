@@ -2,6 +2,14 @@
   width: 100%;
 
   .trigger-wrap {
+    .bk-input {
+      background-color: #fff;
+
+      input {
+        background-color: #fff;
+      }
+    }
+
     .icon-arrow-down {
       font-size: 20px;
       line-height: 30px;
