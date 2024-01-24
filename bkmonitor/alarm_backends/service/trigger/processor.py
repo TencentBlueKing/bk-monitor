@@ -61,11 +61,6 @@ class TriggerProcessor(object):
 
     def pull(self):
         self.anomaly_points = ANOMALY_LIST_KEY.client.lrange(self.anomaly_list_key, -self.MAX_PROCESS_COUNT, -1)
-        if not self.anomaly_points:
-            # 有anomaly 信号的时候，一定会有异常数据产生
-            # 如果当前没有拉取到数据，很有可能是异常数据redis没有就位， 可以等待1s
-            time.sleep(1)
-            self.anomaly_points = ANOMALY_LIST_KEY.client.lrange(self.anomaly_list_key, -self.MAX_PROCESS_COUNT, -1)
         # 对列表做翻转，按数据从旧到新的顺序处理
         self.anomaly_points.reverse()
         if self.anomaly_points:

@@ -656,6 +656,9 @@ BCS_API_DATA_SOURCE = "db"
 BCS_GRAY_CLUSTER_ID_LIST = []
 ENABLE_BCS_GRAY_CLUSTER = False
 
+# UNIFY-QUERY支持bkdata查询灰度业务列表
+BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST = []
+
 # BCS CC
 BCS_CC_API_URL = os.getenv("BKAPP_BCS_CC_API_URL", None)
 # bcs storage接口limit的大小
