@@ -274,5 +274,6 @@ export default {
   生效结束时间不能小于今天: 'The effective end time cannot be less than today',
   通知升级必须填写时间间隔以及用户组: 'Notification upgrade must fill in the time interval and user group',
   通知升级的用户组不能包含第一次接收告警的用户组:
-    'The user group notified of the upgrade cannot include the user group that received the alarm for the first time'
+    'The user group notified of the upgrade cannot include the user group that received the alarm for the first time',
+  暂不支持设置两个智能算法: 'Setting two intelligent algorithms is currently not supported'
 };

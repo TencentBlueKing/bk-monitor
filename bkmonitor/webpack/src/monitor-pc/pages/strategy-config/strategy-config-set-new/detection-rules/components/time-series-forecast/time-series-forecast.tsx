@@ -278,7 +278,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
    */
   async getModelList() {
     this.loading = true;
-    const resData = await listIntelligentModels({ algorithm: 'TimeSeriesForecasting' }).catch(
+    const resData = await listIntelligentModels({ algorithm: 'TimeSeriesForecasting' }).finally(
       () => (this.loading = false)
     );
     let modelItem: FormItem = null;
@@ -430,7 +430,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
             ></div>
           </bk-alert>
         )}
-        <bk-form
+        <Form
           ref='formRef'
           rules={this.rules}
           readonly={this.readonly}
@@ -438,7 +438,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
           label-width={126}
           onChange={this.handleFormValueChange}
           class='time-serise-forecast-wrap'
-        ></bk-form>
+        ></Form>
       </div>
     );
   }

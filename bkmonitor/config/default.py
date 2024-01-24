@@ -657,6 +657,9 @@ BCS_API_DATA_SOURCE = "db"
 BCS_GRAY_CLUSTER_ID_LIST = []
 ENABLE_BCS_GRAY_CLUSTER = False
 
+# UNIFY-QUERY支持bkdata查询灰度业务列表
+BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST = []
+
 # BCS CC
 BCS_CC_API_URL = os.getenv("BKAPP_BCS_CC_API_URL", None)
 # bcs storage接口limit的大小
@@ -1357,6 +1360,9 @@ INNER_COLLOCTOR_HOST = ""
 
 # 外网collector域名
 OUTER_COLLOCTOR_HOST = ""
+
+# ES 需要串行的集群的白名单
+ES_SERIAL_CLUSTER_LIST = []
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
