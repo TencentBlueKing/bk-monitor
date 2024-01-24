@@ -375,6 +375,16 @@ class CollectorScenario(object):
         return local_params
 
     @staticmethod
+    def _handle_collector_config_overlay(local_params: Dict[str, Any], params: Dict[str, Any]):
+        """
+        处理自定义采集器配置字段
+        """
+        if params.get("collector_config_overlay"):
+            local_params.update(params["collector_config_overlay"])
+
+        return local_params
+
+    @staticmethod
     def log_clustering_fields(es_version: str = "5.x"):
         return [
             {
