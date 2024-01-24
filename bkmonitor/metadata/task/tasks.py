@@ -161,9 +161,9 @@ def manage_es_storage(es_storages):
     """
     # 遍历所有的ES存储并创建index, 并执行完整的es生命周期操作
     for es_storage in es_storages:
-        if not es_storage.is_green:
+        if es_storage.is_red():
             logger.error(
-                "es cluster is not green, cluster_id: %s, domain_name: %s",
+                "es cluster health is red, skip index lifecycle handle; current cluster domain is %s",
                 es_storage.storage_cluster.cluster_id,
                 es_storage.storage_cluster.domain_name,
             )

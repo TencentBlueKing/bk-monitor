@@ -71,11 +71,11 @@ def get_cluster_disk_size(es_client, kind="total", bytes="b"):
 
 
 def es_retry_session(
-    es_client: Union[Elasticsearch, Elasticsearch5, Elasticsearch6]
+    es_client: Union[Elasticsearch, Elasticsearch5, Elasticsearch6], retry_num: int
 ) -> Union[Elasticsearch, Elasticsearch5, Elasticsearch6]:
     # 创建一个 Retry 对象，设置重试次数、延迟时间等参数
     # 等待[0.2s, 0.4s, 0.8s]
-    retry_strategy = Retry(total=3, backoff_factor=0.1)
+    retry_strategy = Retry(total=retry_num, backoff_factor=0.1)
 
     # 创建一个 HTTPAdapter 对象，并将重试策略应用于该对象
     adapter = HTTPAdapter(max_retries=retry_strategy)
