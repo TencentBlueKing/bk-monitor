@@ -14,6 +14,13 @@ datasources:
     url: ""
     jsonData:
       baseUrl: /${SETTINGS_SITE_URL}query-api/rest/v2/grafana/
+  - name: 蓝鲸监控 - 告警数据
+    type: bkmonitor-alert-datasource
+    access: direct
+    isDefault: false
+    url: ""
+    jsonData:
+      baseUrl: /${SETTINGS_SITE_URL}query-api/rest/v2/grafana/
   - name: 日志平台
     type: bk_log_datasource
     access: direct

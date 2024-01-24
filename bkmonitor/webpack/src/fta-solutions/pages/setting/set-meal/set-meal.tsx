@@ -24,10 +24,8 @@
  * IN THE SOFTWARE.
  */
 /* eslint-disable camelcase */
-import Vue from 'vue';
 import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
-import { bkInfoBox, Button, Input, Pagination, Popover, Select, Switcher, Table, TableColumn } from 'bk-magic-vue';
 
 import {
   destroyActionConfig,
@@ -63,12 +61,8 @@ interface IRowData {
   stragies_count: number;
   executions_count: number;
 }
-
-Vue.prototype.$bkInfo = bkInfoBox;
-
 Component.registerHooks(['beforeRouteLeave']);
 @Component({
-  components: { Select, Popover, Pagination },
   name: 'set-meal'
 })
 class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
@@ -169,7 +163,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   headerTitle() {
     return (
       <div class='header-title'>
-        <Button
+        <bk-button
           class='add-btn'
           theme='primary'
           onClick={() =>
@@ -181,8 +175,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
         >
           <span class='icon-monitor icon-plus-line mr-6'></span>
           {this.$t('添加套餐')}
-        </Button>
-        <Input
+        </bk-button>
+        <bk-input
           class='search-input'
           placeholder={this.$t('搜索套餐名称 / 类型 / 修改人')}
           right-icon='bk-icon icon-search'
@@ -307,7 +301,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   protected render() {
     const enableScopedSlots = {
       default: ({ row }) => (
-        <Switcher
+        <bk-switcher
           size='small'
           theme='primary'
           value={row.is_enabled}
@@ -323,8 +317,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     const oprateScopedSlots = {
       default: ({ row }) => (
         <div class='operate-wrap'>
-          {/* <Button text theme="primary">{this.$t('关联策略')} </Button> */}
-          <Button
+          {/* <bk-button text theme="primary">{this.$t('关联策略')} </bk-button> */}
+          <bk-button
             class='mr-10'
             text
             theme='primary'
@@ -337,8 +331,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
             }
           >
             {this.$t('button-编辑')}
-          </Button>
-          <Button
+          </bk-button>
+          <bk-button
             class='mr-10'
             text
             theme='primary'
@@ -351,7 +345,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
             }
           >
             {this.$t('删除')}
-          </Button>
+          </bk-button>
           <OperateOptions
             options={
               {
@@ -379,7 +373,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
         {this.headerTitle()}
         <div class='set-table'>
           {this.headerMessage()}
-          <Table
+          <bk-table
             data={this.tableData}
             outer-border={false}
             header-border={false}
@@ -393,12 +387,12 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                 onOperation={this.handleEmptyOperation}
               />
             </div>
-            <TableColumn
+            <bk-table-column
               label={'ID'}
               formatter={this.idFormatter}
               width={80}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('套餐名称')}
               width='140'
               show-overflow-tooltip
@@ -423,78 +417,78 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                 )
               }}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('套餐类型')}
               prop='plugin_name'
               width='110'
               show-overflow-tooltip
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('关联策略')}
               align='center'
               width='110'
               scopedSlots={{
                 default: ({ row }) => (
-                  <Button
+                  <bk-button
                     text
                     class={{ 'is-empty': !row.strategy_count }}
                     onClick={() => this.handleToStrategyList(row)}
                   >
                     {row.strategy_count || '--'}
-                  </Button>
+                  </bk-button>
                 )
               }}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('触发次数(近 7 天)')}
               width='170'
               align='center'
               scopedSlots={{
                 default: ({ row }) => (
-                  <Button
+                  <bk-button
                     onClick={() => row.execute_count && this.handleToEventCenter(row.id)}
                     text
                     class={{ 'is-empty': !row.execute_count }}
                   >
                     {row.execute_count || '--'}
-                  </Button>
+                  </bk-button>
                 )
               }}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('最近更新人')}
               align='left'
               prop='update_user'
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('最近更新时间')}
               align='left'
               width='180'
               prop='update_time'
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('配置来源')}
               align='left'
               width='150'
               scopedSlots={{ default: ({ row }) => row.config_source || '--' }}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('配置分组')}
               align='left'
               width='160'
               scopedSlots={{ default: ({ row }) => row.app || '--' }}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('启/停')}
               align='center'
               scopedSlots={enableScopedSlots}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('操作')}
               width='150'
               scopedSlots={oprateScopedSlots}
             />
-          </Table>
+          </bk-table>
         </div>
         <SetMealDetail
           isShow={this.detailData.isShow}

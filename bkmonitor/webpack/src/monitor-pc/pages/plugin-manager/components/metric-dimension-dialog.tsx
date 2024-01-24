@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Dialog, DropdownMenu, Input, Popover, Switcher } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { releaseCollectorPlugin, retrieveCollectorPlugin } from '../../../../monitor-api/modules/model';
@@ -710,7 +709,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       params.need_upgrade = true;
     }
     this.loading = true;
-    this.$bkLoading.Loading({
+    this.$bkLoading({
       extCls: 'metric-dimension-confirm-loading'
     });
     const data = await saveMetric(params, { needMessage: false }).catch(err => {
@@ -727,7 +726,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       result && this.handleSucessSave(data);
     }
     this.loading = false;
-    this.$bkLoading.Loading.hide();
+    this.$bkLoading.hide();
   }
   handleSucessSave(data) {
     this.isShowCancel = true;
@@ -1082,7 +1081,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       <div class='metric-dimension-dialog-content'>
         <div class='header-operate'>
           <div class='operate-left'>
-            <Button
+            <bk-button
               class='mr-8'
               icon='plus'
               v-authority={{
@@ -1091,16 +1090,16 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleAddGroup() : this.handleShowAuthorityDetail())}
             >
               {this.$t('新建组')}
-            </Button>
-            <DropdownMenu disabled={!this.canMoveBtn}>
-              <Button
+            </bk-button>
+            <bk-dropdown-menu disabled={!this.canMoveBtn}>
+              <bk-button
                 type='primary'
                 slot='dropdown-trigger'
                 class='move'
               >
                 <span>{this.$t('移动到...')}</span>
                 <i class='bk-icon icon-angle-down'></i>
-              </Button>
+              </bk-button>
               <ul
                 class='bk-dropdown-list'
                 style='overflow: auto'
@@ -1118,32 +1117,32 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   </li>
                 ))}
               </ul>
-            </DropdownMenu>
-            <Popover
+            </bk-dropdown-menu>
+            <bk-popover
               placement='top-start'
               tippy-options={this.tippyOptions}
               delay={200}
             >
               {!this.isRoutePage ? (
-                <Button
+                <bk-button
                   class='ml-8'
                   icon='icon-monitor icon-mc-retry'
                   onClick={this.handleRefreshData}
                 >
                   {/* <span class="icon-monitor icon-mc-retry"></span> */}
-                </Button>
+                </bk-button>
               ) : undefined}
               <div slot='content'>
                 <div>{this.$t('此刷新仅追加新获取的指标和维度')}</div>
               </div>
-            </Popover>
+            </bk-popover>
             <span class='auto-collect'>
-              <Switcher
+              <bk-switcher
                 v-model={this.isAutoCollect}
                 size='small'
                 theme='primary'
                 onChange={this.handleAutoCollectChange}
-              ></Switcher>
+              ></bk-switcher>
               <span>{this.$t('自动采集新增指标')}</span>
             </span>
             <i class='icon-monitor icon-remind mr-8'></i>
@@ -1186,11 +1185,11 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   >
                     {this.$t('数据预览')}
                   </span>,
-                  <Switcher
+                  <bk-switcher
                     v-model={this.dataPreview}
                     size='small'
                     theme='primary'
-                  ></Switcher>
+                  ></bk-switcher>
                 ];
               }
               return [
@@ -1221,11 +1220,11 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 </MonitorExport>,
                 <span class='tingyong-swtich'>
                   <span class='tip-text mr-10'>{this.$t('隐藏已停用')}</span>
-                  <Switcher
+                  <bk-switcher
                     v-model={this.hideStop}
                     size='small'
                     theme='primary'
-                  ></Switcher>
+                  ></bk-switcher>
                 </span>
               ];
             })()}
@@ -1264,7 +1263,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             />
           ))}
         </div>
-        <Dialog
+        <bk-dialog
           v-model={this.groupDialog.isShow}
           mask-close={false}
           header-position={'left'}
@@ -1286,7 +1285,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               validator={{ content: this.$tc('输入指标名,以字母开头,允许包含下划线和数字且不能为group_default') }}
               show-validate={this.rule.isNameEmpty}
             >
-              <Input
+              <bk-input
                 placeholder={this.$t('英文名')}
                 v-model={this.groupDialog.name}
                 on-blur={() =>
@@ -1297,10 +1296,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             </VerifyInput>
             <p class='item'> {this.$t('别名')} </p>
             <VerifyInput class='verify-input'>
-              <Input
+              <bk-input
                 v-model={this.groupDialog.desc}
                 placeholder={this.$t('别名')}
-              ></Input>
+              ></bk-input>
             </VerifyInput>
             <p class='item'> {this.$t('匹配规则')} </p>
             <VerifyInput>
@@ -1316,19 +1315,19 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             <p class='rule-desc'>{this.$tc('支持JS正则匹配方式， 如子串前缀匹配go_，模糊匹配(.*?)_total')}</p>
           </div>
           <div class='footer'>
-            <Button
+            <bk-button
               class='confirm-btn'
               theme='primary'
               onClick={this.handleSetGroup}
             >
               {this.$t('确认')}
-            </Button>
-            <Button onClick={() => (this.groupDialog.isShow = false)}>{this.$t('取消')}</Button>
+            </bk-button>
+            <bk-button onClick={() => (this.groupDialog.isShow = false)}>{this.$t('取消')}</bk-button>
           </div>
-        </Dialog>
+        </bk-dialog>
         {this.isRoutePage && (
           <div class='bottom-operate'>
-            <Button
+            <bk-button
               class='mr-8'
               theme='primary'
               v-authority={{
@@ -1337,8 +1336,8 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleSave() : this.handleShowAuthorityDetail())}
             >
               {this.$t('保存')}
-            </Button>
-            <Button onClick={this.handleCancel}>{this.$t('取消')}</Button>
+            </bk-button>
+            <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
           </div>
         )}
       </div>
@@ -1351,7 +1350,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         <div class='metric-dimension-settings-page-content'>{this.contentRender()}</div>
       </div>
     ) : (
-      <Dialog
+      <bk-dialog
         ext-cls='metric-dimension-dialog-component'
         value={this.show}
         mask-close={true}
@@ -1390,24 +1389,24 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               : undefined}
           </span>
           <span class='footer-opreate'>
-            <Button
+            <bk-button
               class='mr-8'
               theme='primary'
               disabled={this.loading}
               onClick={this.handleSave}
             >
               {this.$t('保存')}
-            </Button>
-            <Button
+            </bk-button>
+            <bk-button
               class='mr-8'
               onClick={this.handleBackPlugin}
             >
               {this.$t('返回插件定义')}
-            </Button>
-            <Button onClick={this.handleBackDebug}>{this.$t('返回调试')}</Button>
+            </bk-button>
+            <bk-button onClick={this.handleBackDebug}>{this.$t('返回调试')}</bk-button>
           </span>
         </div>
-      </Dialog>
+      </bk-dialog>
     );
   }
 }

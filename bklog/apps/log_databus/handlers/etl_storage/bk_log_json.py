@@ -52,6 +52,10 @@ class BkLogJsonEtlStorage(EtlStorage):
             "separator_fields_remove": "",
             "etl_flat": etl_params.get("etl_flat", False),
             "retain_extra_json": etl_params.get("retain_extra_json", False),
+            # 当 JSON 中的某个字段类型为 string，且原始数据为 object 时，将 object 进行 JSON 序列化后再入库，提高数据可读性
+            "enable_origin_string": True,
+            # 当原始数据不符合 JSON 格式时，不对数据进行丢弃，直接强制写入到 log 字段
+            "enable_retain_content": True,
         }
 
         # 保存删除的字段

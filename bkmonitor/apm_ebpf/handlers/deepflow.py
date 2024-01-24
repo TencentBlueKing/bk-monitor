@@ -55,7 +55,7 @@ class DeepflowInstaller:
         """
         检查集群是否安装了ebpf
         """
-        # 获取Deployment
+        # 获取Deployment 使用线程池获取的目的是便于处理超时 因为 K8S SDK 没有提供超时的参数 会导致任务长时间在这里卡主
         with concurrent.futures.ThreadPoolExecutor() as executor:
             try:
                 deployments_future = executor.submit(
@@ -401,8 +401,11 @@ class DeepflowHandler:
 
         for biz_id in check_biz_ids:
             # 注册数据源
-            org_info = api.grafana.get_organization_by_name(name=biz_id)
-            org_id = org_info.get("data", {}).get("id")
+            org_info = api.grafana.get_organization_by_name(name=biz_id).get("data", {})
+            if not org_info:
+                logger.warning(f"[GrafanaInstaller] org_name: {biz_id} return null")
+                continue
+            org_id = org_info.get("id")
             if not org_id:
                 logger.warning(f"[GrafanaInstaller] can not found org_name: {biz_id} in grafana?")
                 continue
