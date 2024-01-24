@@ -360,6 +360,12 @@ export default class FieldInfo extends tsc<IProps> {
       ),
     };
 
+    const caseSensitiveSlot = {
+      default: ({ row }) => (
+        <span class={{ 'bk-icon icon-check-line': row.is_case_sensitive }}></span>
+      ),
+    };
+
     const timeSlot = {
       default: ({ row }) => (
         <span class={{ 'log-icon icon-date-picker': row.field_name === this.timeField }}></span>
@@ -414,6 +420,14 @@ export default class FieldInfo extends tsc<IProps> {
             key={'is_analyzed'}
             width="80"
             scopedSlots={analyzedSlot}
+          ></TableColumn>
+
+          <TableColumn
+            label={this.$t('是否大小写敏感')}
+            key={'is_case_sensitive'}
+            width="120"
+            align={'center'}
+            scopedSlots={caseSensitiveSlot}
           ></TableColumn>
 
           <TableColumn

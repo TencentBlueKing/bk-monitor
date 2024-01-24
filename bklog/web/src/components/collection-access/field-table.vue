@@ -247,7 +247,25 @@
                     || props.row.field_type !== 'string'
                     || props.row.is_time
                     || isSetDisabled"
-                  v-model="props.row.is_analyzed">
+                  v-model="props.row.is_analyzed"
+                  @change="() => handelChangeAnalyzed(props.row.is_analyzed, props.$index)">
+                </bk-checkbox>
+              </template>
+            </bk-table-column>
+            <!-- 分词 -->
+            <bk-table-column
+              :label="$t('是否大小写敏感')"
+              align="center"
+              :resizable="false"
+              :width="100">
+              <template slot-scope="props">
+                <bk-checkbox
+                  :disabled="isPreviewMode
+                    || props.row.is_delete
+                    || props.row.field_type !== 'string'
+                    || !props.row.is_analyzed
+                    || isSetDisabled"
+                  v-model="props.row.is_case_sensitive">
                 </bk-checkbox>
               </template>
             </bk-table-column>
@@ -777,6 +795,12 @@ export default {
       const fieldName = $row.field_name;
       const fieldType = $row.field_type;
       const previousType = $row.previous_type;
+      const isAnalyzed = $row.is_analyzed;
+      const isCaseSensitive = $row.is_case_sensitive;
+      if (val !== 'string') {
+        this.tableList[$index].is_analyzed = false;
+        this.tableList[$index].is_case_sensitive = false;
+      }
       if (fieldType && this.curCollect.table_id) {
         const row = this.fields.find(item => item.field_name === fieldName);
         if (row && row.field_type && row.field_type !== val) {
@@ -791,30 +815,28 @@ export default {
             }, this.$t('更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续')),
             type: 'warning',
             confirmFn: () => {
-              this.formData.tableList[$index].field_type = val;
-              this.formData.tableList[$index].previousType = val;
-              if (val !== 'string') {
-                this.formData.tableList[$index].is_analyzed = false;
-              }
+              this.tableList[$index].field_type = val;
+              this.tableList[$index].previousType = val;
               this.checkTypeItem($row);
             },
             cancelFn: () => {
-              this.formData.tableList[$index].field_type = previousType;
-              if (previousType !== 'string') {
-                this.formData.tableList[$index].is_analyzed = false;
-              }
+              this.tableList[$index].field_type = previousType;
+              this.tableList[$index].is_analyzed = isAnalyzed;
+              this.tableList[$index].is_case_sensitive = isCaseSensitive;
               this.checkTypeItem($row);
             },
           });
           return false;
         }
       } else {
-        if (val !== 'string') {
-          this.formData.tableList[$index].is_analyzed = false;
-        }
-        this.formData.tableList[$index].field_type = val;
+        this.tableList[$index].field_type = val;
       }
       this.checkTypeItem($row);
+    },
+    handelChangeAnalyzed(isAnalyzed, $index) {
+      if (!isAnalyzed) {
+        this.tableList[$index].is_case_sensitive = false;
+      }
     },
     formatChange(val) {
       this.timeCheckResult = false;
