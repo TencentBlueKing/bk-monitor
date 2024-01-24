@@ -181,11 +181,11 @@ export default defineComponent({
       const uploadParams = { profile_id: curFileInfo?.value?.profile_id, global_query: true };
       return {
         is_compared: isComparison,
-        filter_label: where.reduce((pre, cur) => {
+        filter_labels: where.reduce((pre, cur) => {
           if (cur.key && cur.value) pre[cur.key] = cur.value;
           return pre;
         }, {}),
-        diff_filter_label: comparisonWhere.reduce((pre, cur) => {
+        diff_filter_labels: comparisonWhere.reduce((pre, cur) => {
           if (cur.key && cur.value && type !== SearchType.Upload) pre[cur.key] = cur.value;
           return pre;
         }, {}),
