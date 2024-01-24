@@ -189,6 +189,8 @@ class QueryAlarmEventGraph(Resource):
             dimensions = dict(dimension_tuple)
             for status, value in status_mapping.items():
                 datapoints = [[count, timestamp] for timestamp, count in value.items()]
+                dimensions = {k.replace(".", "__"): v for k, v in dimensions.items()}
+
                 if "status" in params["group_by"]:
                     new_dimensions = {"status": status, **dimensions}
                 else:
