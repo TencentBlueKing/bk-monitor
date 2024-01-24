@@ -167,7 +167,7 @@ export default defineComponent({
     }
 
     const labelList = ref<string[]>([]);
-    const labelValueMap = new Map();
+    const labelValueMap = reactive(new Map());
     /**
      * 添加条件
      * @param type 条件类型
