@@ -23,11 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref } from 'vue';
+import { computed, defineComponent, inject, PropType, provide, Ref, ref, watch } from 'vue';
 import { Collapse, Radio } from 'bkui-vue';
 
+import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
+import { IQueryParams, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
+import {
+  REFLESH_IMMEDIATE_KEY,
+  REFLESH_INTERVAL_KEY,
+  TIME_OFFSET_KEY,
+  TIME_RANGE_KEY,
+  TIMEZONE_KEY,
+  VIEWOPTIONS_KEY
+} from '../../../plugins/hooks';
 import { PanelModel } from '../../../plugins/typings';
+import { ToolsFormData } from '../typings';
 
 import './trend-chart.scss';
 
@@ -37,173 +48,66 @@ export default defineComponent({
     content: {
       type: String,
       default: ''
+    },
+    queryParams: {
+      type: Object as PropType<IQueryParams>,
+      default: () => ({})
     }
   },
-  setup() {
+  setup(props) {
+    const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
+
+    const timezone = ref<string>(getDefautTimezone());
+    const refleshImmediate = ref<number | string>('');
+    const defaultViewOptions = ref<IViewOptions>({});
     const collapse = ref(true);
-    const panel = new PanelModel({
-      id: 6,
-      title: '响应耗时',
-      gridPos: {
-        x: 16,
-        y: 16,
-        w: 8,
-        h: 4
+    const panel = ref<PanelModel>(
+      new PanelModel({
+        id: 6,
+        title: '',
+        gridPos: {
+          x: 16,
+          y: 16,
+          w: 8,
+          h: 4
+        },
+        type: 'graph',
+        targets: [
+          {
+            // data_type: 'time_series',
+            api: 'apm_profile.query',
+            datasource: 'time_series',
+            alias: 'Sample 数',
+            data: {}
+          }
+        ]
+      })
+    );
+
+    const timeRange = computed(() => toolsFormData.value.timeRange);
+    const refreshInterval = computed(() => toolsFormData.value.refreshInterval);
+
+    provide(TIME_RANGE_KEY, timeRange);
+    provide(TIMEZONE_KEY, timezone);
+    provide(REFLESH_INTERVAL_KEY, refreshInterval);
+    provide(REFLESH_IMMEDIATE_KEY, refleshImmediate);
+    provide(VIEWOPTIONS_KEY, defaultViewOptions);
+    provide(TIME_OFFSET_KEY, ref([]));
+
+    watch(
+      () => props.queryParams,
+      () => {
+        panel.value.targets[0].data = {
+          ...props.queryParams,
+          diagram_types: ['tendency']
+        };
       },
-      type: 'graph',
-      targets: [
-        {
-          data_type: 'time_series',
-          api: 'grafana.graphUnifyQuery',
-          datasource: 'time_series',
-          alias: 'MAX',
-          data: {
-            expression: 'C',
-            query_configs: [
-              {
-                data_source_label: 'custom',
-                data_type_label: 'time_series',
-                table: '2_bkapm_metric_datalink_bkop.__default__',
-                metrics: [
-                  {
-                    field: 'bk_apm_duration_max',
-                    method: 'MAX',
-                    alias: 'C'
-                  }
-                ],
-                group_by: [],
-                display: true,
-                where: [],
-                interval_unit: 's',
-                time_field: 'time',
-                filter_dict: {},
-                functions: []
-              }
-            ]
-          }
-        },
-        {
-          data_type: 'time_series',
-          api: 'grafana.graphUnifyQuery',
-          datasource: 'time_series',
-          alias: 'P99',
-          data: {
-            expression: 'B',
-            query_configs: [
-              {
-                data_source_label: 'custom',
-                data_type_label: 'time_series',
-                table: '2_bkapm_metric_datalink_bkop.__default__',
-                metrics: [
-                  {
-                    field: 'bk_apm_duration_bucket',
-                    method: 'AVG',
-                    alias: 'B'
-                  }
-                ],
-                group_by: ['le'],
-                display: true,
-                where: [],
-                interval_unit: 's',
-                time_field: 'time',
-                filter_dict: {},
-                functions: [
-                  {
-                    id: 'histogram_quantile',
-                    params: [
-                      {
-                        id: 'scalar',
-                        value: 0.99
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        {
-          data_type: 'time_series',
-          api: 'grafana.graphUnifyQuery',
-          datasource: 'time_series',
-          alias: 'P95',
-          data: {
-            expression: 'A',
-            query_configs: [
-              {
-                data_source_label: 'custom',
-                table: '2_bkapm_metric_datalink_bkop.__default__',
-                data_type_label: 'time_series',
-                metrics: [
-                  {
-                    field: 'bk_apm_duration_bucket',
-                    method: 'AVG',
-                    alias: 'A'
-                  }
-                ],
-                group_by: ['le'],
-                display: true,
-                where: [],
-                interval_unit: 's',
-                time_field: 'time',
-                filter_dict: {},
-                functions: [
-                  {
-                    id: 'histogram_quantile',
-                    params: [
-                      {
-                        id: 'scalar',
-                        value: 0.95
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        {
-          data_type: 'time_series',
-          api: 'grafana.graphUnifyQuery',
-          datasource: 'time_series',
-          alias: 'P50',
-          data: {
-            expression: 'A',
-            query_configs: [
-              {
-                data_source_label: 'custom',
-                table: '2_bkapm_metric_datalink_bkop.__default__',
-                data_type_label: 'time_series',
-                metrics: [
-                  {
-                    field: 'bk_apm_duration_bucket',
-                    method: 'AVG',
-                    alias: 'A'
-                  }
-                ],
-                group_by: ['le'],
-                display: true,
-                where: [],
-                interval_unit: 's',
-                time_field: 'time',
-                filter_dict: {},
-                functions: [
-                  {
-                    id: 'histogram_quantile',
-                    params: [
-                      {
-                        id: 'scalar',
-                        value: 0.5
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        }
-      ]
-    });
+      {
+        immediate: true,
+        deep: true
+      }
+    );
+
     function handleCollapseChange(v) {
       collapse.value = v;
     }
