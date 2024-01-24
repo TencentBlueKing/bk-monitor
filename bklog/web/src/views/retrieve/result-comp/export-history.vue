@@ -60,7 +60,7 @@
             width="100">
             <template slot-scope="{ row }">
               <span>
-                {{row.log_index_set_id}}
+                {{ getIndexSetIDs(row) }}
               </span>
             </template>
           </bk-table-column>
@@ -495,6 +495,9 @@ export default {
       };
       this.stopStatusPolling();
       this.$emit('handleCloseDialog');
+    },
+    getIndexSetIDs(row) {
+      return row.log_index_set_ids?.length ? row.log_index_set_ids.join(',') : row.log_index_set_id;
     },
   },
 };
