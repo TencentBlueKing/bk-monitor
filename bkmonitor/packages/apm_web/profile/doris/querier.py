@@ -187,7 +187,9 @@ class QueryTemplate:
             ),
             result_table_id=self.result_table_id,
         ).execute()
-        count = next((i["count(1)"] for i in res.get("list", []) if i.get("count(1)")), None)
+        if not res or not res.get("list", []):
+            return False
+        count = next((i["count(1)"] for i in res["list"] if i.get("count(1)")), None)
         return bool(count)
 
     def list_services_request_info(self, start: int, end: int):
