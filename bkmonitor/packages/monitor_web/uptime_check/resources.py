@@ -29,7 +29,7 @@ from requests.auth import to_native_string
 from yaml import SafeDumper
 
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
 from bkmonitor.utils.country import ISP_LIST
@@ -350,7 +350,7 @@ class TestTaskResource(Resource):
             else:
                 biz_nodes.append(node)
 
-        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303
+        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0
         bk_host_ids = all_nodes.values_list("bk_host_id", flat=1).distinct()
         all_plugin = api.node_man.plugin_search(
             {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
@@ -466,9 +466,7 @@ class TestTaskResource(Resource):
                     if success_info["ip"]:
                         q_params = Q(ip=success_info["ip"]) | Q(bk_host_id=success_info["bk_host_id"])
                     node = all_nodes.filter(q_params).first()
-                    fail_result.append(
-                        "node:{node}, log:{log}".format(node=node.name, log=" | ".join(error_message))
-                    )
+                    fail_result.append("node:{node}, log:{log}".format(node=node.name, log=" | ".join(error_message)))
 
             if len(fail_result):
                 raise CustomException("\n".join(fail_result))
@@ -2612,43 +2610,46 @@ class GetRecentTaskDataResource(Resource):
 
     def perform_request(self, validated_request_data):
         task_id = validated_request_data["task_id"]
-        type = validated_request_data["type"]
-        # 通过task_id获取到任务的协议和业务id，来拼接表名
+        task_type = validated_request_data["type"]
+
         try:
             uptime_check_task = UptimeCheckTask.objects.get(pk=task_id)
         except UptimeCheckTask.DoesNotExist:
             raise CustomException(_("不存在id为%s的拨测任务") % task_id)
-        protocol = uptime_check_task.protocol
-        result_table_id = "{}.{}".format(UPTIME_CHECK_DB, protocol.lower())
-        # 兼容不同版本
-        table_name = resource.commons.trans_bkcloud_rt_bizid(result_table_id)
+
         # 获取某个node_id最近一个采集周期内的可用率和响应时间，如果没有则说明不可用
-        end = arrow.utcnow().timestamp
-        start = end - uptime_check_task.get_period()
-        filter_dict = {
-            "time__gte": start * 1000,
-            "time__lt": end * 1000,
-            "task_id": task_id,
-            "bk_biz_id": str(uptime_check_task.bk_biz_id),
-        }
-        value_fields = ["task_id", "node_id", type]
+        bk_biz_id = uptime_check_task.bk_biz_id
+        interval = 60
+        now = arrow.utcnow().timestamp
 
-        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+        protocol = uptime_check_task.protocol.lower()
+        period = uptime_check_task.get_period()
+        if task_type == "task_duration":
+            # 保留标签聚合
+            promql = f"topk(1, max_over_time(bkmonitor:{UPTIME_CHECK_DB}:{protocol}:{task_type}[{period}s]))"
+        else:
+            promql = f"bottomk(1, min_over_time(bkmonitor:{UPTIME_CHECK_DB}:{protocol}:{task_type}[{period}s]))"
+        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
-            table=table_name,
-            metrics=[{"field": field} for field in value_fields],
-            filter_dict=filter_dict,
+            bk_biz_id=bk_biz_id,
+            promql=promql,
+            filter_dict={"task_id": task_id},
+            interval=interval,
         )
-        data = data_source.query_data(limit=5)
+        query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
+        # 模拟即时查询
+        data = query.query_data(start_time=(now - interval) * 1000, end_time=now * 1000)
 
-        # 当前结果为空，则表示采集器未上报数据，如果结果不是空，则选择最新的数据返回
+        # 采集器未上报数据
         if len(data) == 0:
             return {}
-        else:
-            if type == "available":
-                return min(data, key=lambda x: x["available"])
-            else:
-                return max(data, key=lambda x: x["task_duration"])
+
+        return {
+            "task_id": task_id,
+            "node_id": data[0]["node_id"],
+            task_type: data[0]["_result_"],
+            "_time_": data[0]["_time_"],
+        }
 
 
 class SelectCarrierOperator(Resource):
