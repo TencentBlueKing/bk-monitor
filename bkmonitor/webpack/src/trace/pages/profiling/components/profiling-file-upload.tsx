@@ -30,20 +30,20 @@ import { Alert, Button, Dialog, Upload } from 'bkui-vue';
 import { TextFill as UploadTextFill, Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
 import { upload } from '../../../../monitor-api/modules/apm_profile';
-import { FILES_TYPE, FILES_TYPE_NAME } from '../typings/profiling-file';
+import { FILES_TYPE_NAME } from '../typings/profiling-file';
 import { ConditionType } from '../typings/profiling-retrieval';
 
 import './profiling-file-upload.scss';
 
-function getFileType(fileName: string) {
-  const regex = /(?:\.([^.]+))?$/;
-  const extension = regex.exec(fileName)[1];
-  const type = extension.toLocaleLowerCase();
-  if (type === 'prof') {
-    return 'pprof';
-  }
-  return type;
-}
+// function getFileType(fileName: string) {
+//   const regex = /(?:\.([^.]+))?$/;
+//   const extension = regex.exec(fileName)[1];
+//   const type = extension.toLocaleLowerCase();
+//   if (type === 'prof') {
+//     return 'pprof';
+//   }
+//   return type;
+// }
 
 function valueFlash(set, val, limit) {
   let v = 0; // 初始值
@@ -185,9 +185,9 @@ export default defineComponent({
      * @param file
      */
     function uploadFiles(file: any) {
-      const fileType = getFileType(file.name);
       const params = {
-        file_type: fileType,
+        // 暂时默认传pprof
+        file_type: 'pprof',
         file,
         global_query: 1
       };
@@ -288,7 +288,7 @@ export default defineComponent({
               >
                 <Upload
                   customRequest={this.handleUploadProgress as any}
-                  accept={FILES_TYPE.map(f => `.${f}`).join(',')}
+                  // accept={FILES_TYPE.map(f => `.${f}`).join(',')}
                   onProgress={this.handleProgress}
                 >
                   {{
