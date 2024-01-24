@@ -205,14 +205,16 @@
       </bk-table-column>
 
       <bk-table-column
-        width="160"
+        width="260"
         align="center"
         :label="$t('备注')"
         :render-header="$renderHeader">
         <template slot-scope="{ row, $index }">
-          <span @mouseenter="e => handleHoverRemarkIcon(e, row, $index)">
-            {{ remarkContent(row.remark) }}
-          </span>
+          <div class="auto-height-container" @mouseenter="e => handleHoverRemarkIcon(e, row, $index)">
+            <span class="auto-height">
+              {{ remarkContent(row.remark) }}
+            </span>
+          </div>
         </template>
       </bk-table-column>
 
@@ -835,6 +837,23 @@ export default {
 .finger-container {
   position: relative;
 
+  .auto-height-container {
+    padding: 6px 0 6px;
+  }
+
+  .auto-height {
+    padding: 2px;
+    height: auto; /* 设置元素高度为自动 */
+    min-height: 20px; /* 根据需要设置最小高度 */
+    overflow: hidden;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    display: -webkit-box;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    text-overflow: ellipsis;
+  }
+
   .top-operate {
     position: absolute;
     top: 42px;
@@ -1057,6 +1076,7 @@ export default {
     }
 
     .content {
+      white-space: pre-wrap;
       padding: 6px 0;
     }
 
