@@ -78,6 +78,8 @@ class CallGraphDiagrammer:
             "call_graph_all": tree.root.value,
         }
         if options.get("data_mode") and options.get("data_mode") == CallGraphResponseDataMode.IMAGE_DATA_MODE:
+            # 补充 sample_type 信息
+            data.update(c.get_sample_type())
             return generate_svg_data(data)
         return data
 
