@@ -45,6 +45,7 @@ import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
 import { MenuEnum, ToolsFormData } from './typings/page-header';
 import {
+  DataTypeItem,
   DetailType,
   FileDetail,
   PanelType,
@@ -96,7 +97,7 @@ export default defineComponent({
     provide<RetrievalFormData>('formData', searchState.formData);
     const isEmpty = ref(true);
     const dataType = ref('');
-    const dataTypeList = ref([]);
+    const dataTypeList = ref<DataTypeItem[]>([]);
 
     /** 查询参数 */
     const queryParams = ref(getParams());
@@ -228,7 +229,7 @@ export default defineComponent({
 
     function getDataTypeList(val: ServicesDetail | FileDetail) {
       dataTypeList.value = val.data_types || [];
-      dataType.value = dataTypeList.value[0] || '';
+      dataType.value = dataTypeList.value[0]?.key || '';
     }
 
     return {
