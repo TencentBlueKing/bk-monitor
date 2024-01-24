@@ -131,7 +131,10 @@ def check_apm_consul_config():
 @app.task(ignore_result=True, queue="celery_cron")
 def profile_handler(bk_biz_id: int, app_name: str):
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} start at {datetime.datetime.now()}")
-    ProfileDiscoverHandler(bk_biz_id, app_name).discover()
+    try:
+        ProfileDiscoverHandler(bk_biz_id, app_name).discover()
+    except Exception as e:  # noqa
+        logger.error(f"[profile_handler] occur exception of {bk_biz_id}-{app_name}: {e}")
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")
 
 

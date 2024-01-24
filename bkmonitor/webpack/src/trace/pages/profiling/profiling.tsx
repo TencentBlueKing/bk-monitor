@@ -177,8 +177,8 @@ export default defineComponent({
     /** 获取接口请求参数 */
     function getParams() {
       const { server, isComparison, where, comparisonWhere, type } = searchState.formData;
-      const profilingParams = { ...server };
-      const uploadParams = { profile_id: curFileInfo?.value?.profile_id };
+      const profilingParams = { ...server, global_query: false };
+      const uploadParams = { profile_id: curFileInfo?.value?.profile_id, global_query: true };
       return {
         is_compared: isComparison,
         filter_label: where.reduce((pre, cur) => {

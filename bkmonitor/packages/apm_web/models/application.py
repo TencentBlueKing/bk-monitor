@@ -281,6 +281,7 @@ class Application(AbstractRecordModel):
     def set_data_status(self):
         start_time, end_time = get_datetime_range("minute", self.no_data_period)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+        # NOTICE: data_status / profile_data_status 目前暂无接口用到只在指标中使用考虑指标处换成实时查询
 
         # Step1: 查询 Trace 数据状态
         count = RequestCountInstance(self, start_time, end_time).query_instance()
@@ -301,11 +302,17 @@ class Application(AbstractRecordModel):
             profile_has_data = QueryTemplate(self.bk_biz_id, self.app_name).exist_data(
                 start_time * 1000, end_time * 1000
             )
+            if profile_has_data:
+                logger.info(
+                    f"[Application] set_profile_data_status ->  "
+                    f"bk_biz_id: {self.bk_biz_id} app: {self.app_name} have data in {self.no_data_period} period"
+                )
+                self.profiling_data_status = DataStatus.NORMAL
+            else:
+                self.profiling_data_status = DataStatus.NO_DATA
         except ValueError as e:
             logger.warning(f"[Application] set profiling data_status failed: {e}")
-            profile_has_data = None
-
-        self.data_status = DataStatus.NORMAL if profile_has_data else DataStatus.NO_DATA
+            self.profiling_data_status = DataStatus.NO_DATA
 
         self.save()
 
