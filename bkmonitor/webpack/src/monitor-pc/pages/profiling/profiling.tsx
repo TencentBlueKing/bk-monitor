@@ -38,7 +38,7 @@ export default class Profiling extends tsc<{}> {
   get profilingUrl() {
     return process.env.NODE_ENV === 'development'
       ? `${this.profilingHost}/?bizId=${this.$store.getters.bizId}/#/trace/profiling`
-      : `${location.origin}${window.site_url}profiling/?bizId=${this.$store.getters.bizId}/#/trace/profiling`;
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/profiling`;
   }
   get profilingData() {
     return JSON.stringify({

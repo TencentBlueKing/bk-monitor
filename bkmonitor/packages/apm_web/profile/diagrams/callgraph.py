@@ -76,7 +76,6 @@ class CallGraphDiagrammer:
                 "call_graph_relation": edges,
             },
             "call_graph_all": tree.root.value,
-            **c.get_sample_type(),
         }
         if options.get("data_mode") and options.get("data_mode") == CallGraphResponseDataMode.IMAGE_DATA_MODE:
             return generate_svg_data(data)

@@ -46,3 +46,5 @@ class ProfileUploadRecord(models.Model):
         "状态", max_length=36, choices=UploadedFileStatus.choices, default=UploadedFileStatus.UPLOADED
     )
     service_name = models.CharField("服务名称", max_length=50, default="default")
+
+    meta_info = models.JSONField("数据元信息", default=dict)
