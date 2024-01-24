@@ -90,7 +90,7 @@ export interface IQueryParams {
   offset?: number;
   diagram_types?: string[];
   sort?: string;
-  filter_label?: Record<string, string>;
-  diff_filter_label?: any;
+  filter_labels?: Record<string, string>;
+  diff_filter_labels?: any;
   is_compared?: boolean;
 }

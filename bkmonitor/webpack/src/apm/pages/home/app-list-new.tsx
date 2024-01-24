@@ -531,7 +531,8 @@ export default class AppList extends tsc<{}> {
         'filter-app_name': row.app_name
       }
     });
-    window.open(routeData.href);
+    // window.open(routeData.href);
+    window.location.href = routeData.href;
   }
   /**
    * @description 跳转到配置页
@@ -544,7 +545,8 @@ export default class AppList extends tsc<{}> {
         id: row.application_id
       }
     });
-    window.open(routeData.href);
+    // window.open(routeData.href);
+    window.location.href = routeData.href;
   }
 
   /**
@@ -567,7 +569,8 @@ export default class AppList extends tsc<{}> {
           active: id === 'noDataAlarm' ? 'dataStatus' : id
         }
       });
-      window.open(routeData.href);
+      // window.open(routeData.href);
+      window.location.href = routeData.href;
     } else if (toAccessService.includes(id)) {
       const routeData = this.$router.resolve({
         name: 'service-add',
@@ -575,7 +578,8 @@ export default class AppList extends tsc<{}> {
           appName: row.app_name
         }
       });
-      window.open(routeData.href);
+      // window.open(routeData.href);
+      window.location.href = routeData.href;
     } else if (id === 'delete') {
       this.$bkInfo({
         type: 'warning',
@@ -585,6 +589,8 @@ export default class AppList extends tsc<{}> {
         confirmFn: () => {
           deleteApplication({ app_name: row.app_name }).then(() => {
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
+            this.pagination.current = 1;
+            this.pagination.isEnd = false;
             this.getAppList();
           });
         }
