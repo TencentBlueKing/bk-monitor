@@ -7,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import datetime
 import gzip
 import hashlib
 import logging
@@ -200,8 +199,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         )
 
         r = q.execute()
-
-        if r is None:
+        if r is None or not r.get("list"):
             raise ValueError(_("未查询到有效数据"))
 
         if not converted:
@@ -289,18 +287,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
     @staticmethod
     def _enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:
-        # 由于 doris 入库可能存在延迟，所以需要稍微加大查询时间范围
-        # profile_id 对于数据有较强的过滤效果，不会引起数据量过大问题
-        # doris 存储默认按自然天划分，默认查找从当天最早的数据开始
-        # TODO: 可能需要关注具体拉取效率问题
-
         # start & end all in microsecond, so we need to convert it to millisecond
-        start = int(
-            datetime.datetime.combine(
-                datetime.datetime.fromtimestamp(start / (1000 * 1000)), datetime.time.min
-            ).timestamp()
-            * 1000
-        )
+        start = int(start / 1000 + offset * 1000)
         end = int(end / 1000 + offset * 1000)
 
         return start, end
