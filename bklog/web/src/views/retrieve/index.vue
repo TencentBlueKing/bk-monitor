@@ -1393,7 +1393,7 @@ export default {
     },
     requestTableData() {
       if (this.requesting) return;
-
+      this.isTablePagination = true;
       this.requestTable();
     },
     // 表格
@@ -1410,8 +1410,6 @@ export default {
       }
 
       const { currentPage, pageSize } = this.$refs.resultMainRef;
-      // 单选检索的begin
-      const begin = currentPage === 1 ? 0 : (currentPage - 1) * pageSize;
       this.formatTimeRange();
       try {
         const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
@@ -1424,11 +1422,14 @@ export default {
         };
         // 更新联合查询的begin
         const unionConfigs = this.unionIndexList.map(item => ({
-          begin: this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0,
+          begin: this.isTablePagination
+            ? this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
+            : 0,
           index_set_id: item,
         }));
         const queryData = Object.assign(baseData, !this.isUnionSearch ? {
-          begin,
+          // 单选检索的begin
+          begin: currentPage === 1 ? 0 : (currentPage - 1) * pageSize,
         } : {
           union_configs: unionConfigs,
         });
@@ -1475,6 +1476,7 @@ export default {
         if (this.finishPolling) this.$refs.resultMainRef.isPageOver = false;
         this.requesting = false;
         this.tableLoading = false;
+        this.isTablePagination = false;
       }
     },
     // 首次加载设置表格默认宽度自适应

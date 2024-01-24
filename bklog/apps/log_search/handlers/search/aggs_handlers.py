@@ -456,6 +456,8 @@ class AggsViewAdapter(object):
 
             # 处理 aggs
             for key, value in result.get("aggs", {}).items():
+                if not value or not isinstance(value, dict):
+                    value = dict()
                 if key not in aggs_all:
                     aggs_all[key] = value
                 else:
@@ -480,6 +482,8 @@ class AggsViewAdapter(object):
 
         # buckets 合并排序
         for all_key, all_value in aggs_all.items():
+            if not all_value or not isinstance(all_value, dict):
+                continue
             buckets = all_value.get("buckets", [])
             if not buckets:
                 continue
