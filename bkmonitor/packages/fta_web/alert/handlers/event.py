@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List, Dict
+from typing import Dict, List
 
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
@@ -16,11 +16,15 @@ from django.utils.translation import ugettext_lazy as _lazy
 from bkmonitor.documents import EventDocument
 from constants.alert import EVENT_SEVERITY, EVENT_STATUS, EVENT_TARGET_TYPE
 from constants.data_source import DATA_SOURCE_LABEL_CHOICE
-from fta_web.alert.handlers.base import BaseQueryHandler, QueryField, BaseQueryTransformer
+from fta_web.alert.handlers.base import (
+    BaseQueryHandler,
+    BaseQueryTransformer,
+    QueryField,
+)
 from fta_web.alert.handlers.translator import (
     AbstractTranslator,
-    StrategyTranslator,
     CategoryTranslator,
+    StrategyTranslator,
 )
 
 
@@ -145,9 +149,9 @@ class EventQueryHandler(BaseQueryHandler):
         }
         return result_data
 
-    def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None):
+    def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None, char_add_quotes=True):
         translators = {
             "strategy_id": StrategyTranslator(),
             "category": CategoryTranslator(),
         }
-        return super(EventQueryHandler, self).top_n(fields, size, translators)
+        return super(EventQueryHandler, self).top_n(fields, size, translators, char_add_quotes)
