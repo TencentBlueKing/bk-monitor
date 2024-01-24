@@ -112,6 +112,7 @@ class GetAlarmEventField(Resource):
             {"id": "strategy_id", "name": _("策略ID"), "is_dimension": True},
             {"id": "event.ip", "name": _("IP"), "is_dimension": True},
             {"id": "event.bk_cloud_id", "name": _("云区域ID"), "is_dimension": True},
+            *tags,
         ]
 
 
