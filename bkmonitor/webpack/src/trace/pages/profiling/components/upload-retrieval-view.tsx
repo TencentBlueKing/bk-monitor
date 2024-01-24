@@ -115,10 +115,7 @@ export default defineComponent({
     }
 
     async function handleRefleshFiles() {
-      const data = await listProfileUploadRecord({
-        app_name: props.formData.server.app_name,
-        service_name: props.formData.server.service_name
-      }).catch(() => []);
+      const data = await listProfileUploadRecord().catch(() => []);
       searchObj.list = data;
       if (searchObj.list.length && !searchObj.selectFile) {
         handleSelectFile(searchObj.list[0].id);
