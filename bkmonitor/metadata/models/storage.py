@@ -2036,6 +2036,19 @@ class ESStorage(models.Model, StorageResultTable):
     def now(self):
         return arrow.utcnow().replace(hours=self.time_zone).datetime
 
+    @property
+    def is_green(self):
+        """使用的es集群是否健康"""
+        try:
+            es_session = es_tools.es_retry_session(self.es_client)
+            healthz = es_session.cluster.health()
+            if healthz["status"] == "green":
+                return True
+            return False
+        except Exception as e:
+            logger.error("query es cluster error by retry 3, %s", e)
+            return False
+
     def is_index_enable(self):
         """判断index是否启用中"""
 
