@@ -26,6 +26,7 @@
 import { computed, defineComponent, inject, PropType, provide, Ref, ref, watch } from 'vue';
 import { Collapse, Radio } from 'bkui-vue';
 
+import { random } from '../../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import { IQueryParams, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
@@ -41,6 +42,18 @@ import { PanelModel } from '../../../plugins/typings';
 import { ToolsFormData } from '../typings';
 
 import './trend-chart.scss';
+
+const DEFAULT_PANEL_CONFIG = {
+  title: '',
+  gridPos: {
+    x: 16,
+    y: 16,
+    w: 8,
+    h: 4
+  },
+  type: 'graph',
+  targets: []
+};
 
 export default defineComponent({
   name: 'TrendChart',
@@ -61,28 +74,8 @@ export default defineComponent({
     const refleshImmediate = ref<number | string>('');
     const defaultViewOptions = ref<IViewOptions>({});
     const collapse = ref(true);
-    const panel = ref<PanelModel>(
-      new PanelModel({
-        id: 6,
-        title: '',
-        gridPos: {
-          x: 16,
-          y: 16,
-          w: 8,
-          h: 4
-        },
-        type: 'graph',
-        targets: [
-          {
-            // data_type: 'time_series',
-            api: 'apm_profile.query',
-            datasource: 'time_series',
-            alias: 'Sample 数',
-            data: {}
-          }
-        ]
-      })
-    );
+    const panel = ref<PanelModel>(null);
+    const chartType = ref('all');
 
     const timeRange = computed(() => toolsFormData.value.timeRange);
     const refreshInterval = computed(() => toolsFormData.value.refreshInterval);
@@ -95,12 +88,39 @@ export default defineComponent({
     provide(TIME_OFFSET_KEY, ref([]));
 
     watch(
-      () => props.queryParams,
+      () => [props.queryParams, chartType.value],
       () => {
-        panel.value.targets[0].data = {
-          ...props.queryParams,
-          diagram_types: ['tendency']
-        };
+        let type;
+        let targetApi;
+        let targetData;
+        if (chartType.value === 'all') {
+          type = 'line';
+          targetApi = 'apm_profile.query';
+          targetData = {
+            ...props.queryParams,
+            diagram_types: ['tendency']
+          };
+        } else {
+          type = 'bar';
+          targetApi = 'apm_profile.query';
+          targetData = {
+            ...props.queryParams
+          };
+        }
+
+        panel.value = new PanelModel({
+          ...DEFAULT_PANEL_CONFIG,
+          id: random(6),
+          options: { time_series: { type } },
+          targets: [
+            {
+              api: targetApi,
+              datasource: 'time_series',
+              alias: 'Sample 数',
+              data: targetData
+            }
+          ]
+        });
       },
       {
         immediate: true,
@@ -112,6 +132,7 @@ export default defineComponent({
       collapse.value = v;
     }
     return {
+      chartType,
       panel,
       collapse,
       handleCollapseChange
@@ -143,7 +164,7 @@ export default defineComponent({
           >
             <Radio.Group
               type='capsule'
-              modelValue='all'
+              v-model={this.chartType}
             >
               <Radio.Button label='all'>{this.$t('总趋势')}</Radio.Button>
               <Radio.Button label='trace'>{this.$t('Trace 数据')}</Radio.Button>
