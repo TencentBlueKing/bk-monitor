@@ -49,5 +49,5 @@ export const fileStatusMap = {
   }
 };
 
-export const FILES_TYPE = ['json', 'perf_script', 'prof'];
-export const FILES_TYPE_NAME = ['json', 'perf_script', 'pprof'].join(',');
+// export const FILES_TYPE = ['json', 'perf_script', 'prof'];
+export const FILES_TYPE_NAME = ['perf_script', 'pprof'].join(',');
