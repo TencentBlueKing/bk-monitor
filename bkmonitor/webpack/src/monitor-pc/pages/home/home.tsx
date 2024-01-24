@@ -25,7 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input, Option, Select } from 'bk-magic-vue';
+import { Button, Option, Select } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 import { throttle } from 'throttle-debounce';
 
@@ -33,6 +33,7 @@ import { IData as IBusinessCard } from '../../../fta-solutions/pages/home/busine
 import { initUnit } from '../../../fta-solutions/pages/home/home';
 import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
 import { statistics } from '../../../monitor-api/modules/home';
+import SpaceSelect from '../../../monitor-pc/components/space-select/space-select';
 import MonitorDialog from '../../../monitor-ui/monitor-dialog';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
@@ -195,6 +196,9 @@ export default class Home extends tsc<{}> {
   loading = false;
 
   oldSearchValue = '';
+
+  bizIds = [this.$store.getters.bizId];
+
   showGuide = false;
   throttledScroll: Function = () => {};
 
@@ -417,6 +421,10 @@ export default class Home extends tsc<{}> {
     this.init();
   }
 
+  handleBizIdsChange(v: number[]) {
+    this.bizIds = v;
+  }
+
   render() {
     return (
       <div class='monitor-home'>
@@ -461,14 +469,23 @@ export default class Home extends tsc<{}> {
                   <span class='msg'>{this.updataTimeStr}</span>
                 </span>
                 <span class='right'>
-                  <Input
+                  {/* <Input
                     placeholder={this.$t('输入空间ID、空间名')}
                     right-icon='bk-icon icon-search'
                     v-model={this.businessOverview.searchValue}
                     on-right-icon-click={() => this.isCanSearch() && this.init()}
                     on-enter={() => this.isCanSearch() && this.init()}
                     on-blur={() => this.isCanSearch() && this.init()}
-                  ></Input>
+                  ></Input> */}
+                  <SpaceSelect
+                    class='mr-16 space-select'
+                    value={this.bizIds}
+                    needAuthorityOption={false}
+                    needAlarmOption={false}
+                    spaceList={this.$store.getters.bizList}
+                    currentSpace={this.$store.getters.bizId}
+                    onChange={this.handleBizIdsChange}
+                  ></SpaceSelect>
                   <Select
                     v-model={this.businessOverview.filterItem}
                     clearable={false}
