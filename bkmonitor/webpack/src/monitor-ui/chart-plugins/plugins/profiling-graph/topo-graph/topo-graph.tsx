@@ -48,6 +48,7 @@ export default class TopoGraph extends tsc<ITopoGraphProps> {
     this.$nextTick(() => {
       if (this.topoSrc) {
         this.graphInstance = new UseTopoChart(this.containerRef, this.imageRef);
+        this.imageRef.innerHTML = this.topoSrc;
       }
     });
   }
@@ -61,8 +62,7 @@ export default class TopoGraph extends tsc<ITopoGraphProps> {
         <div
           ref='imageRef'
           class='topo-img'
-          v-html={this.topoSrc}
-        ></div>
+        />
       </div>
     );
   }

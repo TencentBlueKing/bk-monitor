@@ -35,6 +35,7 @@ import { handleTransformToTimestamp } from '../../../../monitor-pc/components/ti
 import {
   BaseDataType,
   DataTypeItem,
+  IQueryParams,
   PanelModel,
   ProfilingTableItem,
   TextDirectionType,
@@ -46,6 +47,7 @@ import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
+import TrendChart from './trend-chart/trend-chart';
 
 import './profiling-graph.scss';
 
@@ -75,6 +77,7 @@ class ProfilingChart extends CommonSimpleChart {
   topoSrc = '';
   dataTypeList: DataTypeItem[] = [];
   dataType = '';
+  queryParams: IQueryParams = {};
 
   get flameFilterKeywords() {
     return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
@@ -118,12 +121,28 @@ class ProfilingChart extends CommonSimpleChart {
         if (res?.data_types?.length) {
           this.dataTypeList = res.data_types;
           this.dataType = this.dataTypeList[0].key;
+          this.queryParams = {
+            app_name,
+            service_name,
+            profile_type: this.dataType
+          };
           this.handleQuery(start_time, end_time);
         }
       })
       .catch(() => ({}));
   }
   async handleQuery(start_time = '', end_time = '') {
+    this.getTableFlameData(start_time, end_time);
+    this.getTopoSrc(start_time, end_time);
+  }
+  async handleModeChange(val: ViewModeType) {
+    if (val === this.activeMode) return;
+
+    this.highlightId = -1;
+    this.activeMode = val;
+  }
+  /** 获取表格和火焰图 */
+  async getTableFlameData(start_time = '', end_time = '') {
     try {
       this.isLoading = true;
       this.highlightId = -1;
@@ -143,20 +162,21 @@ class ProfilingChart extends CommonSimpleChart {
       this.isLoading = false;
     }
   }
-  async handleModeChange(val: ViewModeType) {
-    if (val === this.activeMode) return;
-
-    this.highlightId = -1;
-    this.activeMode = val;
-
-    if (val === ViewModeType.Topo && !this.topoSrc) {
-      this.isLoading = true;
-      const params = this.getParams({ diagram_types: ['callgraph'] });
+  /** 获取拓扑图 */
+  async getTopoSrc(start_time = '', end_time = '') {
+    try {
+      if (ViewModeType.Topo === this.activeMode) {
+        this.isLoading = true;
+      }
+      const params = this.getParams({ diagram_types: ['callgraph'] }, start_time, end_time);
       const data = await query(params).catch(() => false);
       if (data) {
         this.topoSrc = data.call_graph_data || '';
       }
-      this.isLoading = true;
+      this.isLoading = false;
+    } catch (e) {
+      console.error(e);
+      this.isLoading = false;
     }
   }
   handleTextDirectionChange(val: TextDirectionType) {
@@ -197,7 +217,10 @@ class ProfilingChart extends CommonSimpleChart {
     }
   }
   handleDataTypeChange(val) {
+    if (this.dataType === val) return;
+
     this.dataType = val;
+    this.queryParams.profile_type = val;
   }
   getUrlParamsString(obj) {
     const str = Object.keys(obj)
@@ -256,7 +279,7 @@ class ProfilingChart extends CommonSimpleChart {
             </i18n>
           </div>
         </div>
-
+        <TrendChart queryParams={this.queryParams}></TrendChart>
         <div
           class='profiling-graph'
           v-bkloading={{ isLoading: this.isLoading }}

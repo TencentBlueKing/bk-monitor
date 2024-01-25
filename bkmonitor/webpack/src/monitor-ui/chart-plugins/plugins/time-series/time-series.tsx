@@ -384,7 +384,7 @@ export class LineChart
             })
             .then(res => {
               this.$emit('seriesData', res);
-              metrics.push(...res.metrics);
+              res.metrics && metrics.push(...res.metrics);
               series.push(
                 ...res.series.map(set => ({
                   ...set,
@@ -579,7 +579,7 @@ export class LineChart
 
   /** 处理图表上下边界的数据 */
   handleBoundaryList(item, series) {
-    const currentDimensions = item.dimensions;
+    const currentDimensions = item.dimensions || [];
     const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
     const currentDimStr = getDimStr(currentDimensions);
     const lowerBound = series.find(ser => ser.alias === 'lower_bound' && getDimStr(ser.dimensions) === currentDimStr);
@@ -671,7 +671,7 @@ export class LineChart
     /** 获取is_anomaly的告警点数据 */
     const currentDataPoints = item.datapoints;
     const currentDataPointsMap = new Map();
-    const currentDimensions = item.dimensions;
+    const currentDimensions = item.dimensions || [];
     const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
     const currentDimStr = getDimStr(currentDimensions);
     const currentIsAanomalyData = series.find(
