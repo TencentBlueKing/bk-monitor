@@ -156,7 +156,8 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
             "end_time": validated_request_data["end_time"] or int(current_time.timestamp()),
         }
         handler = AlertQueryHandler(**search_params)
-        alerts = [AlertDocument(**hit.to_dict()) for hit in handler.search_raw()]
+        search_result, _ = handler.search_raw()
+        alerts = [AlertDocument(**hit.to_dict()) for hit in search_result]
 
         # step2 获取当前DB存储的所有规则，并替换掉当前的告警规则
         # 2.1 获取到所有的规则组内容

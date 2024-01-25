@@ -39,7 +39,8 @@
             ext-cls="fill-operate"
             :clearable="false"
             :popover-min-width="116"
-            v-model="matchOperator">
+            v-model="matchOperator"
+            @selected="() => handleOperateChange(false)">
             <bk-option
               v-for="item of expressOperatorList"
               :key="item.id"
@@ -80,7 +81,22 @@
             <span class="title-overflow" v-bk-overflow-tips>{{matchItem.key}}</span>
           </div>
           <div class="specify-container">
-            <div class="operator">{{matchItem.operator}}</div>
+            <bk-select
+              v-if="!isDialogItem"
+              v-model="matchOperator"
+              ext-cls="select-operator"
+              :clearable="false"
+              :popover-min-width="116"
+              @selected="() => handleOperateChange(true)">
+              <bk-option
+                v-for="item of expressOperatorList"
+                :key="item.id"
+                :name="item.name"
+                :id="item.id"
+                :disabled="checkOperatorDisabled(item.id)">
+              </bk-option>
+            </bk-select>
+            <div v-else class="operator">{{matchItem.operator}}</div>
             <span class="title-overflow" v-bk-overflow-tips>{{matchItem.value || '-'}}</span>
           </div>
         </div>
@@ -119,6 +135,10 @@ export default {
       type: Array,
       require: true,
     },
+    isDialogItem: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -133,11 +153,6 @@ export default {
             trigger: 'blur',
           },
           {
-            validator: this.checkRepeatName,
-            message: this.$t('已有同名标签'),
-            trigger: 'blur',
-          },
-          {
             required: true,
             message: this.$t('必填项'),
             trigger: 'blur',
@@ -146,25 +161,30 @@ export default {
       },
       matchValue: '', // 自定义匹配值
       matchValueArr: [],
-      matchOperator: '=', // 自定义匹配操作
-      expressOperatorList: [{ // 表达式操作选项
-        id: '=',
-        name: '=',
-      }, {
-        id: 'In',
-        name: 'In',
-      }, {
-        id: 'NotIn',
-        name: 'NotIn',
-      },
-      {
-        id: 'Exists',
-        name: 'Exists',
-      }, {
-        id: 'DoesNotExist',
-        name: 'DoesNotExist',
-      }],
-      isKeyError: false,
+      matchOperator: 'In', // 自定义匹配操作
+      catchOperator: 'In',
+      expressOperatorList: [
+        { // 表达式操作选项
+          id: '=',
+          name: '=',
+        },
+        {
+          id: 'In',
+          name: 'In',
+        },
+        {
+          id: 'NotIn',
+          name: 'NotIn',
+        },
+        {
+          id: 'Exists',
+          name: 'Exists',
+        },
+        {
+          id: 'DoesNotExist',
+          name: 'DoesNotExist',
+        },
+      ],
       isValueError: false,
       matchExpressOption: [],
       isEdit: false, // select编辑
@@ -180,6 +200,17 @@ export default {
     labelKeyStrList() {
       return this.labelSelector.filter(item => this.matchItem.key !== item.key).map(item => item.key);
     },
+    validateFrontCheck() {
+      if (!this.expressInputIsDisabled) {
+        const matchValueError = this.isHaveCompared ? !this.matchValueArr.length : !this.matchValue;
+        // key value 不能为空
+        if (matchValueError) {
+          matchValueError && (this.isValueError = true);
+          return false;
+        }
+      };
+      return true;
+    },
   },
   watch: {
     matchValue() {
@@ -193,19 +224,20 @@ export default {
     activeLabelEditID(val) {
       if (val !== this.matchItem?.id) this.isEdit = false;
     },
+    matchItem: {
+      immediate: true,
+      handler(val) {
+        if (val.operator) {
+          this.matchOperator = val.operator || 'In';
+        }
+      },
+    },
   },
   created() {},
   methods: {
     handleAddMatch() {
       this.$refs.keyRef.validate().then(() => {
-        if (!this.expressInputIsDisabled) {
-          const matchValueError = this.isHaveCompared ? !this.matchValueArr.length : !this.matchValue;
-          // key value 不能为空
-          if (matchValueError) {
-            matchValueError && (this.isValueError = true);
-            return;
-          }
-        };
+        if (!this.validateFrontCheck) return;
 
         let goodJob = true;
 
@@ -229,20 +261,22 @@ export default {
       });
     },
     handleCancelMatch() {
+      if (!this.onlyShowSelectEdit) this.matchOperator = this.catchOperator;
       this.$emit('cancelEdit');
       this.isEdit = false;
     },
     handleEditItem() {
-      const { key, operator, value, id } = this.matchItem;
+      const { key, operator, value } = this.matchItem;
 
       this.matchOperator = operator;
+      this.catchOperator = operator;
       this.verifyData.matchKey = key;
       if (this.isHaveCompared) {
-        this.matchValueArr = value.split(',');
+        const splitValue = value.split(',');
+        this.matchValueArr = splitValue.length ? splitValue : [];
       } else {
         this.matchValue = value;
       };
-      this.$emit('update:activeLabelEditID', id);
       this.isEdit = true;
     },
     handleDeleteItem() {
@@ -257,17 +291,43 @@ export default {
       // eslint-disable-next-line no-useless-escape
       return /^([A-Za-z0-9][-A-Za-z0-9_.\/]*)?[A-Za-z0-9]$/.test(this.verifyData.matchKey);
     },
-    checkRepeatName() {
-      if (this.verifyData.matchKey === '') return true;
-      return !this.labelKeyStrList.includes(this.verifyData.matchKey);
-    },
     resetStatus() {
       this.isEdit = false;
-      this.isKeyError = false;
       this.isValueError = false;
       this.matchValue = '';
       this.verifyData.matchKey = '';
       this.matchValueArr = [];
+    },
+    checkOperatorDisabled(id) {
+      return !this.matchItem.value && ['=', 'In', 'NotIn'].includes(id);
+    },
+    handleOperateChange(isExternal = false) {
+      if (isExternal) {
+        const { key, value } = this.matchItem;
+        if (this.isHaveCompared) {
+          const splitValue = value.split(',');
+          this.matchValueArr = !!splitValue[0] ? splitValue : [];
+        } else {
+          this.matchValue = value;
+        };
+        this.submitEdit({
+          key,
+          operator: this.matchOperator,
+          value: this.expressInputIsDisabled ? '' : value,
+          isExternal: true,
+        });
+      } else {
+        if (this.isHaveCompared) {
+          if (!this.matchValueArr.length && !!this.matchValue) {
+            const splitValue = this.matchValue.split(',');
+            this.matchValueArr = !!splitValue ? splitValue : [];
+          }
+        } else {
+          if (!!this.matchValueArr.length && !this.matchValue) {
+            this.matchValue = this.matchValueArr[0];
+          }
+        }
+      }
     },
   },
 };
@@ -277,6 +337,17 @@ export default {
 
 .match-container {
   width: 100%;
+
+  .is-disabled {
+    opacity: .6;
+    cursor: no-drop;
+
+    .operator,
+    .select-operator {
+      /* stylelint-disable-next-line declaration-no-important */
+      color: #979ba5 !important;
+    }
+  }
 }
 
 .specify-main:hover .edit {
@@ -390,7 +461,8 @@ export default {
     justify-content: start;
     align-items: center;
 
-    .operator {
+    .operator,
+    %operator {
       margin-right: 10px;
       padding: 0 6px;
       height: 24px;
@@ -400,6 +472,23 @@ export default {
       color: #ff9c01;
       background: #fff;
       border-radius: 2px;
+    }
+
+    .select-operator {
+      padding: 0;
+      height: 24px;
+      line-height: 24px;
+      border: none;
+
+      @extend %operator;
+
+      :deep(.bk-select-angle) {
+        display: none;
+      }
+
+      :deep(.bk-select-name) {
+        padding: 0 6px;
+      }
     }
   }
 }
