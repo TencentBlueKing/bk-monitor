@@ -73,10 +73,15 @@ class CollectorHandler:
         headers = {"Authorization": "Bearer " + data_token, "Content-Type": content_type}
 
         # bk-collector already integrated with ingestion of pyroscope
-        collector_http_host = os.getenv("BKAPP_OTLP_HTTP_HOST")
+        collector_http_host = os.getenv("BKAPP_PROFILING_COLLECTOR_HTTP_HOST")
         if collector_http_host is None:
-            raise Exception("collector_http_host is not set")
-        server_url = f"{collector_http_host}/pyroscope/"
+            # if no profiling host set, use otel collector host
+            otlp_host = os.getenv("BKAPP_OTLP_HTTP_HOST")
+            if otlp_host is None:
+                raise Exception("collector_http_host is not set")
+            collector_http_host = otlp_host.split("/v1/traces")[0]
+
+        server_url = f"{collector_http_host}/pyroscope/ingest"
 
         def _get_stamp_by_ns(time_ns: int) -> int:
             return int(datetime.datetime.utcfromtimestamp(time_ns / 1e9).timestamp())
