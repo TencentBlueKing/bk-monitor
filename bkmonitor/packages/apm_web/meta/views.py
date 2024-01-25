@@ -23,6 +23,7 @@ from apm_web.meta.resources import (
     DeleteApplicationResource,
     DeleteCustomSeriviceResource,
     DimensionDataResource,
+    GETDataEncodingResource,
     IndicesInfoResource,
     InstanceDiscoverKeysResource,
     ListApplicationAsyncResource,
@@ -42,16 +43,15 @@ from apm_web.meta.resources import (
     QueryExceptionEndpointResource,
     QueryExceptionEventResource,
     QueryExceptionTypeGraphResource,
+    SamplingOptionsResource,
     ServiceDetailResource,
     ServiceListResource,
     SetupResource,
     StartResource,
     StopResource,
     StorageFieldInfoResource,
-    GETDataEncodingResource,
 )
 from apm_web.models import Application
-
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import (
     InstanceActionForDataPermission,
@@ -205,6 +205,7 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", CreateApplicationResource, endpoint="create_application"),
         ResourceRoute("POST", DeleteApplicationResource, endpoint="delete_application"),
         ResourceRoute("POST", SetupResource, endpoint="setup"),
+        ResourceRoute("GET", SamplingOptionsResource, endpoint="sampling_options"),
         ResourceRoute("POST", StartResource, endpoint="start"),
         ResourceRoute("POST", StopResource, endpoint="stop"),
         ResourceRoute("POST", NoDataStrategyInfoResource, endpoint="nodata_strategy_info"),
@@ -223,5 +224,4 @@ class ApplicationViewSet(ResourceViewSet):
         ),
         ResourceRoute("POST", CustomServiceDataSourceResource, endpoint="custom_service_url_list"),
         ResourceRoute("GET", GETDataEncodingResource, endpoint="data_encoding"),
-
     ]

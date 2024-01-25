@@ -107,6 +107,7 @@ class MonitorBaseEchart extends BaseEchart {
   initChart() {
     if (!this.instance) {
       setTimeout(() => {
+        if (!this.chartRef) return;
         this.instance = echarts.init(this.chartRef);
         this.instance.setOption(this.monitorEchartOptions);
         this.initPropsWatcher();
@@ -119,21 +120,39 @@ class MonitorBaseEchart extends BaseEchart {
     }
   }
   handleDataZoom(event) {
-    if (this.isMouseOver) {
-      const [batch] = event.batch;
-      if (batch.startValue && batch.endValue) {
-        this.instance.dispatchAction({
-          type: 'restore'
-        });
-        const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-        const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-        this.$emit('dataZoom', timeFrom, timeTo);
-      }
-    } else {
+    const [batch] = event.batch;
+    if (batch.startValue && batch.endValue) {
       this.instance.dispatchAction({
         type: 'restore'
       });
+      const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+      let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+      if (!this.isMouseOver) {
+        const seriesData = this.monitorEchartOptions?.series?.[0]?.data || [];
+        if (seriesData.length) {
+          const maxX = (seriesData[seriesData.length - 1] as any)?.value?.[0] || 0;
+          if (maxX === +batch.endValue.toFixed(0)) {
+            timeTo = dayjs().format('YYYY-MM-DD HH:mm');
+          }
+        }
+      }
+      this.$emit('dataZoom', timeFrom, timeTo);
     }
+    // if (this.isMouseOver) {
+    //   const [batch] = event.batch;
+    //   if (batch.startValue && batch.endValue) {
+    //     this.instance.dispatchAction({
+    //       type: 'restore'
+    //     });
+    //     const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+    //     const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+    //     this.$emit('dataZoom', timeFrom, timeTo);
+    //   }
+    // } else {
+    //   this.instance.dispatchAction({
+    //     type: 'restore'
+    //   });
+    // }
   }
   handleClickRestore(e: MouseEvent) {
     e.preventDefault();

@@ -139,7 +139,7 @@ export type ShowModeType = 'list' | 'dashboard' | 'default';
     SettingsWrapper: () => import(/* webpackChunkName: "k8s-settings-wrapper" */ '../settings/settings')
   }
 })
-export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> {
+export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEvent> {
   // 场景id
   @Prop({ default: 'host', type: String }) readonly sceneId: string;
   // 场景类型
@@ -361,11 +361,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   get indexList(): IIndexListItem[] {
     const panels = this.isPreciseFilter
       ? this.preciseFilteringPanels
-      : this.handleGetLocalPanels(this.sceneData.panels);
+      : this.handleGetLocalPanels(this.isOverview ? this.sceneData.overview_panels : this.sceneData.panels);
     if (this.sceneData?.options?.enable_index_list && !!panels.length) {
       let curTagChartId = '';
+      const { mode } = this.sceneData;
       const list = panels.reduce((total, row) => {
-        const { mode } = this.sceneData;
         if (mode === 'auto') {
           // 主机
           const item = {
@@ -508,9 +508,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -1682,7 +1684,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                       // 变量筛选
                       (!!this.sceneData.variables.length || this.sceneData.enableGroup) && (
                         <div class='dashboard-panel-filter-wrap'>
-                          <Collapse
+                          <bk-collapse
                             ref='collapseRef'
                             expand={this.filterActive}
                             renderAnimation={false}
@@ -1716,7 +1718,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                                 />
                               ) : undefined}
                             </div>
-                          </Collapse>
+                          </bk-collapse>
                         </div>
                       )
                     }

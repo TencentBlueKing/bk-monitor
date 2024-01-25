@@ -26,6 +26,7 @@ export const indicesInfo = request('GET', 'apm/meta/application/{pk}/indices_inf
 export const createApplication = request('POST', 'apm/meta/application/create_application/');
 export const deleteApplication = request('POST', 'apm/meta/application/delete_application/');
 export const setup = request('POST', 'apm/meta/application/setup/');
+export const samplingOptions = request('GET', 'apm/meta/application/sampling_options/');
 export const start = request('POST', 'apm/meta/application/start/');
 export const stop = request('POST', 'apm/meta/application/stop/');
 export const noDataStrategyInfo = request('POST', 'apm/meta/application/nodata_strategy_info/');
@@ -69,6 +70,7 @@ export default {
   createApplication,
   deleteApplication,
   setup,
+  samplingOptions,
   start,
   stop,
   noDataStrategyInfo,

@@ -28,6 +28,7 @@ import { alertTopN, listAlertTags } from '../../../../monitor-api/modules/alert'
 import { getAssignConditionKeys, searchObjectAttribute } from '../../../../monitor-api/modules/assign';
 import { listEventPlugin } from '../../../../monitor-api/modules/event_plugin';
 import { getVariableValue } from '../../../../monitor-api/modules/grafana';
+import { listUsersUser } from '../../../../monitor-api/modules/model';
 import {
   getMetricListV2,
   getScenarioList,
@@ -37,6 +38,11 @@ import {
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 
 import { CONDITIONS, ICondtionItem } from './index';
+
+/* 通知人员需支持远程搜索 */
+export const NOTICE_USERS_KEY = 'notice_users';
+/* 策略标签 */
+const STRATEGY_LABELS = 'labels';
 
 /* 每个key 包含的value选项数组 */
 export type TValueMap = Map<string, { id: string; name: string }[]>;
@@ -68,6 +74,27 @@ export const IS_EMPTY_USERS_VALUES = [
   { id: '0', name: 'false' },
   { id: '1', name: 'true' }
 ];
+export enum EKeyTags {
+  all = 'all',
+  cmdb = 'CMDB',
+  strategy = 'strategy',
+  event = 'event'
+}
+
+/* key的标签分类 */
+export const KEY_FILTER_TAGS = [
+  { id: EKeyTags.all, name: window.i18n.tc('全部') },
+  { id: EKeyTags.cmdb, name: window.i18n.tc('CMDB属性') },
+  { id: EKeyTags.strategy, name: window.i18n.tc('告警策略') },
+  { id: EKeyTags.event, name: window.i18n.tc('告警事件') }
+];
+
+/* 标签包含的key选项 */
+export const KEY_TAG_MAPS = {
+  [EKeyTags.cmdb]: ['set', 'module', 'host'],
+  [EKeyTags.strategy]: ['alert.scenario', 'alert.metric', 'alert.strategy_id', STRATEGY_LABELS],
+  [EKeyTags.event]: ['alert.name', NOTICE_USERS_KEY, 'dimensions', 'ip', 'bk_cloud_id', 'alert.event_source']
+};
 
 export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
   if (!left || !right) return false;
@@ -165,28 +192,43 @@ export async function allKVOptions(
   setData: (type: string, key: string, values: any) => void,
   end?: () => void
 ) {
-  setData('valueMap', 'is_empty_users', [
-    { id: 'true', name: window.i18n.t('是') },
-    { id: 'false', name: window.i18n.t('否') }
-  ]);
+  // setData('valueMap', 'is_empty_users', [
+  //   { id: 'true', name: window.i18n.t('是') },
+  //   { id: 'false', name: window.i18n.t('否') }
+  // ]);
   let i = 0;
   const awaitAll = () => {
     i += 1;
-    if (i === 10) {
+    if (i === 12) {
       end?.();
     }
   };
   // 获取key (todo)
   getAssignConditionKeys()
     .then(keyRes => {
-      setData(
-        'keys',
-        '',
-        keyRes.map(item => ({
-          id: item.key,
-          name: item.display_key
-        }))
-      );
+      const keySet = new Set();
+      const keys = keyRes
+        .map(item => {
+          keySet.add(item.key);
+          return {
+            id: item.key,
+            name: item.display_key
+          };
+        })
+        .filter(item => item.id !== 'tags');
+      if (!keySet.has(NOTICE_USERS_KEY)) {
+        keys.push({
+          id: NOTICE_USERS_KEY,
+          name: window.i18n.tc('通知人员')
+        });
+      }
+      if (!keySet.has(STRATEGY_LABELS)) {
+        keys.push({
+          id: STRATEGY_LABELS,
+          name: window.i18n.tc('策略标签')
+        });
+      }
+      setData('keys', '', keys);
       awaitAll();
     })
     .catch(() => {
@@ -372,6 +414,56 @@ export async function allKVOptions(
     .catch(() => {
       awaitAll();
     });
+  // 通知人员(默认获取20个，其他的通过远程搜索)
+  listUsersUser({
+    app_code: 'bk-magicbox',
+    page: 1,
+    page_size: 20,
+    fuzzy_lookups: ''
+  })
+    .then(data => {
+      setData(
+        'valueMap',
+        NOTICE_USERS_KEY,
+        data.results.map(item => ({
+          id: item.username,
+          name: item.display_name
+        }))
+      );
+      awaitAll();
+    })
+    .catch(() => {
+      awaitAll();
+    });
+  alertTopN({
+    bk_biz_ids: bkBizIds,
+    conditions: [],
+    query_string: '',
+    status: [],
+    fields: ['labels'],
+    size: 10,
+    start_time: startTime,
+    end_time: endTime
+  })
+    .then(data => {
+      const topNData = data?.fields || [];
+      topNData.forEach(t => {
+        if (t.field === STRATEGY_LABELS) {
+          const isChar = t.is_char;
+          setData(
+            'valueMap',
+            STRATEGY_LABELS,
+            t.buckets.map(b => ({
+              id: isChar ? topNDataStrTransform(b.id) : b.id,
+              name: b.name
+            }))
+          );
+        }
+      });
+    })
+    .finally(() => {
+      awaitAll();
+    });
   // 获取tags
   const tags = await listAlertTags({
     conditions: [],
@@ -380,7 +472,7 @@ export async function allKVOptions(
     start_time: startTime,
     end_time: endTime
   }).catch(() => []);
-  setData('groupKeys', 'tags', tags);
+  setData('groupKeys', 'dimensions', tags);
   // topN数据
   const tagsFieldsParams = tags.map(t => t.id) as string[];
   const topNData = await alertTopN({

@@ -32,7 +32,13 @@ def bcs_cc_before_request(params):
     params = add_esb_info_before_request(params)
     if settings.BCS_CC_SSM_SWITCH == "on":
         bkssm_access_token = BkSSMApi.get_access_token(
-            {"grant_type": "client_credentials", "id_provider": "client", "env_name": "prod"}
+            {
+                "grant_type": "client_credentials",
+                "id_provider": "client",
+                "env_name": "prod",
+                "app_code": settings.APP_CODE,
+                "app_secret": settings.SECRET_KEY,
+            }
         )
         access_token = bkssm_access_token["access_token"]
         params["X-BKAPI-AUTHORIZATION"] = json.dumps(

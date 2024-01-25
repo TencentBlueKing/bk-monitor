@@ -330,6 +330,7 @@ export default {
       });
     },
     handleBlur(val) {
+      this.$emit('keywordBlurUpdate', this.value);
       setTimeout(() => {
         this.$emit('isCanSearch', true);
       }, 100);

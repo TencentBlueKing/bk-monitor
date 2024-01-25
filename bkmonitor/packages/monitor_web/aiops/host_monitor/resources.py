@@ -10,17 +10,19 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+import re
 
 from django.db.models import Value
 from django.db.models.functions import Concat
+from rest_framework.exceptions import ValidationError
 
+from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.views import serializers
 from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, resource
-from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.aiops.host_monitor.constant import (
     GROUP_BY_METRIC_FIELDS,
     NO_ACCESS_METRIC_ANOMALY_RANGE_COLOR,
@@ -121,6 +123,18 @@ class HostIntelligenAnomalyResource(Resource):
 
 class HostIntelligenAnomalyRangeResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        TIME_PATTERNS = {
+            'seconds': r'(?P<seconds>\d+(\.\d+)?)\s*(?:s|sec|secs?|second|seconds?)',
+            'minutes': r'(?P<minutes>\d+(\.\d+)?)\s*(?:m|min|mins?|minute|minutes?)',
+            'hours': r'(?P<hours>\d+(\.\d+)?)\s*(?:h|hr|hrs?|hour|hours?)',
+        }
+
+        TIME_UNITS_IN_SECONDS = {
+            'seconds': 1,
+            'minutes': 60,
+            'hours': 60 * 60,
+        }
+
         bk_biz_id = serializers.IntegerField()
         host = serializers.ListSerializer(child=HostSerializer())
         start_time = serializers.IntegerField(required=False)
@@ -131,6 +145,31 @@ class HostIntelligenAnomalyRangeResource(Resource):
         def validate_host(self, attr):
             return [host for host in attr if "bk_target_ip" in host and "bk_target_cloud_id" in host]
 
+        def validate_interval(self, attr):
+            if attr == "auto":
+                return attr
+
+            for unit, pattern in self.TIME_PATTERNS.items():
+                match = re.match(pattern, attr)
+                if match:
+                    interval = float(match.group(unit)) * self.TIME_UNITS_IN_SECONDS[unit]
+                    return interval
+            raise ValidationError(f"Invalid time format: {attr}")
+
+        def validate(self, attrs):
+            start_time = attrs.get('start_time')
+            end_time = attrs.get('end_time')
+            interval = attrs.get('interval')
+
+            start_time, end_time = build_start_time_and_end_time(start_time, end_time)
+            interval = build_interval(start_time, end_time, interval)
+
+            # 把验证后的值放回attrs中，这样它们就可以在以后被序列化器的其他部分使用。
+            attrs['start_time'] = start_time
+            attrs['end_time'] = end_time
+            attrs['interval'] = interval
+            return attrs
+
     def perform_request(self, validated_request_data):
         if not validated_request_data["host"]:
             return {}
@@ -138,14 +177,9 @@ class HostIntelligenAnomalyRangeResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         query_config = {}
 
-        start_time, end_time = build_start_time_and_end_time(
-            validated_request_data.get("start_time"), validated_request_data.get("end_time")
-        )
-        interval = build_interval(start_time, end_time, validated_request_data.get("interval"))
-
-        query_config["start_time"] = start_time
-        query_config["end_time"] = end_time
-        query_config["interval"] = interval
+        query_config["start_time"] = validated_request_data.get("start_time")
+        query_config["end_time"] = validated_request_data.get("end_time")
+        query_config["interval"] = validated_request_data.get("interval")
 
         metric_ids = validated_request_data["metric_ids"]
         query_config["order_by"] = ["dtEventTimeStamp ASC"]
@@ -156,7 +190,7 @@ class HostIntelligenAnomalyRangeResource(Resource):
 
         result = {}
 
-        point_time_range = int(interval) * 1000
+        point_time_range = int(validated_request_data.get("interval")) * 1000
 
         # 遍历传过来的指标列表
         for metric in metric_ids:

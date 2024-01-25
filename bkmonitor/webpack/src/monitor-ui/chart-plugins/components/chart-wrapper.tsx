@@ -375,6 +375,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onCollectChart={this.handleCollectChart}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onLoading={this.handleChangeLoading}
+            onErrorMsg={this.handleErrorMsgChange}
+            clearErrorMsg={this.handleClearErrorMsg}
           ></AiopsDimensionLint>
         );
       case 'graphs':
@@ -509,6 +511,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           <img
             class='loading-icon'
             src={loadingIcon}
+            alt=''
           ></img>
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
@@ -537,7 +540,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             v-bk-tooltips={{
               content: this.errorMsg,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start'
+              placement: 'top-start',
+              allowHTML: false
             }}
           ></span>
         )}

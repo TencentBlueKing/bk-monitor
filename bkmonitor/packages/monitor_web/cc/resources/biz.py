@@ -14,16 +14,19 @@ specific language governing permissions and limitations under the License.
 
 
 import logging
+from typing import List
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
+from bkm_space.define import Space
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.user import get_global_user
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
+from monitor_web.commons.biz.resources import ListSpacesResource
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +171,16 @@ def get_notify_roles():
     """
     roles = settings.NOTIRY_MAN_DICT.copy()
     for attr in api.cmdb.get_object_attribute(bk_obj_id="biz"):
-        if attr["bk_property_type"] == "objuser" and attr["bk_property_id"] not in roles:
+        if (
+            attr["bk_property_type"] == "objuser"
+            and attr["bk_property_group"] == "role"
+            and attr["bk_property_id"] not in roles
+        ):
             roles[attr["bk_property_id"]] = attr["bk_property_name"]
     return roles
+
+
+@using_cache(CacheType.OVERVIEW(60 * 2))
+def fetch_allow_biz_ids_by_user(username: str) -> List[int]:
+    spaces: List[Space] = ListSpacesResource.get_space_by_user(username)
+    return [space.bk_biz_id for space in spaces]

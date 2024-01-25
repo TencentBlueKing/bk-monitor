@@ -584,7 +584,12 @@ export default defineComponent({
                           >
                             {(() => {
                               if (!!item.logo) {
-                                return <img src={item.logo}></img>;
+                                return (
+                                  <img
+                                    src={item.logo}
+                                    alt=''
+                                  ></img>
+                                );
                               }
                               if (!item.logo && item.type === 'group') {
                                 return <span class='icon-monitor icon-mc-user-group no-img'></span>;

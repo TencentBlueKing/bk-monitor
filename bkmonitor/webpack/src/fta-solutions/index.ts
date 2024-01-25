@@ -28,7 +28,6 @@ import './public-path.ts';
 import '../monitor-common/polyfill';
 import Vue from 'vue';
 import i18n from './i18n/i18n';
-import '@blueking/bk-weweb';
 import './common/import-magicbox-ui';
 import '../monitor-ui/directive/index';
 
@@ -53,52 +52,77 @@ setVue(Vue);
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
-Api.model
-  .enhancedContext({
-    space_uid: spaceUid || undefined,
-    bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-    context_type: 'basic'
-  })
-  .then(data => {
-    Object.keys(data).forEach(key => {
-      window[key.toLocaleLowerCase()] = data[key];
-    });
-    mergeSpaceList(window.space_list);
-    window.username = window.uin;
-    window.cc_biz_id = +window.bk_biz_id;
-    window.bk_log_search_url = data.BKLOGSEARCH_HOST;
-    const bizId = setGlobalBizId();
-    if (bizId === false) return;
-    store.commit('app/SET_APP_STATE', {
-      userName: window.user_name,
-      bizId: window.cc_biz_id,
-      bizList: window.space_list,
-      csrfCookieName: window.csrf_cookie_name || '',
-      siteUrl: window.site_url,
-      bkUrl: window.bk_url
-    });
-    // eslint-disable-next-line no-new
-    new Vue({
-      el: '#app',
-      router,
-      store,
-      i18n,
-      render: h => h(App)
-    });
-    Vue.prototype.$bus = new Vue();
-    Vue.prototype.$api = Api;
-    Vue.prototype.$authorityStore = Authority;
-    Api.model
-      .enhancedContext({
-        space_uid: spaceUid || undefined,
-        bk_biz_id: bizId,
-        context_type: 'extra'
-      })
-      .then(data => {
-        Object.keys(data).forEach(key => {
-          window[key.toLocaleLowerCase()] = data[key];
-        });
+if (window.__BK_WEWEB_APP_KEY__) {
+  store.commit('app/SET_APP_STATE', {
+    userName: window.user_name,
+    bizId: window.cc_biz_id,
+    bizList: window.space_list,
+    csrfCookieName: window.csrf_cookie_name || '',
+    siteUrl: window.site_url,
+    bkUrl: window.bk_url
+  });
+  // eslint-disable-next-line no-new
+  new Vue({
+    el: '#app',
+    router,
+    store,
+    i18n,
+    render: h => h(App)
+  });
+  Vue.prototype.$bus = new Vue();
+  Vue.prototype.$api = Api;
+  Vue.prototype.$authorityStore = Authority;
+} else {
+  Api.model
+    .enhancedContext({
+      space_uid: spaceUid || undefined,
+      bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
+      context_type: 'basic'
+    })
+    .then(data => {
+      Object.keys(data).forEach(key => {
+        window[key.toLocaleLowerCase()] = data[key];
       });
-    serviceWorker.register();
-  })
-  .catch(e => console.error(e));
+      mergeSpaceList(window.space_list);
+      window.username = window.uin;
+      window.user_name = window.uin;
+      window.cc_biz_id = +window.bk_biz_id;
+      window.bk_log_search_url = data.BKLOGSEARCH_HOST;
+      const bizId = setGlobalBizId();
+      if (bizId === false) return;
+      store.commit('app/SET_APP_STATE', {
+        userName: window.user_name,
+        bizId: window.cc_biz_id,
+        bizList: window.space_list,
+        csrfCookieName: window.csrf_cookie_name || '',
+        siteUrl: window.site_url,
+        bkUrl: window.bk_url
+      });
+      // eslint-disable-next-line no-new
+      new Vue({
+        el: '#app',
+        router,
+        store,
+        i18n,
+        render: h => h(App)
+      });
+      Vue.prototype.$bus = new Vue();
+      Vue.prototype.$api = Api;
+      Vue.prototype.$authorityStore = Authority;
+      Api.model
+        .enhancedContext({
+          space_uid: spaceUid || undefined,
+          bk_biz_id: bizId,
+          context_type: 'extra'
+        })
+        .then(data => {
+          Object.keys(data).forEach(key => {
+            window[key.toLocaleLowerCase()] = data[key];
+          });
+        });
+    })
+    .catch(e => console.error(e))
+    .finally(() => {
+      serviceWorker.immediateRegister();
+    });
+}

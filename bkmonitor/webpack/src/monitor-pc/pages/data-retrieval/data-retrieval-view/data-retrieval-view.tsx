@@ -469,7 +469,11 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
    * @param id
    */
   handleSelectIndex({ id }) {
-    document.getElementById(id)?.scrollIntoView?.();
+    document.querySelector('.chart-wrapper-old .scroll-in')?.classList.remove('scroll-in');
+    const dom = document.getElementById(id);
+    if (!dom) return;
+    dom.scrollIntoView?.();
+    dom.classList.add('scroll-in');
   }
   handleDownSampleChange(downSampleRange: string) {
     this.downSampleRange = downSampleRange;
@@ -616,9 +620,9 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   )
                 ) : undefined
               }
-              {/* <Exception style="margin-top: 150px;" type="empty">
+              {/* <bk-exception style="margin-top: 150px;" type="empty">
                     <span>{this.$t('查无数据')}</span>
-                  </Exception> */}
+                  </bk-exception> */}
               {this.retrievalType === 'event' ? (
                 <EventRetrievalView
                   ref='eventRetrievalViewRef'

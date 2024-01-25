@@ -16,7 +16,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.user import get_local_username, get_request_username
-from core.drf_resource import Resource, api
+from core.drf_resource import CacheResource, Resource, api
 from core.drf_resource.contrib.nested_api import KernelAPIResource
 
 
@@ -353,19 +353,36 @@ class GetEventGroupResource(MetaDataAPIGWResource):
         need_refresh = serializers.BooleanField(required=False, label="是否需要实时刷新", default=False)
 
 
-class QueryEventGroupResource(MetaDataAPIGWResource):
+class SingleQueryEventGroupResource(MetaDataAPIGWResource):
     """
     查询事件分组
     """
 
     action = "/metadata_query_event_group/"
     method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        label = serializers.CharField(required=False, label="分组标签")
+        event_group_name = serializers.CharField(required=False, label="分组名称")
+        page = serializers.IntegerField(required=False, label="页数", min_value=1)
+        page_size = serializers.IntegerField(required=False, label="页长")
+
+
+class QueryEventGroupResource(CacheResource):
+    """
+    批量查询事件分组
+    """
+
     backend_cache_type = CacheType.METADATA
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         label = serializers.CharField(required=False, label="分组标签")
         event_group_name = serializers.CharField(required=False, label="分组名称")
+
+    def perform_request(self, validated_request_data):
+        return batch_request(api.metadata.single_query_event_group, validated_request_data, limit=500, app="metadata")
 
 
 class CreateTimeSeriesGroupResource(MetaDataAPIGWResource):
@@ -436,19 +453,38 @@ class GetTimeSeriesGroupResource(MetaDataAPIGWResource):
         with_result_table_info = serializers.BooleanField(label="是否返回数据源信息", required=False)
 
 
-class QueryTimeSeriesGroupResource(MetaDataAPIGWResource):
+class SingleQueryTimeSeriesGroupResource(MetaDataAPIGWResource):
     """
     查询自定义时序分组
     """
 
     action = "/metadata_query_time_series_group/"
     method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        label = serializers.CharField(required=False, label="分组标签")
+        time_series_group_name = serializers.CharField(required=False, label="分组名称")
+        page = serializers.IntegerField(required=False, label="页数", min_value=1)
+        page_size = serializers.IntegerField(required=False, label="页长")
+
+
+class QueryTimeSeriesGroupResource(CacheResource):
+    """
+    批量查询自定义时序分组
+    """
+
     backend_cache_type = CacheType.METADATA
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         label = serializers.CharField(required=False, label="分组标签")
         time_series_group_name = serializers.CharField(required=False, label="分组名称")
+
+    def perform_request(self, validated_request_data):
+        return batch_request(
+            api.metadata.single_query_time_series_group, validated_request_data, limit=500, app="metadata"
+        )
 
 
 class QueryTagValuesResource(MetaDataAPIGWResource):
@@ -875,3 +911,23 @@ class UpdateRegisteredClusterResource(MetaDataAPIGWResource):
         is_ssl_verify = serializers.BooleanField(label="是否 ssl 验证", default=False)
         label = serializers.CharField(label="标签", default="", allow_blank=True)
         default_settings = serializers.JSONField(required=False, label="默认集群配置", default={})
+
+
+class CustomTimeSeriesDetailResource(MetaDataAPIGWResource):
+    action = "/custom_time_series_detail"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        model_only = serializers.BooleanField(required=False, default=False)
+
+
+class QueryResultTableStorageDetailResource(MetaDataAPIGWResource):
+    action = "/metadata_query_result_table_storage_detail"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        bcs_cluster_id = serializers.CharField(required=False, label="集群ID")

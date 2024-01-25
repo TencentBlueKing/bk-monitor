@@ -70,6 +70,21 @@ def requests_callback(span: Span, response):
         span.set_status(Status(StatusCode.ERROR))
 
 
+def django_request_hook(span: Span, request):
+    # Extract parameters from the request
+    params = request.GET if request.method == 'GET' else request.POST
+
+    # Try to serialize parameters as a JSON string
+    try:
+        params_str = json.dumps(params)
+    except TypeError:
+        # If a parameter cannot be serialized, ignore it
+        params_str = json.dumps({k: v for k, v in params.items() if not v or isinstance(v, (str, int, float, bool))})
+
+    # Set the serialized parameters as an attribute on the span
+    span.set_attribute("request.params", params_str)
+
+
 def django_response_hook(span, request, response):
     if hasattr(response, "data"):
         result = response.data
@@ -152,14 +167,14 @@ class BluekingInstrumentor(BaseInstrumentor):
                     "service.version": settings.VERSION,
                     "bk_data_id": otlp_bk_data_id,
                     "bk.data.token": otlp_bk_data_token,
-                    "net.host.ip": get_local_ip()
+                    "net.host.ip": get_local_ip(),
                 }
             ),
             sampler=sampler,
         )
         tracer_provider.add_span_processor(span_processor)
         trace.set_tracer_provider(tracer_provider)
-        DjangoInstrumentor().instrument(response_hook=django_response_hook)
+        DjangoInstrumentor().instrument(request_hook=django_request_hook, response_hook=django_response_hook)
         RedisInstrumentor().instrument()
         ElasticsearchInstrumentor().instrument()
         RequestsInstrumentor().instrument(tracer_provider=tracer_provider, span_callback=requests_callback)

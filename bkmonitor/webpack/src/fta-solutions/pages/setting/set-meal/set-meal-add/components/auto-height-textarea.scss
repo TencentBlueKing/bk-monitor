@@ -1,0 +1,14 @@
+.auto-height-textarea-component {
+  .bk-textarea-wrapper {
+    border: 1px solid #f5f7fa;
+
+    textarea {
+      height: 28px;
+      background: #f5f7fa;
+    }
+
+    .bk-form-textarea {
+      min-height: auto;
+    }
+  }
+}

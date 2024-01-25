@@ -9,17 +9,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import datetime
+import logging
+from typing import Any, Dict, List
 
 import pytz
-from common.log import logger
 from django.conf import settings
 from django.utils import timezone
 from django.utils.deprecation import MiddlewareMixin
-from monitor_web.extend_account.models import UserAccessRecord
 
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
+from monitor_web.tasks import active_business, cache_space_data, record_login_user
+
+logger = logging.getLogger(__name__)
 
 
 class TimeZoneMiddleware(MiddlewareMixin):
@@ -28,7 +31,12 @@ class TimeZoneMiddleware(MiddlewareMixin):
     """
 
     def process_view(self, request, view_func, view_args, view_kwargs):
-        biz_id = fetch_biz_id_from_request(request, view_kwargs)
+
+        timezone_exempt: bool = getattr(view_func, "timezone_exempt", False)
+        if timezone_exempt:
+            return
+
+        biz_id: int = fetch_biz_id_from_request(request, view_kwargs)
         if biz_id:
             try:
                 from core.drf_resource import resource
@@ -45,38 +53,38 @@ class TimeZoneMiddleware(MiddlewareMixin):
             timezone.deactivate()
 
 
-class ActiveBusinessMiddleware(MiddlewareMixin):
-    """
-    活跃业务中间件（用来记录活跃业务以及业务的最后访问者）
-    """
-
+class TrackSiteVisitMiddleware(MiddlewareMixin):
     def process_view(self, request, view_func, view_args, view_kwargs):
-        request.biz_id = fetch_biz_id_from_request(request, view_kwargs)
-        if request.biz_id:
-            try:
-                from utils import business
 
-                business.activate(int(request.biz_id), request.user.username)
-            except Exception as e:
-                logger.error("活跃业务激活失败, biz_id:{biz_id}, error:{error}".format(biz_id=request.biz_id, error=e))
-
-
-class RecordLoginUserMiddleware(MiddlewareMixin):
-    """
-    记录用户访问时间中间件
-    """
-
-    def process_view(self, request, view_func, view_args, view_kwargs):
-        user = request.user
-        if not user:
+        track_site_visit: bool = getattr(view_func, "track_site_visit", False)
+        if not track_site_visit:
             return
-        try:
-            user.last_login = datetime.datetime.now()
-            user.save()
 
-            UserAccessRecord.objects.update_or_create_by_request(request)
-        except Exception:
-            pass
+        # 如果参数不带业务ID也不统计，节省用户直接返回站点的耗时
+        request.biz_id = fetch_biz_id_from_request(request, view_kwargs)
+        if not request.biz_id:
+            return
+
+        username: str = request.user.username
+        source: str = getattr(request, "source", "web")
+        space_info: Dict[str, Any] = {"bk_biz_id": request.biz_id}
+        base_params: Dict[str, Any] = {"username": username, "space_info": space_info}
+
+        def _run_task(_task, kwargs):
+            try:
+                _task.delay(**kwargs)
+            except Exception:  # noqa
+                logger.exception("[TrackSiteVisitMiddleware] failed to run task: task -> %s", _task)
+
+        th_list: List[InheritParentThread] = [
+            InheritParentThread(target=_run_task, args=(cache_space_data, base_params)),
+            InheritParentThread(target=_run_task, args=(active_business, base_params)),
+            InheritParentThread(
+                target=_run_task,
+                args=(record_login_user, {"source": source, "last_login": datetime.datetime.now(), **base_params}),
+            ),
+        ]
+        run_threads(th_list)
 
 
 class DisableCSRFCheck(MiddlewareMixin):

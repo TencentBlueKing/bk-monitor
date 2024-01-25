@@ -117,37 +117,8 @@ export default {
   computed: {
     ...mapState({
       bkBizId: state => state.bkBizId,
-      clearTableWidth: state => state.clearTableWidth,
     }),
     ...mapState('globals', ['fieldTypeMap']),
-  },
-  watch: {
-    clearTableWidth() {
-      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-      const { params: { indexId }, query: { bizId } } = this.$route;
-      if (columnObj === null || JSON.stringify(columnObj) === '{}') {
-        return;
-      }
-      const isHaveBizId = Object.keys(columnObj).some(el => el === bizId);
-
-      if (!isHaveBizId || columnObj[bizId].fields[indexId] === undefined) {
-        return;
-      }
-
-      for (const bizKey in columnObj) {
-        if (bizKey === bizId) {
-          for (const fieldKey in columnObj[bizKey].fields) {
-            if (fieldKey === indexId) {
-              delete columnObj[bizId].fields[indexId];
-              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexId, 1));
-              columnObj[bizId].indexsetIds.length === 0 && delete columnObj[bizId];
-            }
-          }
-        }
-      }
-
-      localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
-    },
   },
   methods: {
     // 滚动到顶部
@@ -163,16 +134,37 @@ export default {
       this.logDialog.fullscreen = true;
     },
     openWebConsole(row) {
-      const { cluster, container_id } = row;
+      // (('cluster', 'container_id'),
+      // ('__ext.io_tencent_bcs_cluster', '__ext.container_id'),
+      // ('__ext.bk_bcs_cluster_id', '__ext.container_id')) 不能同时为空
+      const { cluster, container_id: containerID, __ext } = row;
+      let queryData = {};
+      if (cluster && containerID) {
+        queryData = {
+          cluster_id: encodeURIComponent(cluster),
+          container_id: containerID,
+        };
+      } else {
+        if (!__ext) return;
+        if (!__ext.container_id) return;
+        queryData = { container_id: __ext.container_id };
+        if (__ext.io_tencent_bcs_cluster) {
+          Object.assign(queryData, {
+            cluster_id: encodeURIComponent(__ext.io_tencent_bcs_cluster),
+          });
+        } else if (__ext.bk_bcs_cluster_id) {
+          Object.assign(queryData, {
+            cluster_id: encodeURIComponent(__ext.bk_bcs_cluster_id),
+          });
+        }
+      }
+      if (!queryData.cluster_id || !queryData.container_id) return;
       this.webConsoleLoading = true;
       this.$http.request('retrieve/getWebConsoleUrl', {
         params: {
           index_set_id: this.$route.params.indexId,
         },
-        query: {
-          cluster_id: encodeURIComponent(cluster),
-          container_id,
-        },
+        query: queryData,
       }).then((res) => {
         window.open(res.data);
       })
@@ -182,16 +174,6 @@ export default {
         .finally(() => {
           this.webConsoleLoading = false;
         });
-    },
-    openMonitorWeb(row) {
-      const ip = row.serverIp || row.ip;
-      const cloudId = row.cloudId?.toString() || row.cloudid?.toString();
-      const id = cloudId ? `-${cloudId}` : '';
-      const endStr = row?.bk_host_id ? row.bk_host_id : `${ip}${id}`;
-      const host = /\//.test(window.MONITOR_URL) ? window.MONITOR_URL : `${window.MONITOR_URL}/`;
-      const url = `${host}?bizId=${this.bkBizId}#/performance/detail/${endStr}`;
-
-      window.open(url);
     },
     handleClickTools(event, row, config) {
       if (['realTimeLog', 'contextLog'].includes(event)) {
@@ -211,8 +193,7 @@ export default {
           Object.assign(dialogNewParams, row);
         }
         this.openLogDialog(dialogNewParams, event);
-      } else if (event === 'monitorWeb') this.openMonitorWeb(row);
-      else if (event === 'webConsole') this.openWebConsole(row);
+      } else if (event === 'webConsole') this.openWebConsole(row);
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
@@ -328,10 +309,6 @@ export default {
         .origin-str {
           color: #313238;
           line-height: 24px;
-        }
-
-        .origin-str:hover {
-          color: #3a84ff;
         }
 
         .show-whole-btn {

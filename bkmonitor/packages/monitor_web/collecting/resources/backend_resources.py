@@ -32,6 +32,7 @@ from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -75,6 +76,9 @@ from monitor_web.models import (
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.strategies.loader.datalink_loader import (
+    DatalinkDefaultAlarmStrategyLoader,
+)
 from monitor_web.tasks import append_metric_list_cache
 from utils import business
 from utils.query_data import TSDataBase
@@ -932,15 +936,6 @@ class SaveCollectConfigResource(Resource):
 
             return attrs
 
-        def validate_params(self, params):
-            """
-            校验采集参数
-            """
-            params["plugin"] = {
-                key: value for key, value in params.get("plugin", {}).items() if not isinstance(value, bool)
-            }
-            return params
-
     @lock(CacheLock("collect_config"))
     def request_nodeman(self, collect_config, deployment_config):
         return collect_config.switch_config_version(deployment_config)
@@ -980,19 +975,12 @@ class SaveCollectConfigResource(Resource):
         save_result = {}
 
         if data.get("id"):
-            # 需要判断参数中密码类型字段是否存在，如果在直接更新，如果不在需要修改回原有的值
-
             try:
                 config_meta = CollectConfigMeta.objects.get(id=data["id"])
             except CollectConfigMeta.DoesNotExist:
                 raise CollectConfigNotExist({"msg": data["id"]})
-            for item in config_meta.plugin.current_version.config.config_json:
-                if item["mode"] != "collector":
-                    item["mode"] = "plugin"
-                if item.get("type") == "password" and not item["name"] in data["params"][item["mode"]]:
-                    data["params"][item["mode"]][item["name"]] = config_meta.deployment_config.params[item["mode"]].get(
-                        item["name"]
-                    )
+
+            self.update_password_inplace(data, config_meta)
             # 编辑
             collect_config = self.update_collector(data, deployment_config_params, save_result)
         else:
@@ -1011,7 +999,33 @@ class SaveCollectConfigResource(Resource):
 
         # 添加完成采集配置，主动更新指标缓存表
         self.update_metric_cache(collector_plugin)
+
+        # 采集配置完成
+        DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+
         return save_result
+
+    @staticmethod
+    def update_password_inplace(data: dict, config_meta: "CollectConfigMeta") -> None:
+        """将密码参数的值替换为实际值。"""
+        config_params = config_meta.plugin.current_version.config.config_json
+        deployment_params = config_meta.deployment_config.params
+
+        for param in config_params:
+            if param["type"] != "password":
+                continue
+
+            param_name = param["name"]
+            param_mode = "plugin" if param["mode"] != "collector" else "collector"
+            received_password = data["params"][param_mode].get(param_name)
+
+            # mode 为 "plugin" 时，如果密码不改变，不会传入，获取到 None
+            # mode 为 "collector" 时，如果密码不改变，传入值为 bool 类型（由详情接口返回的）
+            # 这两种情况要替换为实际值（默认值兜底）
+            if isinstance(received_password, (type(None), bool)):
+                default_password = param["default"]
+                actual_password = deployment_params[param_mode].get(param_name, default_password)
+                data["params"][param_mode][param_name] = actual_password
 
     def update_collector(self, data, deployment_config_params, save_result):
         try:
@@ -2129,17 +2143,14 @@ class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
 
             return new_target_list
         else:
-            is_split_measurement = False
             if self.config.plugin.is_split_measurement:
-                # 是单指标单表的模式
-                is_split_measurement = True
                 db_name = f"{self.config.plugin.plugin_type}_{self.config.plugin.plugin_id}".lower()
                 group_result = api.metadata.query_time_series_group(bk_biz_id=0, time_series_group_name=db_name)
                 result_tables = [ResultTable.time_series_group_to_result_table(group_result)]
             else:
                 # 获取结果表配置
                 if self.config.plugin.plugin_type == PluginType.PROCESS:
-                    db_name = "process"
+                    db_name = "process:perf"
                     metric_json = PluginManagerFactory.get_manager(
                         plugin=self.config.plugin.plugin_id, plugin_type=self.config.plugin.plugin_type
                     ).gen_metric_info()
@@ -2156,10 +2167,10 @@ class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
                 filter_dict["time__gt"] = f"{period * 3 // 60 + 1}m"
             else:
                 filter_dict["time__gt"] = f"{period // 60 * 3}m"
-            ts_database = TSDataBase(db_name=db_name, result_tables=result_tables, bk_biz_id=self.config.bk_biz_id)
-            result = ts_database.no_data_test(
-                test_target_list=target_list, filter_dict=filter_dict, is_split_measurement=is_split_measurement
+            ts_database = TSDataBase(
+                db_name=db_name.lower(), result_tables=result_tables, bk_biz_id=self.config.bk_biz_id
             )
+            result = ts_database.no_data_test(test_target_list=target_list, filter_dict=filter_dict)
             return result
 
     @staticmethod

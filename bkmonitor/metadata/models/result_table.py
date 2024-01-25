@@ -467,17 +467,7 @@ class ResultTable(models.Model):
         # 如果实际创建数据库失败，会有异常抛出，则所有数据统一回滚
         # NOTE: 添加参数标识是否创建存储，以便于可以兼容不需要存储或者已经存在的场景
         if create_storage:
-            result_table.create_storage(
-                result_table.default_storage,
-                is_sync_db,
-                external_storage=external_storage,
-                **default_storage_config,
-            )
-            logger.info(
-                "result_table->[{}] has create real storage on type->[{}]".format(
-                    table_id, result_table.default_storage
-                )
-            )
+            result_table.check_and_create_storage(is_sync_db, external_storage, option, default_storage_config)
         # 6. 更新数据写入 consul
         result_table.refresh_etl_config()
 
@@ -490,7 +480,7 @@ class ResultTable(models.Model):
                 # 避免出现引包导致循环引用问题
                 from metadata.task.tasks import access_bkdata_vm
 
-                access_bkdata_vm.delay(int(target_bk_biz_id), table_id, datasource.bk_data_id)
+                access_bkdata_vm.delay(int(target_bk_biz_id), table_id, datasource.bk_data_id, space_type, space_id)
         except Exception as e:
             logger.error("access vm error: %s", e)
 
@@ -502,20 +492,37 @@ class ResultTable(models.Model):
         except Exception as e:
             logger.error("create es storage index error, %s", e)
 
-        # 针对归属具体业务的结果表，直接推送 redis
-        try:
-            from metadata.task.tasks import push_and_publish_space_router
-
-            if default_storage == ClusterInfo.TYPE_INFLUXDB:
-                if target_bk_biz_id != 0 and space_id and space_type:
-                    push_and_publish_space_router(space_type, space_id, table_id_list=[table_id])
-                else:
-                    on_commit(
-                        lambda: push_and_publish_space_router.delay(space_type, space_id, table_id_list=[table_id])
-                    )
-        except Exception as e:
-            logger.error("push and publish redis error, %s", e)
         return result_table
+
+    def check_and_create_storage(
+        self,
+        is_sync_db: bool,
+        external_storage: Optional[Dict] = None,
+        option: Optional[Dict] = None,
+        default_storage_config: Optional[Dict] = None,
+    ) -> bool:
+        """检测并创建存储
+        NOTE: 针对 influxdb 类型的存储，当为单指标单表时，如果功能开关设置为禁用，则禁用 influxdb 写入
+        """
+        storage_enabled = True
+        if (
+            self.default_storage == ClusterInfo.TYPE_INFLUXDB
+            and option
+            and option.get("is_split_measurement", False)
+            and not settings.ENABLE_INFLUXDB_STORAGE
+        ):
+            storage_enabled = False
+
+        if storage_enabled:
+            # 当 default_storage_config 值为 None 时，需要设置为 {}
+            default_storage_config = default_storage_config or {}
+            self.create_storage(
+                self.default_storage,
+                is_sync_db,
+                external_storage=external_storage,
+                **default_storage_config,
+            )
+            logger.info("result_table:[%s] has create storage on type:[%s]", self.table_id, self.default_storage)
 
     @classmethod
     def get_result_table_storage_info(cls, table_id, storage_type):
@@ -1146,6 +1153,23 @@ class ResultTable(models.Model):
 
         self.last_modify_user = operator
         self.save()
+
+        # 异步执行时，需要在commit之后，以保证所有操作都提交
+        try:
+            from metadata.models.space.utils import get_space_by_table_id
+            from metadata.task.tasks import push_and_publish_space_router
+
+            space_info = get_space_by_table_id(self.table_id)
+            space_type, space_id = space_info.get("space_type_id"), space_info.get("space_id")
+            if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
+                if space_id and space_type:
+                    push_and_publish_space_router(space_type, space_id, table_id_list=[self.table_id])
+                else:
+                    on_commit(
+                        lambda: push_and_publish_space_router.delay(space_type, space_id, table_id_list=[self.table_id])
+                    )
+        except Exception as e:
+            logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
         self.refresh_etl_config()
         logger.info("table_id->[%s] updated success." % self.table_id)

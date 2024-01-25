@@ -528,9 +528,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -1741,7 +1743,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                         class='dashboard-panel-filter-wrap'
                         style={{ display: !window.__BK_WEWEB_DATA__?.lockTimeRange ? 'blok' : 'none' }}
                       >
-                        <Collapse
+                        <bk-collapse
                           ref='collapseRef'
                           expand={this.filterActive}
                           renderAnimation={false}
@@ -1775,7 +1777,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                               />
                             ) : undefined}
                           </div>
-                        </Collapse>
+                        </bk-collapse>
                       </div>
                     )
                   }

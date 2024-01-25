@@ -17,11 +17,12 @@ from django.utils.translation import ugettext as _
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
+from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
-from core.drf_resource import api, resource
+from core.drf_resource import CacheResource, api, resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
 from monitor_web.commons.biz.func_control import CM
@@ -122,8 +123,7 @@ class ListSpacesResource(Resource):
         return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
 
     def perform_request(self, validated_request_data) -> [dict]:
-        request = get_request()
-        username = request.user.username
+        username = get_request_username()
 
         if validated_request_data["show_all"]:
             # 针对特定用户名屏蔽空间信息
@@ -249,10 +249,12 @@ class CreateSpaceResource(Resource):
         return space_info
 
 
-class SpaceIntroduceResource(Resource):
+class SpaceIntroduceResource(CacheResource):
     """
     生成功能接入指引
     """
+
+    cache_type = CacheType.OVERVIEW
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)

@@ -291,6 +291,9 @@ class BasicAlgorithmsCollection(Algorithms):
 
 
 class HistoryPointFetcher(object):
+    def set_default(self, value: int):
+        self._default = value
+
     def query_history_points(self, data_points):
         item = data_points[0].item
         # 按时间从小到大排序
@@ -380,6 +383,8 @@ class HistoryPointFetcher(object):
 
         raw_data = self._local_history_storage[history_key].get(point.record_id.split(".")[0])
         if not raw_data:
+            if getattr(self, "_default", None) is not None:
+                return DataPoint({"value": self._default, "time": history_timestamp}, item)
             return
 
         return DataPoint(json.loads(raw_data), item)
