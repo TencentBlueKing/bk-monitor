@@ -2039,7 +2039,7 @@ class ESStorage(models.Model, StorageResultTable):
     def is_red(self):
         """判断 es 集群是否 red"""
         try:
-            es_session = es_tools.es_retry_session(es_client=self.es_client, retry_num=3)
+            es_session = es_tools.es_retry_session(es_client=self.es_client, retry_num=3, backoff_factor=0.1)
             healthz = es_session.cluster.health()
             if healthz["status"] == "red":
                 return True
