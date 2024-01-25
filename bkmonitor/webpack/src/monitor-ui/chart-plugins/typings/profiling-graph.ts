@@ -82,6 +82,7 @@ export interface ITableTipsDetail {
 export interface IQueryParams {
   bk_biz_id?: number;
   app_name?: string;
+  service_name?: string;
   start?: number;
   end?: number;
   profile_type?: string;

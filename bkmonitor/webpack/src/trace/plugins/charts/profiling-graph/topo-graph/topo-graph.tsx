@@ -50,6 +50,7 @@ export default defineComponent({
         nextTick(() => {
           if (props.topoSrc) {
             graphInstance = new UseTopoChart(containerRef.value, imageRef.value);
+            imageRef.value.innerHTML = props.topoSrc;
           }
         });
       },
@@ -73,8 +74,7 @@ export default defineComponent({
         <div
           ref='imageRef'
           class='topo-img'
-          v-html={this.topoSrc}
-        ></div>
+        />
       </div>
     );
   }

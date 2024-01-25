@@ -28,7 +28,7 @@ export class UseTopoChart {
   containerHtml = null;
   imageHtml = null;
 
-  scale = 10; // 当前大小缩放比例
+  scale = 1; // 当前大小缩放比例
   isDragging = false; // 当前是否拖动状态
   dragStartX = 0; // 拖动 x 坐标
   dragStartY = 0; // 拖动 y 坐标

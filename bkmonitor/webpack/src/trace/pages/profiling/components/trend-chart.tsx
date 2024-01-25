@@ -28,6 +28,7 @@ import { Collapse, Radio } from 'bkui-vue';
 
 import { random } from '../../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
+import loadingIcon from '../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import { IQueryParams, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import {
@@ -76,6 +77,7 @@ export default defineComponent({
     const collapse = ref(true);
     const panel = ref<PanelModel>(null);
     const chartType = ref('all');
+    const loading = ref(false);
 
     const timeRange = computed(() => toolsFormData.value.timeRange);
     const refreshInterval = computed(() => toolsFormData.value.refreshInterval);
@@ -135,7 +137,8 @@ export default defineComponent({
       chartType,
       panel,
       collapse,
-      handleCollapseChange
+      handleCollapseChange,
+      loading
     };
   },
   render() {
@@ -147,11 +150,12 @@ export default defineComponent({
           v-slots={{
             content: () => (
               <div class='trend-chart-wrap'>
-                {this.collapse && (
+                {this.collapse && this.panel && (
                   <TimeSeries
                     panel={this.panel}
                     showChartHeader={false}
                     showHeaderMoreTool={false}
+                    onLoading={val => (this.loading = val)}
                   />
                 )}
               </div>
@@ -169,6 +173,12 @@ export default defineComponent({
               <Radio.Button label='all'>{this.$t('总趋势')}</Radio.Button>
               <Radio.Button label='trace'>{this.$t('Trace 数据')}</Radio.Button>
             </Radio.Group>
+            {this.loading ? (
+              <img
+                class='chart-loading-icon'
+                src={loadingIcon}
+              ></img>
+            ) : undefined}
           </div>
         </Collapse.CollapsePanel>
       </div>

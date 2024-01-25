@@ -116,12 +116,14 @@ export default defineComponent({
         ...queryParams,
         start: start * Math.pow(10, 6),
         end: end * Math.pow(10, 6)
-        // TODO
-        // app_name: 'profiling_bar',
-        // service_name: 'fuxi_gin'
       };
     };
     const handleQuery = async () => {
+      getTableFlameData();
+      getTopoSrc();
+    };
+    /** 获取表格和火焰图 */
+    const getTableFlameData = async () => {
       try {
         isLoading.value = true;
         highlightId.value = -1;
@@ -142,15 +144,12 @@ export default defineComponent({
         empty.value = true;
       }
     };
-    /** 切换视图模式 */
-    const handleModeChange = async (val: ViewModeType) => {
-      if (val === activeMode.value) return;
-
-      highlightId.value = -1;
-      activeMode.value = val;
-
-      if (val === ViewModeType.Topo && !topoSrc.value) {
-        isLoading.value = true;
+    /** 获取拓扑图 */
+    const getTopoSrc = async () => {
+      try {
+        if (ViewModeType.Topo === activeMode.value) {
+          isLoading.value = true;
+        }
 
         const params = getParams({ diagram_types: ['callgraph'] });
         const data = await query(params).catch(() => false);
@@ -158,7 +157,17 @@ export default defineComponent({
           topoSrc.value = data.call_graph_data || '';
         }
         isLoading.value = false;
+      } catch (e) {
+        console.error(e);
+        isLoading.value = false;
       }
+    };
+    /** 切换视图模式 */
+    const handleModeChange = async (val: ViewModeType) => {
+      if (val === activeMode.value) return;
+
+      highlightId.value = -1;
+      activeMode.value = val;
     };
     const handleTextDirectionChange = (val: DirectionType) => {
       textDirection.value = val;
