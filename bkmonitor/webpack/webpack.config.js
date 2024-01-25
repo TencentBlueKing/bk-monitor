@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-nested-ternary */
 const wepack = require('webpack');
 const path = require('path');
 const fs = require('fs');
@@ -68,9 +67,6 @@ module.exports = async (baseConfig, { production, app }) => {
         overlay: false
       },
       open: false,
-      client: {
-        overlay: false
-      },
       static: [],
       watchFiles: []
     };
@@ -128,36 +124,21 @@ module.exports = async (baseConfig, { production, app }) => {
     },
     resolve: {
       ...config.resolve,
-      alias: Object.assign(
-        {},
-        {
-          ...config.resolve.alias,
-          '@': appDir,
-          '@router': path.resolve(`./src/${appDirName}/router/`),
-          '@store': path.resolve(`./src/${appDirName}/store/`),
-          '@page': path.resolve(`./src/${appDirName}/pages/`),
-          '@api': path.resolve('./src/monitor-api/'),
-          '@static': path.resolve('./src/monitor-static/'),
-          '@common': path.resolve('./src/monitor-common/')
-        },
-        ['apm', 'fta', 'pc'].includes(app)
+      alias: {
+        ...config.resolve.alias,
+        '@': appDir,
+        '@router': path.resolve(`./src/${appDirName}/router/`),
+        '@store': path.resolve(`./src/${appDirName}/store/`),
+        '@page': path.resolve(`./src/${appDirName}/pages/`),
+        '@api': path.resolve('./src/monitor-api/'),
+        '@static': path.resolve('./src/monitor-static/'),
+        '@common': path.resolve('./src/monitor-common/'),
+        ...(['apm', 'fta', 'pc'].includes(app)
           ? {
               vue$: 'vue/dist/vue.runtime.common.js'
             }
-          : {}
-      )
+          : {})
+      }
     }
-    // externals: app === 'apm' ? {
-    //   'echarts': 'echarts',
-    //   'dayjs': 'dayjs',
-    //   'axios': 'axios',
-    //   // 'bk-magic-vue': 'bkMagicVue',
-    //   // 'vue-i18n': 'vueI18n',
-    //   // 'vue-router': 'vueRouter',
-    //   // 'vue-class-component': 'vueClassComponent',
-    //   // 'vue-property-decorator': 'vuePopertyDecorator',
-    //   // 'vue-tsx-support': 'vueTsxSupport',
-    //   // 'vuex-module-decorators': 'vuexModuleDecorators',
-    // }: {},
   };
 };
