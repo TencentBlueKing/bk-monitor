@@ -953,7 +953,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     await Promise.all(promiseList).catch(err => {
       console.log(err);
     });
-    debugger;
     /* 是否包含场景id 如果包含则自动填充场景智能检测数据 */
     if (this.$route.query?.scene_id) {
       this.handleShowMetric({ type: MetricType.MultivariateAnomalyDetection });
