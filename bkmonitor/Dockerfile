@@ -30,12 +30,12 @@ RUN npm install -g pnpm
 WORKDIR /app
 
 # install python packages
-# install betterproto==2.0.0b5  Why？ Resolve dependency conflicts between opentelemetry-sdk, dataclasses, and betterproto
-COPY ./requirements.txt /app
+# betterproto has dependency conflicts in dataclasses with opentelemetry-sdk when installing from requirements.txt
 RUN python -m venv venv \
 && /app/venv/bin/pip install --upgrade pip \
 && /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ \
-&& rm -rf /app/requirements.txt && /app/venv/bin/pip install --no-cache-dir betterproto==2.0.0b5
+&& rm -rf /app/requirements.txt \
+&& /app/venv/bin/pip install --no-cache-dir betterproto==2.0.0b5
 
 # build frontend
 COPY ./webpack /app/webpack
