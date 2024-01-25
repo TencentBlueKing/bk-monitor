@@ -36,7 +36,7 @@ RUN python -m venv venv \
 && /app/venv/bin/pip install --upgrade pip \
 && /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ \
 && rm -rf /app/requirements.txt \
-&& /app/venv/bin/pip install --no-cache-dir betterproto==2.0.0b5
+&& /app/venv/bin/pip install --no-cache-dir betterproto==2.0.0b6
 
 # build frontend
 COPY ./webpack /app/webpack
