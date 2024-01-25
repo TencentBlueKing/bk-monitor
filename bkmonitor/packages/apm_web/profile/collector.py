@@ -62,7 +62,7 @@ class CollectorHandler:
 
         pprof = BytesIO()
         with gzip.GzipFile(fileobj=pprof, mode="wb") as gz:
-            gz.write(profile.SerializeToString())
+            gz.write(bytes(profile))
 
         data = {
             b"profile": pprof.getvalue(),
@@ -70,7 +70,7 @@ class CollectorHandler:
             # b"sample_type_config": {},
         }
         content_type, body = encode_multipart_form_data(data=data)
-        headers = {"Authorization": "Bearer " + data_token, "Content-Type": content_type}
+        headers = {"Authorization": f"Bearer {data_token}", "Content-Type": content_type}
 
         # bk-collector already integrated with ingestion of pyroscope
         collector_http_host = os.getenv("BKAPP_PROFILING_COLLECTOR_HTTP_HOST")
@@ -98,7 +98,7 @@ class CollectorHandler:
         }
 
         try:
-            result = requests.post(server_url, data=data, params=params, headers=headers)
+            result = requests.post(server_url, data=body, params=params, headers=headers)
         except Exception:
             logger.exception("send to collector failed")
             raise
