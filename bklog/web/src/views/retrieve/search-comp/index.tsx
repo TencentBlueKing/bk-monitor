@@ -516,8 +516,8 @@ export default class SearchComp extends tsc<IProps> {
     const { index, str } = this.tagFocusInputObj;
     if (str) {
       const oldConditionList = this.conditionList[index].value;
-      const setObj = new Set([...oldConditionList, str].filter(Boolean));
-      Object.assign(this.conditionList[index].value, setObj);
+      const setArr = new Set([...oldConditionList, str]);
+      Object.assign(this.conditionList[index].value, [...setArr].filter(Boolean));
     };
     this.isClearCatchInputStr = !this.isClearCatchInputStr;
     this.searchAdditionQuery(true, true);
