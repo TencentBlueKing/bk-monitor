@@ -473,7 +473,6 @@ export default {
   离开将会导致未保存信息丢失: 'Leaving will result in loss of unsaved information',
   '确定要删除清洗：{n}？': 'Are you sure to delete parsing: {n}?',
   '请注意！删除后不能恢复。': 'Caution! lt cannot be restored after deletion.',
-  已有同名标签: 'Already has a tag with the same name',
   '点击可进行{0}': 'Click for {0}',
   无匹配人员: 'No match',
   '快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页': 'Shortcut key--  Esc: exit; PageUp: page up; PageDn: page down',
@@ -556,5 +555,7 @@ export default {
   添加到本次检索: 'Add to this search',
   从本次检索中排除: 'Exclude from this search',
   当前显示全部字段: 'Currently showing all fields',
-  显示全部字段: 'Currently showing all fields'
+  显示全部字段: 'Currently showing all fields',
+  新开标签页: 'New tab',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。': 'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
 };

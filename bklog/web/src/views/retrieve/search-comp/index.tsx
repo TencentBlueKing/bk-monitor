@@ -99,6 +99,8 @@ export default class SearchComp extends tsc<IProps> {
   conditionList = []; // 条件列表
   isShowFilterOption = false; // 添加条件下拉框是否是展开状态
   aggsItems = []; // 接口返回输入框可选值
+  /** 检索时，清空输入框内缓存的字符串 */
+  isClearCatchInputStr = false;
   tagFocusInputObj: ITagFocusInputObj = {
     index: 0,
     str: '',
@@ -512,8 +514,23 @@ export default class SearchComp extends tsc<IProps> {
 
   handleClickRequestBtn() {
     const { index, str } = this.tagFocusInputObj;
-    if (str) this.conditionList[index].value.push(str); // 更新操作符和数据
+    if (str) {
+      const oldConditionList = this.conditionList[index].value;
+      const setArr = new Set([...oldConditionList, str]);
+      Object.assign(this.conditionList[index].value, [...setArr].filter(Boolean));
+    };
+    this.isClearCatchInputStr = !this.isClearCatchInputStr;
     this.searchAdditionQuery(true, true);
+  }
+
+  blurUpdateKeyword(val) {
+    const { params, query: routerQuery } = this.$route;
+    const routeData = {
+      name: 'retrieve',
+      params,
+      query: { ...routerQuery, keyword: val },
+    };
+    this.$router.replace(routeData);
   }
 
   render() {
@@ -535,6 +552,7 @@ export default class SearchComp extends tsc<IProps> {
                 retrieved-keyword={this.retrievedKeyword}
                 dropdown-data={this.retrieveDropdownData}
                 is-show-ui-type={this.isShowUiType}
+                onKeywordBlurUpdate={this.blurUpdateKeyword}
                 onInputBlur={this.handleBlurSearchInput}
                 onIsCanSearch={val => this.handleUserOperate('isCanStorageFavorite', val)}
                 onRetrieve={this.handleRetrieveLog}
@@ -565,6 +583,7 @@ export default class SearchComp extends tsc<IProps> {
             is-auto-query={this.isAutoQuery}
             retrieveParams={this.retrieveParams}
             catchIpChooser={this.catchIpChooser}
+            isClearCatchInputStr={this.isClearCatchInputStr}
             // statisticalFieldsData={this.statisticalFieldsData}
             onIsIncludeChange={v => this.handleIsIncludeChange(index, v)}
             onDelete={v => this.handleConditionDelete(index, v)}

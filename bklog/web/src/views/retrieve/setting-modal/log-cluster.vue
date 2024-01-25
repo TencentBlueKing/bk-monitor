@@ -375,7 +375,7 @@ export default {
         const requestUrl = `${baseUrl}${requestBehindUrl}`;
         const res =  await this.$http.request(requestUrl, !isDefault && { params, data });
         const {
-          collector_config_name_en,
+          collector_config_name_en: collectorConfigNameEn,
           min_members,
           max_dist_list,
           predefined_varibles,
@@ -383,10 +383,10 @@ export default {
           max_log_length,
           is_case_sensitive,
           clustering_fields,
-          filter_rules,
+          filter_rules: filterRules,
         } = res.data;
         const assignObj = {
-          collector_config_name_en,
+          collector_config_name_en: collectorConfigNameEn || '',
           min_members,
           max_dist_list,
           predefined_varibles,
@@ -394,7 +394,7 @@ export default {
           max_log_length,
           is_case_sensitive,
           clustering_fields,
-          filter_rules,
+          filter_rules: filterRules || [],
         };
         Object.assign(this.formData, assignObj);
         Object.assign(this.defaultData, assignObj);

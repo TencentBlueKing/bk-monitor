@@ -78,6 +78,7 @@
                   :key="labItem.id"
                   :value="labItem.id">
                   <match-label-item
+                    is-dialog-item
                     :class="{ 'is-checked': isSelectItem('matchCheckedList', labItem.id) }"
                     :match-item="labItem" />
                 </bk-checkbox>
@@ -93,28 +94,13 @@
                 v-for="labItem in matchSelectItemList"
                 ext-cls="select-item"
                 :key="labItem.id"
-                :value="labItem.id"
-                :disabled="labItem.disabled">
+                :value="labItem.id">
                 <match-label-item
-                  v-bk-tooltips.top="{
-                    content: $t('已有同名标签'),
-                    disabled: !labItem.disabled,
-                  }"
-                  :class="{
-                    disabled: labItem.disabled,
-                    'is-checked': isSelectItem('matchSelectList', labItem.id),
-                  }"
+                  is-dialog-item
+                  :class="{ 'is-checked': isSelectItem('matchSelectList', labItem.id) }"
                   :match-item="labItem" />
               </bk-checkbox>
             </bk-checkbox-group>
-            <!-- 主页已选中的 -->
-            <div class="view-select-container">
-              <match-label-item
-                v-for="(labItem, labKey) in labelParams.labelSelector"
-                class="select-item disabled"
-                :key="labKey"
-                :match-item="labItem" />
-            </div>
           </div>
         </div>
         <div class="match-empty" v-else>
@@ -169,8 +155,6 @@ export default {
     return {
       treeList: [],
       filterStr: '', // 搜索过滤字符串
-      expressOptionList: [], // 表达式select数组
-      resultStrList: [], // 结果展示拼接字符串数组
       defaultExpandList: [], // 默认展开数组
       leftRange: [300, 600],
       matchCheckedList: [], // 已选择的
@@ -180,7 +164,6 @@ export default {
       leftPreWidth: 300,
       treeLoading: false, // 树loading
       labelLoading: false, // 标签loading
-      timer: null,
       activeStretchBtn: '',
       treeIsEmpty: false, // 树结构是否搜索为空
       cacheRequestParams: { // 缓存树结构传参
@@ -199,8 +182,7 @@ export default {
       return 544 - (78 + Math.min(this.matchCheckedItemList.length, 6) * 42);
     },
     isEmpty() {
-      const labelSelectorList = this.labelParams.labelSelector ?? [];
-      const allList = [...this.matchCheckedItemList, ...this.matchSelectItemList, ...labelSelectorList];
+      const allList = [...this.matchCheckedItemList, ...this.matchSelectItemList];
       return !allList.length;
     },
     labelKeyStrList() {
@@ -217,9 +199,15 @@ export default {
         const requestParams = { bk_biz_id, bcs_cluster_id, type, namespace: namespaceStr };
         this.treeList = [];
         this.defaultExpandList = [];
-        this.resultStrList = [];
         this.cacheRequestParams = requestParams;
         this.getTreeList();
+        if (this.labelParams.labelSelector.length) {
+          this.matchCheckedItemList = this.labelParams.labelSelector.map(item => ({
+            ...item,
+            id: random(10),
+          }));
+          this.matchCheckedList = this.matchCheckedItemList.map(item => item.id);
+        }
       } else {
         this.resetSelect();
         this.filterStr = '';
@@ -251,7 +239,7 @@ export default {
             return !allCheckedItemList.some(mItem => item.key === mItem.key
              && item.value === mItem.value
              && mItem.operator === '=');
-          }).map(item => ({ ...item, operator: '=', id: random(10), disabled: this.labelKeyStrList.includes(item.key) }));
+          }).map(item => ({ ...item, operator: '=', id: random(10) }));
         }
       })
         .catch((err) => {
@@ -285,11 +273,10 @@ export default {
     },
     handelConfirmLabel() {
       const allCheckedKey = [...this.matchSelectList, ...this.matchCheckedList];
-      const allCheckedValue = [...this.matchSelectItemList, ...this.matchCheckedItemList].map(item => ({ ...item, type: 'match_labels' }));
+      const allCheckedValue = [...this.matchSelectItemList, ...this.matchCheckedItemList]
+        .map(item => ({ ...item, type: item.operator === '=' ? 'match_labels' : 'match_expressions' }));
       const matchLabels = allCheckedValue.filter(item => allCheckedKey.includes(item.id));
-      const labelObj = {
-        labelSelector: [...matchLabels, ...this.labelParams.labelSelector],
-      };
+      const labelObj = { labelSelector: [...matchLabels] };
       this.resetSelect();
       this.$emit('configLabelChange', labelObj);
       this.$emit('update:is-show-dialog', false);
@@ -306,9 +293,7 @@ export default {
         if (res.code === 0) {
           // 树列表
           this.treeList = this.initTreeList(typeof res.data === 'object' ? [res.data] : res.data);
-          const [strList, expandList] = this.getResultStrList(this.treeList);
-          // 结果展示列表
-          this.resultStrList = strList;
+          const expandList = this.getResultStrList(this.treeList);
           // 默认展开列表
           this.defaultExpandList = expandList;
         }
@@ -327,7 +312,6 @@ export default {
      */
     getResultStrList(treeList) {
       const absoluteNameList = []; // 最后一级之前拼接的name值
-      const strList = []; // 结果字符串数组
       const expandList = []; // 默认展示ID数组
       // 树结构是数组 进行for循环遍历
       treeList.forEach((item, index) => {
@@ -346,17 +330,10 @@ export default {
               recurse(child, item);
             }
             expandList.push(currentItem.id);
-          } else {
-            // 无子数组则表示最后一层 则赋值字符串数组
-            strList.push({
-              id: currentItem.id,
-              name: `${absoluteNameList[index].name}/${currentItem.name}`,
-            });
-            return;
           }
         }(item)); // 自执行函数保存递归函数
       });
-      return [strList, expandList];
+      return expandList;
     },
     // 给集群赋值名字
     initTreeList(treeList) {
@@ -551,16 +528,13 @@ export default {
       overflow-y: auto;
     }
 
-    .view-select-container {
-      margin-left: 30px;
 
-      .disabled {
-        opacity: .6;
-        cursor: no-drop;
+    .disabled {
+      opacity: .6;
+      cursor: no-drop;
 
-        .operator {
-          color: #979ba5;
-        }
+      .operator {
+        color: #979ba5;
       }
     }
 

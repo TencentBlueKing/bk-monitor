@@ -186,15 +186,14 @@ export default {
     },
     handleDropdownHide() {
       this.showFieldsSetting = false;
+      this.requestFiledConfig();
     },
-    confirmModifyFields(displayFieldNames, showFieldAlias, isUpdateSelectList = true) {
+    confirmModifyFields(displayFieldNames, showFieldAlias) {
       this.modifyFields(displayFieldNames, showFieldAlias);
       this.closeDropdown();
-      if (isUpdateSelectList) this.requestFiledConfig();
     },
     cancelModifyFields() {
       this.closeDropdown();
-      this.requestFiledConfig();
     },
     /** 更新显示字段 */
     modifyFields(displayFieldNames, showFieldAlias) {
@@ -239,7 +238,7 @@ export default {
           console.warn(e);
         });
       this.$store.commit('updateClearTableWidth', 1);
-      this.confirmModifyFields(displayFields, sortList, false);
+      this.confirmModifyFields(displayFields, sortList);
     },
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();

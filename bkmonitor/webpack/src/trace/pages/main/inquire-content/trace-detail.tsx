@@ -222,7 +222,7 @@ export default defineComponent({
       if (content === 'text') {
         text = traceId;
       } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}?app_name=${
+        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
           props.appName
         }&search_type=accurate&trace_id=${traceId}`;
         text = location.href.replace(location.hash, hash);
@@ -846,6 +846,7 @@ export default defineComponent({
                   <img
                     class='service-icon'
                     src={card.icon}
+                    alt=''
                   />
                 ) : (
                   ''

@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import './auto-input.scss';
 
@@ -167,13 +166,13 @@ export default class AutoInput extends tsc<IAuto> {
     return (
       <div class='auto-input-wrap'>
         <div ref='input'>
-          <Input
+          <bk-input
             value={this.value}
             behavior={'simplicity'}
             onInput={this.handleInput}
             readonly={this.readonly}
             placeholder={this.placeholder || this.$t('输入')}
-          ></Input>
+          ></bk-input>
         </div>
         <div style='display: none'>
           <ul

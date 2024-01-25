@@ -22,10 +22,7 @@ def init_result_table_data_label(apps, *args, **kwargs):
         return
     ResultTable = apps.get_model("metadata", "ResultTable")
     TimeSeriesGroup = apps.get_model("metadata", "TimeSeriesGroup")
-    try:
-        CustomTSTable = apps.get_model("monitor_web", "CustomTSTable")
-    except:
-        from monitor_web.models import CustomTSTable
+    CustomTSTable = apps.get_model("monitor_web", "CustomTSTable")
 
     plugin_type_list = [
         f"{getattr(PluginType, attr).lower()}_"
@@ -74,6 +71,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("bkmonitor", "0140_merge_0139_auto_20230613_1211_0139_auto_20230619_1048"),
         ("metadata", "0171_resulttable_data_label"),
+        ("monitor_web", "0063_update_custom_ts_item_label"),
     ]
 
     operations = [
