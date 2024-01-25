@@ -500,7 +500,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     conditions.append(Q("term", is_blocked=True))
             # 对 key 为 stage 进行特殊处理
             return reduce(operator.or_, conditions)
-        if condition["key"].startswith("tags."):
+        elif condition["key"].startswith("tags."):
             # 对 tags 开头的字段进行特殊处理
             return Q(
                 "nested",
@@ -508,6 +508,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 query=Q("term", **{"event.tags.key": condition["key"][5:]})
                 & Q("terms", **{"event.tags.value": condition["value"]}),
             )
+        elif condition["key"] == "alert_name":
+            condition["key"] = "alert_name.raw"
         return super(AlertQueryHandler, self).parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):
