@@ -3452,6 +3452,7 @@ class CollectorHandler(object):
                 path_container_config.append(
                     {
                         "namespaces": conf["namespaces"],
+                        "namespaces_exclude": conf["namespaces_exclude"],
                         "any_namespace": not conf["namespaces"],
                         "data_encoding": conf["data_encoding"],
                         "params": {
@@ -3465,6 +3466,7 @@ class CollectorHandler(object):
                             "workload_type": conf["container"].get("workload_type", ""),
                             "workload_name": conf["container"].get("workload_name", ""),
                             "container_name": conf["container"].get("container_name", ""),
+                            "container_name_exclude": conf["container"].get("container_name_exclude", ""),
                         },
                         "label_selector": {
                             "match_labels": conf["label_selector"].get("match_labels", []),
@@ -3480,6 +3482,7 @@ class CollectorHandler(object):
                 std_container_config.append(
                     {
                         "namespaces": conf["namespaces"],
+                        "namespaces_exclude": conf["namespaces_exclude"],
                         "any_namespace": not conf["namespaces"],
                         "data_encoding": conf["data_encoding"],
                         "params": {
@@ -3493,6 +3496,7 @@ class CollectorHandler(object):
                             "workload_type": conf["container"].get("workload_type", ""),
                             "workload_name": conf["container"].get("workload_name", ""),
                             "container_name": conf["container"].get("container_name", ""),
+                            "container_name_exclude": conf["container"].get("container_name_exclude", ""),
                         },
                         "label_selector": {
                             "match_labels": conf["label_selector"].get("match_labels", []),
