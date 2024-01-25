@@ -109,7 +109,6 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
         value={this.value}
         mask-close={true}
         header-position='left'
-        z-index={2990}
         width={800}
         title={this.$t('通知状态')}
         {...{ on: { 'value-change': this.handleClose } }}

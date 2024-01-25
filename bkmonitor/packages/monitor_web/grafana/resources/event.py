@@ -112,6 +112,7 @@ class GetAlarmEventField(Resource):
             {"id": "strategy_id", "name": _("策略ID"), "is_dimension": True},
             {"id": "event.ip", "name": _("IP"), "is_dimension": True},
             {"id": "event.bk_cloud_id", "name": _("云区域ID"), "is_dimension": True},
+            *tags,
         ]
 
 
@@ -188,6 +189,8 @@ class QueryAlarmEventGraph(Resource):
             dimensions = dict(dimension_tuple)
             for status, value in status_mapping.items():
                 datapoints = [[count, timestamp] for timestamp, count in value.items()]
+                dimensions = {k.replace(".", "__"): v for k, v in dimensions.items()}
+
                 if "status" in params["group_by"]:
                     new_dimensions = {"status": status, **dimensions}
                 else:
