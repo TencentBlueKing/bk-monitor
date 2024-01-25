@@ -97,7 +97,7 @@ class TriggerProcessor(object):
 
     def push_event_to_kafka(self, event_records):
         events = []
-        current_time = int(time.time())
+        current_time = time.time()
         for record in event_records:
             event_record = record["event_record"]
             detect_time = event_record.get("data", {}).get("detect_time")
