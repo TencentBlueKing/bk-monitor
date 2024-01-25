@@ -30,6 +30,7 @@ RUN npm install -g pnpm
 WORKDIR /app
 
 # install python packages
+COPY ./requirements.txt /app
 # betterproto has dependency conflicts in dataclasses with opentelemetry-sdk when installing from requirements.txt
 RUN python -m venv venv \
 && /app/venv/bin/pip install --upgrade pip \
