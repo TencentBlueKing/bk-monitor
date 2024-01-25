@@ -25,7 +25,7 @@
  */
 import { defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Form, Sideslider } from 'bkui-vue';
+import { Form, Loading, Sideslider } from 'bkui-vue';
 
 import { transformByte } from '../../../utils';
 import { DetailType, FileDetail, ServicesDetail } from '../typings';
@@ -164,7 +164,11 @@ export default defineComponent({
                 </span>
               </div>
             ),
-            default: () => <div class='profiling-detail-content'>{renderContent()}</div>
+            default: () => (
+              <Loading loading={!this.detailData}>
+                <div class='profiling-detail-content'>{renderContent()}</div>
+              </Loading>
+            )
           }}
         </Sideslider>
       </>

@@ -29,12 +29,7 @@ import { useI18n } from 'vue-i18n';
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 
-import {
-  listApplicationServices,
-  queryLabels,
-  queryLabelValues,
-  queryServicesDetail
-} from '../../../../monitor-api/modules/apm_profile';
+import { listApplicationServices, queryLabels, queryLabelValues } from '../../../../monitor-api/modules/apm_profile';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import {
   ApplicationList,
@@ -42,7 +37,6 @@ import {
   IConditionItem,
   RetrievalFormData,
   SearchType,
-  ServicesDetail,
   ToolsFormData
 } from '../typings';
 
@@ -59,7 +53,7 @@ export default defineComponent({
       default: () => null
     }
   },
-  emits: ['change', 'typeChange', 'showDetail', 'detailChange'],
+  emits: ['change', 'typeChange', 'appServiceChange', 'showDetail'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
@@ -79,8 +73,6 @@ export default defineComponent({
       normal: [],
       no_data: []
     });
-    /** 当前选中的应用/服务 */
-    const selectApplicationData = ref<ServicesDetail>();
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: {
@@ -136,25 +128,13 @@ export default defineComponent({
       localFormData.server.app_name = appName;
       localFormData.server.service_name = serviceName;
       getLabelList();
-      getDetail();
-      handleEmitChange();
-    }
-
-    async function getDetail() {
-      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      selectApplicationData.value = await queryServicesDetail({
-        start_time: start,
-        end_time: end,
-        app_name: localFormData.server.app_name,
-        service_name: localFormData.server.service_name
-      }).catch(() => ({}));
-      emit('detailChange', selectApplicationData.value);
+      emit('appServiceChange', appName, serviceName);
     }
 
     /** 查看详情 */
     async function handleDetailClick() {
       if (!localFormData.server.app_name || !localFormData.server.service_name) return;
-      emit('showDetail', selectApplicationData.value);
+      emit('showDetail');
     }
 
     /**

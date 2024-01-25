@@ -28,9 +28,10 @@ import { computed, defineComponent, onMounted, provide, reactive, Ref, ref } fro
 import { useI18n } from 'vue-i18n';
 import { Dialog } from 'bkui-vue';
 
+import { queryServicesDetail } from '../../../monitor-api/modules/apm_profile';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
 import { ISelectMenuOption } from '../../components/select-menu/select-menu';
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import ProfilingQueryImage from '../../static/img/profiling-query.png';
 import ProfilingUploadQueryImage from '../../static/img/profiling-upload-query.png';
 import { monitorDrag } from '../../utils/drag-directive';
@@ -70,6 +71,8 @@ export default defineComponent({
     });
     provide<Ref<ToolsFormData>>('toolsFormData', toolsFormData);
 
+    /** 当前选择服务的详情数据 */
+    const selectServiceData = ref<ServicesDetail>();
     /** 查询数据状态 */
     const searchState = reactive<SearchState>({
       isShow: true,
@@ -88,6 +91,7 @@ export default defineComponent({
       }
     });
     const canQuery = computed(() => {
+      if (searchState.loading) return false;
       if (searchState.formData.type === SearchType.Profiling) {
         // 持续检索必须选择应用/服务后才能查询
         return !!(searchState.formData.server.app_name && searchState.formData.server.service_name);
@@ -145,6 +149,24 @@ export default defineComponent({
       searchState.formData = val;
       handleQuery();
     }
+
+    /** 应用/服务改变后获取具体数据 */
+    async function handleAppServiceChange(app_name: string, service_name: string) {
+      searchState.formData.server.app_name = app_name;
+      searchState.formData.server.service_name = service_name;
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      searchState.loading = true;
+      selectServiceData.value = await queryServicesDetail({
+        start_time: start,
+        end_time: end,
+        app_name,
+        service_name
+      }).catch(() => ({}));
+      searchState.loading = false;
+      detailData.value = selectServiceData.value;
+      getDataTypeList(selectServiceData.value);
+    }
+
     /** 切换自动查询 */
     function handleAutoQueryChange(val: boolean) {
       searchState.autoQuery = val;
@@ -207,7 +229,7 @@ export default defineComponent({
     const detailType = ref<DetailType>(DetailType.Application);
     const detailData = ref<ServicesDetail | FileDetail>(null);
     /** 展示服务详情 */
-    function handleShowDetail(type: DetailType, detail: FileDetail) {
+    function handleShowDetail(type: DetailType, detail: ServicesDetail | FileDetail) {
       detailShow.value = true;
       detailType.value = type;
       detailData.value = detail;
@@ -224,12 +246,15 @@ export default defineComponent({
     function handleSelectFile(fileInfo: FileDetail) {
       curFileInfo.value = fileInfo;
       getDataTypeList(fileInfo);
-      handleQuery();
     }
 
     function getDataTypeList(val: ServicesDetail | FileDetail) {
       dataTypeList.value = val.data_types || [];
-      dataType.value = dataTypeList.value[0]?.key || '';
+      const target = dataTypeList.value.some(item => item.key === dataType.value);
+      if (!target) {
+        dataType.value = dataTypeList.value[0]?.key || '';
+      }
+      handleQuery();
     }
 
     return {
@@ -245,6 +270,7 @@ export default defineComponent({
       queryParams,
       isFull,
       dataTypeList,
+      selectServiceData,
       startAutoQueryTimer,
       handleToolFormDataChange,
       handleShowTypeChange,
@@ -252,6 +278,7 @@ export default defineComponent({
       handleQuery,
       handleQueryClear,
       handleSearchFormDataChange,
+      handleAppServiceChange,
       handleDataTypeChange,
       handleShowDetail,
       handleSelectFile,
@@ -367,8 +394,8 @@ export default defineComponent({
             <RetrievalSearch
               formData={this.searchState.formData}
               onChange={this.handleSearchFormDataChange}
-              onDetailChange={this.getDataTypeList}
-              onShowDetail={detail => this.handleShowDetail(DetailType.Application, detail)}
+              onAppServiceChange={this.handleAppServiceChange}
+              onShowDetail={() => this.handleShowDetail(DetailType.Application, this.selectServiceData)}
             >
               {{
                 query: () => (
