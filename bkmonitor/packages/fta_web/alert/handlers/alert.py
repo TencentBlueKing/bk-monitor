@@ -92,7 +92,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
     doc_cls = AlertDocument
     query_fields = [
         QueryField("id", AlertFieldDisplay.ID),
-        QueryField("alert_name", _lazy("告警名称"), agg_field="alert_name.raw", es_field="alert_name.raw", is_char=True),
+        QueryField("alert_name", _lazy("告警名称"), agg_field="alert_name.raw", is_char=True),
         QueryField("status", _lazy("状态")),
         QueryField("description", _lazy("告警内容"), es_field="event.description", is_char=True),
         QueryField("severity", _lazy("级别")),
