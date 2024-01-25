@@ -190,8 +190,8 @@ importers:
   src/fta-solutions:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.2-5.beta.8
-        version: 0.0.2-5.beta.8
+        specifier: 0.0.2-5.beta.10
+        version: 0.0.2-5.beta.10
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -491,8 +491,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.25.beta.8
-        version: 0.0.2-5.beta.8
+        specifier: 0.0.25.beta.10
+        version: 0.0.2-5.beta.10
       '@blueking/date-picker':
         specifier: ^0.0.72
         version: 0.0.72(bkui-vue@0.0.2-beta.126)(dayjs@1.11.10)(vue@2.7.14)
@@ -2579,8 +2579,8 @@ packages:
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
 
-  /@blueking/bk-weweb@0.0.2-5.beta.8:
-    resolution: {integrity: sha512-dnunFDAwGDhs2enkurhBRAMgSV/Soe6H4lVf1yvC4RWNaA0uQK2y7fpV2QG+OBsUy4XBR2S4YhEHIpYnrLxjmA==}
+  /@blueking/bk-weweb@0.0.2-5.beta.10:
+    resolution: {integrity: sha512-XebbP3o2kGBiBlGj+rP5nHABczlAEIyIQC64r6YDvCIA9L3hUly0zQ87UmSQismhfSablLY6eZEYDwwkD30GAg==}
     engines: {node: '>=14.18.1'}
     dev: false
 
