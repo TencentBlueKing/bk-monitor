@@ -4004,7 +4004,8 @@ class CollectorHandler(object):
         cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
         if cluster_info.get("is_shared"):
             is_shared_cluster = True
-            shared_cluster_namespace = self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
+            namespace_info = self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
+            shared_cluster_namespace = [info["name"] for info in namespace_info]
 
         pods = self.filter_pods(
             pods,
