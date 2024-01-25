@@ -723,7 +723,10 @@ export default class SpaceSelect extends tsc<
                     { active: !this.multiple && item.isCheck },
                     {
                       'no-hover-btn':
-                        !this.currentSpace || this.localCurrentSpace === item.id || specialIds.includes(item.id)
+                        !this.currentSpace ||
+                        this.localCurrentSpace === item.id ||
+                        specialIds.includes(item.id) ||
+                        (!!item.noAuth && !item.hasData)
                     }
                   ]}
                   key={item.id}
