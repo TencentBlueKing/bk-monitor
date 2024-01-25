@@ -286,6 +286,9 @@ class MultilineSerializer(serializers.Serializer):
 
 class BcsContainerConfigSerializer(serializers.Serializer):
     namespaces = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("命名空间"), default=[])
+    namespaces_exclude = serializers.ListSerializer(
+        child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
+    )
     container = ContainerSerializer(required=False, label=_("指定容器"), default={})
     label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default={})
     paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=[])
