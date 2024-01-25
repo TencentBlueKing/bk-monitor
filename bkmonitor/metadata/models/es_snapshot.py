@@ -11,14 +11,17 @@ specific language governing permissions and limitations under the License.
 import datetime
 import itertools
 import logging
+from typing import Optional
 
 from curator import utils
 from django.db import models
 from django.db.models import Count, Sum
-from django.db.transaction import atomic
+from django.db.transaction import atomic, on_commit
 from django.forms import model_to_dict
 from django.utils import timezone
 from django.utils.translation import ugettext as _
+
+from bkmonitor.utils.time_tools import biz2utc_str
 from metadata import config
 from metadata.utils.db import array_group
 from metadata.utils.es_tools import (
@@ -26,8 +29,6 @@ from metadata.utils.es_tools import (
     get_cluster_disk_size,
     get_value_if_not_none,
 )
-
-from bkmonitor.utils.time_tools import biz2utc_str
 
 logger = logging.getLogger("metadata")
 
@@ -37,6 +38,9 @@ class EsSnapshot(models.Model):
     ES快照
     """
 
+    ES_RUNNING_STATUS = "running"
+    # 当停用后，不允许新增，也不允许过期删除
+    ES_STOPPED_STATUS = "stopped"
     # 0 表示永久
     PERMANENT_PRESERVATION = 0
 
@@ -51,6 +55,7 @@ class EsSnapshot(models.Model):
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     last_modify_user = models.CharField("最后更新者", max_length=32)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
+    status = models.CharField("快照状态", blank=True, null=True, default="running", max_length=16)
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -75,16 +80,28 @@ class EsSnapshot(models.Model):
             snapshot_days=snapshot_days,
             creator=operator,
             last_modify_user=operator,
+            status=cls.ES_RUNNING_STATUS,
         )
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def modify_snapshot(cls, table_id, snapshot_days, operator):
-        cls.objects.filter(table_id=table_id).update(snapshot_days=snapshot_days, last_modify_user=operator)
+    def modify_snapshot(cls, table_id, snapshot_days, operator, status: Optional[str] = None):
+        try:
+            obj = cls.objects.get(table_id=table_id)
+        except cls.DoesNotExist:
+            return
+        obj.snapshot_days = snapshot_days
+        obj.last_modify_user = operator
+        updated_fields = ["snapshot_days", "last_modify_user"]
+        # 如果状态不为空，则进行状态的更新
+        if status is not None:
+            obj.status = status
+            updated_fields.append("status")
+        obj.save(update_fields=updated_fields)
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_snapshot(cls, table_id):
+    def delete_snapshot(cls, table_id, is_sync: Optional[bool] = False):
         """
         当快照产生当比较多当会产生很多的es调用 比较重 移到后台去执行实际的快照清理
         """
@@ -96,7 +113,12 @@ class EsSnapshot(models.Model):
             logger.exception("ES SnapShot does not exists, table_id(%s)", table_id)
             raise ValueError(_("快照仓库不存在或已经被删除"))
 
-        delete_es_result_table_snapshot.delay(table_id, snapshot.target_snapshot_repository_name)
+        if is_sync:
+            logger.info("table_id %s sync to delete snapshot %s", table_id, snapshot.target_snapshot_repository_name)
+            delete_es_result_table_snapshot(table_id, snapshot.target_snapshot_repository_name)
+        else:
+            logger.info("table_id %s async to delete snapshot %s", table_id, snapshot.target_snapshot_repository_name)
+            delete_es_result_table_snapshot.delay(table_id, snapshot.target_snapshot_repository_name)
         snapshot.delete()
 
     @classmethod
@@ -343,7 +365,7 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def create_restore(cls, table_id, start_time, end_time, expired_time, operator):
+    def create_restore(cls, table_id, start_time, end_time, expired_time, operator, is_sync: Optional[bool] = False):
         from metadata.models import ESStorage
 
         es_storage = ESStorage.objects.filter(table_id=table_id).first()
@@ -351,7 +373,7 @@ class EsSnapshotRestore(models.Model):
             raise ValueError(_("结果表不存在"))
         if not es_storage.have_snapshot_conf:
             raise ValueError(_("结果表不存在快照配置"))
-        
+
         # NOTE: 这里需要转换为 utc 时间，因为，过滤时，会进行时间的转换
         start_time_with_tz = biz2utc_str(start_time, _format="%Y-%m-%dT%H:%M:%SZ")
         end_time_with_tz = biz2utc_str(end_time, _format="%Y-%m-%dT%H:%M:%SZ")
@@ -404,9 +426,13 @@ class EsSnapshotRestore(models.Model):
         )
         from metadata.task.tasks import restore_result_table_snapshot
 
-        logger.info("restore id ->[%s] will create restore [%s]", restore.restore_id, indices_group_by_snapshot)
-
-        restore_result_table_snapshot.delay(indices_group_by_snapshot, restore.restore_id)
+        # 根据参数进行同步或者异步操作的处理
+        if is_sync:
+            logger.info("restore id %s sync to create restore %s", restore.restore_id, indices_group_by_snapshot)
+            restore_result_table_snapshot(indices_group_by_snapshot, restore.restore_id)
+        else:
+            logger.info("restore id %s async to create restore %s", restore.restore_id, indices_group_by_snapshot)
+            on_commit(lambda: restore_result_table_snapshot.delay(indices_group_by_snapshot, restore.restore_id))
         return {
             "restore_id": restore.restore_id,
             "total_store_size": restore.total_store_size,
@@ -431,7 +457,7 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_restore(cls, restore_id, operator):
+    def delete_restore(cls, restore_id, operator, is_sync: Optional[bool] = False):
         try:
             restore = cls.objects.get(restore_id=restore_id)
         except cls.DoesNotExist:
@@ -442,7 +468,12 @@ class EsSnapshotRestore(models.Model):
         from metadata.task.tasks import delete_restore_indices
 
         # 异步删除回溯索引
-        delete_restore_indices.delay(restore.restore_id)
+        if is_sync:
+            logger.info("sync to delete restore, restore id: %s", restore.restore_id)
+            delete_restore_indices(restore.restore_id)
+        else:
+            logger.info("async to delete restore, restore id: %s", restore.restore_id)
+            delete_restore_indices.delay(restore.restore_id)
 
         restore.is_deleted = True
         restore.last_modify_user = operator
