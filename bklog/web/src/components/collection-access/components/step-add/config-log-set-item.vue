@@ -28,58 +28,58 @@
       :form-type="showType"
       :model="subFormData">
       <div>
-        <template v-if="!isStandardOutput">
-          <!-- 段日志正则调试 -->
-          <div v-if="hasMultilineReg" class="multiline-log-container mt">
-            <div class="row-container">
-              <bk-form-item
-                :label="$t('行首正则')"
-                :rules="rules.notEmptyForm"
-                required
-                property="params.multiline_pattern">
-                <div class="flex-ac">
-                  <bk-input
-                    data-test-id="sourceLogBox_input_beginningRegular"
-                    style="width: 320px;"
-                    v-model.trim="subFormData.params.multiline_pattern"
-                  ></bk-input>
-                  <bk-button
-                    text size="small"
-                    class="king-button"
-                    data-test-id="sourceLogBox_button_debugging"
-                    @click="showRegDialog = true">
-                    {{ $t('调试') }}
-                  </bk-button>
-                </div>
-              </bk-form-item>
-            </div>
-            <div :class="['row-container', 'second', showType === 'horizontal' && 'pl150']">
-              <i18n path="最多匹配{0}行，最大耗时{1}秒" class="i18n-style">
-                <bk-form-item :rules="rules.maxLine" property="params.multiline_max_lines">
-                  <bk-input
-                    v-model="subFormData.params.multiline_max_lines"
-                    data-test-id="sourceLogBox_input_mostMatches"
-                    type="number"
-                    :precision="0"
-                    :show-controls="false">
-                  </bk-input>
-                </bk-form-item>
-                <bk-form-item :rules="rules.maxTimeout" property="params.multiline_timeout">
-                  <bk-input
-                    v-model="subFormData.params.multiline_timeout"
-                    data-test-id="sourceLogBox_input_maximumTimeConsuming"
-                    type="number"
-                    :precision="0"
-                    :show-controls="false">
-                  </bk-input>
-                </bk-form-item>
-              </i18n>
-            </div>
-            <multiline-reg-dialog
-              :old-pattern.sync="subFormData.params.multiline_pattern"
-              :show-dialog.sync="showRegDialog">
-            </multiline-reg-dialog>
+        <!-- 段日志正则调试 -->
+        <div v-if="hasMultilineReg" class="multiline-log-container mt">
+          <div class="row-container">
+            <bk-form-item
+              :label="$t('行首正则')"
+              :rules="rules.notEmptyForm"
+              required
+              property="params.multiline_pattern">
+              <div class="flex-ac">
+                <bk-input
+                  data-test-id="sourceLogBox_input_beginningRegular"
+                  style="width: 320px;"
+                  v-model.trim="subFormData.params.multiline_pattern"
+                ></bk-input>
+                <bk-button
+                  text size="small"
+                  class="king-button"
+                  data-test-id="sourceLogBox_button_debugging"
+                  @click="showRegDialog = true">
+                  {{ $t('调试') }}
+                </bk-button>
+              </div>
+            </bk-form-item>
           </div>
+          <div :class="['row-container', 'second', showType === 'horizontal' && 'pl150']">
+            <i18n path="最多匹配{0}行，最大耗时{1}秒" class="i18n-style">
+              <bk-form-item :rules="rules.maxLine" property="params.multiline_max_lines">
+                <bk-input
+                  v-model="subFormData.params.multiline_max_lines"
+                  data-test-id="sourceLogBox_input_mostMatches"
+                  type="number"
+                  :precision="0"
+                  :show-controls="false">
+                </bk-input>
+              </bk-form-item>
+              <bk-form-item :rules="rules.maxTimeout" property="params.multiline_timeout">
+                <bk-input
+                  v-model="subFormData.params.multiline_timeout"
+                  data-test-id="sourceLogBox_input_maximumTimeConsuming"
+                  type="number"
+                  :precision="0"
+                  :show-controls="false">
+                </bk-input>
+              </bk-form-item>
+            </i18n>
+          </div>
+          <multiline-reg-dialog
+            :old-pattern.sync="subFormData.params.multiline_pattern"
+            :show-dialog.sync="showRegDialog">
+          </multiline-reg-dialog>
+        </div>
+        <template v-if="!isStandardOutput">
           <!-- 日志路径 -->
           <div class="form-div mt log-paths" v-for="(log, index) in logPaths" :key="index">
             <bk-form-item
@@ -110,23 +110,23 @@
               </div>
             </bk-form-item>
           </div>
+          <!-- 日志字符集 -->
+          <bk-form-item class="mt" :label="$t('字符集')" required>
+            <bk-select
+              data-test-id="sourceLogBox_div_changeLogCharacterTet"
+              style="width: 320px;"
+              searchable
+              v-model="subFormData.data_encoding"
+              :clearable="false">
+              <bk-option
+                v-for="(option, ind) in globalsData.data_encoding"
+                :key="ind"
+                :id="option.id"
+                :name="option.name">
+              </bk-option>
+            </bk-select>
+          </bk-form-item>
         </template>
-        <!-- 日志字符集 -->
-        <bk-form-item v-if="!isStandardOutput" class="mt" :label="$t('字符集')" required>
-          <bk-select
-            data-test-id="sourceLogBox_div_changeLogCharacterTet"
-            style="width: 320px;"
-            searchable
-            v-model="subFormData.data_encoding"
-            :clearable="false">
-            <bk-option
-              v-for="(option, ind) in globalsData.data_encoding"
-              :key="ind"
-              :id="option.id"
-              :name="option.name">
-            </bk-option>
-          </bk-select>
-        </bk-form-item>
       </div>
       <!-- 过滤内容 -->
       <div :class="['filter-content', showType === 'horizontal' && 'horizontal-item']" v-en-class="'en-span'">
