@@ -3109,7 +3109,7 @@ class ESStorage(models.Model, StorageResultTable):
     @property
     def can_delete_snapshot(self):
         es_snapshot: EsSnapshot = EsSnapshot.objects.filter(table_id=self.table_id).first()
-        # 永久或者状态是停用的，允许删除快照数据
+        # 永久或者状态是停用的状态，则不允许删除快照数据
         if es_snapshot:
             return not (es_snapshot.is_permanent() or es_snapshot.status == EsSnapshot.ES_STOPPED_STATUS)
         return False
