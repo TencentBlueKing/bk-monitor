@@ -104,6 +104,7 @@ export default {
   '已选择{0}个集群模板': '{0} cluster templates selected',
   '日志文件为绝对路径，可使用通配符': 'The log file is an absolute path, wildcards can be used',
   '如何开启持续 Profiling ，请查看 {0}': 'How to enable continuous profiling, please see {0}',
+  '更多功能，请前往 {0}': 'For more features, please go to {0}',
   固定值班: 'Fixed Duty',
   交替轮值: 'Alternate Shifts',
   日常值班: 'Daily Duty',

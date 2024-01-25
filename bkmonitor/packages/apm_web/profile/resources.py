@@ -83,14 +83,16 @@ class ListApplicationServicesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
-        start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
 
-    def perform_request(self, validated_data):
-        applications = Application.objects.filter(bk_biz_id=validated_data["bk_biz_id"])
+    def perform_request(self, data):
+        applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
 
         apps = []
         nodata_apps = []
+
+        # 获取结束时间前一天的开始时间
+        start_time = int((datetime.datetime.fromtimestamp(data["end_time"]) - datetime.timedelta(days=1)).timestamp())
 
         for application in applications:
             services = api.apm_api.query_profile_services_detail(
@@ -100,9 +102,9 @@ class ListApplicationServicesResource(Resource):
             app_services = []
 
             for svr in services:
-                # 如果上次检查时间在start-end范围内 说明此范围此服务有数据
+                # 如果此服务的上次更新时间在一天内就认为是有数据应用 避免时间范围带来的边界问题
                 check_timestamp = int(time.mktime(time.strptime(svr["last_check_time"], "%Y-%m-%d %H:%M:%S")))
-                if validated_data["start_time"] <= check_timestamp <= validated_data["end_time"]:
+                if start_time <= check_timestamp <= data["end_time"]:
                     app_has_data = True
                     app_services.append(
                         {

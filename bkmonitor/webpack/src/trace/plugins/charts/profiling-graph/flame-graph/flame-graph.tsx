@@ -400,8 +400,7 @@ export default defineComponent({
      */
     function handleStoreImg() {
       const svgDom = chartRef.value.querySelector('svg');
-      // convertSvgToPngAndDownload(svgDom, `${props.appName}_${props.profileId}.png`);
-      convertSvgToPngAndDownload(svgDom, `${props.profileId}.png`);
+      convertSvgToPngAndDownload(svgDom, `${props.appName}.png`);
     }
     /**
      *
