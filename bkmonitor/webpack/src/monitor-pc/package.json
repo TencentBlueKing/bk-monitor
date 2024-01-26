@@ -27,6 +27,8 @@
     "element-ui": "2.7.2",
     "html-to-image": "^1.9.0",
     "minimist": "^1.2.6",
+    "monaco-editor": "^0.45.0",
+    "monaco-promql": "^1.7.4",
     "sortablejs": "^1.15.0",
     "throttle-debounce": "^3.0.1",
     "vue": "2.7.14",

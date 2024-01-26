@@ -135,7 +135,7 @@ export function mergeI18nJson() {
     zhCN: Object.keys(data).reduce((res, key) => {
       res[key] = key.replace(reg, '');
       return res;
-    }, {}),
-    enUS: data
+    }, {}) as typeof MonitorLangData,
+    enUS: data as typeof MonitorLangData
   };
 }

@@ -52,12 +52,13 @@ import {
 } from '../../../monitor-api/modules/strategies';
 import { monitorDrag } from '../../../monitor-common/utils/drag-directive';
 import { copyText, Debounce, deepClone, getUrlParam, random } from '../../../monitor-common/utils/utils';
-import PromqlEditor from '../../../monitor-ui/promql-editor/promql-editor';
 import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
+// import PromqlEditor from '../../../monitor-ui/promql-editor/promql-editor';
+import PromqlEditor from '../../components/promql-editor/promql-editor';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import {
   DEFAULT_TIME_RANGE,
@@ -495,8 +496,8 @@ export default class DataRetrieval extends tsc<{}> {
           vm.handleRouteQueryDataOfEvent(targetsList, type);
         } else if (targets && from.name !== 'view-detail') {
           // 跳转数据检索
-          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-            item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+            item?.data?.query_configs?.find?.(set => !!set.metrics)
           )
             ? 'performance-detail'
             : 'grafana';
@@ -559,8 +560,8 @@ export default class DataRetrieval extends tsc<{}> {
         this.handleRouteQueryDataOfEvent(targetsList, type);
       } else if (targets && from.name !== 'view-detail') {
         // 跳转数据检索
-        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-          item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+          item?.data?.query_configs?.find?.(set => !!set.metrics)
         )
           ? 'performance-detail'
           : 'grafana';

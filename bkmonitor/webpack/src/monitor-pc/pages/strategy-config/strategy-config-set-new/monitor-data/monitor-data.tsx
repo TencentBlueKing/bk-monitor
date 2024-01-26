@@ -39,6 +39,7 @@ import PromqlEditor from '../../../../../monitor-ui/promql-editor/promql-editor'
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
+import PromqlMonacoEditor from '../../../../components/promql-editor/promql-editor';
 import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
@@ -652,12 +653,21 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             <div class='metric-source-wrap'>
               <div class={['metric-source', { 'is-error': this.promqlError }]}>
                 {this.loading ? undefined : (
-                  <PromqlEditor
+                  // <PromqlEditor
+                  //   ref='promql-editor'
+                  //   class='promql-editor'
+                  //   value={this.source}
+                  //   onFocus={this.handlePromqlFocus}
+                  //   executeQuery={this.handlePromqlEnter}
+                  //   // onBlur={(val, hasError: boolean) => this.handlePromqlBlur(hasError)}
+                  //   onChange={this.handlePromsqlChange}
+                  // />
+                  <PromqlMonacoEditor
                     ref='promql-editor'
                     class='promql-editor'
                     value={this.source}
-                    onFocus={this.handlePromqlFocus}
-                    executeQuery={this.handlePromqlEnter}
+                    // onFocus={this.handlePromqlFocus}
+                    // executeQuery={this.handlePromqlEnter}
                     // onBlur={(val, hasError: boolean) => this.handlePromqlBlur(hasError)}
                     onChange={this.handlePromsqlChange}
                   />
