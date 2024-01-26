@@ -156,8 +156,18 @@ def update_time_series_metrics(time_series_metrics):
 
 @app.task(ignore_result=True, queue="celery_report_cron")
 def manage_es_storage(es_storages):
+    """
+    NOTE: 针对结果表校验使用的es集群状态，不要统一校验
+    """
     # 遍历所有的ES存储并创建index, 并执行完整的es生命周期操作
     for es_storage in es_storages:
+        if es_storage.is_red():
+            logger.error(
+                "es cluster health is red, skip index lifecycle handle; current cluster domain is %s",
+                es_storage.storage_cluster.cluster_id,
+                es_storage.storage_cluster.domain_name,
+            )
+            continue
         try:
             # 先预创建各个时间段的index，
             # 1. 同时判断各个预创建好的index是否字段与数据库的一致

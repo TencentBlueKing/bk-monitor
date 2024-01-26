@@ -107,7 +107,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
         self.outputs[item.id] = item.detect(data_points)
 
     def push_data(self):
-        current_time = int(time.time())
+        current_time = time.time()
         for data_points in self.outputs.values():
             for data_point in data_points:
                 if not data_point["data"].get("access_time"):
