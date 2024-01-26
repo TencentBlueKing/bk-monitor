@@ -11,7 +11,7 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/bk-weweb": "0.0.25.beta.8",
+    "@blueking/bk-weweb": "0.0.25.beta.10",
     "@blueking/date-picker": "^0.0.72",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
