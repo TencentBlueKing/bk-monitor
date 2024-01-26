@@ -218,7 +218,8 @@ class CreateApplicationResource(Resource):
             plugin_id=validated_request_data["plugin_id"],
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
-            enabled_profiling=validated_request_data["enabled_profiling"],
+            # TODO: enable_profiling vs enabled_profiling, 前后需要完全统一
+            enabled_profiling=validated_request_data["enable_profiling"],
             datasource_option=validated_request_data["datasource_option"],
             plugin_config=plugin_config,
         )
