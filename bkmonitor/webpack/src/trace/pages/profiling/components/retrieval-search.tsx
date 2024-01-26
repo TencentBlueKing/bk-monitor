@@ -113,7 +113,6 @@ export default defineComponent({
         localFormData.isComparison = false;
       }
       getLabelList();
-      handleEmitChange();
       emit('typeChange', type);
     }
 
