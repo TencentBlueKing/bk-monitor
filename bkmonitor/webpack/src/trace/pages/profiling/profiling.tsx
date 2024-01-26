@@ -150,6 +150,14 @@ export default defineComponent({
       handleQuery();
     }
 
+    function handleTypeChange(val: SearchType) {
+      searchState.formData.type = val;
+      if (val === SearchType.Profiling) {
+        selectServiceData.value && getDataTypeList(selectServiceData.value);
+        handleQuery();
+      }
+    }
+
     /** 应用/服务改变后获取具体数据 */
     async function handleAppServiceChange(app_name: string, service_name: string) {
       searchState.formData.server.app_name = app_name;
@@ -165,6 +173,7 @@ export default defineComponent({
       searchState.loading = false;
       detailData.value = selectServiceData.value;
       getDataTypeList(selectServiceData.value);
+      handleQuery();
     }
 
     /** 切换自动查询 */
@@ -246,15 +255,15 @@ export default defineComponent({
     function handleSelectFile(fileInfo: FileDetail) {
       curFileInfo.value = fileInfo;
       getDataTypeList(fileInfo);
+      handleQuery();
     }
 
     function getDataTypeList(val: ServicesDetail | FileDetail) {
-      dataTypeList.value = val.data_types || [];
+      dataTypeList.value = val?.data_types || [];
       const target = dataTypeList.value.some(item => item.key === dataType.value);
       if (!target) {
         dataType.value = dataTypeList.value[0]?.key || '';
       }
-      handleQuery();
     }
 
     return {
@@ -274,6 +283,7 @@ export default defineComponent({
       startAutoQueryTimer,
       handleToolFormDataChange,
       handleShowTypeChange,
+      handleTypeChange,
       handleAutoQueryChange,
       handleQuery,
       handleQueryClear,
@@ -282,8 +292,7 @@ export default defineComponent({
       handleDataTypeChange,
       handleShowDetail,
       handleSelectFile,
-      handleMenuSelect,
-      getDataTypeList
+      handleMenuSelect
     };
   },
 
@@ -394,6 +403,7 @@ export default defineComponent({
             <RetrievalSearch
               formData={this.searchState.formData}
               onChange={this.handleSearchFormDataChange}
+              onTypeChange={this.handleTypeChange}
               onAppServiceChange={this.handleAppServiceChange}
               onShowDetail={() => this.handleShowDetail(DetailType.Application, this.selectServiceData)}
             >
