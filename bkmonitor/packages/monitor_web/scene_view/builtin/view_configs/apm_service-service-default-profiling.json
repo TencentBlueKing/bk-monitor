@@ -47,7 +47,8 @@
             "end_time": "$end_time",
             "app_name": "$app_name",
             "service_name": "$service_name",
-            "bk_biz_id": "$bk_biz_id"
+            "bk_biz_id": "$bk_biz_id",
+            "view_mode": "sidebar"
           }
         }
       ]

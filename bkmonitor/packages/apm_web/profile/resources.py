@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import time
 
+from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
 from apm_web.models import Application
@@ -23,11 +24,17 @@ class QueryServicesDetailResource(Resource):
     """查询Profile服务详情信息"""
 
     class RequestSerializer(serializers.Serializer):
+        view_mode_choices = (
+            ("default", "默认返回"),
+            ("sidebar", "按照侧边栏格式返回"),
+        )
+
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
         service_name = serializers.CharField()
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
+        view_mode = serializers.ChoiceField(label="数据模式", default="default", choices=view_mode_choices, required=False)
 
     def perform_request(self, validated_data):
         services = api.apm_api.query_profile_services_detail(
@@ -50,7 +57,7 @@ class QueryServicesDetailResource(Resource):
         )
         last_report_time = sorted([i["last_report_time"] for i in data_type_info_mapping.values()], reverse=True)
 
-        return {
+        res = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
             "name": validated_data["service_name"],
@@ -61,6 +68,11 @@ class QueryServicesDetailResource(Resource):
             "last_report_time": self.timestamp_to_time(last_report_time[0]) if last_report_time else None,
             "data_types": [{"key": i["data_type"], "name": DataType.get_name(i["data_type"])} for i in services],
         }
+
+        if validated_data["view_mode"] == "default":
+            return res
+
+        return self.convert_to_sidebar(res)
 
     @classmethod
     def str_to_time(cls, time_str):
@@ -76,6 +88,24 @@ class QueryServicesDetailResource(Resource):
             return None
 
         return datetime.datetime.fromtimestamp(int(value) / 1000).strftime("%Y-%m-%d %H:%M:%S")
+
+    @classmethod
+    def convert_to_sidebar(cls, data):
+        """将返回转换为侧边栏的格式 用于图表配置右侧信息处展示"""
+        text_mapping = {
+            "name": _("服务名称"),
+            "create_time": _("创建时间"),
+            "last_report_time": _("最近上报时间"),
+        }
+        res = []
+
+        for k, v in data.items():
+            if k not in text_mapping:
+                continue
+
+            res.append({"name": text_mapping[k], "type": "string", "value": v})
+
+        return res
 
 
 class ListApplicationServicesResource(Resource):
