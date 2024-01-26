@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { PropType } from 'vue/types/options';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Exception } from 'bk-magic-vue';
@@ -53,7 +52,7 @@ interface ITableChartEvents {
 export default class ProfilingTableChart extends tsc<ITableChartProps, ITableChartEvents> {
   @Prop({ required: true, type: String }) unit: string;
   @Prop({ required: true, type: String }) textDirection: TextDirectionType;
-  @Prop({ required: true, type: Array as PropType<ProfilingTableItem[]> }) data: ProfilingTableItem[];
+  @Prop({ required: true, type: Array }) data: ProfilingTableItem[];
   @Prop({ default: -1, type: Number }) highlightId: number;
   @Prop({ default: '', type: String }) filterKeyword: string;
 
@@ -130,7 +129,10 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
     const { color } = row;
     const value = row[field] || 0;
     const percent = (value * TABLE_BGCOLOR_COLUMN_WIDTH) / this.maxItem[field];
-    const xPosition = TABLE_BGCOLOR_COLUMN_WIDTH - percent;
+    let xPosition = TABLE_BGCOLOR_COLUMN_WIDTH - percent;
+    if (TABLE_BGCOLOR_COLUMN_WIDTH - 2 < xPosition && xPosition < TABLE_BGCOLOR_COLUMN_WIDTH) {
+      xPosition = TABLE_BGCOLOR_COLUMN_WIDTH - 2; // 保留 2px 最小宽度可见
+    }
 
     return {
       'background-image': `linear-gradient(${color}, ${color})`,

@@ -28,6 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
+import { debounce } from 'throttle-debounce';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
@@ -116,7 +117,7 @@ export default defineComponent({
     const height = ref<number>(100);
     const minBase = ref<number>(0);
     const inited = ref<boolean>(false);
-    const empty = ref<boolean>(false);
+    const empty = ref<boolean>(true);
     const emptyText = ref<string>('');
     const errorMsg = ref<string>('');
     const metrics = ref<IExtendMetricData[]>([]);
@@ -444,7 +445,7 @@ export default defineComponent({
       }
     }
     // 获取图表数据
-    const getPanelData = async (start_time?: string, end_time?: string) => {
+    const getPanelData = debounce(300, async (start_time?: string, end_time?: string) => {
       cancelTokens.forEach(cb => cb?.());
       cancelTokens = [];
       if (!isInViewPort()) {
@@ -455,7 +456,6 @@ export default defineComponent({
         return;
       }
       emit('loading', true);
-      empty.value = true;
       emptyText.value = t('加载中...');
       try {
         unregisterOberver();
@@ -650,7 +650,7 @@ export default defineComponent({
       emit('loading', false);
       // this.cancelTokens = [];
       // this.handleLoadingChange(false);
-    };
+    });
     // 监听panel
     const unWathPanel = watch(
       () => props.panel,

@@ -1,17 +1,13 @@
 .trend-chart {
-  // display: flex;
-  // flex-direction: column;
   width: 100%;
   max-height: 180px;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
   background: #fff;
   border-radius: 2px;
   box-shadow: 0 2px 4px 0 #1919290d;
 
   &-header {
-    display: flex;
-    align-items: center;
-    width: 100%;
+    margin-left: 8px;
   }
 
   &-wrap {
@@ -20,14 +16,18 @@
     height: 100px;
   }
 
-  .bk-collapse-header {
-    display: flex;
-    align-items: center;
-    // margin-top: 10px;
-  }
+  .trend-chart-collapse {
+    padding: 0 4px 6px;
 
-  .bk-collapse-content {
-    padding: 5px 16px;
+    .bk-collapse-item-header {
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .bk-collapse-item-content {
+      padding: 5px 16px 0;
+    }
   }
 
   .chart-loading-icon {

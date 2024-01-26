@@ -109,7 +109,7 @@ export default [
       noCache: TraceRetrieval
     },
     meta: {
-      title: 'Trace检索',
+      title: 'Tracing 检索',
       navId: 'trace-retrieval',
       navClass: 'trace-retrieval-nav',
       noChangeLoading: true,
@@ -131,7 +131,7 @@ export default [
       noCache: Profiling
     },
     meta: {
-      title: 'Profiling检索',
+      title: 'Profiling 检索',
       navId: 'profiling',
       navClass: 'profiling-retrieval-nav',
       noChangeLoading: true,
