@@ -1,10 +1,6 @@
-from betterproto import (  # noqa
-    PACKED_TYPES,
-    TYPE_BYTES,
-    Message,
-    _preprocess_single,
-    _serialize_single,
-)
+from betterproto import _preprocess_single  # noqa
+from betterproto import _serialize_single  # noqa
+from betterproto import PACKED_TYPES, TYPE_BYTES, Message
 
 
 def mocked_bytes(self) -> bytes:
