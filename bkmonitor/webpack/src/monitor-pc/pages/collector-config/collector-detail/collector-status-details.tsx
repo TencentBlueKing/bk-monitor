@@ -408,10 +408,14 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   /**
    * @description 复制目标
    */
-  handleCopyTargets() {
+  handleCopyTargets(type: 'ip' | 'instance') {
     let copyStr = '';
     this.contents.forEach(ct => {
-      ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
+      if (type === 'ip') {
+        ct.table.forEach(item => (copyStr += `${item.ip}\n`));
+      } else {
+        ct.table.forEach(item => (copyStr += `${item.instance_id}\n`));
+      }
     });
     copyText(copyStr, msg => {
       this.$bkMessage({
@@ -421,7 +425,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       return;
     });
     this.$bkMessage({
-      theme: EStatus.SUCCESS,
+      theme: 'success',
       message: this.$t('复制成功')
     });
   }
@@ -496,12 +500,38 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             >
               {this.$t('批量终止')}
             </bk-button>
-            <bk-button
+            <bk-dropdown-menu>
+              <div slot='dropdown-trigger'>
+                <span class='copy-target-btn'>{this.$t('复制目标')}</span>
+              </div>
+              <ul
+                class='bk-dropdown-list'
+                slot='dropdown-content'
+              >
+                <li>
+                  <a
+                    href='javascript:;'
+                    onClick={() => this.handleCopyTargets('ip')}
+                  >
+                    {this.$t('复制主机IP')}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href='javascript:;'
+                    onClick={() => this.handleCopyTargets('instance')}
+                  >
+                    {this.$t('复制服务实例')}
+                  </a>
+                </li>
+              </ul>
+            </bk-dropdown-menu>
+            {/* <bk-button
               hover-theme='primary'
               onClick={() => this.handleCopyTargets()}
             >
               {this.$t('复制目标')}
-            </bk-button>
+            </bk-button> */}
           </div>
         </div>
         <div class='table-content'>
