@@ -129,7 +129,10 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
     const { color } = row;
     const value = row[field] || 0;
     const percent = (value * TABLE_BGCOLOR_COLUMN_WIDTH) / this.maxItem[field];
-    const xPosition = TABLE_BGCOLOR_COLUMN_WIDTH - percent;
+    let xPosition = TABLE_BGCOLOR_COLUMN_WIDTH - percent;
+    if (TABLE_BGCOLOR_COLUMN_WIDTH - 2 < xPosition && xPosition < TABLE_BGCOLOR_COLUMN_WIDTH) {
+      xPosition = TABLE_BGCOLOR_COLUMN_WIDTH - 2; // 保留 2px 最小宽度可见
+    }
 
     return {
       'background-image': `linear-gradient(${color}, ${color})`,
