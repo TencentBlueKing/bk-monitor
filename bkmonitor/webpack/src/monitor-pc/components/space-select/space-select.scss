@@ -126,6 +126,13 @@
   .search-input {
     padding: 0 8px;
     // margin-bottom: 4px;
+    .icon-search {
+      color: #979ba5;
+    }
+
+    .bk-form-input.only-bottom-border {
+      border-color: transparent transparent #eaebf0;
+    }
   }
 
   .space-type-list-wrap {
