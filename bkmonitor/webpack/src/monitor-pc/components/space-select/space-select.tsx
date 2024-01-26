@@ -156,6 +156,11 @@ export default class SpaceSelect extends tsc<
     preDisable: false
   };
 
+  /* 是否需要当前空间功能 */
+  get needCurSpace() {
+    return this.currentSpace !== null;
+  }
+
   @Watch('value')
   handleWatchValue(v: number[]) {
     if (JSON.stringify(v) === JSON.stringify(this.localValue)) {
@@ -182,7 +187,7 @@ export default class SpaceSelect extends tsc<
   }
   @Watch('currentSpace', { immediate: true })
   handleWatchCureentSpace(v: number) {
-    if (v) {
+    if (v !== null) {
       this.localCurrentSpace = v;
     }
   }
@@ -418,7 +423,14 @@ export default class SpaceSelect extends tsc<
     this.localSpaceList.forEach(item => {
       item.show = true;
     });
-    this.resetCurBiz();
+    if (this.needCurSpace) {
+      this.resetCurBiz();
+    }
+    if (!!this.localValue.length && JSON.stringify(this.value) !== JSON.stringify(this.localValue)) {
+      setTimeout(() => {
+        this.handleChange();
+      }, 50);
+    }
   }
 
   /* 搜索 */
@@ -505,7 +517,7 @@ export default class SpaceSelect extends tsc<
     window.bk_biz_id = +this.localCurrentSpace;
     window.space_uid = this.spaceList.find(item => item.bk_biz_id === +this.localCurrentSpace)?.space_uid;
     this.$store.commit('app/SET_BIZ_ID', +this.localCurrentSpace);
-    const serachParams = new URLSearchParams({ bizId: `${this.localCurrentSpace}` });
+    const serachParams = new URLSearchParams({ bizId: `${+this.localCurrentSpace}` });
     const newUrl = `${window.location.pathname}?${serachParams.toString()}#${this.$route.fullPath}`;
     history.replaceState({}, '', newUrl);
   }
@@ -528,9 +540,9 @@ export default class SpaceSelect extends tsc<
     this.valueStrList = strList;
     this.localValue = value;
     this.isErr = !this.localValue.length;
-    if (!!this.localValue.length) {
-      this.handleChange();
-    }
+    // if (!!this.localValue.length) {
+    //   this.handleChange();
+    // }
     this.sortSpaceList();
   }
   /* 清空 */
@@ -687,11 +699,13 @@ export default class SpaceSelect extends tsc<
               >
                 {this.spaceTypeIdList.map(item => (
                   <li
-                    class='space-type-item'
-                    style={{
-                      ...item.styles,
-                      borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent'
-                    }}
+                    class={[
+                      'space-type-item',
+                      item.id,
+                      { 'hover-active': item.id !== this.searchTypeId },
+                      { selected: item.id === this.searchTypeId },
+                      item.id
+                    ]}
                     key={item.id}
                     onClick={() => this.handleSearchType(item.id)}
                   >
@@ -723,8 +737,8 @@ export default class SpaceSelect extends tsc<
                     { active: !this.multiple && item.isCheck },
                     {
                       'no-hover-btn':
-                        !this.currentSpace ||
-                        this.localCurrentSpace === item.id ||
+                        !this.needCurSpace ||
+                        +this.localCurrentSpace === +item.id ||
                         specialIds.includes(item.id) ||
                         (!!item.noAuth && !item.hasData)
                     }
@@ -757,7 +771,13 @@ export default class SpaceSelect extends tsc<
                       </span>
                     )}
                     {+this.localCurrentSpace === +item.id && (
-                      <span class='icon-monitor icon-dingwei1 cur-position'></span>
+                      <span
+                        class='icon-monitor icon-dingwei1 cur-position'
+                        v-bk-tooltips={{
+                          content: this.$t('当前空间'),
+                          placements: ['top']
+                        }}
+                      ></span>
                     )}
                   </span>
                   <span class='space-tags'>
@@ -782,7 +802,7 @@ export default class SpaceSelect extends tsc<
                       ))
                     )}
                   </span>
-                  {!!this.currentSpace && (
+                  {this.needCurSpace && (
                     <span class='space-hover-btn'>
                       <bk-button
                         class='auth-button'
