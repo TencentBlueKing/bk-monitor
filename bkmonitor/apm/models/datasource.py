@@ -21,15 +21,6 @@ from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
-from django.conf import settings
-from django.db import models
-from django.db.transaction import atomic
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from elasticsearch_dsl import Q
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-
 from apm import constants
 from apm.constants import (
     DATABASE_CONNECTION_NAME,
@@ -906,7 +897,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
 
-    retention = models.IntegerField("过期时间")
+    retention = models.IntegerField("过期时间", null=True)
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
 
