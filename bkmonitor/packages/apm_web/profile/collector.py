@@ -88,7 +88,7 @@ class CollectorHandler:
 
         # simulating as pyroscope agent
         params = {
-            "name": f"{app_name}-profiling-upload",
+            "name": app_name,
             "from": _get_stamp_by_ns(profile.time_nanos),
             "until": _get_stamp_by_ns(profile.time_nanos + profile.duration_nanos),
             "spyName": "gospy",
