@@ -479,7 +479,7 @@ export default class QueryStatement extends tsc<IProps> {
   /** 点击收藏 */
   handleClickFavorite(item) {
     if (this.isAloneType) {
-      this.handleSelectIndex([1, String(item.index_set_id)]);
+      this.selectAloneVal = [String(item.index_set_id)];
       this.handleCloseSelectPopover();
       this.multipleFavoriteSelectID = null;
     } else {
@@ -1069,7 +1069,7 @@ export default class QueryStatement extends tsc<IProps> {
     return (
       <Select
         searchable
-        multiple={true}
+        multiple
         display-tag={!this.isAloneType}
         ext-popover-cls="retrieve-index-select-popover"
         class="retrieve-index-select"
