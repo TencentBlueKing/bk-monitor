@@ -479,7 +479,7 @@ export default class QueryStatement extends tsc<IProps> {
   /** 点击收藏 */
   handleClickFavorite(item) {
     if (this.isAloneType) {
-      this.handleSelectIndex(String(item.index_set_id));
+      this.handleSelectIndex([1, String(item.index_set_id)]);
       this.handleCloseSelectPopover();
       this.multipleFavoriteSelectID = null;
     } else {
@@ -537,6 +537,7 @@ export default class QueryStatement extends tsc<IProps> {
           },
         })
         .then(() => {
+          this.multipleFavoriteSelectID = null;
           this.getMultipleFavoriteList();
         });
     } finally {
