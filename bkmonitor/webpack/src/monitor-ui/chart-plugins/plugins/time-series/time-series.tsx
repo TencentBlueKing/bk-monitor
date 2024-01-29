@@ -454,7 +454,7 @@ export class LineChart
             };
           })
         }));
-        this.seriesList = seriesList;
+        this.seriesList = Object.freeze(seriesList) as any;
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
         // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
         // 所以此处折中设置 在有孤立点情况下进行开启animation 连续的情况不开启
