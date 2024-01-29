@@ -122,6 +122,7 @@ def profile_file_upload_and_parse(key: str, file_type: str, profile_id: str, bk_
     :param str file_type: 上传文件类型
     :param str profile_id: profile_id
     :param int bk_biz_id: 业务id
+    :param str service_name: 服务名称
     """
     logger.info(f"[profile_file_upload_and_parse] task start, bk_biz_id({bk_biz_id}),  profile_id({profile_id})")
 

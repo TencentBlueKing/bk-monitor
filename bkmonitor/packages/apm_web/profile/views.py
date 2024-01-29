@@ -123,6 +123,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             validated_data["file_type"],
             profile_id,
             validated_data["bk_biz_id"],
+            service_name,
         )
 
         return Response(data=ProfileUploadRecordSLZ(record).data)
