@@ -124,7 +124,6 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   }
   handleConentEcharts() {
     setTimeout(() => {
-      console.info((this as any).localPanels, '==================');
       if ((this as any).localPanels?.length < 300) {
         echarts.connect(this.id.toString());
       }
