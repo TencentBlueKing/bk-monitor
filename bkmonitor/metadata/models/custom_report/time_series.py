@@ -38,7 +38,7 @@ from metadata.models.result_table import (
 )
 from metadata.models.storage import ClusterInfo
 from metadata.utils.db import filter_model_by_in_page
-from packages.utils.redis_client import RedisClient
+from utils.redis_client import RedisClient
 
 from .base import CustomGroupBase
 
@@ -218,9 +218,9 @@ class TimeSeriesGroup(CustomGroupBase):
             else:
                 for tag in item.get("tag_list", []):
                     # 取第一个值，后面重复的直接忽略
-                    if tag in tag_dict:
+                    if not tag.get("field_name") or tag["field_name"] in tag_dict:
                         continue
-                    tag_dict[tag["field_name"]] = tag["description"]
+                    tag_dict[tag["field_name"]] = tag.get("description", "")
 
         return {
             "is_update_description": is_update_description,

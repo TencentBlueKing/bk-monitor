@@ -26,7 +26,6 @@
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 // import LeftPanel from './left-panel.vue';
-import { Button, Input } from 'bk-magic-vue';
 import { debounce } from 'throttle-debounce';
 
 import {
@@ -200,7 +199,12 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   created() {
     this.handleSearch = debounce(300, false, this.handleSearchChange);
   }
-
+  mounted() {
+    if (!this.loading && !this.tableData.loading) {
+      this.clearConditions();
+      this.init();
+    }
+  }
   beforeRouteEnter(to, from, next) {
     next(vm => {
       vm.dataReset();
@@ -485,7 +489,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
             doc-link={'fromCustomRreporting'}
           ></PageTips>
           <div class='content-left-operator'>
-            <Button
+            <bk-button
               v-authority={{ active: !this.hasManageAuth }}
               class='mc-btn-add'
               theme='primary'
@@ -493,15 +497,16 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 this.hasManageAuth ? this.addCustomEscalation() : this.handleShowAuthorityDetail(this.manageAuthDetail)
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建')}
-            </Button>
-            <Input
+            </bk-button>
+            <bk-input
               extCls='operator-input'
               placeholder={this.$tc('搜索 ID / 名称')}
               rightIcon='bk-icon icon-search'
               v-model={this.search}
               on-change={this.handleSearch}
-            ></Input>
+            ></bk-input>
           </div>
           <CommonTable
             class='content-left-table'

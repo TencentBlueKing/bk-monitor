@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input, Popover } from 'bk-magic-vue';
 
 import { IEvent, IntervalType, IOption, IProps, unitType } from './typings';
 import { defaultCycleOptionMin, defaultCycleOptionSec, timeToSec } from './utils';
@@ -50,8 +49,8 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   @Prop({ default: true, type: Boolean }) needAuto: boolean; // 是否需要自动周期
   // @Prop({ default: 's', type: String }) defaultUnit: unitType; // 默认秒
 
-  @Ref('cyclePopover') cyclePopoverRef: Popover;
-  @Ref('unitPopover') unitPopoverRef: Popover;
+  @Ref('cyclePopover') cyclePopoverRef: any;
+  @Ref('unitPopover') unitPopoverRef: any;
 
   /** 组件宽度 */
   inputWidth = 100;
@@ -172,7 +171,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   render() {
     return (
       <div class='cycle-input-wrap'>
-        <Popover
+        <bk-popover
           ref='cyclePopover'
           class='input-popover'
           trigger='click'
@@ -185,7 +184,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
           tippyOptions={{ appendTo: this.appendTo === 'parent' ? 'parent' : document.body }}
         >
           <slot name='trigger'>
-            <Input
+            <bk-input
               class='input-text'
               vModel_number={this.localValue}
               type={this.localValue === 'auto' ? 'text' : 'number'}
@@ -213,8 +212,8 @@ export default class CycleInput extends tsc<IProps, IEvent> {
               </li>
             ))}
           </ul>
-        </Popover>
-        <Popover
+        </bk-popover>
+        <bk-popover
           disabled={this.localValue === 'auto'}
           ref='unitPopover'
           trigger='click'
@@ -249,7 +248,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
               </li>
             ))}
           </ul>
-        </Popover>
+        </bk-popover>
       </div>
     );
   }

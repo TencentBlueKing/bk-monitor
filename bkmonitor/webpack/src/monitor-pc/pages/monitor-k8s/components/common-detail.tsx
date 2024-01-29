@@ -25,7 +25,6 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from '../../../../monitor-api/index';
@@ -430,7 +429,11 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
    * 根据索引定位到图表位置
    */
   handleScrollToIndex(item: IIndexListItem) {
-    document.getElementById(`${item.id}__key__`)?.scrollIntoView?.();
+    document.querySelector('.dashboard-panel .scroll-in')?.classList.remove('scroll-in');
+    const dom = document.getElementById(`${item.id}__key__`);
+    if (!dom) return;
+    dom.scrollIntoView?.();
+    dom.classList.add('scroll-in');
   }
 
   /**
@@ -626,7 +629,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                     onClick={e => e.stopPropagation()}
                   >
                     {this.showIndexSearchInput ? (
-                      <Input
+                      <bk-input
                         v-model={this.indexSearchKeyword}
                         behavior='simplicity'
                         right-icon='bk-icon icon-search'

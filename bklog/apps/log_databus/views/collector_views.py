@@ -59,6 +59,7 @@ from apps.log_databus.serializers import (
     CustomUpdateSerializer,
     FastCollectorCreateSerializer,
     FastCollectorUpdateSerializer,
+    GetBCSCollectorStorageSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
     ListCollectorsByHostSerializer,
@@ -2052,6 +2053,19 @@ class CollectorViewSet(ModelViewSet):
             )
         )
 
+    @list_route(methods=["GET"], url_path="get_bcs_collector_storage")
+    def get_bcs_collector_storage(self, request):
+        auth_info = Permission.get_auth_info(request, raise_exception=False)
+        if not auth_info:
+            raise BkJwtVerifyException()
+        data = self.params_valid(GetBCSCollectorStorageSerializer)
+        return Response(
+            CollectorHandler().get_bcs_collector_storage(
+                bcs_cluster_id=data["bcs_cluster_id"],
+                bk_biz_id=data.get("bk_biz_id"),
+            )
+        )
+
     @list_route(methods=["GET"], url_path="list_bcs_collector_without_rule")
     def list_bcs_collector_without_rule(self, request):
         auth_info = Permission.get_auth_info(request, raise_exception=False)
@@ -2211,8 +2225,10 @@ class CollectorViewSet(ModelViewSet):
         return Response(
             CollectorHandler().preview_containers(
                 topo_type=data["type"],
+                bk_biz_id=data["bk_biz_id"],
                 bcs_cluster_id=data["bcs_cluster_id"],
                 namespaces=data.get("namespaces", []),
+                namespaces_exclude=data.get("namespaces_exclude", []),
                 label_selector=data.get("label_selector"),
                 container=data.get("container"),
             )

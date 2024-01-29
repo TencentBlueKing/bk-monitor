@@ -18,7 +18,6 @@ from django.conf import settings
 from django.db.models import Q
 
 from core.drf_resource import api
-from metadata.models.space.constants import EtlConfigs
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
 from metadata.models.vm.config import BkDataStorageWithDataID
 from metadata.models.vm.constants import BKDATA_NS_TIMESTAMP_DATA_ID_LIST, TimestampLen
@@ -150,7 +149,7 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
         try:
             kafka_data = refine_bkdata_kafka_info()
         except Exception as e:
-            logger.error("get bkdata kafka host error: %s", e)
+            logger.error("get bkdata kafka host error, table_id: %s, error: %s", table_id, e)
             return {"err_msg": f"request vm api error, {e}"}
         storage_cluster_id = kafka_data["cluster_id"]
         try:
@@ -162,7 +161,7 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
             vm_data["cluster_id"] = storage_cluster_id
             return vm_data
         except Exception as e:
-            logger.error("request vm api error, %s", e)
+            logger.error("request vm api error, table_id: %s, error: %s", table_id, e)
             return {"err_msg": f"request vm api error, {e}"}
     # 创建清洗和入库 vm
     bk_base_data = BkDataStorage.objects.filter(table_id=table_id).first()
@@ -191,7 +190,9 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
         # 启动
         api.bkdata.start_databus_cleans(result_table_id=bkbase_result_table_id, storages=["kafka"])
     except Exception as e:
-        logger.error("create or start data clean error, params: %s, error: %s", json.dumps(clean_data), e)
+        logger.error(
+            "create or start data clean error, table_id: %s, params: %s, error: %s", table_id, json.dumps(clean_data), e
+        )
         return {"err_msg": f"request clean api error, {e}"}
     # 接入 vm
     try:
@@ -288,32 +289,9 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
     """通过 data id 或者 etl config 获取接入 vm 是清洗时间的长度
 
     1. 如果 data id 在指定的白名单中，则为 纳米
-    2. 如果 etl_config 为bk_exporter, 则为 秒
-    3. 其它，则为 毫秒
+    2. 其它，则为 毫秒
     """
-    # 如果都不存在，则默认
-    if not (data_id or etl_config):
-        return TimestampLen.MILLISECOND_LEN.value
-
     if data_id and data_id in BKDATA_NS_TIMESTAMP_DATA_ID_LIST:
         return TimestampLen.NANOSECOND_LEN.value
-
-    second_etl_config = [EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value]
-
-    # TODO: 暂时不放到 admin 管理
-    # NOTE: 以实际传入的值为准
-    if etl_config and etl_config in second_etl_config:
-        return TimestampLen.SECOND_LEN.value
-    # 如果数据源 ID 存在，则查询出对应的 etl_config
-    if data_id:
-        from metadata.models import DataSource
-
-        try:
-            ds = DataSource.objects.get(bk_data_id=data_id)
-            if ds.etl_config in second_etl_config:
-                return TimestampLen.SECOND_LEN.value
-
-        except DataSource.DoesNotExist:
-            logger.error("query ds error, bk_data_id: %s", data_id)
 
     return TimestampLen.MILLISECOND_LEN.value

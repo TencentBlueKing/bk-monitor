@@ -157,7 +157,7 @@ export class FormItem {
    * 根据模型接口数据生成表单所需数据
    * @param data 接口数据
    * @param valueDisplay 回填的value值
-   * @returns Array<FormItem>
+   * @returns Array<bk-form-item>
    */
   // eslint-disable-next-line @typescript-eslint/member-ordering
   static createFormItemData(data, valueDisplay?: Record<string, any>) {

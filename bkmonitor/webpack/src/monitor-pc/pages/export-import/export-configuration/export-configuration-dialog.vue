@@ -34,7 +34,7 @@
       <!-- 导出正常 -->
       <div v-if="state !== 'FAILURE'">
         <div class="dialog-header">
-          <img src="../../../static/images/svg/spinner.svg">
+          <img src="../../../static/images/svg/spinner.svg"  alt=''>
           <span v-if="state === 'PENDING' || state === 'PREPARE_FILE'"> {{ $t('准备中...') }} </span>
           <span v-else-if="state === 'MAKE_PACKAGE'"> {{ $t('打包中...') }} </span>
         </div>

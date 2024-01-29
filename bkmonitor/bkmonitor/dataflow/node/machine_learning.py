@@ -20,10 +20,8 @@ from django.utils.functional import cached_property
 
 from bkmonitor.dataflow.constant import get_aiops_env_bkdata_biz_id
 from bkmonitor.dataflow.node.base import Node
+from constants.aiops import MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD
 from core.drf_resource import api
-from monitor_web.aiops.ai_setting.constant import (
-    MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
-)
 from monitor_web.aiops.metric_recommend.constant import (
     METRIC_RECOMMAND_SCENE_SERVICE_TEMPLATE,
 )

@@ -1,0 +1,110 @@
+.fixed-table-wrap-content-component {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    border: 1px solid #dcdee5;
+  }
+
+  .table-header {
+    background: #fafbfd;
+
+    .title-content {
+      width: 50%;
+      padding-left: 24px;
+      font-weight: normal;
+      line-height: 40px;
+      text-align: left;
+    }
+
+    .step-text {
+      color: #ea3636;
+    }
+  }
+
+  .table-item {
+    position: relative;
+    background-color: #fff;
+
+    td {
+      padding: 24px;
+    }
+
+    .rotation-config-form-item + .rotation-config-form-item {
+      margin-top: 12px;
+    }
+
+    .form-item-content {
+      flex: 1;
+    }
+
+    .work-time-rang-form-item {
+      .form-item-content {
+        display: flex;
+      }
+
+      .date-type-select {
+        width: 88px;
+        min-width: 88px;
+        margin-right: 8px;
+      }
+
+      .date-value-select {
+        flex: 1;
+      }
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 2.5%;
+      right: -40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 95%;
+      font-size: 15px;
+      color: #ff5656;
+      cursor: pointer;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+    }
+
+    .user-setting-content {
+      padding: 24px 42px 24px 24px;
+      vertical-align: top;
+
+      .member-select-prefix {
+        display: flex;
+        align-items: center;
+        height: calc(100% + 2px);
+        padding-left: 4px;
+        cursor: pointer;
+        border-left: 4px solid transparent;
+        transform: translate(-1px, -1px);
+      }
+    }
+  }
+
+  .table-footer {
+    height: 40px;
+    background: #fff;
+    border: 1px solid #dcdee5;
+
+    .footer-content {
+      padding-left: 26.5px;
+    }
+
+    .add-icon {
+      margin-right: 10.5px;
+    }
+  }
+
+  .err-msg {
+    margin: 0;
+    font-size: 12px;
+    color: #ea3636;
+  }
+}

@@ -161,7 +161,7 @@ class DataRecord(base.BaseRecord):
         self.data.update(standard_prop)
 
         # 记录当前处理时间
-        self.data["access_time"] = int(time.time())
+        self.data["access_time"] = time.time()
         return self
 
     def clean_dimension_fields(self) -> List[str]:

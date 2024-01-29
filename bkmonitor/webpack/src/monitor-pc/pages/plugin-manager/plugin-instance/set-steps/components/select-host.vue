@@ -85,7 +85,8 @@
                 v-bk-tooltips="{
                   content: `${scope.row.agentStatusName}${$t('不能进行调试')}`,
                   boundary: 'window',
-                  disabled: scope.row.agentStatus === 0
+                  disabled: scope.row.agentStatus === 0,
+                  allowHTML: false
                 }"
               >{{ scope.row.agentStatusName }}</span>
             </template>
@@ -101,8 +102,6 @@
 </template>
 
 <script>
-import { VirtualRender } from 'bk-magic-vue';
-
 import { hostAgentStatus } from '../../../../../../monitor-api/modules/commons';
 import { isFullIpv6, padIPv6 } from '../../../../../../monitor-common/utils/ip-utils';
 import { deepClone } from '../../../../../../monitor-common/utils/utils';
@@ -111,8 +110,6 @@ import EmptyStatus from '../../../../../components/empty-status/empty-status';
 export default {
   name: 'SelectHost',
   components: {
-    // eslint-disable-next-line vue/no-unused-components
-    VirtualRender,
     EmptyStatus
   },
   props: {

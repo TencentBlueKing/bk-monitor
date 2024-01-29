@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { TagInput } from 'bk-magic-vue';
 
 import { getVariableValue } from '../../../../monitor-api/modules/grafana';
 import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../constant/constant';
@@ -340,7 +339,8 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
               trigger: 'mouseenter',
               zIndex: 9999,
               disabled: !item.key,
-              boundary: document.body
+              boundary: document.body,
+              allowHTML: false
             }}
             nodataMsg={window.i18n.t('该策略无可选维度') as string}
             onChange={v => this.handleKeyChange(item, v)}
@@ -364,7 +364,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                 >
                   {this.handleGetMethodNameById(item.method)}
                 </span>,
-                <TagInput
+                <bk-tag-input
                   key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
                   class='condition-item condition-item-value'
                   list={
@@ -381,7 +381,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                   value={item.value}
                   paste-fn={v => this.handlePaste(v, item)}
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
-                ></TagInput>
+                ></bk-tag-input>
               ]
             : undefined
         ])}
