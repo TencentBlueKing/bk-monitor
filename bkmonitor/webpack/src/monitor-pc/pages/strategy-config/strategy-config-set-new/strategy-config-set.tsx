@@ -473,7 +473,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (!this.editAllowed) {
       return false;
     }
-    return !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading);
+    return this.monitorDataEditMode === 'Edit'
+      ? !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading)
+      : this.sourceData.sourceCode;
   }
 
   /** 策略监控目标 */
@@ -1851,7 +1853,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   getAlgorithmList(item: MetricDetail) {
     let algorithmList = [];
     // 系统事件
-    if (item.metricMetaId === 'bk_monitor|event') {
+    if (item?.metricMetaId === 'bk_monitor|event') {
       algorithmList.push({
         level: item.level,
         type: '',
