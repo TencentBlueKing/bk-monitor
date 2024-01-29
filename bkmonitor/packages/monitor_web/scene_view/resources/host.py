@@ -292,7 +292,8 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 "name": _("所属模块"),
                 "type": "list",
                 "value": [
-                    " / ".join(topo.bk_inst_name for topo in reversed(topo_link)) for topo_link in topo_links.values()
+                    " / ".join(topo.bk_inst_name for topo in reversed(topo_link) if topo.bk_obj_id != "biz")
+                    for topo_link in topo_links.values()
                 ],
             },
         ]
