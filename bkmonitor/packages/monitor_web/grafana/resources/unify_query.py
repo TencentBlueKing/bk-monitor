@@ -1110,8 +1110,8 @@ class GraphPromqlQueryResource(Resource):
             start_time = time_interval_align(params["start_time"], interval)
             end_time = time_interval_align(params["end_time"], interval)
             # 删除全选条件
-            params["promql"] = re.sub(r"[a-zA-Z_][a-zA-Z0-9_]*=['\"]__ALL__['\"]\s*,?", '', params["promql"])
-            params["promql"] = re.sub(r',\s*}', r'}', params["promql"])
+            params["promql"] = re.sub(r"[a-zA-Z_][a-zA-Z0-9_]*\s*(=|=~)\s*['\"]__ALL__['\"]\s*,?", "", params["promql"])
+            params["promql"] = re.sub(r",\s*}", r"}", params["promql"])
 
             request_params = dict(
                 promql=params["promql"],
