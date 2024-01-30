@@ -284,7 +284,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     const params = {
       search_key: this.search,
       page: this.tableData.pagination.current,
-      page_size: this.tableData.pagination.limit
+      page_size: this.tableData.pagination.limit,
+      is_platform: this.filterType === EFilterType.platform ? 1 : undefined
     };
     this.emptyType = this.search ? 'search-empty' : 'empty';
     const hasAuth = await this.handleAuthCheck();
@@ -500,6 +501,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   handleFilterTypeChange(type: EFilterType) {
     if (this.filterType !== type) {
       this.filterType = type;
+      this.tableData.pagination.current = 1;
+      this.init();
     }
   }
 
