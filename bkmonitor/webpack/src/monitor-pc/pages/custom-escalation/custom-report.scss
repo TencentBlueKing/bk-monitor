@@ -18,7 +18,7 @@
 
   .content-left {
     flex: 1 1 auto;
-    height: calc(100vh - 52px);
+    height: calc(100vh - 52px - var(--notice-alert-height));
     padding: 0 20px;
     overflow-y: auto;
 

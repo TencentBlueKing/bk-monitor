@@ -659,7 +659,7 @@ export default class App extends tsc<{}> {
         key={this.routeViewKey}
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
         class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
-        style={{ height: this.showNav ? 'calc(100% - 52px)' : '100%' }}
+        style={{ height: this.showNav ? 'calc(100% - 52px - var(--notice-alert-height))' : '100%' }}
       >
         <keep-alive>
           <router-view class='page-wrapper'></router-view>
@@ -678,15 +678,21 @@ export default class App extends tsc<{}> {
       </div>
     ];
     return (
-      <div class='bk-monitor'>
-        <NoticeComponent
-          apiUrl='/notice/announcements'
-          onShowAlertChange={this.showAlertChange}
-        />
+      <div
+        class='bk-monitor'
+        style={{
+          '--notice-alert-height': this.showAlert ? '40px' : '0px'
+        }}
+      >
+        {process.env.NODE_ENV !== 'development' && (
+          <NoticeComponent
+            apiUrl='/notice/announcements'
+            onShowAlertChange={this.showAlertChange}
+          />
+        )}
         <bk-navigation
           class={{
-            'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
-            'is-show-notice': this.showAlert
+            'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share'
           }}
           navigation-type='top-bottom'
           on-toggle={this.handleToggle}
