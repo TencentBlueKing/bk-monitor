@@ -195,33 +195,51 @@
 
         /* 边框类型 */
         &.selected {
-          border-color: #63656e;
+          background: #fafbfd;
+          border-color: #979ba54d;
 
           &.bkcc {
-            border-color: #3a84ff;
+            background: #f0f5ff;
+            border-color: #a3c5fd;
           }
 
           &.bkci {
-            border-color: #ea3536;
+            background: #fee;
+            border-color: #f8b4b4;
           }
 
           &.bcs {
-            border-color: #fe9c00;
+            background: #fff3e1;
+            border-color: #ffd695;
           }
 
           &.paas,
           &.bksaas {
-            border-color: #14a568;
+            background: #e4faf0;
+            border-color: #14a5684d;
           }
         }
 
         /* hover */
         &.hover-active {
           &:hover {
-            background: #63656e;
+            background: #dcdee5;
 
             &.bkcc {
               background: #e1ecff;
+            }
+
+            &.bkci {
+              background: #fedddc;
+            }
+
+            &.bcs {
+              background: #ffe8c3;
+            }
+
+            &.paas,
+            &.bksaas {
+              background: #c9f5e2;
             }
           }
         }
