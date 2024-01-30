@@ -790,7 +790,6 @@ export default class GroupDialog extends tsc<IProps> {
         title={this.$t('管理')}
         header-position="left"
         render-directive="if"
-        mask-close={false}
         ext-cls="manage-group"
         width={960}
         position={{ top: this.positionTop }}

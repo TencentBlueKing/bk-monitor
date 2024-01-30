@@ -471,7 +471,6 @@ export default class CollectDialog extends tsc<IProps> {
         render-directive="if"
         width={640}
         position={{ top: this.positionTop }}
-        mask-close={false}
         auto-close={false}
         on-value-change={this.handleValueChange}
         on-confirm={this.handleSubmitFormData}
