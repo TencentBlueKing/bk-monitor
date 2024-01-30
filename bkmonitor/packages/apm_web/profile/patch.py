@@ -1,6 +1,12 @@
+import dataclasses
+import json
+from datetime import datetime
+from enum import Enum
+from typing import Any, Union
+
 from betterproto import _preprocess_single  # noqa
 from betterproto import _serialize_single  # noqa
-from betterproto import PACKED_TYPES, TYPE_BYTES, Message
+from betterproto import PACKED_TYPES, TYPE_BYTES, Casing, Message, datetime_default_gen
 
 
 def mocked_bytes(self) -> bytes:
@@ -90,4 +96,97 @@ def mocked_bytes(self) -> bytes:
     return bytes(output)
 
 
+PLACEHOLDER: Any = object()
+
+
+def mocked__setattr__(self, attr: str, value: Any) -> None:
+    if isinstance(value, Message) and hasattr(value, "_betterproto") and not value._betterproto.meta_by_field_name:
+        value._serialized_on_wire = True
+
+    if attr != "_serialized_on_wire":
+        # Track when a field has been set.
+        self.__dict__["_serialized_on_wire"] = True
+
+    if hasattr(self, "_group_current"):  # __post_init__ had already run
+        if attr in self._betterproto.oneof_group_by_field:
+            group = self._betterproto.oneof_group_by_field[attr]
+            for field in self._betterproto.oneof_field_by_group[group]:
+                if field.name == attr:
+                    self._group_current[group] = field.name
+                else:
+                    super(Message, self).__setattr__(field.name, PLACEHOLDER)
+
+    super(Message, self).__setattr__(attr, value)
+
+
+def mocked__get_field_default_gen(cls, field: dataclasses.Field) -> Any:
+    t = cls._type_hint(field.name)
+
+    if hasattr(t, "__origin__"):
+        if t.__origin__ is dict:  # noqa: E721
+            # This is some kind of map (dict in Python).
+            return dict
+        elif t.__origin__ is list:  # noqa: E721
+            # This is some kind of list (repeated) field.
+            return list
+        elif t.__origin__ is Union and t.__args__[1] is type(None):  # noqa: E721
+            # This is an optional field (either wrapped, or using proto3
+            # field presence). For setting the default we really don't care
+            # what kind of field it is.
+            return type(None)
+        else:
+            return t
+    elif issubclass(t, Enum):
+        # Enums always default to zero.
+        return int
+    elif t is datetime:
+        # Offsets are relative to 1970-01-01T00:00:00Z
+        return datetime_default_gen
+    else:
+        # This is either a primitive scalar or another message type. Calling
+        # it should result in its zero value.
+        return t
+
+
+def mocked_to_json(
+    self,
+    indent: Union[None, int, str] = None,
+    include_default_values: bool = False,
+    casing: Casing = Casing.CAMEL,
+) -> str:
+    """A helper function to parse the message instance into its JSON
+    representation.
+
+    This is equivalent to::
+
+        json.dumps(message.to_dict(), indent=indent)
+
+    Parameters
+    -----------
+    indent: Optional[Union[:class:`int`, :class:`str`]]
+        The indent to pass to :func:`json.dumps`.
+
+    include_default_values: :class:`bool`
+        If ``True`` will include the default values of fields. Default is ``False``.
+        E.g. an ``int32`` field will be included with a value of ``0`` if this is
+        set to ``True``, otherwise this would be ignored.
+
+    casing: :class:`Casing`
+        The casing to use for key values. Default is :attr:`Casing.CAMEL` for
+        compatibility purposes.
+
+    Returns
+    --------
+    :class:`str`
+        The JSON representation of the message.
+    """
+    return json.dumps(
+        self.to_dict(include_default_values=include_default_values, casing=casing),
+        indent=indent,
+    )
+
+
 Message.__bytes__ = mocked_bytes
+Message.__setattr__ = mocked__setattr__
+Message._get_field_default_gen = classmethod(mocked__get_field_default_gen)
+Message.to_json = mocked_to_json
