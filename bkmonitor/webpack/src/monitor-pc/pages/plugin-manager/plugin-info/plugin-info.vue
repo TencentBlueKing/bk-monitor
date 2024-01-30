@@ -743,7 +743,7 @@ export default {
   }
 
   .plugin-detail-content {
-    height: calc(100% - 52px);
+    height: calc(100% - 52px - var(--notice-alert-height));
     padding: 16px;
 
     .hint-alert {

@@ -92,7 +92,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
     doc_cls = AlertDocument
     query_fields = [
         QueryField("id", AlertFieldDisplay.ID),
-        QueryField("alert_name", _lazy("告警名称"), agg_field="alert_name.raw", es_field="alert_name.raw", is_char=True),
+        QueryField("alert_name", _lazy("告警名称"), agg_field="alert_name.raw", is_char=True),
         QueryField("status", _lazy("状态")),
         QueryField("description", _lazy("告警内容"), es_field="event.description", is_char=True),
         QueryField("severity", _lazy("级别")),
@@ -500,7 +500,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     conditions.append(Q("term", is_blocked=True))
             # 对 key 为 stage 进行特殊处理
             return reduce(operator.or_, conditions)
-        if condition["key"].startswith("tags."):
+        elif condition["key"].startswith("tags."):
             # 对 tags 开头的字段进行特殊处理
             return Q(
                 "nested",
@@ -508,6 +508,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 query=Q("term", **{"event.tags.key": condition["key"][5:]})
                 & Q("terms", **{"event.tags.value": condition["value"]}),
             )
+        elif condition["key"] == "alert_name":
+            condition["key"] = "alert_name.raw"
         return super(AlertQueryHandler, self).parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):
