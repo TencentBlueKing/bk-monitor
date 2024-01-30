@@ -27,6 +27,7 @@
 import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import SearchSelect from '@blueking/search-select/dist/vue2-full.es';
 import dayjs from 'dayjs';
 import { debounce } from 'throttle-debounce';
 
@@ -61,6 +62,7 @@ import { handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
 import { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './strategy-config.scss';
 
 const { i18n } = window;
@@ -350,38 +352,6 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       removeListener(container);
     });
   }
-  @Watch('strategyLabelList')
-  handleStrategyLabelList(v) {
-    if (v) {
-      this.backDisplayMap.strategyLabels.list = v;
-      this.createdConditionList();
-    }
-  }
-  @Watch('actionNameList')
-  handleActionNameList(v) {
-    if (v) {
-      this.backDisplayMap.actionName.list = v;
-      this.createdConditionList();
-    }
-  }
-  @Watch('sourceList')
-  handleSourceList(v) {
-    if (v) {
-      this.backDisplayMap.dataSource.list = v;
-      this.createdConditionList();
-    }
-  }
-  @Watch('groupList')
-  handleGroupList(v) {
-    if (v) {
-      this.backDisplayMap.noticeName.list = v.map(item => ({
-        id: item.name,
-        name: item.name
-      }));
-      this.createdConditionList();
-    }
-  }
-
   created() {
     this.backDisplayMap = {
       bkStrategyId: {
@@ -398,7 +368,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       noticeName: {
         name: this.$t('告警组'), // 输入框回显的名称
         value: this.noticeName, // 回显的值
-        id: 'user_group_name' // 传给后端的字段名
+        id: 'user_group_name', // 传给后端的字段名
+        multiple: true
       },
       // 服务分类
       serviceCategory: {
@@ -472,37 +443,43 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         name: this.$t('状态'),
         value: '',
         id: 'strategy_status',
-        list: this.strategyStatusOptions
+        list: this.strategyStatusOptions,
+        multiple: true
       },
       dataSource: {
         name: this.$t('数据来源'),
         value: '',
         id: 'data_source_list',
-        list: []
+        list: [],
+        multiple: true
       },
       scenario: {
         name: this.$t('监控对象'),
         value: '',
         id: 'scenario',
-        list: []
+        list: [],
+        multiple: true
       },
       strategyLabels: {
         name: this.$t('标签'),
         value: '',
         id: 'label_name',
-        list: []
+        list: [],
+        multiple: true
       },
       actionName: {
         name: this.$t('套餐名'),
         value: '',
         id: 'action_name',
-        list: []
+        list: [],
+        multiple: true
       },
       resultTableId: {
         name: this.$t('结果表'),
         value: '',
         id: 'result_table_id',
-        list: []
+        list: [],
+        multiple: true
       },
       level: {
         name: this.$t('告警级别'),
@@ -512,7 +489,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
           { id: 1, name: this.$t('致命') },
           { id: 2, name: this.$t('预警') },
           { id: 3, name: this.$t('提醒') }
-        ]
+        ],
+        multiple: true
       },
       algorithmType: {
         name: this.$t('算法类型'),
@@ -579,7 +557,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             id: 'AbnormalCluster',
             name: window.i18n.tc('离群检测')
           }
-        ]
+        ],
+        multiple: true
       },
       invalidType: {
         name: this.$t('失效类型'),
@@ -588,7 +567,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         list: Object.entries(invalidTypeMap).map(item => ({
           id: item[0],
           name: item[1]
-        }))
+        })),
+        multiple: true
       }
     };
     this.fieldSettingData = {
@@ -740,7 +720,6 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.header.handleSearch = debounce(300, false, () => {
       this.handleGetListData(false, 1);
     });
-    this.createdConditionList();
   }
 
   activated() {
@@ -760,7 +739,13 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.handleGetListData(true, 1);
     this.getGroupList();
   }
-
+  handleSearchChange(v) {
+    debugger;
+    if (JSON.stringify(v || []) === JSON.stringify(this.header.keywordObj || [])) return;
+    this.header.keywordObj = v;
+    // this.createdConditionList();
+    this.header.handleSearch();
+  }
   /**
    * @description: 表格设置
    * @param {*}
@@ -860,6 +845,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         });
       }
     });
+    debugger;
     if (!!this.keywords?.length) {
       /** 自定义搜索条件 */
       temp.push(...this.keywords.map(id => ({ id, name: id })));
@@ -902,7 +888,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     const res = [];
     const map = this.backDisplayMap;
     Object.keys(map).forEach(key => {
-      const { name, id, list } = map[key];
+      const { name, id, list, multiple } = map[key];
       if (id === 'scenario') {
         const resChildren = [];
         list.forEach(listItem => {
@@ -915,14 +901,14 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         res.push({
           name,
           id,
-          multiable: true,
+          multiple: true,
           children: resChildren ? resChildren : []
         });
       } else {
         res.push({
           name,
           id,
-          multiable: true,
+          multiple: multiple ?? false,
           children: list ? list : []
         });
       }
@@ -1097,18 +1083,21 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             return { id: type, name, count: count ? count : 0 };
           })
           .sort((pre, next) => next.count - pre.count);
+        this.backDisplayMap.dataSource.list = this.sourceList;
         this.strategyLabelList = data.strategy_label_list
           .map(item => {
             const { id, count } = item;
             return { id, count, name: item.label_name };
           })
           .sort((pre, next) => next.count - pre.count);
+        this.backDisplayMap.strategyLabels.list = this.strategyLabelList;
         this.actionNameList = data.action_config_list
           .map(item => {
             const { name, count, id } = item;
             return { id: id !== 0 ? name : UN_SET_ACTION, count, name };
           })
           .sort((pre, next) => next.count - pre.count);
+        this.backDisplayMap.actionName.list = this.actionNameList;
         const noticeGroupList = data.user_group_list;
         this.groupList = noticeGroupList
           .map(item => {
@@ -1120,6 +1109,11 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             };
           })
           .sort((pre, next) => next.count - pre.count);
+        this.backDisplayMap.noticeName.list = this.groupList.map(item => ({
+          id: item.name,
+          name: item.name
+        }));
+        this.createdConditionList();
         // magic code  reflesh bk table
         this.$refs.strategyTable?.doLayout?.();
       })
@@ -1547,7 +1541,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       }));
       const obj = {
         id: searchKey,
-        multiable: true,
+        multiple: true,
         name,
         values
       };
@@ -1718,12 +1712,6 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     };
     return tipMap[option.id];
   }
-
-  /* 候选搜索列表过滤 */
-  conditionListFilter() {
-    const allKey = this.header.keywordObj.map(item => item.id);
-    return this.conditionList.filter(item => !allKey.includes(item.id));
-  }
   /* 跳转到屏蔽页 */
   handleToAlarmShield(ids: number[]) {
     const queryString = encodeURIComponent(JSON.stringify([{ key: 'id', value: ids }]));
@@ -1739,6 +1727,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   handleOperation(type: EmptyStatusOperationType) {
     if (type === 'clear-filter') {
       this.header.keywordObj = [];
+      debugger;
       this.handleGetListData();
       return;
     }
@@ -2619,17 +2608,16 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   ))}
                 </ul>
               </bk-dropdown-menu>
-              <bk-search-select
+              <SearchSelect
                 class='header-search'
-                v-model={this.header.keywordObj}
+                value={this.header.keywordObj}
+                onChange={this.handleSearchChange}
+                uniqueSelect={true}
                 show-condition={false}
-                data={this.conditionListFilter()}
-                filter={true}
+                data={this.conditionList}
                 placeholder={this.$t('任务ID / 告警组名称 / IP / 指标ID')}
-                on-change={this.header.handleSearch}
-                on-clear={this.header.handleSearch}
                 clearable
-              ></bk-search-select>
+              ></SearchSelect>
             </div>
             <div class='strategy-config-wrap'>
               <div class='config-wrap-setting'>
