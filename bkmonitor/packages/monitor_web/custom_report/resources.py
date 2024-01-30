@@ -822,6 +822,8 @@ class CustomTimeSeriesList(Resource):
         search_key = serializers.CharField(label="名称", required=False)
         page_size = serializers.IntegerField(default=10, label="获取的条数")
         page = serializers.IntegerField(default=1, label="页数")
+        # 新增参数用以判定是否需要查询平台级 dataid
+        is_platform = serializers.BooleanField(required=False)
 
     @staticmethod
     def get_strategy_count(table_ids, request_bk_biz_id: Optional[int] = None):
@@ -858,11 +860,13 @@ class CustomTimeSeriesList(Resource):
     def perform_request(self, validated_request_data):
         queryset = CustomTSTable.objects.all().order_by("-update_time")
         context = {}
+        # 区分本空间 和 全平台
         if validated_request_data.get("bk_biz_id"):
-            queryset = queryset.filter(
-                models.Q(bk_biz_id=validated_request_data["bk_biz_id"]) | models.Q(is_platform=True)
-            )
+            queryset = queryset.filter(bk_biz_id=validated_request_data["bk_biz_id"])
             context["request_bk_biz_id"] = validated_request_data["bk_biz_id"]
+
+        if "is_platform" in validated_request_data:
+            queryset = queryset.filter(is_platform=True)
 
         if validated_request_data.get("search_key"):
             search_key = validated_request_data["search_key"]
