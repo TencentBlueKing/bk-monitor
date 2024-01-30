@@ -374,7 +374,8 @@ export default class SpaceSelect extends tsc<
       arrow: false,
       placement: 'bottom-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
+      distance: 5
     });
     this.popInstance?.show?.();
     this.isOpen = true;
@@ -450,7 +451,8 @@ export default class SpaceSelect extends tsc<
         item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
         item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
         `${item.id}`.includes(keyword) ||
-        `${item.space_id}`.toLocaleLowerCase().includes(keyword);
+        `${item.space_id}`.toLocaleLowerCase().includes(keyword) ||
+        item.tags?.some(t => !!keyword && t.name.indexOf(keyword) > -1);
       item.show = typeShow && searchShow;
     });
     this.setPaginationData(true);
@@ -685,7 +687,7 @@ export default class SpaceSelect extends tsc<
           >
             <div class='search-input'>
               <bk-input
-                placeholder={this.$t('请输入关键字')}
+                placeholder={this.$t('请输入关键字或标签')}
                 v-model={this.searchValue}
                 left-icon='bk-icon icon-search'
                 behavior={'simplicity'}
