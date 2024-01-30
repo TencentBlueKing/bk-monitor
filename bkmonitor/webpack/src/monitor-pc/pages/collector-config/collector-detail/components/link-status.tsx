@@ -144,8 +144,6 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   }
 
   init() {
-    this.getChartData('minute');
-    this.getChartData('day');
     this.getTableData();
   }
 
