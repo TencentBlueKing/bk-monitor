@@ -86,6 +86,7 @@ export interface ITimeSeriesOption {
     markArea?: Record<string, any>;
     custom_timerange?: boolean;
     nearSeriesNum?: number;
+    noTransformVariables?: boolean;
   };
 }
 
