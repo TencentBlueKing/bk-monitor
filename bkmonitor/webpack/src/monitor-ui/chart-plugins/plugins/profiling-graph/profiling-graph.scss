@@ -1,16 +1,20 @@
 .profiling-retrieval-chart {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  width: calc(100% + 34px);
+  height: calc(100% + 34px);
+  margin-left: -16px;
+  margin-top: -16px;
+  padding: 16px;
+  background-color: #f4f6f9;
 
   .profiling-retrieval-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
     height: 50px;
-    box-shadow: 0 2px 4px 0 #1919290d;
     margin-bottom: 4px;
+    padding: 16px 8px;
 
     .data-type {
       display: flex;
@@ -44,7 +48,6 @@
     flex-direction: column;
     background-color: white;
     position: relative;
-    box-shadow: 0 2px 4px 0 #1919290d;
     overflow: hidden;
   
     &-content {
