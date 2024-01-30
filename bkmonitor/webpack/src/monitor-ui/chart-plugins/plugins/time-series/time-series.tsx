@@ -488,10 +488,11 @@ export class LineChart
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         ) as EChartOption<EChartOption.Series>;
+        const isBar = this.panel.options?.time_series?.type === 'bar';
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
-            color: this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST,
+            color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
@@ -509,7 +510,12 @@ export class LineChart
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
               max: v => Math.max(v.max, +maxThreshold),
-              min: v => Math.min(v.min, +minThreshold)
+              min: v => {
+                let min = Math.min(v.min, +minThreshold);
+                // 柱状图y轴不能以最小值作为起始点
+                if (isBar) min = min <= 10 ? 0 : min - 10;
+                return min;
+              }
             },
             xAxis: {
               axisLabel: {
