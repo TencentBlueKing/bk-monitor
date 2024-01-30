@@ -29,6 +29,7 @@ class Converter:
     preset_profile_id: Optional[str] = None
     inject_labels: dict = field(default_factory=dict)
     raw_data: list = field(default_factory=list)
+    init_first_empty_str: bool = True
 
     # mappings for deduplication
     _location_mapping: Dict[str, Location] = field(default_factory=dict)
@@ -48,7 +49,9 @@ class Converter:
 
     def init_profile(self):
         self.profile = Profile()
-        self.profile.string_table.append("")
+
+        if self.init_first_empty_str:
+            self.profile.string_table.append("")
 
     def add_string(self, value: str) -> int:
         """add string to profile string table"""

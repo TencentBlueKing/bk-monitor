@@ -49,6 +49,7 @@ class ProfilingFileHandler:
                 # which only contains bk_biz_id & app_name, service_name is required for cleaning in bk_base,
                 # so add it into labels
                 inject_labels={"service_name": service_name},
+                init_first_empty_str=False,
             )
             # 从 bkrepo 中获取文件数据
             data = self.get_file_data(key)

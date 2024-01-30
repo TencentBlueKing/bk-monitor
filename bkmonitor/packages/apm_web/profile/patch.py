@@ -188,5 +188,5 @@ def mocked_to_json(
 
 Message.__bytes__ = mocked_bytes
 Message.__setattr__ = mocked__setattr__
-Message._get_field_default_gen = classmethod(mocked__get_field_default_gen)
+# Message._get_field_default_gen = classmethod(mocked__get_field_default_gen)
 Message.to_json = mocked_to_json
