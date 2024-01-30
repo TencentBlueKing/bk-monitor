@@ -43,6 +43,11 @@ class KafkaQueue(object):
         self.close()
 
     @classmethod
+    def get_alert_kafka_queue(cls):
+        kfk_conf = {"cluster_index": 0, "domain": settings.ALERT_KAFKA_HOST[0], "port": settings.ALERT_KAFKA_PORT}
+        return cls(kfk_conf=kfk_conf)
+
+    @classmethod
     def get_common_kafka_queue(cls):
         kfk_conf = {"cluster_index": 0, "domain": settings.KAFKA_HOST[0], "port": settings.KAFKA_PORT}
         return cls(kfk_conf=kfk_conf)
@@ -211,7 +216,6 @@ class KafkaOffsetManager(object):
         self.consumer.seek(new_remote_offset - remote_offset, 1)
 
     def reset_consumer_offset(self, count):
-
         reset_offset = self.get_reset_offset()
         # 如果有新的重置点，那么当前游标设置为重置点
         if reset_offset and reset_offset != self.reset_offset:
