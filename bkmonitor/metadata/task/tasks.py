@@ -163,7 +163,7 @@ def manage_es_storage(es_storages):
     for es_storage in es_storages:
         if es_storage.is_red():
             logger.error(
-                "es cluster health is red, skip index lifecycle handle; current cluster domain is %s",
+                "es cluster health is red, skip index lifecycle; cluster id: %s, cluster domain: %s",
                 es_storage.storage_cluster.cluster_id,
                 es_storage.storage_cluster.domain_name,
             )
