@@ -859,14 +859,15 @@ class CustomTimeSeriesList(Resource):
 
     def perform_request(self, validated_request_data):
         queryset = CustomTSTable.objects.all().order_by("-update_time")
-        context = {}
+        context = {"request_bk_biz_id": validated_request_data["bk_biz_id"]}
         # 区分本空间 和 全平台
-        if validated_request_data.get("bk_biz_id"):
-            queryset = queryset.filter(bk_biz_id=validated_request_data["bk_biz_id"])
-            context["request_bk_biz_id"] = validated_request_data["bk_biz_id"]
-
-        if "is_platform" in validated_request_data:
+        if validated_request_data.get("is_platform"):
+            # 只查全平台, 不关注业务
             queryset = queryset.filter(is_platform=True)
+
+        elif validated_request_data.get("bk_biz_id"):
+            # 非全平台，查当前业务(0表示全部业务)
+            queryset = queryset.filter(bk_biz_id=validated_request_data["bk_biz_id"])
 
         if validated_request_data.get("search_key"):
             search_key = validated_request_data["search_key"]
