@@ -50,11 +50,8 @@ class MonitorEventAdapter:
         else:
             topic = f"{settings.MONITOR_EVENT_KAFKA_TOPIC}_{get_cluster().name}"
         # 使用专用kafka集群: ALERT_KAFKA_HOST  ALERT_KAFKA_PORT
-        kfk_conf = {
-            "domain": settings.ALERT_KAFKA_HOST[0],
-            "port": settings.ALERT_KAFKA_PORT,
-        }
-        kafka_queue = KafkaQueue(topic=topic, kfk_conf=kfk_conf)
+        kafka_queue = KafkaQueue.get_alert_kafka_queue()
+        kafka_queue.set_topic(topic)
         return kafka_queue.put(value=messages)
 
     def __init__(self, record: dict, strategy: dict):
