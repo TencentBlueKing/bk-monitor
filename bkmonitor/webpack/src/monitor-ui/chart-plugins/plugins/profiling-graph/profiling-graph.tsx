@@ -44,6 +44,7 @@ import {
 import { CommonSimpleChart } from '../common-simple-chart';
 
 import ChartTitle from './chart-title/chart-title';
+import FilterSelect from './filter-select/filter-select';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
@@ -88,6 +89,7 @@ class ProfilingChart extends CommonSimpleChart {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       ...args,
+      ...this.queryParams,
       app_name,
       service_name,
       start: (start_time ? dayjs.tz(start_time).unix() : startTime) * Math.pow(10, 6),
@@ -242,10 +244,23 @@ class ProfilingChart extends CommonSimpleChart {
     const url = location.href.replace(location.hash, '#/trace/profiling');
     window.open(url, '_blank');
   }
+  handleFiltersChange(values, key) {
+    this.queryParams = {
+      ...this.queryParams,
+      [key === 'filter' ? 'filter_labels' : 'diff_filter_labels']: values
+    };
+    this.getPanelData();
+  }
 
   render() {
     return (
       <div class='profiling-retrieval-chart'>
+        <FilterSelect
+          appName={this.queryParams.app_name}
+          serviceName={this.queryParams.service_name}
+          onFilterChange={val => this.handleFiltersChange(val, 'filter')}
+          onDiffChange={val => this.handleFiltersChange(val, 'diff')}
+        />
         <div class='profiling-retrieval-header'>
           <div class='data-type'>
             <span>{this.$t('数据类型')}</span>
