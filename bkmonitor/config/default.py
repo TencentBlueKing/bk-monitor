@@ -830,9 +830,13 @@ ELASTICSEARCH_DSL = {
 # Kafka config
 KAFKA_HOST = [os.environ.get("BK_MONITOR_KAFKA_HOST", "kafka.service.consul")]
 KAFKA_PORT = int(os.environ.get("BK_MONITOR_KAFKA_PORT", 9092))
+# alert 模块告警专属
+ALERT_KAFKA_HOST = [os.environ.get("BK_MONITOR_ALERT_KAFKA_HOST", KAFKA_HOST[0])]
+ALERT_KAFKA_PORT = int(os.environ.get("BK_MONITOR_ALERT_KAFKA_PORT", KAFKA_PORT))
 KAFKA_CONSUMER_GROUP = "{}-bkmonitorv3-alert-{}".format(PLATFORM.lower(), ENVIRONMENT.lower())
 KAFKA_CONSUMER_GROUP = os.environ.get("BK_MONITOR_KAFKA_CONSUMER_GROUP", KAFKA_CONSUMER_GROUP)
 COMMON_KAFKA_CLUSTER_INDEX = 0
+# for stage
 BKAPP_KAFKA_DOMAIN = os.environ.get("BKAPP_KAFKA_DOMAIN", "")
 
 # 日志相关配置
