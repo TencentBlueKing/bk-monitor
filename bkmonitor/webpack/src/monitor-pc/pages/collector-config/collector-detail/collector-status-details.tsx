@@ -116,6 +116,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
 
   disBatch = false;
 
+  /* 判断当前可否复制ip或者服务实例 */
+  targetNodeType = '';
+
   get haveDeploying() {
     const resArr = [];
     this.contents.forEach(item => {
@@ -137,6 +140,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         failed: {}
       };
       this.config = this.data.config_info;
+      this.targetNodeType = this.data.config_info?.target_node_type || '';
       this.contents = this.data.contents.map(item => {
         const table = [];
         const nums = {
@@ -408,13 +412,13 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   /**
    * @description 复制目标
    */
-  handleCopyTargets(type: 'ip' | 'instance') {
+  handleCopyTargets(type?: 'ip' | 'instance') {
     let copyStr = '';
     this.contents.forEach(ct => {
-      if (type === 'ip') {
+      if (type === 'ip' || this.targetNodeType === 'HOST') {
         ct.table.forEach(item => (copyStr += `${item.ip}\n`));
       } else {
-        ct.table.forEach(item => (copyStr += `${item.instance_id}\n`));
+        ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
       }
     });
     copyText(copyStr, msg => {
@@ -500,38 +504,41 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             >
               {this.$t('批量终止')}
             </bk-button>
-            <bk-dropdown-menu>
-              <div slot='dropdown-trigger'>
-                <span class='copy-target-btn'>{this.$t('复制目标')}</span>
-              </div>
-              <ul
-                class='bk-dropdown-list'
-                slot='dropdown-content'
+            {this.targetNodeType === 'INSTANCE' ? (
+              <bk-dropdown-menu>
+                <div slot='dropdown-trigger'>
+                  <span class='copy-target-btn'>{this.$t('复制目标')}</span>
+                </div>
+                <ul
+                  class='bk-dropdown-list'
+                  slot='dropdown-content'
+                >
+                  <li>
+                    <a
+                      href='javascript:;'
+                      onClick={() => this.handleCopyTargets('ip')}
+                    >
+                      {this.$t('复制主机IP')}
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href='javascript:;'
+                      onClick={() => this.handleCopyTargets('instance')}
+                    >
+                      {this.$t('复制服务实例')}
+                    </a>
+                  </li>
+                </ul>
+              </bk-dropdown-menu>
+            ) : (
+              <bk-button
+                hover-theme='primary'
+                onClick={() => this.handleCopyTargets()}
               >
-                <li>
-                  <a
-                    href='javascript:;'
-                    onClick={() => this.handleCopyTargets('ip')}
-                  >
-                    {this.$t('复制主机IP')}
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href='javascript:;'
-                    onClick={() => this.handleCopyTargets('instance')}
-                  >
-                    {this.$t('复制服务实例')}
-                  </a>
-                </li>
-              </ul>
-            </bk-dropdown-menu>
-            {/* <bk-button
-              hover-theme='primary'
-              onClick={() => this.handleCopyTargets()}
-            >
-              {this.$t('复制目标')}
-            </bk-button> */}
+                {this.$t('复制目标')}
+              </bk-button>
+            )}
           </div>
         </div>
         <div class='table-content'>
