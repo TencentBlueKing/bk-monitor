@@ -10,9 +10,6 @@ specific language governing permissions and limitations under the License.
 from django.db.models import Count
 from django.utils.functional import cached_property
 
-from apm_ebpf.models import DeepflowWorkload
-from monitor_web.statistics.v2.base import BaseCollector
-
 from bkmonitor.models import (
     BCSCluster,
     BCSContainer,
@@ -23,6 +20,7 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from core.statistics.metric import Metric, register
+from monitor_web.statistics.v2.base import BaseCollector
 
 
 class K8SCollector(BaseCollector):
@@ -179,11 +177,3 @@ class K8SCollector(BaseCollector):
                     cluster_id=bcs_cluster_id,
                     type=monitor_type,
                 ).inc(count)
-
-    @register(labelnames=("cluster_id", ))
-    def ebpf_k8s_count(self, metric: Metric):
-        """ebpf使用的k8s集群数"""
-        queryset = DeepflowWorkload.objects.all().values_list("cluster_id", flat=True).distinct()
-
-        for q in queryset:
-            metric.labels(cluster_id=q).inc()
