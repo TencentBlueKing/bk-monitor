@@ -85,7 +85,7 @@ export default defineComponent({
     });
 
     watch(
-      props.formData,
+      () => props.formData,
       newVal => {
         newVal && Object.assign(localFormData, newVal);
       },
@@ -165,6 +165,7 @@ export default defineComponent({
           value: ''
         });
       }
+      handleEmitChange();
     }
 
     /**
@@ -193,7 +194,6 @@ export default defineComponent({
       } else {
         localFormData.comparisonWhere[index] = val;
       }
-      getLabelValues(val.key);
       handleEmitChange();
     }
 
@@ -216,8 +216,8 @@ export default defineComponent({
 
     /** 获取过滤项列表 */
     async function getLabelList() {
-      localFormData.where = [];
-      localFormData.comparisonWhere = [];
+      localFormData.where = localFormData.where.filter(item => !item.key);
+      localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
       labelValueMap.clear();
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
@@ -269,7 +269,8 @@ export default defineComponent({
       handleComparisonChange,
       addCondition,
       deleteCondition,
-      handleConditionChange
+      handleConditionChange,
+      getLabelValues
     };
   },
   render() {
@@ -329,6 +330,7 @@ export default defineComponent({
                   labelList={this.labelList}
                   valueList={this.labelValueMap.get(item.key) || []}
                   onChange={val => this.handleConditionChange(val, index, ConditionType.Where)}
+                  onKeyChange={this.getLabelValues}
                   onDelete={() => this.deleteCondition(index, ConditionType.Where)}
                 />
               ))}
@@ -350,6 +352,7 @@ export default defineComponent({
                     labelList={this.labelList}
                     valueList={this.labelValueMap.get(item.key) || []}
                     onChange={val => this.handleConditionChange(val, index, ConditionType.Comparison)}
+                    onKeyChange={this.getLabelValues}
                     onDelete={() => this.deleteCondition(index, ConditionType.Comparison)}
                   />
                 ))}

@@ -45,16 +45,7 @@ import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
 import { MenuEnum, ToolsFormData } from './typings/page-header';
-import {
-  DataTypeItem,
-  DetailType,
-  FileDetail,
-  PanelType,
-  RetrievalFormData,
-  SearchState,
-  SearchType,
-  ServicesDetail
-} from './typings';
+import { DataTypeItem, DetailType, FileDetail, PanelType, SearchState, SearchType, ServicesDetail } from './typings';
 
 import './profiling.scss';
 
@@ -98,7 +89,6 @@ export default defineComponent({
       }
       return true;
     });
-    provide<RetrievalFormData>('formData', searchState.formData);
     const isEmpty = ref(true);
     const dataType = ref('');
     const dataTypeList = ref<DataTypeItem[]>([]);
