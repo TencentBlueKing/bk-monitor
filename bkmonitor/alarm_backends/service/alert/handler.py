@@ -36,6 +36,21 @@ from core.drf_resource import api
 logger = logging.getLogger("alert.poller")
 
 
+def always_retry(wait):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    logger.exception(f"alert handler error: {func.__name__}: {e}")
+                    time.sleep(wait)
+
+        return wrapper
+
+    return decorator
+
+
 class AlertHandler(base.BaseHandler):
     # 内置 topic
     INTERNAL_TOPICS = (settings.MONITOR_EVENT_KAFKA_TOPIC,)  # 蓝鲸监控专用
@@ -111,6 +126,7 @@ class AlertHandler(base.BaseHandler):
         finally:
             map(lambda c: self.close_consumer(c), self.consumers.values())
 
+    @always_retry(10)
     def run_leader(self):
         """
         分发data_id获取任务
@@ -238,6 +254,7 @@ class AlertHandler(base.BaseHandler):
                     self.redis_client.delete(self.leader_key)
                 break
 
+    @always_retry(10)
     def run_consumer_manager(self):
         """
         kafka消费者管理
@@ -334,6 +351,7 @@ class AlertHandler(base.BaseHandler):
         consumer.commit()
         consumer.close()
 
+    @always_retry(10)
     def run_poller(self):
         """
         通过批量拉取数据
