@@ -37,7 +37,7 @@ import './link-status-chart.scss';
 
 interface LinkStatusChartProps {
   timeRange?: TimeRangeType;
-  type: 'minute' | 'day';
+  type: 'minute' | 'hour';
   data: [number, number][];
   getChartData: () => any;
 }
@@ -133,8 +133,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
         color: '#339DFF'
       }
     };
-    const day: echarts.EChartOption.SeriesBar = {
-      name: this.$tc('日数据量'),
+    const hour: echarts.EChartOption.SeriesBar = {
+      name: this.$tc('小时数据量'),
       data: this.data.map(item => [item[1], item[0]]) || [],
       type: 'bar',
       barMaxWidth: 30,
@@ -144,17 +144,17 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     };
     return {
       ...this.defaultOption,
-      series: [this.type === 'minute' ? minute : day]
+      series: [this.type === 'minute' ? minute : hour]
     };
   }
 
   get defaultShortcuts(): DateValue[] {
     if (this.type === 'minute') return shortcuts.map(item => item.value) as DateValue[];
     return [
-      ['now-3d', 'now'],
-      ['now-7d', 'now'],
-      ['now-14d', 'now'],
-      ['now-30d', 'now']
+      ['now-3h', 'now'],
+      ['now-6h', 'now'],
+      ['now-24h', 'now'],
+      ['now-72h', 'now']
     ];
   }
 
@@ -191,7 +191,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
         v-bkloading={{ isLoading: this.loading }}
       >
         <div class='chart-header'>
-          <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('日数据量')}</div>
+          <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('小时数据量')}</div>
           <div class='chart-tools'>
             <TimeRange
               value={this.timeRange}
@@ -199,7 +199,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
               commonUseList={this.defaultShortcuts}
               needTimezone={false}
             >
-              {this.type === 'day' && <div slot='header'></div>}
+              {this.type === 'hour' && <div slot='header'></div>}
             </TimeRange>
             <span class='operate'>
               <i
