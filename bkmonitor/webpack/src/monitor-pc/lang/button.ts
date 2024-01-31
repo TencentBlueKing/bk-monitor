@@ -436,5 +436,7 @@ export default {
   确认停用: 'Confirm Disable',
   确认删除: 'Confirm Delete',
   手动分组: 'Manual grouping',
-  自动分组: 'Automatic grouping'
+  自动分组: 'Automatic grouping',
+  当前空间: 'Current space',
+  平台数据: 'Platform data'
 };
