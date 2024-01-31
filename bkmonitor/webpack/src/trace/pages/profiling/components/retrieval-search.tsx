@@ -275,7 +275,7 @@ export default defineComponent({
   render() {
     return (
       <div class='retrieval-search-component'>
-        <div class='title'>{this.t('Profiling 检索')}</div>
+        <div class='title'>{this.t('route-Profiling 检索')}</div>
         <div class='search-form-wrap'>
           <Button.ButtonGroup class='type-button-group'>
             {this.retrievalType.map(item => (

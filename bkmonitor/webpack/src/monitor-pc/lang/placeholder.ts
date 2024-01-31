@@ -284,5 +284,7 @@ export default {
   请选择维度: 'Please select a dimension',
   基于策略选择: 'Policy-based selection',
   '可输入规则名称，标签搜索': 'Enter Rule name, label search',
-  请输入搜索或筛选: 'Please enter search or filter'
+  请输入搜索或筛选: 'Please enter search or filter',
+
+  '选择应用/服务': 'Select Application/Service'
 };

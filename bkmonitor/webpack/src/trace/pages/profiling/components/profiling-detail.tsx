@@ -158,7 +158,7 @@ export default defineComponent({
                     target='_blank'
                     href='https://doc.weixin.qq.com/doc/w3_AFMARgbdAFwV8Lqpcb7TdKbZ5lu8p?scode=AJEAIQdfAAoBLVgXR0AfYAcQbPAFM'
                   >
-                    {this.t('Profile 接入文档')}
+                    {this.t('Profile 接入指引')}
                   </a>
                   <i class='icon-monitor icon-fenxiang'></i>
                 </span>
