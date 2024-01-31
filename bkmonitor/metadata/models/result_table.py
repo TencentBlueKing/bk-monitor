@@ -992,7 +992,11 @@ class ResultTable(models.Model):
                 )
                 raise ValueError(_("存储类型[%s]暂不支持，请确认后重试") % default_storage)
 
-            if not real_storage_class.objects.filter(table_id=self.table_id).exists():
+            # 如果没有启用influxdb，当存储类型为influxdb时，忽略校验，否则，校验存储路由存在
+            if (
+                not (default_storage == ClusterInfo.TYPE_INFLUXDB and not settings.ENABLE_INFLUXDB_STORAGE)
+                and not real_storage_class.objects.filter(table_id=self.table_id).exists()
+            ):
                 logger.error(
                     "user->[%s] try to set default_storage to->[%s] but is not in storage_list.",
                     operator,
