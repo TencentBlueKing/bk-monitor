@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 from django.db.models import Count
 from django.utils.functional import cached_property
+from monitor_web.statistics.v2.base import BaseCollector
 
 from bkmonitor.models import (
     BCSCluster,
@@ -20,7 +21,6 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from core.statistics.metric import Metric, register
-from monitor_web.statistics.v2.base import BaseCollector
 
 
 class K8SCollector(BaseCollector):
