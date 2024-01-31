@@ -99,11 +99,13 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             raise Exception(_("上传文件失败， 失败原因: {}").format(e))
 
         profile_id = generate_profile_id()
+        app_name = validated_data.get("app_name", BUILTIN_APP_NAME)
+        service_name = validated_data.get("service_name", app_name)
 
         # record it if everything is ok
         record = ProfileUploadRecord.objects.create(
             bk_biz_id=validated_data["bk_biz_id"],
-            app_name=validated_data.get("app_name", ""),
+            app_name=app_name,
             file_md5=md5,
             file_type=validated_data["file_type"],
             profile_id=profile_id,
@@ -112,7 +114,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             file_size=uploaded.size,  # 单位Bytes
             file_name=PROFILE_UPLOAD_RECORD_NEW_FILE_NAME.format(timezone.now().strftime("%Y-%m-%d-%H-%M-%S")),
             status=UploadedFileStatus.UPLOADED,
-            service_name=validated_data.get("service_name", DEFAULT_SERVICE_NAME),
+            service_name=service_name,
         )
 
         # 异步任务： 文件解析及存储
@@ -121,6 +123,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             validated_data["file_type"],
             profile_id,
             validated_data["bk_biz_id"],
+            service_name,
         )
 
         return Response(data=ProfileUploadRecordSLZ(record).data)

@@ -1,0 +1,58 @@
+.profiling-filter-select-wrap {
+  background-color: #fff;
+  width: calc(100% + 34px);
+  margin-top: -16px;
+  margin-left: -16px;
+  padding: 12px 24px;
+
+  .filter-var-select-group {
+    overflow: unset !important;
+
+    &-label {
+      line-height: 32px !important;
+      top: 0 !important;
+    }
+
+    .filter-var-select-wrap {
+      margin-top: 10px !important;
+    }
+    
+    .filter-add-btn {
+      top: 2px !important;
+      &.active {
+        border-color: #3a84ff;
+      }
+    }
+  }
+
+  .diff-select-group {
+    margin-top: 16px;
+  }
+
+  .diff-mode-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    span {
+      margin-right: 12px;
+    }
+  }
+
+  .bk-select-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    opacity: 0;
+    line-height: 22px;
+    pointer-events: none;
+
+    .bk-select-name {
+      height: 22px;
+    }
+  }
+}

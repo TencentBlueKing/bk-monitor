@@ -32,16 +32,25 @@ class ProfilingFileHandler:
             data = fp.read()
         return data
 
-    def parse_file(self, key, file_type: str, profile_id: str, bk_biz_id: int):
+    def parse_file(self, key, file_type: str, profile_id: str, bk_biz_id: int, service_name: str):
         """
         :param key : 文件完整路径
         :param str file_type: 上传文件类型
         :param str profile_id: profile_id
         :param int bk_biz_id: 业务id
+        :param str service_name: 服务名
         """
 
         try:
-            converter = get_converter_by_input_type(file_type)(preset_profile_id=profile_id)
+            converter = get_converter_by_input_type(file_type)(
+                preset_profile_id=profile_id,
+                # Q: why we need to pass service_name manually?
+                # A: because the data will be sent to collector with bk_data_token
+                # which only contains bk_biz_id & app_name, service_name is required for cleaning in bk_base,
+                # so add it into labels
+                inject_labels={"service_name": service_name},
+                init_first_empty_str=False,
+            )
             # 从 bkrepo 中获取文件数据
             data = self.get_file_data(key)
             p = converter.convert(data)

@@ -180,7 +180,6 @@ class CreateApplicationResource(Resource):
             allow_empty=True,
             default=[LanguageEnum.PYTHON.id],
         )
-        enabled_profiling = serializers.BooleanField(label="是否启用性能分析", default=False)
         datasource_option = DatasourceOptionSerializer(required=True)
         plugin_config = PluginConfigSerializer(required=False)
         enable_profiling = serializers.BooleanField(label="是否开启 Profiling 功能")
@@ -218,7 +217,8 @@ class CreateApplicationResource(Resource):
             plugin_id=validated_request_data["plugin_id"],
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
-            enabled_profiling=validated_request_data["enabled_profiling"],
+            # TODO: enable_profiling vs enabled_profiling, 前后需要完全统一
+            enabled_profiling=validated_request_data["enable_profiling"],
             datasource_option=validated_request_data["datasource_option"],
             plugin_config=plugin_config,
         )

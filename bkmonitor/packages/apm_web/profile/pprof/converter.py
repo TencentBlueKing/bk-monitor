@@ -38,6 +38,13 @@ class PprofConverter(Converter):
                     str=self.add_string(self.preset_profile_id),
                 )
             )
+            for k, v in self.inject_labels.items():
+                s.label.append(
+                    Label(
+                        key=self.add_string(k),
+                        str=self.add_string(v),
+                    )
+                )
 
         return self.profile
 
