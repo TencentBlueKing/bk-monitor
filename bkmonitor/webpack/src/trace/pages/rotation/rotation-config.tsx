@@ -140,6 +140,12 @@ export default defineComponent({
     const rotationTypeData = reactive<RotationTypeData>(createDefaultRotation());
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
+      if (id.value) {
+        // 编辑状态下 且 生效结束时间大于此时此刻（永久）， 将生效起始时间修改为此时此刻
+        if (!formData.effective.endTime || new Date(formData.effective.endTime).getTime() > new Date().getTime()) {
+          formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
+        }
+      }
       resetUsersColor();
       getPreviewData();
     }

@@ -130,6 +130,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
       ['strategy-config-detail', 'strategy-config-edit', 'strategy-config-add'].includes(this.$route.name) &&
       this.metricData.length >= 1 &&
       this.metricData.every(item => item.canSetMulitpeMetric) &&
+      this.expression &&
       this.expression !== 'a'
     ) {
       this.isShowExpress = true;
