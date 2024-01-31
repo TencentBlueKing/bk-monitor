@@ -198,9 +198,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
               onChange={val => this.handleTimeRange(val)}
               commonUseList={this.defaultShortcuts}
               needTimezone={false}
-            >
-              {this.type === 'hour' && <div slot='header'></div>}
-            </TimeRange>
+            ></TimeRange>
             <span class='operate'>
               <i
                 class='icon-monitor icon-zhongzhi1 refresh'
