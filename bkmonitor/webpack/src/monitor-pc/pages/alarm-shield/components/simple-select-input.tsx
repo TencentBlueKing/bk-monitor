@@ -26,7 +26,6 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../monitor-common/utils/utils';
 
@@ -54,7 +53,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
   @Prop({ default: window.i18n.t('无数据'), type: String }) nodataMsg: string;
   @Ref('list') listRef: HTMLDivElement;
   @Ref('inputWrap') inputWrapRef: HTMLDivElement;
-  @Ref('input') inputRef: Input;
+  @Ref('input') inputRef: any;
 
   popoverInstance = null;
   isShowPop = false;
@@ -122,7 +121,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
           onClick={event => this.handleShowPopover(event)}
           ref='inputWrap'
         >
-          <Input
+          <bk-input
             class='input-wrap'
             value={this.value}
             ref='input'
@@ -148,7 +147,6 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
                       content: item.id,
                       placement: 'right',
                       zIndex: 9999,
-                      allowHTML: false,
                       boundary: document.body,
                       appendTo: document.body,
                       allowHTML: false

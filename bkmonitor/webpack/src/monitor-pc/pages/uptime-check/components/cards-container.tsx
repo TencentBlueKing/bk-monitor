@@ -26,7 +26,6 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Button } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../monitor-common/utils/utils';
 
@@ -86,14 +85,14 @@ export default class CardsContainer extends tsc<ICardsContainerProps> {
             {this.$slots.title}
           </div>
           {this.showSeeAll && !this.seeAllDisable ? (
-            <Button
+            <bk-button
               text
               title='primary'
               class='right-btn'
               on-click={this.handleClickSeeAll}
             >
               {this.isSeeAll ? this.$t('收起') : this.$t('显示全部')}
-            </Button>
+            </bk-button>
           ) : undefined}
         </div>
         <div

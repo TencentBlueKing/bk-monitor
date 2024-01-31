@@ -185,7 +185,7 @@ export default class AlertHistogram extends tsc<IProps> {
             class='alert-histogram-component-pop-wrap'
           >
             <div>{this.curHoverTime}</div>
-            <div>{this.cruHoverLevel === 1 ? this.$t('有告警') : this.$t('无告警')}</div>
+            <div>{this.cruHoverLevel > 0 ? this.$t('有告警') : this.$t('无告警')}</div>
           </div>
         </div>
       </div>

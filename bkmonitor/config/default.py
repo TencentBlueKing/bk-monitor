@@ -656,6 +656,9 @@ BCS_API_DATA_SOURCE = "db"
 BCS_GRAY_CLUSTER_ID_LIST = []
 ENABLE_BCS_GRAY_CLUSTER = False
 
+# UNIFY-QUERY支持bkdata查询灰度业务列表
+BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST = []
+
 # BCS CC
 BCS_CC_API_URL = os.getenv("BKAPP_BCS_CC_API_URL", None)
 # bcs storage接口limit的大小
@@ -827,9 +830,13 @@ ELASTICSEARCH_DSL = {
 # Kafka config
 KAFKA_HOST = [os.environ.get("BK_MONITOR_KAFKA_HOST", "kafka.service.consul")]
 KAFKA_PORT = int(os.environ.get("BK_MONITOR_KAFKA_PORT", 9092))
+# alert 模块告警专属
+ALERT_KAFKA_HOST = [os.environ.get("BK_MONITOR_ALERT_KAFKA_HOST", KAFKA_HOST[0])]
+ALERT_KAFKA_PORT = int(os.environ.get("BK_MONITOR_ALERT_KAFKA_PORT", KAFKA_PORT))
 KAFKA_CONSUMER_GROUP = "{}-bkmonitorv3-alert-{}".format(PLATFORM.lower(), ENVIRONMENT.lower())
 KAFKA_CONSUMER_GROUP = os.environ.get("BK_MONITOR_KAFKA_CONSUMER_GROUP", KAFKA_CONSUMER_GROUP)
 COMMON_KAFKA_CLUSTER_INDEX = 0
+# for stage
 BKAPP_KAFKA_DOMAIN = os.environ.get("BKAPP_KAFKA_DOMAIN", "")
 
 # 日志相关配置
@@ -1346,3 +1353,16 @@ TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 
 # 是否启用 influxdb 写入，默认 True
 ENABLE_INFLUXDB_STORAGE = True
+
+# bk-notice-sdk requirment
+if not os.getenv("BK_API_URL_TMPL"):
+    os.environ["BK_API_URL_TMPL"] = ""
+
+# 内网collector域名
+INNER_COLLOCTOR_HOST = ""
+
+# 外网collector域名
+OUTER_COLLOCTOR_HOST = ""
+
+# ES 需要串行的集群的白名单
+ES_SERIAL_CLUSTER_LIST = []

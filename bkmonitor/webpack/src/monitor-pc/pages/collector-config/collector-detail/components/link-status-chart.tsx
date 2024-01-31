@@ -28,7 +28,6 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
 
-import loadingIcon from '../../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import BaseEchart from '../../../../../monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TimeRange, { DateValue, TimeRangeType } from '../../../../components/time-range/time-range';
@@ -159,6 +158,10 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     ];
   }
 
+  mounted() {
+    this.handleRefresh();
+  }
+
   chartResize() {
     return this.baseChart?.resize();
   }
@@ -183,7 +186,10 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
 
   render() {
     return (
-      <div class='minute-chart-component'>
+      <div
+        class='minute-chart-component'
+        v-bkloading={{ isLoading: this.loading }}
+      >
         <div class='chart-header'>
           <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('日数据量')}</div>
           <div class='chart-tools'>
@@ -196,17 +202,10 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
               {this.type === 'day' && <div slot='header'></div>}
             </TimeRange>
             <span class='operate'>
-              {this.loading ? (
-                <img
-                  class='loading-spin'
-                  src={loadingIcon}
-                ></img>
-              ) : (
-                <i
-                  class='icon-monitor icon-zhongzhi1 refresh'
-                  onClick={this.handleRefresh}
-                ></i>
-              )}
+              <i
+                class='icon-monitor icon-zhongzhi1 refresh'
+                onClick={this.handleRefresh}
+              ></i>
             </span>
           </div>
         </div>

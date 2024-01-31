@@ -47,88 +47,90 @@ class MonitorBaseEchart extends BaseEchart {
   tooltipSize: number[];
   // tableToolSize
   tableToolSize = 0;
-  get monitorEchartOptions(): EChartOption {
-    return deepmerge(
-      {
-        tooltip: {
-          axisPointer: {
-            type: 'cross',
-            axis: 'auto',
-            label: {
-              show: false,
-              formatter: params => {
-                if (params.axisDimension === 'y') {
-                  this.curPoint.yAxis = params.value;
-                } else {
-                  this.curPoint.xAxis = params.value;
-                  this.curPoint.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
+  getMonitorEchartOptions(): EChartOption {
+    return Object.freeze(
+      deepmerge(
+        {
+          tooltip: {
+            axisPointer: {
+              type: 'cross',
+              axis: 'auto',
+              label: {
+                show: false,
+                formatter: params => {
+                  if (params.axisDimension === 'y') {
+                    this.curPoint.yAxis = params.value;
+                  } else {
+                    this.curPoint.xAxis = params.value;
+                    this.curPoint.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
+                  }
                 }
+              },
+              crossStyle: {
+                color: 'transparent',
+                opacity: 0,
+                width: 0
               }
             },
-            crossStyle: {
-              color: 'transparent',
-              opacity: 0,
-              width: 0
+            appendToBody: true,
+            formatter: p => this.handleSetTooltip(p),
+            position: (pos, params, dom, rect, size: any) => {
+              const { contentSize } = size;
+              const chartRect = this.$el.getBoundingClientRect();
+              const posRect = {
+                x: chartRect.x + +pos[0],
+                y: chartRect.y + +pos[1]
+              };
+              const position = {
+                left: 0,
+                top: 0
+              };
+              const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
+              if (canSetBootom > 0) {
+                position.top = +pos[1] - Math.min(20, canSetBootom);
+              } else {
+                position.top = +pos[1] + canSetBootom - 20;
+              }
+              const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
+              if (canSetLeft > 0) {
+                position.left = +pos[0] + Math.min(20, canSetLeft);
+              } else {
+                position.left = +pos[0] - contentSize[0] - 20;
+              }
+              if (contentSize[0]) this.tooltipSize = contentSize;
+              return position;
             }
-          },
-          appendToBody: true,
-          formatter: p => this.handleSetTooltip(p),
-          position: (pos, params, dom, rect, size: any) => {
-            const { contentSize } = size;
-            const chartRect = this.$el.getBoundingClientRect();
-            const posRect = {
-              x: chartRect.x + +pos[0],
-              y: chartRect.y + +pos[1]
-            };
-            const position = {
-              left: 0,
-              top: 0
-            };
-            const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-            if (canSetBootom > 0) {
-              position.top = +pos[1] - Math.min(20, canSetBootom);
-            } else {
-              position.top = +pos[1] + canSetBootom - 20;
-            }
-            const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
-            if (canSetLeft > 0) {
-              position.left = +pos[0] + Math.min(20, canSetLeft);
-            } else {
-              position.left = +pos[0] - contentSize[0] - 20;
-            }
-            if (contentSize[0]) this.tooltipSize = contentSize;
-            return position;
           }
-        }
-      },
-      this.options
+        },
+        this.options
+      )
     );
   }
   initChart() {
-    if (!this.instance) {
+    if (!(this as any).instance) {
       setTimeout(() => {
         if (!this.chartRef) return;
-        this.instance = echarts.init(this.chartRef);
-        this.instance.setOption(this.monitorEchartOptions);
+        (this as any).instance = echarts.init(this.chartRef);
+        (this as any).instance.setOption(this.getMonitorEchartOptions());
         this.initPropsWatcher();
         this.initChartEvent();
         this.initChartAction();
-        this.curChartOption = this.instance.getOption();
-        this.groupId && (this.instance.group = this.groupId);
-        this.instance.on('dataZoom', this.handleDataZoom);
+        (this as any).curChartOption = (this as any).instance.getOption();
+        this.groupId && ((this as any).instance.group = this.groupId);
+        (this as any).instance.on('dataZoom', this.handleDataZoom);
       }, 100);
     }
   }
   handleDataZoom(event) {
     const [batch] = event.batch;
     if (batch.startValue && batch.endValue) {
-      this.instance.dispatchAction({
+      (this as any).instance.dispatchAction({
         type: 'restore'
       });
       const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
       let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
       if (!this.isMouseOver) {
-        const seriesData = this.monitorEchartOptions?.series?.[0]?.data || [];
+        const seriesData = this.getMonitorEchartOptions()?.series?.[0]?.data || [];
         if (seriesData.length) {
           const maxX = (seriesData[seriesData.length - 1] as any)?.value?.[0] || 0;
           if (maxX === +batch.endValue.toFixed(0)) {
@@ -141,7 +143,7 @@ class MonitorBaseEchart extends BaseEchart {
     // if (this.isMouseOver) {
     //   const [batch] = event.batch;
     //   if (batch.startValue && batch.endValue) {
-    //     this.instance.dispatchAction({
+    //     (this as any).instance.dispatchAction({
     //       type: 'restore'
     //     });
     //     const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
@@ -149,7 +151,7 @@ class MonitorBaseEchart extends BaseEchart {
     //     this.$emit('dataZoom', timeFrom, timeTo);
     //   }
     // } else {
-    //   this.instance.dispatchAction({
+    //   (this as any).instance.dispatchAction({
     //     type: 'restore'
     //   });
     // }
@@ -165,8 +167,12 @@ class MonitorBaseEchart extends BaseEchart {
       'options',
       () => {
         this.initChart();
-        this.instance.setOption(this.monitorEchartOptions, { notMerge: true, lazyUpdate: false, silent: true });
-        this.curChartOption = this.instance.getOption();
+        (this as any).instance.setOption(this.getMonitorEchartOptions(), {
+          notMerge: true,
+          lazyUpdate: false,
+          silent: true
+        });
+        (this as any).curChartOption = (this as any).instance.getOption();
       },
       { deep: false }
     );
@@ -176,15 +182,15 @@ class MonitorBaseEchart extends BaseEchart {
    * @param {EChartOption} option
    */
   public setPartialOption(option: EChartOption) {
-    if (this.instance) {
-      this.instance.setOption(option, { notMerge: false });
-      this.curChartOption = this.instance.getOption();
+    if ((this as any).instance) {
+      (this as any).instance.setOption(option, { notMerge: false });
+      (this as any).curChartOption = (this as any).instance.getOption();
     }
   }
   public handleTransformArea(isArea: boolean) {
-    if (this.instance) {
-      const options = this.instance.getOption();
-      this.instance.setOption({
+    if ((this as any).instance) {
+      const options = (this as any).instance.getOption();
+      (this as any).instance.setOption({
         ...options,
         series: options.series.map((item, index) => ({
           ...item,
@@ -197,9 +203,9 @@ class MonitorBaseEchart extends BaseEchart {
   }
   public handleSetYAxisSetScale(needScale) {
     this.$emit('on-yaxis-set-scale', needScale);
-    if (this.instance) {
-      const options = this.instance.getOption();
-      this.instance.setOption({
+    if ((this as any).instance) {
+      const options = (this as any).instance.getOption();
+      (this as any).instance.setOption({
         ...options,
         yAxis: {
           scale: needScale,
@@ -248,9 +254,9 @@ class MonitorBaseEchart extends BaseEchart {
             };
           }
           if (item.value[1] === null) return '';
-          let curSeries: any = this.curChartOption.series[item.seriesIndex];
+          let curSeries: any = (this as any).curChartOption.series[item.seriesIndex];
           if (curSeries?.stack?.includes('boundary-')) {
-            curSeries = this.curChartOption.series.find((item: any) => !item?.stack?.includes('boundary-'));
+            curSeries = (this as any).curChartOption.series.find((item: any) => !item?.stack?.includes('boundary-'));
           }
           const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
           const minBase = curSeries.minBase || 0;

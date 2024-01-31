@@ -141,6 +141,7 @@
         <img
           class="monitor-logo-icon"
           src="../../static/images/svg/monitor-logo.svg"
+          alt=''
         >
       </div>
       <div
@@ -706,7 +707,7 @@ export default {
     /* stylelint-disable-next-line declaration-no-important */
     position: absolute !important;
     width: 100%;
-    height: calc(100vh - 52px);
+    height: calc(100vh - 52px - var(--notice-alert-height));
     margin-top: -20px;
     margin-left: -24px;
   }

@@ -999,3 +999,31 @@ export const utcFormatDate = (val) => {
 
   return formatDate(date.getTime());
 };
+
+// 首次加载设置表格默认宽度自适应
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
+  try {
+    if (tableData.length && visibleFields.length) {
+      visibleFields.forEach((field, index) => {
+        if (catchFieldsWidthObj) {
+          const catchWidth = catchFieldsWidthObj[index];
+          field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
+        } else {
+          field.width = calculateTableColsWidth(field, tableData);
+        };
+      });
+      const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
+      const tableElem = document.querySelector('.original-log-panel');
+      // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
+      if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
+        visibleFields.forEach((field) => {
+          field.width = field.width < 300 ? 'default' : field.width;
+        });
+      }
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};

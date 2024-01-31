@@ -30,7 +30,7 @@ from bkmonitor.data_source.unify_query.functions import (
     add_expression_functions,
 )
 from bkmonitor.utils.time_tools import time_interval_align
-from constants.data_source import UnifyQueryDataSources
+from constants.data_source import GrayUnifyQueryDataSources, UnifyQueryDataSources
 from core.drf_resource import api
 from core.prometheus import metrics
 
@@ -43,15 +43,24 @@ class UnifyQuery:
     统一查询模块
     """
 
-    def __init__(self, bk_biz_id: int, data_sources: List[DataSource], expression: str, functions: List = None):
+    def __init__(
+        self,
+        bk_biz_id: Optional[int],
+        data_sources: List[DataSource],
+        expression: str,
+        functions: List = None,
+    ):
         self.functions = [] if functions is None else functions
-        # 不传业务指标时传 0
+        # 不传业务指标时传 0，为 None 时查询所有业务
         self.bk_biz_id = bk_biz_id
         self.data_sources = data_sources
         self.expression = expression
 
     @cached_property
     def space_uid(self):
+        if self.bk_biz_id is None:
+            return None
+
         return bk_biz_id_to_space_uid(self.bk_biz_id)
 
     @property
@@ -142,8 +151,13 @@ class UnifyQuery:
         判断使用使用统一查询模块进行查询
         """
         # 数据源是否支持多指标
-        if self.data_sources[0].id not in UnifyQueryDataSources:
+        if self.data_sources[0].id not in UnifyQueryDataSources + GrayUnifyQueryDataSources:
             return False
+
+        if self.data_sources[0].id in GrayUnifyQueryDataSources:
+            # 灰度数据源基于业务进行灰度
+            if self.bk_biz_id not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST:
+                return False
 
         # 如果是多指标，必然会走统一查询模块
         if len(self.data_sources) > 1:
@@ -160,7 +174,8 @@ class UnifyQuery:
                 return True
 
         # kubernetes，直接使用查询模块
-        if not self.data_sources[0].table or int(self.bk_biz_id) < 0:
+        is_negative_biz_id = self.bk_biz_id is not None and int(self.bk_biz_id) < 0
+        if not self.data_sources[0].table or is_negative_biz_id:
             return True
 
         # 接入数据平台时，cmdb level表在白名单中的，不走统一查询模块
@@ -207,7 +222,6 @@ class UnifyQuery:
             "metric_merge": add_expression_functions(expression, self.functions),
             "order_by": ["-time"],
             "step": f"{step}s",
-            # add space_uid
             "space_uid": self.space_uid,
         }
 
