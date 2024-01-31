@@ -295,6 +295,7 @@ class CollectingTargetStatusResource(BaseStatusResource):
 class IntervalOption(Enum):
     MINUTE = "minute"
     DAY = "day"
+    HOUR = "hour"
 
 
 class TransferCountSeriesResource(BaseStatusResource):
@@ -313,6 +314,9 @@ class TransferCountSeriesResource(BaseStatusResource):
         end_time = validated_request_data["end_time"]
         if interval_option == IntervalOption.MINUTE:
             interval = 1
+            interval_unit = "m"
+        elif interval_option == IntervalOption.HOUR:
+            interval = 60
             interval_unit = "m"
         else:
             interval = 1440
