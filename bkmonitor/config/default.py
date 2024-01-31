@@ -607,6 +607,7 @@ APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
+APM_TRPC_ENABLED = False
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
