@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import math
 from collections import deque
 from dataclasses import dataclass
 from io import BytesIO
@@ -30,6 +31,65 @@ def build_edge_relation(node_list: List[FunctionNode]) -> list:
     return edges
 
 
+def dot_color(score: float, is_back_ground: bool = False) -> str:
+    """
+    A float between 0.0 and 1.0, indicating the extent to which
+    colors should be shifted away from grey (to make positive and
+    negative values easier to distinguish, and to make more use of
+    the color range.)
+
+    :param score: 分数
+    :param is_back_ground:
+    :return:
+    """
+
+    shift = 0.7
+    # Saturation and value (in hsv colorspace) for background colors.
+    bg_saturation = 0.1
+    bg_value = 0.93
+
+    # Saturation and value (in hsv colorspace) for foreground colors.
+    fg_saturation = 1.0
+    fg_value = 0.7
+
+    saturation: float
+    value: float
+    if is_back_ground:
+        saturation = bg_saturation
+        value = bg_value
+    else:
+        saturation = fg_saturation
+        value = fg_value
+
+    # Limit the score values to the range [-1.0, 1.0].
+    score = max(-1.0, min(1.0, score))
+
+    # Reduce saturation near score=0 (so it is colored grey, rather than yellow).
+    if math.fabs(score) < 0.2:
+        saturation *= math.fabs(score) / 0.2
+
+    # // Apply 'shift' to move scores away from 0.0 (grey).
+    if score > 0.0:
+        score = math.pow(score, (1.0 - shift))
+
+    if score < 0.0:
+        score = -math.pow(-score, (1.0 - shift))
+
+    # red, green, blue
+    r: float
+    g: float
+    b: float
+    if score < 0.0:
+        g = value
+        r = value * (1 + saturation * score)
+    else:
+        r = value
+        g = value * (1 - saturation * score)
+
+    b = value * (1 - saturation)
+    return "#{:02x}{:02x}{:02x}".format(int(r * 255.0), int(g * 255.0), int(b * 255.0))
+
+
 def generate_svg_data(data: dict):
     """
     生成 svg 图片数据
@@ -46,7 +106,8 @@ def generate_svg_data(data: dict):
         {node["name"]}
         {node["self"]} of {node["value"]} ({ratio_str})
         """
-        dot.node(str(node["id"]), label=title)
+        node_color = dot_color(score=ratio)
+        dot.node(str(node["id"]), label=title, style="filled", fillcolor=node_color)
 
     for edge in call_graph_data.get("call_graph_relation", []):
         dot.edge(str(edge["source_id"]), str(edge["target_id"]), label=f'{edge["value"]} {data["unit"]}')

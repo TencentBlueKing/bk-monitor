@@ -84,4 +84,11 @@ class TableDiagrammer:
             # 默认排序
             sort_table_data = sorted(table_data, key=lambda x: x["name"], reverse=True)
 
-        return {"table_data": sort_table_data}
+        return {
+            "table_data": {
+                "items": sort_table_data,
+                "baseline_total": max(item["baseline_node"]["value"] for item in sort_table_data),
+                "comparison_total": max(item["comparison_node"]["value"] for item in sort_table_data),
+                "total": max(item["value"] for item in sort_table_data),
+            }
+        }
