@@ -282,7 +282,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter, **options)
                 for d_type in diagram_types
             )
-            return Response(data={k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()})
+            data = {k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()}
+            data.update(doris_converter.get_sample_type())
+            return Response(data=data)
 
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
         data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}

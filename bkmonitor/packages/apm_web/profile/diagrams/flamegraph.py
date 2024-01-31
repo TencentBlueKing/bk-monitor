@@ -59,4 +59,7 @@ class FlamegraphDiagrammer:
             for root in diff_tree.roots
         ]
 
-        return {"flame_data": flame_data}
+        if not flame_data:
+            logger.info("flame graph no data")
+            return {"flame_data": {}}
+        return {"flame_data": flame_data[0]}
