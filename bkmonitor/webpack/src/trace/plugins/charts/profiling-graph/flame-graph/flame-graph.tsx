@@ -107,6 +107,10 @@ export default defineComponent({
     highlightId: {
       type: Number,
       default: -1
+    },
+    isCompared: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
@@ -188,7 +192,7 @@ export default defineComponent({
                 keywords: props.filterKeywords,
                 getFillColor: (d: BaseDataType) => {
                   if (d.id === RootId) return 'rgb(223,133,32)';
-                  return props.diffTraceId && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
+                  return props.isCompared && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
                 },
                 onDetail: (e: MouseEvent, d: HierarchyNode<BaseDataType>, c: IOtherData) => {
                   if (!d) {
@@ -198,7 +202,7 @@ export default defineComponent({
                   const { text, suffix } = usFormat(d.data.value / 1000);
                   let diffDuration = '';
                   let diffValue = 0;
-                  if (props.diffTraceId && d.data?.diff_info) {
+                  if (props.isCompared && d.data?.diff_info) {
                     const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
                     diffDuration = diffText + diffSuffix;
                     diffValue =
@@ -540,7 +544,7 @@ export default defineComponent({
                   {this.tipDetail.title && [
                     <div class='funtion-name'>{this.tipDetail.title}</div>,
                     <table class='tips-table'>
-                      {this.diffTraceId && (
+                      {this.isCompared && (
                         <thead>
                           <th></th>
                           <th>{window.i18n.t('当前')}</th>
@@ -551,7 +555,7 @@ export default defineComponent({
                         </thead>
                       )}
                       <tbody>
-                        {!this.diffTraceId && (
+                        {!this.isCompared && (
                           <tr>
                             <td>{window.i18n.t('占比')}</td>
                             <td>{this.tipDetail.proportion}%</td>
@@ -560,7 +564,7 @@ export default defineComponent({
                         <tr>
                           <td>{window.i18n.t('耗时')}</td>
                           <td>{this.tipDetail.duration}</td>
-                          {this.diffTraceId &&
+                          {this.isCompared &&
                             this.tipDetail.id !== RootId && [
                               <td>{this.tipDetail.diffDuration ?? '--'}</td>,
                               <td>
