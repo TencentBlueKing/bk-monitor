@@ -409,6 +409,7 @@ export default {
   Span检索: 'Span search',
   观测: 'Observe',
   使用文档: 'Documents',
+  'Profile 接入指引': 'Profile Access Guide',
 
   更新执行历史: 'Update Execution History',
   告警分析: 'Analysis',
@@ -437,5 +438,9 @@ export default {
   确认停用: 'Confirm Disable',
   确认删除: 'Confirm Delete',
   手动分组: 'Manual grouping',
-  自动分组: 'Automatic grouping'
+  自动分组: 'Automatic grouping',
+  查看应用: 'View Application',
+  新增接入: 'Add Access',
+  上传: 'Upload',
+  取消上传: 'Cancel Upload'
 };
