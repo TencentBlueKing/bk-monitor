@@ -2291,25 +2291,36 @@ export default class DataRetrieval extends tsc<{}> {
    * @description: 添加策略
    */
   handleAddStrategy() {
-    const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
-    const epxList = this.localValue.filter(item => !item.isMetric) as IDataRetrieval.IExpressionItem[];
-    const queryConfigs = metricList.map(item => ({
-      data_source_label: item.data_source_label,
-      data_type_label: item.data_type_label,
-      filter_dict: {},
-      functions: item.functions,
-      group_by: item.agg_dimension,
-      index_set_id: item.index_set_id,
-      interval: item.agg_interval,
-      table: item.result_table_id,
-      item: item.time_field,
-      where: item.agg_condition,
-      metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }]
-    }));
-    const queryData = {
-      expression: epxList?.[0]?.value?.toLocaleLowerCase?.(),
-      query_configs: queryConfigs
-    };
+    let queryData = null;
+    if (this.editMode === 'PromQL') {
+      queryData = {
+        mode: 'code',
+        data: this.promqlData.map(item => ({
+          promql: item.code,
+          step: item.step
+        }))
+      };
+    } else {
+      const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
+      const epxList = this.localValue.filter(item => !item.isMetric) as IDataRetrieval.IExpressionItem[];
+      const queryConfigs = metricList.map(item => ({
+        data_source_label: item.data_source_label,
+        data_type_label: item.data_type_label,
+        filter_dict: {},
+        functions: item.functions,
+        group_by: item.agg_dimension,
+        index_set_id: item.index_set_id,
+        interval: item.agg_interval,
+        table: item.result_table_id,
+        item: item.time_field,
+        where: item.agg_condition,
+        metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }]
+      }));
+      queryData = {
+        expression: epxList?.[0]?.value?.toLocaleLowerCase?.(),
+        query_configs: queryConfigs
+      };
+    }
     window.open(
       `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(
         JSON.stringify(queryData)

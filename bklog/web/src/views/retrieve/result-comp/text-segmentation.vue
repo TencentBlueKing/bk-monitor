@@ -25,14 +25,10 @@
     <span class="null-item" v-if="isVirtual">{{ content }}</span>
     <span
       v-else-if="!isNeedSegment"
-      class="valid-text"
-      @click="handleClick($event, content)">
+      class="valid-text">
       <template v-for="(item, index) in markItem">
-        <span class="null-item" :key="index" v-if="!item.str"></span>
-        <template v-else-if="item.isMark">
-          <mark :key="index">{{item.str}}</mark>
-        </template>
-        <template v-else>{{item.str}}</template>
+        <mark v-if="item.isMark" :key="index" @click="handleClick($event, item.str)">{{item.str}}</mark>
+        <span class="null-item" v-else :key="index" @click="handleClick($event, item.str)">{{item.str}}</span>
       </template>
     </span>
     <span v-else class="segment-content">

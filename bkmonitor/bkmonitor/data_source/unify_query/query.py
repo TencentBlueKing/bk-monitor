@@ -30,7 +30,7 @@ from bkmonitor.data_source.unify_query.functions import (
     add_expression_functions,
 )
 from bkmonitor.utils.time_tools import time_interval_align
-from constants.data_source import UnifyQueryDataSources
+from constants.data_source import GrayUnifyQueryDataSources, UnifyQueryDataSources
 from core.drf_resource import api
 from core.prometheus import metrics
 
@@ -151,8 +151,13 @@ class UnifyQuery:
         判断使用使用统一查询模块进行查询
         """
         # 数据源是否支持多指标
-        if self.data_sources[0].id not in UnifyQueryDataSources:
+        if self.data_sources[0].id not in UnifyQueryDataSources + GrayUnifyQueryDataSources:
             return False
+
+        if self.data_sources[0].id in GrayUnifyQueryDataSources:
+            # 灰度数据源基于业务进行灰度
+            if self.bk_biz_id not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST:
+                return False
 
         # 如果是多指标，必然会走统一查询模块
         if len(self.data_sources) > 1:

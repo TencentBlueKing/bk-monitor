@@ -21,6 +21,7 @@ from django.utils.timezone import now as tz_now
 from metadata import models
 from metadata.models.space import utils
 from metadata.models.space.constants import (
+    ALL_SPACE_TYPE_TABLE_ID_LIST,
     BKCI_1001_TABLE_ID_PREFIX,
     BKCI_SYSTEM_TABLE_ID_PREFIX,
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
@@ -196,6 +197,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_bkci_other_table_ids(space_type, space_id))
         # 追加跨空间类型的数据源授权
         _values.update(self._compose_bkci_cross_table_ids(space_type, space_id))
+        # 追加特殊的允许全空间使用的数据源
+        _values.update(self._compose_all_type_table_ids(space_type, space_id))
         # 推送数据
         if _values:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
@@ -217,6 +220,8 @@ class SpaceTableIDRedis:
         _values = self._compose_bksaas_space_cluster_table_ids(space_type, space_id, table_id_list)
         # 获取蓝鲸应用使用的集群数据
         _values.update(self._compose_bksaas_other_table_ids(space_type, space_id, table_id_list))
+        # 追加特殊的允许全空间使用的数据源
+        _values.update(self._compose_all_type_table_ids(space_type, space_id))
         if _values:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
@@ -349,6 +354,16 @@ class SpaceTableIDRedis:
             "table_id", flat=True
         )
         return {tid: {"filters": [{"projectId": space_id}]} for tid in tids}
+
+    def _compose_all_type_table_ids(self, space_type: str, space_id: str) -> Dict:
+        """组装非业务类型的全空间类型的结果表数据"""
+        logger.info("start to push all space type table_id, space_type: %s, space_id: %s", space_type, space_id)
+        # 转换空间对应的bk_biz_id
+        try:
+            _id = models.Space.objects.get(space_type_id=space_type, space_id=space_id).id
+        except models.Space.DoesNotExist:
+            return {}
+        return {tid: {"filters": [{"bk_biz_id": str(-_id)}]} for tid in ALL_SPACE_TYPE_TABLE_ID_LIST}
 
     def _compose_bksaas_space_cluster_table_ids(
         self,

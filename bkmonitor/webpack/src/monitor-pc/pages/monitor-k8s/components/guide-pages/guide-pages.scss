@@ -1,53 +1,64 @@
 .k8s-guide-pages-wrap {
   height: 100%;
+
   .k8s-guide-title {
     position: relative;
+    z-index: 1;
     height: 52px;
-    line-height: 52px;
     padding: 0 24px;
     font-size: 16px;
-    color: #313238;
     font-weight: 400;
+    line-height: 52px;
+    color: #313238;
     background: #fff;
     box-shadow: 0px 3px 4px 0px rgba(64,112,203,.06), 0px 1px 0px 0px #dcdee5;
-    z-index: 1;
   }
+
   .k8s-guide-scroll {
-    height: calc(100% - 52px);
+    height: calc(100% - 52px - var(--notice-alert-height));
     overflow-y: auto;
   }
+
   .k8s-guide-content {
     padding: 16px 24px;
+
     .k8s-guide-mian {
-      margin-top: 16px;
       padding: 40px 58px 92px 58px;
+      margin-top: 16px;
+      overflow-x: hidden;
       background: #fff;
       box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
-      overflow-x: hidden;
+
       &>:not(:last-child) {
         margin-bottom: 40px;
       }
+
       .k8s-guide-row {
         color: #63656e;
+
         .k8s-guide-row-label {
-          font-size: 16px;
-          line-height: 24px;
-          font-weight: 700;
           margin-bottom: 10px;
+          font-size: 16px;
+          font-weight: 700;
+          line-height: 24px;
         }
+
         .k8s-guide-row-content {
           font-size: 14px;
-          line-height: 22px;
           font-weight: 400;
+          line-height: 22px;
         }
         
       }
+
       .k8s-guide-step-container {
         display: flex;
         justify-content: space-between;
         max-width: 1800px;
+
         .k8s-guide-step-arrow {
           width: 32px;
+
           .icon-double-up {
             display: inline-block;
             margin-top: 90px;
@@ -56,11 +67,12 @@
             transform: rotate(90deg);
           }
         }
+
         .k8s-guide-step-item {
           display: flex;
           flex-direction: column;
-          width: 338px;
           align-items: center;
+          width: 338px;
 
           $widths: 204px, 218px, 190px;
           $heights: 177px, 175px, 123px;
@@ -71,40 +83,47 @@
               height: nth($heights, $i);
             }
           }
+
           .k8s-guide-step-item-img {
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             width: 100%;
             height: 193px;
             margin-bottom: 38px;
           }
+
           .k8s-guide-step-item-label {
-            width: 100%;
             display: flex;
-            justify-content: flex-start;
             align-items: center;
+            justify-content: flex-start;
+            width: 100%;
             height: 29px;
-            line-height: 29px;
             margin-bottom: 2px;
+            line-height: 29px;
+
             .step-index {
               display: inline-block;
-              color: #a3c5fd;
               margin-right: 10px;
               font-size: 24px;
+              color: #a3c5fd;
             }
+
             .step-label-text {
-              color: #63656e;
+              font-family: MicrosoftYaHei, MicrosoftYaHei-Bold;
               font-size: 14px;
               font-weight: 700;
-              font-family: MicrosoftYaHei, MicrosoftYaHei-Bold;
+              color: #63656e;
             }
           }
+
           .k8s-guide-step-item-content {
             line-height: 22px;
+
             .k8s-step-link {
               color: #3a84ff;
               cursor: pointer;
+
               .icon-mc-link {
                 margin-left: 2px;
               }
@@ -114,8 +133,10 @@
           $height: 177px, 175px, 123px;
         }
       }
+
       .k8s-guide-pages-btn-group {
         margin-top: 40px;
+
         &>:not(:last-child) {
           margin-right: 10px;
         }

@@ -2036,6 +2036,18 @@ class ESStorage(models.Model, StorageResultTable):
     def now(self):
         return arrow.utcnow().replace(hours=self.time_zone).datetime
 
+    def is_red(self):
+        """判断 es 集群是否 red"""
+        try:
+            es_session = es_tools.es_retry_session(es_client=self.es_client, retry_num=3, backoff_factor=0.1)
+            healthz = es_session.cluster.health()
+            if healthz["status"] == "red":
+                return True
+            return False
+        except Exception as e:
+            logger.error("query es cluster error by retry 3, error: %s", e)
+            return True
+
     def is_index_enable(self):
         """判断index是否启用中"""
 
@@ -3099,10 +3111,19 @@ class ESStorage(models.Model, StorageResultTable):
         return EsSnapshot.objects.filter(table_id=self.table_id).exists()
 
     @property
+    def is_snapshot_stopped(self):
+        try:
+            obj = EsSnapshot.objects.get(table_id=self.table_id)
+            return obj.status == EsSnapshot.ES_STOPPED_STATUS
+        except EsSnapshot.DoesNotExist:
+            return False
+
+    @property
     def can_delete_snapshot(self):
         es_snapshot: EsSnapshot = EsSnapshot.objects.filter(table_id=self.table_id).first()
+        # 永久或者状态是停用的状态，则不允许删除快照数据
         if es_snapshot:
-            return not es_snapshot.is_permanent()
+            return not (es_snapshot.is_permanent() or es_snapshot.status == EsSnapshot.ES_STOPPED_STATUS)
         return False
 
     @cached_property
@@ -3194,6 +3215,10 @@ class ESStorage(models.Model, StorageResultTable):
 
     def create_snapshot(self):
         if not self.can_snapshot:
+            return
+
+        # 如果是停用状态，则不能新建快照
+        if self.is_snapshot_stopped:
             return
 
         es_client = self.es_client
