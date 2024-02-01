@@ -92,7 +92,6 @@ class AlertHandler(base.BaseHandler):
 
         try:
             while True:
-
                 try:
                     self.service.register()
                 except Exception as error:
@@ -168,7 +167,8 @@ class AlertHandler(base.BaseHandler):
                                 bootstrap_server = f'{cluster_config["domain_name"]}:{cluster_config["port"]}'
                                 topic = kafka_config["storage_config"]["topic"]
                         else:
-                            bootstrap_server = f"{settings.KAFKA_HOST[0]}:{settings.KAFKA_PORT}"
+                            # 使用专用kafka集群: ALERT_KAFKA_HOST  ALERT_KAFKA_PORT
+                            bootstrap_server = f"{settings.ALERT_KAFKA_HOST[0]}:{settings.ALERT_KAFKA_PORT}"
                             # 默认集群使用默认topic，其他集群使用集群名作为topic后缀
                             if get_cluster().is_default():
                                 topic = settings.MONITOR_EVENT_KAFKA_TOPIC
@@ -340,7 +340,6 @@ class AlertHandler(base.BaseHandler):
         :return:
         """
         while True:
-
             self.consumers_lock.acquire()
             has_record = False
             for bootstrap_server, consumer in self.consumers.items():
