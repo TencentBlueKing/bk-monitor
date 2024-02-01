@@ -95,6 +95,7 @@ export default defineComponent({
         let type;
         let targetApi;
         let targetData;
+        const alias = (props.queryParams as IQueryParams).is_compared ? '' : 'Sample 数';
         if (chartType.value === 'all') {
           type = 'line';
           targetApi = 'apm_profile.query';
@@ -118,7 +119,7 @@ export default defineComponent({
             {
               api: targetApi,
               datasource: 'time_series',
-              alias: 'Sample 数',
+              alias,
               data: targetData
             }
           ]
