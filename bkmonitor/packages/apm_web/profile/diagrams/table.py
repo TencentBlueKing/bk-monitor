@@ -66,6 +66,7 @@ class TableDiagrammer:
                 {
                     **node.default.to_dict(),
                     **node.diff_info,
+                    "diff": node.delta,
                     "baseline_node": node.baseline.to_dict() if node.baseline else miss_value,
                     "comparison_node": node.comparison.to_dict() if node.comparison else miss_value,
                 }
@@ -77,6 +78,7 @@ class TableDiagrammer:
             "baseline": lambda x: x["baseline"],
             "comparison": lambda x: x["comparison"],
             "location": lambda x: x["name"],
+            "diff": lambda x: x["diff"] if x["diff"] is not None else float("-inf"),
         }
         if options.get("sort"):
             sort_table_data = self.sorted_node(node_list=table_data, options=options, sort_map=sort_map)
