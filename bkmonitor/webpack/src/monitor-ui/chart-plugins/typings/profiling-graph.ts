@@ -53,8 +53,9 @@ export interface ProfilingTableItem {
   location?: string;
   color?: string;
   diff?: string;
-  baseline?: string;
-  comparison?: string;
+  baseline?: number;
+  comparison?: number;
+  mark?: string;
 }
 
 export interface TableColumn {
@@ -68,6 +69,11 @@ export interface ITableTipsDetail {
   left?: number; // 提示框左边距离画布左边的距离
   top?: number; // 提示框上边距离画布上边的距离
   title?: string;
+  self?: number;
+  total?: number;
+  baseline?: number;
+  comparison?: number;
+  mark?: string;
   displaySelf?: string;
   displayTotal?: string;
   selfPercent?: string;

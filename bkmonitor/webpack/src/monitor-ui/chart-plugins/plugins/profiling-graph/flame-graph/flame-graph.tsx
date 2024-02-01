@@ -61,6 +61,7 @@ interface IFlameGraphProps {
   bizId?: number;
   showGraphTools?: boolean;
   highlightId?: number;
+  isCompared?: boolean;
 }
 
 interface IFlameGraphEvent {
@@ -91,6 +92,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   @Prop({ default: 0, type: Number }) bizId: number;
   @Prop({ default: true, type: Boolean }) showGraphTools: boolean;
   @Prop({ default: -1, type: Number }) highlightId: number;
+  @Prop({ default: false, type: Boolean }) isCompared: boolean;
 
   showException = true;
   showDiffLegend = false;
@@ -126,8 +128,8 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   }
 
   get flameInstance() {
-    const { appName, profileId, diffTraceId } = this;
-    return { appName, profileId, diffTraceId };
+    const { data, appName } = this;
+    return { data, appName };
   }
 
   @Watch('textDirection')
@@ -162,7 +164,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
             keywords: this.filterKeywords,
             getFillColor: (d: BaseDataType) => {
               if (d.id === RootId) return 'rgb(223,133,32)';
-              return this.diffTraceId && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
+              return this.isCompared && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
             },
             onDetail: (e: MouseEvent, d: HierarchyNode<BaseDataType>, c: IOtherData) => {
               if (!d) {
@@ -172,7 +174,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               const { text, suffix } = usFormat(d.data.value / 1000);
               let diffDuration = '';
               let diffValue = 0;
-              if (this.diffTraceId && d.data?.diff_info) {
+              if (this.isCompared && d.data?.diff_info) {
                 const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
                 diffDuration = diffText + diffSuffix;
                 diffValue =
@@ -461,7 +463,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               {this.tipDetail.title && [
                 <div class='funtion-name'>{this.tipDetail.title}</div>,
                 <table class='tips-table'>
-                  {this.diffTraceId && (
+                  {this.isCompared && (
                     <thead>
                       <th></th>
                       <th>{window.i18n.t('当前')}</th>
@@ -472,7 +474,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                     </thead>
                   )}
                   <tbody>
-                    {!this.diffTraceId && (
+                    {!this.isCompared && (
                       <tr>
                         <td>{window.i18n.t('占比')}</td>
                         <td>{this.tipDetail.proportion}%</td>
@@ -481,7 +483,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                     <tr>
                       <td>{window.i18n.t('耗时')}</td>
                       <td>{this.tipDetail.duration}</td>
-                      {this.diffTraceId &&
+                      {this.isCompared &&
                         this.tipDetail.id !== RootId && [
                           <td>{this.tipDetail.diffDuration ?? '--'}</td>,
                           <td>

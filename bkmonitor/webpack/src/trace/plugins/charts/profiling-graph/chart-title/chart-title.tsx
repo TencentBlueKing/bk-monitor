@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref } from 'vue';
+import { computed, defineComponent, PropType, ref } from 'vue';
 import { Dropdown, Input } from 'bkui-vue';
 import { debounce } from 'throttle-debounce';
 
@@ -43,6 +43,10 @@ export default defineComponent({
     textDirection: {
       type: String as PropType<DirectionType>,
       default: 'ltr'
+    },
+    isCompared: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['modeChange', 'textDirectionChange', 'keywordChange', 'download'],
@@ -53,14 +57,22 @@ export default defineComponent({
       'pprof'
       //  'html'
     ];
-    const viewModeList: ViewModeItem[] = [
-      { id: ViewModeType.Table, icon: 'table' },
-      { id: ViewModeType.Combine, icon: 'mc-fenping' },
-      { id: ViewModeType.Flame, icon: 'mc-flame' },
-      { id: ViewModeType.Topo, icon: 'Component' }
-    ];
 
     const keyword = ref('');
+
+    const viewModeList = computed<ViewModeItem[]>(() => {
+      const list = [
+        { id: ViewModeType.Table, icon: 'table' },
+        { id: ViewModeType.Combine, icon: 'mc-fenping' },
+        { id: ViewModeType.Flame, icon: 'mc-flame' }
+      ];
+
+      if (!props.isCompared) {
+        list.push({ id: ViewModeType.Topo, icon: 'Component' });
+      }
+
+      return list;
+    });
 
     /** 切换视图模式 */
     const handleModeChange = (val: ViewModeType) => {

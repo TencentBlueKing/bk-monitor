@@ -66,6 +66,16 @@ export default defineComponent({
     filterKeyword: {
       type: String,
       default: ''
+    },
+    // 对比模式
+    isCompared: {
+      type: Boolean,
+      default: false
+    },
+    // 数据类型
+    dataType: {
+      type: String,
+      default: ''
     }
   },
   emits: ['updateHighlightId', 'sortChange'],
@@ -85,7 +95,7 @@ export default defineComponent({
       total: 0
     });
     const tipDetail = shallowRef<ITableTipsDetail>({});
-    const diffMode = ref(false);
+    const localIsCompared = ref(false);
 
     watch(
       () => props.data,
@@ -117,11 +127,10 @@ export default defineComponent({
           const color = palette[colorIndex];
           return {
             ...item,
-            color,
-            displaySelf: formatColValue(item.self),
-            displayTotal: formatColValue(item.total)
+            color
           };
         });
+      localIsCompared.value = props.isCompared;
     }
     // Self 和 Total 值的展示
     function formatColValue(val: number) {
@@ -188,15 +197,18 @@ export default defineComponent({
         axisTop = axisTop;
       }
 
-      const { name, displaySelf, displayTotal, self, total } = row;
+      const { name, self, total, baseline, comparison, mark = '' } = row;
       const totalItem = tableData.value[0];
 
       tipDetail.value = {
         left: axisLeft,
         top: axisTop,
         title: name,
-        displaySelf,
-        displayTotal,
+        self,
+        total,
+        baseline,
+        comparison,
+        mark,
         selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
         totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`
       };
@@ -218,23 +230,37 @@ export default defineComponent({
       getColStyle,
       handleSort,
       tipDetail,
+      localIsCompared,
+      formatColValue,
       handleRowMouseMove,
       handleRowMouseout,
-      diffMode,
       handleHighlightClick
     };
   },
   render() {
+    const getDiffTpl = row => {
+      if (['removed', 'added'].includes(row.mark)) {
+        return <span style={`color: ${row.mark === 'removed' ? '#ff5656' : '#2dcb56'}`}>{row.mark}</span>;
+      }
+
+      const { baseline, comparison } = row;
+      const diffVal = (baseline - comparison) / comparison;
+
+      if (diffVal === 0) return <span style='color:#dddfe3'>0%</span>;
+
+      return <span style={`color:${diffVal > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diffVal * 100).toFixed(0)}%`}</span>;
+    };
+
     return (
       <div class='profiling-table-graph'>
-        <table class={`profiling-table ${this.diffMode ? 'diff-table' : ''}`}>
+        <table class={`profiling-table ${this.localIsCompared ? 'diff-table' : ''}`}>
           <thead>
             <tr>
               {this.tableColumns.map(
                 col =>
                   (!col.mode ||
-                    (this.diffMode && col.mode === 'diff') ||
-                    (!this.diffMode && col.mode === 'normal')) && (
+                    (this.localIsCompared && col.mode === 'diff') ||
+                    (!this.localIsCompared && col.mode === 'normal')) && (
                     <th onClick={() => this.handleSort(col)}>
                       <div class='thead-content'>
                         <span>{col.name}</span>
@@ -262,23 +288,21 @@ export default defineComponent({
                       <div class='location-info'>
                         <span
                           class='color-reference'
-                          style={`background-color: ${row.color}`}
+                          style={`background-color: ${!this.localIsCompared ? row.color : '#dcdee5'}`}
                         ></span>
                         <span class={`text direction-${this.textDirection}`}>{row.name}</span>
                         {/* <div class='trace-mark'>Trace</div> */}
                       </div>
                     </td>
-                    {this.diffMode
+                    {this.localIsCompared
                       ? [
-                          <td>59%</td>,
-                          <td>59%</td>,
-                          <td>
-                            <span class={`diff-value ${false ? 'is-rise' : 'is-decline'}`}>+45%</span>
-                          </td>
+                          <td>{this.formatColValue(row.baseline)}</td>,
+                          <td>{this.formatColValue(row.comparison)}</td>,
+                          <td>{getDiffTpl(row)}</td>
                         ]
                       : [
-                          <td style={this.getColStyle(row, 'self')}>{row.displaySelf}</td>,
-                          <td style={this.getColStyle(row, 'total')}>{row.displayTotal}</td>
+                          <td style={this.getColStyle(row, 'self')}>{this.formatColValue(row.self)}</td>,
+                          <td style={this.getColStyle(row, 'total')}>{this.formatColValue(row.total)}</td>
                         ]}
                   </tr>
                 ))}
@@ -310,18 +334,40 @@ export default defineComponent({
             {this.tipDetail.title && [
               <div class='funtion-name'>{this.tipDetail.title}</div>,
               <table class='tips-table'>
-                <thead>
-                  <th></th>
-                  <th>Self (% of total)</th>
-                  <th>Total (% of total)</th>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>&nbsp;&nbsp;</td>
-                    <td>{`${this.tipDetail.displaySelf}(${this.tipDetail.selfPercent})`}</td>
-                    <td>{`${this.tipDetail.displayTotal}(${this.tipDetail.totalPercent})`}</td>
-                  </tr>
-                </tbody>
+                {this.localIsCompared
+                  ? [
+                      <thead>
+                        <th></th>
+                        <th>Baseline</th>
+                        <th>Comparison</th>
+                        <th>Diff</th>
+                      </thead>
+                    ]
+                  : [
+                      <thead>
+                        <th></th>
+                        <th>Self (% of total)</th>
+                        <th>Total (% of total)</th>
+                      </thead>
+                    ]}
+                {this.localIsCompared ? (
+                  <tbody>
+                    <tr>
+                      <td>{this.dataType}</td>
+                      <td>{this.formatColValue(this.tipDetail.baseline)}</td>
+                      <td>{this.formatColValue(this.tipDetail.comparison)}</td>
+                      <td>{getDiffTpl(this.tipDetail)}</td>
+                    </tr>
+                  </tbody>
+                ) : (
+                  <tbody>
+                    <tr>
+                      <td>{this.dataType}</td>
+                      <td>{`${this.formatColValue(this.tipDetail.self)}(${this.tipDetail.selfPercent})`}</td>
+                      <td>{`${this.formatColValue(this.tipDetail.total)}(${this.tipDetail.totalPercent})`}</td>
+                    </tr>
+                  </tbody>
+                )}
               </table>
             ]}
           </div>

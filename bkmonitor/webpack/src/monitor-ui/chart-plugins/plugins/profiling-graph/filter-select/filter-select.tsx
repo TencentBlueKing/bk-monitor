@@ -53,6 +53,7 @@ interface IFilterSelectProps {
 interface IFilterSelectEvents {
   onFilterChange: Record<string, string>;
   onDiffChange: Record<string, string>;
+  onDiffModeChange: boolean;
 }
 
 @Component
@@ -124,6 +125,11 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
 
   @Emit('diffChange')
   handleDiffChange(val) {
+    return val;
+  }
+
+  @Emit('diffModeChange')
+  handleDiffModeChange(val) {
     return val;
   }
 
@@ -235,6 +241,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
               theme='primary'
               size='small'
               v-model={this.enableDiffMode}
+              onChange={this.handleDiffModeChange}
             />
           </div>
         </div>
