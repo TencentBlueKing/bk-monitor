@@ -113,5 +113,10 @@ export default {
   至: 'to',
   人: 'People',
   未来: 'Next',
-  已停止: 'Stop'
+  已停止: 'Stop',
+  已上传: 'Uploaded',
+  已解析: 'Parsed',
+  已存储: 'Stored',
+  存储失败: 'Storage Failed',
+  解析成功: 'Parsed Successfully'
 };

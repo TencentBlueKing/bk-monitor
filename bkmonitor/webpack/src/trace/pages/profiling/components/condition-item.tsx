@@ -47,7 +47,7 @@ export default defineComponent({
       default: () => []
     }
   },
-  emits: ['change', 'delete'],
+  emits: ['change', 'delete', 'keyChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const localValue = reactive<IConditionItem>({
@@ -70,6 +70,11 @@ export default defineComponent({
       }
     );
 
+    function handleKeyChange() {
+      emit('keyChange', localValue.key);
+      handleEmitData();
+    }
+
     function handleEmitData() {
       emit('change', { ...localValue });
     }
@@ -82,6 +87,7 @@ export default defineComponent({
       t,
       localValue,
       labelStatus,
+      handleKeyChange,
       handleEmitData,
       handleDelete
     };
@@ -112,7 +118,7 @@ export default defineComponent({
                 onToggle={toggle => (this.labelStatus.toggle = toggle)}
                 popover-min-width={120}
                 clearable={false}
-                onChange={this.handleEmitData}
+                onChange={this.handleKeyChange}
               >
                 {this.labelList.map(option => (
                   <Select.Option
