@@ -53,12 +53,14 @@ class TendencyDiagrammer:
                     "datapoints": [[[v, k] for k, v in sorted(base_statistics.items())]],
                     "type": "line",
                     "unit": "",
+                    "dimensions": {"device_name": '查询项'},
                 },
                 {
                     "alias": "_result_",
                     "datapoints": [[[v, k] for k, v in sorted(diff_statistics.items())]],
                     "type": "line",
                     "unit": "",
+                    "dimensions": {"device_name": '对比项'},
                 },
             ]
         }
