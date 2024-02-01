@@ -20,7 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-from typing import Union
+from typing import Union, Any, Dict, List
 
 from django.conf import settings
 from django.core.cache import cache
@@ -34,7 +34,6 @@ from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
     FIELD_TEMPLATE,
     EtlConfig,
-    ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -100,6 +99,74 @@ class EtlStorage(object):
         """
         raise NotImplementedError(_("功能暂未实现"))
 
+    @staticmethod
+    def generate_field_analyzer_name(field_name: str = "", field_alias: str = "") -> str:
+        """
+        生成analyzer名称
+        """
+        return f"{field_name}_{field_alias}_analyzer"
+
+    @staticmethod
+    def generate_field_tokenizer_name(field_name: str = "", field_alias: str = "") -> str:
+        """
+        生成tokenizer名称
+        """
+        return f"{field_name}_{field_alias}_tokenizer"
+
+    def generate_fields_analysis(self, fields: List[Dict[str, Any]], etl_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        构建各个字段的分词器
+        """
+        result = {
+            "analyzer": {},
+            "tokenizer": {},
+        }
+        # 保留原文, 处理原文分词器
+        if etl_params.get("retain_original_text", True):
+            analyzer_name = self.generate_field_analyzer_name(field_name="log", field_alias="data")
+            tokenizer_name = self.generate_field_tokenizer_name(field_name="log", field_alias="data")
+            result["analyzer"][analyzer_name] = {
+                "type": "custom",
+                "tokenizer": tokenizer_name,
+                "filter": [],
+            }
+            if not etl_params.get("original_text_case_sensitive", True):
+                result["analyzer"][analyzer_name]["filter"].append("lowercase")
+            # original_text_tokenize_on_chars为空时, 使用standard分词器
+            if etl_params.get("original_text_tokenize_on_chars", ""):
+                result["tokenizer"][tokenizer_name] = {
+                    "type": "char_group",
+                    "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
+                }
+            else:
+                result["analyzer"][analyzer_name]["tokenizer"] = "standard"
+        # 处理用户配置的清洗字段
+        for field in fields:
+            if not field.get("is_analyzed", False):
+                continue
+            analyzer_name = self.generate_field_analyzer_name(
+                field_name=field.get("field_name", ""), field_alias=field.get("alias_name", "")
+            )
+            tokenizer_name = self.generate_field_tokenizer_name(
+                field_name=field.get("field_name", ""), field_alias=field.get("alias_name", "")
+            )
+            result["analyzer"][analyzer_name] = {
+                "type": "custom",
+                "tokenizer": tokenizer_name,
+                "filter": [],
+            }
+            # 大小写不敏感的时候，需要加入lowercase
+            if not field.get("is_case_sensitive", False):
+                result["analyzer"][analyzer_name]["filter"].append("lowercase")
+            if field.get("tokenize_on_chars", ""):
+                result["tokenizer"][tokenizer_name] = {
+                    "type": "char_group",
+                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
+                }
+            else:
+                result["analyzer"][analyzer_name]["tokenizer"] = "standard"
+        return result
+
     def get_result_table_fields(self, fields, etl_params, built_in_config, es_version="5.X"):
         """
         META
@@ -120,13 +187,13 @@ class EtlStorage(object):
                     "description": "original_text",
                     "option": {
                         "es_type": "text",
-                        "es_analyzer": ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER,
+                        "es_analyzer": self.generate_field_analyzer_name(field_name="log", field_alias="data"),
                         "es_include_in_all": True
                     }
                     if es_version.startswith("5.")
                     else {
                         "es_type": "text",
-                        "es_analyzer": ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
+                        "es_analyzer": self.generate_field_analyzer_name(field_name="log", field_alias="data")
                     },
                 }
             )
@@ -192,12 +259,14 @@ class EtlStorage(object):
             field_option["es_type"] = FieldDataTypeEnum.get_es_field_type(
                 field["field_type"], is_analyzed=field["is_analyzed"]
             )
+            # 分词场景下, 自定义分词器
             if field["is_analyzed"]:
                 if field.get("option", {}).get("es_analyzer"):
                     field_option["es_analyzer"] = field["option"]["es_analyzer"]
-                # 大小写敏感, 将TEXT的默认分词器置为大小写敏感的分词器
-                elif field.get("is_case_sensitive", False):
-                    field_option["es_analyzer"] = ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
+                else:
+                    field_option["es_analyzer"] = self.generate_field_analyzer_name(
+                        field_name=field["field_name"], field_alias=field.get("alias_name", "")
+                    )
 
             # ES_INCLUDE_IN_ALL
             if field["is_analyzed"] and es_version.startswith("5."):
@@ -287,6 +356,8 @@ class EtlStorage(object):
         # index分片时间间隔，单位（分钟）
         slice_gap = es_config["ES_SLICE_GAP"]
 
+        # 自定义analysis配置
+        analysis = self.generate_fields_analysis(fields=fields, etl_params=etl_params)
         # ES兼容—mapping设置
         param_mapping = {
             "dynamic_templates": [
@@ -322,15 +393,7 @@ class EtlStorage(object):
                 "index_settings": {
                     "number_of_shards": instance.storage_shards_nums,
                     "number_of_replicas": instance.storage_replies,
-                    "analysis": {
-                        "analyzer": {
-                            ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER: {
-                                "type": "custom",
-                                "tokenizer": "standard",
-                                "filter": []
-                            }
-                        },
-                    }
+                    "analysis": analysis
                 },
             },
             "is_time_field_only": True,

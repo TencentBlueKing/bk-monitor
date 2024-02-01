@@ -635,6 +635,10 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         label=_("分隔符"), trim_whitespace=False, required=False, allow_null=True, allow_blank=True
     )
     retain_original_text = serializers.BooleanField(label=_("是否保留原文"), required=False, default=True)
+    original_text_case_sensitive = serializers.BooleanField(label=_("原文大小写敏感"), required=False, default=False)
+    original_text_tokenize_on_chars = serializers.CharField(
+        label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default=""
+    )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
 
 
@@ -668,6 +672,9 @@ class CollectorEtlFieldsSerializer(serializers.Serializer):
     is_built_in = serializers.BooleanField(label=_("是否内置字段"), required=False, default=False)
     option = serializers.DictField(label=_("字段配置"), required=False)
     is_case_sensitive = serializers.BooleanField(label=_("是否大小写敏感"), required=False, default=False)
+    tokenize_on_chars = serializers.CharField(
+        label=_("自定义分词符"), required=False, allow_blank=True, allow_null=True, default=""
+    )
 
     def validate(self, field):
         built_in_keys = FieldBuiltInEnum.get_choices()
