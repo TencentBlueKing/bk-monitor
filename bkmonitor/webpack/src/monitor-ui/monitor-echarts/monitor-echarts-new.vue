@@ -1231,14 +1231,12 @@ export default class MonitorEcharts extends Vue {
       });
 
       const options = { ...this.chart.getOption(), ...this.handleTransformSeries(showSeries) };
-      console.log({ ...options });
       this.chart.setOption(options, {
         notMerge: true,
         lazyUpdate: false,
         silent: false
       });
     };
-    console.log(actionType, item);
     if (actionType === 'shift-click') {
       item.show = !item.show;
       setOnlyOneMarkArea();
