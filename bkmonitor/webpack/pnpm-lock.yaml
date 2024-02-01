@@ -509,8 +509,8 @@ importers:
         specifier: 0.0.6
         version: 0.0.6(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14)
       '@blueking/search-select':
-        specifier: 0.0.1-beta.11
-        version: 0.0.1-beta.11(vue@2.7.14)
+        specifier: 0.0.1-beta.12
+        version: 0.0.1-beta.12(vue@2.7.14)
       '@blueking/user-selector':
         specifier: ^1.0.5-beta.2
         version: 1.0.11
@@ -2786,8 +2786,8 @@ packages:
       vue: 2.7.14
     dev: false
 
-  /@blueking/search-select@0.0.1-beta.11(vue@2.7.14):
-    resolution: {integrity: sha512-nPMolAwDCk/psqObXqa+cN/Z2dxIMMpNzS9Mm8zClIFLhMDHe0bIyPpBgWZ+Nb5g+CsEnqkJmXSkrmElVVuRjg==}
+  /@blueking/search-select@0.0.1-beta.12(vue@2.7.14):
+    resolution: {integrity: sha512-30Qtm0iOcHOFqADsC1YqtzTLRIxBS7PCOgY0RGpnAmJ5bYTtZo9ouimEkgc+D0RckNXPbrqzMFm6pe8hXMuWwQ==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       bkui-vue: latest

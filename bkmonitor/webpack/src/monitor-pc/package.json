@@ -17,7 +17,7 @@
     "@blueking/ip-selector": "0.2.0-beta",
     "@blueking/notice-component-vue2": "^2.0.0",
     "@blueking/paas-login": "0.0.6",
-    "@blueking/search-select": "0.0.1-beta.11",
+    "@blueking/search-select": "0.0.1-beta.12",
     "@blueking/user-selector": "^1.0.5-beta.2",
     "async-validator": "^3.5.2",
     "big.js": "^6.1.1",
