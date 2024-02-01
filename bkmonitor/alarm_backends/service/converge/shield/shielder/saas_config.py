@@ -171,7 +171,7 @@ class HostShielder(BaseShielder):
     def is_matched(self):
 
         if getattr(self.alert.event, "target_type", None) == "HOST":
-
+            using_api = False
             ip = self.alert.event.ip
             bk_cloud_id = self.alert.event.bk_cloud_id
         elif "bcs_cluster_id" in getattr(self.alert.extra_info, "agg_dimensions", []):
@@ -179,17 +179,28 @@ class HostShielder(BaseShielder):
             dimension_dict = {dimension["key"]: dimension["value"] for dimension in self.alert.dimensions}
             ip = dimension_dict.get("ip", "")
             bk_cloud_id = dimension_dict.get("bk_cloud_id", None)
+            # TODO(crayon) enrich 已经补充了 HostID 的维度，IP & 管控区域在动态主机场景下可能重复，直接用 HostID 更准
+            # TODO(crayon) 下次修改，本次改动暂不引入新变更
             if not ip or bk_cloud_id is None:
                 # 如果IP 为空或者 不存在云区域ID，忽略
                 return False
+            # 容器场景告警生成时间和主机纳管时间相邻，增加 API 请求兜底
+            using_api = True
         else:
             # 不是host类型告警也不是容器相关的，忽略，不做判断
             return False
 
-        host = HostManager.get(ip=ip, bk_cloud_id=bk_cloud_id, using_mem=True)
+        host = HostManager.get(ip=ip, bk_cloud_id=bk_cloud_id, using_mem=True, using_api=using_api)
+
         if host and any([host.is_shielding, host.ignore_monitoring]):
-            # 如果当前主机处于不监控（容器告警机器信息后期补全，所以在这里也要进行配置）或者不告警的状态，都统一屏蔽掉
+            # 如果当前主机处于不监控（容器告警机器信息后期补全，所以在这里也进要行配置）或者不告警的状态，都统一屏蔽掉
             logger.info("alert(%s) is shielded because of host state is shielding(%s)", self.alert.id, host.bk_state)
             self.detail = extended_json.dumps({"message": _("当前主机在配置平台中设置了无告警状态")})
             return True
+        elif not host and using_api:
+            logger.warning(
+                "alert(%s) is not shielded because of host(%s) not found",
+                self.alert,
+                HostManager.key_to_internal_value(ip, bk_cloud_id),
+            )
         return False
