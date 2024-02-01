@@ -135,7 +135,13 @@ class ProfilingChart extends CommonSimpleChart {
   }
   async handleQuery(start_time = '', end_time = '') {
     this.getTableFlameData(start_time, end_time);
-    this.getTopoSrc(start_time, end_time);
+    if (this.queryParams.is_compared) {
+      if (this.activeMode === ViewModeType.Topo) {
+        this.activeMode = ViewModeType.Combine;
+      }
+    } else {
+      this.getTopoSrc(start_time, end_time);
+    }
   }
   async handleModeChange(val: ViewModeType) {
     if (val === this.activeMode) return;
@@ -251,6 +257,11 @@ class ProfilingChart extends CommonSimpleChart {
     };
     this.getPanelData();
   }
+  /** 对比模式 */
+  handleDiffModeChange(isDiff: boolean) {
+    this.queryParams.is_compared = isDiff;
+    this.getPanelData();
+  }
 
   render() {
     return (
@@ -258,6 +269,7 @@ class ProfilingChart extends CommonSimpleChart {
         <FilterSelect
           appName={this.queryParams.app_name}
           serviceName={this.queryParams.service_name}
+          onDiffModeChange={this.handleDiffModeChange}
           onFilterChange={val => this.handleFiltersChange(val, 'filter')}
           onDiffChange={val => this.handleFiltersChange(val, 'diff')}
         />
@@ -302,6 +314,7 @@ class ProfilingChart extends CommonSimpleChart {
           <ChartTitle
             activeMode={this.activeMode}
             textDirection={this.textDirection}
+            isCompared={this.queryParams.is_compared}
             onModeChange={this.handleModeChange}
             onTextDirectionChange={this.handleTextDirectionChange}
             onKeywordChange={val => (this.filterKeyword = val)}
@@ -318,6 +331,8 @@ class ProfilingChart extends CommonSimpleChart {
                   textDirection={this.textDirection}
                   highlightId={this.highlightId}
                   filterKeyword={this.filterKeyword}
+                  isCompared={this.queryParams.is_compared}
+                  dataType={this.queryParams.profile_type}
                   onUpdateHighlightId={id => (this.highlightId = id)}
                   onSortChange={this.handleSortChange}
                 />
@@ -330,6 +345,7 @@ class ProfilingChart extends CommonSimpleChart {
                   showGraphTools={false}
                   data={this.flameData}
                   highlightId={this.highlightId}
+                  isCompared={this.queryParams.is_compared}
                   filterKeywords={this.flameFilterKeywords}
                   onUpdateHighlightId={id => (this.highlightId = id)}
                 />

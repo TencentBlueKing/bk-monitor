@@ -49,7 +49,8 @@ export default defineComponent({
       type: Object as PropType<IQueryParams>,
       default: () => ({
         app_name: '',
-        service_name: ''
+        service_name: '',
+        profile_type: ''
       })
     }
   },
@@ -77,6 +78,8 @@ export default defineComponent({
     const topoSrc = ref('');
 
     const flameFilterKeywords = computed(() => (filterKeyword.value?.trim?.().length ? [filterKeyword.value] : []));
+
+    const isCompared = computed(() => (props.queryParams as IQueryParams)?.is_compared ?? false);
 
     watch(
       [() => props.queryParams],
@@ -120,7 +123,14 @@ export default defineComponent({
     };
     const handleQuery = async () => {
       getTableFlameData();
-      getTopoSrc();
+      if (isCompared.value) {
+        // 对比模式下不展示拓扑图
+        if (activeMode.value === ViewModeType.Topo) {
+          activeMode.value = ViewModeType.Combine;
+        }
+      } else {
+        getTopoSrc();
+      }
     };
     /** 获取表格和火焰图 */
     const getTableFlameData = async () => {
@@ -241,7 +251,8 @@ export default defineComponent({
       flameFilterKeywords,
       handleSortChange,
       handleDownload,
-      topoSrc
+      topoSrc,
+      isCompared
     };
   },
   render() {
@@ -253,6 +264,7 @@ export default defineComponent({
         <ChartTitle
           activeMode={this.activeMode}
           textDirection={this.textDirection}
+          isCompared={this.isCompared}
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
           onKeywordChange={val => (this.filterKeyword = val)}
@@ -272,6 +284,8 @@ export default defineComponent({
                 textDirection={this.textDirection}
                 highlightId={this.highlightId}
                 filterKeyword={this.filterKeyword}
+                isCompared={this.isCompared}
+                dataType={this.queryParams.profile_type}
                 onUpdateHighlightId={id => (this.highlightId = id)}
                 onSortChange={this.handleSortChange}
               />
@@ -284,6 +298,7 @@ export default defineComponent({
                 showGraphTools={false}
                 data={this.flameData}
                 highlightId={this.highlightId}
+                isCompared={this.isCompared}
                 filterKeywords={this.flameFilterKeywords}
                 onUpdateHighlightId={id => (this.highlightId = id)}
               />
