@@ -64,14 +64,8 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
 
     def refresh_host_by_increment(self):
 
-        logger.info(
-            "[KubernetesCMDBEnricher][refresh_by_increment] alerts(%s) start.",
-            ",".join([alert.id for alert in self.alerts]),
-        )
-
         total_host_keys: Set[str] = set(self.hosts_cache.keys())
         to_be_refresh_ips_gby_biz_id: Dict[int, Set[str]] = defaultdict(set)
-
         for alert in self.alerts:
             bk_biz_id: int = int(alert.bk_biz_id)
             if bk_biz_id <= 0:
@@ -89,6 +83,15 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
                 elif not set(host_keys) & total_host_keys:
                     # Host Keys 匹配不到任何主机
                     to_be_refresh_ips_gby_biz_id[bk_biz_id].add(ip)
+
+        if not to_be_refresh_ips_gby_biz_id:
+            return
+
+        logger.info(
+            "[KubernetesCMDBEnricher][refresh_by_increment] alerts(%s) start: to_be_refresh_ips_gby_biz_id -> %s",
+            ",".join([alert.id for alert in self.alerts]),
+            to_be_refresh_ips_gby_biz_id,
+        )
 
         for bk_biz_id, to_be_refresh_ips in to_be_refresh_ips_gby_biz_id.items():
 
