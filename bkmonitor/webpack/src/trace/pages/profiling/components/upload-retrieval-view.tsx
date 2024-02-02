@@ -69,6 +69,7 @@ export default defineComponent({
     /* 查询项 */
     const searchObj = reactive({
       selectFile: '',
+      selectFileInfo: null,
       list: []
     });
     /* 对比项   暂时不做 */
@@ -82,6 +83,8 @@ export default defineComponent({
       return false;
       // return !!props.formData.isComparison;
     });
+
+    const selectToggle = ref(false);
 
     init();
 
@@ -108,10 +111,17 @@ export default defineComponent({
       uploadDialogShow.value = v;
     }
 
+    /**
+     * @description 选中文件
+     * @param v
+     */
     function handleSelectFile(v) {
-      searchObj.selectFile = v;
       const fileInfo = searchObj.list.find(item => item.id === v);
-      emit('selectFile', fileInfo);
+      if (!!fileInfo && fileInfo?.status === EFileStatus.storeSucceed) {
+        searchObj.selectFile = v;
+        searchObj.selectFileInfo = fileInfo;
+        emit('selectFile', fileInfo);
+      }
     }
 
     async function handleRefleshFiles() {
@@ -126,12 +136,20 @@ export default defineComponent({
       emit('dataTypeChange', v);
     }
 
-    function statusRender(status: EFileStatus) {
+    /**
+     * @description 下拉状态
+     * @param v
+     */
+    function handleSelectFileToggle(v: boolean) {
+      selectToggle.value = v;
+    }
+
+    function statusRender(status: EFileStatus, needName = true) {
       if ([EFileStatus.uploaded, EFileStatus.parsingSucceed, EFileStatus.storeSucceed].includes(status)) {
         return (
           <div class='status'>
             <div class='success circle'></div>
-            <span class='label'>{fileStatusMap[status].name}</span>
+            {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
         );
       }
@@ -139,7 +157,7 @@ export default defineComponent({
         return (
           <div class='status'>
             <div class='error circle'></div>
-            <span class='label'>{fileStatusMap[status].name}</span>
+            {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
         );
       }
@@ -162,13 +180,15 @@ export default defineComponent({
       compareObj,
       loading,
       isCompare,
+      selectToggle,
       handleUploadTypeChange,
       handleUploadShowChange,
       statusRender,
       handleShowFileDetail,
       handleSelectFile,
       handleRefleshFiles,
-      handleDataTypeChange
+      handleDataTypeChange,
+      handleSelectFileToggle
     };
   },
   render() {
@@ -194,29 +214,49 @@ export default defineComponent({
               }}
               clearable={false}
               onSelect={v => this.handleSelectFile(v)}
+              onToggle={v => this.handleSelectFileToggle(v)}
             >
-              {this.searchObj.list.map(item => (
-                <Select.Option
-                  id={item.id}
-                  key={item.id}
-                  name={item.file_name || '--'}
-                >
-                  <div class='upload-select-item'>
-                    <div class='left'>
-                      {this.statusRender(item.status)}
-                      <div class='divider'></div>
-                      <div class='name'>{item.file_name || '--'}</div>
-                    </div>
-                    <i
-                      class='icon-monitor icon-mc-detail'
-                      onClick={e => {
-                        e.stopPropagation();
-                        this.handleShowFileDetail(item);
-                      }}
-                    ></i>
-                  </div>
-                </Select.Option>
-              ))}
+              {{
+                trigger: () => (
+                  <span class='select-trigger'>
+                    <span class='left'>
+                      {!!this.searchObj.selectFileInfo && (
+                        <>
+                          <span class='file-name'>{this.searchObj.selectFileInfo?.file_name || '--'}</span>
+                          {this.statusRender(this.searchObj.selectFileInfo?.status, false)}
+                        </>
+                      )}
+                    </span>
+                    <span class='right'>
+                      <span class={['icon-monitor icon-mc-triangle-down', { active: this.selectToggle }]}></span>
+                    </span>
+                  </span>
+                ),
+                default: () =>
+                  this.searchObj.list.map(item => (
+                    <Select.Option
+                      id={item.id}
+                      key={item.id}
+                      name={item.file_name || '--'}
+                      disabled={item.status !== EFileStatus.storeSucceed}
+                    >
+                      <div class='upload-select-item'>
+                        <div class='left'>
+                          {this.statusRender(item.status)}
+                          <div class='divider'></div>
+                          <div class='name'>{item.file_name || '--'}</div>
+                        </div>
+                        <i
+                          class='icon-monitor icon-mc-detail'
+                          onClick={e => {
+                            e.stopPropagation();
+                            this.handleShowFileDetail(item);
+                          }}
+                        ></i>
+                      </div>
+                    </Select.Option>
+                  ))
+              }}
             </Select>
           </div>
           {this.isCompare && (
