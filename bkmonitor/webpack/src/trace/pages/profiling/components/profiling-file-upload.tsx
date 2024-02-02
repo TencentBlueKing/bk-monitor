@@ -236,10 +236,6 @@ export default defineComponent({
       filesStatus.value = [...searchObj.files];
     }
 
-    function handleProgress(event, file, fileList) {
-      console.log(event, file, fileList);
-    }
-
     return {
       uploadType,
       searchObj,
@@ -250,7 +246,6 @@ export default defineComponent({
       handleUploadTypeChange,
       handleUploadProgress,
       t,
-      handleProgress,
       cancelUpload
     };
   },
@@ -289,7 +284,6 @@ export default defineComponent({
                 <Upload
                   customRequest={this.handleUploadProgress as any}
                   // accept={FILES_TYPE.map(f => `.${f}`).join(',')}
-                  onProgress={this.handleProgress}
                 >
                   {{
                     default: () => (

@@ -1,3 +1,41 @@
+
+/* stylelint-disable declaration-no-important */
+@mixin fileStatus() {
+  .status {
+    display: flex;
+    align-items: center;
+    width: 68px;
+
+    .loading {
+      font-size: 14px;
+      color: #3a84ff;
+    }
+
+    .circle {
+      width: 8px;
+      height: 8px;
+      margin-left: 3px;
+      border-radius: 50%;
+
+      &.success {
+        background: #e5f6ea;
+        border: 1px solid #3fc06d;
+      }
+
+      &.error {
+        background: #ffe6e6;
+        border: 1px solid #ea3636;
+      }
+    }
+
+    .label {
+      margin-left: 5px;
+      color: #63656e;
+    }
+  }
+
+}
+
 .upload-retrieval-view-component {
   height: 100%;
 
@@ -46,6 +84,45 @@
 
         .bk-input {
           border: none;
+        }
+      }
+
+      .bk-select-trigger {
+        background: #fff;
+
+        .select-trigger {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 12px;
+          line-height: 32px;
+          cursor: pointer;
+
+          .left {
+            display: flex;
+            align-items: center;
+
+            @include fileStatus();
+
+            .file-name {
+              margin-right: 8px;
+              white-space: nowrap
+            }
+          }
+
+          .right {
+            .icon-mc-triangle-down {
+              display: inline-block;
+              font-size: 20px;
+              color: #c4c6cc;
+              transition: all .3s;
+
+              &.active {
+                color: #3a84ff;
+                transform: rotate(180deg);
+              }
+            }
+          }
         }
       }
     }
@@ -103,38 +180,7 @@
       display: flex;
       align-items: center;
 
-      .status {
-        display: flex;
-        align-items: center;
-        width: 68px;
-
-        .loading {
-          font-size: 14px;
-          color: #3a84ff;
-        }
-
-        .circle {
-          width: 8px;
-          height: 8px;
-          margin-left: 3px;
-          border-radius: 50%;
-
-          &.success {
-            background: #e5f6ea;
-            border: 1px solid #3fc06d;
-          }
-
-          &.error {
-            background: #ffe6e6;
-            border: 1px solid #ea3636;
-          }
-        }
-
-        .label {
-          margin-left: 5px;
-          color: #63656e;
-        }
-      }
+      @include fileStatus();
 
       .divider {
         width: 1px;
@@ -143,9 +189,14 @@
         background-color: #979ba5;
       }
 
-      .icon-mc-detail {
+      .name {
         color: #63656e;
       }
+    }
+
+    .icon-mc-detail {
+      color: #63656e;
+      cursor: pointer !important;
     }
   }
 }
