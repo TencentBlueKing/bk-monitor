@@ -82,7 +82,7 @@ export default defineComponent({
       }
     });
     const canQuery = computed(() => {
-      if (searchState.loading) return false;
+      if (searchState.loading || !dataType.value) return false;
       if (searchState.formData.type === SearchType.Profiling) {
         // 持续检索必须选择应用/服务后才能查询
         return !!(searchState.formData.server.app_name && searchState.formData.server.service_name);
@@ -135,9 +135,9 @@ export default defineComponent({
      * 查询表单数据改变
      * @param val 表单数据
      */
-    function handleSearchFormDataChange(val: SearchState['formData']) {
+    function handleSearchFormDataChange(val: SearchState['formData'], hasQuery: boolean) {
       searchState.formData = val;
-      handleQuery();
+      hasQuery && handleQuery();
     }
 
     function handleTypeChange(val: SearchType) {
@@ -145,6 +145,9 @@ export default defineComponent({
       if (val === SearchType.Profiling) {
         selectServiceData.value && getDataTypeList(selectServiceData.value);
         handleQuery();
+      } else {
+        // Upload暂不支持对比模式
+        searchState.formData.isComparison = false;
       }
     }
 
@@ -187,12 +190,15 @@ export default defineComponent({
 
     /** 清除查询条件 */
     function handleQueryClear() {
-      searchState.formData.isComparison = false;
-      searchState.formData.where = [];
-      searchState.formData.comparisonWhere = [];
-      searchState.formData.server = {
-        app_name: '',
-        service_name: ''
+      searchState.formData = {
+        type: searchState.formData.type,
+        isComparison: false,
+        where: [],
+        comparisonWhere: [],
+        server: {
+          app_name: '',
+          service_name: ''
+        }
       };
       isEmpty.value = true;
     }
@@ -208,11 +214,11 @@ export default defineComponent({
           return pre;
         }, {}),
         diff_filter_labels: comparisonWhere.reduce((pre, cur) => {
-          if (cur.key && cur.value && type !== SearchType.Upload) pre[cur.key] = cur.value;
+          if (cur.key && cur.value && isComparison) pre[cur.key] = cur.value;
           return pre;
         }, {}),
         profile_type: dataType.value,
-        ...(searchState.formData.type === SearchType.Upload ? uploadParams : profilingParams)
+        ...(type === SearchType.Upload ? uploadParams : profilingParams)
       };
     }
 
@@ -288,6 +294,10 @@ export default defineComponent({
 
   render() {
     const renderView = () => {
+      const handleGuideClick = (type: SearchType) => {
+        this.searchState.formData = { ...this.searchState.formData, type };
+      };
+
       if (this.searchState.formData.type === SearchType.Upload) {
         return (
           <UploadRetrievalView
@@ -305,7 +315,7 @@ export default defineComponent({
       if (this.isEmpty)
         return (
           <div class='empty-wrap'>
-            <div onClick={() => (this.searchState.formData.type = SearchType.Profiling)}>
+            <div onClick={() => handleGuideClick(SearchType.Profiling)}>
               <EmptyCard
                 title={this.$t('持续 Profiling')}
                 desc={this.$t('直接进行 精准查询，定位到 Trace 详情')}
@@ -320,7 +330,7 @@ export default defineComponent({
                 }}
               </EmptyCard>
             </div>
-            <div onClick={() => (this.searchState.formData.type = SearchType.Upload)}>
+            <div onClick={() => handleGuideClick(SearchType.Upload)}>
               <EmptyCard
                 title={this.$t('上传 Profiling')}
                 desc={this.$t('可以切换到 范围查询，根据条件筛选 Trace')}

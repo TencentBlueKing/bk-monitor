@@ -108,10 +108,6 @@ export default defineComponent({
     function handleTypeChange(type: SearchType) {
       if (localFormData.type === type) return;
       localFormData.type = type;
-      if (type === SearchType.Upload) {
-        // 文件上传暂时不做对比项
-        localFormData.isComparison = false;
-      }
       getLabelList();
       emit('typeChange', type);
     }
@@ -142,7 +138,7 @@ export default defineComponent({
      */
     function handleComparisonChange(val: boolean) {
       localFormData.isComparison = val;
-      handleEmitChange();
+      handleEmitChange(true);
     }
 
     const labelList = ref<string[]>([]);
@@ -165,7 +161,7 @@ export default defineComponent({
           value: ''
         });
       }
-      handleEmitChange();
+      handleEmitChange(false);
     }
 
     /**
@@ -174,12 +170,13 @@ export default defineComponent({
      * @param type 条件类型
      */
     function deleteCondition(index: number, type: ConditionType) {
+      let deleteItem: IConditionItem[];
       if (type === ConditionType.Where) {
-        localFormData.where.splice(index, 1);
+        deleteItem = localFormData.where.splice(index, 1);
       } else {
-        localFormData.comparisonWhere.splice(index, 1);
+        deleteItem = localFormData.comparisonWhere.splice(index, 1);
       }
-      handleEmitChange();
+      handleEmitChange(deleteItem[0].value !== '');
     }
 
     /**
@@ -189,12 +186,16 @@ export default defineComponent({
      * @param type 条件类型
      */
     function handleConditionChange(val: IConditionItem, index: number, type: ConditionType) {
+      let oldVal: IConditionItem;
       if (type === ConditionType.Where) {
+        oldVal = localFormData.where[index];
         localFormData.where[index] = val;
       } else {
+        oldVal = localFormData.comparisonWhere[index];
         localFormData.comparisonWhere[index] = val;
       }
-      handleEmitChange();
+      // 如果旧数据有值或者新数据有值，需要根据新条件查询
+      handleEmitChange(Boolean(oldVal.value || val.value));
     }
 
     onMounted(() => {
@@ -252,8 +253,11 @@ export default defineComponent({
       labelValueMap.set(label, res.label_values);
     }
 
-    function handleEmitChange() {
-      emit('change', localFormData);
+    /**
+     * @param hasQuery 是否查询
+     */
+    function handleEmitChange(hasQuery: boolean) {
+      emit('change', localFormData, hasQuery);
     }
 
     return {
