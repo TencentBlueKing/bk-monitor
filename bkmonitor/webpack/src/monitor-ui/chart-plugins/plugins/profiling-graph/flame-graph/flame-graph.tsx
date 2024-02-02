@@ -114,6 +114,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   svgRect: DOMRect = null;
   // 放大系数
   scaleValue = 100;
+  localIsCompared = false;
 
   @Emit('updateLoading')
   handleUpdateloadingChange(val) {
@@ -152,7 +153,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
         await this.$nextTick();
         // initScale();
         if (!this.chartRef?.clientWidth) return;
-
+        this.localIsCompared = this.isCompared;
         this.graphInstance = new FlameChart(
           this.initGraphData(this.data),
           {
@@ -430,19 +431,17 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
           slot='main'
           class='selector-list-slot'
         >
-          {this.showDiffLegend && (
-            <div class='profiling-compare-legend'>
-              <span class='tag tag-new'>added</span>
-              <div class='percent-queue'>
-                {this.diffPercentList.map((item, index) => (
-                  <span class={`percent-tag tag-${index + 1}`}>{item}</span>
-                ))}
-              </div>
-              <span class='tag tag-removed'>removed</span>
+          <div class={['profiling-compare-legend', { 'is-show': this.localIsCompared }]}>
+            <span class='tag tag-new'>added</span>
+            <div class='percent-queue'>
+              {this.diffPercentList.map((item, index) => (
+                <span class={`percent-tag tag-${index + 1}`}>{item}</span>
+              ))}
             </div>
-          )}
+            <span class='tag tag-removed'>removed</span>
+          </div>
           <div
-            class={`flame-graph-wrapper profiling-flame-graph ${this.showDiffLegend ? 'has-diff-legend' : ''}`}
+            class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
             tabindex={1}
             onBlur={this.handleClickWrapper}
             onClick={this.handleClickWrapper}
@@ -463,7 +462,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               {this.tipDetail.title && [
                 <div class='funtion-name'>{this.tipDetail.title}</div>,
                 <table class='tips-table'>
-                  {this.isCompared && (
+                  {this.localIsCompared && (
                     <thead>
                       <th></th>
                       <th>{window.i18n.t('当前')}</th>
@@ -474,7 +473,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                     </thead>
                   )}
                   <tbody>
-                    {!this.isCompared && (
+                    {!this.localIsCompared && (
                       <tr>
                         <td>{window.i18n.t('占比')}</td>
                         <td>{this.tipDetail.proportion}%</td>
@@ -483,7 +482,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                     <tr>
                       <td>{window.i18n.t('耗时')}</td>
                       <td>{this.tipDetail.duration}</td>
-                      {this.isCompared &&
+                      {this.localIsCompared &&
                         this.tipDetail.id !== RootId && [
                           <td>{this.tipDetail.diffDuration ?? '--'}</td>,
                           <td>

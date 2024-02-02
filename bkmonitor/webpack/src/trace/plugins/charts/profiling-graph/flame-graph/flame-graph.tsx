@@ -119,7 +119,6 @@ export default defineComponent({
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
     const showException = ref(true);
-    const showDiffLegend = ref(false);
     const tipDetail = shallowRef<ITipsDetail>({});
     const contextMenuRect = ref<IContextMenuRect>({
       left: 0,
@@ -136,6 +135,7 @@ export default defineComponent({
     let svgRect: DOMRect = null;
     // 放大系数
     const scaleValue = ref(100);
+    const localIsCompared = ref(false);
 
     const diffPercentList = computed(() => COMPARE_DIFF_COLOR_LIST.map(val => `${val.value}%`));
 
@@ -180,7 +180,7 @@ export default defineComponent({
             await nextTick();
             initScale();
             if (!chartRef.value?.clientWidth) return;
-
+            localIsCompared.value = props.isCompared;
             graphInstance = new FlameChart(
               initGraphData(!!props.data ? toRaw(data) : data),
               {
@@ -490,7 +490,7 @@ export default defineComponent({
       showLegend,
       handleShowLegend,
       diffPercentList,
-      showDiffLegend
+      localIsCompared
     };
   },
   render() {
@@ -510,7 +510,7 @@ export default defineComponent({
       >
         {{
           main: () => [
-            this.showDiffLegend && (
+            this.localIsCompared && (
               <div class='profiling-compare-legend'>
                 <span class='tag tag-new'>added</span>
                 <div class='percent-queue'>
@@ -522,7 +522,7 @@ export default defineComponent({
               </div>
             ),
             <div
-              class={`flame-graph-wrapper profiling-flame-graph ${this.showDiffLegend ? 'has-diff-legend' : ''}`}
+              class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
               tabindex={1}
               onBlur={this.handleClickWrapper}
               onClick={this.handleClickWrapper}
@@ -544,7 +544,7 @@ export default defineComponent({
                   {this.tipDetail.title && [
                     <div class='funtion-name'>{this.tipDetail.title}</div>,
                     <table class='tips-table'>
-                      {this.isCompared && (
+                      {this.localIsCompared && (
                         <thead>
                           <th></th>
                           <th>{window.i18n.t('当前')}</th>
@@ -555,7 +555,7 @@ export default defineComponent({
                         </thead>
                       )}
                       <tbody>
-                        {!this.isCompared && (
+                        {!this.localIsCompared && (
                           <tr>
                             <td>{window.i18n.t('占比')}</td>
                             <td>{this.tipDetail.proportion}%</td>
@@ -564,7 +564,7 @@ export default defineComponent({
                         <tr>
                           <td>{window.i18n.t('耗时')}</td>
                           <td>{this.tipDetail.duration}</td>
-                          {this.isCompared &&
+                          {this.localIsCompared &&
                             this.tipDetail.id !== RootId && [
                               <td>{this.tipDetail.diffDuration ?? '--'}</td>,
                               <td>

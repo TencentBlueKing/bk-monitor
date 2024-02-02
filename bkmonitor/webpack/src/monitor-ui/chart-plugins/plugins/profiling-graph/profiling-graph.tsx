@@ -259,7 +259,10 @@ class ProfilingChart extends CommonSimpleChart {
   }
   /** 对比模式 */
   handleDiffModeChange(isDiff: boolean) {
-    this.queryParams.is_compared = isDiff;
+    this.queryParams = {
+      ...this.queryParams,
+      is_compared: isDiff
+    };
     this.getPanelData();
   }
 

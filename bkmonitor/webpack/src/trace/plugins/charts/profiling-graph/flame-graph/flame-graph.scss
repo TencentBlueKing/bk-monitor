@@ -4,7 +4,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
 .profiling-flame-graph {
   &.has-diff-legend {
-    height: calc(100% - 30px);
+    height: calc(100% - 20px);
   }
 
   .flame-graph {
