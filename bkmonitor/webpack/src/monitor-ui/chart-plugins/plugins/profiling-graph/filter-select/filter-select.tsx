@@ -61,7 +61,8 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
   @Prop({ default: '', type: String }) appName: string;
   @Prop({ default: '', type: String }) serviceName: string;
 
-  @Ref() bkSelectRef: Select;
+  @Ref() filterKeySelectRef: Select;
+  @Ref() diffKeySelectRef: Select;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 
@@ -146,7 +147,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
   }
 
   handleShowDropDown(mode) {
-    this.bkSelectRef.show();
+    this[`${mode}KeySelectRef`].show();
     mode === 'filter' ? (this.isShowAddFilter = true) : (this.isShowAddDiff = true);
   }
 
@@ -196,12 +197,13 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
         )),
         <span class={['filter-add-btn', { active: mode === 'filter' ? this.isShowAddFilter : this.isShowAddDiff }]}>
           <i
+            key={mode}
             class='icon-monitor icon-mc-add'
             onClick={() => this.handleShowDropDown(mode)}
           ></i>
           <bk-select
             class='bk-select-wrap'
-            ref='bkSelectRef'
+            ref={`${mode}KeySelectRef`}
             onChange={val => this.handleAddFilterChange(val, mode)}
             {...{
               props: this.addKeyprops
