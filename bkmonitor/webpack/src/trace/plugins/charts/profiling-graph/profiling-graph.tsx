@@ -82,19 +82,10 @@ export default defineComponent({
     const isCompared = computed(() => (props.queryParams as IQueryParams)?.is_compared ?? false);
 
     watch(
-      [() => props.queryParams],
+      [() => props.queryParams, toolsFormData.value.timeRange],
       debounce(16, async () => handleQuery()),
       {
         immediate: true,
-        deep: true
-      }
-    );
-    watch(
-      () => toolsFormData.value.timeRange,
-      () => {
-        handleQuery();
-      },
-      {
         deep: true
       }
     );
