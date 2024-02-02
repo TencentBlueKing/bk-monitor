@@ -107,6 +107,10 @@ export default defineComponent({
     highlightId: {
       type: Number,
       default: -1
+    },
+    isCompared: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
@@ -115,7 +119,6 @@ export default defineComponent({
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
     const showException = ref(true);
-    const showDiffLegend = ref(false);
     const tipDetail = shallowRef<ITipsDetail>({});
     const contextMenuRect = ref<IContextMenuRect>({
       left: 0,
@@ -132,6 +135,7 @@ export default defineComponent({
     let svgRect: DOMRect = null;
     // 放大系数
     const scaleValue = ref(100);
+    const localIsCompared = ref(false);
 
     const diffPercentList = computed(() => COMPARE_DIFF_COLOR_LIST.map(val => `${val.value}%`));
 
@@ -176,7 +180,7 @@ export default defineComponent({
             await nextTick();
             initScale();
             if (!chartRef.value?.clientWidth) return;
-
+            localIsCompared.value = props.isCompared;
             graphInstance = new FlameChart(
               initGraphData(!!props.data ? toRaw(data) : data),
               {
@@ -188,7 +192,7 @@ export default defineComponent({
                 keywords: props.filterKeywords,
                 getFillColor: (d: BaseDataType) => {
                   if (d.id === RootId) return 'rgb(223,133,32)';
-                  return props.diffTraceId && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
+                  return props.isCompared && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
                 },
                 onDetail: (e: MouseEvent, d: HierarchyNode<BaseDataType>, c: IOtherData) => {
                   if (!d) {
@@ -198,7 +202,7 @@ export default defineComponent({
                   const { text, suffix } = usFormat(d.data.value / 1000);
                   let diffDuration = '';
                   let diffValue = 0;
-                  if (props.diffTraceId && d.data?.diff_info) {
+                  if (props.isCompared && d.data?.diff_info) {
                     const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
                     diffDuration = diffText + diffSuffix;
                     diffValue =
@@ -486,7 +490,7 @@ export default defineComponent({
       showLegend,
       handleShowLegend,
       diffPercentList,
-      showDiffLegend
+      localIsCompared
     };
   },
   render() {
@@ -506,7 +510,7 @@ export default defineComponent({
       >
         {{
           main: () => [
-            this.showDiffLegend && (
+            this.localIsCompared && (
               <div class='profiling-compare-legend'>
                 <span class='tag tag-new'>added</span>
                 <div class='percent-queue'>
@@ -518,7 +522,7 @@ export default defineComponent({
               </div>
             ),
             <div
-              class={`flame-graph-wrapper profiling-flame-graph ${this.showDiffLegend ? 'has-diff-legend' : ''}`}
+              class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
               tabindex={1}
               onBlur={this.handleClickWrapper}
               onClick={this.handleClickWrapper}
@@ -540,7 +544,7 @@ export default defineComponent({
                   {this.tipDetail.title && [
                     <div class='funtion-name'>{this.tipDetail.title}</div>,
                     <table class='tips-table'>
-                      {this.diffTraceId && (
+                      {this.localIsCompared && (
                         <thead>
                           <th></th>
                           <th>{window.i18n.t('当前')}</th>
@@ -551,7 +555,7 @@ export default defineComponent({
                         </thead>
                       )}
                       <tbody>
-                        {!this.diffTraceId && (
+                        {!this.localIsCompared && (
                           <tr>
                             <td>{window.i18n.t('占比')}</td>
                             <td>{this.tipDetail.proportion}%</td>
@@ -560,7 +564,7 @@ export default defineComponent({
                         <tr>
                           <td>{window.i18n.t('耗时')}</td>
                           <td>{this.tipDetail.duration}</td>
-                          {this.diffTraceId &&
+                          {this.localIsCompared &&
                             this.tipDetail.id !== RootId && [
                               <td>{this.tipDetail.diffDuration ?? '--'}</td>,
                               <td>

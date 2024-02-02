@@ -28,13 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 import { DropdownMenu, Input } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../../monitor-common/utils/utils';
-import { TextDirectionType, ViewModeItem, ViewModeType } from '../../../typings/profiling-graph';
+import { TextDirectionType, ViewModeType } from '../../../typings/profiling-graph';
 
 import './chart-title.scss';
 
 interface IChartTitleProps {
   activeMode: ViewModeType;
   textDirection: TextDirectionType;
+  isCompared: boolean;
 }
 interface IChartTitleEvent {
   onModeChange: ViewModeType;
@@ -47,6 +48,7 @@ interface IChartTitleEvent {
 export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> {
   @Prop({ required: true, type: String }) activeMode: string;
   @Prop({ required: true, type: String }) textDirection: string;
+  @Prop({ default: false, type: Boolean }) isCompared: boolean;
 
   downloadTypeMaps = [
     'png',
@@ -54,13 +56,21 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     'pprof'
     // 'html'
   ];
-  viewModeList: ViewModeItem[] = [
-    { id: ViewModeType.Table, icon: 'table' },
-    { id: ViewModeType.Combine, icon: 'mc-fenping' },
-    { id: ViewModeType.Flame, icon: 'mc-flame' },
-    { id: ViewModeType.Topo, icon: 'Component' }
-  ];
   keyword = '';
+
+  get viewModeList() {
+    const list = [
+      { id: ViewModeType.Table, icon: 'table' },
+      { id: ViewModeType.Combine, icon: 'mc-fenping' },
+      { id: ViewModeType.Flame, icon: 'mc-flame' }
+    ];
+
+    if (!this.isCompared) {
+      list.push({ id: ViewModeType.Topo, icon: 'Component' });
+    }
+
+    return list;
+  }
 
   @Emit('modeChange')
   handleModeChange(val: ViewModeType) {

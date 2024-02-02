@@ -53,6 +53,7 @@ interface IFilterSelectProps {
 interface IFilterSelectEvents {
   onFilterChange: Record<string, string>;
   onDiffChange: Record<string, string>;
+  onDiffModeChange: boolean;
 }
 
 @Component
@@ -60,7 +61,8 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
   @Prop({ default: '', type: String }) appName: string;
   @Prop({ default: '', type: String }) serviceName: string;
 
-  @Ref() bkSelectRef: Select;
+  @Ref() filterKeySelectRef: Select;
+  @Ref() diffKeySelectRef: Select;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 
@@ -127,6 +129,11 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
     return val;
   }
 
+  @Emit('diffModeChange')
+  handleDiffModeChange(val) {
+    return val;
+  }
+
   // 更新过滤条件
   handleSelectValueChange(mode: string) {
     const labelValues = {};
@@ -140,7 +147,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
   }
 
   handleShowDropDown(mode) {
-    this.bkSelectRef.show();
+    this[`${mode}KeySelectRef`].show();
     mode === 'filter' ? (this.isShowAddFilter = true) : (this.isShowAddDiff = true);
   }
 
@@ -190,12 +197,13 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
         )),
         <span class={['filter-add-btn', { active: mode === 'filter' ? this.isShowAddFilter : this.isShowAddDiff }]}>
           <i
+            key={mode}
             class='icon-monitor icon-mc-add'
             onClick={() => this.handleShowDropDown(mode)}
           ></i>
           <bk-select
             class='bk-select-wrap'
-            ref='bkSelectRef'
+            ref={`${mode}KeySelectRef`}
             onChange={val => this.handleAddFilterChange(val, mode)}
             {...{
               props: this.addKeyprops
@@ -235,6 +243,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
               theme='primary'
               size='small'
               v-model={this.enableDiffMode}
+              onChange={this.handleDiffModeChange}
             />
           </div>
         </div>
