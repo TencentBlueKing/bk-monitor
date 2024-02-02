@@ -207,7 +207,7 @@
             .selected-label {
               position: fixed;
               top: 0;
-              left: 529px;
+              left: 524px;
               z-index: 2;
               width: 28px;
               height: 28px;
@@ -224,7 +224,13 @@
                 transform: rotate(45deg) translate(-9px, -20px);
 
                 & > span {
+                  font-size: 12px;
                   color: #fff;
+                  transform: scale(.8) translate(0, 2px);
+                }
+
+                .en-span {
+                  transform: scale(.6) translate(0, 4px);
                 }
               }
             }

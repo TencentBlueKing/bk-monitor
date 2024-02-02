@@ -34,6 +34,7 @@ import { LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils/constant';
 import { copyText, Debounce, deepClone, docCookies } from '../../../monitor-common/utils/utils';
 import { xssFilter } from '../../../monitor-common/utils/xss';
 import { handleGotoLink } from '../../common/constant';
+import { isEn } from '../../i18n/i18n';
 import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
@@ -906,7 +907,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   >
                     <div class='selected-label'>
                       <div class='blue-bg'>
-                        <span>{this.$t('已选')}</span>
+                        <span class={isEn ? 'en-span' : ''}>{this.$t('已选')}</span>
                       </div>
                     </div>
                     {this.metricItem(this.selectedMetric)}
