@@ -97,7 +97,7 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
         
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["data_types"] = instance.meta_info.get("data_types", {})
+        data["data_types"] = instance.meta_info.get("data_types", [])
         return data  
 
 
