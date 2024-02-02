@@ -547,7 +547,7 @@ export default {
     },
     // 字段改变
     handleFieldChange(fieldName, index) {
-      const field = this.totalFields.find(item => item.field_name === fieldName);
+      const field = this.totalFields.find(item => item.field_name === fieldName) ?? {};
       Object.assign(this.formData.filter_rules[index], {
         ...field,
         value: [],
