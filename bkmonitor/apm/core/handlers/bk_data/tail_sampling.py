@@ -34,6 +34,7 @@ class TailSamplingFlow(ApmFlow):
     _FLINK_CODE_FILENAME = os.path.join(settings.BASE_DIR, "apm/core/handlers/bk_data/tail_sampling_flink.java")
     # bkbase dataId直连方式接入用到的场景ID 为协商的固定值
     _BKDATA_CUSTOM_SCENARIO_ID = 47
+    _STORAGE_REGISTRY_AREA_CODE = settings.APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE
 
     def __init__(self, trace_datasource, config):
         super(TailSamplingFlow, self).__init__(
@@ -232,7 +233,7 @@ class TailSamplingFlow(ApmFlow):
                 "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
                 "resource_set_id": bkdata_cluster_id,
                 "resource_set_name": bkdata_cluster_name,
-                "geog_area_code": "inland",
+                "geog_area_code": self._STORAGE_REGISTRY_AREA_CODE,
                 "category": "es",
                 "provider": "user",
                 "purpose": f"此集群由APM创建",
