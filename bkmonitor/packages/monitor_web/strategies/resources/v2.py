@@ -19,6 +19,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Host, Module, Set, TopoTree
 from bkmonitor.action.utils import get_strategy_user_group_dict
+from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import Functions, UnifyQuery, load_data_source
 from bkmonitor.dataflow.constant import (
@@ -66,7 +67,6 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from monitor.models import ApplicationConfig
-from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 from monitor_web.models import (
     CollectorPluginMeta,

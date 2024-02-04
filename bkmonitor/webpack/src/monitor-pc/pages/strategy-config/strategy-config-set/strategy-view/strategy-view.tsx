@@ -28,7 +28,6 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Radio, RadioGroup } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from '../../../../../monitor-api/modules/grafana';
@@ -318,7 +317,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.isMultivariateAnomalyDetection) {
       return false;
     }
-    return this.metricQueryData.length > 0;
+    return this.metricQueryData.length > 0 || this.metricQueryData;
   }
 
   deactivated() {
@@ -953,9 +952,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   // 查看近20条数据
                   !!this.needNearRadio && (
                     <div class='radio-count-options'>
-                      <RadioGroup v-model={this.shortcutsType}>
+                      <bk-radio-group v-model={this.shortcutsType}>
                         {this.shortcutsList.map(sh => (
-                          <Radio value={sh.id}>
+                          <bk-radio value={sh.id}>
                             {sh.id === 'NEAR' ? (
                               <i18n
                                 path='查看{0}条数据'
@@ -969,9 +968,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                             ) : (
                               <span>{sh.name}</span>
                             )}
-                          </Radio>
+                          </bk-radio>
                         ))}
-                      </RadioGroup>
+                      </bk-radio-group>
                     </div>
                   ),
                   // <monitor-divider></monitor-divider>,
@@ -1022,7 +1021,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 </div>
               )}
             </div>,
-
             this.needDescContent && (
               <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
                 {this.isEventMetric && <div class='desc-title'>{this.$t('系统事件说明')}</div>}

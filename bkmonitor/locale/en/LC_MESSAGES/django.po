@@ -11734,3 +11734,77 @@ msgstr "Results Table [%s] is not the physical store"
 #, python-format
 msgid "存储[%s]对应的查询引擎不存在"
 msgstr "Storage [%s] corresponding to the query engine absent"
+msgid "关联指标"
+msgstr "Related Metric"
+
+msgid "存储类型"
+msgstr "Storage Type"
+
+msgid "Proxy集群"
+msgstr "Proxy Cluster"
+
+msgid "实例集群"
+msgstr "Instance Cluster"
+
+msgid "存储实例数"
+msgstr "Number of Storage Instances"
+
+msgid "存储实例"
+msgstr "Storage Instance"
+
+msgid "主机实例"
+msgstr "Host Instance"
+
+msgid "服务端请求数(近1小时)"
+msgstr "Server Request Count(Last 1h)"
+
+msgid "服务端错误数(近1小时)"
+msgstr "Server Error Count(Last 1h)"
+
+msgid "内存占用量"
+msgstr "Memory Usage"
+
+msgid "数据库"
+msgstr "Database"
+
+msgid "库名"
+msgstr "Database Name"
+
+msgid "写入成功点数(近1小时)"
+msgstr "Points of Successful Writes(Last 1h)"
+
+msgid "写入失败点数(近1小时)"
+msgstr "Points of Failed Writes(Last 1h)"
+
+msgid "磁盘占用量"
+msgstr "Disk Usage"
+
+msgid "Series数量"
+msgstr "Number of Series"
+
+msgid "计算平台结果表"
+msgstr "BKBase Result Table"
+
+msgid "数据采集遇到系统异常情况，导致无法上报数据，会发送告警。"
+msgstr "Data collection encountered a system exception that prevent reporting data, it will trigger alarms."
+
+msgid "数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况：” “\n- 端口服务无法正常监听” “\n- 服务输出的内容格式不符合Prom格式"
+msgstr "Data collection encounters plugin exceptions that prevent reporting data, it will trigger alarms. Currently covered exception:” “\n- Port service cannot listen normally” “\n- Service output format does not meet the Prom format"
+
+msgid "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：” “\n- 脚本执行异常，返回非0状态码” “\n- 脚本打印内容格式不符合Prom格式"
+msgstr "When data collection encounters exceptions that prevent reporting data, it will trigger alarms. Currently covered exceptions include:” “\n- Script execution anomaly, returning non-zero status code” “\n- Script output format does not conform to the Prom format"
+
+msgid "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：” “\n- 用户配置中的PID文件不存在” “\n- 用户配置的匹配规则无命中任何进程"
+msgstr "When data collection encounters exceptions that prevent reporting data, it will trigger alarms. Currently covered exceptions include:” “\n- PID file specified in user configuration does not exist” “\n- No processes matched by user-configured rules"
+
+msgid "集成内置-数据采集系统运行异常告警"
+msgstr "Datalink BuiltIn - Data Collection System Anomaly Alarm"
+
+msgid "集成内置-数据采集插件执行异常告警"
+msgstr "Datalink BuiltIn = Data Collection Plugin Execution Anomaly Alarm"
+
+msgid "集成内置"
+msgstr "Datalink BuiltIn"
+
+msgid "集成内置-数据采集告警分派"
+msgstr "Datalink Built - Data Collection Alarm Dispatching"

@@ -26,7 +26,6 @@
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 // import LeftPanel from './left-panel.vue';
-import { Button, Input } from 'bk-magic-vue';
 import { debounce } from 'throttle-debounce';
 
 import {
@@ -80,6 +79,21 @@ const addPageName = {
   [CUSTOM_EVENT]: 'custom-set-event',
   [CUSTOM_METRIC]: 'custom-set-timeseries'
 };
+
+enum EFilterType {
+  current = 'current',
+  platform = 'platform'
+}
+const filterTypes = [
+  {
+    id: EFilterType.current,
+    name: window.i18n.tc('当前空间')
+  },
+  {
+    id: EFilterType.platform,
+    name: window.i18n.tc('平台数据')
+  }
+];
 
 // const panelList: { name: string, id: string, href: boolean }[] = [
 //   {
@@ -156,7 +170,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     pagination: {
       count: 0,
       current: 1,
-      limit: 10
+      limit: 10,
+      showTotalCount: true
     },
     loading: false,
     data: []
@@ -168,6 +183,9 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   handleSearch: Function | null = null;
 
   emptyType: EmptyStatusType = 'empty';
+
+  /* 当前筛选项 */
+  filterType = EFilterType.current;
 
   get getRouterName(): pageType {
     return this.$route.name as pageType;
@@ -250,7 +268,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       pagination: {
         count: 0,
         current: 1,
-        limit: 10
+        limit: 10,
+        showTotalCount: true
       },
       loading: false,
       data: []
@@ -265,7 +284,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     const params = {
       search_key: this.search,
       page: this.tableData.pagination.current,
-      page_size: this.tableData.pagination.limit
+      page_size: this.tableData.pagination.limit,
+      is_platform: this.filterType === EFilterType.platform ? 1 : undefined
     };
     this.emptyType = this.search ? 'search-empty' : 'empty';
     const hasAuth = await this.handleAuthCheck();
@@ -311,7 +331,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     this.tableData.pagination = {
       current: 1,
       count: 0,
-      limit: defaultPageSize
+      limit: defaultPageSize,
+      showTotalCount: true
     };
     this.search = '';
   }
@@ -473,6 +494,18 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     }
   }
 
+  /**
+   * @description 切换当前空间与平台数据
+   * @param type
+   */
+  handleFilterTypeChange(type: EFilterType) {
+    if (this.filterType !== type) {
+      this.filterType = type;
+      this.tableData.pagination.current = 1;
+      this.init();
+    }
+  }
+
   render() {
     return (
       <div
@@ -489,99 +522,114 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
             link-url={`${this.$store.getters.bkNodemanHost}#/plugin-manager/list`}
             doc-link={'fromCustomRreporting'}
           ></PageTips>
-          <div class='content-left-operator'>
-            <Button
-              v-authority={{ active: !this.hasManageAuth }}
-              class='mc-btn-add'
-              theme='primary'
-              onClick={() =>
-                this.hasManageAuth ? this.addCustomEscalation() : this.handleShowAuthorityDetail(this.manageAuthDetail)
-              }
-            >
-              <span class='icon-monitor icon-plus-line mr-6'></span>
-              {this.$t('新建')}
-            </Button>
-            <Input
-              extCls='operator-input'
-              placeholder={this.$tc('搜索 ID / 名称')}
-              rightIcon='bk-icon icon-search'
-              v-model={this.search}
-              on-change={this.handleSearch}
-            ></Input>
-          </div>
-          <CommonTable
-            class='content-left-table'
-            {...{ props: this.tableData }}
-            scopedSlots={{
-              name: (row: IEventItem) => (
-                <span>
-                  {!!row?.is_readonly ? (
-                    <span>{row.name}</span>
-                  ) : (
-                    <span
-                      class='col-btn'
-                      onClick={() => this.handleGotoDetail(row)}
-                    >
-                      {row.name}
-                    </span>
-                  )}
-                  {!!row?.is_platform ? <span class='platform-tag'>{this.$t('公共')}</span> : undefined}
-                </span>
-              ),
-              related: (row: IEventItem) => (
-                <div class='col-strategy'>
-                  <span
-                    class={{ 'col-btn': row.related_strategy_count > 0 }}
-                    onClick={() => this.handleGotoStrategy(row)}
+          <div class='custom-report-page-content'>
+            <div class='content-left-operator'>
+              <bk-button
+                v-authority={{ active: !this.hasManageAuth }}
+                class='mc-btn-add mr-16'
+                theme='primary'
+                onClick={() =>
+                  this.hasManageAuth
+                    ? this.addCustomEscalation()
+                    : this.handleShowAuthorityDetail(this.manageAuthDetail)
+                }
+              >
+                <span class='icon-monitor icon-plus-line mr-6'></span>
+                {this.$t('新建')}
+              </bk-button>
+              <div class='bk-button-group'>
+                {filterTypes.map(item => (
+                  <bk-button
+                    key={item.id}
+                    class={this.filterType === item.id ? 'is-selected' : ''}
+                    onClick={() => this.handleFilterTypeChange(item.id)}
                   >
-                    {row.related_strategy_count}
-                  </span>
-                </div>
-              ),
-              create: (row: IEventItem) => (
-                <div class='col-change'>
-                  <span class='col-change-author'>{row.create_user}</span>
-                  <span>{row.create_time}</span>
-                </div>
-              ),
-              update: (row: IEventItem) =>
-                row.update_time && row.update_user ? (
-                  <div class='col-change'>
-                    <span class='col-change-author'>{row.update_user}</span>
-                    <span>{row.update_time}</span>
-                  </div>
-                ) : (
-                  <div>--</div>
-                ),
-              opreate: (row: IEventItem) => (
-                <OperateOptions
-                  options={{
-                    outside: [
-                      { id: 'view', name: window.i18n.tc('可视化'), authority: true },
-                      {
-                        id: 'delete',
-                        name: window.i18n.tc('删除'),
-                        authority: this.hasManageAuth,
-                        authorityDetail: this.manageAuthDetail,
-                        tip: !!row?.is_readonly ? this.$tc('非当前业务，不允许操作') : '',
-                        disable: row.related_strategy_count !== 0 || !!row?.is_readonly
-                      }
-                    ]
-                  }}
-                  onOptionClick={(v: 'view' | 'delete') => this.handleOperate(v, row)}
-                ></OperateOptions>
-              )
-            }}
-            onPageChange={this.handlePageChange}
-            onLimitChange={this.handlePageLimitChange}
-          >
-            <div slot='empty'>
-              <EmptyStatus
-                type={this.emptyType}
-                onOperation={this.handleEmptyOperation}
-              />
+                    {item.name}
+                  </bk-button>
+                ))}
+              </div>
+              <bk-input
+                extCls='operator-input'
+                placeholder={this.$tc('搜索 ID / 名称')}
+                rightIcon='bk-icon icon-search'
+                v-model={this.search}
+                on-change={this.handleSearch}
+              ></bk-input>
             </div>
-          </CommonTable>
+            <CommonTable
+              class='content-left-table'
+              {...{ props: this.tableData }}
+              scopedSlots={{
+                name: (row: IEventItem) => (
+                  <span>
+                    {!!row?.is_readonly ? (
+                      <span>{row.name}</span>
+                    ) : (
+                      <span
+                        class='col-btn'
+                        onClick={() => this.handleGotoDetail(row)}
+                      >
+                        {row.name}
+                      </span>
+                    )}
+                    {!!row?.is_platform ? <span class='platform-tag'>{this.$t('公共')}</span> : undefined}
+                  </span>
+                ),
+                related: (row: IEventItem) => (
+                  <div class='col-strategy'>
+                    <span
+                      class={{ 'col-btn': row.related_strategy_count > 0 }}
+                      onClick={() => this.handleGotoStrategy(row)}
+                    >
+                      {row.related_strategy_count}
+                    </span>
+                  </div>
+                ),
+                create: (row: IEventItem) => (
+                  <div class='col-change'>
+                    <span class='col-change-author'>{row.create_user}</span>
+                    <span>{row.create_time}</span>
+                  </div>
+                ),
+                update: (row: IEventItem) =>
+                  row.update_time && row.update_user ? (
+                    <div class='col-change'>
+                      <span class='col-change-author'>{row.update_user}</span>
+                      <span>{row.update_time}</span>
+                    </div>
+                  ) : (
+                    <div>--</div>
+                  ),
+                opreate: (row: IEventItem) => (
+                  <OperateOptions
+                    options={{
+                      outside: [
+                        { id: 'view', name: window.i18n.tc('可视化'), authority: true },
+                        {
+                          id: 'delete',
+                          name: window.i18n.tc('删除'),
+                          authority: this.hasManageAuth,
+                          authorityDetail: this.manageAuthDetail,
+                          tip: !!row?.is_readonly ? this.$tc('非当前业务，不允许操作') : '',
+                          disable: row.related_strategy_count !== 0 || !!row?.is_readonly
+                        }
+                      ]
+                    }}
+                    onOptionClick={(v: 'view' | 'delete') => this.handleOperate(v, row)}
+                  ></OperateOptions>
+                )
+              }}
+              onPageChange={this.handlePageChange}
+              onLimitChange={this.handlePageLimitChange}
+            >
+              <div slot='empty'>
+                <EmptyStatus
+                  type={this.emptyType}
+                  onOperation={this.handleEmptyOperation}
+                />
+              </div>
+            </CommonTable>
+          </div>
         </div>
         {/* <div class="content-right">
           <LeftPanel list={panelList}></LeftPanel>

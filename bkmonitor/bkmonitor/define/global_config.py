@@ -153,6 +153,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),
+        ("APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE", slz.CharField(label="APM Flow注册存储资源时地区代号", default="inland")),
         ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=500)),
         ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=30)),
         ("APM_APP_PRE_CALCULATE_STORAGE_SHARDS", slz.IntegerField(label="APM预计算存储ES分片数", default=3)),
@@ -261,7 +262,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
         ("IS_ENABLE_METADATA_FUNCTION_CONTROLLER", slz.BooleanField(label="METADATA 是否启用功能开关", default=True)),
         ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
+        ("INNER_COLLOCTOR_HOST", slz.CharField(label="collector内网域名", default="")),
+        ("OUTER_COLLOCTOR_HOST", slz.CharField(label="collector外网域名", default="")),
         ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
+        ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
+        ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
     ]
 )
 

@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Icon } from 'bk-magic-vue';
 
 import { listStickySpaces } from '../../../../monitor-api/modules/commons';
 import {
@@ -262,7 +261,10 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     }
   }
   handleResetChecked() {
-    if (this.$route.name === 'grafana-home' || this.$store.getters.bizIdChangePedding) {
+    if (this.$store.getters.bizIdChangePedding) {
+      const list = this.$store.getters.bizIdChangePedding?.split('/') || [];
+      this.checked = list.length < 2 ? GRAFANA_HOME_ID : list[2] || GRAFANA_HOME_ID;
+    } else if (this.$route.name === 'grafana-home') {
       this.checked = GRAFANA_HOME_ID;
     } else if (this.$route.name === 'favorite-dashboard') {
       this.checked = this.$route.params?.url || '';
@@ -662,7 +664,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 class='search-icon'
                 onClick={this.handleShowSearch}
               >
-                <Icon
+                <bk-icon
                   slot='icon'
                   type='search'
                 />
@@ -674,7 +676,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                   options={this.addOptions}
                   onSelected={this.handleAdd}
                 >
-                  <Icon
+                  <bk-icon
                     slot='icon'
                     class='add-icon'
                     type='plus'

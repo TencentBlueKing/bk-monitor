@@ -95,6 +95,7 @@
                     class="logo-img"
                     v-if="pluginInfo.logo"
                     :src="`data:image/png;base64,${pluginInfo.logo}`"
+                    alt=''
                   >
                   <div
                     class="logo-text"
@@ -742,7 +743,7 @@ export default {
   }
 
   .plugin-detail-content {
-    height: calc(100% - 52px);
+    height: calc(100% - 52px - var(--notice-alert-height));
     padding: 16px;
 
     .hint-alert {

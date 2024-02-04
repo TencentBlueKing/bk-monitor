@@ -110,5 +110,18 @@ export default {
   '{0}月': '{0} month',
   轮值规则: 'Rotation Rules',
   轮值详情: 'Details of rotation',
+  配置信息: 'Configuration information',
+  链路状态: 'Link state',
+  字段详情: 'Field details',
+  当前暂无告警: 'No warning at this time',
+  当前有告警: 'current warning',
+  可接收告警: 'Can receive warning',
+  总告警: 'General warning',
+  近一小时: 'Almost an hour',
+  分钟数据量: 'Minute data volume',
+  日数据量: 'Daily data volume',
+  小时数据量: 'Hour data volume',
+  集群状态: 'Cluster status',
+  索引状态: 'Index status',
   '主机智能异常检测发现{0}个主机异常': 'Host intelligent exception detection found {0} host exceptions'
 };

@@ -177,6 +177,7 @@
                       src="../../static/images/svg/spinner.svg"
                       v-if="scope.row.doingStatus"
                       class="status-loading"
+                      alt=''
                     >
                     <div
                       v-if="['FAILED', 'WARNING', 'SUCCESS', 'STOPPED'].includes(scope.row.taskStatus)"
@@ -1018,9 +1019,15 @@ export default {
         update.data = data;
       }
     },
-    handleShowDetail({ id, name, status }) {
-      this.side.data = { id, name, status };
-      this.side.show = true;
+    handleShowDetail({ id /*  name, status */ }) {
+      // this.side.data = { id, name, status };
+      // this.side.show = true;
+      this.$router.push({
+        name: 'collect-config-detail',
+        params: {
+          id
+        }
+      });
     },
     handleChangeCollectName(id, name) {
       const curCollect = this.table.data.find(item => item.id === id);
@@ -1298,6 +1305,7 @@ export default {
 .mr-6 {
   margin-right: 6px;
 }
+
 .collector-config {
   margin: 24px;
   font-size: 12px;

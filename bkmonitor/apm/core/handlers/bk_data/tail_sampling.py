@@ -26,7 +26,6 @@ class TailSamplingFlow(ApmFlow):
     """
 
     _NAME = "apmTailSamplingFlow"
-    _BKBASE_PROJECT_ID = settings.APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID
     _FLOW = APMTailSamplingTask
     _FLOW_TYPE = FlowType.TAIL_SAMPLING.value
     # Flow入库的ES存储资源命名格式
@@ -35,11 +34,16 @@ class TailSamplingFlow(ApmFlow):
     _FLINK_CODE_FILENAME = os.path.join(settings.BASE_DIR, "apm/core/handlers/bk_data/tail_sampling_flink.java")
     # bkbase dataId直连方式接入用到的场景ID 为协商的固定值
     _BKDATA_CUSTOM_SCENARIO_ID = 47
+    _STORAGE_REGISTRY_AREA_CODE = settings.APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE
 
     def __init__(self, trace_datasource, config):
         super(TailSamplingFlow, self).__init__(
             trace_datasource.bk_biz_id, trace_datasource.app_name, trace_datasource.bk_data_id, config
         )
+
+    @property
+    def bkbase_project_id(self):
+        return settings.APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID
 
     @property
     def deploy_description(self):
@@ -173,7 +177,7 @@ class TailSamplingFlow(ApmFlow):
     @classmethod
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None, extra_maintainers=None):
         """使用dataId互认方式接入数据源"""
-        maintainers = ",".join(list(set([operator] + cls._BKBASE_MAINTAINER + extra_maintainers or [])))
+        maintainers = ",".join(list(set([operator] + cls.bkbase_maintainer() + extra_maintainers or [])))
 
         return {
             "operator": operator,
@@ -229,7 +233,7 @@ class TailSamplingFlow(ApmFlow):
                 "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
                 "resource_set_id": bkdata_cluster_id,
                 "resource_set_name": bkdata_cluster_name,
-                "geog_area_code": "inland",
+                "geog_area_code": self._STORAGE_REGISTRY_AREA_CODE,
                 "category": "es",
                 "provider": "user",
                 "purpose": f"此集群由APM创建",
@@ -258,17 +262,17 @@ class TailSamplingFlow(ApmFlow):
         resource_info = api.bkdata.get_resource_set(resource_set_id=bkdata_cluster_id)
         auth_proj = [i.get("id") for i in resource_info.get("authorized_projects", [])]
         self.logger.info(f"bkdata resource: {bkdata_cluster_id}({bkdata_cluster_name}) auth proj: {auth_proj}")
-        if self._BKBASE_PROJECT_ID not in auth_proj:
+        if self.bkbase_project_id not in auth_proj:
             self.logger.info(
-                f"{self._BKBASE_PROJECT_ID} not in"
+                f"{self.bkbase_project_id} not in"
                 f" resource: {bkdata_cluster_id}({bkdata_cluster_name}) auth proj, start to auth"
             )
             auth_proj_params = {
                 "bk_username": settings.APM_APP_BKDATA_OPERATOR,
-                "authorized_projects": auth_proj + [self._BKBASE_PROJECT_ID],
+                "authorized_projects": auth_proj + [self.bkbase_project_id],
             }
             api.bkdata.update_resource_set({"resource_set_id": bkdata_cluster_id, **auth_proj_params})
-            self.logger.info(f"{self._BKBASE_PROJECT_ID} <-------> {bkdata_cluster_id} auth successfully")
+            self.logger.info(f"{self.bkbase_project_id} <-------> {bkdata_cluster_id} auth successfully")
 
         es_extra_data["cluster_name"] = bkdata_cluster_id
         self.logger.info(f"es_extra_data collect, cluster_name: {es_extra_data['cluster_name']}")

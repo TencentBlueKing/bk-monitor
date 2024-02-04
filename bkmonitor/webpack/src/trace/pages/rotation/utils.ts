@@ -390,7 +390,7 @@ export function transformWeeklyName(data: number[]) {
     window.i18n.t('六'),
     window.i18n.t('日')
   ];
-  return data.length ? `${window.i18n.t('每周')}${data.map(item => week[item]).join('、')}` : '';
+  return data?.length ? `${window.i18n.t('每周')}${data.map(item => week[item]).join('、')}` : '';
 }
 
 export interface RuleDetailModel {

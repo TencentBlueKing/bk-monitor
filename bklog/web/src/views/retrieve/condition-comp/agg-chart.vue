@@ -65,6 +65,8 @@
 </template>
 
 <script>
+import _escape from 'lodash/escape';
+
 export default {
   props: {
     statisticalFieldData: {
@@ -133,7 +135,7 @@ export default {
     getIconPopover(operator, value) {
       if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
       if (this.filterIsExist(operator, value)) return this.$t('已添加过滤条件');
-      return `${this.fieldName} ${operator} ${value}`;
+      return `${this.fieldName} ${operator} ${_escape(value)}`;
     },
     filterIsExist(operator, value) {
       if (this.fieldType === '__virtual__') return true;

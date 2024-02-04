@@ -8,10 +8,23 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
+
+from alarm_backends.service.scheduler.app import app
 from apm_ebpf.apps import logger
-from apm_ebpf.handlers.deepflow import DeepflowInstaller
+from apm_ebpf.handlers.deepflow import DeepflowHandler, DeepflowInstaller
 from apm_ebpf.handlers.relation import RelationHandler
 from apm_ebpf.models import ClusterRelation
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def install_grafana():
+    """
+    为有效集群安装grafana仪表盘
+    """
+    logger.info(f"[GrafanaInstaller] start at {datetime.datetime.now()}")
+    DeepflowHandler.install_grafana()
+    logger.info(f"[GrafanaInstaller] end at {datetime.datetime.now()}")
 
 
 def ebpf_discover_cron():
@@ -25,6 +38,7 @@ def ebpf_discover_cron():
     for cluster_id in cluster_ids:
         DeepflowInstaller(cluster_id).check_installed()
 
+    install_grafana.delay()
     logger.info(f"[ebpf_discover_cron] end")
 
 

@@ -59,6 +59,7 @@ export default {
   'route-指标插件': 'Metric Plugins',
   'route-告警源': 'Alarm Sources',
   'route-数据采集': 'Data Collection',
+  'route-采集详情': 'Collection Detail',
   'route-自定义指标': 'Custom Metrics',
   'route-自定义事件': 'Custom Events',
   'route-共享': 'Sharing',
@@ -200,6 +201,7 @@ export default {
   'influxdb 集群': 'influxdb Set',
   'ES 集群': 'ES Set',
   资源注册: 'Resource registration',
+  'route-资源注册': 'Resource registration',
   编辑集群: 'Edit cluster',
   新增集群: 'Add cluster'
 };

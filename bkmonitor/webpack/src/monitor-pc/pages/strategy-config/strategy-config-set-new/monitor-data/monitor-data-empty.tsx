@@ -170,6 +170,7 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
               <img
                 class='type-icon'
                 src={addLabelItems[item.id].icon}
+                alt=''
               />
               <div class='label'>
                 <div class='label-top'>{addLabelItems[item.id].name}</div>

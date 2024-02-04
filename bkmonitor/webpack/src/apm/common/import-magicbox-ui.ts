@@ -29,92 +29,97 @@
  * @Description:
  */
 import Vue from 'vue';
-import {
-  bkAlert,
-  bkBadge,
-  bkBigTree,
-  bkButton,
-  bkCheckbox,
-  bkCheckboxGroup,
-  bkClickoutside,
-  bkCollapse,
-  bkCollapseItem,
-  bkDatePicker,
-  bkDialog,
-  bkDropdownMenu,
-  bkException,
-  bkForm,
-  bkFormItem,
-  bkInfoBox,
-  bkInput,
-  bkLoading,
-  bkMessage,
-  bkOption,
-  bkOverflowTips,
-  bkPagination,
-  bkPopover,
-  bkRadio,
-  bkRadioGroup,
-  bkSearchSelect,
-  bkSelect,
-  bkSideslider,
-  bkSteps,
-  bkSwitcher,
-  bkTab,
-  bkTable,
-  bkTableColumn,
-  bkTabPanel,
-  bkTagInput,
-  bkTimePicker,
-  bkTooltips,
-  bkVirtualScroll
-} from 'bk-magic-vue';
+import bkMagicVue from 'bk-magic-vue';
 
-import DragDirective from './drag-directive';
+import 'bk-magic-vue/dist/bk-magic-vue.min.css';
 
-Vue.use(DragDirective);
-// directives use
-Vue.use(bkClickoutside);
-Vue.use(bkTooltips);
-Vue.use(bkLoading);
-Vue.use(bkOverflowTips);
-Vue.use(bkAlert);
-Vue.use(bkPopover);
+Vue.use(bkMagicVue, { zIndex: 3000 });
+// import {
+//   bkAlert,
+//   bkBadge,
+//   bkBigTree,
+//   bkButton,
+//   bkCheckbox,
+//   bkCheckboxGroup,
+//   bkClickoutside,
+//   bkCollapse,
+//   bkCollapseItem,
+//   bkDatePicker,
+//   bkDialog,
+//   bkDropdownMenu,
+//   bkException,
+//   bkForm,
+//   bkFormItem,
+//   bkInfoBox,
+//   bkInput,
+//   bkLoading,
+//   bkMessage,
+//   bkOption,
+//   bkOverflowTips,
+//   bkPagination,
+//   bkPopover,
+//   bkRadio,
+//   bkRadioGroup,
+//   bkSearchSelect,
+//   bkSelect,
+//   bkSideslider,
+//   bkSteps,
+//   bkSwitcher,
+//   bkTab,
+//   bkTable,
+//   bkTableColumn,
+//   bkTabPanel,
+//   bkTagInput,
+//   bkTimePicker,
+//   bkTooltips,
+//   bkVirtualScroll
+// } from 'bk-magic-vue';
 
-// components
-Vue.use(bkDropdownMenu);
-Vue.use(bkButton);
-Vue.use(bkTable);
-Vue.use(bkTableColumn);
-Vue.use(bkSearchSelect);
-Vue.use(bkSelect);
-Vue.use(bkOption);
-Vue.use(bkSideslider);
-Vue.use(bkPagination);
-Vue.use(bkInput);
-Vue.use(bkDialog);
-Vue.use(bkCheckbox);
-Vue.use(bkCheckboxGroup);
-Vue.use(bkBadge);
-Vue.use(bkSwitcher);
-Vue.use(bkDatePicker);
-Vue.use(bkTagInput);
-Vue.use(bkCollapse);
-Vue.use(bkRadio);
-Vue.use(bkRadioGroup);
-Vue.use(bkCollapseItem);
-Vue.use(bkBigTree);
-Vue.use(bkForm);
-Vue.use(bkFormItem);
-Vue.use(bkTab);
-Vue.use(bkTabPanel);
-Vue.use(bkTimePicker);
-Vue.use(bkException);
-Vue.use(bkSteps);
-Vue.use(bkVirtualScroll);
+// import DragDirective from './drag-directive';
 
-// // Vue prototype mount
-Vue.prototype.$bkInfo = bkInfoBox;
-Vue.prototype.$bkMessage = bkMessage;
-// Vue.prototype.$bkNotify = bkNotify
-Vue.prototype.$bkLoading = bkLoading;
+// Vue.use(DragDirective);
+// // directives use
+// Vue.use(bkClickoutside);
+// Vue.use(bkTooltips);
+// Vue.use(bkLoading);
+// Vue.use(bkOverflowTips);
+// Vue.use(bkAlert);
+// Vue.use(bkPopover);
+
+// // components
+// Vue.use(bkDropdownMenu);
+// Vue.use(bkButton);
+// Vue.use(bkTable);
+// Vue.use(bkTableColumn);
+// Vue.use(bkSearchSelect);
+// Vue.use(bkSelect);
+// Vue.use(bkOption);
+// Vue.use(bkSideslider);
+// Vue.use(bkPagination);
+// Vue.use(bkInput);
+// Vue.use(bkDialog);
+// Vue.use(bkCheckbox);
+// Vue.use(bkCheckboxGroup);
+// Vue.use(bkBadge);
+// Vue.use(bkSwitcher);
+// Vue.use(bkDatePicker);
+// Vue.use(bkTagInput);
+// Vue.use(bkCollapse);
+// Vue.use(bkRadio);
+// Vue.use(bkRadioGroup);
+// Vue.use(bkCollapseItem);
+// Vue.use(bkBigTree);
+// Vue.use(bkForm);
+// Vue.use(bkFormItem);
+// Vue.use(bkTab);
+// Vue.use(bkTabPanel);
+// Vue.use(bkTimePicker);
+// Vue.use(bkException);
+// Vue.use(bkSteps);
+// Vue.use(bkVirtualScroll);
+
+// // // Vue prototype mount
+// Vue.prototype.$bkInfo = bkInfoBox;
+// Vue.prototype.$bkMessage = bkMessage;
+// // Vue.prototype.$bkNotify = bkNotify
+// Vue.prototype.$bkLoading = bkLoading;
