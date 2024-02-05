@@ -27,7 +27,6 @@
 // import { Component, Mixins, Provide } from 'vue-tsx-support';
 import { Component, Provide, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Dialog } from 'bk-magic-vue';
 
 import { CancelToken } from '../../../monitor-api/index';
 import {
@@ -42,8 +41,8 @@ import { Debounce } from '../../../monitor-common/utils/utils';
 import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
 import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
-import { INodeType, TargetObjectType } from '../../../monitor-pc/components/monitor-ip-selector/typing';
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
+import type { INodeType, TargetObjectType } from '../../../monitor-pc/components/monitor-ip-selector/typing';
+import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 // import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import AlarmTools from '../../../monitor-pc/pages/monitor-k8s/components/alarm-tools';
@@ -214,7 +213,7 @@ export default class AppList extends tsc<{}> {
   }
 
   created() {
-    const { query } = this.$route;
+    const { query } = this.$route || {};
     if (query?.queryString) {
       this.searchKeyword = query.queryString as string;
     }
@@ -668,7 +667,7 @@ export default class AppList extends tsc<{}> {
           pluginId={this.pluginId}
           v-model={this.showAddDialog}
         ></AppAddForm>
-        <Dialog
+        <bk-dialog
           value={this.showGuideDialog}
           mask-close={true}
           ext-cls='guide-create-dialog'
@@ -681,7 +680,7 @@ export default class AppList extends tsc<{}> {
             guideId='apm-home'
             guideData={this.apmIntroduceData}
           />
-        </Dialog>
+        </bk-dialog>
       </div>
     );
   }

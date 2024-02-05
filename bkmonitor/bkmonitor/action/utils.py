@@ -17,8 +17,10 @@ from django.db.models import Q
 
 from bkmonitor.models import (
     AlertAssignRule,
+    DutyRuleRelation,
     StrategyActionConfigRelation,
     StrategyModel,
+    UserGroup,
 )
 from constants.action import ActionPluginType
 
@@ -107,17 +109,39 @@ def get_strategy_user_group_dict(strategy_ids, bk_biz_id=None):
     return strategy_count_of_user_group
 
 
-def get_user_group_strategies(user_groups):
+def get_user_group_strategies(user_groups, bk_biz_ids=None):
     """
     获取告警组对应的策略数统计
     """
     if not user_groups:
         # 如果没有告警组，直接返回
         return {}
-    queryset = StrategyActionConfigRelation.objects.filter(relate_type=StrategyActionConfigRelation.RelateType.NOTICE)
-    filters = [Q(user_groups__contains=group_id) for group_id in user_groups]
-    filters.extend([Q(options__upgrade_config__user_groups__contains=group_id) for group_id in user_groups])
-    relations = queryset.filter(reduce(operator.or_, filters)).values("user_groups", "strategy_id", "options")
+
+    if bk_biz_ids is None:
+        bk_biz_ids = set(UserGroup.objects.filter(id__in=user_groups).values_list("bk_biz_id", flat=True))
+
+    if not bk_biz_ids:
+        return {}
+
+    strategies = list(StrategyModel.objects.filter(bk_biz_id__in=bk_biz_ids).values_list("id", flat=True))
+
+    queryset = StrategyActionConfigRelation.origin_objects.filter(
+        relate_type="NOTICE", strategy_id__in=strategies
+    ).values("user_groups", "strategy_id", "is_deleted", "options")
+    relations = []
+    for relation in queryset:
+        if relation["is_deleted"]:
+            # 被删除的内容，忽略
+            continue
+        for group_id in user_groups:
+            if group_id in relation["user_groups"]:
+                # 如果告警组存在通知对象或者升级配置的对象中
+                relations.append(relation)
+                break
+            upgrade_user_groups = relation["options"].get("upgrade_config", {}).get("user_groups")
+            if upgrade_user_groups and group_id in upgrade_user_groups:
+                relations.append(relation)
+                break
     strategy_count_of_user_group = defaultdict(list)
     for relation in relations:
         if relation["options"].get("upgrade_config", {}).get("user_groups"):
@@ -129,16 +153,37 @@ def get_user_group_strategies(user_groups):
     return strategy_count_of_user_group
 
 
-def get_user_group_assign_rules(user_groups):
+def get_user_group_assign_rules(user_groups, bk_biz_ids=None):
     """
     获取告警组对应的策略数统计
     """
     if not user_groups:
         return {}
-    filters = [Q(user_groups__contains=group_id) for group_id in user_groups]
-    filters.extend([Q(actions__0__upgrade_config__user_groups__contains=group_id) for group_id in user_groups])
-    rules = AlertAssignRule.objects.filter(reduce(operator.or_, filters)).values("user_groups", "id", "actions")
+
+    if bk_biz_ids is None:
+        bk_biz_ids = set(UserGroup.objects.filter(id__in=user_groups).values_list("bk_biz_id", flat=True))
+
+    if not bk_biz_ids:
+        return {}
+
+    rule_queryset = AlertAssignRule.objects.filter(bk_biz_id__in=bk_biz_ids).values("user_groups", "id", "actions")
     rule_count_of_user_group = defaultdict(list)
+    rules = []
+    for rule in rule_queryset:
+        for group_id in user_groups:
+            if group_id in rule["user_groups"]:
+                # 如果通知组包含一个告警组，则表示命中
+                rules.append(rule)
+                break
+            upgrade_user_groups = []
+            for action in rule["actions"]:
+                if action["action_type"] == ActionPluginType.NOTICE:
+                    upgrade_user_groups = action.get("upgrade_config", {}).get("user_groups")
+                    break
+            if upgrade_user_groups and group_id in upgrade_user_groups:
+                rules.append(rule)
+                break
+
     for rule in rules:
         for action in rule["actions"]:
             if action["action_type"] != ActionPluginType.NOTICE:
@@ -168,11 +213,42 @@ def get_assign_rule_related_resource_dict(assign_group_ids):
     return relations
 
 
-def validate_time_range(value):
+def get_duty_rule_user_groups(duty_rule_ids):
+    if not duty_rule_ids:
+        return {}
+
+    duty_rule_user_groups = defaultdict(list)
+    for relation in DutyRuleRelation.objects.filter(duty_rule_id__in=duty_rule_ids):
+        duty_rule_user_groups[relation.duty_rule_id].append(relation.user_group_id)
+    return duty_rule_user_groups
+
+
+def get_user_group_duty_rules(user_group_ids):
+    if not user_group_ids:
+        return {}
+    user_group_duty_rules = defaultdict(list)
+    for relation in DutyRuleRelation.objects.filter(user_group_id__in=user_group_ids):
+        user_group_duty_rules[relation.user_group_id].append(relation.duty_rule_id)
+
+
+def validate_time_range(value, format_str="%H:%M"):
     try:
         [start_time, end_time] = value.split("--")
-        datetime.strptime(start_time, "%H:%M")
-        datetime.strptime(end_time, "%H:%M")
+        datetime.strptime(start_time, format_str)
+        datetime.strptime(end_time, format_str)
+    except ValueError:
+        return False
+    return True
+
+
+def validate_datetime_range(value, format_str="%d %H:%M"):
+    """
+    校验前端的日期时间格式
+    """
+    try:
+        [start_time, end_time] = value.split("--")
+        datetime.strptime(start_time, format_str)
+        datetime.strptime(end_time, format_str)
     except ValueError:
         return False
     return True

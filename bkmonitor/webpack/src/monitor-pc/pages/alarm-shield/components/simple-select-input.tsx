@@ -26,7 +26,6 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../monitor-common/utils/utils';
 
@@ -54,15 +53,20 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
   @Prop({ default: window.i18n.t('无数据'), type: String }) nodataMsg: string;
   @Ref('list') listRef: HTMLDivElement;
   @Ref('inputWrap') inputWrapRef: HTMLDivElement;
-  @Ref('input') inputRef: Input;
+  @Ref('input') inputRef: any;
 
   popoverInstance = null;
   isShowPop = false;
 
+  /* 输入完毕，关闭弹出层时 下次弹出全部选项 */
+  isSelected = true;
+
   get searchList() {
     if (this.value) {
-      const isCheck = this.list.some(item => item.name === this.value || item.id === this.value);
-      return this.list.filter(item => item.name.indexOf(this.value) > -1 || isCheck);
+      const isCheck = this.list.some(item => item.name === this.value || item.id === this.value) && this.isSelected;
+      return this.list.filter(
+        item => item.name.indexOf(this.value) > -1 || item.id.indexOf(this.value) > -1 || isCheck
+      );
     }
     return this.list;
   }
@@ -83,6 +87,9 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
           this.popoverInstance.destroy();
           this.popoverInstance = null;
           this.isShowPop = false;
+          setTimeout(() => {
+            this.isSelected = true;
+          }, 50);
         }
       });
     }
@@ -97,11 +104,13 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
   // 提交，click 和 blur 统一调一个方法
   handleCommit(item) {
     this.handleChange(item.name);
+    this.isSelected = false;
   }
 
   @Debounce(300)
   @Emit('change')
   handleChange(value) {
+    this.popoverInstance?.show(100);
     return value;
   }
 
@@ -112,12 +121,15 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
           onClick={event => this.handleShowPopover(event)}
           ref='inputWrap'
         >
-          <Input
+          <bk-input
             class='input-wrap'
             value={this.value}
             ref='input'
             placeholder={this.placeholder}
-            onInput={this.handleChange}
+            onInput={value => {
+              this.handleChange(value);
+              this.isSelected = false;
+            }}
             onBlur={this.handleBlur}
           />
         </span>
@@ -130,13 +142,14 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
               <ul class='list-wrap'>
                 {this.searchList.map(item => (
                   <li
+                    key={item.id}
                     v-bk-tooltips={{
                       content: item.id,
                       placement: 'right',
                       zIndex: 9999,
-                      allowHTML: false,
                       boundary: document.body,
-                      appendTo: document.body
+                      appendTo: document.body,
+                      allowHTML: false
                     }}
                     onClick={() => this.handleCommit(item)}
                   >

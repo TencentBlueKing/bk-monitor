@@ -151,7 +151,6 @@ class EBPFHandler:
             span_attrs["df.dns.response_code"] = int(item.get("response_code"))
 
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
         if item.get("response_result") is not None:
@@ -172,7 +171,6 @@ class EBPFHandler:
             span_attrs["http.status_code"] = int(item.get("response_code"))
 
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
         if item.get("request_type") and item.get("l7_protocol_str"):
             span.span_name = " ".join([item.get("l7_protocol_str"), item.get("request_type")])
@@ -186,7 +184,6 @@ class EBPFHandler:
             span.span_name = "/".join([item.get("request_resource"), item.get("request_type")])
 
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
         cls.put_value_map(span_attrs, "df.request_domain", item.get("request_domain"))
@@ -213,7 +210,6 @@ class EBPFHandler:
             span.span_name = "/".join([item.get("request_resource"), item.get("request_type")])
 
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
     @classmethod
@@ -231,7 +227,6 @@ class EBPFHandler:
             span_attrs["df.kafka.response_code"] = item.get("response_code")
 
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
     @classmethod
@@ -246,7 +241,6 @@ class EBPFHandler:
             span_attrs["df.mqtt.response_code"] = item.get("response_code")
 
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
     @classmethod
@@ -257,7 +251,6 @@ class EBPFHandler:
         cls.put_value_map(span_attrs, "db.statement", item.get("request_resource"))
         cls.put_value_map(span_attrs, "df.mysql.request_type", item.get("request_type"))
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
         span.set_name(span_name)
@@ -270,7 +263,6 @@ class EBPFHandler:
         cls.put_value_map(span_attrs, "db.statement", item.get("request_resource"))
         cls.put_value_map(span_attrs, "df.postgresql.request_type", item.get("request_type"))
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
         span.set_name(span_name)
@@ -281,7 +273,6 @@ class EBPFHandler:
         cls.put_value_map(span_attrs, "db.operation", item.get("request_type"))
         cls.put_value_map(span_attrs, "db.statement", item.get("request_resource"))
         if item.get("response_exception"):
-            span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
         span.set_name(item.get("request_type"))

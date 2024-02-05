@@ -9,12 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 from collections import defaultdict
 
-from apm_web.models import Application
 from django.utils.functional import cached_property
-from monitor_web.statistics.v2.base import BaseCollector
 
 from apm.models import TopoInstance, TopoNode, TraceDataSource
+from apm_ebpf.models import DeepflowWorkload
+from apm_web.models import Application
 from core.statistics.metric import Metric, register
+from monitor_web.statistics.v2.base import BaseCollector
 
 
 class APMCollector(BaseCollector):
@@ -52,11 +53,25 @@ class APMCollector(BaseCollector):
 
         return biz_map
 
-    @register(labelnames=("bk_biz_id", "bk_biz_name"))
+    @register(labelnames=("bk_biz_id", "bk_biz_name", "data_status"))
     def application_count(self, metric: Metric):
         """应用数"""
         for biz_id, apps in self.applications_biz_map.items():
-            metric.labels(bk_biz_id=biz_id, bk_biz_name=self.get_biz_name(biz_id)).inc(len(apps))
+            bk_biz_name = self.get_biz_name(biz_id)
+            for app in apps:
+                metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, data_status=app.data_status).inc()
+
+    @register(labelnames=("bk_biz_id", "bk_biz_name"))
+    def ebpf_k8s_count(self, metric: Metric):
+        """ebpf使用的k8s集群数"""
+
+        biz_map = defaultdict(list)
+        for obj in DeepflowWorkload.objects.values("bk_biz_id", "cluster_id").distinct():
+            biz_map[obj["bk_biz_id"]].append(obj)
+
+        for biz_id, objs in biz_map.items():
+            bk_biz_name = self.get_biz_name(biz_id)
+            metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name).inc(len(objs))
 
     # @register(labelnames=("bk_biz_id", "bk_biz_name", "app_name"))
     # def span_count(self, metric: Metric):

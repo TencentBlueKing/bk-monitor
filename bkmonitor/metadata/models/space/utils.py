@@ -47,6 +47,7 @@ def list_spaces(
     page: Optional[int] = DEFAULT_PAGE,
     page_size: Optional[int] = DEFAULT_PAGE_SIZE,
     exclude_platform_space: Optional[bool] = True,
+    include_resource_id: Optional[bool] = False,
 ) -> Dict:
     """查询空间实例信息
 
@@ -59,6 +60,7 @@ def list_spaces(
     :param page: 分页
     :param page_size: 每页的数量
     :param exclude_platform_space: 过滤掉平台级的空间
+    :param include_resource_id: 包含资源 id
     :return: 空间列表信息
     """
     # 获取空间类型 ID 和 空间类型名称
@@ -74,8 +76,20 @@ def list_spaces(
         exclude_platform_space,
         space_type_id_name,
     )
-    if not is_detail:
+    # 如果不需要详情，也不需要资源 id 时，直接忽略
+    if not (is_detail or include_resource_id):
         return space_info
+
+    # 包含资源 id 优先级高于查询详情, 如果需要资源 id, 则直接返回
+    spaces = [(space["space_type_id"], space["space_id"]) for space in space_info["list"]]
+    if include_resource_id:
+        # 组装空间列表，分组过滤关联的资源 ID，避免单次过滤时，where 条件太多，导致慢查询
+        space_resource = _filter_space_resource_by_page(spaces)
+        for space in space_info["list"]:
+            key = (space["space_type_id"], space["space_id"])
+            space["resources"] = space_resource.get(key, [])
+        return space_info
+
     # 追加空间关联的资源信息
     # 用于后续资源的匹配，组装数据格式: {(空间类型ID, 空间ID): 空间信息}
     space_type_ids, space_ids = [], []
@@ -121,6 +135,43 @@ def list_spaces(
         s["resources"] = space_resource_dict.get(key, [])
     # 返回带有更详细信息的空间列表
     return space_info
+
+
+def _filter_space_resource_by_page(spaces: List) -> Dict:
+    """过滤关联空间资源
+    :param spaces: 空间列表
+    :return: 过滤到的空间资源数据
+    """
+    default_ret_data = {}
+    if not spaces:
+        return default_ret_data
+    # NOTE: 这里不要设置太大
+    page_size = 500
+    chunk_list = [spaces[i : i + page_size] for i in range(0, len(spaces), page_size)]
+
+    # 空间关联的资源数据
+    space_resource_data = []
+    for chunk in chunk_list:
+        # 组装过滤数据
+        filter_q = Q()
+        for space in chunk:
+            filter_q |= Q(space_type_id=space[0], space_id=space[1])
+        space_resource_data.extend(
+            list(
+                SpaceResource.objects.filter(filter_q).values(
+                    "space_type_id", "space_id", "resource_type", "resource_id"
+                )
+            )
+        )
+
+    # 组装空间和资源的映射
+    space_resource_dict = {}
+    for space_resource in space_resource_data:
+        space_resource_dict.setdefault((space_resource["space_type_id"], space_resource["space_id"]), []).append(
+            {"resource_type": space_resource["resource_type"], "resource_id": space_resource["resource_id"]}
+        )
+
+    return space_resource_dict
 
 
 def get_space_detail(
@@ -297,7 +348,6 @@ def authorize_data_id_list(space_type: str, space_id: str, data_id_list: List):
         space_id,
         json.dumps(data_id_list),
     )
-    # bkpaas_data_id_list = settings.BKPAAS_DATA_ID_LIST
     if not data_id_list:
         return
     used_data_ids = SpaceDataSource.objects.filter(
@@ -637,26 +687,32 @@ def get_data_id_by_cluster(cluster_id: Optional[str] = None, desire_all_data: Op
     return cluster_data_id_dict
 
 
-def get_shared_cluster_namespaces(cluster_id: str, project_id: str) -> List:
+def get_shared_cluster_namespaces(cluster_id: str, project_code: str) -> List:
     """获取共享集群的命名空间信息"""
-    # TODO: 通过 bcs_cc 的接口后续迁移至 project manager api
+    # 通过 project manager api 项目使用获取共享集群的命名空间
     try:
-        return api.bcs_cc.get_shared_cluster_namespaces(cluster_id=cluster_id, project_id=project_id)
+        return api.bcs.fetch_shared_cluster_namespaces(cluster_id=cluster_id, project_code=project_code)
     except Exception as e:
         logging.error("request shared cluster namespace error, err: %s", e)
         return []
 
 
-def get_space_shared_namespaces(space_code: str):
-    """获取共享命名空间信息
+def get_project_clusters(project_id: str) -> List:
+    """获取项目下的集群列表"""
+    try:
+        return api.bcs_cluster_manager.get_project_clusters(project_id=project_id)
+    except Exception as e:
+        logger.error("request project cluster list error, err: %s", e)
+        return []
 
-    NOTE: 针对 bcs 的空间 code 为项目32为 ID
-    """
+
+def get_space_shared_namespaces(space_id: str):
+    """获取共享命名空间信息"""
     shared_clusters = api.bcs_cluster_manager.get_shared_clusters()
     shared_cluster_namespaces = []
     for cluster in shared_clusters:
         shared_cluster_namespaces.extend(
-            get_shared_cluster_namespaces(cluster_id=cluster["cluster_id"], project_id=space_code)
+            get_shared_cluster_namespaces(cluster_id=cluster["cluster_id"], project_code=space_id)
         )
 
     cluster_namespace_dict = {}
@@ -859,7 +915,7 @@ def create_bcs_spaces(project_list: List) -> bool:
                 shared_cluster_data_id_list.extend(cluster_data_id_list)
                 ns_list = [
                     ns["namespace"]
-                    for ns in get_shared_cluster_namespaces(cluster_id=c["cluster_id"], project_id=p["project_id"])
+                    for ns in get_shared_cluster_namespaces(cluster_id=c["cluster_id"], project_code=p["project_code"])
                 ]
                 project_cluster_ns_list.append(
                     {"cluster_id": c["cluster_id"], "namespace": ns_list, "cluster_type": "shared"}

@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { DropdownMenu } from 'bk-magic-vue';
 
 import { IRelationStatusItem, LegendActionType } from '../../typings';
 
@@ -87,7 +86,7 @@ export default class RelationLegend extends tsc<IRelationLegendProps, IEvents> {
     return (
       <div class='relation-legend'>
         <div class='legend-card relation-option'>
-          <DropdownMenu
+          <bk-dropdown-menu
             class='option-dropdown-menu'
             trigger='click'
             on-show={() => (this.dropdownShow = true)}
@@ -107,7 +106,7 @@ export default class RelationLegend extends tsc<IRelationLegendProps, IEvents> {
                 </li>
               ))}
             </ul>
-          </DropdownMenu>
+          </bk-dropdown-menu>
           {this.optionData.map((item, index) => (
             <div
               class='legend-card-item'

@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
+import dayjs from 'dayjs';
 // import mermaid from '../../../../mermaid/packages/mermaid/dist/mermaid.core.mjs';
 import mermaid from 'fork-mermaid';
-import moment from 'moment';
-import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { traceDiagram } from '../../../../monitor-api/modules/apm_trace.js';
@@ -271,7 +271,6 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
           showException.value = false;
           await nextTick();
           const rest = transformData(data.diagram_data);
-          console.info(rest, 'rest');
           graphDefinition.value = rest || '';
           const { svg } = await mermaid.render(graphId, graphDefinition.value);
           svgString.value = svg;
@@ -576,7 +575,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       image.onload = () => {
         canvas.getContext('2d')?.drawImage(image, 0, 0);
         const a = document.createElement('a');
-        a.download = `${props.traceId}_${moment().format('YYYY-MM-DD HH:mm:ss')}`;
+        a.download = `${props.traceId}_${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
         a.href = canvas.toDataURL('image/png');
         a.click();
       };

@@ -29,14 +29,15 @@
         :is-as-iframe="isAsIframe"
         :show-retrieve-condition="showRetrieveCondition"
         :retrieve-params="retrieveParams"
-        :time-range.sync="retrieveParams.time_range"
         :date-picker-value="datePickerValue"
         :index-set-item="indexSetItem"
         :is-show-collect="isShowCollect"
+        :timezone="timezone"
         @shouldRetrieve="retrieveLog"
         @open="openRetrieveCondition"
         @update:datePickerValue="handleDateChange"
         @datePickerChange="retrieveWhenDateChange"
+        @timezoneChange="handleTimezoneChange"
         @settingMenuClick="handleSettingMenuClick"
         @closeRetrieveCondition="closeRetrieveCondition"
         @updateCollectCondition="updateCollectCondition" />
@@ -169,7 +170,6 @@
               :config-data="clusteringData"
               :apm-relation="apmRelationData"
               :clean-config="cleanConfig"
-              :picker-time-range="pickerTimeRange"
               :date-picker-value="datePickerValue"
               :index-set-item="indexSetItem"
               :operator-config="operatorConfig"
@@ -177,6 +177,8 @@
               :active-table-tab="activeTableTab"
               :cluster-route-params="clusterRouteParams"
               :is-init-page="isInitPage"
+              :is-thollte-field="isThollteField"
+              :finger-search-state="fingerSearchState"
               @request-table-data="requestTableData"
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
@@ -217,7 +219,8 @@
       :total-fields="totalFields"
       :clean-config="cleanConfig"
       :config-data="clusteringData"
-      :statistical-fields-data="statisticalFieldsData"
+      :date-picker-value="datePickerValue"
+      :retrieve-params="retrieveParams"
       @closeSetting="isShowSettingModal = false;"
       @updateLogFields="requestFields" />
     <!-- 收藏更新弹窗 -->
@@ -247,7 +250,7 @@ import SettingModal from './setting-modal/index.vue';
 import CollectIndex from './collect/collect-index';
 import AddCollectDialog from './collect/add-collect-dialog';
 import SearchComp from './search-comp';
-import { formatDate, readBlobRespToJson, parseBigNumberList, calculateTableColsWidth } from '@/common/util';
+import { readBlobRespToJson, parseBigNumberList, setDefaultTableWidth } from '@/common/util';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
@@ -255,6 +258,32 @@ import axios from 'axios';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone } from '../../components/monitor-echarts/utils';
 import CancelToken from 'axios/lib/cancel/CancelToken';
+import { updateTimezone } from '../../language/dayjs';
+import dayjs from 'dayjs';
+
+const currentTime = Math.floor(new Date().getTime() / 1000);
+const startTime = (currentTime - 15 * 60);
+const endTime = currentTime;
+const DEFAULT_RETRIEVE_PARAMS = {
+  keyword: '*', // 搜索关键字
+  start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
+  end_time: endTime, // 时间范围
+  host_scopes: { // ip 快选，modules 和 ips 只能修改其一，另一个传默认值
+    // 拓扑选择模块列表，单个模块格式 {bk_inst_id: 2000003580, bk_obj_id: 'module'}
+    modules: [],
+    // 手动输入 ip，多个 ip 用英文 , 分隔
+    ips: '',
+    // 目标节点
+    target_nodes: [],
+    // 目标节点类型
+    target_node_type: '',
+  },
+  ip_chooser: {},
+  addition: [],
+  begin: 0,
+  size: 500,
+  interval: 'auto', // 聚合周期
+};
 
 export default {
   name: 'Retrieve',
@@ -273,9 +302,6 @@ export default {
   },
   mixins: [indexSetSearchMixin, tableRowDeepViewMixin],
   data() {
-    const currentTime = Date.now();
-    const startTime = formatDate(currentTime - 15 * 60 * 1000);
-    const endTime = formatDate(currentTime);
     return {
       hasAuth: false,
       isSearchAllowed: null, // true 有权限，false 无权限，null 未知权限
@@ -293,37 +319,9 @@ export default {
       indexSetList: [], // 索引集列表,
       datePickerValue: ['now-15m', 'now'], // 日期选择器
       retrievedKeyword: '*', // 记录上一次检索的关键字，避免输入框失焦时重复检索
-      retrieveParams: { // 检索参数
+      retrieveParams: {
         bk_biz_id: this.$store.state.bkBizId,
-        keyword: '*', // 搜索关键字
-        // 自定义时间范围，10m 表示最近 10 分钟，10h 表示最近 10 小时，10d 表示最近 10 天
-        // 当 time_range === 'customized' 时，检索时间范围为 start_time ~ end_time
-        time_range: 'customized',
-        start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
-        end_time: endTime, // 时间范围
-        // ip 快选，modules 和 ips 只能修改其一，另一个传默认值
-        host_scopes: {
-          // 拓扑选择模块列表，单个模块格式 {bk_inst_id: 2000003580, bk_obj_id: 'module'}
-          modules: [],
-          // 手动输入 ip，多个 ip 用英文 , 分隔
-          ips: '',
-          // 目标节点
-          target_nodes: [],
-          // 目标节点类型
-          target_node_type: '',
-        },
-        // 新版ip-selector选值
-        ip_chooser: {},
-        // 过滤条件，可添加多个，每个过滤条件格式 {field: 'time', operator: 'is', value: 'xxx'}
-        // field 为过滤的字段
-        // operator 从接口获取，默认为 'is'
-        // value 为过滤字段对应的值，如果为多个用英文 , 分隔
-        addition: [],
-        // begin 和 size 类似分页，两者相加不能超过 10000
-        begin: 0,
-        size: 500,
-        // 聚合周期
-        interval: 'auto',
+        ...DEFAULT_RETRIEVE_PARAMS,
       },
       catchIpChooser: {}, // 条件里的ip选择器数据
       isFavoriteSearch: false, // 是否是收藏检索
@@ -367,7 +365,6 @@ export default {
       isAsIframe: false,
       localIframeQuery: {},
       isFirstLoad: true,
-      pickerTimeRange: ['now-15m', 'now'],
       operatorConfig: {}, // 当前table item操作的值
       authPageInfo: null,
       isShowAddNewCollectDialog: false, // 是否展示新建收藏弹窗
@@ -401,6 +398,8 @@ export default {
       isSetDefaultTableColumn: false,
       /** 是否还需要分页 */
       finishPolling: false,
+      timezone: dayjs.tz.guess(),
+      fingerSearchState: false,
     };
   },
   computed: {
@@ -480,11 +479,6 @@ export default {
         this.localIframeQuery = val;
       },
     },
-    'visibleFields.length'() {
-      if (this.isSetDefaultTableColumn) {
-        this.setDefaultTableColumn();
-      }
-    },
   },
   created() {
     this.getGlobalsData();
@@ -493,6 +487,7 @@ export default {
     window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   beforeDestroy() {
+    updateTimezone();
     window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   methods: {
@@ -707,6 +702,13 @@ export default {
       //     addition: []
       // })
       // 过滤相关
+      const tempList = handleTransformToTimestamp(this.datePickerValue);
+      this.retrieveParams = {
+        bk_biz_id: this.$store.state.bkBizId,
+        ...DEFAULT_RETRIEVE_PARAMS,
+        start_time: tempList[0],
+        end_time: tempList[1],
+      };
       this.statisticalFieldsData = {};
       this.retrieveDropdownData = {};
       this.logList = [];
@@ -722,7 +724,6 @@ export default {
     // 检索参数：日期改变
     handleDateChange(val) {
       this.datePickerValue = val;
-      this.pickerTimeRange = val.every(item => item.includes('now')) ? val : [];
       this.formatTimeRange();
     },
     /**
@@ -731,8 +732,8 @@ export default {
     formatTimeRange() {
       const tempList = handleTransformToTimestamp(this.datePickerValue);
       Object.assign(this.retrieveParams, {
-        start_time: formatDate(tempList[0] * 1000),
-        end_time: formatDate(tempList[1] * 1000),
+        start_time: tempList[0],
+        end_time: tempList[1],
       });
     },
     updateSearchParam({ keyword, addition, host }) {
@@ -747,22 +748,26 @@ export default {
       this.shouldUpdateFields = true;
       this.retrieveLog();
     },
+    handleTimezoneChange(timezone) {
+      this.timezone = timezone;
+      updateTimezone(timezone);
+    },
     handleSettingMenuClick(val) {
       this.clickSettingChoice = val;
       this.isShowSettingModal = true;
     },
     // 由添加条件来修改的过滤条件
     searchAddChange(addObj) {
-      const { addition, isQuery } = addObj;
+      const { addition, isQuery, isForceQuery } = addObj;
       this.retrieveParams.addition = addition;
-      if (isQuery && this.isAutoQuery) this.retrieveLog();
+      if ((isQuery && this.isAutoQuery) || isForceQuery) this.retrieveLog();
     },
     getFieldType(field) {
       const target = this.totalFields.find(item => item.field_name === field);
       return target ? target.field_type : '';
     },
     // 添加过滤条件
-    addFilterCondition(field, operator, value, index) {
+    addFilterCondition(field, operator, value, isLink = false) {
       let mappingKey = this.mappingKey;
       const textType = this.getFieldType(field);
       switch (textType) {
@@ -779,14 +784,26 @@ export default {
         && addition.value.toString() === value.toString();
       });
       // 已存在相同条件
-      if (isExist) return;
+      if (isExist) {
+        if (isLink) this.additionLinkOpen();
+        return;
+      };
 
-      const startIndex = index > -1 ? index : this.retrieveParams.addition.length;
-      const deleteCount = index > -1 ? 1 : 0;
-      this.retrieveParams.addition.splice(startIndex, deleteCount, { field, operator: mapOperator, value });
-      this.retrieveLog();
-      this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
-      this.$refs.searchCompRef.setRouteParams();
+      const startIndex = this.retrieveParams.addition.length;
+      const newAddition = { field, operator: mapOperator, value };
+      if (!isLink) {
+        this.retrieveParams.addition.splice(startIndex, 0, newAddition);
+        this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
+        this.$refs.searchCompRef.setRouteParams();
+        this.retrieveLog();
+      } else {
+        this.additionLinkOpen(newAddition);
+      }
+    },
+
+    additionLinkOpen(newAddition = {}) {
+      const openUrl = this.$refs.searchCompRef.setRouteParams({}, false, newAddition);
+      window.open(openUrl, '_blank');
     },
 
     // 打开 ip 选择弹窗
@@ -926,7 +943,7 @@ export default {
       let queryParamsStr = {};
       const clusteringParams = {};
       const urlRetrieveParams = this.$route.query.retrieveParams;
-      if (urlRetrieveParams) {
+      if (urlRetrieveParams) { // 兼容之前的语法
         try {
           queryParams = JSON.parse(decodeURIComponent(urlRetrieveParams));
           queryParamsStr = JSON.parse(decodeURIComponent(urlRetrieveParams));
@@ -936,7 +953,7 @@ export default {
         } catch (e) {
           console.warn('url 查询参数解析失败', e);
         }
-      } else { // 兼容之前的语法
+      } else {
         const shouldCoverParamFields = [
           'keyword',
           'host_scopes',
@@ -944,20 +961,21 @@ export default {
           'addition',
           'start_time',
           'end_time',
-          'time_range',
-          'pickerTimeRange',
+          // 'time_range',
           'activeTableTab', // 表格活跃的lab
           'clusterRouteParams', // 日志聚类参数
+          'timezone',
         ];
+        // 判断路由是否带有下载历史的检索的数据 如果有 则使用路由里的数据初始化
+        const routerQuery = this.$route.query;
+        const initRetrieveParams = routerQuery.routeParams
+          ? JSON.parse(decodeURIComponent(routerQuery.routeParams))
+          : routerQuery;
         for (const field of shouldCoverParamFields) {
-          const param = this.$route.query[field]; // 指定查询参数
+          const param = initRetrieveParams[field]; // 指定查询参数
           if (this.isInitPage) {
             if (param) {
               switch (field) {
-                case 'pickerTimeRange':
-                  queryParams.pickerTimeRange = decodeURIComponent(param).split(',');
-                  queryParamsStr.pickerTimeRange = param;
-                  break;
                 case 'activeTableTab':
                 case 'clusterRouteParams':
                   queryParamsStr[field] = param;
@@ -992,7 +1010,7 @@ export default {
                 }
                   break;
                 default:
-                  queryParams[field] = ['keyword', 'start_time', 'end_time', 'time_range', 'activeTableTab'].includes(field)
+                  queryParams[field] = ['keyword', 'start_time', 'end_time', 'timezone', 'activeTableTab'].includes(field)
                     ? decodeURIComponent(param)
                     : decodeURIComponent(param) ? JSON.parse(decodeURIComponent(param)) : param;
                   queryParamsStr[field] = param;
@@ -1005,12 +1023,10 @@ export default {
           } else {
             switch (field) {
               case 'keyword':
-              case 'start_time':
-              case 'end_time':
-              case 'time_range':
-                if (this.retrieveParams[field] !== '') {
-                  queryParamsStr[field] = encodeURIComponent(this.retrieveParams[field]);
-                }
+              // case 'start_time':
+              // case 'end_time':
+              // case 'time_range':
+                queryParamsStr[field] = this.retrieveParams[field] === '' ? '*' : encodeURIComponent(this.retrieveParams[field]);
                 break;
               case 'host_scopes':
                 if (this.retrieveParams[field].ips !== ''
@@ -1019,16 +1035,20 @@ export default {
                   queryParamsStr[field] = (JSON.stringify(this.retrieveParams[field]));
                 }
                 break;
-              case 'pickerTimeRange':
-                if (this[field].length) {
-                  queryParamsStr[field] = encodeURIComponent(this[field]);
-                }
+              case 'start_time':
+                queryParamsStr[field] = this.datePickerValue?.[0] ?? undefined;
+                break;
+              case 'end_time':
+                queryParamsStr[field] = this.datePickerValue?.[1] ?? undefined;
                 break;
               case 'activeTableTab':
               case 'clusterRouteParams':
                 if (param) {
                   queryParamsStr[field] = (field === 'activeTableTab' ? this[field] : JSON.stringify(this[field]));
                 }
+                break;
+              case 'timezone':
+                queryParamsStr[field] = this.timezone;
                 break;
               default:
                 break;
@@ -1042,8 +1062,7 @@ export default {
         spaceUid: this.$store.state.spaceUid,
         bizId: this.$store.state.bkBizId,
         ...queryParamsStr,
-        // 由于要缓存过滤条件 解构route的query时会把缓存的pickerTimeRange参数携带上，故重新更新pickerTimeRange参数
-        pickerTimeRange: queryParamsStr?.pickerTimeRange,
+        keyword: queryParamsStr?.keyword,
       };
       this.$router.push({
         name: 'retrieve',
@@ -1063,14 +1082,18 @@ export default {
           await this.requestFields();
           this.shouldUpdateFields = false;
         }
+        // 指纹请求监听放在这里是要等字段更新完后才会去请求数据指纹
+        this.fingerSearchState = !this.fingerSearchState;
 
         if (this.isInitPage) {
           Object.assign(this.retrieveParams, queryParams); // 回填查询参数中的检索条件
-          if (queryParams.pickerTimeRange?.length) {
-            this.pickerTimeRange = queryParams.pickerTimeRange;
-            this.datePickerValue = queryParams.pickerTimeRange;
-            this.formatTimeRange();
-          };
+          if (queryParams.start_time && queryParams.end_time) {
+            this.handleDateChange([queryParams.start_time, queryParams.end_time]);
+          }
+          if (queryParams.timezone) {
+            this.timezone = queryParams.timezone;
+            updateTimezone(queryParams.timezone);
+          }
           // 回填数据指纹的数据
           Object.entries(clusteringParams).forEach(([key, val]) => {
             this[key] = val;
@@ -1080,6 +1103,7 @@ export default {
           const addition = !!queryParamsStr.addition ? JSON.parse(queryParamsStr?.addition) : undefined;
           const chooserSwitch = Boolean(queryParams.ip_chooser);
           this.$refs.searchCompRef.initConditionList(addition, this.catchIpChooser, chooserSwitch); // 初始化 更新当前添加条件列表
+          // this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
           this.isInitPage = false;
         }
 
@@ -1088,7 +1112,7 @@ export default {
           this.requestChart();
           this.requestSearchHistory(this.indexId);
         }
-        this.searchCancelFn();
+        // this.searchCancelFn();
         await this.requestTable();
         if (this.isAfterRequestFavoriteList) await this.getFavoriteList();
 
@@ -1208,6 +1232,9 @@ export default {
         this.fieldAliasMap = fieldAliasMap;
         this.isThollteField = false;
         this.$store.commit('retrieve/updateFiledSettingConfigID', config_id); // 当前配置ID
+        this.$nextTick(() => {
+          this.$refs.searchCompRef?.initAdditionDefault();
+        });
       } catch (e) {
         this.ipTopoSwitch = true;
         this.bkmonitorUrl = false;
@@ -1232,8 +1259,11 @@ export default {
           }
         }
       }).filter(Boolean);
+      this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
+      if (!this.isSetDefaultTableColumn) {
+        this.setDefaultTableColumn();
+      }
       this.isSetDefaultTableColumn = false;
-      this.setDefaultTableColumn();
     },
     sessionShowFieldObj() { // 显示字段缓存
       const showFieldStr = sessionStorage.getItem('showFieldSession');
@@ -1280,7 +1310,7 @@ export default {
 
       const { currentPage, pageSize } = this.$refs.resultMainRef;
       const begin = currentPage === 1 ? 0 : (currentPage - 1) * pageSize;
-
+      this.formatTimeRange();
       try {
         const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
         const params = {
@@ -1294,13 +1324,9 @@ export default {
           responseType: 'blob',
           data: {
             ...this.retrieveParams,
-            time_range: 'customized',
             begin,
             size: pageSize,
             interval: this.interval,
-            // 每次轮循的起始时间
-            start_time: formatDate(startTimeStamp),
-            end_time: formatDate(endTimeStamp),
           },
         };
         if (this.isExternal) {
@@ -1338,30 +1364,12 @@ export default {
     },
     // 首次加载设置表格默认宽度自适应
     setDefaultTableColumn() {
-      try {
-        const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-        const { params: { indexId }, query: { bizId } } = this.$route;
-        // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-        if (columnObj?.[bizId] && columnObj[bizId].indexsetIds?.includes(indexId)) return;
-
-        if (this.tableData.list.length && this.visibleFields.length) {
-          this.visibleFields.forEach((field) => {
-            field.width = calculateTableColsWidth(field, this.tableData.list);
-          });
-          const columnsWidth = this.visibleFields.reduce((prev, next) => prev + next.width, 0);
-          const tableElem = document.querySelector('.original-log-panel');
-          // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-          if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
-            this.visibleFields.forEach((field) => {
-              field.width = field.width < 300 ? 'default' : field.width;
-            });
-          }
-        }
-
-        this.isSetDefaultTableColumn = true;
-      } catch (error) {
-        this.isSetDefaultTableColumn = false;
-      }
+      // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
+      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      const { params: { indexId }, query: { bizId } } = this.$route;
+      const catchFieldsWidthObj = columnObj?.[bizId]?.fields[indexId];
+      const tableList = this.tableData?.list ?? [];
+      this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);
     },
     // 根据表格数据统计字段值及出现次数
     getStatisticalFieldsData(listData) {
@@ -1431,6 +1439,7 @@ export default {
     },
     // 图表
     requestChart() {
+      this.formatTimeRange();
       this.$store.commit('retrieve/updateChartKey');
     },
     // 图表款选或双击回正时请求相关数据
@@ -1511,9 +1520,9 @@ export default {
         });
     },
     initToolTipsMessage(config) {
-      const { contextAndRealtime, bkmonitor } = config;
+      const { contextAndRealtime, bcsWebConsole } = config;
       return {
-        monitorWeb: bkmonitor.is_active ? this.$t('监控告警') : bkmonitor?.extra.reason,
+        webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra.reason,
         realTimeLog: contextAndRealtime.is_active ? this.$t('实时日志') : contextAndRealtime?.extra.reason,
         contextLog: contextAndRealtime.is_active ? this.$t('上下文') : contextAndRealtime?.extra.reason,
       };

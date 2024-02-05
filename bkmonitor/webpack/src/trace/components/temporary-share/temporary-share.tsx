@@ -28,7 +28,7 @@ import { computed, defineComponent, Ref, ref, VNode } from 'vue';
 import { TranslateResult, useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { createShareToken, deleteShareToken, updateShareToken } from '../../../monitor-api/modules/share';
 import { copyText } from '../../../monitor-common/utils/utils';
@@ -97,20 +97,21 @@ export default defineComponent({
       }
       return {
         type: 'trace',
-        expire_time: moment()
-          .add(period, (validityPeriod.value.split(period.toString())?.[1] || 'h') as any)
+        expire_time: dayjs
+          .tz()
+          .add(+period, (validityPeriod.value.split(period.toString())?.[1] || 'h') as any)
           .unix(),
         lock_search: isLockSearch.value,
-        start_time: moment(timeRange.value[0]).unix(),
-        end_time: moment(timeRange.value[1]).unix(),
+        start_time: dayjs.tz(timeRange.value[0]).unix(),
+        end_time: dayjs.tz(timeRange.value[1]).unix(),
         data: {
           query: Object.assign(
             {},
             route.query,
             isLockSearch.value
               ? {
-                  from: moment(timeRange.value[0]).format(MomentFormater),
-                  to: moment(timeRange.value[1]).format(MomentFormater)
+                  from: dayjs.tz(timeRange.value[0]).format(MomentFormater),
+                  to: dayjs.tz(timeRange.value[1]).format(MomentFormater)
                 }
               : {}
           ),
@@ -189,8 +190,8 @@ export default defineComponent({
       return (
         <div class='share-timerange'>
           <TimeRangeComp
-            v-model={timeRange.value}
-            onTimeChange={(v: TimeRangeType) => handleTimeRangeChange(v)}
+            modelValue={timeRange.value as any}
+            onUpdate:modelValue={handleTimeRangeChange}
           />
         </div>
       );

@@ -28,10 +28,10 @@
     class="pattern"
     style="margin-bottom: 15px"
   >
-    <a
+    <!-- <a
       @click="$emit('update:msg', 0)"
       :class="msg === 0 ? 'list' : 'error-btn'"
-    > {{ $t('服务状态') }} </a>
+    > {{ $t('服务状态') }} </a> -->
     <a
       v-if="isAdmin"
       @click="$emit('update:msg', 1)"
@@ -51,7 +51,7 @@ export default {
   },
   data() {
     return {
-      isAdmin: process.env.NODE_ENV === 'development' ? window.is_superuser : window.userInfo.isSuperuser
+      isAdmin: process.env.NODE_ENV === 'development' ? window.is_superuser : window.is_superuser
     };
   },
   methods: {}
@@ -61,30 +61,32 @@ export default {
 .pattern {
   width: 100%;
   height: 48px;
-  background: #e8eaec;
-  font-size: 0;
   padding-top: 4px;
+  font-size: 0;
+  background: #e8eaec;
 }
+
 .list {
   display: inline-block;
   width: 120px;
   height: 40px;
-  line-height: 40px;
-  border-radius: 2px;
   font-size: 14px;
+  line-height: 40px;
+  color: #fff;
   text-align: center;
   background: #86b1ff;
-  color: #fff;
+  border-radius: 2px;
 }
+
 .error-btn {
   display: inline-block;
   width: 120px;
   height: 40px;
+  font-size: 14px;
   line-height: 40px;
-  border-radius: 2px;
+  color: #666;
   text-align: center;
   background: #fff;
-  color: #666;
-  font-size: 14px;
+  border-radius: 2px;
 }
 </style>

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { downFile } from '../../utils';
 
@@ -55,7 +55,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
         timeMap[time] = new Array(tableThArr.length).fill(null);
         list = timeMap[time];
         list[0] = {
-          value: moment(time).format('YYYY-MM-DD HH:mm:ss'),
+          value: dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss'),
           originValue: time
         };
       }

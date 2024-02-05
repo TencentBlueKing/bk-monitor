@@ -251,10 +251,10 @@
 </template>
 <script lang="ts">
 import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
-// import { handleTimeRange } from '../../../utils/index';
-import moment from 'moment';
 
+// import { handleTimeRange } from '../../../utils/index';
 import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
 import { deepClone, random } from '../../../../monitor-common/utils/utils.js';
@@ -313,16 +313,16 @@ export default class DashboardPanels extends Vue {
   @Inject('authorityMap') authorityMap;
   @InjectReactive('downSampleRange') downSampleRange;
   @InjectReactive('readonly') readonly;
-  private activeName = [];
-  private groupList = [];
-  private collectList = [];
-  private collectShow = false;
-  private totalCount = 0;
-  private isSingleChart = false;
-  private showViewDetail = false;
-  private viewQueryConfig = {};
-  private errorMsg = '';
-  private onlyChartHeight = 210;
+  activeName = [];
+  groupList = [];
+  collectList = [];
+  collectShow = false;
+  totalCount = 0;
+  isSingleChart = false;
+  showViewDetail = false;
+  viewQueryConfig = {};
+  errorMsg = '';
+  onlyChartHeight = 210;
   get chartOptions() {
     return deepMerge(
       {
@@ -412,8 +412,8 @@ export default class DashboardPanels extends Vue {
         }
         if (startTime && endTime) {
           timerange = {
-            start_time: moment(startTime).unix(),
-            end_time: moment(endTime).unix()
+            start_time: dayjs(startTime).unix(),
+            end_time: dayjs(endTime).unix()
           };
         }
         if (item.datasourceId === 'log') {
@@ -537,7 +537,7 @@ export default class DashboardPanels extends Vue {
           alias = alias.replace(
             /\$time_offset/g,
             hasMatch
-              ? moment().add(-timeMatch[1], timeMatch[2])
+              ? dayjs.tz().add(-timeMatch[1], timeMatch[2])
                 .fromNow()
                 .replace(/\s*/g, '')
               : val.replace('current', this.$t('当前'))
@@ -877,9 +877,14 @@ export default class DashboardPanels extends Vue {
       display: flex;
       margin-right: 10px;
       margin-bottom: 10px;
-      border: 0;
+      border: 2px solid transparent;
       border-radius: 2px;
       box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+
+      &.scroll-in {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-color: #3a84ff !important;
+      }
 
       &.has-child {
         padding-right: 0;

@@ -25,10 +25,10 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Exception } from 'bk-magic-vue';
 import { throttle } from 'throttle-debounce';
-import { showAccessRequest } from '../../components/access-request-dialog';
 
+// 20231205 代码还原，先保留原有部分
+// import { showAccessRequest } from '../../components/access-request-dialog';
 import { spaceTypeTexts } from '../../../fta-solutions/pages/home/business-item';
 import { getAuthorityDetail } from '../../../monitor-api/modules/iam';
 
@@ -73,7 +73,7 @@ export default class NoBusinessItem extends tsc<IProps> {
   // 判断当前业务，并返回tag
   // get getCurrentBizTag() {
   //   if (this.$store.getters.bizId === this.data.id) {
-  //     return <Tag theme='success'> { this.$t('当前空间')} </Tag>;
+  //     return <bk-tag theme='success'> { this.$t('当前空间')} </bk-tag>;
   //   }
   // }
 
@@ -92,9 +92,9 @@ export default class NoBusinessItem extends tsc<IProps> {
   }
 
   handleClick() {
-    showAccessRequest(this.url);
-    // 20230704 暂时不需要
-    // window.open(this.url);
+    // 20231205 代码还原，先保留原有部分
+    // showAccessRequest(this.url);
+    window.open(this.url);
   }
 
   // 项目类型tag
@@ -185,7 +185,10 @@ export default class NoBusinessItem extends tsc<IProps> {
           </div>
           <div class='skeleton'>
             {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
-            <img src={require('../../static/images/svg/business-skeleton.svg')}></img>
+            <img
+              src={require('../../static/images/svg/business-skeleton.svg')}
+              alt=''
+            ></img>
           </div>
         </div>
         <div class='line'></div>
@@ -194,20 +197,20 @@ export default class NoBusinessItem extends tsc<IProps> {
           v-bkloading={{ isLoading: this.loading }}
         >
           <div class='content'>
-            <Exception
+            <bk-exception
               class='content-exception'
               type={403}
             >
               <span class='msg'>{window.i18n.tc('您没有业务权限，请先申请！')}</span>
-            </Exception>
+            </bk-exception>
           </div>
-          <Button
+          <bk-button
             theme='primary'
             class='btn'
             onClick={this.handleClick}
           >
             {window.i18n.tc('申请权限')}
-          </Button>
+          </bk-button>
         </div>
       </div>
     );

@@ -21,83 +21,77 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Emit } from 'vue-property-decorator';
+import { getFlatObjValues } from '@/common/util';
+import TextSegmentation from './text-segmentation.vue';
 import './original-light-height.scss';
 
 interface IProps {
-  originJsonStr: string;
+  originJson: object;
+  visibleFields: Array<any>;
+  isWrap: boolean;
 }
-
 @Component
 export default class QueryStatement extends tsc<IProps> {
-  /** 原始日志字符串 */
-  @Prop({ type: String, default: '' }) originJsonStr: string;
+  /** 原始日志 */
+  @Prop({ type: Object, required: true }) originJson;
+  @Prop({ type: Array<any>, required: true }) visibleFields;
+  @Prop({ type: Boolean, required: true }) isWrap;
 
-  segmentReg = /"<black-mark>(.*?)<\/black-mark>"|<mark>(.*?)<\/mark>/;
+  segmentReg = /<mark>(.*?)<\/mark>/g;
 
-  /** 正则切割原始日志 */
-  get splitList() {
-    const value = this.originJsonStr;
-    let arr = value.split(this.segmentReg);
-    arr = arr.filter(val => val && val.length);
-    return arr;
+  get visibleFieldsNameList() {
+    return this.visibleFields.map(item => item.field_name);
   }
 
-  /** key高亮列表 */
-  get blackMarkList() {
-    let markVal = this.originJsonStr
-      .toString()
-      .match(/(<black-mark>).*?(<\/black-mark>)/g) || [];
-    if (markVal.length) {
-      markVal = markVal.map(item => item.replace(/<black-mark>/g, '').replace(/<\/black-mark>/g, ''),
-      );
-    }
-    return markVal;
+  get strOriginJson() {
+    return JSON.stringify(this.fieldMapDataObj);
   }
-  /** 检索的高亮列表 */
-  get markList() {
-    let markVal = this.originJsonStr.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
-    if (markVal.length) {
-      markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-      );
-    }
-    return markVal;
+
+  // 扁平化对象所有数据
+  get fieldMapDataObj() {
+    const { newObject } = getFlatObjValues(this.originJson || {});
+    const visibleObject = {};
+    Object.keys(newObject).forEach((el) => {
+      if (this.visibleFieldsNameList.includes(el)) {
+        visibleObject[el] = newObject[el];
+      }
+    });
+    const sortObject = this.visibleFieldsNameList.reduce((pre, cur) => {
+      pre[cur] = visibleObject[cur] ?? '';
+      return pre;
+    }, {});
+    return sortObject;
   }
-  /** 判断是否是key */
-  checkBlackMark(splitItem) {
-    if (!this.blackMarkList.length) return false;
-    // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-    return this.blackMarkList.some(
-      item => item === splitItem
-        || splitItem.startsWith(`.${item}`)
-        || splitItem.endsWith(`${item}.`),
-    );
+
+  @Emit('menuClick')
+  handleEmitMenuClick(type, content, key, isLink) {
+    const option = { fieldName: key, operation: type === 'not' ? 'is not' : type, value: content };
+    const newMenuObj = { option, isLink };
+    return newMenuObj;
   }
-  /** 判断是否是检索高亮 */
-  checkMark(splitItem) {
-    if (!this.markList.length) return false;
-    // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-    return this.markList.some(
-      item => item === splitItem
-        || splitItem.startsWith(`.${item}`)
-        || splitItem.endsWith(`${item}.`),
-    );
+
+  getFieldType(fieldName: string) {
+    return this.visibleFields.find(item => item.field_name === fieldName)?.field_type;
   }
+
 
   render() {
     return (
-      <span class="origin-content">
-        {this.splitList.map((item) => {
-          if (item === '\n') {
-            return <br />;
-          }
-          if (this.checkBlackMark(item)) {
-            return <span class="black-mark">"{item}"</span>;
-          }
-          if (this.checkMark(item)) {
-            return <mark>{item}</mark>;
-          }
-          return item;
+      <span class="origin-content" title={this.isWrap ? '' : this.strOriginJson}>
+        {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
+          return (
+            <span>
+              <span class="black-mark">&nbsp;{key}:&nbsp;</span>
+              <span class="origin-value">
+                <TextSegmentation
+                  content={value}
+                  field-type={this.getFieldType(key)}
+                  menu-click={(type, content, isLink) => this.handleEmitMenuClick(type, content, key, isLink)}
+                />
+              </span>
+            </span>
+          );
         })}
       </span>
     );

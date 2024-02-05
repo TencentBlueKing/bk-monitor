@@ -56,6 +56,7 @@ import { deepClone, getUrlParam, transformDataKey, typeTools } from '../../../..
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
+import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { ISpaceItem } from '../../../types';
 import { IOptionsItem } from '../../calendar/types';
 import { IDataRetrieval } from '../../data-retrieval/typings';
@@ -376,6 +377,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
+  /* 时区 */
+  timezone = getDefautTimezone();
+  /* 是否可编辑 */
+  editAllowed = true;
 
   get isEdit(): boolean {
     return !!this.$route.params.id;
@@ -453,6 +458,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (this.isMultivariateAnomalyDetection) {
       return false;
     }
+    if (!this.editAllowed) {
+      return true;
+    }
     return this.monitorDataEditMode === 'Edit'
       ? this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading
       : !this.sourceData.sourceCode;
@@ -460,6 +468,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 提交按钮禁用提示状态 */
   get submitBtnTipDisabled() {
     if (this.isMultivariateAnomalyDetection) {
+      return false;
+    }
+    if (!this.editAllowed) {
       return false;
     }
     return !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading);
@@ -527,7 +538,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // this.addDefaultAlarmHandling();
   }
   deactivated() {
-    this.isMultivariateAnomalyDetection = false;
     this.clearErrorMsg();
     (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
   }
@@ -582,6 +592,15 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       try {
         const metricData = this.$route.query.data ? this.$route.query.data : this.$route.params.data;
         metric = typeof metricData === 'string' ? JSON.parse(decodeURIComponent(metricData)) : metricData;
+        // promql
+        if (metric.mode === 'code' || metric.data?.[0]?.promql) {
+          await this.$nextTick();
+          this.monitorDataEditMode = 'Source';
+          this.sourceData.sourceCode = metric.data[0]?.promql || '';
+          this.sourceData.sourceCodeCache = metric.data[0]?.promql || '';
+          this.sourceData.step = metric.data[0]?.step === 'auto' ? 60 : metric.data[0]?.step || 60;
+          return;
+        }
       } catch (e) {
         console.error(e);
         return;
@@ -883,18 +902,24 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.baseConfigEl?.clearErrorMsg();
     this.detectionRulesEl?.clearErrorMsg();
     this.alarmHandlingListRef?.clearError();
-    this.noticeConfigRef.clearError();
+    this.noticeConfigRef?.clearError();
     // this.alarmHandlingRef?.clearErrorMsg();
     // this?.alarmHandlingRef?.clearErrorMsg();
   }
   // 初始化数据
   async initData() {
     this.showRealtimeStrategy = !!window?.show_realtime_strategy;
+    if (this.$route.query?.timezone) {
+      this.timezone = this.$route.query.timezone as string;
+      updateTimezone(this.timezone);
+    }
     if (this.isClone || !this.id) {
       this.updateRouteNavName(this.$tc('新建策略'));
     }
     this.loading = true;
     this.strategyId = 0;
+    this.editAllowed = true;
+    this.isMultivariateAnomalyDetection = false;
     const promiseList = [];
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
@@ -1029,6 +1054,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         .map(item => item.type);
     } else {
       this.editStrategyIntelligentDetectList = [];
+    }
+    if (!snapshotRes.name) {
+      this.editAllowed = !!strategyDetail?.edit_allowed;
     }
     await this.handleProcessData({
       ...strategyDetail,
@@ -1420,7 +1448,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const targetMetricItem = new MetricDetail(list[0]);
     targetMetricItem.setMetricType(this.metricSelector.type);
     this.$set(this.metricData, targetMetricIndex, targetMetricItem);
-    if (this.metricData.length === 1 && !!this.metricData[0].metric_id) {
+    if (this.metricData.length >= 1 && !!this.metricData[0].metric_id) {
       this.baseConfig.scenario = this.metricData[0].result_table_label;
     }
     this.handleDetectionRulesUnit();
@@ -2494,7 +2522,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 readonly={this.isDetailMode}
                 data={this.baseConfig}
                 scenarioList={this.scenarioList}
-                scenarioReadonly={this.monitorDataEditMode === 'Source' ? false : !!this.metricData.length}
+                scenarioReadonly={
+                  this.monitorDataEditMode === 'Source' ? false : !!this.metricData.some(item => !!item.metric_id)
+                }
                 on-change={this.handleBaseConfigChange}
               />
             </GroupPanel>
@@ -2515,7 +2545,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   {this.$t('清除')}
                 </bk-button>
               )}
-              {!this.metricData.length
+              {!this.metricData.length && !this.sourceData.sourceCode
                 ? !this.loading && (
                     <MonitorDataEmpty
                       on-add-metric={this.handleShowMetric}
@@ -2631,7 +2661,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 <div
                   v-bk-tooltips={{
                     disabled: this.submitBtnTipDisabled,
-                    content: this.$t('未选择监控数据')
+                    content: !this.editAllowed ? this.$t('内置策略不允许修改') : this.$t('未选择监控数据'),
+                    allowHTML: false
                   }}
                 >
                   <bk-button
@@ -2692,6 +2723,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           scenarioList={this.scenarioAllList}
           type={this.metricSelector.type}
           metricKey={this.metricSelector.key}
+          defaultScenario={this.baseConfig.scenario}
           onShowChange={val => (this.metricSelector.show = val)}
           onSelected={this.handleAddMetric}
         ></MetricSelector>

@@ -28,18 +28,6 @@ from multiprocessing.pool import ThreadPool
 from urllib import parse
 
 import requests
-from apps.api.exception import DataAPIException
-from apps.api.modules.utils import add_esb_info_before_request
-from apps.exceptions import ApiRequestError, ApiResultError, PermissionError
-from apps.utils.function import ignored
-from apps.utils.local import (
-    activate_request,
-    get_request,
-    get_request_id,
-    get_request_username,
-)
-from apps.utils.log import logger
-from apps.utils.time_handler import timestamp_to_datetime
 from django.conf import settings
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
@@ -53,18 +41,33 @@ from requests import Response
 from requests.exceptions import ReadTimeout
 from retrying import RetryError, Retrying
 
+from apps.api.exception import DataAPIException
+from apps.api.modules.utils import add_esb_info_before_request
+from apps.exceptions import ApiRequestError, ApiResultError, PermissionError
+from apps.utils.function import ignored
+from apps.utils.local import (
+    activate_request,
+    get_request,
+    get_request_id,
+    get_request_username,
+)
+from apps.utils.log import logger
+from apps.utils.time_handler import timestamp_to_datetime
 
-def add_common_info_before_request(params):
+API_AUTH_KEYS = ["bk_app_code", "bk_app_secret", "bk_username", "bk_token", "access_token", "bk_ticket"]
+
+
+def get_request_api_headers(params):
     """
-    统一请求模块必须带上的参数
+    获取api网关鉴权认证请求头
     """
-    if "bk_app_code" not in params:
-        params["bk_app_code"] = settings.APP_CODE
-    if "bk_app_secret" not in params:
-        params["bk_app_secret"] = settings.SECRET_KEY
-    if "bk_username" not in params:
-        params["bk_username"] = get_request_username()
-    return params
+    api_headers = {
+        "bk_app_code": settings.APP_CODE,
+        "bk_app_secret": settings.SECRET_KEY,
+        "bk_username": get_request_username(),
+    }
+    api_headers.update(params)
+    return json.dumps(api_headers)
 
 
 class DataResponse(object):
@@ -204,6 +207,7 @@ class DataAPI(object):
         cache_time=0,
         default_timeout=60,
         data_api_retry_cls=None,
+        use_superuser=False,
     ):
         """
         初始化一个请求句柄
@@ -250,6 +254,7 @@ class DataAPI(object):
         self.cache_time = cache_time
         self.default_timeout = default_timeout
         self.data_api_retry_cls = data_api_retry_cls
+        self.use_superuser = use_superuser
 
     def __call__(
         self,
@@ -270,6 +275,11 @@ class DataAPI(object):
             params = {}
 
         timeout = timeout or self.default_timeout
+
+        # 当该DataAPI在定义为全局使用超级用户来避免权限问题时，统一使用admin账户且不再透传用户的cookies(CC, Job等场景)
+        if self.use_superuser:
+            request_cookies = False
+            params["no_request"] = True
 
         # 重试操作
         if data_api_retry_cls:
@@ -303,12 +313,9 @@ class DataAPI(object):
         return message
 
     def _send_request(self, params, timeout, request_id, request_cookies):
-
         # 请求前的参数清洗处理
         if self.before_request is not None:
             params = self.before_request(params)
-
-        params = add_common_info_before_request(params)
 
         # 是否有默认返回，调试阶段可用
         if self.default_return_value is not None:
@@ -489,6 +496,14 @@ class DataAPI(object):
             # params['X_HTTP_METHOD_OVERRIDE'] = self.method_override
 
         session.headers.update({"blueking-language": translation.get_language(), "request-id": get_request_id()})
+
+        # headers 增加api认证数据
+        api_auth_params = {}
+        for key in API_AUTH_KEYS:
+            value = params.get(key)
+            if value:
+                api_auth_params[key] = value
+        session.headers.update({"X-Bkapi-Authorization": get_request_api_headers(api_auth_params)})
 
         if self.header_keys:
             headers = {key: params.get(key) for key in self.header_keys if key in params}

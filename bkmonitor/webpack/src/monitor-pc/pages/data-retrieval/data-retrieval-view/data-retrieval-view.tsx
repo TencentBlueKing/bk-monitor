@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { monitorDrag } from '../../../../monitor-common/utils/drag-directive';
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 import CompareSelect from '../../monitor-k8s/components/panel-tools/compare-select';
 import PanelsTools from '../../monitor-k8s/components/panel-tools/panel-tools';
 // import PanelHeader from '../../monitor-k8s/components/panel-header/panel-header';
@@ -85,6 +85,8 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
   @Prop({ type: Number, default: 0 }) refleshNumber: number;
   @Prop({ type: Boolean, default: false }) queryLoading: boolean;
   @Prop({ type: String, default: 'empty' }) emptyStatus: IDataRetrievalView.IProps['emptyStatus'];
+  /** 时区 */
+  @Prop({ type: String, default: window.timezone }) timezone: string;
   @ProvideReactive('downSampleRange') downSampleRange = 'auto';
   @InjectReactive('onlyShowView') onlyShowView: boolean;
   loading = false;
@@ -467,7 +469,11 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
    * @param id
    */
   handleSelectIndex({ id }) {
-    document.getElementById(id)?.scrollIntoView?.();
+    document.querySelector('.chart-wrapper-old .scroll-in')?.classList.remove('scroll-in');
+    const dom = document.getElementById(id);
+    if (!dom) return;
+    dom.scrollIntoView?.();
+    dom.classList.add('scroll-in');
   }
   handleDownSampleChange(downSampleRange: string) {
     this.downSampleRange = downSampleRange;
@@ -614,9 +620,9 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   )
                 ) : undefined
               }
-              {/* <Exception style="margin-top: 150px;" type="empty">
+              {/* <bk-exception style="margin-top: 150px;" type="empty">
                     <span>{this.$t('查无数据')}</span>
-                  </Exception> */}
+                  </bk-exception> */}
               {this.retrievalType === 'event' ? (
                 <EventRetrievalView
                   ref='eventRetrievalViewRef'

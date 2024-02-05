@@ -10,11 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import sys
 
-from django.apps import AppConfig, apps
+from django.apps import AppConfig
 from django.conf import settings
 from django.core.management import call_command
-from django.db import connections
-from healthz import define as healthz_metric
+from django.db import ProgrammingError, connections
 
 from core.errors.errors import MigrateError
 
@@ -27,13 +26,11 @@ class MonitorAPIConfig(AppConfig):
     def migrate(self):
         from bkmonitor.models import GlobalConfig
         from bkmonitor.utils.dynamic_settings import hack_settings
-        from bkmonitor.migrate import Migrator
 
         try:
             call_command("migrate", "--noinput", database="monitor_api")
             hack_settings(GlobalConfig, settings)
             call_command("migrate", "--noinput")
-            Migrator("iam", "bkmonitor.iam.migrations").migrate()
         except MigrateError as err:
             print("Migrate Error:{}".format(err))
             raise err
@@ -57,12 +54,22 @@ class MonitorAPIConfig(AppConfig):
                 settings.DATABASES.pop(alias, None)
 
     def ready(self):
-        self.check_external_db()
+        from bkmonitor.migrate import Migrator
 
-        if "migrate" in sys.argv and settings.MIGRATE_MONITOR_API:
+        self.check_external_db()
+        if "migrate" not in sys.argv:
+            return
+
+        if settings.MIGRATE_MONITOR_API:
             # 创建缓存表
             call_command("createcachetable", database="monitor_api")
             # 迁移DB
             self.migrate()
             # healthz指标自动更新
-            healthz_metric.run(apps)
+            # healthz_metric.run(apps)
+
+        # 迁移IAM
+        try:
+            Migrator("iam", "bkmonitor.iam.migrations").migrate()
+        except ProgrammingError:
+            pass

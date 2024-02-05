@@ -26,9 +26,9 @@
  */
 import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
-import moment from 'moment';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
@@ -123,6 +123,8 @@ export class LineChart
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 立即刷新图表
   @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  // 时区
+  @InjectReactive('timezone') readonly timezone: string;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 当前粒度
@@ -147,7 +149,7 @@ export class LineChart
   refleshIntervalInstance = null;
   metrics: IExtendMetricData[];
   empty = true;
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.tc('暂无数据');
   hasSetEvent = false;
   cancelTokens: Function[] = [];
   minBase = 0;
@@ -222,6 +224,11 @@ export class LineChart
   handleRefleshImmediateChange(v: string) {
     if (v) this.getPanelData();
   }
+  @Watch('timezone')
+  // 时区变更刷新图表
+  handleTimezoneChange(v: string) {
+    if (v) this.getPanelData();
+  }
   @Watch('timeOffset')
   handleTimeOffsetChange(v: string[], o: string[]) {
     if (JSON.stringify(v) === JSON.stringify(o)) return;
@@ -233,8 +240,8 @@ export class LineChart
     if (!val) {
       const { startTime, endTime } = handleTimeRange(this.timeRange);
       this.getPanelData(
-        moment(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        moment(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
+        dayjs(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
       );
     } else {
       this.getPanelData(val[0], val[1]);
@@ -292,7 +299,7 @@ export class LineChart
     const timeMatch = val.match(/(-?\d+)(\w+)/);
     const hasMatch = timeMatch && timeMatch.length > 2;
     return hasMatch
-      ? (moment() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+      ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
       : val.replace('current', window.i18n.tc('当前'));
   }
   /**
@@ -321,8 +328,8 @@ export class LineChart
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs(start_time).unix() : startTime,
+        end_time: end_time ? dayjs(end_time).unix() : endTime
       };
       if (this.bkBizId) {
         params = Object.assign({}, params, {
@@ -447,7 +454,7 @@ export class LineChart
             };
           })
         }));
-        this.seriesList = seriesList;
+        this.seriesList = Object.freeze(seriesList) as any;
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
         // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
         // 所以此处折中设置 在有孤立点情况下进行开启animation 连续的情况不开启
@@ -481,10 +488,11 @@ export class LineChart
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         ) as EChartOption<EChartOption.Series>;
+        const isBar = this.panel.options?.time_series?.type === 'bar';
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
-            color: this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST,
+            color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
@@ -502,7 +510,12 @@ export class LineChart
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
               max: v => Math.max(v.max, +maxThreshold),
-              min: v => Math.min(v.min, +minThreshold)
+              min: v => {
+                let min = Math.min(v.min, +minThreshold);
+                // 柱状图y轴不能以最小值作为起始点
+                if (isBar) min = min <= 10 ? 0 : min - 10;
+                return min;
+              }
             },
             xAxis: {
               axisLabel: {
@@ -526,7 +539,7 @@ export class LineChart
           this.handleResize();
         }, 100);
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {
@@ -730,20 +743,20 @@ export class LineChart
     minX &&
       maxX &&
       (formatterFunc = (v: any) => {
-        const duration = moment.duration(moment(maxX).diff(moment(minX))).asSeconds();
+        const duration = dayjs.tz(maxX).diff(dayjs.tz(minX), 'second');
         if (onlyBeginEnd && v > minX && v < maxX) {
           return '';
         }
         if (duration < 60 * 60 * 24 * 1) {
-          return moment(v).format('HH:mm');
+          return dayjs.tz(v).format('HH:mm');
         }
         if (duration < 60 * 60 * 24 * 8) {
-          return moment(v).format('MM-DD HH:mm');
+          return dayjs.tz(v).format('MM-DD HH:mm');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
-          return moment(v).format('MM-DD');
+          return dayjs.tz(v).format('MM-DD');
         }
-        return moment(v).format('YYYY-MM-DD');
+        return dayjs.tz(v).format('YYYY-MM-DD');
       });
     return formatterFunc;
   }
@@ -837,7 +850,12 @@ export class LineChart
 
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
-
+      // 获取y轴上可设置的最小的精确度
+      const precision = this.handleGetMinPrecision(
+        item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
+        unitFormatter,
+        item.unit
+      );
       if (item.name) {
         Object.keys(legendItem).forEach(key => {
           if (['min', 'max', 'avg', 'total'].includes(key)) {
@@ -849,12 +867,6 @@ export class LineChart
         });
         legendData.push(legendItem);
       }
-      // 获取y轴上可设置的最小的精确度
-      const precision = this.handleGetMinPrecision(
-        item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-        unitFormatter,
-        item.unit
-      );
       return {
         ...item,
         color,
@@ -952,7 +964,7 @@ export class LineChart
           ...this.viewOptions.variables,
           interval: reviewInterval(
             this.viewOptions.interval,
-            moment(endTime).unix() - moment(startTime).unix(),
+            dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
             this.panel.collect_interval
           )
         });
@@ -1054,7 +1066,7 @@ export class LineChart
       this.panel.targets?.[0]?.data?.bk_biz_id || this.panel.bk_biz_id || this.$store.getters.bizId
     }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(result))}&from=${this.timeRange[0]}&to=${
       this.timeRange[1]
-    }`;
+    }&timezone=${this.timezone}`;
     window.open(url);
   }
   /** 处理点击左侧响铃图标 跳转策略的逻辑 */

@@ -33,7 +33,6 @@ from constants.action import (
     ActionStatus,
     FailureType,
     IntervalNotifyMode,
-    NoticeChannel,
     NoticeWay,
 )
 from core.errors.alarm_backends import LockError
@@ -78,26 +77,16 @@ class ActionProcessor(BaseActionProcessor):
 
             voice_receivers = ",".join(self.notice_receivers)
             return {voice_receivers: self.action.id}
-        real_notice_way = self.notice_way
-        if self.context.get("notice_channel") not in NoticeChannel.DEFAULT_CHANNELS:
-            # 不在默认的渠道内，需要拼接渠道信息
-            real_notice_way = "{}|{}".format(self.context["notice_channel"], self.notice_way)
-        with service_lock(
-            FTA_NOTICE_COLLECT_LOCK,
-            **{
-                "notice_way": real_notice_way,
-                "action_signal": self.action.signal,
-                "alert_id": "_".join(self.action.alerts or []),
-            }
-        ):
+
+        collect_params = {
+            # 汇总
+            "notice_way": self.context["collect_ctx"].group_notice_way,
+            "action_signal": self.action.signal,
+            "alert_id": "_".join(self.action.alerts or []),
+        }
+        collect_key = FTA_NOTICE_COLLECT_KEY.get_key(**collect_params)
+        with service_lock(FTA_NOTICE_COLLECT_LOCK, **collect_params):
             client = FTA_NOTICE_COLLECT_KEY.client
-            collect_key = FTA_NOTICE_COLLECT_KEY.get_key(
-                **{
-                    "notice_way": real_notice_way,
-                    "action_signal": self.action.signal,
-                    "alert_id": "_".join(self.action.alerts or []),
-                }
-            )
             data: Dict[bytes, bytes] = client.hgetall(collect_key)
             if not data and self.action.is_parent_action is False:
                 logger.info("$%s have already finished, no data found in collect_key(%s)", self.action.id, collect_key)
@@ -195,7 +184,6 @@ class ActionProcessor(BaseActionProcessor):
         return self.notify_interval
 
     def notify_handle(self):
-
         """
         根据当前的状态发送不同的通知
         """
@@ -252,43 +240,46 @@ class ActionProcessor(BaseActionProcessor):
                     "message": _("语音告警告被通知套餐（{}）防御收敛，防御原因：相同通知人在两分钟内同维度告警只能接收一次电话告警").format(collect_action_id),
                 }
             }
-
         notify_content_outputs = {
             "title": notify_sender.title,
             "message": notify_sender.content,
         }
+        self.update_action_notice_result(notice_results, notify_content_outputs)
+        self.is_finished = True
 
-        succeed_actions = [
-            self.receiver_action_mapping.get(receiver)
-            for receiver, notice_result in notice_results.items()
-            if notice_result["result"] and self.receiver_action_mapping.get(receiver)
-        ]
-        failed_actions = [
-            self.receiver_action_mapping.get(receiver)
-            for receiver, notice_result in notice_results.items()
-            if not notice_result["result"] and self.receiver_action_mapping.get(receiver)
-        ]
+    def update_action_notice_result(self, notice_results: dict, notify_content_outputs):
+        """
+        更新处理动作的通知结果
+        """
+        succeed_actions = []
+        succeed_message = _("发送通知成功")
+
+        failed_actions = []
+        failed_message = _("发送失败")
+        failure_type = FailureType.EXECUTE_ERROR
+        for receiver, notice_result in notice_results.items():
+            related_action = self.receiver_action_mapping.get(receiver)
+            if not related_action:
+                continue
+            if notice_result["result"]:
+                succeed_actions.append(related_action)
+                succeed_message = notice_result.get("message") or succeed_message
+            else:
+                failed_actions.append(related_action)
+                failed_message = notice_result.get("message") or failed_message
+                failure_type = notice_result.get("failure_type") or failure_type
 
         if succeed_actions:
             ActionInstance.objects.filter(id__in=succeed_actions).update(
                 **{
                     "status": ActionStatus.SUCCESS,
                     "end_time": datetime.now(tz=timezone.utc),
-                    "ex_data": {"message": _("发送通知成功")},
+                    "ex_data": {"message": succeed_message},
                     "outputs": notify_content_outputs,
                 }
             )
 
         if failed_actions:
-            failed_message = _("发送失败")
-            failure_type = FailureType.EXECUTE_ERROR
-            for receiver, notice_result in notice_results.items():
-                if notice_result["result"] is False and notice_result["message"]:
-                    # 获取第一个失败的记录
-                    failed_message = notice_result["message"]
-                    failure_type = notice_result.get("failure_type") or failure_type
-                    break
-
             ActionInstance.objects.filter(id__in=failed_actions).update(
                 **{
                     "status": ActionStatus.FAILURE,
@@ -298,10 +289,6 @@ class ActionProcessor(BaseActionProcessor):
                     "outputs": notify_content_outputs,
                 }
             )
-            # 更新失败任务的主任务状态
-            ActionInstance.update_parent_action_status(sub_actions=failed_actions)
-
-        self.is_finished = True
 
     def need_send_notice(self, notice_way):
         """
@@ -348,22 +335,3 @@ class ActionProcessor(BaseActionProcessor):
         )
 
         return False, collect_action_id
-
-    def set_finished(
-        self, to_status, failure_type="", message=_("执行任务成功"), retry_func="execute", kwargs=None, end_time=None
-    ):
-        """
-        设置任务结束
-        :param need_poll:
-        :param to_status: 结束状态
-        :param failure_type: 错误类型
-        :param message: 结束日志信息
-        :param retry_func: 重试函数
-        :param kwargs: 需要重试调用参数
-        :return:
-        """
-        super(ActionProcessor, self).set_finished(
-            to_status, failure_type, message=message, retry_func=retry_func, kwargs=kwargs, end_time=end_time
-        )
-        if to_status == ActionStatus.FAILURE:
-            ActionInstance.update_parent_action_status(self.receiver_action_mapping.values())

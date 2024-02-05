@@ -21,6 +21,11 @@ the project delivered to anyone in the future.
 """
 
 import arrow
+from django.conf import settings
+from django.db import transaction
+from django.utils.module_loading import import_string
+from django.utils.translation import ugettext as _
+
 from apps.api import TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -65,10 +70,6 @@ from apps.utils.db import array_group
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.db import transaction
-from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
 
 
 class EtlHandler(object):
@@ -184,10 +185,25 @@ class EtlHandler(object):
             )
             if clustering_handler.data.bkdata_etl_processing_id:
                 DataAccessHandler().create_or_update_bkdata_etl(self.data.collector_config_id, fields, etl_params)
-            etl_params["etl_flat"] = True
-            log_clustering_fields = CollectorScenario.log_clustering_fields(cluster_info["cluster_config"]["version"])
-            fields = CollectorScenario.fields_insert_field_index(source_fields=fields, dst_fields=log_clustering_fields)
             update_clustering_clean.delay(index_set_id=clustering_handler.data.index_set_id)
+
+            if clustering_handler.data.bkdata_data_id != self.data.bk_data_id:
+                # 旧版聚类链路，由于入库链路不是独立的，需要更新 transfer 的结果表配置；新版则无需更新
+                etl_params["etl_flat"] = True
+                etl_params["separator_node_action"] = ""
+                log_clustering_fields = CollectorScenario.log_clustering_fields(
+                    cluster_info["cluster_config"]["version"]
+                )
+                fields = CollectorScenario.fields_insert_field_index(
+                    source_fields=fields, dst_fields=log_clustering_fields
+                )
+
+                # 涉及到字段映射的，需要把前缀去掉，比如 bk_separator_object.abc => abc
+                for field in fields:
+                    if "option" in field and "real_path" in field["option"]:
+                        field["option"]["real_path"] = field["option"]["real_path"].replace(
+                            f"{EtlStorage.separator_node_name}.", ""
+                        )
 
         # 判断是否已存在同result_table_id
         if CollectorConfig(table_id=table_id).get_result_table_by_id():
@@ -253,7 +269,6 @@ class EtlHandler(object):
 
     @staticmethod
     def etl_preview(etl_config, etl_params, data):
-
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
         fields = etl_storage.etl_preview(data, etl_params)
         return {"fields": fields}
@@ -264,7 +279,7 @@ class EtlHandler(object):
         """
         fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
         fmt = fmts.get(time_format)
-        if fmt["name"] == ISO_8601_TIME_FORMAT_NAME:
+        if fmt["name"] in [ISO_8601_TIME_FORMAT_NAME, "ISO8601"]:
             try:
                 epoch_second = arrow.get(data, tzinfo=f"GMT{time_zone}").timestamp
             except Exception:  # pylint: disable=broad-except

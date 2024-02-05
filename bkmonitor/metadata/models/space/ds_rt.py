@@ -12,11 +12,11 @@ specific language governing permissions and limitations under the License.
 import json
 from typing import Dict, List, Optional, Set, Union
 
-from django.core.cache import cache
 from django.db.models import Q
 
 from metadata import models
 from metadata.models.space.constants import EtlConfigs, MeasurementType, SpaceTypes
+from metadata.utils.db import filter_model_by_in_page
 
 
 def get_result_tables_by_data_ids(data_id_list: Optional[List] = None, table_id_list: Optional[List] = None) -> Dict:
@@ -45,11 +45,14 @@ def get_platform_data_ids(space_type: Optional[str] = None) -> Dict[int, str]:
 
 def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> Dict:
     """获取influxdb 和 vm的结果表"""
-    vm_tables = models.AccessVMRecord.objects.values("result_table_id", "storage_cluster_id", "vm_result_table_id")
+    vm_tables = models.AccessVMRecord.objects.values("result_table_id", "vm_cluster_id", "vm_result_table_id")
     # 如果结果表存在，则过滤指定的结果表
     if table_id_list:
         vm_tables = vm_tables.filter(result_table_id__in=table_id_list)
-    vm_table_map = {data["result_table_id"]: {"vm_rt": data["vm_result_table_id"]} for data in vm_tables}
+    vm_table_map = {
+        data["result_table_id"]: {"vm_rt": data["vm_result_table_id"], "storage_id": data["vm_cluster_id"]}
+        for data in vm_tables
+    }
     influxdb_tables = models.InfluxDBStorage.objects.values(
         "table_id", "database", "real_table_name", "influxdb_proxy_storage_id", "partition_tag"
     )
@@ -83,18 +86,29 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
         cluster_name = storage_clusters.get("instance_cluster_name") or ""
         table_id_info[table_id] = {
             "storage_id": storage_id,
+            "storage_name": "",
             "cluster_name": cluster_name,
             "db": detail["db"],
             "measurement": detail["measurement"],
             "vm_rt": "",
             "tags_key": detail["tags_key"],
         }
+    # 仅有几条记录，查询一次 vm 集群列表，获取到集群ID和名称关系
+    vm_cluster_id_name = {
+        cluster["cluster_id"]: cluster["cluster_name"]
+        for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
+            "cluster_id", "cluster_name"
+        )
+    }
     # 处理 vm 的数据信息
     for table_id, detail in vm_table_map.items():
+        storage_name = vm_cluster_id_name.get(detail["storage_id"], "")
         if table_id in table_id_info:
-            table_id_info[table_id].update({"vm_rt": detail["vm_rt"]})
+            table_id_info[table_id].update({"vm_rt": detail["vm_rt"], "storage_name": storage_name})
         else:
-            detail.update({"cluster_name": "", "db": "", "measurement": "", "tags_key": []})
+            detail.update(
+                {"cluster_name": "", "storage_name": storage_name, "db": "", "measurement": "", "tags_key": []}
+            )
             table_id_info[table_id] = detail
     return table_id_info
 
@@ -130,15 +144,18 @@ def get_space_table_id_data_id(
         data_ids = data_ids - set(exclude_data_id_list)
 
     # 组装数据
-    return {
-        data["table_id"]: data["bk_data_id"]
-        for data in models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids).values(
-            "bk_data_id", "table_id"
-        )
-    }
+    # 采用分页过滤数据
+    _filter_data = filter_model_by_in_page(
+        model=models.DataSourceResultTable,
+        field_op="bk_data_id__in",
+        filter_data=data_ids,
+        value_func="values",
+        value_field_list=["bk_data_id", "table_id"],
+    )
+    return {data["table_id"]: data["bk_data_id"] for data in _filter_data}
 
 
-def get_measurement_type_by_table_id(table_ids: Set, table_list: List) -> Dict:
+def get_measurement_type_by_table_id(table_ids: Set, table_list: List, table_id_data_id: Dict) -> Dict:
     """通过结果表 ID, 获取节点表对应的 option 配置
     通过 option 转到到 measurement 类型
     """
@@ -150,14 +167,10 @@ def get_measurement_type_by_table_id(table_ids: Set, table_list: List) -> Dict:
         ).values("table_id", "name", "value")
     }
 
-    # 过滤数据源和table id的关系
-    table_data_dict = {
-        drt["table_id"]: drt["bk_data_id"]
-        for drt in models.DataSourceResultTable.objects.filter(table_id__in=table_ids).values("table_id", "bk_data_id")
-    }
+    # 过滤数据源对应的 etl_config
     data_etl_dict = {
         d["bk_data_id"]: d["etl_config"]
-        for d in models.DataSource.objects.filter(bk_data_id__in=table_data_dict.values()).values(
+        for d in models.DataSource.objects.filter(bk_data_id__in=table_id_data_id.values()).values(
             "bk_data_id", "etl_config"
         )
     }
@@ -166,7 +179,7 @@ def get_measurement_type_by_table_id(table_ids: Set, table_list: List) -> Dict:
     table_id_cutter = models.ResultTable.get_table_id_cutter(table_ids)
     for table in table_list:
         table_id, schema_type = table["table_id"], table["schema_type"]
-        etl_config = data_etl_dict.get(table_data_dict.get(table_id))
+        etl_config = data_etl_dict.get(table_id_data_id.get(table_id))
         # 获取是否禁用指标切分模式
         is_disable_metric_cutter = table_id_cutter.get(table_id) or False
         measurement_type_dict[table_id] = get_measurement_type(

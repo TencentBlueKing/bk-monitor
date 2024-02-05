@@ -27,7 +27,6 @@ import { VNode } from 'vue';
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { BigTree } from 'bk-magic-vue';
 
 import Group, { IGroupData } from './group';
 
@@ -143,7 +142,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
     const group = this.checkedData.find(data => data.id === item.id);
     const defaultCheckedNodes = group ? group.values.map(value => value.id) : [];
     return (
-      <BigTree
+      <bk-big-tree
         data={data}
         default-expand-all
         show-checkbox
@@ -164,12 +163,12 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
               >
                 {data.name}
               </span>
-              <span>{data.count || 0}</span>
+              <span class='label-count'>{data.count || 0}</span>
             </span>
           )
         }}
         on-check-change={(id, node) => this.handleTreeCheckChange(id, node, item)}
-      ></BigTree>
+      ></bk-big-tree>
     );
   }
 

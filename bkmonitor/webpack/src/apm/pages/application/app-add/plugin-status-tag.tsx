@@ -49,7 +49,7 @@ export default class PluginStatusTag extends tsc<IProps> {
           <i
             class={['icon-monitor', this.icon]}
             style={{ fontSize: `${this.iconFontSize}px` }}
-            v-bk-tooltips={{ content: this.tips, disabled: !this.tips }}
+            v-bk-tooltips={{ content: this.tips, disabled: !this.tips, allowHTML: false }}
           />
         </span>
         <span class='plugin-status-text'>{this.text}</span>

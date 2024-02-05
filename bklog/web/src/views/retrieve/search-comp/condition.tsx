@@ -30,6 +30,7 @@ import {
 } from 'vue-property-decorator';
 import { Switcher, Select, Option, DropdownMenu, TagInput, Button, Checkbox } from 'bk-magic-vue';
 import './condition.scss';
+import { Debounce } from '../../../common/util';
 
 interface IProps {
 }
@@ -53,6 +54,7 @@ export default class Condition extends tsc<IProps> {
   @Prop({ type: String, required: true }) conditionType: string; // 条件类型
   @Prop({ type: Object, required: true }) catchIpChooser: object; // ip 选择器的值
   @Prop({ type: Array, required: true }) valueList; // 输入框的可选数据
+  @Prop({ type: Boolean, default: true }) isClearCatchInputStr: boolean; // 输入框的可选数据
   @Ref('tagInput') tagInputRef: TagInput;
 
   labelHoverStatus = false;
@@ -66,6 +68,7 @@ export default class Condition extends tsc<IProps> {
   tagInputValueList = []; // taginput值列表
   matchSwitch = false; // 模糊匹配开关
   catchValue = []; // 切换exists时缓存的值
+  catchTagInputStr = '';
   valueScopeMap = { // number类型最大值
     long: {
       max: LONG_MAX_NUMBER,
@@ -83,7 +86,7 @@ export default class Condition extends tsc<IProps> {
     content: '#match-tips-content',
     placement: 'top',
     distance: 9,
-  }
+  };
 
   get ipSelectLength() { // 是否有选择ip
     return Object.keys(this.catchIpChooser).length;
@@ -154,6 +157,13 @@ export default class Condition extends tsc<IProps> {
     }));
   }
 
+  @Debounce(100)
+  @Watch('isClearCatchInputStr')
+  watchClearCatchInputStr() {
+    /** 检索时，清空输入框内缓存的字符串 */
+    this.catchTagInputStr = '';
+  }
+
   @Emit('delete')
   handleDelete(type: string) {
     return type;
@@ -169,9 +179,16 @@ export default class Condition extends tsc<IProps> {
     return v;
   }
 
+  @Debounce(100)
+  @Emit('inputChange')
+  emitInputChange(v: string) {
+    return v;
+  }
+
+  @Debounce(300)
   @Emit('additionValueChange')
-  handleAdditionChange(v: any, key: string, isQuery = true) {
-    return { v, key, isQuery };
+  handleAdditionChange(newReplaceObj: object, isQuery = true) {
+    return { newReplaceObj, isQuery };
   }
 
   @Emit('ipChange')
@@ -183,7 +200,7 @@ export default class Condition extends tsc<IProps> {
     !!this.tagInputRef && (this.tagInputRef.$refs.input.onkeyup = (v) => {
       if (v.code === 'Enter' || v.code === 'NumpadEnter') {
         if (this.localValue.length && !this.isValueChange) {
-          this.handleAdditionChange(this.localValue, 'value');
+          this.handleAdditionChange({ value: this.localValue });
         }
       }
     });
@@ -215,7 +232,7 @@ export default class Condition extends tsc<IProps> {
       this.isValueChange = false;
     }, 500); // 这个是enter检索判断
     if (!val.length) {
-      this.handleAdditionChange([], 'value');
+      this.handleAdditionChange({ value: [] });
       return;
     }
     const newVal = val[val.length - 1];
@@ -228,6 +245,8 @@ export default class Condition extends tsc<IProps> {
       const matchVal = Number(matchList.join(',')); // 拿到数字的值进行一个大小对比
       this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType);  // 判断数字最大值 超出则使用最大值
     }
+
+    this.handleAdditionChange({ value: this.localValue });
   }
 
   /**
@@ -246,14 +265,16 @@ export default class Condition extends tsc<IProps> {
   // 当有对比的操作时 值改变
   handleValueBlur(val: string) {
     if (val !== '' && this.isHaveCompared) this.localValue = [val];
-    if (this.localValue.length) {
-      this.handleAdditionChange(this.localValue, 'value');
-    }
+    this.emitInputChange(this.catchTagInputStr);
+    this.catchTagInputStr = '';
+    // if (this.localValue.length) {
+    //   this.handleAdditionChange({ value: this.localValue });
+    // }
   }
 
   handleValueRemoveAll() {
     this.localValue = [];
-    this.handleAdditionChange([], 'value');
+    this.handleAdditionChange({ value: [] });
   }
 
   /**
@@ -274,9 +295,14 @@ export default class Condition extends tsc<IProps> {
     }
     if (isCompared) this.localValue = this.localValue[0] ? [this.localValue[0]] : []; // 多输入的值变为单填时 拿下标为0的值
     const isQuery = !!this.localValue.length || isExists; // 值不为空 或 存在与不存在 的情况下才自动检索请求
-    this.handleAdditionChange(isExists ? [''] : queryValue, 'value', false);  // 更新值
-    this.handleAdditionChange(operatorItem, 'operatorItem', false);  // 更新操作符Item
-    this.handleAdditionChange(operatorItem.operator, 'operator', isQuery);  // 更新操作符
+    this.handleAdditionChange(
+      {
+        value: isExists ? [''] : queryValue,  // 更新值
+        operatorItem,  // 更新操作元素
+        operator: operatorItem.operator,  // 更新操作符
+      },
+      isQuery,
+    );
   }
 
   /**
@@ -286,7 +312,7 @@ export default class Condition extends tsc<IProps> {
   handleMatchChange(matchStatus: boolean) {
     const { wildcard_operator: wildcardOperator, operator } = this.operatorItem;
     const newOperator = matchStatus ? wildcardOperator : operator;
-    this.handleAdditionChange(newOperator, 'operator', false);  // 更新操作符
+    this.handleAdditionChange({ operator: newOperator }, false);  // 更新操作符
   }
 
   getIsExists(operator: string) {
@@ -428,6 +454,7 @@ export default class Condition extends tsc<IProps> {
             onChange={this.handleValueChange}
             onBlur={this.handleValueBlur}
             onRemoveAll={this.handleValueRemoveAll}
+            onInputchange={v => this.catchTagInputStr = v}
             trigger="focus">
           </TagInput>
         }

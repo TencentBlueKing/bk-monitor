@@ -211,8 +211,8 @@ export default {
     'You can meet the needs of data collection by making various monitoring plug-ins. This function relies on the server to install the bkmonitorbeat collector. ',
   '可批量导入, 导入策略请上传yaml配置，导入仪表盘请上传json配置':
     'can be imported in batches, please upload yaml configuration for import rule, and upload json configuration for dashboard import',
-  '日志关键字即通过日志关键字匹配的数量进行告警，主要有两种':
-    'The log keyword is used to alert based on the number of log keyword matches. There are two main types',
+  '日志即通过日志关键字匹配的数量进行告警，主要有两种':
+    'The log is used to alert based on the number of log keyword matches. There are two main types',
   '日志关键字插件，通过对于日志文件的关键匹配进行计数，并且存储最近一条原始日志内容。':
     'Log keyword plug-in counts the key matches of log files , and store the latest original log content. ',
   '日志关键字：日志关键字能力有两种，日志平台基于ES存储判断的日志关键字和基于Agent端进行日志关键字匹配的事件。':
@@ -331,5 +331,8 @@ export default {
     "Datadog is a one-stop cloud performance monitoring platform with rich collection capabilities. BlueKing Monitoring is compatible with Datadog's collection capabilities, and currently users cannot customize plug-ins. Because Datadog is written by python, it needs a python executable environment and does not need to occupy a port",
   '事件内容，必需项': 'Event content, required',
   '指标，必需项': 'Metrics, Required',
-  '来源标识如IP，必需项': 'Source identification such as IP, required'
+  '来源标识如IP，必需项': 'Source identification such as IP, required',
+  '单个 trace 中 30 分钟没有 span 上报，会自动结束；单个 trace 最大时长 1 天':
+    'If no span is reported for 30 minutes in a single trace, it will end automatically; the maximum duration of a single trace is 1 day',
+  对非必采的部分按TraceID进行采样: 'Sampling non-essential parts according to TraceID'
 };

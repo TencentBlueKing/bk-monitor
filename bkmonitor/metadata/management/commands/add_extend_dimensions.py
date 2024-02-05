@@ -8,14 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
+
 from typing import Dict, List, Optional
 
 from django.core.management import BaseCommand
 
 from metadata import models
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -89,6 +87,26 @@ class Command(BaseCommand):
             "description": "dbm db type",
             "unit": "",
             "alias_name": "db_type",
+        },
+        {
+            "field_name": "cluster_type",
+            "field_type": "string",
+            "tag": "dimension",
+            "default_value": None,
+            "is_config_by_user": True,
+            "description": "cluster type",
+            "unit": "",
+            "alias_name": "cluster_type",
+        },
+        {
+            "field_name": "instance_port",
+            "field_type": "string",
+            "tag": "dimension",
+            "default_value": None,
+            "is_config_by_user": True,
+            "description": "instance port",
+            "unit": "",
+            "alias_name": "instance_port",
         },
     ]
     extend_options = {

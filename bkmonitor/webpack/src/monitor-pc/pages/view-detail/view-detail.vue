@@ -161,6 +161,7 @@
                         >
                           {{ item?.value === null ? '--' : item.value }}
                           <img
+                            alt=''
                             v-if="tdIndex > 0 && (item?.max || item?.min)"
                             class="item-max-min"
                             :src="require(`../../static/images/svg/${item?.min ? 'min.svg' : 'max.svg'}`)"
@@ -198,7 +199,7 @@
 <script lang="ts">
 /* eslint-disable @typescript-eslint/member-ordering */
 import { Component, InjectReactive, Mixins, Prop, Provide, ProvideReactive, Vue } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { graphUnifyQuery } from '../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../monitor-api/modules/strategies';
@@ -208,7 +209,7 @@ import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue
 import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import { DEFAULT_REFLESH_LIST, DEFAULT_TIME_RANGE_LIST, DEFAULT_TIMESHIFT_LIST } from '../../common/constant';
 import SortButton from '../../components/sort-button/sort-button';
-import { TimeRangeType } from '../../components/time-range/time-range';
+import type { TimeRangeType } from '../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 // import { handleTimeRange } from '../../utils/index';
 import authorityMixinCreate from '../../mixins/authorityMixin';
@@ -239,9 +240,11 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
-    this.compareValue.tools.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
+      this.compareValue.tools.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -446,8 +449,8 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
         let timerange = this.getTimerange();
         if (startTime && endTime) {
           timerange = {
-            start_time: moment(startTime).unix(),
-            end_time: moment(endTime).unix()
+            start_time: dayjs.tz(startTime).unix(),
+            end_time: dayjs.tz(endTime).unix()
           };
         }
         return await graphUnifyQuery({

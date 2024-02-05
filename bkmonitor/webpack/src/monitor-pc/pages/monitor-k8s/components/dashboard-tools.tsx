@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue from 'vue';
+// import Vue from 'vue';
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { DatePicker, DropdownMenu } from 'bk-magic-vue';
 
+//
 // import MonitorDateRange from '../../../components/monitor-date-range';
 import MonitorDropdown from '../../../components/monitor-dropdown';
 import TimeRange, { TimeRangeType } from '../../../components/time-range/time-range';
@@ -40,8 +40,8 @@ import ListMenu from './list-menu';
 
 import './dashboard-tools.scss';
 
-Vue.use(DatePicker);
-Vue.use(DropdownMenu);
+// Vue.use(DatePicker);
+// Vue.use(DropdownMenu);
 interface ITimeRangeItem {
   // 数据间隔别名 如 1h 1d
   name: TranslateResult | string;
@@ -57,6 +57,8 @@ export interface IRefleshItem {
 interface IHeadToolProps {
   // 数据间隔
   timeRange?: TimeRangeType;
+  // 时区
+  timezone?: string;
   // 自动刷新数据间隔
   refleshInterval?: number;
   // 是否显示分屏功能
@@ -93,12 +95,16 @@ interface IHeadToolEvent {
   // 选择粒度
   onDownSampleRangeChange?: (v: string | number) => void;
   onIntervalChange?: (v: string | number) => void;
+  // 选择时区
+  onTimezoneChange?: (v: string) => void;
 }
 @Component
 export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> {
   @InjectReactive('readonly') readonly readonly: boolean; // 是否只读
   // 数据间隔
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
+  // 时区
+  @Prop({ type: String }) timezone: string;
   // 自动刷新数据间隔
   @Prop({ default: -1 }) readonly refleshInterval: number;
   // 是否显示分屏功能
@@ -383,6 +389,10 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   handleIntervalChange() {
     return this.intervalValue;
   }
+  @Emit('timezoneChange')
+  handleTimezoneChange(v) {
+    return v;
+  }
   render() {
     return (
       <div class='dashboard-tools'>
@@ -414,6 +424,8 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
             <TimeRange
               class='dashboard-tools-timerange'
               value={this.curTimeRange}
+              timezone={this.timezone}
+              onTimezoneChange={this.handleTimezoneChange}
               onChange={this.handleTimeRangeChange}
             />
           ))}

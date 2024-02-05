@@ -91,6 +91,7 @@ export const queryPathIpChooserTopo = request('POST', 'rest/v2/commons/ip_choose
 export const queryServiceInstancesIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/query_service_instances/');
 export const serviceInstanceCountIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/service_instance_count/');
 export const treesIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/trees/');
+export const enhancedContext = request('GET', 'rest/v2/commons/context/enhanced/');
 export const listUsersUser = request('GET', 'rest/v2/commons/user/list_users/');
 export const createFavoriteGroup = request('POST', 'rest/v2/favorite_group/');
 export const destroyFavoriteGroup = request('DELETE', 'rest/v2/favorite_group/{pk}/');
@@ -121,6 +122,13 @@ export const listUserGroup = request('GET', 'rest/v2/user_groups/');
 export const partialUpdateUserGroup = request('PATCH', 'rest/v2/user_groups/{pk}/');
 export const retrieveUserGroup = request('GET', 'rest/v2/user_groups/{pk}/');
 export const updateUserGroup = request('PUT', 'rest/v2/user_groups/{pk}/');
+export const createDutyRule = request('POST', 'rest/v2/duty_rules/');
+export const destroyDutyRule = request('DELETE', 'rest/v2/duty_rules/{pk}/');
+export const listDutyRule = request('GET', 'rest/v2/duty_rules/');
+export const partialUpdateDutyRule = request('PATCH', 'rest/v2/duty_rules/{pk}/');
+export const retrieveDutyRule = request('GET', 'rest/v2/duty_rules/{pk}/');
+export const switchDutyRule = request('POST', 'rest/v2/duty_rules/switch/');
+export const updateDutyRule = request('PUT', 'rest/v2/duty_rules/{pk}/');
 export const createActionConfig = request('POST', 'fta/action/config/');
 export const destroyActionConfig = request('DELETE', 'fta/action/config/{pk}/');
 export const listActionConfig = request('GET', 'fta/action/config/');
@@ -244,6 +252,7 @@ export default {
   queryServiceInstancesIpChooserTopo,
   serviceInstanceCountIpChooserTopo,
   treesIpChooserTopo,
+  enhancedContext,
   listUsersUser,
   createFavoriteGroup,
   destroyFavoriteGroup,
@@ -273,7 +282,15 @@ export default {
   listUserGroup,
   partialUpdateUserGroup,
   retrieveUserGroup,
+  switchDutyRule,
   updateUserGroup,
+  createDutyRule,
+  destroyDutyRule,
+  listDutyRule,
+  partialUpdateDutyRule,
+  retrieveDutyRule,
+  switchDutyRule,
+  updateDutyRule,
   createActionConfig,
   destroyActionConfig,
   listActionConfig,

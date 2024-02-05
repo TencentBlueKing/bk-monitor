@@ -12,10 +12,10 @@ specific language governing permissions and limitations under the License.
 
 from django.conf.urls import url
 
-from monitor_adapter.api import signature, status
+from monitor_adapter.api import signature, status, views
 
 urlpatterns = [
     url(r"^api/signature.png$", signature.signature),
     url(r"^api/status/settings/$", status.status_settings),
-    url(r"^api/status/business/$", status.status_business),
+    url(r"^VERSION/$", views.version_info),
 ]

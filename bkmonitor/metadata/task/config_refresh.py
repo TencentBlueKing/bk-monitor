@@ -13,11 +13,13 @@ import logging
 import traceback
 
 import kafka
+from django.conf import settings
 from django.db.models import F
 from django.utils.translation import ugettext as _
 
 from alarm_backends.core.lock.service_lock import share_lock
 from metadata import models
+from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.utils import consul_tools
 
 from .tasks import manage_es_storage
@@ -25,7 +27,7 @@ from .tasks import manage_es_storage
 logger = logging.getLogger("metadata")
 
 
-@share_lock(identify="metadata_refreshConsulInfluxdbTableInfo")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshConsulInfluxdbTableInfo")
 def refresh_consul_influxdb_tableinfo():
     """
     刷新storage信息给unify-query使用
@@ -37,7 +39,7 @@ def refresh_consul_influxdb_tableinfo():
         logger.error("refresh influxdb table info failed for ->{}".format(e))
 
 
-@share_lock(identify="metadata_refreshConsulStorage")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshConsulStorage")
 def refresh_consul_storage():
     """
     刷新storage信息给unify-query使用
@@ -61,7 +63,7 @@ def refresh_consul_es_info():
         logger.error("refresh es table failed for ->{}".format(e))
 
 
-@share_lock(identify="metadata_refreshInfluxdbRoute")
+@share_lock(ttl=1800, identify="metadata_refreshInfluxdbRoute")
 def refresh_influxdb_route():
     """
     实际定时任务需要操作的内容
@@ -118,31 +120,31 @@ def refresh_influxdb_route():
         logger.error("refresh tag failed for ->{}".format(e))
 
 
-@share_lock(identify="metadata_cleanInfluxdbTag")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_cleanInfluxdbTag")
 def clean_influxdb_tag():
     models.InfluxDBTagInfo.clean_consul_config()
     models.InfluxDBTagInfo.clean_redis_tag_config()
 
 
-@share_lock(identify="metadata_cleanInfluxdbStorage")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_cleanInfluxdbStorage")
 def clean_influxdb_storage():
     models.InfluxDBStorage.clean_consul_config()
     models.InfluxDBStorage.clean_redis_cluster_config()
 
 
-@share_lock(identify="metadata_cleanInfluxdbCluster")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_cleanInfluxdbCluster")
 def clean_influxdb_cluster():
     models.InfluxDBClusterInfo.clean_consul_config()
     models.InfluxDBClusterInfo.clean_redis_cluster_config()
 
 
-@share_lock(identify="metadata_cleanInfluxdbHost")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_cleanInfluxdbHost")
 def clean_influxdb_host():
     models.InfluxDBHostInfo.clean_consul_config()
     models.InfluxDBHostInfo.clean_redis_host_config()
 
 
-@share_lock(identify="metadata_refreshDatasource")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshDatasource")
 def refresh_datasource():
     # 更新datasource的外部依赖 及 配置信息
     # NOTE: 过滤有结果表的数据源并且状态是启动
@@ -218,11 +220,17 @@ def refresh_kafka_topic_info():
         )
 
 
-@share_lock(identify="metadata_refreshESStorage", ttl=1800)
+@share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
+    # NOTE: 这是临时处理；如果在白名单中，则按照串行处理
+    es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
+    if es_cluster_wl:
+        # 这里集群不会太多
+        es_storage_data = models.ESStorage.objects.filter(storage_cluster_id__in=es_cluster_wl)
+        manage_es_storage.delay(es_storage_data)
     # 设置每100条记录，拆分为一个任务
     start, step = 0, 100
-    es_storages = models.ESStorage.objects.all()
+    es_storages = models.ESStorage.objects.exclude(storage_cluster_id__in=es_cluster_wl)
     # 添加一步过滤，用以减少任务的数量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False
@@ -236,7 +244,7 @@ def refresh_es_storage():
     logger.info("es_storage cron task started success.")
 
 
-@share_lock(identify="metadata_refreshBCSInfo")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSInfo")
 def refresh_bcs_info():
     """
     刷新bcs_info到consul
@@ -250,7 +258,7 @@ def refresh_bcs_info():
     models.EsSnapshotRestore.clean_expired_restore()
 
 
-@share_lock(identify="metadata_refreshEsRestore")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshEsRestore")
 def refresh_es_restore():
     # 刷新回溯状态
     not_done_restores = models.EsSnapshotRestore.objects.exclude(total_doc_count=F("complete_doc_count")).exclude(
@@ -268,7 +276,7 @@ def refresh_es_restore():
             continue
 
 
-@share_lock(identify="metadata_refreshInfluxDBProxyStorage")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshInfluxDBProxyStorage")
 def refresh_influxdb_proxy_storage():
     """刷新 influxdb proxy 和实际存储的关系"""
     logger.info("start to push influxdb proxy and storage to consul and redis")
@@ -276,14 +284,14 @@ def refresh_influxdb_proxy_storage():
     logger.info("push influxdb proxy and storage to consul and redis successfully")
 
 
-@share_lock(identify="metadata_cleanInfluxDBProxyStorage")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_cleanInfluxDBProxyStorage")
 def clean_influxdb_proxy_storage():
     logger.info("start to clean influxdb proxy and storage data")
     models.InfluxDBProxyStorage.clean()
     logger.info("clean influxdb proxy and storage data successfully")
 
 
-@share_lock(identify="metadata_refresh_unify_query_additional_config")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refresh_unify_query_additional_config")
 def refresh_unify_query_additional_config():
     logger.info("start to refresh config for unify_query")
     models.InfluxDBStorage.refresh_additional_info_for_unify_query()

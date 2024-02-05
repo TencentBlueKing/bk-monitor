@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import math
+from typing import Optional
 
-from common.log import logger
 from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
@@ -27,23 +27,28 @@ from apm.constants import (
     DEFAULT_APM_ES_WARM_RETENTION_RATIO,
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
+from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.utils.es_search import EsSearch
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.user import get_global_user
-from constants.apm import OtlpKey, SpanKind
+from common.log import logger
+from constants.apm import FlowType, OtlpKey, SpanKind
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
 from metadata import models as metadata_models
 
+from .doris import BkDataDorisProvider
+
 
 class ApmDataSourceConfigBase(models.Model):
     TRACE_DATASOURCE = "trace"
     METRIC_DATASOURCE = "metric"
+    PROFILE_DATASOURCE = "profile"
 
     TABLE_SPACE_PREFIX = "space"
 
-    DATASOURCE_CHOICE = ((TRACE_DATASOURCE, _("Trace")), (METRIC_DATASOURCE, _("指标")))
+    DATASOURCE_CHOICE = ((TRACE_DATASOURCE, "Trace"), (METRIC_DATASOURCE, _("指标")))
 
     DATA_NAME_PREFIX = "bkapm"
 
@@ -526,7 +531,6 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @property
     def table_id(self) -> str:
-
         bk_biz_id = int(self.bk_biz_id)
 
         if bk_biz_id > 0:
@@ -690,6 +694,10 @@ class TraceDataSource(ApmDataSourceConfigBase):
     @cached_property
     def es_client(self):
         return metadata_models.ESStorage.objects.filter(table_id=self.result_table_id).first().get_client()
+
+    @cached_property
+    def storage(self):
+        return metadata_models.ESStorage.objects.filter(table_id=self.result_table_id).first()
 
     @property
     def index_set(self) -> str:
@@ -881,6 +889,56 @@ class TraceDataSource(ApmDataSourceConfigBase):
             cls._mappings_properties(v, properties)
 
 
+class ProfileDataSource(ApmDataSourceConfigBase):
+    """Profile 数据源"""
+
+    DATASOURCE_TYPE = ApmDataSourceConfigBase.PROFILE_DATASOURCE
+
+    BUILTIN_APP_NAME = "builtin_profile_app"
+    _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
+
+    created = models.DateTimeField("创建时间", auto_now_add=True)
+    updated = models.DateTimeField("更新时间", auto_now=True)
+
+    @property
+    def table_id(self) -> str:
+        bk_biz_id = int(self.bk_biz_id)
+        return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def apply_datasource(cls, bk_biz_id, app_name, **option):
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not obj:
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+        # 创建接入
+        essentials = BkDataDorisProvider.from_datasource_instance(obj, operator=get_global_user()).provider(**option)
+
+        obj.bk_data_id = essentials["bk_data_id"]
+        obj.result_table_id = essentials["result_table_id"]
+        obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
+        return
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def create_builtin_source(cls):
+        builtin_biz = api.cmdb.get_blueking_biz()
+        # datasource is enough, no real app created.
+        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+
+    @classmethod
+    def get_builtin_source(cls) -> Optional['ProfileDataSource']:
+        if cls._CACHE_BUILTIN_DATASOURCE:
+            return cls._CACHE_BUILTIN_DATASOURCE
+
+        builtin_biz = api.cmdb.get_blueking_biz()
+        try:
+            return cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        except cls.DoesNotExist:
+            return None
+
+
 class DataLink(models.Model):
     """
     数据链路配置
@@ -918,5 +976,35 @@ class DataLink(models.Model):
 
     @classmethod
     def create_global(cls, **kwargs):
-
         return cls.objects.create(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, **kwargs)
+
+
+class BkdataFlowConfig(models.Model):
+    """
+    计算平台APM Flow管理
+    以下Flow的配置由此表管理:
+    1. APM尾部采样
+    """
+
+    bk_biz_id = models.IntegerField("监控业务id")
+    app_name = models.CharField("应用名称", max_length=50)
+    is_finished = models.BooleanField("是否已配置完成", default=False)
+    finished_time = models.DateTimeField("配置完成时间", null=True)
+    project_id = models.CharField("project id", null=True, max_length=128)
+    deploy_bk_biz_id = models.IntegerField("计算平台数据源所在的业务ID")
+    deploy_data_id = models.CharField("数据源dataid", null=True, max_length=128)
+    deploy_config = models.JSONField("数据源配置", null=True)
+    databus_clean_id = models.CharField("清洗配置ID", null=True, max_length=128)
+    databus_clean_config = models.JSONField("清洗配置", null=True)
+    databus_clean_result_table_id = models.CharField("清洗输出结果表ID", null=True, max_length=128)
+    flow_id = models.CharField("dataflow id", null=True, max_length=128)
+    status = models.CharField("配置状态", null=True, choices=FlowStatus.choices, max_length=64)
+    process_info = models.JSONField("执行日志", null=True)
+    last_process_time = models.DateTimeField("上次执行时间", null=True)
+    flow_type = models.CharField("Flow类型", choices=FlowType.choices, max_length=32)
+
+    create_at = models.DateTimeField("创建时间", auto_now_add=True)
+    update_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "APM Flow管理表"

@@ -28,8 +28,9 @@ import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from '../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
+import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
+import { destroyTimezone } from '../../../monitor-pc/i18n/dayjs';
 import CommonNavBar from '../../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import CommonPage, { SceneType } from '../../../monitor-pc/pages/monitor-k8s/components/common-page-new';
 import { INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
@@ -53,7 +54,7 @@ interface IServiceParams {
   url: string; // 跳转地址
 }
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class Service extends tsc<{}> {
   @Prop({ type: String, default: '' }) id: string;
@@ -135,7 +136,10 @@ export default class Service extends tsc<{}> {
     };
     next(nextTo);
   }
-
+  beforeRouteLeave(to, from, next) {
+    destroyTimezone();
+    next();
+  }
   /** 切换时间范围重新请求以获取无数据状态 */
   handelTimeRangeChange() {
     this.handleGetAppInfo();

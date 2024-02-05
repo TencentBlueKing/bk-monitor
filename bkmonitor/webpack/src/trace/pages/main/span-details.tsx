@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 import { Button, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { getSceneView } from '../../../monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from '../../../monitor-common/utils/utils';
@@ -36,10 +36,12 @@ import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exc
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
+import ProfilingGraph from '../../plugins/charts/profiling-graph/profiling-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
+import { useAppStore } from '../../store/modules/app';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   EListItemType,
@@ -69,7 +71,7 @@ const guideInfoData: Record<string, IGuideInfo> = {
   // Index: {}
 };
 
-type TabName = 'BasicInfo' | 'Event' | 'Log' | 'Host' | 'Process' | 'Container' | 'Index';
+type TabName = 'BasicInfo' | 'Event' | 'Log' | 'Host' | 'Process' | 'Container' | 'Index' | 'Profiling';
 export default defineComponent({
   name: 'SpanDetails',
   props: {
@@ -105,6 +107,10 @@ export default defineComponent({
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
+
+    const ellipsisDirection = computed(() => store.ellipsisDirection);
+
+    const bizId = computed(() => useAppStore().bizId || 0);
 
     const countOfInfo = ref<Record<TabName, number> | {}>({});
 
@@ -230,6 +236,7 @@ export default defineComponent({
                 <img
                   class='span-icon'
                   src={icon}
+                  alt=''
                 />
                 <span>{serviceName}</span>
                 <i class='icon-monitor icon-fenxiang' />
@@ -253,8 +260,8 @@ export default defineComponent({
           // { label: '日志', content: logs.length ? '有日志' :  '无日志' },
           {
             label: t('开始时间'),
-            content: moment(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
-            title: moment(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss')
+            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
+            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss')
           },
           {
             label: t('来源'),
@@ -595,7 +602,7 @@ export default defineComponent({
       if (content === 'text') {
         text = spanID;
       } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}?app_name=${
+        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
           appName.value
         }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
         text = location.href.replace(location.hash, hash);
@@ -802,32 +809,32 @@ export default defineComponent({
     provide('SpanDetailActiveTab', activeTab);
     const tabList = [
       {
-        label: window.i18n.t('基础信息'),
+        label: t('基础信息'),
         name: 'BasicInfo'
       },
       {
-        label: window.i18n.t('异常事件'),
+        label: t('异常事件'),
         name: 'Event'
       },
       {
-        label: window.i18n.t('日志'),
+        label: t('日志'),
         name: 'Log'
       },
       {
-        label: window.i18n.t('主机'),
+        label: t('主机'),
         name: 'Host'
       }
       // 20230525 这期暂时不需要
       // {
-      //   label: window.i18n.t('进程'),
+      //   label: t('进程'),
       //   name: 'Process'
       // },
       // {
-      //   label: window.i18n.t('容器'),
+      //   label: t('容器'),
       //   name: 'Container'
       // },
       // {
-      //   label: window.i18n.t('指标'),
+      //   label: t('指标'),
       //   name: 'Index'
       // }
     ];
@@ -911,6 +918,12 @@ export default defineComponent({
         </Popover>
       </div>
     );
+    if (window.enable_apm_profiling) {
+      tabList.push({
+        label: t('性能分析'),
+        name: 'Profiling'
+      });
+    }
     const detailsMain = () => (
       <Loading
         loading={props.isPageLoading}
@@ -1046,7 +1059,7 @@ export default defineComponent({
                               onClick={handleEventErrLink}
                               style='margin-top: 16px;'
                             >
-                              {window.i18n.t('错误分析')}
+                              {t('错误分析')}
                               <span
                                 class='icon-monitor icon-fenxiang'
                                 style='margin-left: 8px;'
@@ -1137,6 +1150,25 @@ export default defineComponent({
                             ></FlexDashboardPanel>
                           </div>
                         )}
+                      </Loading>
+                    )
+                  }
+                  {
+                    // 火焰图 部分
+                    activeTab.value === 'Profiling' && (
+                      <Loading
+                        loading={isTabPanelLoading.value}
+                        style='height: 100%;'
+                      >
+                        <ProfilingGraph
+                          appName={appName.value}
+                          profileId={originalData.value.span_id}
+                          start={originalData.value.start_time}
+                          end={originalData.value.end_time}
+                          bizId={bizId.value}
+                          textDirection={ellipsisDirection.value}
+                          onUpdate:loading={val => (isTabPanelLoading.value = val)}
+                        />
                       </Loading>
                     )
                   }

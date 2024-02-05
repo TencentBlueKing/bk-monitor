@@ -51,9 +51,9 @@
     <bk-dialog
       v-model="isShowExportDialog"
       theme="primary"
-      width="440"
       header-position="left"
       ext-cls="async-export-dialog"
+      :width="getDialogWidth"
       :title="getDialogTitle"
       :mask-close="false"
       :ok-text="$t('下载')"
@@ -120,7 +120,6 @@
 
 <script>
 import { mapGetters } from 'vuex';
-import { handleTransformTime } from '@/components/time-range/utils';
 import exportHistory from './export-history';
 
 export default {
@@ -208,6 +207,9 @@ export default {
       if (this.selectFiledType === 'show') return this.visibleFields.map(item => item.field_name);
       return [];
     },
+    getDialogWidth() {
+      return this.$store.getters.isEnLanguage ? '470' : '440';
+    },
   },
   beforeDestroy() {
     this.popoverInstance = null;
@@ -249,13 +251,8 @@ export default {
       this.isShowExportDialog = false;
     },
     openDownloadUrl() {
-      const tempList = handleTransformTime(this.datePickerValue);// 下载日志时 使用时间选择器的最新时间
-      const params = Object.assign(this.retrieveParams,
-        { begin: 0,
-          bk_biz_id: this.bkBizId,
-          start_time: tempList[0],
-          end_time: tempList[1],
-        });
+      const { timezone, ...rest } = this.retrieveParams;
+      const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
       const exportParams = encodeURIComponent(JSON.stringify({
         ...params,
         size: this.totalCount,
@@ -270,16 +267,10 @@ export default {
       window.open(targetUrl);
     },
     downloadAsync() {
-      const tempList = handleTransformTime(this.datePickerValue);// 下载日志时 使用时间选择器的最新时间
-      const params = Object.assign(this.retrieveParams,
-        { begin: 0,
-          bk_biz_id: this.bkBizId,
-          start_time: tempList[0],
-          end_time: tempList[1],
-        });
+      const { timezone, ...rest } = this.retrieveParams;
+      const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
       const data = { ...params };
       data.size = this.totalCount;
-      data.time_range = 'customized';
       data.export_fields = this.submitSelectFiledList;
       data.is_desensitize = this.desensitizeRadioType === 'desensitize';
 
@@ -477,6 +468,10 @@ export default {
       .bk-button {
         margin-left: auto;
         min-width: auto;
+      }
+
+      .bk-icon {
+        margin-top: 2px;
       }
     }
   }

@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Button } from 'bk-magic-vue';
 
 import { IBaseInfo, TPluginTypeObj, TScenaris } from '../types';
 
@@ -165,20 +164,20 @@ const HeaderFunctional = ctx => {
       </div>
       <div class='operate-wrap'>
         {!isInstalled ? (
-          <Button
+          <bk-button
             theme='primary'
             onClick={() => install()}
           >
             {i18n.t('安装')}
-          </Button>
+          </bk-button>
         ) : (
-          <Button
+          <bk-button
             theme='primary'
             outline
             onClick={() => viewEvent()}
           >
             {i18n.t('查看数据')}
-          </Button>
+          </bk-button>
         )}
       </div>
     </div>

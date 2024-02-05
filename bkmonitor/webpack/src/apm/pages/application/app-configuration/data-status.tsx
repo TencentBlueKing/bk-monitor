@@ -27,8 +27,7 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Sideslider, Switcher, Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {
   dataSampling,
@@ -39,6 +38,7 @@ import {
 } from '../../../../monitor-api/modules/apm_meta';
 import { copyText } from '../../../../monitor-common/utils/utils';
 import TimeRange, { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
+import { getDefautTimezone, updateTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
 import { ApdexChart } from '../../../../monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
 import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
@@ -51,8 +51,8 @@ import 'vue-json-pretty/lib/styles.css';
 @Component
 export default class DataStatus extends tsc<{}> {
   pickerTimeRange: string[] = [
-    moment(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
-    moment(new Date()).format('YYYY-MM-DD')
+    dayjs(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
+    dayjs(new Date()).format('YYYY-MM-DD')
   ];
   strategyLoading = false;
   tableLoading = false;
@@ -79,6 +79,8 @@ export default class DataStatus extends tsc<{}> {
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1d', 'now'];
+  /** 时区 */
+  @ProvideReactive('timezone') timezone: string = getDefautTimezone();
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
 
@@ -92,6 +94,7 @@ export default class DataStatus extends tsc<{}> {
   }
 
   created() {
+    this.timezone = getDefautTimezone();
     this.getNoDataStrategyInfo();
     this.getDataView();
     this.getsamplingList();
@@ -130,7 +133,13 @@ export default class DataStatus extends tsc<{}> {
     };
     const data = await dataSampling(this.appId, params).catch(() => []);
     this.collapseRowIndexs = [];
-    this.samplingList = data;
+    this.samplingList = data?.map(item => {
+      const date = dayjs.tz(dayjs(item.sampling_time));
+      return {
+        ...item,
+        sampling_time: date.isValid() ? date.format('YYYY-MM-DD HH:mm:ssZ') : '--'
+      };
+    });
     this.tableLoading = false;
   }
   /**
@@ -140,6 +149,13 @@ export default class DataStatus extends tsc<{}> {
   handleTimeRangeChange(date) {
     this.timeRange = date;
     this.getNoDataStrategyInfo();
+  }
+  handleTimezoneChange(timezone: string) {
+    updateTimezone(timezone);
+    this.timezone = timezone;
+    this.getNoDataStrategyInfo();
+    this.getDataView();
+    this.getsamplingList();
   }
   /**
    * @desc 展开全部原始日志
@@ -252,22 +268,22 @@ export default class DataStatus extends tsc<{}> {
     };
     const operatorSlot = {
       default: props => [
-        <Button
+        <bk-button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleCopyLog(JSON.stringify(props.row.raw_log))}
         >
           {this.$t('复制')}
-        </Button>,
-        <Button
+        </bk-button>,
+        <bk-button
           class='mr10'
           theme='primary'
           text
           onClick={() => this.handleViewDetail(props.row.raw_log)}
         >
           {this.$t('查看上报数据')}
-        </Button>
+        </bk-button>
       ]
     };
 
@@ -277,6 +293,8 @@ export default class DataStatus extends tsc<{}> {
           <TimeRange
             slot='headerTool'
             value={this.timeRange}
+            timezone={this.timezone}
+            onTimezoneChange={this.handleTimezoneChange}
             onChange={this.handleTimeRangeChange}
           />
           <div
@@ -287,11 +305,11 @@ export default class DataStatus extends tsc<{}> {
               <div class='msg-item'>
                 <span
                   class='tip-label'
-                  v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。') }}
+                  v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。'), allowHTML: false }}
                 >
                   {this.$t('无数据告警')}
                 </span>
-                <Switcher
+                <bk-switcher
                   size='small'
                   theme='primary'
                   value={this.strategyInfo.is_enabled}
@@ -356,36 +374,36 @@ export default class DataStatus extends tsc<{}> {
             <i class='icon-monitor icon-shuaxin'></i>
             {this.$t('button-刷新')}
           </span>
-          <Table
+          <bk-table
             class={'sampling-table'}
             outer-border={false}
             row-auto-height={true}
             data={this.samplingList}
             v-bkloading={{ isLoading: this.tableLoading }}
           >
-            <TableColumn
+            <bk-table-column
               label={this.$t('序号')}
               type='index'
               width='80'
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('原始数据')}
               scopedSlots={logSlots}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('采样时间')}
               width='200'
               scopedSlots={{ default: props => props.row.sampling_time }}
             />
-            <TableColumn
+            <bk-table-column
               label={this.$t('查看')}
               width='180'
               scopedSlots={operatorSlot}
             />
-          </Table>
+          </bk-table>
         </PanelItem>
 
-        <Sideslider
+        <bk-sideslider
           ext-cls='origin-log-sideslider'
           transfer={true}
           isShow={this.sideslider.show}
@@ -398,12 +416,12 @@ export default class DataStatus extends tsc<{}> {
             class='title-wrap'
           >
             <span>{this.$t('上报日志详情')}</span>
-            <Button
+            <bk-button
               class='mr10'
               onClick={() => this.handleCopyLog(JSON.stringify(this.sideslider.log))}
             >
               {this.$t('复制')}
-            </Button>
+            </bk-button>
           </div>
           <div
             class='json-text-style'
@@ -416,7 +434,7 @@ export default class DataStatus extends tsc<{}> {
               data={this.sideslider.log}
             />
           </div>
-        </Sideslider>
+        </bk-sideslider>
       </div>
     );
   }

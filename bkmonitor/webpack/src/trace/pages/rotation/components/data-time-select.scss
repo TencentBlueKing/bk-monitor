@@ -1,0 +1,141 @@
+.data-time-select-component {
+  display: flex;
+  width: 100%;
+
+  .label {
+    line-height: 30px;
+    text-align: center;
+    background: #fafbfd;
+    border: 1px solid #c4c6cc;
+    border-right: none;
+    border-radius: 2px 0 0 2px;
+    border-radius: 2px 0 0 2px;
+  }
+
+  .data-time-select-wrapper {
+    flex: 1;
+    line-height: 30px;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    &.active {
+      border-color: #3a84ff;
+    }
+
+    .content-wrapper {
+      height: 30px;
+      padding: 0 8px;
+
+      &.placeholder {
+        font-size: 12px;
+        color: #c4c6cc;
+      }
+    }
+  }
+}
+
+.bk-popover.data-time-select-popover.component {
+  padding: 0;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 #0000001a;
+
+  .popover-wrapper {
+    display: flex;
+    height: 260px;
+
+    .title {
+      padding: 0 12px;
+      line-height: 32px;
+      color: #979ba5;
+    }
+
+    .panel {
+      color: #63656e;
+    }
+
+    .left-data-panel {
+      width: 249px;
+      border-right: 1px solid #dcdee5;
+
+      .data-list {
+        display: flex;
+        flex-wrap: wrap;
+        row-gap: 7px;
+        padding: 3px 12px 0;
+
+        .list-item {
+          width: 32px;
+          height: 32px;
+          line-height: 32px;
+          text-align: center;
+          cursor: pointer;
+
+          &.current {
+            color: #3a84ff;
+            border: 1px solid #a3c5fd;
+            border-radius: 2px;
+          }
+
+          &.selected {
+            color: #fff;
+            background: #3a84ff;
+            border-radius: 2px;
+          }
+        }
+      }
+
+      .week-list {
+        flex: 1;
+        overflow-y: auto;
+
+        .list-item {
+          padding: 0 12px;
+          font-size: 12px;
+          line-height: 32px;
+          color: #63656e;
+          cursor: pointer;
+
+          &:hover {
+            background: #f5f7fa;
+          }
+
+          &.selected {
+            color: #3a84ff;
+          }
+        }
+      }
+    }
+
+    .right-time-panel {
+      display: flex;
+      flex-direction: column;
+      width: 183px;
+
+      .content {
+        flex: 1;
+        overflow-y: auto;
+
+        .item {
+          padding: 0 12px;
+          font-size: 12px;
+          line-height: 32px;
+          color: #63656e;
+          cursor: pointer;
+
+          &:hover {
+            background: #f5f7fa;
+          }
+
+          &.selected {
+            color: #3a84ff;
+            background: #e1ecff;
+          }
+        }
+      }
+    }
+  }
+}

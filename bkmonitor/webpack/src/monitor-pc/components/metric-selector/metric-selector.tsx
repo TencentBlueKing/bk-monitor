@@ -32,6 +32,7 @@ import { addCustomMetric } from '../../../monitor-api/modules/custom_report';
 import { getMetricListV2, updateMetricListByBiz } from '../../../monitor-api/modules/strategies';
 import { LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils/constant';
 import { copyText, Debounce, deepClone, docCookies } from '../../../monitor-common/utils/utils';
+import { xssFilter } from '../../../monitor-common/utils/xss';
 import { handleGotoLink } from '../../common/constant';
 import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
@@ -78,6 +79,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Array, default: () => [] }) scenarioList: any;
   /* 自定义参数 */
   @Prop({ type: Boolean, default: false }) isPromql: boolean;
+  /* 默认选择的监控对象 */
+  @Prop({ type: String, default: '' }) defaultScenario: string;
   @Ref() metricScrollWrap: HTMLElement;
 
   loading = false;
@@ -252,7 +255,13 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   initData() {
-    this.checkededValue = {};
+    if (!!this.defaultScenario) {
+      this.checkededValue = {
+        result_table_label: [this.defaultScenario]
+      };
+    } else {
+      this.checkededValue = {};
+    }
     this.metricList = [];
     if (!this.isRefreshSuccess) {
       this.search = '';
@@ -362,9 +371,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   /* 复制指标名 */
-  handleCopyMetricMame(value: string) {
+  handleCopyMetricMame(metric: MetricDetail) {
+    const copyStr = metric.promql_metric;
     let hasErr = false;
-    copyText(value, errMsg => {
+    copyText(copyStr, errMsg => {
       this.$bkMessage({
         message: errMsg,
         theme: 'error'
@@ -606,7 +616,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   getMetricTipsTpl(data) {
     return `
     <div class="metric-tips-wrap">
-      ${data.reduce((total, item) => `${total}<div>${item.label}：${item.value}</div>`, '')}
+      ${data.reduce((total, item) => `${total}<div>${xssFilter(item.label)}：${xssFilter(item.value)}</div>`, '')}
     </div>
     `;
   }
@@ -634,7 +644,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           placement: 'right',
           boundary: 'window',
           disabled: this.isScrolling,
-          content: this.getMetricTipsTpl(data)
+          content: this.getMetricTipsTpl(data),
+          allowHTML: true
         }}
       >
         <span>{item.metric_field_name}</span>
@@ -677,7 +688,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           placement: 'right',
           boundary: 'window',
           disabled: this.isScrolling,
-          content: this.getMetricTipsTpl(data)
+          content: this.getMetricTipsTpl(data),
+          allowHTML: true
         }}
       >
         <div class='log-name'>{item.metric_field_name}</div>
@@ -728,7 +740,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             }}
             onClick={e => {
               e.stopPropagation();
-              this.handleCopyMetricMame(obj.id);
+              this.handleCopyMetricMame(item);
             }}
           ></span>
           {/* <span class="icon-monitor icon-fenxiang"

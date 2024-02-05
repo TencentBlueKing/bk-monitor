@@ -25,8 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { actionDetail, searchAlert } from '../../../../monitor-api/modules/alert';
 import { isZh } from '../../../../monitor-pc/common/constant';
@@ -47,14 +46,14 @@ export const handleToAlertList = (
   bizId
 ) => {
   // const queryStringUrl = `queryString="${encodeURI(queryString(type, detailInfo.id))}"`;
-  const curUnix = moment().unix() * 1000;
+  const curUnix = dayjs.tz().unix() * 1000;
   const oneDay = 60 * 24 * 60 * 1000;
-  const startTime = moment(detailInfo.create_time * 1000 - oneDay).format('YYYY-MM-DD HH:mm:ss');
+  const startTime = dayjs.tz(detailInfo.create_time * 1000 - oneDay).format('YYYY-MM-DD HH:mm:ss');
   const endTime = detailInfo.end_time
-    ? moment(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay).format(
-        'YYYY-MM-DD HH:mm:ss'
-      )
-    : moment().format('YYYY-MM-DD HH:mm:ss');
+    ? dayjs
+        .tz(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay)
+        .format('YYYY-MM-DD HH:mm:ss')
+    : dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
   window.open(
     `${location.origin}${location.pathname}?bizId=${bizId}/#/event-center?queryString=${queryString(
       type,
@@ -124,7 +123,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     const oneDay = 60 * 24 * 60;
     const params = {
       conditions: [],
-      end_time: this.detailInfo.end_time || moment().unix(),
+      end_time: this.detailInfo.end_time || dayjs.tz().unix(),
       ordering: [],
       page: 1,
       page_size: 10,
@@ -231,27 +230,27 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
       </div>
     );
     return (
-      <Table data={tableData}>
-        <TableColumn
+      <bk-table data={tableData}>
+        <bk-table-column
           label={this.$t('告警ID')}
           width='150'
           scopedSlots={{ default: props => props.row.id }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           label={this.$t('告警名称')}
           width='200'
           scopedSlots={{ default: props => props.row.alert_name }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           label={this.$t('告警级别')}
           width='100'
           scopedSlots={{ default: props => severity(props.row.severity) }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           label={this.$t('告警内容')}
           scopedSlots={{ default: props => alertContent(props.row.dimensions, props.row.description) }}
-        ></TableColumn>
-      </Table>
+        ></bk-table-column>
+      </bk-table>
     );
   }
   render() {
@@ -303,11 +302,11 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
         { title: this.$t('执行对象'), content: operateTargetString || '--' }
       ],
       [
-        { title: this.$t('开始时间'), content: moment(createTime * 1000).format('YYYY-MM-DD HH:mm:ss') },
+        { title: this.$t('开始时间'), content: dayjs.tz(createTime * 1000).format('YYYY-MM-DD HH:mm:ss') },
         { title: this.$t('执行状态'), content: <div class={statusInfo.status}>{statusInfo.text}</div>, extCls: true }
       ],
       [
-        { title: this.$t('结束时间'), content: moment(updateTime * 1000).format('YYYY-MM-DD HH:mm:ss') },
+        { title: this.$t('结束时间'), content: dayjs.tz(updateTime * 1000).format('YYYY-MM-DD HH:mm:ss') },
         { title: this.$t('触发信号'), content: signalDisplay, extCls: true }
       ],
       [

@@ -34,7 +34,13 @@ from metadata.utils import consul_tools, hash_util
 from .common import Label, OptionBase
 from .constants import IGNORED_CONSUL_SYNC_DATA_IDS, IGNORED_STORAGE_CLUSTER_TYPES
 from .space import Space, SpaceDataSource
-from .storage import ClusterInfo, KafkaTopicInfo
+from .storage import (
+    ClusterInfo,
+    ESStorage,
+    InfluxDBStorage,
+    KafkaStorage,
+    KafkaTopicInfo,
+)
 
 ResultTable = None
 ResultTableField = None
@@ -46,6 +52,9 @@ logger = logging.getLogger("metadata")
 
 class DataSource(models.Model):
     """数据源配置"""
+
+    # 标识 transfer 可以写入的存储表
+    TRANSFER_STORAGE_LIST = [ESStorage, InfluxDBStorage, KafkaStorage]
 
     # 默认使用的MQ类型
     DEFAULT_MQ_TYPE = ClusterInfo.TYPE_KAFKA
@@ -153,6 +162,24 @@ class DataSource(models.Model):
         """是否自定义上报的数据源"""
         return self.etl_config in ["bk_standard_v2_time_series"]
 
+    def get_transfer_storage_conf(self, table_id: str) -> List:
+        """获取transfer向后端写入的存储的配置"""
+        conf_list = []
+        for real_storage in self.TRANSFER_STORAGE_LIST:
+            try:
+                rt_st = real_storage.objects.get(table_id=table_id)
+                consul_config = rt_st.consul_config
+                # # NOTE: 现阶段 transfer 识别不了 `victoria_metrics`，针对 `victoria_metrics` 类型的存储，跳过写入 consul
+                if not consul_config:
+                    continue
+                if consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES:
+                    continue
+                conf_list.append(consul_config)
+            except real_storage.DoesNotExist:
+                continue
+
+        return conf_list
+
     def get_spaces_by_data_id(self, bk_data_id: int, from_authorization: Optional[bool] = False) -> Union[List, Dict]:
         """通过数据源 ID 查询空间为授权的或者为当前空间"""
         # 返回来源于授权空间信息
@@ -211,37 +238,29 @@ class DataSource(models.Model):
 
             result_table_info_list = []
             # 获取存在的结果表
-            real_table_id_list = ResultTable.objects.filter(
-                table_id__in=result_table_id_list, is_deleted=False, is_enable=True
-            ).values_list("table_id", flat=True)
+            real_table_ids = {
+                rt["table_id"]: rt
+                for rt in ResultTable.objects.filter(
+                    table_id__in=result_table_id_list, is_deleted=False, is_enable=True
+                ).values("table_id", "bk_biz_id", "schema_type")
+            }
+
+            real_table_id_list = list(real_table_ids.keys())
             # 批量获取结果表级别选项
             table_id_option_dict = ResultTableOption.batch_result_table_option(real_table_id_list)
             # 获取字段信息
             table_field_dict = ResultTableField.batch_get_fields(real_table_id_list, is_consul_config)
             # 判断需要未删除，而且在启用状态的结果表
-            for result_table in ResultTable.objects.filter(
-                table_id__in=result_table_id_list, is_deleted=False, is_enable=True
-            ):
-                shipper_list = []
-                # NOTE: 现阶段 transfer 识别不了 `victoria_metrics`，针对 `victoria_metrics` 类型的存储，跳过写入 consul
-                for real_table in result_table.real_storage_list:
-                    consul_config = real_table.consul_config
-                    if consul_config:
-                        if consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES:
-                            continue
-                        shipper_list.append(consul_config)
-
+            for rt, rt_info in real_table_ids.items():
                 result_table_info_list.append(
                     {
-                        "bk_biz_id": result_table.bk_biz_id,
-                        "result_table": result_table.table_id,
-                        "shipper_list": shipper_list,
+                        "bk_biz_id": rt_info["bk_biz_id"],
+                        "result_table": rt,
+                        "shipper_list": self.get_transfer_storage_conf(rt),
                         # 如果是自定义上报的情况，不需要将字段信息写入到consul上
-                        "field_list": table_field_dict.get(result_table.table_id, [])
-                        if not self.is_custom_timeseries_report
-                        else [],
-                        "schema_type": result_table.schema_type,
-                        "option": table_id_option_dict.get(result_table.table_id, {}),
+                        "field_list": table_field_dict.get(rt, []) if not self.is_custom_timeseries_report else [],
+                        "schema_type": rt_info["schema_type"],
+                        "option": table_id_option_dict.get(rt, {}),
                     }
                 )
             result_config["result_table_list"] = result_table_info_list
@@ -428,7 +447,6 @@ class DataSource(models.Model):
 
         # 此处启动DB事务，创建默认的信息
         with atomic(config.DATABASE_CONNECTION_NAME):
-
             if transfer_cluster_id is None:
                 transfer_cluster_id = settings.DEFAULT_TRANSFER_CLUSTER_ID
 
@@ -528,21 +546,8 @@ class DataSource(models.Model):
                     )
                 )
 
-            # 判断是否NS支持的etl配置，如果是，则需要追加option内容
-            if etl_config in cls.NS_TIMESTAMP_ETL_CONFIG:
-                DataSourceOption.create_option(
-                    bk_data_id=data_source.bk_data_id,
-                    name=DataSourceOption.OPTION_TIMESTAMP_UNIT,
-                    value="ms",
-                    creator=operator,
-                )
-                logger.info(
-                    "bk_data_id->[{}] etl_config->[{}] so is has now has option->[{}] with value->[ns]".format(
-                        data_source.bk_data_id,
-                        DataSourceOption.OPTION_TIMESTAMP_UNIT,
-                        DataSourceOption.OPTION_TIMESTAMP_UNIT,
-                    )
-                )
+            # 添加时间 option
+            cls._add_time_unit_options(operator, data_source.bk_data_id, etl_config)
 
         # 写入 空间与数据源的关系表，如果 data id 为全局不需要记录
         try:
@@ -567,6 +572,38 @@ class DataSource(models.Model):
 
         # 6. 返回新实例
         return data_source
+
+    @classmethod
+    def _add_time_unit_options(cls, operator: str, bk_data_id: int, etl_config: str):
+        """添加时间相关 option"""
+        # 判断是否NS支持的etl配置，如果是，则需要追加option内容
+        # NOTE: 这里实际的时间单位为 ms, 为防止其它未预料问题，其它类型单独添加为毫秒
+        if etl_config in cls.NS_TIMESTAMP_ETL_CONFIG:
+            DataSourceOption.create_option(
+                bk_data_id=bk_data_id,
+                name=DataSourceOption.OPTION_TIMESTAMP_UNIT,
+                value="ms",
+                creator=operator,
+            )
+            logger.info(
+                "bk_data_id->[%s] etl_config->[%s] so is has now has option->[%s] with value->[ms]",
+                bk_data_id,
+                etl_config,
+                DataSourceOption.OPTION_TIMESTAMP_UNIT,
+            )
+        else:
+            # 时间单位统一为毫秒
+            DataSourceOption.create_option(
+                bk_data_id=bk_data_id,
+                name=DataSourceOption.OPTION_ALIGN_TIME_UNIT,
+                value="ms",
+                creator=operator,
+            )
+            logger.info(
+                "bk_data_id->[%s] has time unit option->[%s] with value->[ms]",
+                bk_data_id,
+                DataSourceOption.OPTION_ALIGN_TIME_UNIT,
+            )
 
     def update_config(
         self,
@@ -620,7 +657,6 @@ class DataSource(models.Model):
         # 2.3 data_name判断是否需要修改
         # 需要提供了data_name，而且data_name与当前的data_name不是一个东东
         if data_name is not None and self.data_name != data_name:
-
             if self.__class__.objects.filter(data_name=data_name).exists():
                 logger.error(
                     "user->[{operator}] try to update data_id->{data_id}] data_name->[{data_name}] "
@@ -1018,6 +1054,8 @@ class DataSourceOption(OptionBase):
     OPTION_TIMESTAMP_UNIT = "timestamp_precision"
     # 是否基于指标名切分
     OPTION_IS_SPLIT_MEASUREMENT = "is_split_measurement"
+    # 时间单位统一到选项
+    OPTION_ALIGN_TIME_UNIT = "align_time_unit"
 
     # 增加option标记内容
     bk_data_id = models.IntegerField("数据源ID", db_index=True)

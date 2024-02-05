@@ -57,6 +57,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Ref() formRef: any;
 
   resourceList = [];
+  /** 点开编辑时的被授权用户列表 */
+  baseUserList = [];
   loading = false;
 
   formData: EditModel = {
@@ -71,6 +73,11 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     action_id: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
     expire_time: [{ required: true, message: $i18n.t('必填项'), trigger: 'change' }],
   };
+
+  /** 编辑授权且为操作实例的弹窗 */
+  get isResource() {
+    return this.viewType === 'resource' && this.rowData;
+  }
 
   @Watch('value')
   handleValueChange(val: boolean) {
@@ -150,6 +157,17 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     }
   }
 
+  handleUsersChange(val: Array<string>) {
+    if (this.isResource) { // 若是编辑操作实例 不允许新增新的被授权人 只能删除
+      this.formData.authorized_users = val.filter(item => this.baseUserList.includes(item));
+    }
+  }
+
+  /** 操作实例点开编辑时初始化授权人 */
+  initUsersVal(val) {
+    this.baseUserList = val ? this.formData.authorized_users : [];
+  }
+
   render() {
     return (
       <bk-dialog
@@ -158,6 +176,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         header-position='left'
         width={480}
         onCancel={this.handleCancel}
+        on-value-change={this.initUsersVal}
         auto-close={false}
         loading={this.loading}
         draggable={false}
@@ -187,6 +206,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               separator=';'
               disabled={!!this.rowData && this.viewType === 'user'}
               has-delete-icon
+              onChange={this.handleUsersChange}
             />
           </bk-form-item>
           <bk-form-item
@@ -237,22 +257,21 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               ))}
             </bk-select>
           </bk-form-item>
-          <bk-form-item
-            property='expire_time'
-            error-display-type='normal'
-          >
-            <div class='custom-label'>
-              <span class='label required'>{this.$t('截止时间')}</span>
-            </div>
-            <bk-date-picker
-              value={this.formData.expire_time}
-              type='date'
-              clearable={false}
-              format='yyyy-MM-dd HH:mm:ss'
-              options={{ disabledDate: this.disabledDate }}
-              onChange={this.handleDateChange}
-            ></bk-date-picker>
-          </bk-form-item>
+          {!this.isResource && (
+            <bk-form-item property='expire_time' error-display-type='normal'>
+              <div class='custom-label'>
+                <span class='label required'>{this.$t('截止时间')}</span>
+              </div>
+              <bk-date-picker
+                value={this.formData.expire_time}
+                type='date'
+                clearable={false}
+                format='yyyy-MM-dd HH:mm:ss'
+                options={{ disabledDate: this.disabledDate }}
+                onChange={this.handleDateChange}
+              ></bk-date-picker>
+            </bk-form-item>
+          )}
         </bk-form>
 
         <div slot='footer'>

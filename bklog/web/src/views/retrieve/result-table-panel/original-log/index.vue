@@ -23,19 +23,45 @@
 <template>
   <div class="original-log-panel">
     <div class="original-log-panel-tools">
-      <div class="bk-button-group">
-        <bk-button
-          :class="!showOriginalLog ? 'is-selected' : ''"
-          @click="contentType = 'table'"
-          size="small">
-          {{ $t('表格') }}
-        </bk-button>
-        <bk-button
-          :class="showOriginalLog ? 'is-selected' : ''"
-          @click="contentType = 'original'"
-          size="small">
-          {{ $t('原始') }}
-        </bk-button>
+      <div class="left-operate">
+        <div class="bk-button-group">
+          <bk-button
+            :class="!showOriginalLog ? 'is-selected' : ''"
+            @click="contentType = 'table'"
+            size="small">
+            {{ $t('表格') }}
+          </bk-button>
+          <bk-button
+            :class="showOriginalLog ? 'is-selected' : ''"
+            @click="contentType = 'original'"
+            size="small">
+            {{ $t('原始') }}
+          </bk-button>
+        </div>
+        <div class="field-select">
+          <img class="icon-field-config" :src="require('@/images/icons/field-config.svg')" />
+          <bk-select
+            size="small"
+            searchable
+            ref="configSelectRef"
+            :clearable="false"
+            :value="filedSettingConfigID"
+            :popover-min-width="240"
+            @selected="handleSelectFieldConfig">
+            <bk-option
+              v-for="option in fieldsConfigList"
+              :key="option.id"
+              :id="option.id"
+              :name="option.name">
+            </bk-option>
+            <div slot="extension">
+              <span class="extension-add-new-config" @click="handleAddNewConfig">
+                <span class="bk-icon icon-close-circle"></span>
+                <span>{{$t('新建配置')}}</span>
+              </span>
+            </div>
+          </bk-select>
+        </div>
       </div>
       <div class="tools-more">
         <div :style="`margin-right: ${showOriginalLog ? 0 : 26}px`">
@@ -77,7 +103,7 @@
                 @setPopperInstance="setPopperInstance"
                 @modifyFields="modifyFields"
                 @confirm="confirmModifyFields"
-                @cancel="closeDropdown" />
+                @cancel="cancelModifyFields" />
             </div>
           </bk-popover>
         </div>
@@ -125,6 +151,7 @@ export default {
       showFieldsSetting: false,
       showAsyncExport: false, // 异步下载弹窗
       exportLoading: false,
+      fieldsConfigList: [],
     };
   },
   computed: {
@@ -137,6 +164,20 @@ export default {
     asyncExportUsableReason() {
       return this.$attrs['async-export-usable-reason'];
     },
+    filedSettingConfigID() { // 当前索引集的显示字段ID
+      return this.$store.state.retrieve.filedSettingConfigID;
+    },
+    routeIndexSet() {
+      return this.$route.params.indexId;
+    },
+  },
+  watch: {
+    routeIndexSet: {
+      immediate: true,
+      handler(val) {
+        if (!!val) this.requestFiledConfig();
+      },
+    },
   },
   methods: {
     // 字段设置
@@ -145,23 +186,63 @@ export default {
     },
     handleDropdownHide() {
       this.showFieldsSetting = false;
+      this.requestFiledConfig();
     },
     confirmModifyFields(displayFieldNames, showFieldAlias) {
       this.modifyFields(displayFieldNames, showFieldAlias);
       this.closeDropdown();
     },
+    cancelModifyFields() {
+      this.closeDropdown();
+    },
     /** 更新显示字段 */
     modifyFields(displayFieldNames, showFieldAlias) {
       this.$emit('fieldsUpdated', displayFieldNames, showFieldAlias);
+      this.$emit('shouldRetrieve');
     },
     closeDropdown() {
       this.showFieldsSetting = false;
-      this.$refs.fieldsSettingPopper.instance.hide();
+      this.$refs.fieldsSettingPopper?.instance.hide();
     },
     setPopperInstance(status = true) {
-      this.$refs.fieldsSettingPopper.instance.set({
+      this.$refs.fieldsSettingPopper?.instance.set({
         hideOnClick: status,
       });
+    },
+    async requestFiledConfig() {
+      /** 获取配置列表 */
+      this.isLoading = true;
+      try {
+        const res = await this.$http.request('retrieve/getFieldsListConfig', {
+          params: { index_set_id: this.routeIndexSet, scope: 'default' },
+        });
+        this.fieldsConfigList = res.data;
+      } catch (error) {
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    async handleSelectFieldConfig(configID, option) {
+      const { display_fields: displayFields, sort_list: sortList } = option;
+      // 更新config
+      await this.$http
+        .request('retrieve/postFieldsConfig', {
+          params: { index_set_id: this.$route.params.indexId },
+          data: {
+            display_fields: displayFields,
+            sort_list: sortList,
+            config_id: configID,
+          },
+        })
+        .catch((e) => {
+          console.warn(e);
+        });
+      this.$store.commit('updateClearTableWidth', 1);
+      this.confirmModifyFields(displayFields, sortList);
+    },
+    handleAddNewConfig() {
+      this.$refs.configSelectRef?.close();
+      this.$refs.fieldsSettingPopper?.instance.show();
     },
   },
 };
@@ -233,6 +314,52 @@ export default {
           color: #c4c6cc;
         }
       }
+    }
+
+    .left-operate {
+      align-items: center;
+      flex-wrap: nowrap;
+
+      @include flex-justify(space-between);
+
+      > div {
+        flex-shrink: 0;
+      }
+    }
+
+    .field-select {
+      width: 120px;
+      margin-left: 16px;
+      position: relative;
+
+      .icon-field-config {
+        width: 18px;
+        position: absolute;
+        top: 4px;
+        left: 4px;
+      }
+
+      :deep(.bk-select .bk-select-name) {
+        padding: 0px 36px 0 30px
+      }
+    }
+  }
+
+  .extension-add-new-config {
+    cursor: pointer;
+
+    @include flex-center();
+
+    :last-child {
+      color: #63656e;
+      margin-left: 4px;
+    }
+
+    .icon-close-circle {
+      margin-left: 4px;
+      font-size: 14px;
+      color: #979ba5;
+      transform: rotateZ(45deg);
     }
   }
 </style>

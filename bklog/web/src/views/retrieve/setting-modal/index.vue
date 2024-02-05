@@ -71,9 +71,24 @@
         <div class="setting-right">
           <div class="more-details">
             <div class="details">
-              <p><span>{{$t('索引集')}}：</span>{{indexSetItem.index_set_name}}</p>
-              <p><span>{{$t('索引')}}：</span>{{showResultTableID}}</p>
-              <p><span>{{$t('来源')}}：</span>{{indexSetItem.scenario_name}}</p>
+              <p>
+                <span>{{ $t("索引集") }}：</span>
+                <span class="title-overflow" v-bk-overflow-tips>
+                  {{ indexSetItem.index_set_name }}
+                </span>
+              </p>
+              <p>
+                <span>{{ $t("索引") }}：</span>
+                <span class="title-overflow" v-bk-overflow-tips>
+                  {{ showResultTableID }}
+                </span>
+              </p>
+              <p>
+                <span>{{ $t("来源") }}：</span>
+                <span class="title-overflow" v-bk-overflow-tips>
+                  {{ indexSetItem.scenario_name }}
+                </span>
+              </p>
             </div>
             <div
               class="more-message"
@@ -94,7 +109,8 @@
               :total-fields="totalFields"
               :config-data="configData"
               :clean-config="cleanConfig"
-              :statistical-fields-data="statisticalFieldsData"
+              :date-picker-value="datePickerValue"
+              :retrieve-params="retrieveParams"
               @resetPage="resetPage"
               @updateLogFields="updateLogFields"
               @debugRequestChange="debugRequestChange" />
@@ -141,9 +157,13 @@ export default {
       type: Object,
       require: true,
     },
-    statisticalFieldsData: { // 过滤条件字段可选值关系表
-      type: Object,
+    datePickerValue: {
+      type: Array,
       required: true,
+    },
+    retrieveParams: {
+      type: Object,
+      default: () => ({}),
     },
   },
   data() {
@@ -445,12 +465,22 @@ export default {
 
           .details {
             display: flex;
+            flex-shrink: 0;
+            width: 810px;
 
             p {
+              display: flex;
+              justify-content: center;
+              align-items: center;
               margin-right: 40px;
 
-              span {
+              > :first-child {
+                flex-shrink: 0;
                 color: #979ba5;
+              }
+
+              > :last-child {
+                max-width: 240px;
               }
             }
           }

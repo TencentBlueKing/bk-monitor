@@ -15,15 +15,19 @@ import math
 import shutil
 import time
 import traceback
+from typing import Any, Dict
 
 import arrow
 from celery.task import task
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
 
 from bkm_space.api import SpaceApi
+from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.dataflow.constant import (
+    FLINK_KEY_WORDS,
     METRIC_RECOMMENDATION_SCENE_NAME,
     AccessStatus,
     VisualType,
@@ -36,6 +40,7 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
 )
+from bkmonitor.models import ActionConfig
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
@@ -48,6 +53,7 @@ from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from core.errors.bkmonitor.dataflow import DataFlowNotExists
+from fta_web.tasks import run_init_builtin_action_config
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.constants import (
     AIOPS_ACCESS_MAX_RETRIES,
@@ -56,16 +62,101 @@ from monitor_web.constants import (
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP,
 )
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
+from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
-from utils import business
+from monitor_web.strategies.built_in import run_build_in
+from utils import business, count_md5
 
 logger = logging.getLogger("monitor_web")
+
+
+User = get_user_model()
 
 
 def set_client_user():
     biz_set = business.get_all_activate_business()
     local.username = business.maintainer(biz_set[0])
+
+
+@task(ignore_result=True)
+def record_login_user(username: str, source: str, last_login: float, space_info: Dict[str, Any]):
+    logger.info(
+        "[record_login_user] task start: username -> %s, source -> %s, last_login -> %s, space_info -> %s",
+        username,
+        last_login,
+        source,
+        last_login,
+    )
+
+    try:
+        user = User.objects.get(username=username)
+        user.last_login = datetime.datetime.now()
+        user.save()
+
+        UserAccessRecord.objects.update_or_create_by_space(username, source, space_info)
+    except Exception:  # noqa
+        logger.exception(
+            "[record_login_user] failed to record: username -> %s, source -> %s, last_login -> %s, space_info -> %s",
+            username,
+            last_login,
+            source,
+            last_login,
+        )
+
+
+@task(ignore_result=True)
+def active_business(username: str, space_info: Dict[str, Any]):
+    logger.info("[active_business] task start: username -> %s, space_info -> %s", username, space_info)
+    try:
+        business.activate(int(space_info["bk_biz_id"]), username)
+    except Exception:  # noqa
+        logger.exception(
+            "[active_business] activate error: biz_id -> %s, username -> %s", space_info["bk_biz_id"], username
+        )
+
+
+@task(ignore_result=True)
+def cache_space_data(username: str, space_info: Dict[str, Any]):
+    logger.info("[cache_space_data] task start: username -> %s", username)
+    try:
+        resource.cc.fetch_allow_biz_ids_by_user.refresh(username)
+    except Exception:  # noqa
+        logger.exception("[cache_space_data] error: username -> %s, space_info -> %s", username, space_info)
+
+
+@task(ignore_result=True)
+def run_init_builtin(bk_biz_id):
+    if bk_biz_id and settings.ENVIRONMENT != "development":
+        logger.info("[run_init_builtin] enter with bk_biz_id -> %s", bk_biz_id)
+        # 创建默认内置策略
+        run_build_in(int(bk_biz_id))
+
+        # 创建k8s内置策略
+        run_build_in(int(bk_biz_id), mode="k8s")
+
+        if (
+            settings.ENABLE_DEFAULT_STRATEGY
+            and int(bk_biz_id) > 0
+            and not ActionConfig.origin_objects.filter(bk_biz_id=bk_biz_id, is_builtin=True).exists()
+        ):
+            logger.warning("[run_init_builtin] home run_init_builtin_action_config: bk_biz_id -> %s", bk_biz_id)
+            # 如果当前页面没有出现内置套餐，则会进行快捷套餐的初始化
+            try:
+                run_init_builtin_action_config.delay(bk_biz_id)
+            except Exception as error:
+                # 直接忽略
+                logger.exception(
+                    "[run_init_builtin] run_init_builtin_action_config failed: bk_biz_id -> %s, error -> %s",
+                    bk_biz_id,
+                    str(error),
+                )
+        # TODO 先关闭，后面稳定了直接打开
+        # if not AlertAssignGroup.origin_objects.filter(bk_biz_id=cc_biz_id, is_builtin=True).exists():
+        #     # 如果当前页面没有出现内置的规则组
+        #     run_init_builtin_assign_group(cc_biz_id)
+    else:
+        logger.info("[run_init_builtin] skipped with bk_biz_id -> %s", bk_biz_id)
 
 
 @task(ignore_result=True)
@@ -117,18 +208,6 @@ def update_metric_list():
 
     set_local_username(settings.COMMON_USERNAME)
 
-    # 查询第三方应用是否部署，如果未部署，则不请求
-    source_type_to_app_code = {
-        "BKDATA": "bk_dataweb",
-        "LOGTIMESERIES": "bk_log_search",
-    }
-
-    try:
-        apps = api.bk_paas.get_app_info(target_app_code="bk_dataweb,bk_log_search")
-        apps = [app["bk_app_code"] for app in apps]
-    except BKAPIError:
-        apps = list(source_type_to_app_code.values())
-
     # 获取上次执行分发任务时间戳
     metric_cache_task_last_timestamp, _ = GlobalConfig.objects.get_or_create(
         key="METRIC_CACHE_TASK_LAST_TIMESTAMP", defaults={"value": 0}
@@ -142,7 +221,10 @@ def update_metric_list():
     source_type_use_biz = ["BKDATA", "LOGTIMESERIES", "BKMONITORALERT"]
     source_type_all_biz = ["BASEALARM", "BKMONITORLOG"]
     source_type_add_biz_0 = ["BKMONITOR", "CUSTOMEVENT", "CUSTOMTIMESERIES", "BKFTAALERT", "BKMONITORK8S"]
+    # 非业务空间不需要执行
     source_type_gt_0 = ["BKDATA"]
+    # 不再全局周期任务重执行，引导用户通过主动刷新进行触发
+    extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
     businesses = SpaceApi.list_spaces()
 
     # 记录分发任务轮次
@@ -179,19 +261,33 @@ def update_metric_list():
         for source_type in source_type_all_biz:
             update_metric(source_type)
 
+    # 记录有容器集群的cmdb业务列表
+    k8s_biz_set = set()
     for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
         biz_count += 1
         for source_type in source_type_use_biz + source_type_add_biz_0:
+            # 非容器平台项目，不需要缓存容器指标：
+            if not biz.space_code and source_type == "BKMONITORK8S":
+                continue
+            else:
+                # 记录容器平台项目空间关联的业务id
+                try:
+                    k8s_biz: Space = SpaceApi.get_related_space(biz.space_uid, SpaceTypeEnum.BKCC.value)
+                    if k8s_biz:
+                        k8s_biz_set.add(k8s_biz.bk_biz_id)
+                except BKAPIError:
+                    pass
             # 部分环境可用禁用数据平台指标缓存
             if not settings.ENABLE_BKDATA_METRIC_CACHE and source_type == "BKDATA":
                 continue
-            # 如果数据源对应的应用没有部署，则不请求
-            if source_type in source_type_to_app_code and source_type_to_app_code[source_type] not in apps:
-                continue
             # 数据平台指标缓存仅支持更新大于0业务
-            if source_type in source_type_gt_0 and biz.bk_biz_id <= 0:
+            if source_type in (source_type_gt_0 + extr_source_type_gt_0) and biz.bk_biz_id <= 0:
                 continue
             update_metric(source_type, biz.bk_biz_id)
+
+    # 关联容器平台的业务，批量跑容器指标
+    for k8s_biz_id in k8s_biz_set:
+        update_metric("BKMONITORK8S", k8s_biz_id)
 
     logger.info("$update metric list(round {}), biz count: {}, cost: {}".format(offset, biz_count, time.time() - start))
 
@@ -200,18 +296,6 @@ def update_metric_list():
 def update_metric_list_by_biz(bk_biz_id):
     from monitor.models import ApplicationConfig
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
-
-    # 查询第三方应用是否部署，如果未部署，则不请求
-    source_type_to_app_code = {
-        "BKDATA": "bk_dataweb",
-        "LOGTIMESERIES": "bk_log_search",
-    }
-
-    try:
-        apps = api.bk_paas.get_app_info(target_app_code="bk_dataweb,bk_log_search")
-        apps = [app["bk_app_code"] for app in apps]
-    except BKAPIError:
-        apps = list(source_type_to_app_code.values())
 
     source_type_use_biz = [
         "BKDATA",
@@ -228,10 +312,6 @@ def update_metric_list_by_biz(bk_biz_id):
     for source_type, source in list(SOURCE_TYPE.items()):
         # 部分环境可用禁用数据平台指标缓存
         if not settings.ENABLE_BKDATA_METRIC_CACHE and source_type == "BKDATA":
-            continue
-
-        # 如果数据源对应的应用没有部署，则不请求
-        if source_type in source_type_to_app_code and source_type_to_app_code[source_type] not in apps:
             continue
 
         try:
@@ -275,7 +355,9 @@ def append_metric_list_cache(result_table_id_list):
     from monitor_web.strategies.metric_list_cache import BkmonitorMetricCacheManager
 
     def update_or_create_metric_list_cache(metric_list):
+        # 这里可以考虑 删除 + 创建逻辑
         for metric in metric_list:
+            metric["metric_md5"] = count_md5(metric)
             MetricListCache.objects.update_or_create(
                 metric_field=metric["metric_field"],
                 result_table_id=metric["result_table_id"],
@@ -285,19 +367,29 @@ def append_metric_list_cache(result_table_id_list):
                 defaults=metric,
             )
 
+    if settings.ROLE == "api":
+        # api 调用不做指标实时更新。
+        return
+
     set_local_username(settings.COMMON_USERNAME)
     if not result_table_id_list:
         return
     one_result_table_id = result_table_id_list[0]
     db_name = one_result_table_id.split(".")[0]
     group_list = api.metadata.query_time_series_group.request.refresh(time_series_group_name=db_name)
+    plugin = None
     if group_list:
-        plugin_type, plugin_id = db_name.split("_", 1)
-        plugin = CollectorPluginMeta.objects.filter(plugin_type=plugin_type, plugin_id=plugin_id).first()
+        # 单指标单表模式, 指标会被打散成group list 返回
+        # -> metadata.models.custom_report.time_series.TimeSeriesGroup.to_split_json
+        new_metric_list = []
+        if plugin is None:
+            plugin_type, plugin_id = db_name.split("_", 1)
+            plugin = CollectorPluginMeta.objects.filter(plugin_type=plugin_type, plugin_id=plugin_id).first()
         for result in group_list:
             result["bk_biz_id"] = plugin.bk_biz_id
             create_msg = BkmonitorMetricCacheManager().get_plugin_ts_metric(result)
-            update_or_create_metric_list_cache(create_msg)
+            new_metric_list.extend(list(create_msg))
+        update_or_create_metric_list_cache(new_metric_list)
     else:
         for result_table_id in result_table_id_list:
             result_table_msg = api.metadata.get_result_table(table_id=result_table_id)
@@ -502,6 +594,12 @@ def access_aiops_by_strategy_id(strategy_id):
     # 3. 创建智能检测dataflow
     metric_field = rt_query_config.metric_field
     value_fields = ["`{}`".format(f) for f in rt_query_config.agg_dimension[:]]
+    group_by_fields = []
+    for field in rt_query_config.agg_dimension:
+        if field.upper() in FLINK_KEY_WORDS:
+            group_by_fields.append(f"`{field}`")
+            continue
+        group_by_fields.append(field)
     value_fields.append(
         "%(method)s(`%(field)s`) as `%(field)s`" % dict(field=metric_field, method=rt_query_config.agg_method)
     )
@@ -510,7 +608,7 @@ def access_aiops_by_strategy_id(strategy_id):
         DataQueryHandler(rt_query_config.data_source_label, rt_query_config.data_type_label)
         .table(bk_data_result_table_id)
         .filter(**rt_scope)
-        .group_by(*rt_query_config.agg_dimension)
+        .group_by(*group_by_fields)
         .agg_condition(rt_query_config.agg_condition)
         .values(*value_fields)
         .query.sql_with_params()
@@ -861,7 +959,7 @@ def parse_scene_metrics(plan_args):
                 result_table_id=metric.result_table_id,
                 metric_field=metric.metric_field,
             ),
-            "name": metric.metric_field_name,
+            "name": _(metric.metric_field_name),
             "unit": metric.unit,
             "metric_name": metric.bkmonitor_metric_fullname,
         }
@@ -878,8 +976,8 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
     @return:
     """
 
+    from bkmonitor.aiops.utils import AiSetting
     from bkmonitor.data_source.handler import DataQueryHandler
-    from monitor_web.aiops.ai_setting.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=bk_biz_id)
@@ -1018,7 +1116,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
 
     :param access_bk_biz_id: 待接入的业务id
     """
-    from monitor_web.aiops.ai_setting.utils import AiSetting
+    from bkmonitor.aiops.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=access_bk_biz_id)
@@ -1035,6 +1133,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
         metric_recommend_task.create_flow()
         metric_recommend_task.start_flow(consuming_mode=ConsumingMode.Current)
         metric_recommend.is_enabled = True
+        metric_recommend.result_table_id = metric_recommend_task.node_list[-1].output_table_name
         ai_setting.save()
         # 此处记得从继续启动
     except Exception as e:  # noqa

@@ -85,6 +85,7 @@ interface IChartWrapperEvent {
   onCollapse: boolean;
   onCollectChart?: () => void;
   onChangeHeight?: (height: number) => void;
+  onDblClick?: void;
 }
 @Component
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
@@ -205,6 +206,9 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Emit('dimensionsOfSeries')
   handleDimensionsOfSeries(dimensions: string[]) {
     return dimensions;
+  }
+  handleDblClick() {
+    this.$emit('dblClick');
   }
   handlePanel2Chart() {
     switch (this.panel.type) {
@@ -371,6 +375,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onCollectChart={this.handleCollectChart}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onLoading={this.handleChangeLoading}
+            onErrorMsg={this.handleErrorMsgChange}
+            clearErrorMsg={this.handleClearErrorMsg}
           ></AiopsDimensionLint>
         );
       case 'graphs':
@@ -480,6 +486,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
+            onDblClick={this.handleDblClick}
           />
         );
     }
@@ -504,6 +511,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           <img
             class='loading-icon'
             src={loadingIcon}
+            alt=''
           ></img>
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
@@ -532,7 +540,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             v-bk-tooltips={{
               content: this.errorMsg,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start'
+              placement: 'top-start',
+              allowHTML: false
             }}
           ></span>
         )}

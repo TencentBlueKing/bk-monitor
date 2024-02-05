@@ -25,7 +25,6 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import { Button, Exception } from 'bk-magic-vue';
 
 import bus from '../../../../monitor-common/utils/event-bus';
 import { random } from '../../../../monitor-common/utils/utils';
@@ -93,20 +92,20 @@ class ExceptionGuide extends CommonSimpleChart {
   render() {
     return (
       <div class='exception-guide-wrap'>
-        <Exception type={this.guideInfo.type}>
+        <bk-exception type={this.guideInfo.type}>
           <span>{this.guideInfo.title}</span>
           <div class='text-wrap'>
             <pre class='text-row'>{this.guideInfo.subTitle}</pre>
             {this.guideInfo.link && (
-              <Button
+              <bk-button
                 theme='primary'
                 onClick={() => this.handleButton()}
               >
                 {this.guideInfo.link.value}
-              </Button>
+              </bk-button>
             )}
           </div>
-        </Exception>
+        </bk-exception>
       </div>
     );
   }

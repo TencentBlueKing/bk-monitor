@@ -27,7 +27,6 @@
  */
 import { Component, InjectReactive, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button } from 'bk-magic-vue';
 
 import { deepClone, random } from '../../../monitor-common/utils';
 import AiopsDimensionLint from '../../../monitor-ui/chart-plugins/plugins/aiops-dimension-lint/aiops-dimension-lint';
@@ -39,7 +38,8 @@ import MonitorDropdown from '../../components/monitor-dropdown';
 import SortButton from '../../components/sort-button/sort-button';
 import TimeRange, { TimeRangeType } from '../../components/time-range/time-range';
 // import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/utils';
+import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
 import { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
 import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
@@ -70,6 +70,8 @@ export default class ViewDetailNew extends tsc<IProps> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 刷新间隔
   @ProvideReactive('refleshInterval') refleshInterval = -1;
+  // 时区
+  @ProvideReactive('timezone') timezone = window.timezone;
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 对比类型
@@ -84,9 +86,11 @@ export default class ViewDetailNew extends tsc<IProps> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -120,6 +124,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   rightShow = true;
   compareTypeList = ['none', 'time', 'metric'];
   cacheTimeRange = [];
+  defaultTimezone = '';
   created() {
     this.compareTypeList = [
       'none',
@@ -141,11 +146,15 @@ export default class ViewDetailNew extends tsc<IProps> {
   }
 
   handleBackStep() {
+    updateTimezone(this.defaultTimezone);
     this.$emit('close-modal');
   }
 
   handleTimeRangeChange(val: TimeRangeType) {
     this.timeRange = [...val];
+  }
+  handleTimezoneChange(timezone: string) {
+    this.timezone = timezone;
   }
 
   handleRefleshChange(val) {
@@ -166,6 +175,8 @@ export default class ViewDetailNew extends tsc<IProps> {
     }
     this.timeRange = tools.timeRange || DEFAULT_TIME_RANGE;
     this.refleshInterval = tools.refleshInterval || -1;
+    this.defaultTimezone = window.timezone;
+    this.timezone = tools.timezome || getDefautTimezone();
     const { targets } = data.config;
     this.queryconfig = deepClone(targets);
     const str = 'ABCDEFGHIJKLNMOPQRSTUVWXYZ';
@@ -464,12 +475,14 @@ export default class ViewDetailNew extends tsc<IProps> {
                     <div class='compare-panel-right'>
                       <span class='margin-left-auto'></span>
                       {window.__BK_WEWEB_DATA__?.lockTimeRange ? (
-                        <span class='dashboard-tools-timerange'>{this.timeRange.join(' - ')}</span>
+                        <span class='dashboard-tools-timerange'>{getTimeDisplay(this.timeRange)}</span>
                       ) : (
                         <TimeRange
                           class='dashboard-tools-timerange'
                           value={this.timeRange}
+                          timezone={this.timezone}
                           onChange={this.handleTimeRangeChange}
+                          onTimezoneChange={this.handleTimezoneChange}
                         />
                       )}
                       <MonitorDropdown
@@ -522,13 +535,13 @@ export default class ViewDetailNew extends tsc<IProps> {
                         {this.tableData?.length || 0}
                         {this.$t('条数据')}
                       </span>
-                      <Button
+                      <bk-button
                         class='export-csv-btn'
                         size='small'
                         onClick={this.handleExportCsv}
                       >
                         {this.$t('导出CSV')}
-                      </Button>
+                      </bk-button>
                     </div>
                     <div class='source-content'>
                       <table
@@ -577,6 +590,7 @@ export default class ViewDetailNew extends tsc<IProps> {
                                     {item.value === null ? '--' : item.value}
                                     {tdIndex > 0 && (item.max || item.min) && (
                                       <img
+                                        alt=''
                                         class='item-max-min'
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         src={require(`../../static/images/svg/${item.min ? 'min.svg' : 'max.svg'}`)}

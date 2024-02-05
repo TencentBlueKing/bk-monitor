@@ -190,3 +190,8 @@ build.yml
 # GTM
 .gtm.yaml
 
+.idea
+.vscode
+
+pre-*-bkcodeai
+bkcodeai.json

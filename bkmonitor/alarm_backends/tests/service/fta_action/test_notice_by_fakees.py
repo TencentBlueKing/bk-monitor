@@ -1,38 +1,44 @@
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
+import mock as _mock
+import pytz
 from django.conf import settings
 from django.test import TestCase
 from elasticsearch_dsl import AttrDict
 from mock import MagicMock, patch
-from monitor_web.tests import mock
 
 from alarm_backends.core.cache.key import ALERT_SNAPSHOT_KEY
 from alarm_backends.service.converge.shield.shield_obj import ShieldObj
 from alarm_backends.service.fta_action.message_queue.processor import (
     ActionProcessor as MessageQueueActionProcessor,
 )
-from alarm_backends.service.fta_action.tasks import create_actions
+from alarm_backends.service.fta_action.tasks import (
+    create_actions,
+    sync_actions_sharding_task,
+)
 from alarm_backends.service.fta_action.tasks.create_action import CreateActionProcessor
 from alarm_backends.tests.service.fta_action.test_notice_execute import (
     get_strategy_dict,
     register_builtin_plugins,
 )
-from bkmonitor.documents import AlertDocument, EventDocument
+from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
 from bkmonitor.models import ActionInstance, DutyPlan, UserGroup
+from bkmonitor.utils import time_tools
 from bkmonitor.utils.elasticsearch.fake_elasticsearch import FakeElasticsearchBucket
-from constants.action import ActionStatus
+from constants.action import ActionSignal, ActionStatus
 from constants.alert import EventStatus
+from monitor_web.tests import mock
 
-mock.patch(
+_mock.patch(
     "elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()
 ).start()
-mock.patch("alarm_backends.service.fta_action.tasks.run_webhook_action.apply_async", return_value=11111).start()
-mock.patch("alarm_backends.service.fta_action.tasks.run_action.apply_async", return_value=11111).start()
+_mock.patch("alarm_backends.service.fta_action.tasks.run_webhook_action.apply_async", return_value=11111).start()
+_mock.patch("alarm_backends.service.fta_action.tasks.run_action.apply_async", return_value=11111).start()
 
 
 def clear_index():
-    for doc in [AlertDocument, EventDocument]:
+    for doc in [AlertDocument, EventDocument, ActionInstanceDocument]:
         ilm = doc.get_lifecycle_manager()
         ilm.es_client.indices.delete(index=doc.Index.name)
         ilm.es_client.indices.create(index=doc.Index.name)
@@ -43,8 +49,6 @@ class TestActionFakeESProcessor(TestCase):
         ALERT_SNAPSHOT_KEY.client.flushall()
         UserGroup.objects.all().delete()
         DutyPlan.objects.all().delete()
-        ilm = AlertDocument.get_lifecycle_manager()
-        ilm.es_client.indices.delete(index=AlertDocument.Index.name)
         ActionInstance.objects.all().delete()
         clear_index()
         settings.ENABLE_MESSAGE_QUEUE = False
@@ -60,13 +64,17 @@ class TestActionFakeESProcessor(TestCase):
 
     def test_job_with_appointees(self):
         register_builtin_plugins()
+
+        local_timezone = pytz.timezone("Asia/Shanghai")
+        today_begin = time_tools.datetime2str(datetime.now(tz=local_timezone), "%Y-%m-%d 00:00")
+        today_end = time_tools.datetime2str(datetime.now(tz=local_timezone), "%Y-%m-%d 23:59")
         duty_plans = [
             {
-                "duty_arrange_id": 123,
-                "is_active": True,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "duty_rule_id": 1,
+                "is_effective": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
+                "finished_time": time_tools.datetime2str(datetime.now(tz=local_timezone) + timedelta(hours=1)),
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "order": 1,
                 "users": [
                     {"id": "admin", "display_name": "admin", "logo": "", "type": "user"},
@@ -74,12 +82,12 @@ class TestActionFakeESProcessor(TestCase):
                 ],
             },
             {
-                "duty_arrange_id": 124,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": None,
-                "is_active": True,
+                "duty_rule_id": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
+                "finished_time": "",
+                "is_effective": 1,
                 "order": 2,
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "users": [{"id": "lisa", "display_name": "xxxxx", "logo": "", "type": "user"}],
             },
         ]
@@ -89,6 +97,7 @@ class TestActionFakeESProcessor(TestCase):
             "desc": "用户组的说明用户组的说明用户组的说明用户组的说明用户组的说明",
             "bk_biz_id": 2,
             "need_duty": True,
+            "duty_rules": [1],
             "alert_notice": [  # 告警通知配置
                 {
                     "time_range": "00:00:00--23:59:59",  # 生效时间段
@@ -188,7 +197,9 @@ class TestActionFakeESProcessor(TestCase):
         action_config_patch.start()
         actions = create_actions(1, "abnormal", alerts=[job_alert])
         self.assertEqual(len(actions), 1)
-        self.assertEqual({"admin", "lisa"}, set(ActionInstance.objects.get(id=actions[0]).assignee))
+
+        # assignee一定是一个有序的列表
+        self.assertEqual(["admin", "lisa"], ActionInstance.objects.get(id=actions[0]).assignee)
         action_config_patch.stop()
 
     def test_shield_config_dimension_match_and(self):
@@ -264,3 +275,73 @@ class TestActionFakeESProcessor(TestCase):
         p.create_message_queue_action(new_actions)
         self.assertEqual(p.is_alert_shielded, True)
         self.assertEqual(len(new_actions), 0)
+
+    def test_sync_parent_action(self):
+        alert_info = {"id": str(int(time.time() * 1000)), "event": EventDocument(bk_biz_id=2), "is_shielded": True}
+        alerts = [AlertDocument(**alert_info)]
+        AlertDocument.bulk_create(alerts)
+        p_action = ActionInstance.objects.create(
+            alerts=[alert_info["id"]],
+            signal=ActionSignal.ABNORMAL,
+            strategy_id=1,
+            alert_level=1,
+            bk_biz_id=2,
+            dimensions=[],
+            action_plugin={"plugin_type": "notice"},
+            action_config={"plugin_type": "notice"},
+            is_parent_action=True,
+            status=ActionStatus.SUCCESS,
+        )
+        action_ids = []
+        for i in range(0, 10):
+            a = ActionInstance.objects.create(
+                alerts=[alert_info["id"]],
+                signal=ActionSignal.ABNORMAL,
+                strategy_id=1,
+                alert_level=1,
+                bk_biz_id=2,
+                dimensions=[],
+                action_plugin={"plugin_type": "notice"},
+                parent_action_id=p_action.id,
+                status=ActionStatus.FAILURE,
+                real_status=ActionStatus.FAILURE,
+                action_config={"plugin_type": "notice"},
+            )
+            action_ids.append(a.id)
+
+        sync_actions_sharding_task(action_ids)
+
+        # 都是失败的时候，最后显示为失败
+        p_doc = ActionInstanceDocument.get(id=p_action.es_action_id)
+        self.assertEqual(p_doc.status, ActionStatus.FAILURE)
+
+        last_a = ActionInstance.objects.create(
+            alerts=[alert_info["id"]],
+            signal=ActionSignal.ABNORMAL,
+            strategy_id=1,
+            alert_level=1,
+            bk_biz_id=2,
+            dimensions=[],
+            action_plugin={"plugin_type": "notice"},
+            parent_action_id=p_action.id,
+            status=ActionStatus.SUCCESS,
+            real_status=ActionStatus.SUCCESS,
+            action_config={"plugin_type": "notice"},
+        )
+
+        # 当有一个是成功的时候，其他都是失败的时候，最后显示为部分失败
+        sync_actions_sharding_task([last_a.id])
+        p_doc = ActionInstanceDocument.get(id=p_action.es_action_id)
+        self.assertEqual(p_doc.status, ActionStatus.PARTIAL_FAILURE)
+
+        ActionInstance.objects.filter(parent_action_id=p_action.id).update(real_status=ActionStatus.SUCCESS)
+
+        # 当所有子任务状态都是成功的时候， 先同步主任务
+        sync_actions_sharding_task([p_action.id])
+        p_doc = ActionInstanceDocument.get(id=p_action.es_action_id)
+        self.assertEqual(p_doc.status, ActionStatus.SUCCESS)
+
+        # 再同步所有的子任务，此时不会更改主任务状态
+        sync_actions_sharding_task([last_a.id])
+        p_doc = ActionInstanceDocument.get(id=p_action.es_action_id)
+        self.assertEqual(p_doc.status, ActionStatus.SUCCESS)

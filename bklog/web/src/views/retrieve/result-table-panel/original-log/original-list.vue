@@ -29,8 +29,6 @@
       :show-header="false"
       :outer-border="false"
       @row-click="tableRowClick"
-      @row-mouse-enter="handleMouseEnter"
-      @row-mouse-leave="handleMouseLeave"
       @header-dragend="handleHeaderDragend">
       <!-- 展开详情 -->
       <bk-table-column
@@ -62,12 +60,14 @@
           <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
             <div
-              :class="['str-content', 'origin-str', { 'is-limit': !cacheExpandStr.includes($index) }]"
-              :title="isWrap ? '' : JSON.stringify(row)"
-              @mouseenter="(e) => handleHoverFavoriteName(e, JSON.stringify(row))">
+              :class="['str-content', 'origin-str', { 'is-limit': !cacheExpandStr.includes($index) }]">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
-              <original-light-height :origin-json-str="JSON.stringify(addBlackMarkToKeys(row))" />
+              <original-light-height
+                :is-wrap="isWrap"
+                :visible-fields="getShowTableVisibleFields"
+                :origin-json="row"
+                @menuClick="({ option, isLink }) => handleMenuClick(option, isLink)" />
               <p
                 v-if="!cacheExpandStr.includes($index)"
                 class="show-whole-btn"
@@ -87,16 +87,17 @@
       <!-- 操作按钮 -->
       <bk-table-column
         v-if="showHandleOption"
-        :label="$t('操作')"
-        :width="84"
         align="right"
+        fixed="right"
+        :label="$t('操作')"
+        :width="getOperatorToolsWidth"
         :resizable="false">
         <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
           <operator-tools
             :index="$index"
             log-type="origin"
-            :cur-hover-index="curHoverIndex"
+            :row-data="row"
             :operator-config="operatorConfig"
             :handle-click="(event) => handleClickTools(event, row, operatorConfig)" />
         </template>
@@ -106,30 +107,21 @@
         <retrieve-loader
           is-loading
           :is-original-field="true"
-          :visible-fields="visibleFields">
+          :visible-fields="getShowTableVisibleFields">
         </retrieve-loader>
       </bk-table-column>
       <template v-else slot="empty">
         <empty-view v-bind="$attrs" v-on="$listeners" />
       </template>
       <!-- 下拉刷新骨架屏loading -->
-      <template slot="append" v-if="tableList.length && visibleFields.length && isPageOver">
+      <template slot="append" v-if="tableList.length && getShowTableVisibleFields.length && isPageOver">
         <retrieve-loader
           :is-page-over="isPageOver"
           :is-original-field="true"
-          :visible-fields="visibleFields">
+          :visible-fields="getShowTableVisibleFields">
         </retrieve-loader>
       </template>
     </bk-table>
-    <div v-show="false">
-      <div class="copy-popover" ref="copyTools">
-        <span
-          class="icon log-icon icon-copy"
-          v-bk-tooltips.top="{ content: $t('复制'), delay: 300 }"
-          @click="() => handleMenuClick({ operation: 'copy', value: hoverOriginStr })">
-        </span>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -148,17 +140,4 @@ export default {
 </script>
 
 <style lang="scss">
-  .copy-popover {
-    position: relative;
-    width: 14px;
-    height: 20px;
-
-    .icon-copy {
-      position: absolute;
-      font-size: 24px;
-      cursor: pointer;
-      left: -5px;
-      top: -2px;
-    }
-  }
 </style>

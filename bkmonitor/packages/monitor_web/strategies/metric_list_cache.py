@@ -22,21 +22,6 @@ from django.conf import settings
 from django.db.models import Count, Max, Q
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
-from monitor_web.collecting.utils import chunks
-from monitor_web.models import (
-    CollectConfigMeta,
-    CustomEventGroup,
-    CustomEventItem,
-    DataTarget,
-    DataTargetMapping,
-)
-from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
-from monitor_web.plugin.constant import ParamMode, PluginType
-from monitor_web.plugin.manager.process import (
-    BuildInProcessDimension,
-    BuildInProcessMetric,
-)
-from monitor_web.tasks import run_metric_manager_async
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import is_build_in_process_data_source
@@ -69,6 +54,21 @@ from constants.strategy import (
 )
 from core.drf_resource import api
 from core.errors.api import BKAPIError
+from monitor_web.collecting.utils import chunks
+from monitor_web.models import (
+    CollectConfigMeta,
+    CustomEventGroup,
+    CustomEventItem,
+    DataTarget,
+    DataTargetMapping,
+)
+from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
+from monitor_web.plugin.constant import ParamMode, PluginType
+from monitor_web.plugin.manager.process import (
+    BuildInProcessDimension,
+    BuildInProcessMetric,
+)
+from monitor_web.tasks import run_metric_manager_async
 
 FILTER_DIMENSION_LIST = ["time", "bk_supplier_id", "bk_cmdb_level", "timestamp"]
 # 时序指标filed_type
@@ -231,7 +231,7 @@ class BaseMetricCacheManager:
 
     def _run(self):
         start_time = time.time()
-        logger.info(f"update metric {self.__class__.__name__}({self.bk_biz_id}) start，timestamp: {int(start_time)}")
+        logger.info(f"[start] update metric {self.__class__.__name__}({self.bk_biz_id})")
 
         # 集中整理后进行差量更新
         to_be_create = []
@@ -334,7 +334,7 @@ class BaseMetricCacheManager:
             MetricListCache.objects.filter(id__in=to_be_delete).delete()
 
         logger.info(
-            f"update metric {self.__class__.__name__}({self.bk_biz_id}) end, "
+            f"[end] update metric {self.__class__.__name__}({self.bk_biz_id}) "
             f"create {len(to_be_create)} metric,update {len(to_be_update)} metric, delete {len(to_be_delete)} metric."
             f"timestamp: {int(start_time)}, cost {time.time() - start_time}s"
         )
@@ -912,6 +912,83 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
     data_sources = ((DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),)
 
+    SYSTEM_EVENTS = [
+        {
+            "event_group_id": 0,
+            "bk_data_id": 1100000,
+            "bk_biz_id": 0,
+            "table_id": "gse_custom_string",
+            "event_group_name": "gse custom string",
+            "label": "os",
+            "event_info_list": [
+                {
+                    "event_name": "CustomString",
+                    "dimension_list": ["bk_target_ip", "bk_target_cloud_id", "ip", "bk_cloud_id"],
+                }
+            ],
+        },
+        {
+            "event_group_id": 0,
+            "bk_data_id": 1000,
+            "bk_biz_id": 0,
+            "table_id": "gse_system_event",
+            "event_group_name": "gse system event",
+            "label": "os",
+            "event_info_list": [
+                {
+                    "event_name": "AgentLost",
+                    "dimension_list": ["bk_target_ip", "bk_target_cloud_id", "ip", "bk_cloud_id"],
+                },
+                {
+                    "event_name": "CoreFile",
+                    "dimension_list": [
+                        "bk_target_ip",
+                        "bk_target_cloud_id",
+                        "ip",
+                        "bk_cloud_id",
+                        "executable",
+                        "executable_path",
+                        "signal",
+                    ],
+                    "condition_field_list": ["corefile"],
+                },
+                {
+                    "event_name": "DiskFull",
+                    "dimension_list": [
+                        "bk_target_ip",
+                        "bk_target_cloud_id",
+                        "ip",
+                        "bk_cloud_id",
+                        "disk",
+                        "file_system",
+                        "fstype",
+                    ],
+                },
+                {
+                    "event_name": "DiskReadonly",
+                    "dimension_list": [
+                        "bk_target_ip",
+                        "bk_target_cloud_id",
+                        "ip",
+                        "bk_cloud_id",
+                        "position",
+                        "fs",
+                        "type",
+                    ],
+                },
+                {
+                    "event_name": "OOM",
+                    "dimension_list": ["bk_target_ip", "bk_target_cloud_id", "ip", "bk_cloud_id", "process", "task"],
+                    "condition_field_list": ["message", "oom_memcg", "task_memcg", "constraint"],
+                },
+                {
+                    "event_name": "PingUnreachable",
+                    "dimension_list": ["bk_target_ip", "bk_target_cloud_id", "ip", "bk_cloud_id"],
+                },
+            ],
+        },
+    ]
+
     def get_metric_pool(self):
         # todo 包括 k8s event (映射到 bk_monitor + event 去了)
         # 当前先不映射
@@ -923,6 +1000,10 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         )
 
     def get_tables(self):
+        # 系统事件
+        if self.bk_biz_id == 0:
+            yield from self.SYSTEM_EVENTS
+
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
             custom_event.bk_event_group_id for custom_event in CustomEventGroup.objects.filter(type="custom_event")
@@ -999,6 +1080,16 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                     "bk_event_id": metric_msg.get("event_id", 0),
                 },
             }
+
+            # 支持非维度字段作为条件
+            if "condition_field_list" in metric_msg:
+                metric_detail["dimensions"].extend(
+                    [
+                        {"id": condition_name, "name": condition_name, "is_dimension": False}
+                        for condition_name in metric_msg["condition_field_list"]
+                    ]
+                )
+
             metric_detail.update(base_dict)
             yield metric_detail
 
@@ -1330,7 +1421,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 yield from self.get_uptime_check_metric(table)
             elif influx_db_name == "pingserver":
                 yield from self.get_pingserver_metric(table)
-            elif influx_db_name in ["dbm_system", "system"]:
+            elif influx_db_name in ["dbm_system", "system", "devx_system"]:
                 if result_table_id in ["system.proc_port"]:
                     return
 
@@ -1574,7 +1665,6 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
         metrics_define = api.kubernetes.fetch_metrics_define()
 
         for metric in metrics:
-
             # 获取该k8s指标基础表 及 基础指标结构
             table = get_base_table_by_metric(metric)
             base_metric = self.get_base_dict(table)
@@ -1619,7 +1709,7 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
 
 class BkMonitorAlertCacheManager(BaseMetricCacheManager):
     """
-    批量缓存自定义事件指标
+    批量缓存监控告警事件指标
     """
 
     data_sources = ((DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT),)
@@ -1729,7 +1819,7 @@ class BkMonitorAlertCacheManager(BaseMetricCacheManager):
 
 class BkFtaAlertCacheManager(BaseMetricCacheManager):
     """
-    批量缓存自定义事件指标
+    批量缓存告警源事件
     """
 
     data_sources = (
@@ -1738,7 +1828,6 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
     )
 
     def search_alerts(self):
-
         search = AlertDocument.search(all_indices=True).exclude("exists", field="strategy_id")
 
         if self.bk_biz_id:
@@ -1774,7 +1863,6 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         alert_names = set()
 
         for alert_config in AlertConfig.objects.filter(plugin_id__in=list(plugins.values_list("plugin_id", flat=True))):
-
             alert_names.add(alert_config.name)
 
             if alert_config.name in tables:
@@ -1791,7 +1879,6 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         return tables
 
     def get_tables(self):
-
         tables = default_tables = self.get_config_tables(bk_biz_id=0)
         if self.bk_biz_id:
             tables = self.get_config_tables(bk_biz_id=self.bk_biz_id)

@@ -19,6 +19,7 @@ from alarm_backends.core.lock.service_lock import share_lock
 from alarm_backends.service.scheduler.app import app
 from core.drf_resource import api
 from metadata import models
+from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.bcs.resource import (
     BCSClusterInfo,
     PodMonitorInfo,
@@ -32,7 +33,7 @@ BCS_SYNC_SYNC_CONCURRENCY = 20
 CMDB_IP_SEARCH_MAX_SIZE = 100
 
 
-@share_lock(identify="metadata_refreshBCSMonitorInfo")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSMonitorInfo")
 def refresh_bcs_monitor_info():
     # 拉取所有cluster，遍历刷新monitorinfo信息
     for cluster in BCSClusterInfo.objects.filter(status=BCSClusterInfo.CLUSTER_STATUS_RUNNING):
@@ -62,7 +63,7 @@ def refresh_dataid_resource(cluster_id, data_id):
     PodMonitorInfo.refresh_resource(cluster_id, data_id)
 
 
-@share_lock(identify="metadata_refreshBCSMetricsInfo")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSMetricsInfo")
 def refresh_bcs_metrics_label():
     logger.debug("start refresh bcs metrics label")
     # 获取所有bcs相关dataid
@@ -117,7 +118,7 @@ def refresh_bcs_metrics_label():
     logger.debug("refresh bcs metrics label done")
 
 
-@share_lock(identify="metadata_discoverBCSClusters")
+@share_lock(ttl=3600, identify="metadata_discoverBCSClusters")
 def discover_bcs_clusters():
     """
     周期刷新bcs集群列表，将未注册进metadata的集群注册进来

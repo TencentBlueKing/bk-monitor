@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Sideslider, Table, TableColumn, Tag } from 'bk-magic-vue';
 
 import { batchUpdate, matchDebug } from '../../../../monitor-api/modules/assign';
 import { destroyAssignGroup } from '../../../../monitor-api/modules/model';
@@ -190,7 +189,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
 
   render() {
     return (
-      <Sideslider
+      <bk-sideslider
         ext-cls='debugging-result-siderlider'
         isShow={this.isShow}
         quick-close={true}
@@ -205,6 +204,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
           <TimeRange
             class='right'
             value={this.curTimeRange}
+            needTimezone={false}
             onChange={this.handleTimeRangeChange}
           ></TimeRange>
         </div>
@@ -277,9 +277,9 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                             >
                               {this.getAlarmGroupNames(config.user_groups)}
                             </span>
-                            <Tag class={config.is_enabled ? 'start' : 'stop'}>
+                            <bk-tag class={config.is_enabled ? 'start' : 'stop'}>
                               {this.$t(config.is_enabled ? '启用' : '停用')}
-                            </Tag>
+                            </bk-tag>
                           </span>
                           <span class='rule'>
                             <span>{this.$t('匹配规则')}: </span>
@@ -308,12 +308,12 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                         )}
                       </div>
                       {!!config.alerts.length && (
-                        <Table
+                        <bk-table
                           data={config.alerts || []}
                           stripe
                           maxHeight={523}
                         >
-                          <TableColumn
+                          <bk-table-column
                             label='ID'
                             prop='id'
                             scopedSlots={{
@@ -326,13 +326,13 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                 </span>
                               )
                             }}
-                          ></TableColumn>
-                          <TableColumn
+                          ></bk-table-column>
+                          <bk-table-column
                             label={this.$t('告警名称')}
                             show-overflow-tooltip
                             prop='alert_name'
-                          ></TableColumn>
-                          <TableColumn
+                          ></bk-table-column>
+                          <bk-table-column
                             label={this.$t('告警指标')}
                             prop='metric'
                             scopedSlots={{
@@ -345,7 +345,8 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                       class='tag-column'
                                       v-bk-tooltips={{
                                         content: row.metrics.map(m => m.id).join(','),
-                                        placements: ['top']
+                                        placements: ['top'],
+                                        allowHTML: false
                                       }}
                                     >
                                       {row.metrics.map(metric => (
@@ -361,13 +362,13 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                 );
                               }
                             }}
-                          ></TableColumn>
-                          <TableColumn
+                          ></bk-table-column>
+                          <bk-table-column
                             label={this.$t('告警内容')}
                             prop='content'
                             show-overflow-tooltip
-                          ></TableColumn>
-                        </Table>
+                          ></bk-table-column>
+                        </bk-table>
                       )}
                     </div>
                   ))}
@@ -389,23 +390,23 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
         </div>
         <div slot='footer'>
           {(!!this.ruleGroupsData.length || !!this.excludeGroups.length) && (
-            <Button
+            <bk-button
               theme='primary'
               onClick={this.handleSave}
               class='mr10'
             >
               {this.$t('保存')}
-            </Button>
+            </bk-button>
           )}
-          <Button
+          <bk-button
             onClick={() => {
               this.emitIsShow(false);
             }}
           >
             {this.$t(this.isViewDebugEffect ? '关闭' : '取消')}
-          </Button>
+          </bk-button>
         </div>
-      </Sideslider>
+      </bk-sideslider>
     );
   }
 }

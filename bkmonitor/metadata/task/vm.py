@@ -11,40 +11,71 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-import time
-
-from django.conf import settings
 
 from alarm_backends.core.lock.service_lock import share_lock
-from metadata.models.vm.constants import (
-    QUERY_VM_SPACE_UID_CHANNEL_KEY,
-    QUERY_VM_SPACE_UID_LIST_KEY,
-)
-from metadata.utils.redis_tools import RedisTools
+from metadata import models
+from metadata.models.vm.utils import access_bkdata
+from metadata.utils.db import filter_model_by_in_page
 
 logger = logging.getLogger("metadata")
 
 
-@share_lock(identify="metadata__refresh_query_vm_space_list")
-def refresh_query_vm_space_list():
-    """刷新查询 vm 的空间列表
+@share_lock(identify="metadata_check_access_vm_task")
+def check_access_vm_task():
+    """检测遗漏或者失败的接入 vm 的结果表
 
-    因为是白名单控制，添加完白名单，然后再刷入到 redis
+    NOTE: 因为需要调用vm的接口，建议是需要单个单个执行
     """
-    logger.info("start refresh query vm space list")
-    # 获取空间列表
-    space_uid_list = getattr(settings, "QUERY_VM_SPACE_UID_LIST", [])
-    if not space_uid_list:
-        logger.warning("no space_uid from QUERY_VM_SPACE_UID_LIST")
-        return
-    # 推送到 redis
-    if not isinstance(space_uid_list, list):
-        logger.error("space_uid type is not list")
-        return
-    # 推送到 redis
-    RedisTools.push_space_to_redis(QUERY_VM_SPACE_UID_LIST_KEY, space_uid_list)
-    # 进行 publish
-    curr_time = {"time": time.time()}
-    RedisTools.publish(QUERY_VM_SPACE_UID_CHANNEL_KEY, [json.dumps(curr_time)])
+    logger.info("start to check result table and access vm")
+    # 获取有关联数据源的结果表
+    rt_ds_dict = {
+        obj["table_id"]: obj["bk_data_id"]
+        for obj in models.DataSourceResultTable.objects.values("table_id", "bk_data_id")
+    }
 
-    logger.info("refresh query vm space list successfully")
+    # 过滤启用的结果表
+    rt_info = filter_model_by_in_page(
+        model=models.ResultTable,
+        field_op="table_id__in",
+        filter_data=list(rt_ds_dict.keys()),
+        value_field_list=["table_id", "bk_biz_id"],
+        value_func="values",
+        other_filter={"is_deleted": False, "is_enable": True, "default_storage": "influxdb"},
+    )
+    # 过滤出没有接入 vm 的结果表
+    rt_biz_dict = {rt["table_id"]: rt["bk_biz_id"] for rt in rt_info}
+    rt_list = list(rt_biz_dict.keys())
+    accessed_vm_rt_list = filter_model_by_in_page(
+        model=models.AccessVMRecord,
+        field_op="result_table_id__in",
+        filter_data=list(rt_list),
+        value_field_list=["result_table_id"],
+        value_func="values_list",
+    )
+    need_access_vm_rt_list = []
+    # 移除 agentmetrix 对应的结果表，因为这部分结果表后续会废弃
+    for rt in set(rt_list) - set(accessed_vm_rt_list):
+        if rt.startswith("agentmetrix."):
+            continue
+        need_access_vm_rt_list.append(rt)
+
+    logger.info("need add vm result table_id list: %s", json.dumps(need_access_vm_rt_list))
+
+    # 如果检查没有需要创建的，直接返回
+    if not need_access_vm_rt_list:
+        return
+
+    # 单个单个接入 vm
+    for rt in need_access_vm_rt_list:
+        bk_biz_id = rt_biz_dict.get(rt)
+        bk_data_id = rt_ds_dict.get(rt)
+        if bk_biz_id is None or bk_data_id is None:
+            logger.warning("table_id: %s not found bk_biz_id or data_id", rt)
+            continue
+        # 开始接入
+        try:
+            access_bkdata(bk_biz_id, rt, bk_data_id)
+        except Exception as e:
+            logger.error("access bkdata vm error, error: %s", e)
+
+    logger.info("check result table and access vm successfully")

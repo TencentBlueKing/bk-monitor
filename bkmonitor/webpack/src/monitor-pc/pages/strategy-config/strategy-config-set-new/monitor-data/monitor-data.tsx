@@ -32,7 +32,6 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import { copyText, transformDataKey } from '../../../../../monitor-common/utils/utils';
 import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -146,6 +145,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
 
   /* 指标选择器 */
   metricSelectorShow = false;
+
+  /* 是否展示未选择ip及云区域的提示 */
+  showTargetMessageTip = false;
 
   // promqlError = false
   // 指标标示名称
@@ -302,11 +304,36 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     // this.handleSetTargetDesc(this.targetList, this.metricData[0].targetType);
   }
 
+  /**
+   * @description 判断是否展示监控目标提示
+   */
+  getShowTargetMessageTipChange() {
+    if (!this.targetList?.length) return false;
+    if (this.target.targetType !== 'INSTANCE') return false;
+    const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
+    const ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
+    let hasIpDimension = false;
+    if (this.editMode === 'Source') {
+      const str = this.source;
+      const regex = /\(([^)]*)\)/g; // 匹配括号内的内容
+      const strList = str.match(regex);
+      hasIpDimension =
+        !!strList?.length &&
+        strList.some(str => ipMap.some(s => new RegExp(s).test(str)) && cloudIdMap.some(s => new RegExp(s).test(str)));
+    } else {
+      hasIpDimension = this.metricData.some(
+        item => item.agg_dimension.some(d => cloudIdMap.includes(d)) && item.agg_dimension.some(d => ipMap.includes(d))
+      );
+    }
+    return !hasIpDimension;
+  }
+
   handleTopoCheckedChange(data: { value: IIpV6Value; nodeType: INodeType; objectType: TargetObjectType }) {
     this.targetList = transformValueToMonitor(data.value, data.nodeType);
     this.target.targetType = data.nodeType;
     this.handleSetTargetDesc(this.targetList, this.target.targetType);
     this.handleTargetSave();
+    this.showTargetMessageTip = this.getShowTargetMessageTipChange();
   }
 
   // 编辑时设置监控目标描述
@@ -438,7 +465,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     this.metricSelectorShow = v;
   }
   handleSelectMetric(value) {
-    const copyStr = (value.metric_id || '').replace(/\./g, ':').replace('::', ':');
+    const copyStr = value.promql_metric;
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
@@ -533,7 +560,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                                 );
                               })()
                             : tabContent(item.id),
-                        disabled: isTabDisabled(item.id) ? false : this.dataMode !== item.id
+                        disabled: isTabDisabled(item.id) ? false : this.dataMode !== item.id,
+                        allowHTML: false
                         // disabled: !this.metricData?.every(item => item.metric_field)
                         //  || !isTabDisabled(item.id)
                         //  || this.readonly
@@ -549,14 +577,14 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
           {this.supportSource && (
             <div class='monitor-data-tool'>
               <div class='tool-left'>
-                {/* {this.editMode === 'Edit' ? <DropdownMenu trigger="click">
+                {/* {this.editMode === 'Edit' ? <bk-dropdown-menu trigger="click">
                 <div slot="dropdown-trigger">
                   <span class="primary-btn">
                     <span>{this.$t('查询模板')}</span>
                     <span class="icon-monitor icon-mc-triangle-down"></span>
                   </span>
                 </div>
-              </DropdownMenu> : <span class="primary-btn disable">
+              </bk-dropdown-menu> : <span class="primary-btn disable">
                 <span>{this.$t('查询模板')}</span>
                 <span class="icon-monitor icon-mc-triangle-down"></span>
               </span>} */}
@@ -636,7 +664,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 )}
               </div>
               <div class='source-options-wrap'>
-                <Input
+                <bk-input
                   class='step-input'
                   value={this.sourceStep}
                   min={10}
@@ -657,7 +685,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       }}
                     ></span>
                   </div>
-                </Input>
+                </bk-input>
               </div>
             </div>
           )}
@@ -688,12 +716,29 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       {this.target.desc.message}
                       {this.target.desc.subMessage}
                     </span>,
-                    <span
-                      class='ip-wrapper-title'
-                      on-click={this.handleAddTarget}
-                    >
-                      {this.$t(this.readonly ? '查看监控目标' : '修改监控目标')}
-                    </span>
+                    this.readonly ? (
+                      <span
+                        class='ip-wrapper-title'
+                        onClick={this.handleAddTarget}
+                      >
+                        {this.$t('查看监控目标')}
+                      </span>
+                    ) : (
+                      <span
+                        class='icon-monitor icon-bianji'
+                        onClick={this.handleAddTarget}
+                      ></span>
+                    ),
+                    this.showTargetMessageTip && (
+                      <span class='ip-dimension-tip'>
+                        <span class='icon-monitor icon-remind'></span>
+                        <span>{this.$t('当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效')}</span>
+                        <span
+                          class='icon-monitor icon-mc-close'
+                          onClick={() => (this.showTargetMessageTip = false)}
+                        ></span>
+                      </span>
+                    )
                   ]}
             </div>
           )}

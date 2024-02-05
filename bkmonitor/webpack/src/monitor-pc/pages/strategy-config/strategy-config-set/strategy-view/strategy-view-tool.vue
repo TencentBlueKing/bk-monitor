@@ -37,8 +37,9 @@
           <span class="margin-left-auto" />
           <div class="time-shift">
             <time-range
-              :type="showText ? 'normal' : 'simple'"
               :value="timeRange"
+              :timezone="timezone"
+              @timezoneChange="handleTimezoneChange"
               @change="handleSelectTimeRangeChange"
             />
             <!-- <monitor-date-range
@@ -74,12 +75,13 @@
 /* eslint-disable @typescript-eslint/member-ordering */
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 // import MonitorDateRange from '../../../../components/monitor-date-range/monitor-date-range.vue';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { DEFAULT_REFLESH_LIST } from '../../../../common/constant';
 import DropDownMenu from '../../../../components/monitor-dropdown/dropdown-menu.vue';
 import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
+import { getDefautTimezone, updateTimezone } from '../../../../i18n/dayjs';
 import { ICompareChangeType, IOption } from '../../../performance/performance-type';
 
 @Component({
@@ -125,10 +127,11 @@ export default class ToolPanel extends Vue {
   })
   readonly refleshList: IOption[];
 
-  private showText = false;
+  showText = false;
   timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
-  private refleshInterval = 5 * 60 * 1000;
-  private resizeHandler: Function = null;
+  timezone: string = getDefautTimezone();
+  refleshInterval = 5 * 60 * 1000;
+  resizeHandler: Function = null;
 
   @Watch('timeRange')
   handleTimeRangeChange(range) {
@@ -153,8 +156,15 @@ export default class ToolPanel extends Vue {
     };
   }
 
+  @Emit('timezoneChange')
+  handleTimezoneChange(v: string) {
+    this.timezone = v;
+    return v;
+  }
+
   handleSelectTimeRangeChange(val: TimeRangeType) {
     this.timeRange = val;
+    updateTimezone(this.timezone);
     this.handleValueChange('timeRange');
   }
 
@@ -165,6 +175,7 @@ export default class ToolPanel extends Vue {
     };
     this.resizeHandler();
     addListener(this.refPanelWrap, this.resizeHandler);
+    this.timezone = getDefautTimezone();
   }
 
   beforeDestroy() {

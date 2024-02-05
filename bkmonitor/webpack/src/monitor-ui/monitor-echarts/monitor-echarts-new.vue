@@ -173,7 +173,7 @@
     <span
       class="is-error"
       v-if="errorMsg"
-      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip' }"
+      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip', allowHTML: false }"
     />
     <div
       v-if="hasResize"
@@ -217,6 +217,7 @@
           :prop="item.key"
           sortable
           min-width="120"
+          :render-header="renderHeader"
         >
           <template #default="{ row }">
             {{ row[item.key] }}
@@ -227,22 +228,18 @@
   </div>
 </template>
 <script lang="ts">
+import { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
+import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
-import moment from 'moment';
-import { addListener, removeListener, ResizeCallback } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { traceListById } from '../../monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from '../../monitor-common/utils/utils';
-import {
-  downCsvFile,
-  IUnifyQuerySeriesItem,
-  transformSrcData,
-  transformTableDataToCsvStr
-} from '../../monitor-pc/pages/view-detail/utils';
+import { downCsvFile, IUnifyQuerySeriesItem } from '../../monitor-pc/pages/view-detail/utils';
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
 
 import ChartAnnotation from './components/chart-annotation.vue';
@@ -548,7 +545,7 @@ export default class MonitorEcharts extends Vue {
     }, {});
     return Object.entries(data).map(([time, columnData]) => {
       return {
-        date: moment(Number(time)).format('YYYY-MM-DD HH:mm:ss'),
+        date: dayjs.tz(Number(time)).format('YYYY-MM-DD HH:mm:ss'),
         ...columnData
       };
     });
@@ -621,6 +618,18 @@ export default class MonitorEcharts extends Vue {
     this.chart && this.destroy();
     document.removeEventListener('mousemove', this.documentMousemove);
     document.removeEventListener('mouseup', this.documentMouseup);
+  }
+
+  renderHeader(h: CreateElement, data) {
+    const { column } = data;
+    return h(
+      'div',
+      {
+        class: 'ellipsis',
+        directives: [{ name: 'bk-overflow-tips' }]
+      },
+      column.label
+    );
   }
 
   /** 图表拉伸 */
@@ -712,7 +721,6 @@ export default class MonitorEcharts extends Vue {
     try {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
       const data = await this.getSeriesData(startTime, endTime, isRange).catch((e) => {
-        console.info(e);
         return [];
       });
       this.seriesData = [...data].map(item => ({
@@ -830,12 +838,20 @@ export default class MonitorEcharts extends Vue {
               if (optionData.options.toolbox) {
                 this.initChartAction();
                 this.chart.on('dataZoom', async (event) => {
-                  if (this.showTitleTool) {
-                    this.loading = true;
+                  this.loading = true;
                     const [batch] = event.batch;
                     if (batch.startValue && batch.endValue) {
-                      const timeFrom = moment(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-                      const timeTo = moment(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      if (!this.showTitleTool) {
+                        const dataPoints = this.seriesData?.[0]?.datapoints;
+                        if(dataPoints?.length) {
+                          const maxX = dataPoints[dataPoints.length - 1]?.[1];
+                          if(+batch.endValue.toFixed(0) === maxX) {
+                            timeTo = dayjs().format('YYYY-MM-DD HH:mm');
+                          }
+                        }
+                      }
                       this.timeRange = [timeFrom, timeTo];
                       if (this.getSeriesData) {
                         this.chart.dispatchAction({
@@ -850,11 +866,31 @@ export default class MonitorEcharts extends Vue {
                       this.$emit('data-zoom', this.timeRange);
                     }
                     this.loading = false;
-                  } else {
-                    this.chart.dispatchAction({
-                      type: 'restore'
-                    });
-                  }
+                  // if (this.showTitleTool) {
+                  //   this.loading = true;
+                  //   const [batch] = event.batch;
+                  //   if (batch.startValue && batch.endValue) {
+                  //     const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                  //     const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                  //     this.timeRange = [timeFrom, timeTo];
+                  //     if (this.getSeriesData) {
+                  //       this.chart.dispatchAction({
+                  //         type: 'restore'
+                  //       });
+                  //       if (this.enableSelectionRestoreAll) {
+                  //         this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
+                  //       } else {
+                  //         await this.handleSeriesData(timeFrom, timeTo);
+                  //       }
+                  //     }
+                  //     this.$emit('data-zoom', this.timeRange);
+                  //   }
+                  //   this.loading = false;
+                  // } else {
+                  //   this.chart.dispatchAction({
+                  //     type: 'restore'
+                  //   });
+                  // }
                 });
               }
               this.initChartEvent();
@@ -907,7 +943,7 @@ export default class MonitorEcharts extends Vue {
         });
       return;
     }
-    const pointTime = moment(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     const data = params
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
@@ -1014,7 +1050,7 @@ export default class MonitorEcharts extends Vue {
           this.annotation = {
             x: setPixel[0] + fineTuning + 220 > chartWidth ? setPixel[0] - fineTuning - 220 : setPixel[0] + fineTuning,
             y: setPixel[1] + 5,
-            title: moment(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
+            title: dayjs.tz(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
             name: this.curValue.name,
             color: this.curValue.color,
             show: true,
@@ -1107,7 +1143,7 @@ export default class MonitorEcharts extends Vue {
     if (!!this.seriesData?.length) {
       const csvList = [];
       const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
-      csvList.push(keys.map(key => key.replace(/,/gmi, '_')).join(','));
+      csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));
       this.tableData.forEach((item) => {
         const list = [];
         keys.forEach((key) => {
@@ -1315,7 +1351,7 @@ export default class MonitorEcharts extends Vue {
         this.scatterTips.data.target.label = `${chartOptions.series[0].name}: ${
           scatterData._value || scatterData.metric_value || '--'
         }`;
-        this.scatterTips.data.time = moment(e.data.value[0]).format('YYYY-MM-DD HH:mm:ss');
+        this.scatterTips.data.time = dayjs.tz(e.data.value[0]).format('YYYY-MM-DD HH:mm:ss');
         this.scatterTips.top = -9999;
         this.scatterTips.show = true;
         this.$nextTick(() => {
@@ -1656,6 +1692,12 @@ export default class MonitorEcharts extends Vue {
       ::v-deep th.is-leaf {
         height: 32px;
       }
+    }
+
+    ::v-deep .ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }

@@ -34,6 +34,7 @@ from django.utils.html import format_html
 from django.utils.translation import ugettext_lazy as _
 from jinja2 import Environment, FileSystemLoader
 
+from apps.api import TransferApi
 from apps.constants import SpacePropertyEnum
 from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
@@ -366,6 +367,9 @@ class LogIndexSet(SoftDeleteModel):
     tag_ids = MultiStrSplitByCommaField(_("标签id记录"), max_length=255, default="")
     bcs_project_id = models.CharField(_("项目ID"), max_length=64, default="")
     is_editable = models.BooleanField(_("是否可以编辑"), default=True)
+
+    def get_name(self):
+        return self.index_set_name
 
     def list_operate(self):
         return format_html(
@@ -1215,6 +1219,15 @@ class SpaceApi(AbstractSpaceApi):
             space = Space.objects.filter(id=id).first()
         if space:
             return cls._init_space(space)
+
+        # 如果 db 中找不到，则直接请求 metadata
+        if space_uid:
+            space_type, space_id = cls.parse_space_uid(space_uid)
+            return SpaceDefine.from_dict(
+                TransferApi.get_space_detail({"space_type_id": space_type, "space_id": space_id, "no_request": True})
+            )
+        if id:
+            return SpaceDefine.from_dict(TransferApi.get_space_detail({"id": id, "no_request": True}))
 
     @classmethod
     def list_spaces(cls) -> List[SpaceDefine]:

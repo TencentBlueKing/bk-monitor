@@ -11,9 +11,17 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from typing import Dict, List, Union
+from typing import Dict, Iterable, List, Union
 
 from django.conf import settings
+from iam import (
+    MultiActionRequest,
+    ObjectSet,
+    Request,
+    Resource,
+    Subject,
+    make_expression,
+)
 from iam.apply.models import (
     ActionWithoutResources,
     ActionWithResources,
@@ -47,14 +55,6 @@ from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from core.errors.share import TokenValidatedError
-from iam import (
-    MultiActionRequest,
-    ObjectSet,
-    Request,
-    Resource,
-    Subject,
-    make_expression,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ class Permission(object):
 
     @classmethod
     def get_iam_client(cls):
-        app_info = (settings.SAAS_APP_CODE, settings.SECRET_KEY)
+        app_info = (settings.APP_CODE, settings.SECRET_KEY)
         if settings.ROLE in ["api", "worker"]:
             # 后台api模式下使用SaaS身份
             app_info = (settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY)
@@ -185,7 +185,6 @@ class Permission(object):
     def _make_application(
         self, action_ids: List[str], resources: List[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
     ) -> Application:
-
         resources = resources or []
         actions = []
 
@@ -395,7 +394,7 @@ class Permission(object):
     def prepare_apply_for_saas(self, resources):
         # PAAS空间下权限申请全家桶
         # APM相关权限暂时无法一并处理，因为空间权限申请时，不一定有APM应用
-        if (resources[0].system, resources[0].type) != (
+        if not resources or (resources[0].system, resources[0].type) != (
             BusinessResource.system_id,
             BusinessResource.id,
         ):
@@ -584,7 +583,7 @@ class Permission(object):
 
         return results
 
-    def filter_biz_ids_by_action(self, action: Union[ActionMeta, str], bk_biz_ids: List[int] = None) -> List[int]:
+    def filter_biz_ids_by_action(self, action: Union[ActionMeta, str], bk_biz_ids: Iterable[int] = None) -> List[int]:
         """
         过滤只包含数值的业务ID列表，filter_business_list_by_action 的进一步封装
         """

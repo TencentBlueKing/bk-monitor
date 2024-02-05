@@ -25,10 +25,10 @@ from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
+from .tools.environment import IS_CONTAINER_MODE  # noqa
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
-    IS_CONTAINER_MODE,
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -94,7 +94,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 # LOG_LEVEL = 'INFO'
 
 # 调试开关，生产环境请关闭
-DEBUG = TEMPLATE_DEBUG = ENVIRONMENT == "development"
+DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or ENVIRONMENT == "development"
 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
@@ -408,6 +408,7 @@ ACTIVE_VIEWS = {
         "as_code": "monitor_web.as_code.views",
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
+        "datalink": "monitor_web.datalink.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -550,9 +551,6 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 # bk_monitor_proxy 自定义上报服务监听的端口
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
 
-# 异常记录保留天数
-ANOMALY_RECORD_SAVE_DAYS = 30
-
 # 后台celery存储配置类型rabbitmq_conf/redis_conf
 CELERY_CONF_TYPE = "rabbitmq_conf"
 
@@ -584,7 +582,6 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
     os.getenv("BKAPP_APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG", "false").lower() == "true"
 )
 
-
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 500
@@ -592,6 +589,12 @@ APM_APP_DEFAULT_ES_REPLICAS = 0
 APM_APP_QUERY_TRACE_MAX_COUNT = 1000
 APM_APP_DEFAULT_ES_SHARDS = 3
 APM_APP_BKDATA_OPERATOR = ""
+APM_APP_BKDATA_MAINTAINER = []
+APM_APP_BKDATA_FETCH_STATUS_THRESHOLD = 10
+# APM计算平台尾部采样Flow配置
+APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID = 0
+APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE = "inland"
+# APM计算平台虚拟指标Flow配置
 APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID = 0
 APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE = 30
 APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE = ""
@@ -599,6 +602,11 @@ APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE = 500
 APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 30
 APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 3
 APM_TRACE_DIAGRAM_CONFIG = {}
+APM_DORIS_STORAGE_CONFIG = {}
+# {2:["foo", "bar"], 3:["baz"]}
+APM_PROFILING_ENABLED_APPS = {}
+# dis/enable profiling for all apps
+APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 
 # bk.data.token 的salt值
@@ -648,6 +656,9 @@ DEBUGGING_BCS_CLUSTER_ID_MAPPING_BIZ_ID = os.getenv(
 BCS_API_DATA_SOURCE = "db"
 BCS_GRAY_CLUSTER_ID_LIST = []
 ENABLE_BCS_GRAY_CLUSTER = False
+
+# UNIFY-QUERY支持bkdata查询灰度业务列表
+BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST = []
 
 # BCS CC
 BCS_CC_API_URL = os.getenv("BKAPP_BCS_CC_API_URL", None)
@@ -716,14 +727,6 @@ DEFAULT_METRIC_PUSH_JOB = "SLI"
 # 运营指标上报任务标志
 OPERATION_STATISTICS_METRIC_PUSH_JOB = "Operation"
 
-# TODO: merge these types into one
-# 当前历史遗留问题，SLI 数据和运营数据分别送到不同的 dataID
-# 需要找时间合并二者
-JOB_DATAID_MAP = {
-    DEFAULT_METRIC_PUSH_JOB: CUSTOM_REPORT_DEFAULT_DATAID,
-    OPERATION_STATISTICS_METRIC_PUSH_JOB: STATISTICS_REPORT_DATA_ID,
-}
-
 # 是否启用计算平台处理influxdb降精度流程
 ENABLE_METADATA_DOWNSAMPLE_BY_BKDATA = False
 # 是否启用 unify-query 查询计算平台降精度数据
@@ -733,6 +736,8 @@ WECOM_ROBOT_BIZ_WHITE_LIST = []
 WECOM_ROBOT_ACCOUNT = {}
 IS_WECOM_ROBOT_ENABLED = False
 MD_SUPPORTED_NOTICE_WAYS = ["wxwork-bot"]
+
+WECOM_APP_ACCOUNT = {}
 
 FTA_ES_SLICE_SIZE = 50
 FTA_ES_RETENTION = 365
@@ -826,9 +831,13 @@ ELASTICSEARCH_DSL = {
 # Kafka config
 KAFKA_HOST = [os.environ.get("BK_MONITOR_KAFKA_HOST", "kafka.service.consul")]
 KAFKA_PORT = int(os.environ.get("BK_MONITOR_KAFKA_PORT", 9092))
+# alert 模块告警专属
+ALERT_KAFKA_HOST = [os.environ.get("BK_MONITOR_ALERT_KAFKA_HOST", KAFKA_HOST[0])]
+ALERT_KAFKA_PORT = int(os.environ.get("BK_MONITOR_ALERT_KAFKA_PORT", KAFKA_PORT))
 KAFKA_CONSUMER_GROUP = "{}-bkmonitorv3-alert-{}".format(PLATFORM.lower(), ENVIRONMENT.lower())
 KAFKA_CONSUMER_GROUP = os.environ.get("BK_MONITOR_KAFKA_CONSUMER_GROUP", KAFKA_CONSUMER_GROUP)
 COMMON_KAFKA_CLUSTER_INDEX = 0
+# for stage
 BKAPP_KAFKA_DOMAIN = os.environ.get("BKAPP_KAFKA_DOMAIN", "")
 
 # 日志相关配置
@@ -873,6 +882,7 @@ BK_DATA_RT_ID_PREFIX = ""  # 计算平台的表名前缀
 BK_DATA_DATA_EXPIRES_DAYS = 30  # 接入到计算平台后，数据保留天数
 BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS = 180  # 接入到计算平台后，存储到HDFS时数据保留天数
 BK_DATA_MYSQL_STORAGE_CLUSTER_NAME = "jungle_alert"  # 监控专属tspider存储集群名称
+BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE = "mysql_storage"  # 监控SQL类存储集群类型
 BK_DATA_HDFS_STORAGE_CLUSTER_NAME = "hdfsOnline4"  # 监控专属HDFS存储集群名称
 BK_DATA_DRUID_STORAGE_CLUSTER_NAME = "monitor"  # 监控专属druid存储集群名称
 BK_DATA_KAFKA_BROKER_URL = "127.0.0.1:9092"
@@ -1088,6 +1098,8 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
+# bkdata api only for query data (not required)
+BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
@@ -1142,7 +1154,7 @@ BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", "{}{}".format(BK_PAAS_INNER_HOST, SITE_URL))
 
 # 是否跳过 iam migrate
-BK_IAM_SKIP = False
+BK_IAM_SKIP = os.getenv("BK_IAM_SKIP", "false").lower() == "true"
 
 # 采集配置文件参数最大值(M)
 COLLECTING_CONFIG_FILE_MAXSIZE = 2
@@ -1262,7 +1274,6 @@ ASYMMETRIC_CIPHER_TYPE = get_env_or_raise(
     "BKAPP_ASYMMETRIC_CIPHER_TYPE", default=constants.AsymmetricCipherType.RSA.value
 )
 
-
 BKCRYPTO = {
     # 声明项目所使用的非对称加密算法
     "ASYMMETRIC_CIPHER_TYPE": ASYMMETRIC_CIPHER_TYPE,
@@ -1296,7 +1307,6 @@ BKCRYPTO = {
 SPECIFY_AES_KEY = ""
 BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
 
-
 # 前端事件上报
 FRONTEND_REPORT_DATA_ID = 0
 FRONTEND_REPORT_DATA_TOKEN = ""
@@ -1322,7 +1332,38 @@ MAX_FIELD_PAGE_SIZE = 1000
 PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
 
 # 需要授权给蓝鲸应用的特定的数据源 ID
-BKPAAS_DATA_ID_LIST = []
+BKPAAS_AUTHORIZED_DATA_ID_LIST = []
 
 # 环境代号
 ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
+
+# `dbm_` 开头的结果表，仅特定的业务可以查看，并且不需要添加过滤条件
+ACCESS_DBM_RT_SPACE_UID = []
+
+# BCS APIGW 地址
+BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
+
+# 获取指标的间隔时间，默认为 2 hour
+FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
+
+# 是否启用 metadata 新功能
+IS_ENABLE_METADATA_FUNCTION_CONTROLLER = True
+
+# 自定义指标过期时间
+TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
+
+# 是否启用 influxdb 写入，默认 True
+ENABLE_INFLUXDB_STORAGE = True
+
+# bk-notice-sdk requirment
+if not os.getenv("BK_API_URL_TMPL"):
+    os.environ["BK_API_URL_TMPL"] = ""
+
+# 内网collector域名
+INNER_COLLOCTOR_HOST = ""
+
+# 外网collector域名
+OUTER_COLLOCTOR_HOST = ""
+
+# ES 需要串行的集群的白名单
+ES_SERIAL_CLUSTER_LIST = []

@@ -10,17 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
+from typing import Any, Dict, List, Union
 
-from django.db.models import Subquery
 from django.utils import timezone
 from elasticsearch_dsl import Q
-from monitor_web.overview.tools import (
-    MonitorStatus,
-    OsMonitorInfo,
-    ProcessMonitorInfo,
-    ServiceMonitorInfo,
-    UptimeCheckMonitorInfo,
-)
 
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ItemModel, StrategyModel
@@ -31,6 +24,13 @@ from bkmonitor.views import serializers
 from bkmonitor.views.serializers import BusinessOnlySerializer
 from constants.alert import EventStatus
 from core.drf_resource.contrib.cache import CacheResource
+from monitor_web.overview.tools import (
+    MonitorStatus,
+    OsMonitorInfo,
+    ProcessMonitorInfo,
+    ServiceMonitorInfo,
+    UptimeCheckMonitorInfo,
+)
 
 
 class AlarmRankResource(CacheResource):
@@ -199,44 +199,45 @@ class MonitorInfoResource(CacheResource):
 
         # 如果所有模块均正常，返回综合描述
         if all([item["status"] == MonitorStatus.NORMAL for item in list(result_data.values())]):
-            time_warning_strategies = []
-            notice_warning_strategies = []
-            disabled_strategies = []
-            no_target_strategies = []
-            # 检查策略
-            all_strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
-            strategy_mapping = {}
-            for strategy in all_strategies:
-                strategy_mapping[strategy.id] = strategy
-                # 检车策略是否禁用
-                if not strategy.is_enabled:
-                    disabled_strategies.append({"strategy_id": strategy.id, "strategy_name": strategy.name})
+            id__strategy_map: Dict[int, Any] = {}
+            disabled_strategies: List[Dict[str, Union[str, int]]] = []
+            no_target_strategies: List[Dict[str, Union[str, int]]] = []
+            time_warning_strategies: List[Dict[str, Union[str, int]]] = []
+            notice_warning_strategies: List[Dict[str, Union[str, int]]] = []
+            for strategy in StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values("id", "name", "is_enabled"):
+                id__strategy_map[strategy["id"]] = strategy
+                # 检查策略是否禁用
+                if not strategy["is_enabled"]:
+                    disabled_strategies.append({"strategy_id": strategy["id"], "strategy_name": strategy["name"]})
 
             # 检查无监控目标策略
-            strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
-            items = ItemModel.objects.filter(strategy_id__in=Subquery(strategies.values("id")))
+            items: List[Dict[str, Any]] = ItemModel.objects.filter(
+                strategy_id__in=list(id__strategy_map.keys())
+            ).values("strategy_id", "target")
             for item in items:
-                if (item.target and item.target[0]) or item.strategy_id not in strategy_mapping:
+                if (item["target"] and item["target"][0]) or item["strategy_id"] not in id__strategy_map:
                     continue
                 no_target_strategies.append(
-                    {"strategy_id": item.strategy_id, "strategy_name": strategy_mapping[item.strategy_id].name}
+                    {"strategy_id": item["strategy_id"], "strategy_name": id__strategy_map[item["strategy_id"]]["name"]}
                 )
 
             # TODO: 这里需要根据新版自愈进行调整
             # 检查通知时间
-            action_list = Action.objects.filter(strategy_id__in=list(strategy_mapping.keys())).values(
-                "strategy_id", "config"
-            )
+            action_list: List[Dict[str, Any]] = Action.objects.filter(
+                strategy_id__in=list(id__strategy_map.keys())
+            ).values("strategy_id", "config")
             for action in action_list:
                 action_config = action["config"]
                 if action_config.get("alarm_start_time", "") == action_config.get("alarm_end_time", ""):
                     strategy_id = action["strategy_id"]
                     time_warning_strategies.append(
-                        {"strategy_id": action["strategy_id"], "strategy_name": strategy_mapping[strategy_id].name}
+                        {"strategy_id": action["strategy_id"], "strategy_name": id__strategy_map[strategy_id]["name"]}
                     )
 
             # 检查通知方式
-            notice_groups = NoticeGroup.objects.filter(bk_biz_id=bk_biz_id).values("id", "name", "notice_way")
+            notice_groups: List[Dict[str, Any]] = NoticeGroup.objects.filter(bk_biz_id=bk_biz_id).values(
+                "id", "name", "notice_way"
+            )
             for group in notice_groups:
                 # 导入可能导致通知方式为空的情况出现
                 if group["notice_way"]:

@@ -18,7 +18,6 @@ import json
 from alarm_backends.core.cache.base import CacheManager
 from constants.data_source import DataSourceLabel
 from core.drf_resource import api
-from core.errors.api import BKAPIError
 
 
 class ResultTableCacheManager(CacheManager):
@@ -39,14 +38,6 @@ class ResultTableCacheManager(CacheManager):
         for result_table in result_tables:
             i18n.set_biz(result_table["bk_biz_id"])
             table_id = result_table["table_id"]
-
-            storage_info = {}
-            try:
-                storage_info = api.metadata.get_result_table_storage(result_table_list=table_id, storage_type="kafka")
-                storage_info = storage_info[table_id] if storage_info else {}
-            except:  # noqa
-                pass
-
             data = {
                 "table_id": table_id,
                 "table_name": result_table["table_name_zh"],
@@ -59,7 +50,6 @@ class ResultTableCacheManager(CacheManager):
                     }
                     for field in result_table["field_list"]
                 ],
-                "storage_info": storage_info,
             }
 
             pipeline.set(
@@ -95,7 +85,6 @@ class ResultTableCacheManager(CacheManager):
                             }
                             for field in result_table["fields"]
                         ],
-                        "storage_info": {},
                     }
 
                     pipeline.set(
@@ -144,7 +133,6 @@ class ResultTableCacheManager(CacheManager):
                             }
                             for field in fields["fields"]
                         ],
-                        "storage_info": {},
                     }
 
                     pipeline.set(
@@ -201,19 +189,11 @@ class ResultTableCacheManager(CacheManager):
 
     @classmethod
     def refresh(cls):
-        try:
-            apps = api.bk_paas.get_app_info(target_app_code="bk_dataweb,bk_log_search")
-            apps = [app["bk_app_code"] for app in apps]
-        except BKAPIError:
-            apps = ["bk_dataweb", "bk_log_search"]
-
         cls.refresh_metadata()
 
-        if "bk_dataweb" in apps:
-            cls.refresh_bkdata()
+        cls.refresh_bkdata()
 
-        if "bk_log_search" in apps:
-            cls.refresh_bklog()
+        cls.refresh_bklog()
 
 
 def main():

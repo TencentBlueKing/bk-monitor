@@ -28,8 +28,7 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Radio, RadioGroup } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from '../../../../../monitor-api/modules/grafana';
 import { fetchItemStatus, getUnitInfo } from '../../../../../monitor-api/modules/strategies';
@@ -38,7 +37,7 @@ import { Debounce, deepClone, random, typeTools } from '../../../../../monitor-c
 import Viewer from '../../../../../monitor-ui/markdown-editor/viewer';
 import MonitorEcharts from '../../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import MonitorDivider from '../../../../components/divider/divider.vue';
-import { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
@@ -70,7 +69,7 @@ import ViewDimensions from './view-dimensions';
 import './strategy-view.scss';
 
 const metricUrlMap = {
-  common: '监控平台/产品白皮书/alarm-configurations/rules.md',
+  time_series: '监控平台/产品白皮书/alarm-configurations/rules.md',
   event: '监控平台/产品白皮书/alarm-configurations/events_monitor.md',
   log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
   alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md'
@@ -124,11 +123,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.toolRef.timeRange = value;
-    this.tools.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.toolRef.timeRange = value;
+      this.tools.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -316,7 +317,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.isMultivariateAnomalyDetection) {
       return false;
     }
-    return this.metricQueryData.length > 0;
+    return this.metricQueryData.length > 0 || this.metricQueryData;
   }
 
   deactivated() {
@@ -581,8 +582,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 获取图表查询参数设置
   getQueryParams(startTime: string | number, endTime: string | number, hasIntelligentDetect = false) {
     const timePrams = {
-      start_time: typeof startTime === 'string' || String(startTime).length > 10 ? moment(startTime).unix() : startTime,
-      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? moment(endTime).unix() : endTime
+      start_time:
+        typeof startTime === 'string' || String(startTime).length > 10 ? dayjs.tz(startTime).unix() : startTime,
+      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? dayjs.tz(endTime).unix() : endTime
     };
     if (this.editMode === 'Source') {
       const params = {
@@ -924,6 +926,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               ref='tool'
               on-change={this.handleToolPanelChange}
               on-on-immediate-reflesh={this.handleRefreshView}
+              onTimezoneChange={this.handleRefreshView}
             ></strategy-view-tool>,
             <div class='strategy-view-content'>
               {(this.metricQueryData.length > 0 &&
@@ -949,9 +952,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   // 查看近20条数据
                   !!this.needNearRadio && (
                     <div class='radio-count-options'>
-                      <RadioGroup v-model={this.shortcutsType}>
+                      <bk-radio-group v-model={this.shortcutsType}>
                         {this.shortcutsList.map(sh => (
-                          <Radio value={sh.id}>
+                          <bk-radio value={sh.id}>
                             {sh.id === 'NEAR' ? (
                               <i18n
                                 path='查看{0}条数据'
@@ -965,9 +968,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                             ) : (
                               <span>{sh.name}</span>
                             )}
-                          </Radio>
+                          </bk-radio>
                         ))}
-                      </RadioGroup>
+                      </bk-radio-group>
                     </div>
                   ),
                   // <monitor-divider></monitor-divider>,
@@ -1018,7 +1021,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 </div>
               )}
             </div>,
-
             this.needDescContent && (
               <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
                 {this.isEventMetric && <div class='desc-title'>{this.$t('系统事件说明')}</div>}

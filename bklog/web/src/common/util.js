@@ -27,6 +27,7 @@
 
 import html2canvas from 'html2canvas';
 import JSONBigNumber from 'json-bignumber';
+import dayjs from 'dayjs';
 
 import store from '../store';
 /**
@@ -487,12 +488,16 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   * @param {Number | String | Date} val
   * @return {String}
   */
-export function formatDate(val) {
+export function formatDate(val, isTimzone = true) {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
     console.warn('无效的时间');
     return '';
+  }
+
+  if (isTimzone) {
+    return dayjs.tz(Number(val)).format('YYYY-MM-DD HH:mm:ss');
   }
 
   const yyyy = date.getFullYear();
@@ -900,6 +905,7 @@ export const calculateTableColsWidth = (field, list) => {
               - parseTableRowData(a, field.field_name, field.field_type).length;
   });
   if (firstLoadList[0]) {
+    if (['ip', 'serverIp'].includes(field.field_name)) return 124;
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
@@ -978,5 +984,46 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
         flatObjTypeFiledKeys(value, newFlatObj, `${previousKeyName}.${key}`);
       }
     }
+  }
+};
+
+export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
+
+export const utcFormatDate = (val) => {
+  const date = new Date(val);
+
+  if (isNaN(date.getTime())) {
+    console.warn('无效的时间');
+    return '';
+  }
+
+  return formatDate(date.getTime());
+};
+
+// 首次加载设置表格默认宽度自适应
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
+  try {
+    if (tableData.length && visibleFields.length) {
+      visibleFields.forEach((field, index) => {
+        if (catchFieldsWidthObj) {
+          const catchWidth = catchFieldsWidthObj[index];
+          field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
+        } else {
+          field.width = calculateTableColsWidth(field, tableData);
+        };
+      });
+      const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
+      const tableElem = document.querySelector('.original-log-panel');
+      // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
+      if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
+        visibleFields.forEach((field) => {
+          field.width = field.width < 300 ? 'default' : field.width;
+        });
+      }
+    }
+
+    return true;
+  } catch (error) {
+    return false;
   }
 };
