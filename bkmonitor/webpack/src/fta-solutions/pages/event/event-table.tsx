@@ -42,26 +42,50 @@ import { eventPanelType, IEventItem, IPagination, SearchType } from './typings/e
 
 import './event-table.scss';
 
-function addHoverScrollClass(target: HTMLDivElement, className: string) {
+function addHoverScroll(target: HTMLDivElement) {
+  // 获取当前容器宽度
   const id = '------add-hover-scroll-class----';
-  if (document.querySelector(`#${id}`)) {
+  const { scrollWidth, clientWidth } = target;
+  target.style.transform = 'translate(0, 0)';
+  let customScrollbarWrap: HTMLDivElement = target.querySelector(`#${id}`);
+  if (customScrollbarWrap) {
     return;
   }
-  const scrollHoverWrap = document.createElement('div');
-  scrollHoverWrap.id = id;
-  scrollHoverWrap.style.position = 'absolute';
-  scrollHoverWrap.style.height = '8px';
-  scrollHoverWrap.style.width = '100%';
-  scrollHoverWrap.style.bottom = '-4px';
-  scrollHoverWrap.onmouseenter = function () {
-    console.log('in');
-    target.classList.add(className);
+  const style = {
+    'max-width': `${clientWidth}px`,
+    height: '8px',
+    position: 'fixed',
+    left: '0',
+    bottom: '0',
+    background: '#fff',
+    'overflow-x': 'scroll',
+    'overflow-y': 'hidden'
   };
-  scrollHoverWrap.onmouseleave = function () {
-    console.log('out');
-    target.classList.remove(className);
+  customScrollbarWrap = document.createElement('div');
+  Object.keys(style).forEach(key => {
+    customScrollbarWrap.style[key] = style[key];
+  });
+  customScrollbarWrap.id = id;
+  customScrollbarWrap.addEventListener('mouseenter', () => {
+    customScrollbarWrap.className = 'hover-scroll';
+  });
+  customScrollbarWrap.addEventListener('mouseleave', () => {
+    customScrollbarWrap.className = '';
+  });
+  customScrollbarWrap.addEventListener('scroll', e => {
+    const { scrollLeft } = e.target as HTMLDivElement;
+    target.scrollLeft = scrollLeft;
+  });
+  const customScrollbar = document.createElement('div');
+  const barStyle = {
+    height: '4px',
+    width: `${scrollWidth}px`
   };
-  target.appendChild(scrollHoverWrap);
+  Object.keys(barStyle).forEach(key => {
+    customScrollbar.style[key] = barStyle[key];
+  });
+  customScrollbarWrap.appendChild(customScrollbar);
+  target.appendChild(customScrollbarWrap);
 }
 
 const alertStoreKey = '__ALERT_EVENT_COLUMN__';
@@ -719,7 +743,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     if (v.length) {
       this.$nextTick(() => {
         const el = document.querySelector('.bk-table-scrollable-x .bk-table-body-wrapper');
-        addHoverScrollClass(el as any, 'hover-scroll');
+        addHoverScroll(el as any);
       });
     }
   }
