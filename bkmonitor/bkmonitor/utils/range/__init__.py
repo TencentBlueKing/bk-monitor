@@ -69,7 +69,7 @@ def load_field_instance(field_name, field_value):
     return cond_field_class(field_name, field_value)
 
 
-def load_agg_condition_instance(agg_condition):
+def load_agg_condition_instance(agg_condition, default_value_if_not_exists=True):
     """
     Load Condition instance by condition model
     :param agg_condition:
@@ -88,7 +88,7 @@ def load_agg_condition_instance(agg_condition):
 
     if condition:
         conditions_config.append(condition)
-    return load_condition_instance(conditions_config)
+    return load_condition_instance(conditions_config, default_value_if_not_exists)
 
 
 def load_condition_instance(conditions_config, default_value_if_not_exists=True):

@@ -14,7 +14,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from functools import reduce
 from itertools import chain
-from typing import Dict, List, Pattern, Tuple
+from typing import Dict, List, Pattern, Tuple, Optional
 
 import arrow
 from django.conf import settings
@@ -46,6 +46,7 @@ from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
     time_interval_align,
 )
+from bkmonitor.utils.range import load_agg_condition_instance
 from constants.data_source import (
     GRAPH_MAX_SLIMIT,
     DataSourceLabel,
@@ -456,6 +457,19 @@ class QueryTypeProcessor:
         return new_data
 
 
+class AfterFilterProcessor:
+    @classmethod
+    def filter_by_target(cls, records: list, conditions: Optional[list] = None) -> list:
+        """
+        根据监控目标条件过滤数据
+        """
+        if conditions is None:
+            return records
+
+        condition_filter = load_agg_condition_instance(conditions, default_value_if_not_exists=False)
+        return [record for record in records if condition_filter.is_match(record)]
+
+
 class UnifyQueryRawResource(ApiAuthResource):
     """
     统一查询接口 (原始数据)
@@ -653,11 +667,44 @@ class UnifyQueryRawResource(ApiAuthResource):
             query_config["filter_dict"]["error_code"] = str(UPTIMECHECK_ERROR_CODE_MAP[field])
 
     @staticmethod
-    def get_target_instance(params) -> bool:
+    def group_ips_by_cloud_id(conditions: List) -> List:
+        """
+        将监控目标条件按照云区域ID分组
+        [{'bk_target_ip': '111', 'bk_target_cloud_id': '0'},
+        {'bk_target_ip': '222', 'bk_target_cloud_id': '0'},
+        {'bk_target_ip': '333', 'bk_target_cloud_id': '2'},
+        {'bk_target_ip': '444', 'bk_target_cloud_id': '2'}]
+        转换为：
+        [{'bk_target_ip': ['111', '222'], 'bk_target_cloud_id': '0'},
+        {'bk_target_ip': ['333', '444'], 'bk_target_cloud_id': '2'}]
+
+        """
+        grouped_conditions = {}
+        ungrouped_conditions = []
+
+        for origin_condition in conditions:
+            if "bk_target_cloud_id" in origin_condition and "bk_target_ip" in origin_condition:
+                cloud_id_key, ip_key = "bk_target_cloud_id", "bk_target_ip"
+            elif "bk_cloud_id" in origin_condition and "ip" in origin_condition:
+                cloud_id_key, ip_key = "bk_cloud_id", "ip"
+            else:
+                ungrouped_conditions.append(origin_condition)
+                continue
+
+            cloud_id = origin_condition.get(cloud_id_key)
+            ip = origin_condition.get(ip_key)
+
+            grouped_dict = grouped_conditions.setdefault(cloud_id, {ip_key: [], cloud_id_key: cloud_id})
+            grouped_dict[ip_key].extend(ip) if isinstance(ip, list) else grouped_dict[ip_key].append(ip)
+
+        return list(grouped_conditions.values()) + ungrouped_conditions
+
+    def get_target_instance(self, params) -> bool:
         """
         查询目标实例
         当返回为False时，代表存在目标但值为空
         """
+        MAX_FILTER_THRESHOLD = 50  # 可以直接用于过滤查询的监控目标条件的最大数量
         dimension_fields = set()
         for query_config in params["query_configs"]:
             dimension_fields.update(query_config["group_by"])
@@ -671,10 +718,52 @@ class UnifyQueryRawResource(ApiAuthResource):
         if not target_instances:
             return target_instances is not None
 
+        target_instances = self.group_ips_by_cloud_id(target_instances)
+
+        if len(params["target"]) > MAX_FILTER_THRESHOLD \
+                and (
+                    "bk_target_cloud_id" in dimension_fields and "bk_target_ip" in dimension_fields
+                    or "bk_cloud_id" in dimension_fields and "ip" in dimension_fields
+                ):
+            setattr(self, "target_instances", target_instances)
+            return True
+
         # 插入条件
         for query_config in params["query_configs"]:
             query_config["filter_dict"]["target"] = target_instances
         return True
+
+    def get_after_filter_target_instances(self) -> Optional[list]:
+        """
+         后过滤查询条件调整组合
+         [{'bk_target_ip': ['111', '222'], 'bk_target_cloud_id': '0'},
+        {'bk_target_ip': ['333', '444'], 'bk_target_cloud_id': '2'}]
+        转换为:
+        [{'key': 'bk_target_ip', 'value': ['111', '222'], 'method': 'eq'},
+        {'condition': 'and', 'key': 'bk_target_cloud_id', 'value': '0', 'method': 'eq'}
+        {'condition': 'or', 'key': 'bk_target_ip', 'value': ['333', '444'], 'method': 'eq'},
+        {'condition': 'and', 'key': 'bk_target_cloud_id', 'value': '2', 'method': 'eq'}]
+        """
+        target_instances = getattr(self, "target_instances", None)
+        after_filter_target_instances = []
+        if target_instances is None:
+            return None
+        for target_instance in target_instances:
+            first = True
+            for k, v in target_instance.items():
+                after_filter_target_instances.append(
+                    {
+                        "condition": "or" if first else "and",
+                        "key": k,
+                        "value": v,
+                        "method": "eq"
+                    }
+                )
+                if first:
+                    first = False
+        if after_filter_target_instances and "condition" in after_filter_target_instances[0]:
+            del after_filter_target_instances[0]["condition"]
+        return after_filter_target_instances
 
     def perform_request(self, params):
         # cookies filter
@@ -759,6 +848,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         )
 
         # 数据预处理
+        points = AfterFilterProcessor.filter_by_target(points, self.get_after_filter_target_instances())
         points = TimeCompareProcessor.process_origin_data(params, points)
         return {
             "series": points,
