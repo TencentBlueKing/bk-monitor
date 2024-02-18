@@ -33,7 +33,6 @@ from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_databus.constants import ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -225,6 +224,7 @@ class MappingHandlers(object):
                 "field_operator": OPERATORS.get(field["field_type"], []),
                 "is_built_in": field["field_name"].lower() in built_in_fields,
                 "is_case_sensitive": field.get("is_case_sensitive", False),
+                "tokenize_on_chars": field.get("tokenize_on_chars", ""),
             }
             for field in fields_result
         ]
@@ -426,6 +426,27 @@ class MappingHandlers(object):
         return final_fields_list, []
 
     @classmethod
+    def is_case_sensitive(cls, field_dict: Dict[str, Any]) -> bool:
+        # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer和analyzer_details
+        if not field_dict.get("analyzer"):
+            return False
+        if not field_dict.get("analyzer_details"):
+            return False
+        return "lowercase" not in field_dict["analyzer_details"].get("filter", [])
+
+    @classmethod
+    def tokenize_on_chars(cls, field_dict: Dict[str, Any]) -> str:
+        # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer,analyzer_details,tokenizer_details
+        if not field_dict.get("analyzer"):
+            return ""
+        if not field_dict.get("analyzer_details"):
+            return ""
+        # tokenizer_details在analyzer_details中
+        if not field_dict["analyzer_details"].get("tokenizer_details", {}):
+            return ""
+        return "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
+
+    @classmethod
     def get_all_index_fields_by_mapping(cls, properties_dict: Dict) -> List:
         """
         通过mapping集合获取所有的index下的fields
@@ -449,8 +470,9 @@ class MappingHandlers(object):
                 es_doc_values = doc_values
                 if field_type in ["text", "object"]:
                     es_doc_values = False
-                # 根据text字段的分词器来判断是否大小写敏感
-                is_case_sensitive = properties_dict[key].get("analyzer", "") == ES_TEXT_FIELD_CASE_SENSITIVE_ANALYZER
+
+                is_case_sensitive = cls.is_case_sensitive(properties_dict[key])
+                tokenize_on_chars = cls.tokenize_on_chars(properties_dict[key])
 
                 # @TODO tag：兼容前端代码，后面需要删除
                 tag = "metric"
@@ -470,7 +492,8 @@ class MappingHandlers(object):
                         "tag": tag,
                         "is_analyzed": cls._is_analyzed(latest_field_type),
                         "latest_field_type": latest_field_type,
-                        "is_case_sensitive": is_case_sensitive
+                        "is_case_sensitive": is_case_sensitive,
+                        "tokenize_on_chars": tokenize_on_chars,
                     }
                 )
                 fields_result.append(data)

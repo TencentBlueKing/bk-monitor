@@ -19,9 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import BaseException, ErrorCode
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
+
+from apps.exceptions import BaseException, ErrorCode
+
 
 # =================================================
 # PERM
@@ -236,3 +238,8 @@ class BaseSearchIndexSetException(BaseException):
 class BaseSearchIndexSetIdTimeFieldException(BaseException):
     ERROR_CODE = "966"
     MESSAGE = _('找不到索引集"{index_set_id}"的相关信息time_field信息')
+
+
+class BaseSearchIndexSettingsException(BaseSearchException):
+    ERROR_CODE = "967"
+    MESSAGE = _('拉取ES索引settings失败, ERROR: "{error}"')
