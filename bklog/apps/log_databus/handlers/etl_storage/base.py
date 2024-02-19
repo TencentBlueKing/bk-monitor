@@ -156,12 +156,12 @@ class EtlStorage(object):
             analyzer_name = self.generate_field_analyzer_name(
                 field_name="log",
                 field_alias="data",
-                is_case_sensitive=etl_params.get("original_text_case_sensitive", True),
+                is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
                 tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
             tokenizer_name = self.generate_field_tokenizer_name(
                 field_name="log", field_alias="data",
-                is_case_sensitive=etl_params.get("original_text_case_sensitive", True),
+                is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
                 tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
             result["analyzer"][analyzer_name] = {
@@ -169,7 +169,7 @@ class EtlStorage(object):
                 "tokenizer": tokenizer_name,
                 "filter": [],
             }
-            if not etl_params.get("original_text_case_sensitive", True):
+            if not etl_params.get("original_text_is_case_sensitive", False):
                 result["analyzer"][analyzer_name]["filter"].append("lowercase")
             # original_text_tokenize_on_chars为空时, 使用standard分词器
             if etl_params.get("original_text_tokenize_on_chars", ""):
@@ -235,7 +235,7 @@ class EtlStorage(object):
                         "es_analyzer": self.generate_field_analyzer_name(
                             field_name="log",
                             field_alias="data",
-                            is_case_sensitive=etl_params.get("original_text_case_sensitive", True),
+                            is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
                             tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
                         ),
                         "es_include_in_all": True
@@ -246,7 +246,7 @@ class EtlStorage(object):
                         "es_analyzer": self.generate_field_analyzer_name(
                             field_name="log",
                             field_alias="data",
-                            is_case_sensitive=etl_params.get("original_text_case_sensitive", True),
+                            is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
                             tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
                         )
                     },

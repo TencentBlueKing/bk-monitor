@@ -658,7 +658,7 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         label=_("分隔符"), trim_whitespace=False, required=False, allow_null=True, allow_blank=True
     )
     retain_original_text = serializers.BooleanField(label=_("是否保留原文"), required=False, default=True)
-    original_text_case_sensitive = serializers.BooleanField(label=_("原文大小写敏感"), required=False, default=False)
+    original_text_is_case_sensitive = serializers.BooleanField(label=_("原文大小写敏感"), required=False, default=False)
     original_text_tokenize_on_chars = serializers.CharField(
         label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default=""
     )
