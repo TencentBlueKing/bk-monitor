@@ -123,7 +123,7 @@ class BaseComponentClient(object):
         api_headers = {
             "bk_app_code": self.app_code,
             "bk_app_secret": self.app_secret,
-            "bk_username": get_request_username(),
+            "bk_username": self.common_args.get("bk_username") or get_request_username(),
         }
         headers["X-Bkapi-Authorization"] = json.dumps(api_headers)
 
@@ -154,7 +154,7 @@ class ComponentClientWithSignature(BaseComponentClient):
             headers["blueking-language"] = self.language
         api_headers = {
             "bk_app_code": self.app_code,
-            "bk_username": get_request_username(),
+            "bk_username": self.common_args.get("bk_username") or get_request_username(),
         }
         headers["X-Bkapi-Authorization"] = json.dumps(api_headers)
         params, data = self.merge_params_data_with_common_args(method, params, data)
