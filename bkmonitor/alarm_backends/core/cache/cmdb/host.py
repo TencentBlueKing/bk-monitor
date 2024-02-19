@@ -10,7 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from typing import List
+from collections import defaultdict
+from typing import Dict, List, Optional, Set
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from api.cmdb.define import Host, TopoTree
@@ -117,6 +118,26 @@ class HostIPManager(CMDBCacheManager):
         return super(HostIPManager, cls).get(ip)
 
     @classmethod
+    def to_kv(cls, host_keys: Optional[List[str]] = None) -> Dict[str, List[str]]:
+
+        host_keys_gby_ip: Dict[str, Set[str]] = defaultdict(set)
+        if host_keys is None:
+            host_keys = HostManager.keys()
+
+        for host_key in host_keys:
+            if not host_key:
+                continue
+
+            ip_or_host_id = host_key.split("|")[0]
+
+            if not ip_or_host_id:
+                continue
+
+            host_keys_gby_ip[ip_or_host_id].add(host_key)
+
+        return {ip: list(partial_host_keys) for ip, partial_host_keys in host_keys_gby_ip.items()}
+
+    @classmethod
     def refresh(cls, host_keys: List[str] = None):
         """
         刷新缓存
@@ -128,20 +149,8 @@ class HostIPManager(CMDBCacheManager):
         #   "10.0.0.1": ["10.0.0.1|0", "10.0.0.1|1"],
         #   "10.0.0.2": ["10.0.0.2|0"]
         # }
-        ip_mapping = {}
 
-        if host_keys is None:
-            host_keys = HostManager.keys()
-
-        for host in host_keys:
-            if not host:
-                continue
-            ip = host.split("|")[0]
-
-            if not ip:
-                continue
-
-            ip_mapping.setdefault(ip, set()).add(host)
+        ip_mapping = cls.to_kv()
 
         old_keys = cls.cache.hkeys(cls.CACHE_KEY)
         deleted_keys = set(old_keys) - set(ip_mapping.keys())
@@ -151,7 +160,7 @@ class HostIPManager(CMDBCacheManager):
         if ip_mapping:
             ip_result = {}
             for index, ip in enumerate(ip_mapping):
-                ip_result[ip] = json.dumps(list(ip_mapping[ip]))
+                ip_result[ip] = json.dumps(ip_mapping[ip])
                 if index % 1000 == 0:
                     cls.cache.hmset(cls.CACHE_KEY, ip_result)
                     ip_result = {}
@@ -181,19 +190,36 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
         return "{}|{}".format(ip, bk_cloud_id)
 
     @classmethod
-    def get(cls, ip, bk_cloud_id=0, using_mem=False):
+    def get(cls, ip, bk_cloud_id=0, using_mem=False, using_api=False):
         """
         :rtype: Host
         """
-        if not using_mem:
+        if not (using_mem or using_api):
             return super(HostManager, cls).get(ip, bk_cloud_id)
-        # 如果使用本地内存，那么在逻辑结束后，需要调用clear_mem_cache函数清理
-        host_id = f"{ip}|{bk_cloud_id}"
-        host = local.host_cache.get(host_id, None)
-        if host is None:
-            host = cls.get(ip, bk_cloud_id)
+
+        host_key = cls.key_to_internal_value(ip, bk_cloud_id)
+
+        if using_mem:
+            # 如果使用本地内存，那么在逻辑结束后，需要调用clear_mem_cache函数清理
+            host = local.host_cache.get(host_key, None)
             if host is not None:
-                local.host_cache[host_id] = host
+                return host
+
+        host = cls.get(ip, bk_cloud_id)
+        if host is None and using_api:
+            # 打印日志以便查看穿透请求情况
+            cls.logger.info("[HostManager] get host(%s) by api start", host_key)
+            try:
+                host_page = api.cmdb.get_host_without_biz_v2(ips=[ip], bk_cloud_id=[bk_cloud_id], limit=1)
+                host = Host(host_page["hosts"][0])
+                cls.fill_attr_to_hosts(host.bk_biz_id, [host])
+            except IndexError:
+                cls.logger.info("[HostManager] get host(%s) by api failed: empty data", host_key)
+            except Exception as e:  # noqa
+                cls.logger.info("[HostManager] get host(%s) by api failed: err -> %s", host_key, str(e))
+
+        if using_mem and host:
+            local.host_cache[host_key] = host
         return host
 
     @classmethod
@@ -237,28 +263,41 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
         return host
 
     @classmethod
-    def refresh_by_biz(cls, bk_biz_id):
-        hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)  # type: list[Host]
-        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)  # type: TopoTree
-        biz_sets = api.cmdb.get_set(bk_biz_id=bk_biz_id)
-        # 填充拓扑链
-        topo_link_dict = topo_tree.convert_to_topo_link()
+    def fill_attr_to_hosts(cls, bk_biz_id: int, hosts: List[Host], with_world_ids: bool = False):
+        topo_tree: TopoTree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
+        topo_link_dict: Dict[str, List] = topo_tree.convert_to_topo_link()
+        biz_sets: List = []
+        if with_world_ids:
+            biz_sets: List = api.cmdb.get_set(bk_biz_id=bk_biz_id)
+
         for host in hosts:
             host.topo_link = {}
             for module_id in host.bk_module_ids:
                 key = "module|{}".format(module_id)
                 host.topo_link[key] = topo_link_dict.get(key, [])
             host.bk_world_ids = []
+
             for biz_set in biz_sets:
                 if biz_set.bk_inst_id in host.bk_set_ids and hasattr(biz_set, "bk_world_id"):
                     host.bk_world_ids.append(biz_set.bk_world_id)
             host.bk_world_id = host.bk_world_ids[0] if host.bk_world_ids else ""
 
-        result = {}
+    @classmethod
+    def to_kv(cls, hosts: List[Host], contains_host_id_key: bool = False) -> Dict[str, Host]:
+        host_key__obj_map: Dict[str, Host] = {}
         for host in hosts:
-            result[cls.key_to_internal_value(host.bk_host_innerip, host.bk_cloud_id)] = host
-            result[str(host.bk_host_id)] = host
-        return result
+            host_key__obj_map[cls.key_to_internal_value(host.bk_host_innerip, host.bk_cloud_id)] = host
+            if contains_host_id_key:
+                host_key__obj_map[str(host.bk_host_id)] = host
+        return host_key__obj_map
+
+    @classmethod
+    def refresh_by_biz(cls, bk_biz_id):
+        hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+
+        cls.fill_attr_to_hosts(bk_biz_id, hosts, with_world_ids=True)
+
+        return cls.to_kv(hosts, contains_host_id_key=True)
 
 
 def main():
