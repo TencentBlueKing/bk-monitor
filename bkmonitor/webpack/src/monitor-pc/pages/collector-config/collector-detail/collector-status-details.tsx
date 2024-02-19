@@ -514,20 +514,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   slot='dropdown-content'
                 >
                   <li>
-                    <a
-                      href='javascript:;'
-                      onClick={() => this.handleCopyTargets('ip')}
-                    >
-                      {this.$t('复制主机IP')}
-                    </a>
+                    <a onClick={() => this.handleCopyTargets('ip')}>{this.$t('复制主机IP')}</a>
                   </li>
                   <li>
-                    <a
-                      href='javascript:;'
-                      onClick={() => this.handleCopyTargets('instance')}
-                    >
-                      {this.$t('复制服务实例')}
-                    </a>
+                    <a onClick={() => this.handleCopyTargets('instance')}>{this.$t('复制服务实例')}</a>
                   </li>
                 </ul>
               </bk-dropdown-menu>
