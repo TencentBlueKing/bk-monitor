@@ -51,33 +51,36 @@ export const setVariableToString = (variableMap: Map<string, { id: string; examp
 /* 校验http回调json数据 */
 export const variableJsonVerify = async (pluginId, jsonData) =>
   new Promise((resolve, reject) => {
-    getActionParams({
-      alert_ids: [],
-      action_configs: [
-        {
-          plugin_id: pluginId,
-          execute_config: {
-            template_detail: {
-              interval_notify_mode: 'standard',
-              method: 'GET',
-              url: 'http://127.0.0.1',
-              headers: [{ key: 'test', value: '', desc: '', is_builtin: false, is_enabled: false }],
-              authorize: { auth_type: 'none', auth_config: {} },
-              body: {
-                data_type: 'raw',
-                params: [],
-                content: jsonData,
-                content_type: 'json'
+    getActionParams(
+      {
+        alert_ids: [],
+        action_configs: [
+          {
+            plugin_id: pluginId,
+            execute_config: {
+              template_detail: {
+                interval_notify_mode: 'standard',
+                method: 'GET',
+                url: 'http://127.0.0.1',
+                headers: [{ key: 'test', value: '', desc: '', is_builtin: false, is_enabled: false }],
+                authorize: { auth_type: 'none', auth_config: {} },
+                body: {
+                  data_type: 'raw',
+                  params: [],
+                  content: jsonData,
+                  content_type: 'json'
+                },
+                query_params: []
               },
-              query_params: []
+              timeout: 600
             },
-            timeout: 600
-          },
-          name: '测试json判断'
-        }
-      ],
-      is_demo: true
-    })
+            name: '测试json判断'
+          }
+        ],
+        is_demo: true
+      },
+      { needMessage: false }
+    )
       .then(() => {
         resolve(true);
       })
