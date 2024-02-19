@@ -1,0 +1,14 @@
+.test-send-result-dialog {
+  /* stylelint-disable-next-line declaration-no-important */
+  z-index: 4000 !important;
+  
+  .bk-dialog-header {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding-bottom: 2px !important;
+  }
+  
+  .bk-modal-content {
+    /* stylelint-disable-next-line declaration-no-important */
+    min-height: 60px !important;
+  }
+}

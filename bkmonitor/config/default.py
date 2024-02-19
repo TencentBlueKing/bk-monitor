@@ -409,6 +409,7 @@ ACTIVE_VIEWS = {
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
         "datalink": "monitor_web.datalink.views",
+        "new_report": "monitor_web.new_report.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -1367,3 +1368,6 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))

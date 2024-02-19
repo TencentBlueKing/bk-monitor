@@ -106,7 +106,6 @@ class EnhancedGetContextResource(Resource):
 
     @classmethod
     def get_basic_context(cls, request, space_uid: Optional[str], bk_biz_id: Optional[int]) -> Dict[str, Any]:
-
         space_list: List[Dict[str, Any]] = []
         try:
             space_list = resource.commons.list_spaces()
@@ -156,7 +155,6 @@ class EnhancedGetContextResource(Resource):
         return get_extra_context(request, space)
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-
         request = get_request()
         context_type: str = validated_request_data["context_type"]
         bk_biz_id: Optional[int] = validated_request_data["bk_biz_id"]
@@ -201,7 +199,7 @@ class EnhancedGetContextResource(Resource):
                     ExternalPermission.objects.filter(
                         authorized_user=request.external_user, expire_time__gt=timezone.now()
                     )
-                    .values_list("bk_biz_id", flat=1)
+                    .values_list("bk_biz_id", flat=True)
                     .distinct()
                 )
                 context["SPACE_LIST"] = [space for space in context["SPACE_LIST"] if space["bk_biz_id"] in biz_id_list]

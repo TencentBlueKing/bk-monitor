@@ -124,11 +124,44 @@
         <span>{{$t('多')}}</span>
       </div>
     </div>
+
+    <div class="fl-sb">
+      <bk-dropdown-menu ref="refOfSubscriptionDropdown" align="right" trigger="click">
+        <i
+          v-if="isCurrentIndexSetIdCreateSubscription"
+          class="bk-icon icon-email btn-subscription" :class="{
+            selected: isCurrentIndexSetIdCreateSubscription
+          }"
+          v-bk-tooltips.bottom-end="$t('已订阅当前页面')"
+          slot="dropdown-trigger" />
+        <ul class="bk-dropdown-list" slot="dropdown-content">
+          <li><a href="javascript:;" @click="isShowQuickCreateSubscriptionDrawer = true">{{$t('新建订阅')}}</a></li>
+          <li><a href="javascript:;" @click="goToMySubscription">{{$t('我的订阅')}}</a></li>
+        </ul>
+      </bk-dropdown-menu>
+      <i
+        v-if="!isCurrentIndexSetIdCreateSubscription"
+        class="bk-icon icon-email btn-subscription"
+        @click="isShowQuickCreateSubscriptionDrawer = true"
+        v-bk-tooltips.bottom-end="$t('邮件订阅')"
+      />
+    </div>
+
+    <quick-create-subscription
+      v-model="isShowQuickCreateSubscriptionDrawer"
+      scenario="clustering"
+      :index-set-id="$route.params.indexId"
+    />
   </div>
 </template>
 
 <script>
+import { debounce } from 'throttle-debounce';
+import QuickCreateSubscription from './quick-create-subscription-drawer/quick-create-subscription.tsx';
 export default {
+  components: {
+    QuickCreateSubscription,
+  },
   props: {
     fingerOperateData: {
       type: Object,
@@ -155,6 +188,8 @@ export default {
       isNear24: false,
       isRequestAlarm: false,
       popoverInstance: null,
+      isCurrentIndexSetIdCreateSubscription: false,
+      isShowQuickCreateSubscriptionDrawer: false,
     };
   },
   computed: {
@@ -162,7 +197,22 @@ export default {
       return this.$store.state.bkBizId;
     },
   },
+  watch: {
+    group: {
+      deep: true,
+      handler(list) {
+        // 分组列表未展开时数组变化则发送请求
+        if (!this.isToggle) {
+          this.$emit('handleFingerOperate', 'group', list);
+        }
+      },
+    },
+  },
+  created() {
+    this.checkReportIsExistedDebounce = debounce(1000, this.checkReportIsExisted);
+  },
   mounted() {
+    this.checkReportIsExistedDebounce();
     this.initCache();
     this.handlePopoverShow();
   },
@@ -298,6 +348,35 @@ export default {
           this.isRequestAlarm = false;
         });
     },
+    /**
+     * 检查当前 索引集 是否创建过订阅。
+     */
+    checkReportIsExisted() {
+      this.$http.request('newReport/getExistReports/', {
+        query: {
+          scenario: 'clustering',
+          bk_biz_id: this.$route.query.bizId,
+          index_set_id: this.$route.params.indexId,
+        },
+      }).then((response) => {
+        console.log(response, !!(response.data.length));
+        this.isCurrentIndexSetIdCreateSubscription = !!(response.data.length);
+      })
+        .catch(console.log);
+    },
+    /**
+     * 空方法 checkReportIsExisted 的 debounce 版。
+     */
+    checkReportIsExistedDebounce() {},
+    /**
+     * 跳转到 监控下的 我的订阅
+     */
+    goToMySubscription() {
+      const query = this.$route.query.bizId ? `?bizId=${this.$route.query.bizId}` : '';
+      // window.open(`${window.MONITOR_URL}/${query}#/my-report`, '_blank');
+      // 20231225 暂不需要
+      window.open(`${window.MONITOR_URL}/${query}#/trace/report?isShowMyReport=true`, '_blank');
+    },
   },
 };
 </script>
@@ -420,5 +499,25 @@ export default {
   align-items: center;
 
   @include flex-justify(space-between);
+}
+
+.btn-subscription {
+  border-radius: 2px;
+  padding: 8px;
+  color: #63656E;
+  cursor: pointer;
+  font-size: 14px;
+
+  &.selected {
+    color: #3A84FF;
+  }
+
+  &:hover {
+    background: #F0F1F5;
+  }
+
+  &:active {
+    background-color: #E1ECFF;
+  }
 }
 </style>

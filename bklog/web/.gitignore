@@ -83,3 +83,4 @@ webpack/monitor-static/*
 .cache/
 package.old.json
 yarn.lock
+.babelcache

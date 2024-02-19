@@ -444,6 +444,9 @@ class GroupListResource(CacheResource):
     # 缓存类型
     cache_type = CacheType.BIZ
 
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=False)
+
     def format_data(self, group_type, children):
         """
         格式化数据
@@ -475,7 +478,10 @@ class GroupListResource(CacheResource):
         return list(set(Strategy.origin_objects.filter(is_enabled=True).values_list("bk_biz_id", flat=True)))
 
     def perform_request(self, validated_request_data):
-        all_business = api.cmdb.get_business(bk_biz_ids=self.fetch_strategy_bizs())
+        bk_biz_ids = self.fetch_strategy_bizs()
+        if validated_request_data.get("bk_biz_id"):
+            bk_biz_ids = [validated_request_data["bk_biz_id"]]
+        all_business = api.cmdb.get_business(bk_biz_ids=bk_biz_ids)
         maintainers = []
         productors = []
         developers = []

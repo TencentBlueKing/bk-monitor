@@ -92,5 +92,7 @@ export default {
   外网IPv6: 'Extranet IPv6',
 
   日期选择: 'Date selection',
-  指定时间: 'Specify time'
+  指定时间: 'Specify time',
+  我申请的: 'My Application',
+  我的订阅: 'My Subscription'
 };

@@ -65,7 +65,9 @@ interface INavToolsEvents {
       import(/* webpackChunkName: 'ResourceRegister' */ '../pages/resource-register/resource-register') as any,
     DataPipeline: () => import(/* webpackChunkName: 'DataPipeline' */ '../pages/data-pipeline/data-pipeline') as any,
     SpaceManage: () => import(/* webpackChunkName: 'SpaceManage' */ './space-manage/space-manage') as any,
-    GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any
+    GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any,
+    MyApply: () => import(/* webpackChunkName: 'MyApply' */ './my-apply/my-apply') as any,
+    MySubscription: () => import(/* webpackChunkName: 'MySubscription' */ './my-subscription/my-subscription') as any,
   }
   // #endif
 } as any)
@@ -81,12 +83,26 @@ class NavTools extends DocumentLinkMixin {
   settingTitle = '';
   defauleSearchPlaceholder = `${this.$t('全站搜索')} Ctrl + k`;
   globalSearchPlaceholder = this.defauleSearchPlaceholder;
+  isShowMyApplyModal = false;
+  isShowMyReportModal = false;
 
   // 全局弹窗在路由变化时需要退出
   @Watch('$route.name')
   async handler() {
     this.$emit('change', false);
     this.globalSearchShow = false;
+    this.isShowMyReportModal = false;
+    this.isShowMyApplyModal = false;
+  }
+
+  /** 20231226 暂不使用 */
+  /** vue-router 加载时间过长，导致没法直接在 mounted 中判断，故通过监听的方式去控制 我的订阅 弹窗是否打开 */
+  @Watch('$route.query')
+  handleQueryChange() {
+    // 从 日志平台 跳转过来时会通过 url 参数开启 我的订阅 弹窗。
+    if (this.$route.query.isShowMyReport) {
+      this.isShowMyReportModal = this.$route.query.isShowMyReport === 'true';
+    }
   }
 
   created() {
@@ -424,6 +440,30 @@ class NavTools extends DocumentLinkMixin {
                 <ul class='monitor-navigation-help'>
                   <li
                     class='nav-item'
+                    onClick={() => {
+                      this.isShowMyReportModal = false;
+                      this.isShowMyApplyModal = true;
+                      this.$nextTick(() => {
+                        (this.$refs.popoveruser as any)?.hideHandler?.();
+                      });
+                    }}
+                  >
+                    {this.$t('我申请的')}
+                  </li>
+                  <li
+                    class='nav-item'
+                    onClick={() => {
+                      this.isShowMyApplyModal = false;
+                      this.isShowMyReportModal = true;
+                      this.$nextTick(() => {
+                        (this.$refs.popoveruser as any)?.hideHandler?.();
+                      });
+                    }}
+                  >
+                    {this.$t('我的订阅')}
+                  </li>
+                  <li
+                    class='nav-item'
                     onClick={this.handleQuit}
                   >
                     {this.$t('退出登录')}
@@ -463,6 +503,32 @@ class NavTools extends DocumentLinkMixin {
           ]
           // #endif
         }
+
+        {this.isShowMyApplyModal && (
+          <SettingModal
+            title={this.$t('我申请的').toString()}
+            show={this.isShowMyApplyModal}
+            zIndex={2000}
+            onChange={v => {
+              this.isShowMyApplyModal = v;
+            }}
+          >
+            <MyApply></MyApply>
+          </SettingModal>
+        )}
+
+        {this.isShowMyReportModal && (
+          <SettingModal
+            title={this.$t('我的订阅').toString()}
+            show={this.isShowMyReportModal}
+            zIndex={2000}
+            onChange={v => {
+              this.isShowMyReportModal = v;
+            }}
+          >
+            <MySubscription></MySubscription>
+          </SettingModal>
+        )}
       </div>
     );
   }

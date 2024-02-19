@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@blueking/bkcharts": "^2.0.11-alpha.5",
-    "@blueking/bkmonitor-cli": "1.0.0-beta.21",
-    "@blueking/date-picker": "^0.0.71",
+    "@blueking/bkmonitor-cli": "2.0.0-beta.13",
+    "@blueking/date-picker": "^0.0.72",
     "@blueking/ip-selector": "^0.0.1-beta.134",
     "@blueking/notice-component-vue2": "^2.0.0",
     "@blueking/paas-login": "0.0.11",
@@ -44,9 +44,10 @@
     "monaco-editor": "^0.33.0",
     "monaco-editor-webpack-plugin": "^7.0.1",
     "monaco-yaml": "^4.0.0-alpha.3",
+    "qs": "^6.11.2",
     "resize-detector": "0.2.2",
     "throttle-debounce": "2.2.1",
-    "vue": "2.7.10",
+    "vue": "2.7.14",
     "vue-class-component": "7.2.3",
     "vue-i18n": "8.11.2",
     "vue-json-pretty": "1.7.1",
@@ -55,15 +56,13 @@
     "vue-text-highlight": "^2.0.10",
     "vuedraggable": "2.24.3",
     "vuex": "3.1.1",
-    "vuex-module-decorators": "^2.0.0"
+    "vuex-module-decorators": "^1.2.0"
   },
   "devDependencies": {
-    "@blueking/eslint-config-bk": "2.0.0",
     "@blueking/stylelint-config-bk": "2.0.0",
     "@commitlint/cli": "^12.1.4",
     "@commitlint/config-conventional": "^12.1.4",
     "@typescript-eslint/eslint-plugin": "^5.20.0",
-    "@typescript-eslint/eslint-plugin-tslint": "^4.9.0",
     "@typescript-eslint/parser": "^5.20.0",
     "eslint": "^8.47.0",
     "eslint-config-prettier": "^9.0.0",
@@ -76,7 +75,8 @@
     "nodemon": "^2.0.9",
     "picocolors": "^1.0.0",
     "simple-git-hooks": "^2.7.0",
-    "vue-eslint-parser": "^7.10.0",
+    "nodemon": "^2.0.9",
+    "vue-eslint-parser": "^7.11.0",
     "vue-tsx-support": "^3.1.0"
   },
   "nodemonConfig": {
@@ -87,8 +87,8 @@
     "extentions": []
   },
   "engines": {
-    "node": ">= 12.10.0",
-    "npm": ">= 6.5.0"
+    "node": ">=18",
+    "npm": ">=6.5.0"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged --concurrent false",

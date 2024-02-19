@@ -17,6 +17,7 @@ from django.conf import settings
 
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.lock.service_lock import share_lock
+from alarm_backends.service.new_report.tasks import new_report_detect
 from alarm_backends.service.report.tasks import (
     operation_data_custom_report_v2,
     report_mail_detect,
@@ -46,7 +47,8 @@ REPORT_CRONTAB = [
 if int(settings.MAIL_REPORT_BIZ):
     # 如果配置了订阅报表默认业务
     # 订阅报表定时任务 REPORT_CRONTAB
-    REPORT_CRONTAB.append((report_mail_detect, "*/1 * * * *", "global"))
+    REPORT_CRONTAB.extend([(report_mail_detect, "*/1 * * * *", "global"),
+                           (new_report_detect,  "*/1 * * * *", "global")])
 
 for func, cron_expr, run_type in REPORT_CRONTAB:
     # 全局任务在非默认集群不执行

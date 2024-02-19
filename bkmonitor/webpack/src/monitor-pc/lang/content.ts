@@ -183,5 +183,16 @@ export default {
   瞬间值: 'Last',
   '来源：{0}': 'Source: {0}',
   内部通知人: 'Internal Notifier',
-  通知人员类型: 'Notification person type'
+  通知人员类型: 'Notification person type',
+  多: 'Multi',
+  少: 'Less',
+  日志聚类: 'Log Clustering',
+  给自己: 'To yourself',
+  给全员: 'To everyone',
+  不比对: 'Not Compared',
+  '{0}小时前': '{0} hours ago',
+  号: 'th',
+  '{0}小时': '{0} hours',
+  '每月 {0} 号': '{0} of the month',
+  邮件格式有误: 'Email format is wrong'
 };

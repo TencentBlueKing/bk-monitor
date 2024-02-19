@@ -14,12 +14,6 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
-from monitor.models import GlobalConfig
-from monitor_web.grafana.auth import GrafanaAuthSync
-from monitor_web.iam.serializers import (
-    ExternalPermissionApplyRecordSerializer,
-    ExternalPermissionSerializer,
-)
 from rest_framework import serializers
 
 from api.itsm.default import TokenVerifyResource
@@ -37,6 +31,12 @@ from bkmonitor.models.external_iam import (
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.user import get_local_username
 from core.drf_resource import Resource, api, resource
+from monitor.models import GlobalConfig
+from monitor_web.grafana.auth import GrafanaAuthSync
+from monitor_web.iam.serializers import (
+    ExternalPermissionApplyRecordSerializer,
+    ExternalPermissionSerializer,
+)
 
 logger = logging.getLogger("iam")
 
@@ -427,7 +427,7 @@ class DeleteExternalPermission(Resource):
                 authorized_user__in=authorized_users,
                 action_id=validated_request_data["action_id"],
                 bk_biz_id=validated_request_data["bk_biz_id"],
-            ).values_list("id", flat=1)
+            ).values_list("id", flat=True)
         # 记录删除授权操作
         ExternalPermissionApplyRecord.objects.create(**validated_request_data, operate="delete")
         ExternalPermission.objects.filter(id__in=del_permission_ids).delete()
@@ -537,7 +537,7 @@ class GetResourceByAction(Resource):
             return []
         if validated_request_data["bk_biz_id"] == 0:
             resources = []
-            bk_biz_ids = ExternalPermission.objects.all().values_list("bk_biz_id", flat=1).distinct()
+            bk_biz_ids = ExternalPermission.objects.all().values_list("bk_biz_id", flat=True).distinct()
             for bk_biz_id in bk_biz_ids:
                 resources.extend(resource.grafana.get_dashboard_list(bk_biz_id=bk_biz_id))
             return resources
