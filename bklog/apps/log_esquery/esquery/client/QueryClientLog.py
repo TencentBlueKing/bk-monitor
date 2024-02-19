@@ -78,9 +78,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             mapping_dict: type_mapping_dict = self._client.indices.get_mapping(index=index_target)
             if add_settings_details:
                 settings_dict: Dict = self.get_settings(index=index)
-                return self.add_analyzer_details(
-                    index_name=index_target, _mappings=mapping_dict, _settings=settings_dict
-                )
+                return self.add_analyzer_details(_mappings=mapping_dict, _settings=settings_dict)
             return mapping_dict
         except Exception as e:  # pylint: disable=broad-except
             self.catch_timeout_raise(e)
@@ -95,24 +93,28 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             raise BaseSearchIndexSettingsException(BaseSearchIndexSettingsException.MESSAGE.format(error=e))
 
     @staticmethod
-    def add_analyzer_details(index_name: str, _mappings: Dict[str, Any], _settings: Dict[str, Any]):
-        # 获取索引的分析器设置
-        index_settings = _settings[index_name]['settings']['index']
-        analyzers = index_settings.get('analysis', {}).get('analyzer', {})
-        tokenizers = index_settings.get('analysis', {}).get('tokenizer', {})
-        # 遍历映射中的字段
-        for field, properties in _mappings[index_name]['mappings']['properties'].items():
-            analyzer_name = properties.get('analyzer')
-            if analyzer_name:
+    def add_analyzer_details(_mappings: Dict[str, Any], _settings: Dict[str, Any]):
+        index_list = list(_mappings.keys())
+        for index_name in index_list:
+            # 获取索引的分析器设置
+            index_settings = _settings[index_name]['settings']['index']
+            analyzers = index_settings.get('analysis', {}).get('analyzer', {})
+            tokenizers = index_settings.get('analysis', {}).get('tokenizer', {})
+            # 遍历映射中的字段
+            for field, properties in _mappings[index_name]['mappings']['properties'].items():
+                analyzer_name = properties.get('analyzer')
+                if not analyzer_name:
+                    continue
                 # 从索引设置中获取分析器详细信息
                 analyzer_details = analyzers.get(analyzer_name)
-                if analyzer_details:
-                    # 将分析器详细信息添加到字段配置中
-                    properties['analyzer_details'] = analyzer_details
-                    if properties["analyzer_details"].get("tokenizer"):
-                        properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
-                            properties["analyzer_details"]["tokenizer"]
-                        )
+                if not analyzer_details:
+                    continue
+                # 将分析器详细信息添加到字段配置中
+                properties['analyzer_details'] = analyzer_details
+                if properties["analyzer_details"].get("tokenizer"):
+                    properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
+                        properties["analyzer_details"]["tokenizer"]
+                    )
 
         return _mappings
 
