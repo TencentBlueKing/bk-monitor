@@ -22,6 +22,11 @@ the project delivered to anyone in the future.
 """
 from typing import Any, Dict
 
+from django.conf import settings
+from django.utils.translation import ugettext as _
+from elasticsearch import Elasticsearch as Elasticsearch
+from elasticsearch5 import Elasticsearch as Elasticsearch5
+
 from apps.api import TransferApi
 from apps.log_esquery.constants import DEFAULT_SCHEMA
 from apps.log_esquery.esquery.client.QueryClientTemplate import QueryClientTemplate
@@ -37,10 +42,6 @@ from apps.log_esquery.exceptions import (
 from apps.log_esquery.type_constants import type_mapping_dict
 from apps.log_esquery.utils.es_client import es_socket_ping, get_es_client
 from apps.utils.cache import cache_five_minute
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from elasticsearch import Elasticsearch as Elasticsearch
-from elasticsearch5 import Elasticsearch as Elasticsearch5
 
 
 class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
@@ -64,7 +65,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             self.catch_timeout_raise(e)
             raise EsClientSearchException(EsClientSearchException.MESSAGE.format(error=e))
 
-    def mapping(self, index: str) -> Dict:
+    def mapping(self, index: str, add_settings_details: bool = False) -> Dict:
         self._build_connection(check_ping=False)
         try:
             mapping_dict: type_mapping_dict = self._client.indices.get_mapping(index=index)

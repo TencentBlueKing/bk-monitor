@@ -71,11 +71,16 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             self.catch_timeout_raise(e)
             raise EsClientSearchException(EsClientSearchException.MESSAGE.format(error=e))
 
-    def mapping(self, index: str) -> Dict:
+    def mapping(self, index: str, add_settings_details: bool = False) -> Dict:
         index_target = self._get_index_target(index=index, check_ping=False)
         try:
             logger.info("mapping for index=>{}, index_target=>{}".format(index, index_target))
             mapping_dict: type_mapping_dict = self._client.indices.get_mapping(index=index_target)
+            if add_settings_details:
+                settings_dict: Dict = self.get_settings(index=index)
+                return self.add_analyzer_details(
+                    index_name=index_target, _mappings=mapping_dict, _settings=settings_dict
+                )
             return mapping_dict
         except Exception as e:  # pylint: disable=broad-except
             self.catch_timeout_raise(e)

@@ -413,6 +413,7 @@ class MappingHandlers(object):
                 "time_zone": self.time_zone,
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "add_settings_details": True
             }
         )
         return latest_mapping

@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import json
 from typing import Any, Dict, List, Tuple
 
+from dateutil import tz
+
 from apps.log_esquery.esquery.builder.query_filter_builder import QueryFilterBuilder
 from apps.log_esquery.esquery.builder.query_index_optimizer import QueryIndexOptimizer
 from apps.log_esquery.esquery.builder.query_sort_builder import QuerySortBuilder
@@ -43,7 +45,6 @@ from apps.log_search.models import Scenario, Space, SpaceApi
 from apps.utils.log import logger
 from apps.utils.time_handler import generate_time_range
 from bkm_space.utils import bk_biz_id_to_space_uid
-from dateutil import tz
 
 
 class EsQuery(object):
@@ -259,6 +260,7 @@ class EsQuery(object):
         index_set_string = self._optimizer_mapping_time_range(
             index_set_string, scenario_id, start_time, end_time, time_zone
         )
+        add_settings_details: bool = self.search_dict.get("add_settings_details", False)
         client = QueryClient(
             scenario_id,
             storage_cluster_id=storage_cluster_id,
@@ -266,7 +268,7 @@ class EsQuery(object):
             bkdata_data_token=bkdata_data_token,
         ).get_instance()
 
-        result: Dict = client.mapping(index_set_string)
+        result: Dict = client.mapping(index=index_set_string, add_settings_details=add_settings_details)
 
         result_key_list: list = list(result)
         sorted_result_key_list: list = sorted(result_key_list, key=lambda x: x, reverse=True)
