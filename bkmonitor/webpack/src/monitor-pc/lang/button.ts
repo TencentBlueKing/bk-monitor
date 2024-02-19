@@ -437,6 +437,8 @@ export default {
   确认删除: 'Confirm Delete',
   手动分组: 'Manual grouping',
   自动分组: 'Automatic grouping',
+  当前空间: 'Current space',
+  平台数据: 'Platform data',
   待审批: 'Pending',
   审批通过: 'Approved',
   审批驳回: 'Rejected',

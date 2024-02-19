@@ -120,6 +120,7 @@ export default {
   近一小时: 'Almost an hour',
   分钟数据量: 'Minute data volume',
   日数据量: 'Daily data volume',
+  小时数据量: 'Hour data volume',
   集群状态: 'Cluster status',
   索引状态: 'Index status',
   '主机智能异常检测发现{0}个主机异常': 'Host intelligent exception detection found {0} host exceptions',
