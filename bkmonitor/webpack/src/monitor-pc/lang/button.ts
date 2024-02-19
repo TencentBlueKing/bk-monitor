@@ -438,5 +438,7 @@ export default {
   手动分组: 'Manual grouping',
   自动分组: 'Automatic grouping',
   复制主机IP: 'Copy host IP',
-  复制服务实例: 'Copy service instance'
+  复制服务实例: 'Copy service instance',
+  当前空间: 'Current space',
+  平台数据: 'Platform data'
 };
