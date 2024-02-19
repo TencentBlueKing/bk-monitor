@@ -537,7 +537,7 @@ class DataSource(models.Model):
             # 创建option配置
             option = {} if option is None else option
             # 添加允许指标为空时，丢弃记录选项
-            option.update({DataSourceOption.OPTION_DROP_METRICS_ETL_CONFIGS: [etl_config]})
+            option.update({DataSourceOption.OPTION_DROP_METRICS_ETL_CONFIGS: True})
             for option_name, option_value in list(option.items()):
                 DataSourceOption.create_option(
                     bk_data_id=data_source.bk_data_id, name=option_name, value=option_value, creator=operator
@@ -1060,7 +1060,7 @@ class DataSourceOption(OptionBase):
     OPTION_IS_SPLIT_MEASUREMENT = "is_split_measurement"
     # 时间单位统一到选项
     OPTION_ALIGN_TIME_UNIT = "align_time_unit"
-    # 允许指标为空时，丢弃记录选项
+    # 允许指标为空时，丢弃记录选项, 值为 bool 型
     OPTION_DROP_METRICS_ETL_CONFIGS = "drop_metrics_etl_configs"
 
     # 增加option标记内容
