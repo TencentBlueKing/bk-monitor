@@ -907,7 +907,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   >
                     <div class='selected-label'>
                       <div class='blue-bg'>
-                        <span class={isEn ? 'en-span' : ''}>{this.$t('已选')}</span>
+                        {!isEn ? (
+                          <span class='text'>{this.$t('已选')}</span>
+                        ) : (
+                          <span class='icon-monitor icon-mc-check-small'></span>
+                        )}
                       </div>
                     </div>
                     {this.metricItem(this.selectedMetric)}
