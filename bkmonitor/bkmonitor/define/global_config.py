@@ -151,7 +151,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         (
             "APM_APP_BKDATA_REQUIRED_TEMP_CONVERT_NODE",
-            slz.BooleanField(label=_("APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点"), default=True),
+            slz.BooleanField(label=_("APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点"), default=False),
         ),
         ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label=_("APM尾部采样项目id"), default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
