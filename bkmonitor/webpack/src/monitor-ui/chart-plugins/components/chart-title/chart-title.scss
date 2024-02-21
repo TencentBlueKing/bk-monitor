@@ -4,11 +4,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
   width: 100%;
 
   .chart-title {
-    padding: 3px 19px 3px 16px;
     min-height: 40px;
-    border-radius: 2px;
-    color: #63656e;
+    padding: 3px 19px 3px 16px;
     font-size: 12px;
+    color: #63656e;
+    border-radius: 2px;
 
     &:hover {
       .main-title {
@@ -23,20 +23,20 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
     .main-title {
       display: flex;
-      align-items: center;
       flex-wrap: nowrap;
+      align-items: center;
       min-height: 30px;
 
       .alarm-icon {
-        color: #dcdee5;
-        height: 14px;
-        margin-right: 8px;
+        z-index: 9;
         // display: none;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        height: 14px;
         margin-right: 8px;
-        z-index: 9;
+        margin-right: 8px;
+        font-size: 14px;
+        color: #dcdee5;
 
         @for $i from 1 through 3 {
           &.status-#{$i} {
@@ -48,35 +48,61 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         &::before {
           height: 14px;
         }
+
+        &.status-strategy {
+          /* stylelint-disable-next-line declaration-no-important */
+          height: 16px !important;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          font-size: 16px !important;
+          color: #699df4;
+
+          &-not-config {
+            /* stylelint-disable-next-line declaration-no-important */
+            height: 16px !important;
+
+            /* stylelint-disable-next-line declaration-no-important */
+            font-size: 16px !important;
+            color: #dcdee5;
+
+            &::before {
+              height: auto;
+            }
+          }
+
+          &::before {
+            height: auto;
+          }
+        }
       }
 
       .title-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        line-height: 20px;
-        height: 20px;
         display: flex;
         align-items: center;
+        height: 20px;
+        overflow: hidden;
         font-size: 14px;
         font-weight: 400;
+        line-height: 20px;
         color: #313238;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .title-interval {
         display: flex;
         align-items: center;
         justify-content: center;
+        height: 16px;
         padding: 0 2px;
+        margin-left: 8px;
+        font-size: 12px;
+        font-weight: normal;
+        line-height: 16px;
+        color: #63656e;
+        background-color: #f0f1f5;
         // border: 1px solid rgba(151, 155, 165, .3);
         border-radius: 2px;
-        font-weight: normal;
-        margin-left: 8px;
-        color: #63656e;
-        height: 16px;
-        font-size: 12px;
-        line-height: 16px;
-        background-color: #f0f1f5;
       }
 
       .title-center {
@@ -85,14 +111,14 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
       .tips-icon,
       %tips-icon {
-        // margin-left: 8px;
-        height: 30px;
-        width: 30px;
-        font-size: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 30px;
+        // margin-left: 8px;
+        height: 30px;
         margin-right: 10px;
+        font-size: 14px;
         color: #c4c6cc;
 
         &::before {
@@ -102,9 +128,9 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
       .strategy-icon {
         margin-right: 0;
+        font-size: 15px;
         // margin-left: auto;
         color: #63656e;
-        font-size: 15px;
 
         @extend %tips-icon;
 
@@ -116,10 +142,10 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
       .more-icon {
         margin-right: 0;
-        // margin-left: auto;
-        color: #63656e;
         font-size: 15px;
         font-weight: 700;
+        // margin-left: auto;
+        color: #63656e;
 
         @extend %tips-icon;
 
@@ -139,10 +165,10 @@ $alarmColor: #dcdee5 #63656e #ea3636;
     }
 
     .sub-title {
-      line-height: 18px;
       height: 18px;
-      color: #979ba5;
       overflow: hidden;
+      line-height: 18px;
+      color: #979ba5;
       text-overflow: ellipsis;
       white-space: nowrap;
       // margin-left: 20px;

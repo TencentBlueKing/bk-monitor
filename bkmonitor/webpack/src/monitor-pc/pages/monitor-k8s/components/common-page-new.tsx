@@ -1156,8 +1156,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         selectortTarget.compareFieldsSort
       );
       // eslint-disable-next-line max-len
-      compareTargets = targets?.map(
-        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+      compareTargets = targets?.map(item =>
+        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {
@@ -1684,7 +1684,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                       // 变量筛选
                       (!!this.sceneData.variables.length || this.sceneData.enableGroup) && (
                         <div class='dashboard-panel-filter-wrap'>
-                          <bk-collapse
+                          <Collapse
                             ref='collapseRef'
                             expand={this.filterActive}
                             renderAnimation={false}
@@ -1718,7 +1718,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                 />
                               ) : undefined}
                             </div>
-                          </bk-collapse>
+                          </Collapse>
                         </div>
                       )
                     }

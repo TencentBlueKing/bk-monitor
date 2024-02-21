@@ -53,10 +53,6 @@ export default class TraceRetrieval extends tsc<{}> {
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
     }, 300);
   }
-  beforeRouteLeave(to, from, next) {
-    (document.body as any).___zrEVENTSAVED = null;
-    next();
-  }
   render() {
     return (
       <div class='trace-wrap'>

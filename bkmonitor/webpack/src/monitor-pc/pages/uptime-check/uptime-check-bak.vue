@@ -129,14 +129,14 @@ export default class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)
 </script>
 <style lang="scss" scoped>
 .uptime-check {
+  height: calc(100vh - 52px - var(--notice-alert-height));
   margin: -20px -24px 0 -24px;
-  height: calc(100vh - 52px);
   overflow: hidden;
 
   &-tab {
     height: 32px;
-    padding-left: 24px;
     padding-top: 3px;
+    padding-left: 24px;
     background: #fff;
     border-bottom: 1px solid #dcdee5;
     box-shadow: 0 3px 4px 0 rgba(64, 112, 203, .06);
@@ -144,8 +144,8 @@ export default class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)
     .tab-item {
       display: inline-block;
       height: 100%;
-      font-size: 14px;
       margin-right: 30px;
+      font-size: 14px;
       cursor: pointer;
     }
 
@@ -156,9 +156,9 @@ export default class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)
   }
 
   &-content {
-    overflow: auto;
-    padding: 20px 20px 0 0;
     height: calc(100vh - 88px);
+    padding: 20px 20px 0 0;
+    overflow: auto;
   }
 }
 </style>

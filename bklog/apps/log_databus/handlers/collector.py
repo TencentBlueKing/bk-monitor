@@ -3452,6 +3452,7 @@ class CollectorHandler(object):
                 path_container_config.append(
                     {
                         "namespaces": conf["namespaces"],
+                        "namespaces_exclude": conf["namespaces_exclude"],
                         "any_namespace": not conf["namespaces"],
                         "data_encoding": conf["data_encoding"],
                         "params": {
@@ -3465,6 +3466,7 @@ class CollectorHandler(object):
                             "workload_type": conf["container"].get("workload_type", ""),
                             "workload_name": conf["container"].get("workload_name", ""),
                             "container_name": conf["container"].get("container_name", ""),
+                            "container_name_exclude": conf["container"].get("container_name_exclude", ""),
                         },
                         "label_selector": {
                             "match_labels": conf["label_selector"].get("match_labels", []),
@@ -3480,6 +3482,7 @@ class CollectorHandler(object):
                 std_container_config.append(
                     {
                         "namespaces": conf["namespaces"],
+                        "namespaces_exclude": conf["namespaces_exclude"],
                         "any_namespace": not conf["namespaces"],
                         "data_encoding": conf["data_encoding"],
                         "params": {
@@ -3493,6 +3496,7 @@ class CollectorHandler(object):
                             "workload_type": conf["container"].get("workload_type", ""),
                             "workload_name": conf["container"].get("workload_name", ""),
                             "container_name": conf["container"].get("container_name", ""),
+                            "container_name_exclude": conf["container"].get("container_name_exclude", ""),
                         },
                         "label_selector": {
                             "match_labels": conf["label_selector"].get("match_labels", []),
@@ -3738,30 +3742,44 @@ class CollectorHandler(object):
             raise BcsClusterIdNotValidException()
         return cluster_info
 
+    def _get_shared_cluster_namespace(self, bk_biz_id: int, bcs_cluster_id: int) -> List[Any]:
+        """
+        获取共享集群有权限的namespace
+        """
+        if not bk_biz_id or not bcs_cluster_id:
+            return []
+
+        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
+        if not cluster_info.get("is_shared"):
+            return []
+
+        space = Space.objects.get(bk_biz_id=bk_biz_id)
+
+        if space.space_type_id == SpaceTypeEnum.BCS.value:
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
+        elif space.space_type_id == SpaceTypeEnum.BKCC.value:
+            # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
+            bcs_projects = BcsCcApi.list_project()
+            project_ids = {p["project_id"] for p in bcs_projects if str(p["cc_app_id"]) == str(bk_biz_id)}
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            namespaces = set()
+            for project_id, ns_list in project_id_to_ns.items():
+                if project_id not in project_ids:
+                    continue
+                for ns in ns_list:
+                    namespaces.add(ns)
+            return [{"id": n, "name": n} for n in namespaces]
+        elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_code, [])]
+        else:
+            return []
+
     def list_namespace(self, bk_biz_id, bcs_cluster_id):
         cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
-        space = Space.objects.get(bk_biz_id=bk_biz_id)
         if cluster_info["is_shared"]:
-            if space.space_type_id == SpaceTypeEnum.BCS.value:
-                project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-                return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
-            elif space.space_type_id == SpaceTypeEnum.BKCC.value:
-                # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
-                bcs_projects = BcsCcApi.list_project()
-                project_ids = {p["project_id"] for p in bcs_projects if str(p["cc_app_id"]) == str(bk_biz_id)}
-                project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-                namespaces = set()
-                for project_id, ns_list in project_id_to_ns.items():
-                    if project_id not in project_ids:
-                        continue
-                    for ns in ns_list:
-                        namespaces.add(ns)
-                return [{"id": n, "name": n} for n in namespaces]
-            elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
-                project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-                return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_code, [])]
-            else:
-                return []
+            return self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
 
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         try:
@@ -3846,9 +3864,8 @@ class CollectorHandler(object):
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
         ]
 
-    @classmethod
     def filter_pods(
-        cls,
+        self,
         pods,
         namespaces=None,
         namespaces_exclude=None,
@@ -3856,18 +3873,25 @@ class CollectorHandler(object):
         workload_name="",
         container_name="",
         container_name_exclude="",
+        is_shared_cluster=False,
+        shared_cluster_namespace=None,
     ):
         namespaces_exclude = namespaces_exclude or []
         container_names = container_name.split(",") if container_name else []
         container_names_exclude = container_name_exclude.split(",") if container_name_exclude else []
         pattern = re.compile(workload_name)
         filtered_pods = []
+        shared_cluster_namespace = shared_cluster_namespace or []
         for pod in pods.items:
             # 命名空间匹配
             if namespaces and pod.metadata.namespace not in namespaces:
                 continue
 
             if namespaces_exclude and pod.metadata.namespace in namespaces_exclude:
+                continue
+
+            # 共享集群命名空间匹配
+            if is_shared_cluster and pod.metadata.namespace not in shared_cluster_namespace:
                 continue
 
             # 工作负载匹配
@@ -3911,9 +3935,15 @@ class CollectorHandler(object):
 
         return [(pod.metadata.namespace, pod.metadata.name) for pod in filtered_pods]
 
-    @classmethod
     def preview_containers(
-        cls, bcs_cluster_id, topo_type, label_selector=None, namespaces=None, namespaces_exclude=None, container=None
+        self,
+        topo_type,
+        bk_biz_id,
+        bcs_cluster_id,
+        namespaces=None,
+        namespaces_exclude=None,
+        label_selector=None,
+        container=None,
     ):
         """
         预览匹配到的 nodes 或 pods
@@ -3973,7 +4003,22 @@ class CollectorHandler(object):
             else:
                 pods = api_instance.list_namespaced_pod(namespace=namespaces[0])
 
-        pods = cls.filter_pods(pods, namespaces=namespaces, namespaces_exclude=namespaces_exclude, **container)
+        is_shared_cluster = False
+        shared_cluster_namespace = list()
+        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
+        if cluster_info.get("is_shared"):
+            is_shared_cluster = True
+            namespace_info = self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
+            shared_cluster_namespace = [info["name"] for info in namespace_info]
+
+        pods = self.filter_pods(
+            pods,
+            namespaces=namespaces,
+            namespaces_exclude=namespaces_exclude,
+            is_shared_cluster=is_shared_cluster,
+            shared_cluster_namespace=shared_cluster_namespace,
+            **container,
+        )
 
         # 按 namespace进行分组
         namespace_pods = defaultdict(list)

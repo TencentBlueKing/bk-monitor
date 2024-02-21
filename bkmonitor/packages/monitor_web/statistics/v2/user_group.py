@@ -65,7 +65,6 @@ class UserGroupCollector(BaseCollector):
         translation.activate("en")
         for group in self.user_groups:
             for time_config in group.alert_notice:
-                UserGroup.translate_notice_ways(time_config)
                 for notify_config in time_config["notify_config"]:
                     UserGroup.translate_notice_ways(notify_config)
                     for notice_way in notify_config["type"]:
@@ -89,7 +88,6 @@ class UserGroupCollector(BaseCollector):
         }
         for group in self.user_groups:
             for time_config in group.action_notice:
-                UserGroup.translate_notice_ways(time_config)
                 for notify_config in time_config["notify_config"]:
                     UserGroup.translate_notice_ways(notify_config)
                     for notice_way in notify_config["type"]:
@@ -114,7 +112,6 @@ class UserGroupCollector(BaseCollector):
                         users.extend(getattr(self.biz_info.get(group.bk_biz_id), user_info["id"], []))
 
                 for time_config in group.alert_notice:
-                    UserGroup.translate_notice_ways(time_config)
                     for notify_config in time_config["notify_config"]:
                         UserGroup.translate_notice_ways(notify_config)
                         for notice_way in notify_config["type"]:

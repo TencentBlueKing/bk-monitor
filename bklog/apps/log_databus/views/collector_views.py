@@ -2225,6 +2225,7 @@ class CollectorViewSet(ModelViewSet):
         return Response(
             CollectorHandler().preview_containers(
                 topo_type=data["type"],
+                bk_biz_id=data["bk_biz_id"],
                 bcs_cluster_id=data["bcs_cluster_id"],
                 namespaces=data.get("namespaces", []),
                 namespaces_exclude=data.get("namespaces_exclude", []),

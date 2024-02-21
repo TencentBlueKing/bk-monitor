@@ -156,7 +156,9 @@ def add_member_to_collecting_notice_group(bk_biz_id: int, user_id: str) -> int:
             if user["type"] == "user" and user["id"] == user_id:
                 return inst.id
         current_users.append({"id": user_id, "type": "user"})
-        user_group_serializer = UserGroupDetailSlz(inst, data={"duty_arranges": duty_arranges}, partial=True)
+        user_group_serializer = UserGroupDetailSlz(
+            inst, data={"duty_arranges": [{"users": current_users}]}, partial=True
+        )
 
     user_group_serializer.is_valid(True)
     inst = user_group_serializer.save()
