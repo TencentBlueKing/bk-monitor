@@ -10,15 +10,28 @@ specific language governing permissions and limitations under the License.
 """
 
 
+import datetime
 import logging
 
+from django.conf import settings
+
 from alarm_backends.core.detect_result.clean import CleanResult
+from common.context_processors import Platform
 
 logger = logging.getLogger("celery")
 
 
+def recover_weixin_robot_limit():
+    if datetime.datetime.now().hour != 0:
+        return
+    # 新的一天：重置企业号业务灰度名单后，恢复通知额度
+    if settings.IS_WECOM_ROBOT_ENABLED and Platform.te:
+        settings.WECOM_ROBOT_BIZ_WHITE_LIST = []
+
+
 def clean_expired_detect_result():
     try:
+        recover_weixin_robot_limit()
         CleanResult.clean_expired_detect_result()
     except Exception as e:
         logger.exception(e)

@@ -330,34 +330,20 @@ class TimeSeriesGroup(CustomGroupBase):
         # 创建或更新
         metric_tag_info = self._refine_metric_tags(metric_info)
         # 通过结果表过滤到到指标和维度
-        exist_fields = ResultTableField.objects.filter(
-            table_id=table_id,
-        ).values("field_name", "tag")
-        exist_metrics, exist_tags = set(), set()
-        for field in exist_fields:
-            field_name = field["field_name"]
-            if field["tag"] == ResultTableField.FIELD_TAG_METRIC:
-                exist_metrics.add(field_name)
-            # NOTE: 这里追加指标类型，是为了访问维度和指标重复
-            elif field["tag"] in [
-                ResultTableField.FIELD_TAG_DIMENSION,
-                ResultTableField.FIELD_TAG_TIMESTAMP,
-                ResultTableField.FIELD_TAG_GROUP,
-                ResultTableField.FIELD_TAG_METRIC,
-            ]:
-                exist_tags.add(field_name)
-
+        # NOTE: 因为 `ResultTableField` 字段是打平的，因此，需要排除已经存在的，以已经存在的为准
+        exist_fields = set(ResultTableField.objects.filter(table_id=table_id).values_list("field_name", flat=True))
         # 过滤需要创建或更新的指标
         metric_dict = metric_tag_info["metric_dict"]
         metric_set = set(metric_dict.keys())
-        need_create_metrics = metric_set - exist_metrics
+        need_create_metrics = metric_set - exist_fields
         # 获取已经存在的指标，然后进行批量更新
         need_update_metrics = metric_set - need_create_metrics
         self._bulk_create_or_update_metrics(table_id, metric_dict, need_create_metrics, need_update_metrics)
         # 过滤需要创建或更新的维度
         tag_dict = metric_tag_info["tag_dict"]
         tag_set = set(tag_dict.keys())
-        need_create_tags = tag_set - exist_tags
+        # 需要创建的 tag 需要再剔除和指标重复的字段名称
+        need_create_tags = tag_set - exist_fields - need_create_metrics
         need_update_tags = tag_set - need_create_tags
         self._bulk_create_or_update_tags(
             table_id,

@@ -80,7 +80,7 @@ class UptimeCheckNodeSerializer(serializers.ModelSerializer):
         end_time = arrow.utcnow().timestamp
         records = query.query_data(start_time=(end_time - 180) * 1000, end_time=end_time * 1000, limit=5)
 
-        if len(records):
+        if len(records) > 0:
             return True
 
         raise UptimeCheckProcessError()

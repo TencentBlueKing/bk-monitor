@@ -210,13 +210,17 @@ def refresh_kafka_topic_info():
                 raise ValueError(_("分区数量获取失败，请确认"))
             kafka_topic_info.partition = len_partition
             kafka_topic_info.save()
+
+            # 重新获取一次数据，然后刷新consul
+            datasource.clean_cache()
+            datasource.refresh_consul_config()
         except Exception as e:
-            logger.exception("partition of topic->[{}] failed to confirm for->[{}]".format(kafka_topic_info.topic, e))
+            logger.exception("partition of topic->[%s] failed to confirm for->[%s]", kafka_topic_info.topic, e)
             continue
         logger.info(
-            "kafka topic info for partition of topic->[{}] with partition->[{}]has been refreshed.".format(
-                kafka_topic_info.topic, kafka_topic_info.partition
-            )
+            "kafka topic info for partition of topic->[%s] with partition->[%s]has been refreshed.",
+            kafka_topic_info.topic,
+            kafka_topic_info.partition,
         )
 
 
