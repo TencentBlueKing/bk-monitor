@@ -2121,10 +2121,20 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             />
           </div>
           <MonitorDrag
-            theme={'line-round'}
+            theme={'line'}
+            lineText={''}
             toggleSet={this.toggleSet}
             on-move={this.handleDragFilter}
           />
+          <div
+            class='filter-line-trigger'
+            style={{
+              left: `${this.filterWidth}px`
+            }}
+            onClick={() => (this.filterWidth = 0)}
+          >
+            <span class='icon-monitor icon-arrow-left'></span>
+          </div>
         </div>
         <div
           class='event-content'
