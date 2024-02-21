@@ -53,7 +53,6 @@ from apm.models import (
 )
 from apm.models.profile import ProfileService
 from apm.task.tasks import create_or_update_tail_sampling
-from apm.models.profile import ProfileService
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -210,28 +209,49 @@ class ApplyDatasourceResource(Resource):
         )
 
 
+class OperateApplicationSerializer(serializers.Serializer):
+    _type = (
+        ("tracing", "tracing"),
+        ("profiling", "profiling"),
+    )
+    application_id = serializers.IntegerField(label="应用id")
+    type = serializers.ChoiceField(label="开启/暂停类型", choices=_type, required=False, default="tracing")
+
+
 class StartApplicationResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id")
+    RequestSerializer = OperateApplicationSerializer
 
     def perform_request(self, validated_request_data):
         try:
             application = ApmApplication.objects.get(id=validated_request_data["application_id"])
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
-        return application.start()
+
+        if validated_request_data["type"] == "tracing":
+            return application.start()
+
+        if validated_request_data["type"] == "profiling":
+            return application.start_profiling()
+
+        raise ValueError(_(f"操作类型不支持: {validated_request_data['type']}"))
 
 
 class StopApplicationResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id")
+    RequestSerializer = OperateApplicationSerializer
 
     def perform_request(self, validated_request_data):
         try:
             application = ApmApplication.objects.get(id=validated_request_data["application_id"])
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
-        return application.stop()
+
+        if validated_request_data["type"] == "tracing":
+            return application.stop()
+
+        if validated_request_data["type"] == "profiling":
+            return application.stop_profiling()
+
+        raise ValueError(_(f"操作类型不支持: {validated_request_data['type']}"))
 
 
 class ListApplicationResources(Resource):
