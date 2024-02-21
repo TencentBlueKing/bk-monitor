@@ -233,12 +233,6 @@ a {
   }
 }
 
-/** dialog 层级 子应用嵌套防止被覆盖 */
-.bk-dialog-wrapper {
-  /* stylelint-disable-next-line declaration-no-important */
-  z-index: 3000 !important;
-}
-
 .bk-table-column-setting {
   /* stylelint-disable-next-line declaration-no-important */
   border-bottom: 1px solid #dfe0e5 !important;;
