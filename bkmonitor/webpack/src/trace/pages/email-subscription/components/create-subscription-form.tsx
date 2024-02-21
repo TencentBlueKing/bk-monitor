@@ -877,6 +877,8 @@ export default defineComponent({
                     v-model={this.formData.scenario_config.log_display_count}
                     type='number'
                     suffix={this.t('条')}
+                    min={0}
+                    max={500}
                     style='width: 160px;'
                   ></Input>
                 </Form.FormItem>

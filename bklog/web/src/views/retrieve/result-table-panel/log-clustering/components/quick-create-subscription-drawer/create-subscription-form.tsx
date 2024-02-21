@@ -692,6 +692,8 @@ class QuickCreateSubscription extends tsc<IProps> {
                   <bk-input
                     v-model={this.formData.scenario_config.log_display_count}
                     type='number'
+                    min={0}
+                    max={500}
                     style="width: 160px;"
                     onChange={() => {
                       this.formData.scenario_config__log_display_count =

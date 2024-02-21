@@ -129,6 +129,7 @@ export default defineComponent({
                 .toString();
               return (
                 <Popover
+                  maxWidth='300'
                   placement='top'
                   popoverDelay={[300, 0]}
                   v-slots={{
@@ -199,6 +200,7 @@ export default defineComponent({
                   : getSendFrequencyText(data);
               return (
                 <Popover
+                  maxWidth='300'
                   placement='top'
                   popoverDelay={[300, 0]}
                   v-slots={{
@@ -460,10 +462,13 @@ export default defineComponent({
               const content = data.send_results.map(item => item.id).toString();
               return (
                 <Popover
+                  maxWidth='300'
                   placement='top'
                   popoverDelay={[300, 0]}
                   v-slots={{
-                    content
+                    content: () => {
+                      return <span style='word-break: break-word;'>{content}</span>;
+                    }
                   }}
                 >
                   <div style='white-space: normal;line-height: 16px;padding: 14px 0;'>{content}</div>
@@ -1184,6 +1189,7 @@ export default defineComponent({
                   <div class='title-container'>
                     <span class='title'>{this.t('订阅详情')}</span>
                     <Popover
+                      maxWidth='300'
                       placement='bottom'
                       v-slots={{
                         content: () => {
