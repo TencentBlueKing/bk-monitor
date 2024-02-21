@@ -152,7 +152,7 @@ class EtlStorage(object):
             "tokenizer": {},
         }
         # 保留原文, 处理原文分词器
-        if etl_params.get("retain_original_text", True):
+        if etl_params.get("retain_original_text", False):
             analyzer_name = self.generate_field_analyzer_name(
                 field_name="log",
                 field_alias="data",
@@ -363,19 +363,19 @@ class EtlStorage(object):
         return {"fields": field_list, "time_field": time_field}
 
     def update_or_create_result_table(
-        self,
-        instance: Union[CollectorConfig, CollectorPlugin],
-        table_id: str,
-        storage_cluster_id: int,
-        retention: int,
-        allocation_min_days: int,
-        storage_replies: int,
-        fields: list = None,
-        etl_params: dict = None,
-        es_version: str = "5.X",
-        hot_warm_config: dict = None,
-        es_shards: int = settings.ES_SHARDS,
-        index_settings: dict = None,
+            self,
+            instance: Union[CollectorConfig, CollectorPlugin],
+            table_id: str,
+            storage_cluster_id: int,
+            retention: int,
+            allocation_min_days: int,
+            storage_replies: int,
+            fields: list = None,
+            etl_params: dict = None,
+            es_version: str = "5.X",
+            hot_warm_config: dict = None,
+            es_shards: int = settings.ES_SHARDS,
+            index_settings: dict = None,
     ):
         """
         创建或更新结果表
