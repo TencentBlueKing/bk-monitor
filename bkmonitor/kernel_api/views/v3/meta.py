@@ -28,6 +28,10 @@ class ModifyDataIDViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDataSource)]
 
 
+class StopOrEnableDatasourceViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.StopOrEnableDatasource)]
+
+
 class ResultTableViewSet(MetaViewSet):
     resource_routes = [
         ResourceRoute("POST", resource.CreateResultTableResource),
