@@ -47,10 +47,12 @@ CREATE_CLEAN_STASH_PARAMS = {
             "alias_name": "",
             "field_type": "long",
             "description": "字段描述",
+            "is_case_sensitive": False,
             "is_analyzed": True,
             "is_dimension": True,
             "is_time": True,
             "is_delete": True,
+            "tokenize_on_chars": ""
         }
     ],
     "bk_biz_id": 0,
