@@ -33,7 +33,7 @@
       v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }">
       <text-segmentation
         :content="content"
-        :field-type="fieldType"
+        :field="field"
         :menu-click="handleMenuClick" />
     </span>
   </div>
@@ -59,13 +59,9 @@ export default {
       type: Boolean,
       default: false,
     },
-    fieldName: {
-      type: String,
-      default: '',
-    },
-    fieldType: {
-      type: String,
-      default: '',
+    field: {
+      type: Object,
+      required: true,
     },
   },
   data() {

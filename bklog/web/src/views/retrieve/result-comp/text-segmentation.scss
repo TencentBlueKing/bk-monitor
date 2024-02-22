@@ -1,0 +1,92 @@
+@import '@/scss/mixins/flex.scss';
+
+.event-tippy-content {
+  .event-icons {
+    flex-direction: column;
+
+    @include flex-center();
+  }
+
+  .event-box {
+    height: 32px;
+    min-width: 240px;
+    font-size: 12px;
+    padding: 0 10px;
+    cursor: pointer;
+
+    @include flex-center();
+
+    &:hover {
+      background: #eaf3ff;
+    }
+  }
+
+  .new-link {
+    width: 24px;
+    height: 24px;
+
+    @include flex-center();
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .event-btn {
+    flex: 1;
+    align-items: center;
+
+    @include flex-justify(left);
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .tippy-tooltip {
+    padding: 6px 2px;
+  }
+
+  .icon {
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .icon-minus-circle,
+  .icon-plus-circle {
+    margin-right: 6px;
+  }
+
+  .icon-copy {
+    margin-left: -4px;
+    font-size: 24px;
+  }
+}
+
+.log-content-wrapper {
+  word-break: break-all;
+
+  .segment-content {
+    white-space: normal;
+  }
+
+  .menu-list {
+    display: none;
+    position: absolute;
+  }
+
+  .valid-text {
+    cursor: pointer;
+
+    &.focus-text,
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .null-item {
+    min-width: 6px;
+    display: inline-block;
+  }
+}
