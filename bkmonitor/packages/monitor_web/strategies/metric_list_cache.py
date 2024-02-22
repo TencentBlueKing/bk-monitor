@@ -1380,7 +1380,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 yield from self.get_uptime_check_metric(table)
             elif influx_db_name == "pingserver":
                 yield from self.get_pingserver_metric(table)
-            elif influx_db_name in ["dbm_system", "system"]:
+            elif influx_db_name in ["dbm_system", "system", "devx_system"]:
                 if result_table_id in ["system.proc_port"]:
                     return
 

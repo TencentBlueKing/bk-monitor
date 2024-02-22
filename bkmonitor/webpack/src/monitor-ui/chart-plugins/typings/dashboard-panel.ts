@@ -86,6 +86,7 @@ export interface ITimeSeriesOption {
     markArea?: Record<string, any>;
     custom_timerange?: boolean;
     nearSeriesNum?: number;
+    noTransformVariables?: boolean;
   };
 }
 
@@ -282,8 +283,8 @@ export class DataQuery implements IDataQuery {
             ? value
             : [value]
           : isObject(value)
-          ? value.value
-          : value; // 兼容对象结构的value
+            ? value.value
+            : value; // 兼容对象结构的value
       itemIds.push(value);
     });
     return isExist ? itemIds.filter(item => item !== undefined).join(splitChar) : null;
@@ -302,8 +303,8 @@ export class DataQuery implements IDataQuery {
             ? value
             : [value]
           : isObject(value)
-          ? value.value
-          : value; // 兼容对象结构的value
+            ? value.value
+            : value; // 兼容对象结构的value
       total[itemKey] = value;
       return total;
     }, {});
@@ -322,8 +323,8 @@ export class DataQuery implements IDataQuery {
             ? value
             : [value]
           : isObject(value)
-          ? value.value
-          : value; // 兼容对象结构的value
+            ? value.value
+            : value; // 兼容对象结构的value
       total[filterDictKey] = value;
       return total;
     }, {});

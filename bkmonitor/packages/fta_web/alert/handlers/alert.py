@@ -14,11 +14,12 @@ import time
 from collections import defaultdict
 from functools import reduce
 from itertools import chain
-from typing import List
+from typing import Dict, List, Tuple
 
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 from elasticsearch_dsl import Q
+from elasticsearch_dsl.response.aggs import BucketData
 from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
@@ -126,7 +127,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("target_type", _lazy("告警目标类型"), es_field="event.target_type", is_char=True),
         QueryField("target", _lazy("告警目标"), es_field="event.target", is_char=True),
         QueryField("category", _lazy("分类"), es_field="event.category"),
-        QueryField("tags", _lazy("标签"), es_field="event.tags", is_char=True),
+        QueryField("tags", _lazy("维度"), es_field="event.tags", is_char=True),
         QueryField("category_display", _lazy("分类名称"), searchable=False),
         QueryField("duration", _lazy("持续时间")),
         QueryField("ack_duration", _lazy("确认时间")),
@@ -136,7 +137,6 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("event_id", _lazy("事件ID"), es_field="event.event_id", is_char=True),
         QueryField("plugin_id", _lazy("告警源"), es_field="event.plugin_id", is_char=True),
         QueryField("plugin_display_name", _lazy("告警源名称"), searchable=False),
-        # TODO: 后续需要改为根据策略名搜索出策略ID，再根据策略ID过滤告警。这里的实现，可能会搜索出第三方告警
         QueryField("strategy_name", _lazy("策略名称"), es_field="alert_name", agg_field="alert_name.raw", is_char=True),
     ]
 
@@ -275,7 +275,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         return search_object
 
-    def search_raw(self, show_overview=False, show_aggs=False):
+    def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
@@ -289,16 +289,20 @@ class AlertQueryHandler(BaseBizQueryHandler):
             search_object = self.add_aggs(search_object)
 
         search_result = search_object.params(track_total_hits=True).execute()
-        return search_result
+
+        if show_dsl:
+            return search_result, search_object.to_dict()
+
+        return search_result, None
 
     def search(self, show_overview=False, show_aggs=False, show_dsl=False):
         exc = None
-        search_object = None
         try:
-            search_result = self.search_raw(show_overview, show_aggs)
+            search_result, dsl = self.search_raw(show_overview, show_aggs, show_dsl)
         except Exception as e:
             logger.exception("search alerts error: %s", e)
             search_result = self.make_empty_response()
+            dsl = None
             exc = e
 
         alerts = self.handle_hit_list(search_result)
@@ -324,8 +328,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
         if show_aggs:
             result["aggs"] = self.handle_aggs(search_result)
 
-        if show_dsl and search_object:
-            result["dsl"] = search_object.to_dict()
+        if dsl:
+            result["dsl"] = dsl
 
         if exc:
             exc.data = result
@@ -333,8 +337,52 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         return result
 
-    def date_histogram(self, interval: str = "auto"):
+    def _get_buckets(
+        self,
+        result: Dict[Tuple[Tuple[str, any]], any],
+        dimensions: Dict[str, any],
+        aggregation: BucketData,
+        agg_fields: List[str],
+    ):
+        """
+        获取聚合结果
+        """
+        if agg_fields:
+            field = agg_fields[0]
+            if field.startswith("tags."):
+                buckets = aggregation[field].key.value.buckets
+            else:
+                buckets = aggregation[field].buckets
+            for bucket in buckets:
+                dimensions[field] = bucket.key
+                self._get_buckets(result, dimensions, bucket, agg_fields[1:])
+        else:
+            dimension_tuple: Tuple = tuple(dimensions.items())
+            result[dimension_tuple] = aggregation
+
+    def date_histogram(self, interval: str = "auto", group_by: List[str] = None):
         interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
+
+        # 默认按status聚合
+        if group_by is None:
+            group_by = ["status"]
+
+        # status 会被单独处理
+        status_group = False
+        if "status" in group_by:
+            status_group = True
+            group_by = [field for field in group_by if field != "status"]
+
+        # TODO: tags开头的字段是否能够进行嵌套聚合？
+        tags_field_count = 0
+        for field in group_by:
+            if field.startswith("tags."):
+                tags_field_count += 1
+        if tags_field_count > 1:
+            raise ValueError("can not group by more than one tags field")
+
+        # 将tags开头的字段放在后面
+        group_by = sorted(group_by, key=lambda x: x.startswith("tags."))
 
         # 查询时间对齐
         start_time = self.start_time // interval * interval
@@ -345,38 +393,75 @@ class AlertQueryHandler(BaseBizQueryHandler):
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
 
-        search_object.aggs.bucket("end_time", "filter", {"range": {"end_time": {"lte": end_time}}}).bucket(
-            "end_alert", "filter", {"terms": {"status": [EventStatus.RECOVERED, EventStatus.CLOSED]}}
-        ).bucket("time", "date_histogram", field="end_time", fixed_interval=f"{interval}s").bucket(
-            "status", "terms", field="status"
+        # 已经恢复或关闭的告警，按end_time聚合
+        ended_object = search_object.aggs.bucket(
+            "end_time", "filter", {"range": {"end_time": {"lte": end_time}}}
+        ).bucket("end_alert", "filter", {"terms": {"status": [EventStatus.RECOVERED, EventStatus.CLOSED]}})
+        # 查询时间范围内产生的告警，按begin_time聚合
+        new_anomaly_object = search_object.aggs.bucket(
+            "begin_time", "filter", {"range": {"begin_time": {"gte": start_time, "lte": end_time}}}
+        )
+        # 开始时间在查询时间范围之前的告警总数
+        old_anomaly_object = search_object.aggs.bucket(
+            "init_alert", "filter", {"range": {"begin_time": {"lt": start_time}}}
         )
 
-        search_object.aggs.bucket(
-            "begin_time", "filter", {"range": {"begin_time": {"gte": start_time, "lte": end_time}}}
-        ).bucket("time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s")
+        # 时间聚合
+        ended_object = ended_object.bucket(
+            "time", "date_histogram", field="end_time", fixed_interval=f"{interval}s"
+        ).bucket("status", "terms", field="status")
+        new_anomaly_object = new_anomaly_object.bucket(
+            "time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s"
+        )
 
-        search_object.aggs.bucket("init_alert", "filter", {"range": {"begin_time": {"lt": start_time}}})
+        # 维度聚合
+        for field in group_by:
+            ended_object = self.add_agg_bucket(ended_object, field)
+            new_anomaly_object = self.add_agg_bucket(new_anomaly_object, field)
+            old_anomaly_object = self.add_agg_bucket(old_anomaly_object, field)
 
+        # 查询
         search_result = search_object[:0].execute()
 
-        all_series = defaultdict(dict)
-        for ts in range(start_time, min(now_time, end_time), interval):
-            for status in EVENT_STATUS_DICT:
-                all_series[status][ts * 1000] = 0
+        result = defaultdict(
+            lambda: {
+                status: {ts * 1000: 0 for ts in range(start_time, min(now_time, end_time), interval)}
+                for status in EVENT_STATUS_DICT
+            }
+        )
+        for time_bucket in search_result.aggs.begin_time.time.buckets:
+            begin_time_result = {}
+            self._get_buckets(begin_time_result, {}, time_bucket, group_by)
 
-        if search_result.aggs:
-            for time_bucket in search_result.aggs.begin_time.time.buckets:
+            key = int(time_bucket.key_as_string) * 1000
+            for dimension_tuple, bucket in begin_time_result.items():
+                if key in result[dimension_tuple][EventStatus.ABNORMAL]:
+                    result[dimension_tuple][EventStatus.ABNORMAL][key] = bucket.doc_count
+
+        for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
+            for status_bucket in time_bucket.status.buckets:
+                end_time_result = {}
+                self._get_buckets(end_time_result, {}, status_bucket, group_by)
+
                 key = int(time_bucket.key_as_string) * 1000
-                if key in all_series[EventStatus.ABNORMAL]:
-                    all_series[EventStatus.ABNORMAL][key] = time_bucket.doc_count
+                for dimension_tuple, bucket in end_time_result.items():
+                    if key in result[dimension_tuple][status_bucket.key]:
+                        result[dimension_tuple][status_bucket.key][key] = bucket.doc_count
 
-            for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
-                for status_bucket in time_bucket.status.buckets:
-                    key = int(time_bucket.key_as_string) * 1000
-                    if key in all_series[status_bucket.key]:
-                        all_series[status_bucket.key][key] = status_bucket.doc_count
+        init_alert_result = {}
+        self._get_buckets(init_alert_result, {}, search_result.aggs.init_alert, group_by)
 
-            current_abnormal_count = search_result.aggs.init_alert.doc_count
+        # 获取全部维度
+        all_dimensions = set(result.keys()) | set(init_alert_result.keys())
+
+        # 按维度分别统计事件数量
+        for dimension_tuple in all_dimensions:
+            all_series = result[dimension_tuple]
+
+            if dimension_tuple in init_alert_result:
+                current_abnormal_count = init_alert_result[dimension_tuple].doc_count
+            else:
+                current_abnormal_count = 0
 
             for ts in all_series[EventStatus.ABNORMAL]:
                 # 异常是一个持续的状态，会随着时间的推移不断叠加
@@ -389,15 +474,15 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 )
                 current_abnormal_count = all_series[EventStatus.ABNORMAL][ts]
 
-        result_data = {
-            "series": [
-                {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
-                for status, series in all_series.items()
-            ],
-            "unit": "",
-        }
-
-        return result_data
+            # 如果不按status聚合，需要将status聚合的结果合并到一起
+            if not status_group:
+                for ts in all_series[EventStatus.ABNORMAL]:
+                    all_series[EventStatus.ABNORMAL][ts] += (
+                        all_series[EventStatus.CLOSED][ts] + all_series[EventStatus.RECOVERED][ts]
+                    )
+                all_series.pop(EventStatus.CLOSED, None)
+                all_series.pop(EventStatus.RECOVERED, None)
+        return result
 
     def parse_condition_item(self, condition: dict) -> Q:
         if condition["key"] == "stage":
@@ -415,6 +500,16 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     conditions.append(Q("term", is_blocked=True))
             # 对 key 为 stage 进行特殊处理
             return reduce(operator.or_, conditions)
+        elif condition["key"].startswith("tags."):
+            # 对 tags 开头的字段进行特殊处理
+            return Q(
+                "nested",
+                path="event.tags",
+                query=Q("term", **{"event.tags.key": condition["key"][5:]})
+                & Q("terms", **{"event.tags.value.raw": condition["value"]}),
+            )
+        elif condition["key"] == "alert_name":
+            condition["key"] = "alert_name.raw"
         return super(AlertQueryHandler, self).parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):
@@ -428,7 +523,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             | Q("term", appointee=self.request_username)
             | Q("term", supervisor=self.request_username)
         )
-        if self.bk_biz_ids == []:
+        if not self.bk_biz_ids:
             # 如果不带任何业务信息，表示获取跟自己相关的告警
             queries.append(user_condition)
 
@@ -756,7 +851,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             event[field] = alert.get(field)
         return event
 
-    def top_n(self, fields: List, size=10, translators: dict = None):
+    def top_n(self, fields: List, size=10, translators: dict = None, char_add_quotes=True):
         translators = {
             "metric": MetricTranslator(name_format="{name} ({id})", bk_biz_ids=self.bk_biz_ids),
             "bk_biz_id": BizTranslator(),
@@ -764,7 +859,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             "category": CategoryTranslator(),
             'plugin_id': PluginTranslator(),
         }
-        return super(AlertQueryHandler, self).top_n(fields, size, translators)
+        return super(AlertQueryHandler, self).top_n(fields, size, translators, char_add_quotes)
 
     def list_tags(self):
         """

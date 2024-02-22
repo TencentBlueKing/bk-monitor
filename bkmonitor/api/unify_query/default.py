@@ -79,7 +79,7 @@ class UnifyQueryAPIResource(Resource):
             username = ""
 
         space_uid = ""
-        if params.get("space_uid"):
+        if "space_uid" in params:
             space_uid = params["space_uid"]
         elif params.get("bk_biz_ids"):
             bk_biz_id = params.pop("bk_biz_ids")[0]
@@ -93,7 +93,10 @@ class UnifyQueryAPIResource(Resource):
             "url": url,
             "headers": {"Bk-Query-Source": f"username:{username}" if username else "backend"},
         }
-        if space_uid:
+        if space_uid is None:
+            # 跨业务查询
+            requests_params["headers"]["X-Bk-Scope-Skip-Space"] = settings.APP_CODE
+        elif space_uid:
             requests_params["headers"]["X-Bk-Scope-Space-Uid"] = space_uid
 
         if self.method in ["PUT", "POST", "PATCH"]:
@@ -124,7 +127,7 @@ class QueryDataResource(UnifyQueryAPIResource):
         start_time = serializers.CharField()
         end_time = serializers.CharField()
         step = serializers.CharField()
-        space_uid = serializers.CharField()
+        space_uid = serializers.CharField(allow_null=True)
         down_sample_range = serializers.CharField(allow_blank=True)
         timezone = serializers.CharField(required=False)
 

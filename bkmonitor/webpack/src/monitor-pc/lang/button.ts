@@ -442,5 +442,9 @@ export default {
   查看应用: 'View Application',
   新增接入: 'Add Access',
   上传: 'Upload',
-  取消上传: 'Cancel Upload'
+  取消上传: 'Cancel Upload',
+  复制主机IP: 'Copy host IP',
+  复制服务实例: 'Copy service instance',
+  当前空间: 'Current space',
+  平台数据: 'Platform data'
 };

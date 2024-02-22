@@ -62,7 +62,7 @@
   content: '\e164';
 }
 
-.icon-star-shape:before {
+.icon-lc-star-shape:before {
   content: '\e165';
 }
 
@@ -212,6 +212,10 @@
 
 .icon-no-refresh:before {
   content: '\e11c';
+}
+
+.icon-copy-2:before {
+  content: '\e188';
 }
 
 .icon-number:before {

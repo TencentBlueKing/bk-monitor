@@ -108,6 +108,7 @@ const store = new Vuex.Store({
     isAppFirstLoad: true,
     /** 是否清空了显示字段，展示全量字段 */
     isNotVisibleFieldsShow: false,
+    showAlert: false, // 是否展示跑马灯
   },
   // 公共 getters
   getters: {
@@ -271,6 +272,9 @@ const store = new Vuex.Store({
     },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
+    },
+    updateNoticeAlert(state, val) {
+      state.showAlert = val;
     },
   },
   actions: {

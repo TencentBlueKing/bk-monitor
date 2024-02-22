@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { TagInput } from 'bk-magic-vue';
 
 import { getVariableValue } from '../../../../monitor-api/modules/grafana';
 import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../constant/constant';
@@ -110,9 +109,22 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
       .filter(item => item.key)
       .map(item => ({
         ...item,
-        dimensionName: item.dimensionName || (item as any).dimension_name || ''
+        dimensionName:
+          item.dimensionName ||
+          (item as any).dimension_name ||
+          this.dimensionsList.find(dim => dim.id === item.key)?.name ||
+          ''
       }));
     this.conditions = conditionList.length > 0 ? conditionList : ([this.handleGetDefaultCondition()] as any);
+    this.conditions.forEach(({ key }) => {
+      if (
+        key &&
+        !this.dimensionsValueMap[key] &&
+        this.dimensionsList?.some(dim => dim.id === key && dim.is_dimension !== false)
+      ) {
+        this.getVariableValueList(key);
+      }
+    });
   }
   handleGetDefaultCondition(needCondition = true) {
     return Object.assign(
@@ -276,7 +288,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
         }
         const result = Array.isArray(data) ? data.map(item => ({ name: item.label, id: item.value })) : [];
         const { field } = params.params;
-        this.dimensionsValueMap[field] = result || [];
+        this.$set(this.dimensionsValueMap, field, result || []);
       })
       .catch(() => []);
   }
@@ -365,7 +377,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                 >
                   {this.handleGetMethodNameById(item.method)}
                 </span>,
-                <TagInput
+                <bk-tag-input
                   key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
                   class='condition-item condition-item-value'
                   list={
@@ -382,7 +394,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                   value={item.value}
                   paste-fn={v => this.handlePaste(v, item)}
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
-                ></TagInput>
+                ></bk-tag-input>
               ]
             : undefined
         ])}

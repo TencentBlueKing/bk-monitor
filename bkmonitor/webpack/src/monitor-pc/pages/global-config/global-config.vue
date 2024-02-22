@@ -49,6 +49,7 @@
               <img
                 class="item-img"
                 :src="item.icon"
+                alt=''
               >
               <span class="item-name">{{ item.name }}</span>
             </li>

@@ -177,6 +177,8 @@
               :active-table-tab="activeTableTab"
               :cluster-route-params="clusterRouteParams"
               :is-init-page="isInitPage"
+              :is-thollte-field="isThollteField"
+              :finger-search-state="fingerSearchState"
               @request-table-data="requestTableData"
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
@@ -217,7 +219,8 @@
       :total-fields="totalFields"
       :clean-config="cleanConfig"
       :config-data="clusteringData"
-      :statistical-fields-data="statisticalFieldsData"
+      :date-picker-value="datePickerValue"
+      :retrieve-params="retrieveParams"
       @closeSetting="isShowSettingModal = false;"
       @updateLogFields="requestFields" />
     <!-- 收藏更新弹窗 -->
@@ -396,6 +399,7 @@ export default {
       /** 是否还需要分页 */
       finishPolling: false,
       timezone: dayjs.tz.guess(),
+      fingerSearchState: false,
     };
   },
   computed: {
@@ -754,9 +758,9 @@ export default {
     },
     // 由添加条件来修改的过滤条件
     searchAddChange(addObj) {
-      const { addition, isQuery } = addObj;
+      const { addition, isQuery, isForceQuery } = addObj;
       this.retrieveParams.addition = addition;
-      if (isQuery && this.isAutoQuery) this.retrieveLog();
+      if ((isQuery && this.isAutoQuery) || isForceQuery) this.retrieveLog();
     },
     getFieldType(field) {
       const target = this.totalFields.find(item => item.field_name === field);
@@ -1022,9 +1026,7 @@ export default {
               // case 'start_time':
               // case 'end_time':
               // case 'time_range':
-                if (this.retrieveParams[field] !== '') {
-                  queryParamsStr[field] = encodeURIComponent(this.retrieveParams[field]);
-                }
+                queryParamsStr[field] = this.retrieveParams[field] === '' ? '*' : encodeURIComponent(this.retrieveParams[field]);
                 break;
               case 'host_scopes':
                 if (this.retrieveParams[field].ips !== ''
@@ -1060,8 +1062,7 @@ export default {
         spaceUid: this.$store.state.spaceUid,
         bizId: this.$store.state.bkBizId,
         ...queryParamsStr,
-        // 由于要缓存过滤条件 解构route的query时会把缓存的pickerTimeRange参数携带上，故重新更新pickerTimeRange参数
-        // pickerTimeRange: queryParamsStr?.pickerTimeRange,
+        keyword: queryParamsStr?.keyword,
       };
       this.$router.push({
         name: 'retrieve',
@@ -1081,6 +1082,8 @@ export default {
           await this.requestFields();
           this.shouldUpdateFields = false;
         }
+        // 指纹请求监听放在这里是要等字段更新完后才会去请求数据指纹
+        this.fingerSearchState = !this.fingerSearchState;
 
         if (this.isInitPage) {
           Object.assign(this.retrieveParams, queryParams); // 回填查询参数中的检索条件

@@ -13,6 +13,7 @@ import logging
 import traceback
 
 import kafka
+from django.conf import settings
 from django.db.models import F
 from django.utils.translation import ugettext as _
 
@@ -209,21 +210,31 @@ def refresh_kafka_topic_info():
                 raise ValueError(_("分区数量获取失败，请确认"))
             kafka_topic_info.partition = len_partition
             kafka_topic_info.save()
+
+            # 重新获取一次数据，然后刷新consul
+            datasource.clean_cache()
+            datasource.refresh_consul_config()
         except Exception as e:
-            logger.exception("partition of topic->[{}] failed to confirm for->[{}]".format(kafka_topic_info.topic, e))
+            logger.exception("partition of topic->[%s] failed to confirm for->[%s]", kafka_topic_info.topic, e)
             continue
         logger.info(
-            "kafka topic info for partition of topic->[{}] with partition->[{}]has been refreshed.".format(
-                kafka_topic_info.topic, kafka_topic_info.partition
-            )
+            "kafka topic info for partition of topic->[%s] with partition->[%s]has been refreshed.",
+            kafka_topic_info.topic,
+            kafka_topic_info.partition,
         )
 
 
-@share_lock(identify="metadata_refreshESStorage", ttl=1800)
+@share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
+    # NOTE: 这是临时处理；如果在白名单中，则按照串行处理
+    es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
+    if es_cluster_wl:
+        # 这里集群不会太多
+        es_storage_data = models.ESStorage.objects.filter(storage_cluster_id__in=es_cluster_wl)
+        manage_es_storage.delay(es_storage_data)
     # 设置每100条记录，拆分为一个任务
     start, step = 0, 100
-    es_storages = models.ESStorage.objects.all()
+    es_storages = models.ESStorage.objects.exclude(storage_cluster_id__in=es_cluster_wl)
     # 添加一步过滤，用以减少任务的数量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False

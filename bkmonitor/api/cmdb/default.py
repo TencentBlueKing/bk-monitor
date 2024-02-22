@@ -12,7 +12,7 @@ import copy
 import logging
 import typing
 from collections import defaultdict
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -863,6 +863,10 @@ class GetHostWithoutBiz(Resource):
         limit = serializers.IntegerField(label="每页限制条数", max_value=500, default=500)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
 
+    @classmethod
+    def convert_host(cls, host: Dict[str, Any], **kwargs):
+        return Host(host, **kwargs)
+
     def perform_request(self, params):
         # 如果查询条件存在但是为空，直接返回空数据
         if params.get("ips") == [] or params.get("bk_host_ids") == [] or params.get("ip") == "":
@@ -907,7 +911,7 @@ class GetHostWithoutBiz(Resource):
             request_params["bk_biz_id"] = params["bk_biz_id"]
             search_result = client.list_biz_hosts_topo(request_params)
             hosts = [
-                Host(host["host"], bk_biz_id=request_params["bk_biz_id"], topo=host["topo"])
+                self.convert_host(host["host"], bk_biz_id=request_params["bk_biz_id"], topo=host["topo"])
                 for host in search_result["info"]
             ]
         else:
@@ -923,12 +927,31 @@ class GetHostWithoutBiz(Resource):
             for host in search_result["info"]:
                 if host["bk_host_id"] in biz_mapping:
                     host["bk_biz_id"] = biz_mapping[host["bk_host_id"]]
-                    hosts.append(Host(host))
+                    hosts.append(self.convert_host(host))
 
         return {
             "count": search_result["count"],
             "hosts": hosts,
         }
+
+
+class GetHostWithoutBizV2(CacheResource, GetHostWithoutBiz):
+    cache_type = CacheType.CC_BACKEND(timeout=60)
+
+    @classmethod
+    def convert_host(cls, host: Dict[str, Any], **kwargs):
+        host.update(kwargs)
+        return host
+
+    def perform_request(self, params):
+        host_page = super().perform_request(params)
+        if not host_page["hosts"]:
+            return host_page
+
+        clouds = api.cmdb.search_cloud_area()
+        for host in host_page["hosts"]:
+            _host_full_cloud(host, clouds)
+        return host_page
 
 
 class SearchObjectAttribute(Resource):

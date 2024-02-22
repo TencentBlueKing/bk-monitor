@@ -27,7 +27,6 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input, Option, OptionGroup, Select, Switcher, Tag } from 'bk-magic-vue';
 
 import { copyText } from '../../../monitor-common/utils/utils';
 import ExpiredSelect from '../../components/expired-select/expired-select';
@@ -86,7 +85,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   @Prop() onEditChange: (val) => any;
   @Prop() preCheckSwitcher?: (val) => Promise<any>;
 
-  @Ref('input') inputRef: Input;
+  @Ref('input') inputRef: any;
 
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
 
@@ -176,7 +175,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     switch (this.formType) {
       case 'switch': // switcher开关
         return (
-          <Switcher
+          <bk-switcher
             v-authority={{ active: !this.authority }}
             theme='primary'
             value={this.value}
@@ -184,7 +183,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           />
         );
       case 'tag': // 标签
-        return this.value.map(tag => <Tag theme={this.tagTheme}>{tag}</Tag>);
+        return this.value.map(tag => <bk-tag theme={this.tagTheme}>{tag}</bk-tag>);
       case 'expired': // 过期时间
         return <span>{`${this.value}${this.$t('天')}`}</span>;
       case 'password': // 密码
@@ -248,48 +247,48 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         );
       case 'select':
         return (
-          <Select
+          <bk-select
             class='edit-item select-item'
             v-model={this.lcoalValue}
             clearable={false}
             onChange={v => v && (this.errorMsg.value = '')}
           >
             {this.selectList.map(option => (
-              <Option
+              <bk-option
                 key={option.id}
                 id={option.id}
                 name={option.name}
-              ></Option>
+              ></bk-option>
             ))}
-          </Select>
+          </bk-select>
         );
       case 'unit':
         return (
-          <Select
+          <bk-select
             class='edit-item unit-select'
             v-model={this.lcoalValue}
             clearable={false}
             popover-width={180}
           >
             {this.unitList.map((group, index) => (
-              <OptionGroup
+              <bk-option-group
                 name={group.name}
                 key={index}
               >
                 {group.formats.map(option => (
-                  <Option
+                  <bk-option
                     key={option.id}
                     id={option.id}
                     name={option.name}
-                  ></Option>
+                  ></bk-option>
                 ))}
-              </OptionGroup>
+              </bk-option-group>
             ))}
-          </Select>
+          </bk-select>
         );
       default:
         return (
-          <Input
+          <bk-input
             ref='input'
             class='edit-item input-item'
             disabled={this.isSubmiting}
@@ -354,7 +353,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   showEditSelect() {
     return (
       <div>
-        <Select
+        <bk-select
           class='edit-item select-item'
           style='margin-right: 8px;'
           v-model={this.editSubmitVal}
@@ -362,13 +361,13 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           onChange={() => this.handleEditObjChange('select')}
         >
           {this.selectEditOption?.map(option => (
-            <Option
+            <bk-option
               key={option.id}
               id={option.id}
               name={option.name}
-            ></Option>
+            ></bk-option>
           ))}
-        </Select>
+        </bk-select>
       </div>
     );
   }

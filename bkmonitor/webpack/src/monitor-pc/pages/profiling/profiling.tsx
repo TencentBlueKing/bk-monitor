@@ -26,6 +26,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import '@blueking/bk-weweb';
+
 import './profiling.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
@@ -63,7 +65,7 @@ export default class Profiling extends tsc<{}> {
           class='profiling-wrap-iframe'
           url={this.profilingUrl}
           showSourceCode={true}
-          id='trace'
+          id='profiling'
           data={this.profilingData}
         />
       </div>

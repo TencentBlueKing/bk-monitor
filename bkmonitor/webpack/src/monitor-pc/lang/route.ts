@@ -202,6 +202,7 @@ export default {
   'influxdb 集群': 'influxdb Set',
   'ES 集群': 'ES Set',
   资源注册: 'Resource registration',
+  'route-资源注册': 'Resource registration',
   编辑集群: 'Edit cluster',
   新增集群: 'Add cluster'
 };
