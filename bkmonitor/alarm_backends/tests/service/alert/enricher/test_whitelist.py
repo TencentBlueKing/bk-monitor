@@ -9,6 +9,9 @@ from alarm_backends.service.alert.enricher import BizWhiteListFor3rdEvent
 
 
 class TestBizWhiteListFor3rdEvent(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     def test_enrich(self):
         settings.BIZ_WHITE_LIST_FOR_3RD_EVENT = [2, 3, 4]
         time1 = int(time.time())
