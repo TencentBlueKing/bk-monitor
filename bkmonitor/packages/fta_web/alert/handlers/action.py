@@ -17,18 +17,6 @@ from typing import Dict, List
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 from elasticsearch_dsl import Q
-from fta_web.alert.handlers.base import (
-    AlertDimensionFormatter,
-    BaseBizQueryHandler,
-    BaseQueryTransformer,
-    QueryField,
-)
-from fta_web.alert.handlers.translator import (
-    AbstractTranslator,
-    ActionPluginTypeTranslator,
-    ActionSignalTranslator,
-    BizTranslator,
-)
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionPlugin, ConvergeRelation
@@ -41,6 +29,18 @@ from constants.action import (
     ConvergeStatus,
 )
 from constants.alert import EVENT_SEVERITY
+from fta_web.alert.handlers.base import (
+    AlertDimensionFormatter,
+    BaseBizQueryHandler,
+    BaseQueryTransformer,
+    QueryField,
+)
+from fta_web.alert.handlers.translator import (
+    AbstractTranslator,
+    ActionPluginTypeTranslator,
+    ActionSignalTranslator,
+    BizTranslator,
+)
 
 
 class ActionQueryTransformer(BaseQueryTransformer):
@@ -456,10 +456,10 @@ class ActionQueryHandler(BaseBizQueryHandler):
 
         return result_data
 
-    def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None):
+    def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None, char_add_quotes=True):
         translators = {
             "signal": ActionSignalTranslator(),
             "action_plugin_type": ActionPluginTypeTranslator(),
             "bk_biz_id": BizTranslator(),
         }
-        return super(ActionQueryHandler, self).top_n(fields, size, translators)
+        return super(ActionQueryHandler, self).top_n(fields, size, translators, char_add_quotes)

@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Dialog, Option, OptionGroup, Select } from 'bk-magic-vue';
 
 import { createDemoAction, getDemoActionDetail } from '../../../../../../monitor-api/modules/action';
 import { deepClone, transformDataKey } from '../../../../../../monitor-common/utils/utils';
@@ -44,6 +43,7 @@ import {
   transformMealContentParams
 } from './meal-content-data';
 import PeripheralSystem from './peripheral-system';
+import { setVariableToString } from './utils';
 
 import './meal-content.scss';
 
@@ -244,10 +244,41 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         break;
       case 'webhook':
         this.debugData.webhook = deepClone(this.data.webhook);
+        this.getHttpCallbackVariables();
         break;
     }
     this.debugData.type = type;
     this.isShowDebug = true;
+  }
+
+  /* 获取http回调变量数据 */
+  getHttpCallbackVariables() {
+    const templateListMap = new Map();
+    this.getMessageTemplateList.forEach(template => {
+      templateListMap.set(template.id, template);
+    });
+    const setVariable = obj => {
+      const tempObj = {};
+      const objKeys = Object.keys(obj);
+      objKeys.forEach(key => {
+        if (typeof obj[key] === 'string') {
+          tempObj[key] = setVariableToString(templateListMap, obj[key]);
+        } else if (typeof obj[key] === 'object') {
+          if (Array.isArray(obj[key])) {
+            tempObj[key] = [];
+            obj[key].forEach(item => {
+              tempObj[key].push(setVariable(item));
+            });
+          } else {
+            tempObj[key] = setVariable(obj[key]);
+          }
+        } else {
+          tempObj[key] = obj[key];
+        }
+      });
+      return tempObj;
+    };
+    this.debugData.webhook = setVariable(this.debugData.webhook);
   }
 
   // 获取调试变量数据
@@ -431,7 +462,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             title={this.$tc('套餐类型')}
             required
           >
-            <Select
+            <bk-select
               value={this.data.id}
               placeholder={this.$tc('选择')}
               class='select input-width'
@@ -442,12 +473,12 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
               onSelected={this.mealTypeChange}
             >
               {this.mealTypeList.map(group => (
-                <OptionGroup
+                <bk-option-group
                   key={group.id}
                   name={group.name}
                 >
                   {group.children.map(option => (
-                    <Option
+                    <bk-option
                       key={option.id}
                       id={option.id}
                       name={option.name}
@@ -465,11 +496,11 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                           ></span>
                         )}
                       </div>
-                    </Option>
+                    </bk-option>
                   ))}
-                </OptionGroup>
+                </bk-option-group>
               ))}
-            </Select>
+            </bk-select>
           </CommonItem>
         </div>
         {this.getDebugDialog()}
@@ -491,6 +522,9 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                     ref='httpCallBackRef'
                     isEdit={true}
                     value={this.data.webhook}
+                    variableList={this.getMessageTemplateList}
+                    validatorHasVariable={true}
+                    pluginId={this.data.id}
                     onChange={data => this.handleHttpCallBackChange(data)}
                     onDebug={() => this.handleDebug('webhook')}
                   ></HttpCallBack>
@@ -589,18 +623,18 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
     const statusMap = {
       success: (
         <div class='status-operate'>
-          {/* <Button theme="primary" style={{ marginRight: '8px' }}>{this.$t('查看详情')}</Button> */}
-          <Button onClick={() => this.handleStopDebug()}>{this.$t('button-完成')}</Button>
+          {/* <bk-button theme="primary" style={{ marginRight: '8px' }}>{this.$t('查看详情')}</bk-button> */}
+          <bk-button onClick={() => this.handleStopDebug()}>{this.$t('button-完成')}</bk-button>
         </div>
       ),
       failure: (
         <div class='status-operate'>
-          <Button
+          <bk-button
             theme='primary'
             onClick={() => this.handleStopDebug(true)}
           >
             {this.$t('再次调试')}
-          </Button>
+          </bk-button>
         </div>
       )
     };
@@ -610,7 +644,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   // 调试窗口
   getDebugDialog() {
     return [
-      <Dialog
+      <bk-dialog
         value={this.isShowDebug}
         width={this.debugData.type === 'webhook' ? 766 : 480}
         extCls={'meal-content-debug-dialog'}
@@ -637,18 +671,18 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           )}
         </div>
         <div slot='footer'>
-          <Button
+          <bk-button
             theme='primary'
             style={{ marginRight: '8px' }}
             loading={this.debugActionLoading}
             onClick={() => this.handleDebugStart()}
           >
             {this.$t('调试')}
-          </Button>
-          <Button onClick={this.handleCloseDebug}>{this.$t('取消')}</Button>
+          </bk-button>
+          <bk-button onClick={this.handleCloseDebug}>{this.$t('取消')}</bk-button>
         </div>
-      </Dialog>,
-      <Dialog
+      </bk-dialog>,
+      <bk-dialog
         extCls={'meal-content-running-dialog'}
         value={!!this.debugStatusData?.status}
         width={400}
@@ -663,7 +697,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
           {this.debugStatusOperate()}
         </div>
-      </Dialog>
+      </bk-dialog>
     ];
   }
 }

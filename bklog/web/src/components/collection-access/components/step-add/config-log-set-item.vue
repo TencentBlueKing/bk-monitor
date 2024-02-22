@@ -27,53 +27,106 @@
       :label-width="labelWidth"
       :form-type="showType"
       :model="subFormData">
-      <div v-if="!isStandardOutput">
-        <!-- 日志路径 -->
-        <div class="form-div mt log-paths" v-for="(log, index) in logPaths" :key="index">
-          <bk-form-item
-            required
-            :label="index === 0 ? $t('日志路径') : ''"
-            :rules="rules.paths"
-            :property="'params.paths.' + index + '.value'">
-            <div class="log-path flex-ac">
-              <bk-input
-                v-model="log.value"
-                data-test-id="sourceLogBox_input_addLogPath"
-              ></bk-input>
-              <div class="ml9">
-                <i
-                  class="bk-icon icon-plus-circle-shape icons"
-                  data-test-id="sourceLogBox_i_newAddLogPath"
-                  @click="addLog"></i>
-                <i
-                  :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: logPaths.length === 1 }] "
-                  data-test-id="sourceLogBox_i_deleteAddLogPath"
-                  @click="delLog(index)"></i>
+      <div>
+        <!-- 段日志正则调试 -->
+        <div v-if="hasMultilineReg" class="multiline-log-container mt">
+          <div class="row-container">
+            <bk-form-item
+              :label="$t('行首正则')"
+              :rules="rules.notEmptyForm"
+              required
+              property="params.multiline_pattern">
+              <div class="flex-ac">
+                <bk-input
+                  data-test-id="sourceLogBox_input_beginningRegular"
+                  style="width: 320px;"
+                  v-model.trim="subFormData.params.multiline_pattern"
+                ></bk-input>
+                <bk-button
+                  text size="small"
+                  class="king-button"
+                  data-test-id="sourceLogBox_button_debugging"
+                  @click="showRegDialog = true">
+                  {{ $t('调试') }}
+                </bk-button>
               </div>
-            </div>
-            <div :class="['tips', showType !== 'horizontal' && 'log-tips']" v-if="index === 0">
-              <i18n path="日志文件的绝对路径，可使用 {0}">
-                <span class="font-gray">{{ $t('通配符') }}</span>
-              </i18n>
-            </div>
-          </bk-form-item>
+            </bk-form-item>
+          </div>
+          <div :class="['row-container', 'second', showType === 'horizontal' && 'pl150']">
+            <i18n path="最多匹配{0}行，最大耗时{1}秒" class="i18n-style">
+              <bk-form-item :rules="rules.maxLine" property="params.multiline_max_lines">
+                <bk-input
+                  v-model="subFormData.params.multiline_max_lines"
+                  data-test-id="sourceLogBox_input_mostMatches"
+                  type="number"
+                  :precision="0"
+                  :show-controls="false">
+                </bk-input>
+              </bk-form-item>
+              <bk-form-item :rules="rules.maxTimeout" property="params.multiline_timeout">
+                <bk-input
+                  v-model="subFormData.params.multiline_timeout"
+                  data-test-id="sourceLogBox_input_maximumTimeConsuming"
+                  type="number"
+                  :precision="0"
+                  :show-controls="false">
+                </bk-input>
+              </bk-form-item>
+            </i18n>
+          </div>
+          <multiline-reg-dialog
+            :old-pattern.sync="subFormData.params.multiline_pattern"
+            :show-dialog.sync="showRegDialog">
+          </multiline-reg-dialog>
         </div>
-        <!-- 日志字符集 -->
-        <bk-form-item class="mt" :label="$t('字符集')" required>
-          <bk-select
-            data-test-id="sourceLogBox_div_changeLogCharacterTet"
-            style="width: 320px;"
-            searchable
-            v-model="subFormData.data_encoding"
-            :clearable="false">
-            <bk-option
-              v-for="(option, ind) in globalsData.data_encoding"
-              :key="ind"
-              :id="option.id"
-              :name="option.name">
-            </bk-option>
-          </bk-select>
-        </bk-form-item>
+        <template v-if="!isStandardOutput">
+          <!-- 日志路径 -->
+          <div class="form-div mt log-paths" v-for="(log, index) in logPaths" :key="index">
+            <bk-form-item
+              required
+              :label="index === 0 ? $t('日志路径') : ''"
+              :rules="rules.paths"
+              :property="'params.paths.' + index + '.value'">
+              <div class="log-path flex-ac">
+                <bk-input
+                  v-model="log.value"
+                  data-test-id="sourceLogBox_input_addLogPath"
+                ></bk-input>
+                <div class="ml9">
+                  <i
+                    class="bk-icon icon-plus-circle-shape icons"
+                    data-test-id="sourceLogBox_i_newAddLogPath"
+                    @click="addLog"></i>
+                  <i
+                    :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: logPaths.length === 1 }] "
+                    data-test-id="sourceLogBox_i_deleteAddLogPath"
+                    @click="delLog(index)"></i>
+                </div>
+              </div>
+              <div :class="['tips', showType !== 'horizontal' && 'log-tips']" v-if="index === 0">
+                <i18n path="日志文件的绝对路径，可使用 {0}">
+                  <span class="font-gray">{{ $t('通配符') }}</span>
+                </i18n>
+              </div>
+            </bk-form-item>
+          </div>
+          <!-- 日志字符集 -->
+          <bk-form-item class="mt" :label="$t('字符集')" required>
+            <bk-select
+              data-test-id="sourceLogBox_div_changeLogCharacterTet"
+              style="width: 320px;"
+              searchable
+              v-model="subFormData.data_encoding"
+              :clearable="false">
+              <bk-option
+                v-for="(option, ind) in globalsData.data_encoding"
+                :key="ind"
+                :id="option.id"
+                :name="option.name">
+              </bk-option>
+            </bk-select>
+          </bk-form-item>
+        </template>
       </div>
       <!-- 过滤内容 -->
       <div :class="['filter-content', showType === 'horizontal' && 'horizontal-item']" v-en-class="'en-span'">
@@ -155,57 +208,6 @@
             </div>
           </div>
         </template>
-      </div>
-      <!-- 段日志正则调试 -->
-      <div v-if="hasMultilineReg" class="multiline-log-container">
-        <div class="row-container">
-          <bk-form-item
-            :label="$t('行首正则')"
-            :rules="rules.notEmptyForm"
-            required
-            property="params.multiline_pattern">
-            <div class="flex-ac">
-              <bk-input
-                data-test-id="sourceLogBox_input_beginningRegular"
-                style="width: 320px;"
-                v-model.trim="subFormData.params.multiline_pattern"
-              ></bk-input>
-              <bk-button
-                text size="small"
-                class="king-button"
-                data-test-id="sourceLogBox_button_debugging"
-                @click="showRegDialog = true">
-                {{ $t('调试') }}
-              </bk-button>
-            </div>
-          </bk-form-item>
-        </div>
-        <div :class="['row-container', 'second', showType === 'horizontal' && 'pl150']">
-          <i18n path="最多匹配{0}行，最大耗时{1}秒" class="i18n-style">
-            <bk-form-item :rules="rules.maxLine" property="params.multiline_max_lines">
-              <bk-input
-                v-model="subFormData.params.multiline_max_lines"
-                data-test-id="sourceLogBox_input_mostMatches"
-                type="number"
-                :precision="0"
-                :show-controls="false">
-              </bk-input>
-            </bk-form-item>
-            <bk-form-item :rules="rules.maxTimeout" property="params.multiline_timeout">
-              <bk-input
-                v-model="subFormData.params.multiline_timeout"
-                data-test-id="sourceLogBox_input_maximumTimeConsuming"
-                type="number"
-                :precision="0"
-                :show-controls="false">
-              </bk-input>
-            </bk-form-item>
-          </i18n>
-        </div>
-        <multiline-reg-dialog
-          :old-pattern.sync="subFormData.params.multiline_pattern"
-          :show-dialog.sync="showRegDialog">
-        </multiline-reg-dialog>
       </div>
     </bk-form>
   </div>

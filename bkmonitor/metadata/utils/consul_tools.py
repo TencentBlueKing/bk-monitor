@@ -13,6 +13,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from typing import Optional
 
 from bkmonitor.utils import consul
 from metadata import config
@@ -79,7 +80,7 @@ class HashConsul(object):
         consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
         return consul_client.kv.get(key, recurse=True)
 
-    def put(self, key, value, is_force_update=False, *args, **kwargs):
+    def put(self, key, value, is_force_update=False, bk_data_id: Optional[int] = None, *args, **kwargs):
         """
         KV数据更新, 如果更新成功或者内容无更新，则返回True
         如果更新失败，则返回False
@@ -110,10 +111,16 @@ class HashConsul(object):
             logger.debug("new value hash->[{}] is same as the one on consul, nothing will updated.".format(new_hash))
             return True
 
-        # 4. 否则，更新内容
-        logger.info(
-            "new value hash->[{}] is different from the one->[{}] on consul, will updated it.".format(
-                new_hash, old_hash
+        # 4. 否则，更新内容；如果存在数据源，则记录数据源 ID
+        if bk_data_id is not None:
+            logger.info(
+                "data_id->[%s] need update, new value hash->[%s] is different from the old hash->[%s]",
+                bk_data_id,
+                new_hash,
+                old_hash,
             )
-        )
+        else:
+            logger.info(
+                "new value hash->[%s] is different from the old hash->[%s], will updated it", new_hash, old_hash
+            )
         return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)

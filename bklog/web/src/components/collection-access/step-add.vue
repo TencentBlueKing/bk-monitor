@@ -307,6 +307,18 @@
 
               <div class="config-container">
                 <div class="config-cluster-box">
+                  <bk-alert
+                    type="info"
+                    :show-icon="false"
+                    v-if="isShowContainerTips(conItem)">
+                    <div slot="title">
+                      <i class="bk-icon icon-info"></i>
+                      <i18n
+                        path="采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。">
+                        <span class="tips-btn" @click="handleUpdateCollector">{{$t('升级')}}</span>
+                      </i18n>
+                    </div>
+                  </bk-alert>
                   <div class="config-cluster-title justify-bt">
                     <div>
                       <span class="title">{{$t('选择{n}范围', { n: isNode ? 'Node' : 'Container' })}}</span>
@@ -336,7 +348,22 @@
                     </div>
                     <div
                       v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
-                      :disabled="!!formData.bcs_cluster_id">
+                      :disabled="!!formData.bcs_cluster_id"
+                      class="operator-box">
+                      <bk-select
+                        v-model="conItem.noQuestParams.namespacesExclude"
+                        class="operate-select"
+                        placeholder=" "
+                        :popover-width="100"
+                        :clearable="false"
+                        :disabled="isNode || !formData.bcs_cluster_id || nameSpaceRequest">
+                        <bk-option
+                          v-for="oItem in operatorSelectList"
+                          :key="oItem.id"
+                          :name="oItem.name"
+                          :id="oItem.id"
+                        ></bk-option>
+                      </bk-select>
                       <bk-select
                         v-model="conItem.namespaces"
                         multiple
@@ -345,7 +372,7 @@
                         :disabled="isNode || !formData.bcs_cluster_id || nameSpaceRequest"
                         @selected="(option) => handleNameSpaceSelect(option, conIndex)">
                         <bk-option
-                          v-for="oItem in nameSpacesSelectList"
+                          v-for="oItem in showNameSpacesSelectList(conIndex)"
                           :key="oItem.id"
                           :name="oItem.name"
                           :id="oItem.id"
@@ -385,7 +412,6 @@
                           show-edit
                           :key="labItem.id"
                           :label-selector="conItem.labelSelector"
-                          :active-label-edit-i-d.sync="activeLabelEditID"
                           :match-item="labItem"
                           :submit-edit="(val) => handleLabelEdit(conIndex, labItem.id, val)"
                           @deleteItem="deleteLabItem(conIndex, labItem.id)"
@@ -417,15 +443,29 @@
                         @click="handleDeleteConfigParamsItem(conIndex, 'containerName')">
                       </span>
                     </div>
-                    <bk-tag-input
-                      v-model="conItem.containerNameList"
-                      allow-create
-                      free-paste
-                      has-delete-icon
-                      ext-cls="container-input"
-                      @change="() => handleContainerNameChange(conIndex)"
-                      @blur="(inputStr, list) => handleContainerNameBlur(inputStr, list, conIndex)">
-                    </bk-tag-input>
+                    <div class="operator-box">
+                      <bk-select
+                        v-model="conItem.noQuestParams.containerExclude"
+                        class="operate-select"
+                        placeholder=" "
+                        :popover-width="100"
+                        :clearable="false">
+                        <bk-option
+                          v-for="oItem in operatorSelectList"
+                          :key="oItem.id"
+                          :name="oItem.name"
+                          :id="oItem.id"
+                        ></bk-option>
+                      </bk-select>
+                      <bk-tag-input
+                        v-model="conItem.containerNameList"
+                        allow-create
+                        free-paste
+                        has-delete-icon
+                        ext-cls="container-input"
+                        @blur="(inputStr, list) => handleContainerNameBlur(inputStr, list, conIndex)">
+                      </bk-tag-input>
+                    </div>
                   </div>
 
                   <bk-dropdown-menu
@@ -694,6 +734,8 @@ export default {
                 containerName: true,
               },
               namespaceStr: '',
+              namespacesExclude: '=',
+              containerExclude: '=',
             },
             container: {
               workload_type: '',
@@ -846,12 +888,21 @@ export default {
       conflictMessage: '', // 冲突信息
       clusterList: [], // 集群列表
       nameSpacesSelectList: [], // namespace 列表
+      operatorSelectList: [
+        {
+          id: '=',
+          name: '=',
+        },
+        {
+          id: '!=',
+          name: '!=',
+        },
+      ],
       allContainer: { // 所有容器时指定容器默认传空
         workload_type: '',
         workload_name: '',
         container_name: '',
       },
-      activeLabelEditID: '',
       publicLetterIndex: 0, // 公共的字母下标
       isShowLabelTargetDialog: false, // 是否展示指定标签dialog
       isShowViewDialog: false, // 是否展预览dialog
@@ -877,6 +928,7 @@ export default {
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
+      mySpaceList: 'mySpaceList',
     }),
     ...mapGetters('collect', ['curCollect']),
     ...mapGetters('globals', ['globalsData']),
@@ -1068,32 +1120,37 @@ export default {
         const {
           workload_name,
           workload_type,
-          container_name,
+          container_name: containerName,
+          container_name_exclude: containerNameExclude,
           match_expressions: matchExpressions,
           match_labels: matchLabels,
           data_encoding,
           params,
           namespaces: itemNamespace,
+          namespaces_exclude: itemNamespacesExclude,
           container: yamlContainer,
           label_selector: yamlSelector,
           collector_type,
         } = item;
-        const namespaces = item.any_namespace ? ['*'] : itemNamespace;
+        const showNameSpace = itemNamespacesExclude?.length ? itemNamespacesExclude : itemNamespace;
+        const namespaces = item.any_namespace ? ['*'] : showNameSpace;
         const container =  {
           workload_type,
           workload_name,
-          container_name,
+          container_name: containerName,
+          container_name_exclude: containerNameExclude,
         };
         // eslint-disable-next-line camelcase
         let labelSelector = [];
-        let containerNameList = this.getContainerNameList(container_name);
+        let containerNameList = this.getContainerNameList(containerName || containerNameExclude);
         if (isYamlData) {
           Object.assign(container, yamlContainer);
           labelSelector = Object.entries(yamlSelector).reduce((pre, [labelKey, labelVal]) => {
             pre.push(...labelVal.map(item => ({ ...item, id: random(10), type: labelKey })));
             return pre;
           }, []);
-          containerNameList = this.getContainerNameList(yamlContainer.container_name);
+          const { container_name: yamlContainerName, container_name_exclude: yamlContainerNameExclude } = yamlContainer;
+          containerNameList = this.getContainerNameList(yamlContainerName || yamlContainerNameExclude);
           params.paths = params.paths.length ? params.paths.map(item => ({ value: item })) : [{ value: '' }];
         } else {
           labelSelector = [
@@ -1108,6 +1165,9 @@ export default {
         const scopeLabelShow = Boolean(labelSelector.length);
         const scopeContainerNameShow = Boolean(containerNameList.length);
         const scopeLoadNameShow = Boolean(container.workload_type) || Boolean(container.workload_name);
+        const containerExclude = !!containerNameExclude ? '!=' : '=';
+        const namespacesExclude = itemNamespacesExclude?.length ? '!=' : '=';
+        const namespaceStr = this.getNameSpaceStr(namespaces);
         return {
           namespaces,
           noQuestParams: {
@@ -1124,7 +1184,9 @@ export default {
               load: !scopeLoadNameShow,
               containerName: !scopeContainerNameShow,
             },
-            namespaceStr: '',
+            namespaceStr,
+            containerExclude,
+            namespacesExclude,
           },
           data_encoding,
           container,
@@ -1344,6 +1406,8 @@ export default {
           yaml_config_enabled: this.isYaml,
         });
         containerFromData.configs.forEach((item, index) => {
+          const containerKey = item.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+          const namespacesKey = item.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
           JSON.stringify(item.namespaces) === '["*"]' && (item.namespaces = []);
           const { namespace, label, load, containerName } = this.getScopeSelectShow(index);
           item.collector_type = this.currentEnvironment;
@@ -1352,14 +1416,21 @@ export default {
             item.container.workload_type = '';
             item.container.workload_name = '';
           }
-          if (containerName || this.isNode) item.container.container_name = '';
+          const cloneNamespaces = deepClone(item.namespaces);
+          delete item.namespaces;
+          item[namespacesKey] = cloneNamespaces;
 
           // node 情况下由于只有标签选择 所以不判断是否有选中标签操作
           item.label_selector = (label && !this.isNode)
             ? this.baseLabelSelector
             : this.getLabelSelectorQueryParams(item.labelSelector);
 
-          item.container.container_name = item.containerNameList.join(',');
+          item.container = {
+            workload_type: item.container.workload_type,
+            workload_name: item.container.workload_name,
+            [containerKey]: item.containerNameList.join(','),
+          };
+          if (containerName || this.isNode) item.container[containerKey] = '';
 
           delete item.noQuestParams;
           delete item.labelSelector;
@@ -1612,6 +1683,8 @@ export default {
       this.currentSetIndex = index;
       const type = this.isNode ? 'node' : 'pod';
       const config = this.formData.configs[index];
+      const containerKey = config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+      const namespacesKey = config.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
       if (dialogType === 'label') {
         this.currentSelector = {
           bk_biz_id: this.bkBizId,
@@ -1621,14 +1694,22 @@ export default {
           labelSelector: config.labelSelector,
         };
       } else if (dialogType === 'view') {
+        const {
+          workload_type: workloadType,
+          workload_name: workloadName,
+        } = config.container;
         const namespaces = (config.namespaces.length === 1 && config.namespaces[0] === '*') ? [] : config.namespaces;
         this.viewQueryParams = {
           bk_biz_id: this.bkBizId,
           bcs_cluster_id: this.formData.bcs_cluster_id,
           type,
-          namespaces,
+          [namespacesKey]: namespaces,
           label_selector: this.getLabelSelectorQueryParams(config.labelSelector, true),
-          container: config.container,
+          container: {
+            workload_type: workloadType,
+            workload_name: workloadName,
+            [containerKey]: config.containerNameList.join(','),
+          },
         };
       }
       dialogType === 'label' ?  this.isShowLabelTargetDialog = true : this.isShowViewDialog = true;
@@ -1698,6 +1779,16 @@ export default {
         .finally(() => {
           this.nameSpaceRequest = false;
         });
+    },
+    showNameSpacesSelectList(conIndex) {
+      const config = this.formData.configs[conIndex];
+      const operate = config.noQuestParams.namespacesExclude;
+      if (!this.nameSpacesSelectList.length) return [];
+      if (operate === '!=' && this.nameSpacesSelectList.some(item => item.id === '*')) {
+        if (config.namespaces.length === 1 && config.namespaces[0] === '*') config.namespaces = [];
+        return this.nameSpacesSelectList.slice(1);
+      }
+      return this.nameSpacesSelectList;
     },
     /**
      * @desc: 获取bcs集群列表
@@ -1826,18 +1917,24 @@ export default {
       const type = newValue.operator === '=' ? 'match_labels' : 'match_expressions';
 
       return new Promise((resolve) => {
+        const labelIndex = labelSelector.findIndex(item => item.id === matchID);
         if (!isRepeat) {
-          const labelIndex = labelSelector.findIndex(item => item.id === matchID);
           const newMatchObject = { ...labelSelector[labelIndex], ...newValue, type };
           labelSelector.splice(labelIndex, 1, newMatchObject);
-        }
+        } else {
+          if (newValue?.isExternal) labelSelector.splice(labelIndex, 1);
+        };
         resolve(true);
       });
     },
     // 手动添加表达式
     handleSubmitExpressions(conIndex, val) {
       const configs = this.formData.configs[conIndex];
-      const isRepeat = configs.labelSelector.some(item => val.key === item.key);
+      const isRepeat = configs.labelSelector.some((item) => {
+        return val.key === item.key
+        && val.value === item.value
+        && val.operator === item.operator;
+      });
       return new Promise((resolve) => {
         if (!isRepeat) {
           const type = val.operator === '=' ? 'match_labels' : 'match_expressions';
@@ -1894,7 +1991,6 @@ export default {
           break;
         case 'containerName':
           config.containerNameList = [];
-          config.container.container_name = '';
           break;
         default:
           break;
@@ -1906,11 +2002,6 @@ export default {
       if (!input) return;
       const config = this.formData.configs[conIndex];
       config.containerNameList = !list.length ? [input] : [...new Set([...config.containerNameList, input])];
-      config.container.container_name = config.containerNameList.join(',');
-    },
-    handleContainerNameChange(conIndex) {
-      const config = this.formData.configs[conIndex];
-      config.container.container_name = config.containerNameList.join(',');
     },
     // 获取config里添加范围的列表
     getScopeSelectShow(conIndex) {
@@ -1938,6 +2029,16 @@ export default {
         match_labels: [],
         match_expressions: [],
       });
+    },
+    isShowContainerTips(configItem) {
+      const { containerExclude, namespacesExclude } = configItem.noQuestParams;
+      return [containerExclude, namespacesExclude].includes('!=');
+    },
+    handleUpdateCollector() {
+      const projectItem = this.localClusterList.find(item => item.id === this.formData.bcs_cluster_id);
+      const findSpace = this.mySpaceList.find(item => item.space_code === projectItem.project_id);
+      const url = `${window.BCS_WEB_CONSOLE_DOMAIN}bcs/projects/${findSpace.space_id}/log-collector`;
+      window.open(url, '_blank');
     },
   },
 };
@@ -1994,7 +2095,7 @@ export default {
     font-weight: 600;
     color: #63656e;
     border-bottom: 1px solid #dcdee5;
-    padding-top: 38px;
+    padding-top: 36px;
     padding-bottom: 10px;
     margin-bottom: 20px;
   }
@@ -2533,6 +2634,11 @@ export default {
         }
       }
 
+      .tips-btn {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
       .config-item-title {
         padding-bottom: 8px;
 
@@ -2546,6 +2652,33 @@ export default {
           color: #ea3636;
           cursor: pointer;
           display: none;
+        }
+      }
+
+      .operator-box {
+        width: 100%;
+
+        @include flex-center();
+
+        > :nth-child(2) {
+          flex: 1;
+          left: -1px;
+          position: relative;
+          border-radius: 0 2px 2px 0;
+        }
+
+        .operate-select {
+          width: 30px;
+          border-radius: 2px 0 0 2px;
+
+          & .bk-select-angle {
+            display: none;
+          }
+        }
+
+        .is-focus {
+          position: relative;
+          z-index: 999;
         }
       }
 
@@ -2594,6 +2727,10 @@ export default {
       .container-input {
         .input {
           max-width: none;
+        }
+
+        .bk-tag-input {
+          border-radius: 0 2px 2px 0;
         }
       }
 

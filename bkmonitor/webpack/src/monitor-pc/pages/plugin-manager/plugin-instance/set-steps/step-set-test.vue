@@ -354,6 +354,7 @@
                       <img
                         src="../../../../static/images/svg/spinner.svg"
                         v-if="item.status === 3"
+                        alt=''
                       />
                       <i
                         class="bk-icon icon-exclamation-circle-shape status-exception title-icon-status"
@@ -1584,7 +1585,7 @@ export default {
           }
 
           &:hover {
-            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, .06);
           }
 
           :deep(.bk-form-input) {
@@ -1862,15 +1863,15 @@ export default {
                     background: #3a84ff;
 
                     &.bar-1 {
-                      animation: process-bar-1 0.7s linear 0s infinite;
+                      animation: process-bar-1 .7s linear 0s infinite;
                     }
 
                     &.bar-2 {
-                      animation: process-bar-2 0.7s linear 0s infinite;
+                      animation: process-bar-2 .7s linear 0s infinite;
                     }
 
                     &.bar-3 {
-                      animation: process-bar-3 0.7s linear 0s infinite;
+                      animation: process-bar-3 .7s linear 0s infinite;
                     }
                   }
                 }

@@ -200,5 +200,6 @@ export default {
   点击上传或将文件拖到此处: 'Click to upload or drag the file here',
   '文件解析可能耗费较长时间，可先选择已解析文件查看':
     'File parsing may take a long time, you can select the parsed file first to view',
-  请上传文件后查看: 'Please upload the file and view it after that'
+  请上传文件后查看: 'Please upload the file and view it after that',
+  已选: 'selected'
 };

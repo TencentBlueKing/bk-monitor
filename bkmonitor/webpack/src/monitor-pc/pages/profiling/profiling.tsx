@@ -26,6 +26,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import '@blueking/bk-weweb';
+
 import './profiling.scss';
 
 Component.registerHooks(['beforeRouteLeave']);

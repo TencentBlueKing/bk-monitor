@@ -947,6 +947,7 @@ class QueryTraceDetailResource(Resource):
             allow_empty=True,
             required=False,
         )
+        query_trace_relation_app = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_data):
         # otel data must be in displays choice
@@ -956,7 +957,12 @@ class QueryTraceDetailResource(Resource):
 
         trace, relation_mapping = QueryProxy(
             validated_data["bk_biz_id"], validated_data["app_name"]
-        ).query_trace_detail(validated_data["trace_id"], validated_data["displays"], validated_data["bk_biz_id"])
+        ).query_trace_detail(
+            trace_id=validated_data["trace_id"],
+            displays=validated_data["displays"],
+            bk_biz_id=validated_data["bk_biz_id"],
+            query_trace_relation_app=validated_data["query_trace_relation_app"],
+        )
 
         return {"trace_data": trace, "relation_mapping": relation_mapping}
 

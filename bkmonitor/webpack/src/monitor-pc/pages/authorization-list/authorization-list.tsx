@@ -25,7 +25,6 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tag } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import {
@@ -563,7 +562,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map(item => <Tag>{item}</Tag>)}
+                {row.authorized_users?.map(item => <bk-tag>{item}</bk-tag>)}
               </div>
             )
           }}

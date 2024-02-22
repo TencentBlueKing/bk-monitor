@@ -155,6 +155,10 @@ class SearchHandler(object):
         self.index_set_id = index_set_id
         self.search_dict.update({"index_set_id": index_set_id})
 
+        # 原始索引和场景id（初始化mapping时传递）
+        self.origin_indices: str = ""
+        self.origin_scenario_id: str = ""
+
         self.scenario_id: str = ""
         self.storage_cluster_id: int = -1
 
@@ -299,9 +303,9 @@ class SearchHandler(object):
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
         mapping_handlers = MappingHandlers(
-            self.indices,
+            self.origin_indices,
             self.index_set_id,
-            self.scenario_id,
+            self.origin_scenario_id,
             self.storage_cluster_id,
             self.time_field,
             start_time=self.start_time,
@@ -1090,7 +1094,7 @@ class SearchHandler(object):
     def verify_sort_list_item(self, sort_list):
         # field_result, _ = self._get_all_fields_by_index_id()
         mapping_handlers = MappingHandlers(
-            self.indices, self.index_set_id, self.scenario_id, self.storage_cluster_id, self.time_field
+            self.origin_indices, self.index_set_id, self.origin_scenario_id, self.storage_cluster_id, self.time_field
         )
         field_result, _ = mapping_handlers.get_all_fields_by_index_id()
         field_dict = dict()
@@ -1299,7 +1303,18 @@ class SearchHandler(object):
         if tmp_index_obj:
             self.scenario_id = tmp_index_obj.scenario_id
             self.storage_cluster_id = tmp_index_obj.storage_cluster_id
-            # 根据检索条件addition中的字段，判断是否需要查询聚类结果表
+
+            index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
+            if len(index_set_data_obj_list) > 0:
+                index_list: list = [x.get("result_table_id", None) for x in index_set_data_obj_list]
+            else:
+                raise BaseSearchIndexSetDataDoseNotExists(
+                    BaseSearchIndexSetDataDoseNotExists.MESSAGE.format(
+                        index_set_id=str(index_set_id) + "_" + tmp_index_obj.index_set_name
+                    )
+                )
+            self.origin_indices = ",".join(index_list)
+            self.origin_scenario_id = tmp_index_obj.scenario_id
             for addition in self.search_dict.get("addition", []):
                 # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
                 if addition.get("field", "").startswith("__dist"):
@@ -1310,15 +1325,7 @@ class SearchHandler(object):
                         # 如果是查询bkbase端的表，即场景需要对应改为bkdata
                         self.scenario_id = Scenario.BKDATA
                         return clustering_config.clustered_rt
-            index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
-            if len(index_set_data_obj_list) > 0:
-                index_list: list = [x.get("result_table_id", None) for x in index_set_data_obj_list]
-                return ",".join(index_list)
-            raise BaseSearchIndexSetDataDoseNotExists(
-                BaseSearchIndexSetDataDoseNotExists.MESSAGE.format(
-                    index_set_id=str(index_set_id) + "_" + tmp_index_obj.index_set_name
-                )
-            )
+            return self.origin_indices
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
     @staticmethod
@@ -1374,8 +1381,8 @@ class SearchHandler(object):
     def _init_filter(self):
         mapping_handlers = MappingHandlers(
             index_set_id=self.index_set_id,
-            indices=self.indices,
-            scenario_id=self.scenario_id,
+            indices=self.origin_indices,
+            scenario_id=self.origin_scenario_id,
             storage_cluster_id=self.storage_cluster_id,
         )
         # 获取各个字段类型
