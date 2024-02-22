@@ -111,7 +111,7 @@
           <span class="title">{{ $t('原始日志配置') }}</span>
           <bk-radio-group v-model="formData.etl_params.retain_original_text">
             <bk-radio :value="true">
-              <span>{{ $t('保留原始日志') }}</span>
+              <span v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{ $t('保留原始日志') }}</span>
             </bk-radio>
             <bk-radio :value="false">
               <span>{{ $t('不保留') }}</span>
