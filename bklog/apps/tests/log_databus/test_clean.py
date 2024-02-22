@@ -20,7 +20,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from unittest.mock import patch
+
 from django.test import TestCase, override_settings
+
 from .test_collectorhandler import TestCollectorHandler
 from ..log_search.test_indexset import Dummy
 from ...log_databus.constants import AsyncStatus
@@ -33,7 +35,12 @@ from ...log_search.models import ProjectInfo, Space
 CREATE_CLEAN_STASH_PARAMS = {
     "name": "test",
     "clean_type": "bk_log_text",
-    "etl_params": {"retain_original_text": True, "separator": " "},
+    "etl_params": {
+        "retain_original_text": True,
+        "separator": " ",
+        'original_text_is_case_sensitive': False,
+        'original_text_tokenize_on_chars': ''
+    },
     "etl_fields": [
         {
             "field_name": "user",
