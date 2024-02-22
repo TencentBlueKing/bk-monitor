@@ -26,7 +26,6 @@
 
 import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
-import { Checkbox } from 'bk-magic-vue';
 
 import { queryAsyncTaskResult } from '../../../monitor-api/modules/commons';
 import { addCustomMetric } from '../../../monitor-api/modules/custom_report';
@@ -808,11 +807,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         <div class='top'>
           <span class='title'>
             <span onClick={e => e.stopPropagation()}>
-              <Checkbox
+              <bk-checkbox
                 class='metric-checkbox'
                 value={item.checked}
                 onChange={v => this.handleCheckMetric(item, v)}
-              ></Checkbox>
+              ></bk-checkbox>
             </span>
             <span>{this.highLightContent(this.search, item.readable_name)}</span>
           </span>

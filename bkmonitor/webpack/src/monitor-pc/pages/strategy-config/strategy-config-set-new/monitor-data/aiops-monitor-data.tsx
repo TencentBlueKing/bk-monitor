@@ -263,10 +263,17 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           this.handleScenSelected(sceneId, false);
         } else if (this.$route.query?.scene_id) {
           this.handleScenSelected(this.$route.query.scene_id);
+        } else if (this.scenes.length && !this.formModel.scene) {
+          this.handleScenSelected(this.scenes[0].scene_id);
         }
         this.isLoading = false;
       })
-      .catch(() => (this.isLoading = false));
+      .catch(err => {
+        console.log(err);
+      })
+      .finally(() => {
+        this.isLoading = false;
+      });
   }
   // 编辑时设置监控目标描述
   handleSetTargetDesc(
