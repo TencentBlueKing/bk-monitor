@@ -269,7 +269,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                 ),
                 boundary: 'window',
                 placements: ['top'],
-                allowHTML: false
+                allowHTML: true
               }}
             ></span>
           ],

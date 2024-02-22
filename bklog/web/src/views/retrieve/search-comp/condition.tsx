@@ -54,6 +54,7 @@ export default class Condition extends tsc<IProps> {
   @Prop({ type: String, required: true }) conditionType: string; // 条件类型
   @Prop({ type: Object, required: true }) catchIpChooser: object; // ip 选择器的值
   @Prop({ type: Array, required: true }) valueList; // 输入框的可选数据
+  @Prop({ type: Boolean, default: true }) isClearCatchInputStr: boolean; // 输入框的可选数据
   @Ref('tagInput') tagInputRef: TagInput;
 
   labelHoverStatus = false;
@@ -154,6 +155,13 @@ export default class Condition extends tsc<IProps> {
       id: item.toString(),
       name: item.toString(),
     }));
+  }
+
+  @Debounce(100)
+  @Watch('isClearCatchInputStr')
+  watchClearCatchInputStr() {
+    /** 检索时，清空输入框内缓存的字符串 */
+    this.catchTagInputStr = '';
   }
 
   @Emit('delete')

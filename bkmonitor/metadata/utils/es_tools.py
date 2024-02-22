@@ -8,11 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List
+from typing import List, Union
 
+import requests
 from elasticsearch import Elasticsearch as Elasticsearch
 from elasticsearch5 import Elasticsearch as Elasticsearch5
 from elasticsearch6 import Elasticsearch as Elasticsearch6
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 def get_value_if_not_none(value, default):
@@ -65,3 +68,25 @@ def get_client(cluster):
 def get_cluster_disk_size(es_client, kind="total", bytes="b"):
     allocations = es_client.cat.allocation(format="json", bytes=bytes, params={"request_timeout": 10})
     return sum([int(get_value_if_not_none(node.get(f"disk.{kind}"), 0)) for node in allocations])
+
+
+def es_retry_session(
+    es_client: Union[Elasticsearch, Elasticsearch5, Elasticsearch6], retry_num: int, backoff_factor: float, **kwargs
+) -> Union[Elasticsearch, Elasticsearch5, Elasticsearch6]:
+    # 创建一个 Retry 对象，设置重试次数、延迟时间等参数
+    # 等待[0.2s, 0.4s, 0.8s]
+    retry_strategy = Retry(total=retry_num, backoff_factor=backoff_factor, **kwargs)
+
+    # 创建一个 HTTPAdapter 对象，并将重试策略应用于该对象
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session = requests.Session()
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
+    # 使用 Elasticsearch 对象的 transport 属性来获取 Transport 对象
+    transport = es_client.transport
+
+    # 将自定义的 Session 对象添加到 Transport 对象的 session 属性中
+    transport.session = session
+
+    return es_client

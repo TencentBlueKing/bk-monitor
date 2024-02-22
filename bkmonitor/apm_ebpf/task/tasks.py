@@ -17,7 +17,7 @@ from apm_ebpf.handlers.relation import RelationHandler
 from apm_ebpf.models import ClusterRelation
 
 
-@app.task(ignore_result=True)
+@app.task(ignore_result=True, queue="celery_cron")
 def install_grafana():
     """
     为有效集群安装grafana仪表盘

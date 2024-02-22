@@ -1703,8 +1703,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   }
   // 处理监控项tooltips
   handleDescTips(data) {
-    const tips = data.map(item => item.tip).join('');
-    const res = `<div class="item-description">${xssFilter(tips)}</div>`;
+    const tips = data.map(item => `<div>${xssFilter(item.tip)}</div>`).join('');
+    const res = `<div class="item-description">${tips}</div>`;
     return res;
   }
   // 批量操作下的选项是否不可点击
@@ -1851,10 +1851,9 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         <span
           class='table-monitor-desc'
           v-bk-tooltips={{
-            html: this.handleDescTips(props.row.itemDescription),
+            content: this.handleDescTips(props.row.itemDescription),
             delay: 200,
             boundary: 'window',
-            content: '.item-description',
             allowHTML: true
           }}
         >

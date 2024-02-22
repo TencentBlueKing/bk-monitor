@@ -22,21 +22,17 @@
 
 <template>
   <span class="log-content-wrapper">
-    <span v-if="isVirtual">{{ content }}</span>
+    <span class="null-item" v-if="isVirtual">{{ content }}</span>
     <span
       v-else-if="!isNeedSegment"
-      class="valid-text"
-      @click="handleClick($event, content)">
+      class="valid-text">
       <template v-for="(item, index) in markItem">
-        <template v-if="item.isMark">
-          <mark :key="index">{{item.str || '""'}}</mark>
-        </template>
-        <template v-else>{{item.str || '""'}}</template>
+        <mark v-if="item.isMark" :key="index" @click="handleClick($event, item.str)">{{item.str}}</mark>
+        <span class="null-item" v-else :key="index" @click="handleClick($event, item.str)">{{item.str}}</span>
       </template>
     </span>
     <span v-else class="segment-content">
-      <template
-        v-for="(item, index) in splitList">
+      <template v-for="(item, index) in splitList">
         <!-- 换行 -->
         <br :key="index" v-if="item === '\n'">
         <!-- 分割符 -->
@@ -69,7 +65,10 @@
             <i class="icon bk-icon icon-plus-circle"></i>
             <span>{{ $t('添加到本次检索') }}</span>
           </span>
-          <div class="new-link" @click.stop="handleMenuClick('is', true)">
+          <div
+            class="new-link"
+            v-bk-tooltips="$t('新开标签页')"
+            @click.stop="handleMenuClick('is', true)">
             <i class="log-icon icon-jump"></i>
           </div>
         </div>
@@ -78,7 +77,10 @@
             <i class="icon bk-icon icon-minus-circle"></i>
             <span>{{ $t('从本次检索中排除') }}</span>
           </span>
-          <div class="new-link" @click.stop="handleMenuClick('not', true)">
+          <div
+            class="new-link"
+            v-bk-tooltips="$t('新开标签页')"
+            @click.stop="handleMenuClick('not', true)">
             <i class="log-icon icon-jump"></i>
           </div>
         </div>
@@ -145,7 +147,10 @@ export default {
           isMark: false,
         }));
       // 过滤切割的数组 判断所有的值filter(Boolean)清空所有空字符串后 若为空数组 则补一个空字符串展示位
-      if (!splitList.length) splitList = ['""'];
+      if (!splitList.length) splitList = [{
+        str: '',
+        isMark: false,
+      }];
       let markVal = this.content.toString().match(this.originalMarkReg);
       if (markVal?.length) {
         splitList.forEach((el) => {
@@ -342,6 +347,11 @@ export default {
     &:hover {
       color: #3a84ff;
     }
+  }
+
+  .null-item {
+    min-width: 6px;
+    display: inline-block;
   }
 }
 </style>

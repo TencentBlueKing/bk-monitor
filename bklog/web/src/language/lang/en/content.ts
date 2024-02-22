@@ -371,7 +371,7 @@ export default {
   '链接可重复获取，每个链接只能下载一次。': 'Links can be repeatedly retrieved, each link can only be downloaded once.',
   选择Service以获取Label列表: 'Select Service to get Label list',
   '配置项{n}未选择指定容器或指定标签。': 'Configuration {n} has not selected a specified container or tag.',
-  '支持数字、字母、下划线，长短5～100字符': 'Supports numbers, letters, and underscores, with a length of 5-100 characters',
+  '支持数字、字母、下划线，长短5～50字符': 'Supports numbers, letters, and underscores, with a length of 5-50 characters',
   '复杂的过滤条件（超过5个）会影响机器性能': 'Complex filtering conditions (more than 5) will affect machine performance',
   '当前还没有共享集群，请联系平台管理员提供': 'There is currently no shared cluster, please contact the platform administrator to provide.',
   '可见类型为多业务时，可见业务范围不能为空': 'When visibility type is multiple businesses, visibility business scope cannot be empty',
@@ -473,7 +473,6 @@ export default {
   离开将会导致未保存信息丢失: 'Leaving will result in loss of unsaved information',
   '确定要删除清洗：{n}？': 'Are you sure to delete parsing: {n}?',
   '请注意！删除后不能恢复。': 'Caution! lt cannot be restored after deletion.',
-  已有同名标签: 'Already has a tag with the same name',
   '点击可进行{0}': 'Click for {0}',
   无匹配人员: 'No match',
   '快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页': 'Shortcut key--  Esc: exit; PageUp: page up; PageDn: page down',
@@ -556,5 +555,7 @@ export default {
   添加到本次检索: 'Add to this search',
   从本次检索中排除: 'Exclude from this search',
   当前显示全部字段: 'Currently showing all fields',
-  显示全部字段: 'Currently showing all fields'
+  显示全部字段: 'Currently showing all fields',
+  新开标签页: 'New tab',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。': 'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
 };

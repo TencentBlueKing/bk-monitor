@@ -20,7 +20,7 @@ from bkmonitor.models.strategy import UserGroup
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from common.log import logger
-from constants.alert import EventStatus
+from constants.alert import EventStatus, EVENT_STATUS_DICT
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.datalink import CollectorPluginMetaError
@@ -86,7 +86,11 @@ class BaseStatusResource(Resource):
             "end_time": end_time,
         }
         handler = AlertQueryHandler(**request_data)
-        series = handler.date_histogram()["series"]
+        data = list(handler.date_histogram().values())[0]
+        series = [
+            {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
+            for status, series in data.items()
+        ]
         abnormal_series = [s for s in series if s["name"] == EventStatus.ABNORMAL][0]
         return abnormal_series["data"]
 
@@ -291,6 +295,7 @@ class CollectingTargetStatusResource(BaseStatusResource):
 class IntervalOption(Enum):
     MINUTE = "minute"
     DAY = "day"
+    HOUR = "hour"
 
 
 class TransferCountSeriesResource(BaseStatusResource):
@@ -309,6 +314,9 @@ class TransferCountSeriesResource(BaseStatusResource):
         end_time = validated_request_data["end_time"]
         if interval_option == IntervalOption.MINUTE:
             interval = 1
+            interval_unit = "m"
+        elif interval_option == IntervalOption.HOUR:
+            interval = 60
             interval_unit = "m"
         else:
             interval = 1440

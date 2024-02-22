@@ -29,7 +29,7 @@ from requests.auth import to_native_string
 from yaml import SafeDumper
 
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
 from bkmonitor.utils.country import ISP_LIST
@@ -192,29 +192,34 @@ class UptimeCheckTaskListResource(Resource):
         """获取任务分组信息"""
         return [model_to_dict(node) for node in obj.nodes.all()]
 
-    def query_available_or_duration(self, metric, table_name, filter_dict, ret=None):
+    def query_available_or_duration(self, metric, bk_biz_id, table_name, where, period, end_time, ret=None):
         ret = ret or {}
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
             table=table_name,
             metrics=[
-                {"field": "available", "method": "MEAN", "alias": "_available"}
+                {"field": "available", "method": "AVG", "alias": "a"}
                 if metric == "available"
-                else {"field": "task_duration", "method": "MEAN", "alias": "_task_duration"}
+                else {"field": "task_duration", "method": "AVG", "alias": "a"}
             ],
             group_by=["task_id"],
-            filter_dict=filter_dict,
+            where=where,
+            interval=period,
+            filter_dict={},
         )
-        records = data_source.query_data()
+        query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="a")
+        records = query.query_data(start_time=(end_time - 5 * period) * 1000, end_time=end_time * 1000)
 
-        if metric == "available":
-            for item in records:
-                ret[int(item["task_id"])].update(available=Decimal(item["_available"]).quantize(Decimal("0.00")) * 100)
-        else:
-            for item in records:
-                ret[int(item["task_id"])].update(
-                    task_duration=Decimal(item["_task_duration"]).quantize(Decimal("0.00"))
-                )
+        _task_id_list = set()
+        for item in records:
+            # 取第一个数据的值
+            if int(item["task_id"]) in _task_id_list:
+                continue
+            _task_id_list.add(int(item["task_id"]))
+            if metric == "available":
+                ret[int(item["task_id"])].update(available=Decimal(item["_result_"]).quantize(Decimal("0.00")) * 100)
+            else:
+                ret[int(item["task_id"])].update(task_duration=Decimal(item["_result_"]).quantize(Decimal("0.00")))
 
     def perform_request(self, validated_request_data):
         task_data = validated_request_data["task_data"]
@@ -239,23 +244,17 @@ class UptimeCheckTaskListResource(Resource):
 
         # 多线程接口调用
         th_list = []
+        end = arrow.utcnow().timestamp
         for protocol, data in query_group.items():
             table_name = "{}.{}".format(UPTIME_CHECK_DB, protocol.lower())
-            end = arrow.utcnow().timestamp
             for period, task_id_list in data.items():
-                start = end - period * 5
-                filter_dict = {
-                    "time__gte": start * 1000,
-                    "time__lt": end * 1000,
-                    "task_id": task_id_list,
-                    "bk_biz_id": str(bk_biz_id),
-                }
+                where = [{"key": "task_id", "method": "contains", "value": task_id_list}]
 
                 if validated_request_data["get_available"]:
                     th_list.append(
                         InheritParentThread(
                             target=self.query_available_or_duration,
-                            args=("available", table_name, filter_dict, task_data_mapping),
+                            args=("available", bk_biz_id, table_name, where, period, end, task_data_mapping),
                         )
                     )
 
@@ -263,7 +262,7 @@ class UptimeCheckTaskListResource(Resource):
                     th_list.append(
                         InheritParentThread(
                             target=self.query_available_or_duration,
-                            args=("task_duration", table_name, filter_dict, task_data_mapping),
+                            args=("task_duration", bk_biz_id, table_name, where, period, end, task_data_mapping),
                         )
                     )
 
@@ -350,7 +349,8 @@ class TestTaskResource(Resource):
             else:
                 biz_nodes.append(node)
 
-        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303
+        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
+
         bk_host_ids = all_nodes.values_list("bk_host_id", flat=1).distinct()
         all_plugin = api.node_man.plugin_search(
             {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
@@ -466,9 +466,7 @@ class TestTaskResource(Resource):
                     if success_info["ip"]:
                         q_params = Q(ip=success_info["ip"]) | Q(bk_host_id=success_info["bk_host_id"])
                     node = all_nodes.filter(q_params).first()
-                    fail_result.append(
-                        "node:{node}, log:{log}".format(node=node.name, log=" | ".join(error_message))
-                    )
+                    fail_result.append("node:{node}, log:{log}".format(node=node.name, log=" | ".join(error_message)))
 
             if len(fail_result):
                 raise CustomException("\n".join(fail_result))
@@ -1197,9 +1195,12 @@ class UptimeCheckBeatResource(Resource):
             )
             id_to_host.update({host.bk_host_id: host for host in all_hosts})
             if is_ipv6_biz(biz):
-                ips = [{"bk_host_id": str(host.bk_host_id)} for host in all_hosts]
+                ips = [{"bk_host_id": str(host.bk_host_id), "bk_biz_id": biz} for host in all_hosts]
             else:
-                ips = [{"ip": host.bk_host_innerip, "bk_cloud_id": str(host.bk_cloud_id)} for host in all_hosts]
+                ips = [
+                    {"ip": host.bk_host_innerip, "bk_cloud_id": str(host.bk_cloud_id), "bk_biz_id": biz}
+                    for host in all_hosts
+                ]
             # 批量获取采集器信息
             heartbeats.extend(resource.uptime_check.get_beat_data.bulk_request(ips))
 
@@ -1210,8 +1211,8 @@ class UptimeCheckBeatResource(Resource):
                 node_status = {
                     i[0]["bk_host_id"]: {
                         "bk_host_id": safe_int(i[0]["bk_host_id"]),
-                        "status": i[0]["status"],
-                        "version": i[0]["version"],
+                        "status": i[0].get("status"),
+                        "version": i[0].get("version"),
                         "gse_status": BEAT_STATUS["RUNNING"],
                     }
                 }
@@ -1222,8 +1223,8 @@ class UptimeCheckBeatResource(Resource):
                         "bk_host_id": bk_host_id,
                         "ip": i[0]["ip"],
                         "bk_cloud_id": safe_int(i[0]["bk_cloud_id"]),
-                        "status": i[0]["status"],
-                        "version": i[0]["version"],
+                        "status": i[0].get("status"),
+                        "version": i[0].get("version"),
                         "gse_status": BEAT_STATUS["RUNNING"],
                     }
                 }
@@ -1289,25 +1290,31 @@ class GetBeatDataResource(Resource):
         bk_host_id = serializers.CharField(required=False, label="节点主机ID")
         ip = serializers.CharField(required=False, label="节点IP")
         bk_cloud_id = serializers.CharField(required=False, label="节点云区域ID")
+        bk_biz_id = serializers.CharField(required=True, label="业务ID")
 
     def perform_request(self, data):
         end = arrow.utcnow().timestamp
         start = end - 180
-
-        filter_dict = {"time__gte": start * 1000, "time__lt": end * 1000, **data}
-        value_fields = (
-            ["status", "bk_host_id", "version", "uptime"]
-            if data.get("bk_host_id")
-            else ["status", "ip", "bk_cloud_id", "version", "uptime"]
-        )
-        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-        data_source = data_source_class(
-            table="beat_monitor.heartbeat_total",
-            metrics=[{"field": field} for field in value_fields],
-            filter_dict=filter_dict,
-        )
-        data = data_source.query_data(limit=5)
-        return data
+        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
+        condition_statement = []
+        for field in ["bk_host_id"] if data.get("bk_host_id") else ["ip", "bk_cloud_id"]:
+            condition_statement.append("{}='{}'".format(field, data.get(field, "")))
+        promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{','.join(condition_statement)}}}[1m]"
+        query_config = {
+            "data_source_label": DataSourceLabel.PROMETHEUS,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "promql": promql_statement,
+            "interval": 60,
+            "alias": "a",
+        }
+        data_source = data_source_class(int(data["bk_biz_id"]), **query_config)
+        query = UnifyQuery(bk_biz_id=int(data["bk_biz_id"]), data_sources=[data_source], expression="")
+        records = query.query_data(start_time=start * 1000, end_time=end * 1000, limit=5)
+        # 如果非 ipv6 业务，要把 bk_host_id 字段去掉，以免影响后面的判断
+        if not data.get("bk_host_id"):
+            for record in records:
+                record.pop("bk_host_id", None)
+        return records
 
 
 class GetStrategyStatusResource(Resource):
@@ -2612,43 +2619,46 @@ class GetRecentTaskDataResource(Resource):
 
     def perform_request(self, validated_request_data):
         task_id = validated_request_data["task_id"]
-        type = validated_request_data["type"]
-        # 通过task_id获取到任务的协议和业务id，来拼接表名
+        task_type = validated_request_data["type"]
+
         try:
             uptime_check_task = UptimeCheckTask.objects.get(pk=task_id)
         except UptimeCheckTask.DoesNotExist:
             raise CustomException(_("不存在id为%s的拨测任务") % task_id)
-        protocol = uptime_check_task.protocol
-        result_table_id = "{}.{}".format(UPTIME_CHECK_DB, protocol.lower())
-        # 兼容不同版本
-        table_name = resource.commons.trans_bkcloud_rt_bizid(result_table_id)
+
         # 获取某个node_id最近一个采集周期内的可用率和响应时间，如果没有则说明不可用
-        end = arrow.utcnow().timestamp
-        start = end - uptime_check_task.get_period()
-        filter_dict = {
-            "time__gte": start * 1000,
-            "time__lt": end * 1000,
-            "task_id": task_id,
-            "bk_biz_id": str(uptime_check_task.bk_biz_id),
-        }
-        value_fields = ["task_id", "node_id", type]
+        bk_biz_id = uptime_check_task.bk_biz_id
+        interval = 60
+        now = arrow.utcnow().timestamp
 
-        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+        protocol = uptime_check_task.protocol.lower()
+        period = uptime_check_task.get_period()
+        if task_type == "task_duration":
+            # 保留标签聚合
+            promql = f"topk(1, max_over_time(bkmonitor:{UPTIME_CHECK_DB}:{protocol}:{task_type}[{period}s]))"
+        else:
+            promql = f"bottomk(1, min_over_time(bkmonitor:{UPTIME_CHECK_DB}:{protocol}:{task_type}[{period}s]))"
+        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
-            table=table_name,
-            metrics=[{"field": field} for field in value_fields],
-            filter_dict=filter_dict,
+            bk_biz_id=bk_biz_id,
+            promql=promql,
+            filter_dict={"task_id": task_id},
+            interval=interval,
         )
-        data = data_source.query_data(limit=5)
+        query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
+        # 模拟即时查询
+        data = query.query_data(start_time=(now - interval) * 1000, end_time=now * 1000)
 
-        # 当前结果为空，则表示采集器未上报数据，如果结果不是空，则选择最新的数据返回
+        # 采集器未上报数据
         if len(data) == 0:
             return {}
-        else:
-            if type == "available":
-                return min(data, key=lambda x: x["available"])
-            else:
-                return max(data, key=lambda x: x["task_duration"])
+
+        return {
+            "task_id": task_id,
+            "node_id": data[0]["node_id"],
+            task_type: data[0]["_result_"],
+            "_time_": data[0]["_time_"],
+        }
 
 
 class SelectCarrierOperator(Resource):
