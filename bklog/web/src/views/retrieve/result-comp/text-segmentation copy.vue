@@ -80,7 +80,7 @@
           <div
             class="new-link"
             v-bk-tooltips="$t('新开标签页')"
-            @click.stop="handleMenuClick('not', true)">
+            @click.stop="handleMenuClick('new-page', true)">
             <i class="log-icon icon-jump"></i>
           </div>
         </div>
