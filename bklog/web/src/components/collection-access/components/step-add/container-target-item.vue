@@ -26,6 +26,7 @@
       <div class="space-item-label">{{$t('应用类型')}}</div>
       <bk-select
         v-model="formData.workload_type"
+        ref="typeSelectRef"
         searchable
         clearable
         allow-create
@@ -108,11 +109,16 @@ export default {
     'formData.workload_type'(val) {
       !!val ? this.getWorkLoadNameList() : this.nameList = [];
     },
-    'conItem.noQuestParams.namespaceStr'() {
-      clearTimeout(this.timer);
-      this.timer = setTimeout(() => {
-        this.getWorkLoadNameList();
-      }, 1000);
+    'conItem.noQuestParams.namespaceStr': {
+      immediate: true,
+      handler(str) {
+        if (str) {
+          clearTimeout(this.timer);
+          this.timer = setTimeout(() => {
+            this.getWorkLoadNameList();
+          }, 1000);
+        }
+      },
     },
     formData: {
       handler(val) {
@@ -131,6 +137,7 @@ export default {
   },
   mounted() {
     this.$refs.loadSelectRef.$refs.createInput.placeholder = this.placeHolderStr;
+    this.$refs.typeSelectRef.$refs.createInput.placeholder = this.$t('请输入');
   },
   methods: {
     getWorkLoadNameList() {
