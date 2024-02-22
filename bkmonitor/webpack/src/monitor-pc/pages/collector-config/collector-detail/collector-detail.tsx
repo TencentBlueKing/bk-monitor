@@ -26,6 +26,7 @@
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { random } from '@common/utils';
+import { TabPanel } from 'bk-magic-vue';
 
 import {
   collectConfigList,
@@ -158,6 +159,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
    */
   getCollectConfigListItem() {
     const params = {
+      bk_biz_id: 2,
       refresh_status: false,
       order: '-create_time',
       search: {
@@ -299,7 +301,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           active={this.active}
           on-tab-change={v => this.handleTabChange(v)}
         >
-          <bk-tab-panel
+          <TabPanel
             label={this.$t('配置信息')}
             name={TabEnum.Configuration}
           >
@@ -312,8 +314,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
                 collectConfigData={this.collectConfigData}
               ></CollectorConfiguration>
             )}
-          </bk-tab-panel>
-          <bk-tab-panel
+          </TabPanel>
+          <TabPanel
             label={this.$t('采集状态')}
             name={TabEnum.TargetDetail}
           >
@@ -332,8 +334,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               onCanPolling={this.handlePolling}
               onRefresh={this.handleRefreshData}
             ></CollectorStatusDetails>
-          </bk-tab-panel>
-          <bk-tab-panel
+          </TabPanel>
+          <TabPanel
             label={this.$t('链路状态')}
             name={TabEnum.DataLink}
           >
@@ -350,8 +352,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               show={this.active === TabEnum.DataLink}
               collectId={this.collectId}
             />
-          </bk-tab-panel>
-          <bk-tab-panel
+          </TabPanel>
+          <TabPanel
             label={this.$t('存储状态')}
             name={TabEnum.StorageState}
           >
@@ -369,13 +371,13 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               data={this.allData[TabEnum.StorageState].data}
               collectId={this.collectId}
             />
-          </bk-tab-panel>
-          <bk-tab-panel
+          </TabPanel>
+          <TabPanel
             label={this.$t('指标/维度')}
             name={TabEnum.FieldDetails}
           >
             <FieldDetails detailData={this.detailData} />
-          </bk-tab-panel>
+          </TabPanel>
           <span
             slot='setting'
             class='tab-right-tip'

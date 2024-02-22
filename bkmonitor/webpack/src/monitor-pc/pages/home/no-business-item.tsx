@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Exception } from 'bk-magic-vue';
 import { throttle } from 'throttle-debounce';
 
 // 20231205 代码还原，先保留原有部分
@@ -73,7 +74,7 @@ export default class NoBusinessItem extends tsc<IProps> {
   // 判断当前业务，并返回tag
   // get getCurrentBizTag() {
   //   if (this.$store.getters.bizId === this.data.id) {
-  //     return <bk-tag theme='success'> { this.$t('当前空间')} </bk-tag>;
+  //     return <Tag theme='success'> { this.$t('当前空间')} </Tag>;
   //   }
   // }
 
@@ -185,10 +186,7 @@ export default class NoBusinessItem extends tsc<IProps> {
           </div>
           <div class='skeleton'>
             {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
-            <img
-              src={require('../../static/images/svg/business-skeleton.svg')}
-              alt=''
-            ></img>
+            <img src={require('../../static/images/svg/business-skeleton.svg')}></img>
           </div>
         </div>
         <div class='line'></div>
@@ -197,20 +195,20 @@ export default class NoBusinessItem extends tsc<IProps> {
           v-bkloading={{ isLoading: this.loading }}
         >
           <div class='content'>
-            <bk-exception
+            <Exception
               class='content-exception'
               type={403}
             >
               <span class='msg'>{window.i18n.tc('您没有业务权限，请先申请！')}</span>
-            </bk-exception>
+            </Exception>
           </div>
-          <bk-button
+          <Button
             theme='primary'
             class='btn'
             onClick={this.handleClick}
           >
             {window.i18n.tc('申请权限')}
-          </bk-button>
+          </Button>
         </div>
       </div>
     );

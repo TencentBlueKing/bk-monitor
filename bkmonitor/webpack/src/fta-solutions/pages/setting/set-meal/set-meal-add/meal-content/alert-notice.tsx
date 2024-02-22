@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input, Option, Select } from 'bk-magic-vue';
 
 import { deepClone, random } from '../../../../../../monitor-common/utils/utils';
 import TemplateInput from '../../../../../../monitor-pc/pages/strategy-config/strategy-config-set/strategy-template-input/strategy-template-input';
@@ -302,7 +303,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                   path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                   class='content-interval'
                 >
-                  <bk-select
+                  <Select
                     style='margin-top: -1px; min-width: 74px;'
                     class='select select-inline'
                     clearable={false}
@@ -311,21 +312,21 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                     onChange={this.handleChange}
                   >
                     {intervalModeList.map(item => (
-                      <bk-option
+                      <Option
                         key={item.id}
                         id={item.id}
                         name={item.name}
-                      ></bk-option>
+                      ></Option>
                     ))}
-                  </bk-select>
-                  <bk-input
+                  </Select>
+                  <Input
                     class='input-inline input-center'
                     style='width: 56px;'
                     behavior='simplicity'
                     v-model={this.alertData.notifyInterval}
                     type='number'
                     onInput={this.handleChange}
-                  ></bk-input>
+                  ></Input>
                 </i18n>
                 <span
                   class='icon-monitor icon-hint'
@@ -364,11 +365,11 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                 v-model={this.templateData.titleTmpl}
                 onChange={this.handleChange}
               ></AutoInput>
-              {/* <bk-input
+              {/* <Input
                 behavior='simplicity'
                 ext-cls="template-title"
                 v-model={this.templateData.titleTmpl}
-                onInput={this.handleChange}></bk-input> */}
+                onInput={this.handleChange}></Input> */}
             </CommonItem>
             <div
               class='label-wrap'
@@ -398,9 +399,9 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
               ></TemplateInput>
             </ResizeContainer>
           </div>
-          {/* <bk-button class="debug-btn" theme="primary" outline={true} onClick={() => (this.showTestDialog = true)}>
+          {/* <Button class="debug-btn" theme="primary" outline={true} onClick={() => (this.showTestDialog = true)}>
           {this.$t('调试')}
-        </bk-button> */}
+        </Button> */}
           <StrategyTemplatePreview
             dialogShow={this.isShowTemplate}
             template={this.templateData.messageTmpl}

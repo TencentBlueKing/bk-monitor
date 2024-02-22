@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Sideslider, Switcher, TabPanel } from 'bk-magic-vue';
 
 import { getStrategyListV2 } from '../../../monitor-api/modules/strategies';
 import { secToString } from '../../components/cycle-input/utils';
@@ -92,8 +93,8 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
       `${this.detail.data_source_label}_${this.detail.data_type_label}` === 'log_time_series'
         ? `${this.detail.related_name}.${this.detail.metric_field}`
         : this.detail.result_table_id
-          ? `${this.detail.result_table_id}.${this.detail.metric_field}`
-          : this.detail.metric_field;
+        ? `${this.detail.result_table_id}.${this.detail.metric_field}`
+        : this.detail.metric_field;
     const alias = this.detail.metric_field_name;
     this.title = `${metricName}${this.$t('指标详情')}`;
     const collectInterval = this.detail.collect_interval < 5 ? 60 : this.detail.collect_interval;
@@ -120,12 +121,12 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
       {
         label: '启/停',
         value: (
-          <bk-switcher
+          <Switcher
             value={true}
             theme='primary'
             disabled
             size={'small'}
-          ></bk-switcher>
+          ></Switcher>
         )
       }
     ];
@@ -167,7 +168,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
       </div>
     );
     return (
-      <bk-sideslider
+      <Sideslider
         extCls='metric-detail-side-component'
         isShow={this.localShow}
         width={960}
@@ -212,11 +213,11 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
               on-tab-change={this.handleTabChange}
             >
               {this.tabData.list.map(item => (
-                <bk-tab-panel
+                <TabPanel
                   name={item.id}
                   label={item.name}
                   key={item.id}
-                ></bk-tab-panel>
+                ></TabPanel>
               ))}
             </MonitorTab>
           </div>
@@ -231,7 +232,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
             ></HandleExperience>
           </div>
         </div>
-      </bk-sideslider>
+      </Sideslider>
     );
   }
 }

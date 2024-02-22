@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Option, Select } from 'bk-magic-vue';
 
 import { getUnitInfo } from '../../../../../monitor-api/modules/strategies';
 import { deepClone } from '../../../../../monitor-common/utils/utils';
@@ -293,10 +294,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
       // 智能算法规则
       if (item.type === 'ai') {
-        const hasOne = this.addType.find(set => set.type === 'ai');
+        const hasOne = this.addType.find(set => set.id === item.id);
         if (hasOne) {
           item.disabled = true;
-          item.disabledTip = this.$tc('暂不支持设置两个智能算法');
+          item.disabledTip = this.$tc('一个策略不能同时添加两个相同的智能检测');
         }
       }
 
@@ -497,7 +498,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
               path='同级别的各算法之间是{0}的关系'
               class='i18n-path'
             >
-              <bk-select
+              <Select
                 class='inline-select'
                 value={this.connector}
                 behavior='simplicity'
@@ -506,13 +507,13 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 onChange={this.emitConnector}
               >
                 {this.algorithmRelationship.map(opt => (
-                  <bk-option
+                  <Option
                     key={opt.id}
                     id={opt.id}
                     name={opt.name}
                   />
                 ))}
-              </bk-select>
+              </Select>
             </i18n>
           </div>
           {this.unitList.length && this.needShowUnit ? (

@@ -19,19 +19,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.utils.local import get_request_username
-
 """Component API Client
 """
-import json
-import logging
-import random
-import time
-
 import requests
+import json
+import time
+import random
+import logging
 
-from . import collections, conf
 from .compat import urlparse
+from . import conf
+from . import collections
 from .utils import get_signature
 
 # shutdown urllib3's warning
@@ -99,9 +97,11 @@ class BaseComponentClient(object):
     def get_bk_api_ver(self):
         return self.bk_api_ver
 
-    def merge_params_data_with_common_args(self, method, params, data):
+    def merge_params_data_with_common_args(self, method, params, data, enable_app_secret=False):
         """get common args when request"""
-        common_args = self.common_args
+        common_args = dict(bk_app_code=self.app_code, **self.common_args)
+        if enable_app_secret:
+            common_args["bk_app_secret"] = self.app_secret
         if method == "GET":
             _params = common_args.copy()
             _params.update(params or {})
@@ -120,14 +120,8 @@ class BaseComponentClient(object):
             headers["x-use-test-env"] = "1"
         if self.language:
             headers["blueking-language"] = self.language
-        api_headers = {
-            "bk_app_code": self.app_code,
-            "bk_app_secret": self.app_secret,
-            "bk_username": self.common_args.get("bk_username") or get_request_username(),
-        }
-        headers["X-Bkapi-Authorization"] = json.dumps(api_headers)
 
-        params, data = self.merge_params_data_with_common_args(method, params, data)
+        params, data = self.merge_params_data_with_common_args(method, params, data, enable_app_secret=True)
         logger.debug("Calling %s %s with params=%s, data=%s, headers=%s", method, url, params, data, headers)
         return requests.request(method, url, params=params, data=data, verify=False, headers=headers, **kwargs)
 
@@ -152,12 +146,8 @@ class ComponentClientWithSignature(BaseComponentClient):
             headers["x-use-test-env"] = "1"
         if self.language:
             headers["blueking-language"] = self.language
-        api_headers = {
-            "bk_app_code": self.app_code,
-            "bk_username": self.common_args.get("bk_username") or get_request_username(),
-        }
-        headers["X-Bkapi-Authorization"] = json.dumps(api_headers)
-        params, data = self.merge_params_data_with_common_args(method, params, data)
+
+        params, data = self.merge_params_data_with_common_args(method, params, data, enable_app_secret=False)
         if method == "POST":
             params = {}
 

@@ -705,21 +705,27 @@ export default defineComponent({
                   </div>
                 </div>
                 <div class='query-tool'>
-                  <Select
-                    class='table-search-select'
-                    v-model={this.relatedIndexSetId}
-                    clearable={false}
-                    onChange={v => this.handleSelectIndexSet(v)}
-                    style='flex-shrink: 0;'
+                  <Popover
+                    theme='light'
+                    v-slots={{
+                      content: () => <div>{this.selectedOptionAlias}</div>
+                    }}
                   >
-                    {this.relatedIndexSetList.map(option => (
-                      <Select.Option
-                        key={option.index_set_id}
-                        id={option.index_set_id}
-                        name={option.index_set_name}
-                      ></Select.Option>
-                    ))}
-                  </Select>
+                    <Select
+                      class='table-search-select'
+                      v-model={this.relatedIndexSetId}
+                      clearable={false}
+                      onChange={v => this.handleSelectIndexSet(v)}
+                    >
+                      {this.relatedIndexSetList.map(option => (
+                        <Select.Option
+                          key={option.index_set_id}
+                          value={option.index_set_id}
+                          label={option.index_set_name}
+                        ></Select.Option>
+                      ))}
+                    </Select>
+                  </Popover>
                   <Input
                     class='table-search-input'
                     v-model={this.keyword}

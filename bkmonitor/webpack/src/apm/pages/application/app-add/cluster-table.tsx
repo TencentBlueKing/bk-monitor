@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Progress, Radio, Table, TableColumn } from 'bk-magic-vue';
 
 import './cluster-table.scss';
 
@@ -137,59 +138,59 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
         </div>
         {this.tableList.length ? (
           <div class={['cluster-main', this.isShowTable ? '' : 'is-hidden']}>
-            <bk-table
+            <Table
               class='cluster-table'
               data={this.tableList}
               max-height='254'
               on-row-click={this.handleSelectCluster}
             >
-              <bk-table-column
+              <TableColumn
                 label={this.$t('集群名')}
                 min-width='220'
                 scopedSlots={{
                   default: ({ row }) => (
-                    <bk-radio checked={this.value === row.storage_cluster_id}>
+                    <Radio checked={this.value === row.storage_cluster_id}>
                       <span>{row.storage_cluster_name}</span>
-                    </bk-radio>
+                    </Radio>
                   )
                 }}
-              ></bk-table-column>
-              <bk-table-column
+              ></TableColumn>
+              <TableColumn
                 label={this.$t('总量')}
                 min-width='110'
                 scopedSlots={{
                   default: ({ row }) => <span>{this.formatFileSize(row.storage_total)}</span>
                 }}
-              ></bk-table-column>
-              <bk-table-column
+              ></TableColumn>
+              <TableColumn
                 label={this.$t('空闲率')}
                 min-width='110'
                 scopedSlots={{
                   default: ({ row }) => (
                     <div class='percent'>
                       <div class='percent-progress'>
-                        <bk-progress
+                        <Progress
                           theme='success'
                           show-text={false}
                           percent={this.getPercent(row.storage_usage)}
-                        ></bk-progress>
+                        ></Progress>
                       </div>
                       <span>{`${this.getPercent(row.storage_usage, 1)}%`}</span>
                     </div>
                   )
                 }}
-              ></bk-table-column>
-              <bk-table-column
+              ></TableColumn>
+              <TableColumn
                 label={this.$t('索引数')}
                 prop={'index_count'}
-              ></bk-table-column>
+              ></TableColumn>
               {this.tableShowType && (
-                <bk-table-column
+                <TableColumn
                   label={this.$t('业务数')}
                   prop={'biz_count'}
-                ></bk-table-column>
+                ></TableColumn>
               )}
-            </bk-table>
+            </Table>
             {Boolean(this.activeItem) && (
               <div class='cluster-illustrate'>
                 <p class='illustrate-title'>{this.$t('集群说明')}</p>

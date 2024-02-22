@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 
 import { getEventPluginToken } from '../../../../../monitor-api/modules/event_plugin';
 import { copyText } from '../../../../../monitor-common/utils/utils';
@@ -263,7 +264,7 @@ export default class Config extends tsc<IConfig> {
               <span class='label'>{this.$t('数据源格式')}</span>
               <span class='value'>{this.pushConfigData.sourceFormat}</span>
             </div>
-            <bk-table
+            <Table
               key={`${this.normalizationTable.length || 0}${this.id}normalization`}
               class='table-wrap'
               data={this.normalizationTable}
@@ -271,39 +272,39 @@ export default class Config extends tsc<IConfig> {
               outer-border={false}
             >
               {this.fieldMapTableColumnlist.map(item => (
-                <bk-table-column
+                <TableColumn
                   key={item.key}
                   label={item.label}
                   prop={item.prop}
                   width={item.width}
                   formatter={item.formatter}
                   scopedSlots={item.key === 'type' ? typeColumnScopedSlots : null}
-                ></bk-table-column>
+                ></TableColumn>
               ))}
-              {/* <bk-table-column label={this.$t('操作')} width="180" scopedSlots={oprateScopedSlots}/> */}
-            </bk-table>
+              {/* <TableColumn label={this.$t('操作')} width="180" scopedSlots={oprateScopedSlots}/> */}
+            </Table>
             <div class='content-title-h1'>
               {this.$t('告警名称列表')}
               <span class='desc'>
                 {this.$t('告警名称通过字段映射可以自动获取到，也可以手动新增。手动新增优先级高于自动获取。')}
               </span>
             </div>
-            <bk-table
+            <Table
               key={`${this.alertConfigTable.length || 0}${this.id}alertConfig`}
               class='table-wrap'
               data={this.alertConfigTable}
               outer-border={false}
             >
               {this.noticeNameTableColumnlist.map(item => (
-                <bk-table-column
+                <TableColumn
                   key={item.key}
                   label={item.label}
                   prop={item.prop}
                   width={item.width}
                   scopedSlots={scopedSlots(item.key)}
-                ></bk-table-column>
+                ></TableColumn>
               ))}
-            </bk-table>
+            </Table>
           </div>
         </div>
       </div>

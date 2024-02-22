@@ -27,6 +27,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input, Option, Select, TagInput } from 'bk-magic-vue';
 
 import { saveScenePanelConfig } from '../../../../monitor-api/modules/data_explorer';
 import { getVariableValue } from '../../../../monitor-api/modules/grafana';
@@ -462,7 +463,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                     {item.aliaName}
                   </div>
                   <div class='item-value'>
-                    <bk-tag-input
+                    <TagInput
                       ext-cls='item-value-select'
                       placeholder={`${this.$t('输入')}`}
                       clearable
@@ -474,7 +475,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                       on-blur={this.handleTagsBlur}
                       on-removeAll={() => this.handleClear(index)}
                       paste-fn={v => this.handlePaste(v, item, index)}
-                    ></bk-tag-input>
+                    ></TagInput>
                   </div>
                 </div>
               ) : undefined
@@ -510,7 +511,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                 <tr key={index}>
                   <td>
                     <div class='dimension-select'>
-                      <bk-select
+                      <Select
                         ext-cls='item-edit-select'
                         clearable={false}
                         v-model={item.dimension}
@@ -518,19 +519,19 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                         on-change={val => this.dimensionChange(val, item, index)}
                       >
                         {item.dimensionList.map(dimension => (
-                          <bk-option
+                          <Option
                             id={dimension.englishName}
                             name={dimension.aliaName || dimension.englishName}
                             key={dimension.englishName}
                             disabled={this.checkedDimensions.includes(dimension.englishName)}
-                          ></bk-option>
+                          ></Option>
                         ))}
-                      </bk-select>
+                      </Select>
                     </div>
                   </td>
                   <td>
                     <div class='display-name'>
-                      <bk-input
+                      <Input
                         on-focus={() => (this.verify = false)}
                         v-model={item.aliaName}
                         disabled
@@ -538,7 +539,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                           placements: ['top'],
                           content: `${this.$t('到指标维度设置')}`
                         }}
-                      ></bk-input>
+                      ></Input>
                     </div>
                   </td>
                   <td>
@@ -570,19 +571,19 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
             </table>
             {this.errMsg !== '' && <div class='err-red'>{this.errMsg}</div>}
             <div class='save-cancel'>
-              <bk-button
+              <Button
                 theme='primary'
                 class='mr10'
                 on-click={this.saveChange}
               >
                 {this.$t('保存')}
-              </bk-button>
-              <bk-button
+              </Button>
+              <Button
                 theme='default'
                 on-click={this.cancelChange}
               >
                 {this.$t('取消')}
-              </bk-button>
+              </Button>
             </div>
           </div>
         )}

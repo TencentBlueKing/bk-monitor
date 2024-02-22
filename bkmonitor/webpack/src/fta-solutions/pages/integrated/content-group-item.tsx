@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Exception } from 'bk-magic-vue';
 
 import { IGroupData } from './group';
 import StatusTips, { MapType, StatusType } from './status-tips';
@@ -93,26 +94,26 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
                 {item?.data?.length ? (
                   item.data.map(item => this.pluginPanelRender(item))
                 ) : (
-                  <bk-exception
+                  <Exception
                     type='empty'
                     scene='part'
                     class='empty'
                   >
                     {this.$t('暂无事件源')}
-                  </bk-exception>
+                  </Exception>
                 )}
               </div>
             </div>
           ))
         ) : (
           <div class='group-item'>
-            <bk-exception
+            <Exception
               type='empty'
               scene='part'
               class='empty'
             >
               {this.$t('暂无事件源')}
-            </bk-exception>
+            </Exception>
           </div>
         )}
       </div>
@@ -138,7 +139,6 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
         <div class='plugin-panel-content'>
           {item.logo ? (
             <img
-              alt=''
               class='img-logo'
               src={`data:image/png;base64,${item.logo}`}
             />

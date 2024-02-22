@@ -13,16 +13,15 @@ import collections.abc
 from typing import Dict
 
 
-def nested_update(d, u, overwrite=False):
+def nested_update(d, u):
     """
     字典嵌套更新
     """
     for k, v in u.items():
         if isinstance(v, collections.abc.Mapping):
-            d[k] = nested_update(d.get(k, {}), v, overwrite)
+            d[k] = nested_update(d.get(k, {}), v)
         else:
-            if overwrite or k not in d:
-                d[k] = v
+            d[k] = v
     return d
 
 

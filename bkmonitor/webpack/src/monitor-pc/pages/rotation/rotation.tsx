@@ -49,6 +49,7 @@ export default class Rotation extends tsc<{}> {
   }
   beforeRouteLeave(to, from, next) {
     unmount(wewebId);
+    (document.body as any).___zrEVENTSAVED = null;
     next();
   }
   render() {

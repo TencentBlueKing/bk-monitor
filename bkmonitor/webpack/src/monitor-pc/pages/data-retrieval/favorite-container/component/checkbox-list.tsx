@@ -26,6 +26,7 @@
 
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox, Exception } from 'bk-magic-vue';
 
 import { SPACE_TYPE_MAP } from '../../../../common/constant';
 import { ETagsType } from '../../../../components/biz-select/list';
@@ -92,7 +93,7 @@ export default class List extends tsc<IProps, IEvents> {
           this.list.map(item => (
             <div class={['list-group', { 'no-name': !item.name }]}>
               {
-                <bk-checkbox
+                <Checkbox
                   checked={this.isSelectAll}
                   ext-cls={'list-item-checkbox'}
                   onChange={(status: boolean) => this.handleSelectAll(status)}
@@ -100,10 +101,10 @@ export default class List extends tsc<IProps, IEvents> {
                   <div class={['checkbox-item', { checked: this.selectList.includes('*') }]}>
                     <span class='list-item-left'>{this.$t('全选')}</span>
                   </div>
-                </bk-checkbox>
+                </Checkbox>
               }
               {item.children.map(child => (
-                <bk-checkbox
+                <Checkbox
                   checked={this.selectList.includes(child.bk_biz_id)}
                   ext-cls={'list-item-checkbox'}
                   onChange={() => this.handleCheckBoxChange(child.bk_biz_id)}
@@ -137,12 +138,12 @@ export default class List extends tsc<IProps, IEvents> {
                       ))}
                     </span>
                   </div>
-                </bk-checkbox>
+                </Checkbox>
               ))}
             </div>
           ))
         ) : (
-          <bk-exception
+          <Exception
             class='no-data'
             type='search-empty'
             scene='part'

@@ -74,7 +74,6 @@ INSTALLED_APPS += (
     "fta_web",
     "audit",
     "apigw_manager",
-    'bk_notice_sdk',
 )
 
 MIDDLEWARE = (

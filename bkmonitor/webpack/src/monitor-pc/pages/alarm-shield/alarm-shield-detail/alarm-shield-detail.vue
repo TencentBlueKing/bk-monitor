@@ -165,7 +165,6 @@
               <img
                 v-if="item.logo"
                 :src="item.logo"
-                alt=''
               >
               <i
                 v-else-if="!item.logo && item.type === 'group'"
@@ -432,26 +431,26 @@ export default {
 
 .alarm-shield-content {
   min-height: calc(100vh - 102px);
-  padding: 18px 94px 18px 30px;
-  margin: 20px;
-  font-size: 14px;
-  color: #63656e;
-  background: #fff;
   border: 1px solid #dcdee5;
   border-radius: 2px;
+  padding: 18px 94px 18px 30px;
+  background: #fff;
+  font-size: 14px;
+  color: #63656e;
+  margin: 20px;
 
   .operation {
     position: absolute;
-    top: 16px;
     right: 24px;
+    top: 16px;
     font-size: 0;
   }
 
   .title {
-    margin-bottom: 23px;
     font-size: 14px;
     font-weight: bold;
     color: #313238;
+    margin-bottom: 23px;
   }
 
   .scope-item {
@@ -461,9 +460,9 @@ export default {
 
     .item-label {
       min-width: 90px;
-      margin-right: 24px;
       color: #979ba5;
       text-align: right;
+      margin-right: 24px;
     }
 
     .item-img {
@@ -471,22 +470,22 @@ export default {
     }
 
     .item-data {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
       min-height: 19px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
 
       .item-highlight {
-        font-weight: bold;
         color: #3a84ff;
+        font-weight: bold;
       }
     }
 
     .item-content {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-end;
       min-height: 19px;
+      display: flex;
+      align-items: flex-end;
+      flex-wrap: wrap;
       word-break: break-all;
 
       .personnel-choice {
@@ -497,16 +496,16 @@ export default {
         img {
           width: 24px;
           height: 24px;
-          margin-right: 5px;
           border-radius: 16px;
+          margin-right: 5px;
         }
 
         .no-img {
-          margin-right: 5px;
-          font-size: 24px;
           color: #c4c6cc;
+          font-size: 24px;
           background: #fafbfd;
           border-radius: 16px;
+          margin-right: 5px;
         }
       }
     }

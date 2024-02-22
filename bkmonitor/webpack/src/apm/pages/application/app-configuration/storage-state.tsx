@@ -26,6 +26,7 @@
 
 import { Component, Emit, Inject, Prop, PropSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 
 import { indicesInfo, metaConfigInfo, setup, storageFieldInfo } from '../../../../monitor-api/modules/apm_meta';
 import { byteConvert } from '../../../../monitor-common/utils/utils';
@@ -382,58 +383,58 @@ export default class StorageState extends tsc<IStorageStateProps> {
           </div>
         </PanelItem>
         <PanelItem title={this.$t('物理索引')}>
-          <bk-table
+          <Table
             outer-border={false}
             data={this.indicesList}
             v-bkloading={{ isLoading: this.indicesLoading }}
           >
-            <bk-table-column
+            <TableColumn
               label={this.$t('索引')}
               width={280}
               prop={'index'}
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('运行状态')}
               scopedSlots={statusSlot}
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('主分片')}
               prop={'pri'}
               sortable
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('副本分片')}
               prop={'rep'}
               sortable
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('文档数量')}
               prop={'docs_count'}
               sortable
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('存储大小')}
               prop={'store_size'}
               scopedSlots={sizeSlot}
               sortable
             />
-          </bk-table>
+          </Table>
         </PanelItem>
         <PanelItem title={this.$t('字段信息')}>
-          <bk-table
+          <Table
             outer-border={false}
             data={this.fieldList}
             v-bkloading={{ isLoading: this.fieldLoading }}
           >
-            <bk-table-column
+            <TableColumn
               label={this.$t('字段名')}
               prop={'field_name'}
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('别名')}
               scopedSlots={chFieldNameSlot}
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('数据类型')}
               width={180}
               prop={'field_type'}
@@ -441,7 +442,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
               filters={this.fieldFilterList}
               filter-method={this.fieldFilterMethod}
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('分词')}
               width={100}
               prop={'analysis_field'}
@@ -449,7 +450,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
               filters={this.whetherFilters}
               filter-method={this.whetherFilterMethod}
             />
-            <bk-table-column
+            <TableColumn
               label={this.$t('时间')}
               width={100}
               prop={'time_field'}
@@ -457,7 +458,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
               filters={this.whetherFilters}
               filter-method={this.whetherFilterMethod}
             />
-          </bk-table>
+          </Table>
         </PanelItem>
       </div>
     );

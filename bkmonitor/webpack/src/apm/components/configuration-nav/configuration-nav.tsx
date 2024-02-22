@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Alert, TabPanel } from 'bk-magic-vue';
 
 import MonitorTab from '../../../monitor-pc/components/monitor-tab/monitor-tab';
 
@@ -65,14 +66,14 @@ export default class ConfigurationNav extends tsc<IConfiguratioNavProps, IConfig
           on-tab-change={this.handleClickMenu}
         >
           {this.menuList.map(item => (
-            <bk-tab-panel
+            <TabPanel
               key={item.id}
               name={item.id}
               label={item.name}
-            ></bk-tab-panel>
+            ></TabPanel>
           ))}
         </MonitorTab>
-        <bk-alert class='info-alert'>
+        <Alert class='info-alert'>
           <i18n
             slot='title'
             path='数据上报好了，去 {0}'
@@ -84,7 +85,7 @@ export default class ConfigurationNav extends tsc<IConfiguratioNavProps, IConfig
               {this.$t('查看数据')}
             </span>
           </i18n>
-        </bk-alert>
+        </Alert>
         <div class='configuration-main'>{this.$slots.default}</div>
       </div>
     );

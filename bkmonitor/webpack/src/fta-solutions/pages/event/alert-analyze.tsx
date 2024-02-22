@@ -26,6 +26,7 @@
 import VueI18n, { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Checkbox, CheckboxGroup, Dialog, Progress, Sideslider } from 'bk-magic-vue';
 
 import { copyText } from '../../../monitor-common/utils/utils';
 import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
@@ -123,7 +124,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
       },
       {
         id: 'tag',
-        name: this.$t('维度')
+        name: this.$t('button-标签')
       }
     ];
     this.mockFieldList = this.analyzeFields;
@@ -223,7 +224,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
    */
   detailSideslider() {
     return (
-      <bk-sideslider
+      <Sideslider
         quickClose
         width={420}
         is-show={this.sideslideShow}
@@ -254,7 +255,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
         >
           {this.chartItemComponent(this.detailFieldData)}
         </div>
-      </bk-sideslider>
+      </Sideslider>
     );
   }
   /**
@@ -264,7 +265,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
    */
   fieldDialog() {
     return (
-      <bk-dialog
+      <Dialog
         v-model={this.dialogShow}
         width={480}
         title={this.$t('添加字段')}
@@ -275,25 +276,25 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
           {this.searchType === 'alert' && (
             <div class='bk-button-group'>
               {this.panelList.map(item => (
-                <bk-button
+                <Button
                   key={item.id}
                   onClick={() => this.handleAlertTabChange(item.id)}
                   class={{ 'tab-btn': true, 'is-selected': this.activePanel === item.id }}
                 >
                   {item.name}
-                </bk-button>
+                </Button>
               ))}
             </div>
           )}
           {this.activePanel === 'field' ? (
-            <bk-checkbox-group
+            <CheckboxGroup
               key='filed'
               value={this.analyzeFields.slice()}
               on-change={this.handleFieldChange}
               class='check-group'
             >
               {Object.keys(this.curFieldMap).map(key => (
-                <bk-checkbox
+                <Checkbox
                   class='check-group-item'
                   key={key}
                   value={key}
@@ -304,19 +305,19 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                   >
                     {this.curFieldMap[key]}
                   </span>
-                </bk-checkbox>
+                </Checkbox>
               ))}
-            </bk-checkbox-group>
+            </CheckboxGroup>
           ) : (
             this.searchType === 'alert' && (
-              <bk-checkbox-group
+              <CheckboxGroup
                 key='tag'
                 value={this.analyzeFields.slice()}
                 on-change={this.handleTagChange}
                 class='check-group'
               >
                 {this.analyzeTagList.map(item => (
-                  <bk-checkbox
+                  <Checkbox
                     class='check-group-item'
                     key={item.id}
                     value={item.id}
@@ -327,13 +328,13 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                     >
                       {item.name}
                     </span>
-                  </bk-checkbox>
+                  </Checkbox>
                 ))}
-              </bk-checkbox-group>
+              </CheckboxGroup>
             )
           )}
         </div>
-      </bk-dialog>
+      </Dialog>
     );
   }
 
@@ -361,7 +362,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                     <span>{(chart.percent * 100).toFixed(2)}%</span>
                   </span>
                 </div>
-                <bk-progress
+                <Progress
                   class='process-item'
                   theme='success'
                   strokeWidth={6}
@@ -398,14 +399,14 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
         class='analyze-wrap'
         v-bkloading={{ isLoading: this.loading }}
       >
-        <bk-button
+        <Button
           class='add-btn'
           icon='plus'
           theme='primary'
           onClick={() => (this.dialogShow = true)}
         >
           {this.$t('新增')}
-        </bk-button>
+        </Button>
         {this.analyzeData?.length ? (
           <ul class='alert-analyze'>
             {this.analyzeData.map(item =>
@@ -430,14 +431,14 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                       )}
                     </span>
                     {item.bucket_count > 5 ? (
-                      <bk-button
+                      <Button
                         disabled={!item.bucket_count}
                         onClick={() => item.bucket_count && this.handleDetailFieldChange(item.field)}
                         class='check-btn'
                         text
                       >
                         {this.$t('查看全部')}
-                      </bk-button>
+                      </Button>
                     ) : undefined}
                   </div>
                   {this.chartItemComponent(item, 5)}

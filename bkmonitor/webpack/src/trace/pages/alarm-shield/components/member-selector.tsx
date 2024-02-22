@@ -206,7 +206,6 @@ export default defineComponent({
                 <img
                   class='user-logo'
                   src={node.logo}
-                  alt=''
                 ></img>
               );
             }
@@ -230,7 +229,6 @@ export default defineComponent({
                 <img
                   class='user-logo'
                   src={obj.logo}
-                  alt=''
                 ></img>
               );
             }

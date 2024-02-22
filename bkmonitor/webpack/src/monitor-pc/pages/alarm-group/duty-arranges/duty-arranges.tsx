@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Option, Select, Switcher, TimePicker } from 'bk-magic-vue';
 
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
 
@@ -1513,12 +1514,12 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                             class='need-rotation-switch'
                             onMouseup={(e: Event) => e.stopPropagation()}
                           >
-                            <bk-switcher
+                            <Switcher
                               v-model={item.needRotation}
                               theme='primary'
                               size='small'
                               onChange={v => this.handleNeedRotation(v, index)}
-                            ></bk-switcher>
+                            ></Switcher>
                           </span>
                         </span>
                         <span class='text'>{item.subTitle}</span>
@@ -1568,19 +1569,19 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                               </span>
                               <span class='item-content'>
                                 <span class={['duty-type', { daily: item.handoffTime.rotationType === 'daily' }]}>
-                                  <bk-select
+                                  <Select
                                     v-model={item.handoffTime.rotationType}
                                     clearable={false}
                                     onChange={() => this.handleRotationTypeChange(index)}
                                   >
                                     {DUTY_TYPE.map(v => (
-                                      <bk-option
+                                      <Option
                                         key={v.id}
                                         id={v.id}
                                         name={v.name}
-                                      ></bk-option>
+                                      ></Option>
                                     ))}
-                                  </bk-select>
+                                  </Select>
                                 </span>
                                 <span class={['duty-days', { daily: item.handoffTime.rotationType === 'daily' }]}>
                                   {(() => {
@@ -1589,18 +1590,18 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                     }
                                     if (item.handoffTime.rotationType === 'weekly') {
                                       return (
-                                        <bk-select
+                                        <Select
                                           value={item.handoffTime.date}
                                           onChange={v => this.handleHandOffTimeDateChange(v, index)}
                                         >
                                           {weekDaysList.map(item => (
-                                            <bk-option
+                                            <Option
                                               key={item.id}
                                               id={item.id}
                                               name={item.name}
-                                            ></bk-option>
+                                            ></Option>
                                           ))}
-                                        </bk-select>
+                                        </Select>
                                       );
                                     }
                                     if (item.handoffTime.rotationType === 'monthly') {
@@ -1624,14 +1625,14 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                 {this.$t('交接时间')}
                               </div>
                               <div class='item-content'>
-                                <bk-time-picker
+                                <TimePicker
                                   class='rotation-time'
                                   v-model={item.handoffTime.time}
                                   format={'HH:mm'}
                                   transfer={true}
                                   onChange={v => this.handleHandOffTimeChange(v, index)}
                                   on-open-change={v => this.handleHandOffTimeOpenChange(v, index)}
-                                ></bk-time-picker>
+                                ></TimePicker>
                               </div>
                             </div>
                           ]
@@ -1639,19 +1640,19 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                           /* 不交接 */
                           <div class='stemp-content-item'>
                             <span class='item-content'>
-                              <bk-select
+                              <Select
                                 v-model={item.dutyTime.workType}
                                 clearable={false}
                                 onChange={() => this.handleDutyTypeChange(index)}
                               >
                                 {DUTY_TYPE.map(v => (
-                                  <bk-option
+                                  <Option
                                     key={v.id}
                                     id={v.id}
                                     name={v.name}
-                                  ></bk-option>
+                                  ></Option>
                                 ))}
-                              </bk-select>
+                              </Select>
                             </span>
                           </div>
                         )}
@@ -1675,19 +1676,19 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                             </span>
                             <span class='item-content'>
                               <span class={['duty-type', { daily: item.dutyTime.workType === 'daily' }]}>
-                                <bk-select
+                                <Select
                                   v-model={item.dutyTime.workType}
                                   clearable={false}
                                   onChange={() => this.handleDutyTypeChange(index)}
                                 >
                                   {DUTY_TYPE.map(v => (
-                                    <bk-option
+                                    <Option
                                       key={v.id}
                                       id={v.id}
                                       name={v.name}
-                                    ></bk-option>
+                                    ></Option>
                                   ))}
-                                </bk-select>
+                                </Select>
                               </span>
                               <span class={['duty-days', { daily: item.dutyTime.workType === 'daily' }]}>
                                 {(() => {
@@ -1696,19 +1697,19 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                   }
                                   if (item.dutyTime.workType === 'weekly') {
                                     return (
-                                      <bk-select
+                                      <Select
                                         value={item.dutyTime.workDays}
                                         multiple={true}
                                         onChange={v => this.handleWorkDaysChange(v, index)}
                                       >
                                         {weekDaysList.map(item => (
-                                          <bk-option
+                                          <Option
                                             key={item.id}
                                             id={item.id}
                                             name={item.name}
-                                          ></bk-option>
+                                          ></Option>
                                         ))}
-                                      </bk-select>
+                                      </Select>
                                     );
                                   }
                                   if (item.dutyTime.workType === 'monthly') {
@@ -1737,19 +1738,19 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                 {(() => {
                                   if (item.dutyTime.workType === 'weekly') {
                                     return (
-                                      <bk-select
+                                      <Select
                                         value={item.dutyTime.workDays}
                                         multiple={true}
                                         onChange={v => this.handleWorkDaysChange(v, index)}
                                       >
                                         {weekDaysList.map(item => (
-                                          <bk-option
+                                          <Option
                                             key={item.id}
                                             id={item.id}
                                             name={item.name}
-                                          ></bk-option>
+                                          ></Option>
                                         ))}
-                                      </bk-select>
+                                      </Select>
                                     );
                                   }
                                   if (item.dutyTime.workType === 'monthly') {
@@ -1816,13 +1817,13 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
         {/* 新增按钮 */}
         {!this.readonly && (
           <div class='add-wrap'>
-            <bk-button
+            <Button
               icon='plus'
               class='add-btn'
               onClick={this.handleAddGroup}
             >
               {this.$t('新增组')}
-            </bk-button>
+            </Button>
             <span class='icon-monitor icon-hint'></span>
             <span class='tip-msg'>
               {this.$t('电话通知的拨打顺序是按通知对象顺序依次拨打。注意用户组内无法保证顺序。')}

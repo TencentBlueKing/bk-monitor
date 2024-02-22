@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Sideslider, Switcher } from 'bk-magic-vue';
 
 import { dutyDataConversion, getCalendarOfNum, getDutyPlansDetails, IDutyData, IDutyPlansItem } from './utils';
 
@@ -222,12 +223,12 @@ export default class RotationPreview extends tsc<IProps> {
               e.stopPropagation();
             }}
           >
-            <bk-switcher
+            <Switcher
               class='ml-24'
               v-model={this.showNoData}
               theme='primary'
               size='small'
-            ></bk-switcher>
+            ></Switcher>
           </span>
           <span class='ml-6'>{this.$t('显示未排班')}</span>
           <span
@@ -370,7 +371,7 @@ export default class RotationPreview extends tsc<IProps> {
             </div>
           </div>
         </div>
-        <bk-sideslider
+        <Sideslider
           isShow={this.showDetail}
           width={640}
           transfer={true}
@@ -394,7 +395,7 @@ export default class RotationPreview extends tsc<IProps> {
               <div>{this.$t('暂无数据')}</div>
             )}
           </div>
-        </bk-sideslider>
+        </Sideslider>
         <div style={{ display: 'none' }}>
           <div
             class='duty-preview-component-user-item-tip'

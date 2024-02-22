@@ -62,7 +62,7 @@
           text
           @click="handleMoreClick"
         >
-          <i class="icon-monitor icon-mc-add" />
+        <i class="icon-monitor icon-mc-add"></i>
           {{ $t('添加条件') }}
         </bk-button>
       </div>

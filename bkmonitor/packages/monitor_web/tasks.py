@@ -27,7 +27,6 @@ from django.utils.translation import ugettext as _
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.dataflow.constant import (
-    FLINK_KEY_WORDS,
     METRIC_RECOMMENDATION_SCENE_NAME,
     AccessStatus,
     VisualType,
@@ -594,12 +593,6 @@ def access_aiops_by_strategy_id(strategy_id):
     # 3. 创建智能检测dataflow
     metric_field = rt_query_config.metric_field
     value_fields = ["`{}`".format(f) for f in rt_query_config.agg_dimension[:]]
-    group_by_fields = []
-    for field in rt_query_config.agg_dimension:
-        if field.upper() in FLINK_KEY_WORDS:
-            group_by_fields.append(f"`{field}`")
-            continue
-        group_by_fields.append(field)
     value_fields.append(
         "%(method)s(`%(field)s`) as `%(field)s`" % dict(field=metric_field, method=rt_query_config.agg_method)
     )
@@ -608,7 +601,7 @@ def access_aiops_by_strategy_id(strategy_id):
         DataQueryHandler(rt_query_config.data_source_label, rt_query_config.data_type_label)
         .table(bk_data_result_table_id)
         .filter(**rt_scope)
-        .group_by(*group_by_fields)
+        .group_by(*rt_query_config.agg_dimension)
         .agg_condition(rt_query_config.agg_condition)
         .values(*value_fields)
         .query.sql_with_params()
@@ -976,8 +969,8 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
     @return:
     """
 
-    from bkmonitor.aiops.utils import AiSetting
     from bkmonitor.data_source.handler import DataQueryHandler
+    from monitor_web.aiops.ai_setting.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=bk_biz_id)
@@ -1116,7 +1109,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
 
     :param access_bk_biz_id: 待接入的业务id
     """
-    from bkmonitor.aiops.utils import AiSetting
+    from monitor_web.aiops.ai_setting.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=access_bk_biz_id)
@@ -1133,7 +1126,6 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
         metric_recommend_task.create_flow()
         metric_recommend_task.start_flow(consuming_mode=ConsumingMode.Current)
         metric_recommend.is_enabled = True
-        metric_recommend.result_table_id = metric_recommend_task.node_list[-1].output_table_name
         ai_setting.save()
         # 此处记得从继续启动
     except Exception as e:  # noqa

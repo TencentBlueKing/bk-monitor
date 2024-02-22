@@ -162,7 +162,6 @@
                   class="col-status-img"
                   v-if="isRunning && (props.row.status === 'RUNNING' || props.row.status === 'PENDING')"
                   src="../../../static/images/svg/spinner.svg"
-                  alt=''
                 >
                 <div
                   class="col-status-radius"
@@ -662,15 +661,12 @@ export default {
 .mr-3 {
   margin-right: 3px;
 }
-
 .ml-auto {
   margin-left: auto !important;
 }
-
 .mt-2 {
   margin-top: 2px;
 }
-
 @mixin pointStatus() {
   .point {
     display: flex;
@@ -742,7 +738,6 @@ export default {
     }
   }
 }
-
 .config-deploy {
   &-description {
     height: 16px;
@@ -885,7 +880,7 @@ export default {
     }
 
     .bk-sideslider-content {
-      height: calc(100% - 52px - var(--notice-alert-height));
+      height: calc(100% - 52px);
       background: #fafbfd;
     }
   }

@@ -329,7 +329,6 @@ const memberSelectorMixin = {
         <div class={parentClass}>
           {node.logo ? (
             <img
-              alt=''
               class={avatarClass}
               src={node.logo}
             />

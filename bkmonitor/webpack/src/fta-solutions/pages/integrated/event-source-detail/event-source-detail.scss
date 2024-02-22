@@ -1,4 +1,7 @@
 .event-source-detail-wrap {
+  /* stylelint-disable-next-line declaration-no-important */
+  z-index: 3000 !important;
+
   .bk-dialog-close {
     display: none;
   }
@@ -13,14 +16,14 @@
 
   .bk-dialog-body {
     /* stylelint-disable-next-line declaration-no-important */
-    padding: 0 !important;
+    padding: 0!important;
   }
 
   .event-source-main {
     position: relative;
+    min-width: 1000px;
     // background-color: #F0F1F4;
     z-index: 1;
-    min-width: 1000px;
 
     .status-bar {
       height: 4px;
@@ -29,20 +32,20 @@
 
     .info-table {
       width: 100%;
-      font-size: 12px;
-      border-spacing: 0px;
       border-collapse: collapse;
+      border-spacing: 0px;
+      font-size: 12px;
 
       td {
         height: 26px;
       }
 
       .label {
-        height: 16px;
-        margin-bottom: 10px;
         font-size: 12px;
-        line-height: 16px;
         color: #979ba5;
+        height: 16px;
+        line-height: 16px;
+        margin-bottom: 10px;
         white-space: nowrap;
       }
 
@@ -51,35 +54,35 @@
         white-space: nowrap;
 
         .icon-icon_12_heat {
-          margin-right: 3px;
-          font-size: 12px;
           color: #979ba5;
+          font-size: 12px;
+          margin-right: 3px;
         }
       }
 
       .right {
-        padding-right: 24px;
         text-align: right;
+        padding-right: 24px;
       }
     }
 
     .close-btn {
       position: absolute;
-      top: 6px;
-      right: 6px;
       display: flex;
       align-items: center;
-      width: 32px;
+      top: 6px;
+      right: 6px;
       height: 32px;
+      width: 32px;
 
       .icon-mc-close {
         display: flex;
         align-items: center;
-        width: 32px;
-        height: 32px;
-        overflow: hidden;
         font-size: 32px;
+        height: 32px;
+        width: 32px;
         cursor: pointer;
+        overflow: hidden;
       }
     }
 
@@ -94,17 +97,17 @@
         .logo-wrap {
           position: relative;
           display: inline-block;
-          width: 80px;
           height: 80px;
+          width: 80px;
           border-radius: 4px;
           //   background-color: #000;
           .logo-status {
+            display: flex;
+            justify-content: center;
+            align-items: center;
             position: absolute;
             bottom: 0;
             left: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             width: 100%;
             height: 16px;
             background-color: #f0f1f4;
@@ -120,8 +123,8 @@
 
         .logo {
           display: inline-block;
-          width: 100%;
           height: 100%;
+          width: 100%;
         }
       }
 
@@ -135,9 +138,9 @@
           .title {
             height: 21px;
             font-size: 16px;
-            line-height: 21px;
-            color: #63656e;
             text-align: left;
+            color: #63656e;
+            line-height: 21px;
           }
 
           .version-wrap {
@@ -145,18 +148,18 @@
             font-size: 12px;
 
             .src-code {
-              padding-right: 16px;
               color: #3a84ff;
-              cursor: pointer;
+              padding-right: 16px;
               border-right: 1px solid #dcdee5;
+              cursor: pointer;
 
               .icon-icon_12_source {
                 display: inline-block;
+                font-size: 22px;
+                transform: scale(.5);
+                vertical-align: middle;
                 margin-top: -3px;
                 margin-right: -3px;
-                font-size: 22px;
-                vertical-align: middle;
-                transform: scale(.5);
               }
             }
 
@@ -170,31 +173,31 @@
         .label-list-wrap {
           // margin-top: 5px;
           .label {
-            height: 16px;
-            margin-bottom: 10px;
             // padding-left: 2px;
             font-size: 12px;
             color: #979ba5;
+            height: 16px;
+            margin-bottom: 10px;
           }
         }
 
         .value-list {
           display: inline-block;
-          margin-top: -4px;
           margin-left: -4px;
+          margin-top: -4px;
           white-space: initial;
           // padding-left: 27px;
           .value-item {
             display: inline-block;
+            line-height: 22px;
             height: 22px;
             padding: 0 11px;
-            margin-top: 4px;
-            margin-left: 4px;
-            font-size: 12px;
-            line-height: 22px;
-            color: #63656e;
-            background-color: #f0f1f5;
             border-radius: 2px;
+            color: #63656e;
+            font-size: 12px;
+            background-color: #f0f1f5;
+            margin-left: 4px;
+            margin-top: 4px;
           }
         }
       }
@@ -211,15 +214,15 @@
       .content-tab-wrap {
         display: flex;
         height: 32px;
-        margin-right: 10px;
         border-bottom: 1px solid #dcdee5;
+        margin-right: 10px;
 
         .content-tab-item {
-          min-width: 96px;
           height: 32px;
+          line-height: 32px;
+          min-width: 96px;
           padding: 0 11px;
           font-size: 12px;
-          line-height: 32px;
           color: #63656e;
           cursor: pointer;
 
@@ -228,19 +231,20 @@
             text-align: center;
 
             .tab-item-name {
+
             }
 
             .tab-item-name-warning {
               position: relative;
 
               .icon-tixing {
-                position: absolute;
-                top: 0;
-                right: -16px;
                 display: flex;
                 align-items: center;
-                width: 12px;
                 height: 13px;
+                width: 12px;
+                position: absolute;
+                top: 0;
+                right: -16px;                          
                 font-size: 12px;
                 color: #ff5656;
               }
@@ -252,11 +256,11 @@
           .content-tab-item-mian {
             &::after {
               position: absolute;
+              content: '';
               bottom: 0;
               left: 0;
               width: 100%;
               height: 2px;
-              content: '';
               background-color: #3a84ff;
             }
 
@@ -280,17 +284,17 @@
         height: 19px;
         font-size: 14px;
         font-weight: 700;
-        line-height: 19px;
-        color: #63656e;
         text-align: left;
+        color: #63656e;
+        line-height: 19px;
 
         .desc {
           padding-left: 24px;
           font-size: 12px;
-          font-weight: normal;
-          line-height: 16px;
-          color: #979ba5;
           text-align: left;
+          color: #979ba5;
+          line-height: 16px;
+          font-weight: normal;
         }
       }
     }

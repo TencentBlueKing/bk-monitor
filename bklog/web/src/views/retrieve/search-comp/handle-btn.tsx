@@ -193,7 +193,6 @@ export default class HandleBtn extends tsc<IProps> {
         data: { keyword },
       });
       const searchFilterList = fRes.data
-        // eslint-disable-next-line camelcase
         .filter(v => search_fields.includes(v.name))
         .map(item => item.name);
       const data = {
@@ -275,7 +274,7 @@ export default class HandleBtn extends tsc<IProps> {
                 <span class={[
                   'icon',
                   !this.isFavoriteUpdate
-                    ? 'log-icon icon-lc-star-shape'
+                    ? 'log-icon icon-star-shape'
                     : 'bk-icon icon-save',
                 ]}>
                 </span>

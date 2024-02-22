@@ -28,6 +28,7 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
 
+import loadingIcon from '../../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import BaseEchart from '../../../../../monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TimeRange, { DateValue, TimeRangeType } from '../../../../components/time-range/time-range';
@@ -37,7 +38,7 @@ import './link-status-chart.scss';
 
 interface LinkStatusChartProps {
   timeRange?: TimeRangeType;
-  type: 'minute' | 'hour';
+  type: 'minute' | 'day';
   data: [number, number][];
   getChartData: () => any;
 }
@@ -133,8 +134,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
         color: '#339DFF'
       }
     };
-    const hour: echarts.EChartOption.SeriesBar = {
-      name: this.$tc('小时数据量'),
+    const day: echarts.EChartOption.SeriesBar = {
+      name: this.$tc('日数据量'),
       data: this.data.map(item => [item[1], item[0]]) || [],
       type: 'bar',
       barMaxWidth: 30,
@@ -144,22 +145,18 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     };
     return {
       ...this.defaultOption,
-      series: [this.type === 'minute' ? minute : hour]
+      series: [this.type === 'minute' ? minute : day]
     };
   }
 
   get defaultShortcuts(): DateValue[] {
     if (this.type === 'minute') return shortcuts.map(item => item.value) as DateValue[];
     return [
-      ['now-3h', 'now'],
-      ['now-6h', 'now'],
-      ['now-24h', 'now'],
-      ['now-72h', 'now']
+      ['now-3d', 'now'],
+      ['now-7d', 'now'],
+      ['now-14d', 'now'],
+      ['now-30d', 'now']
     ];
-  }
-
-  mounted() {
-    this.handleRefresh();
   }
 
   chartResize() {
@@ -186,24 +183,30 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
 
   render() {
     return (
-      <div
-        class='minute-chart-component'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='minute-chart-component'>
         <div class='chart-header'>
-          <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('小时数据量')}</div>
+          <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('日数据量')}</div>
           <div class='chart-tools'>
             <TimeRange
               value={this.timeRange}
               onChange={val => this.handleTimeRange(val)}
               commonUseList={this.defaultShortcuts}
               needTimezone={false}
-            ></TimeRange>
+            >
+              {this.type === 'day' && <div slot='header'></div>}
+            </TimeRange>
             <span class='operate'>
-              <i
-                class='icon-monitor icon-zhongzhi1 refresh'
-                onClick={this.handleRefresh}
-              ></i>
+              {this.loading ? (
+                <img
+                  class='loading-spin'
+                  src={loadingIcon}
+                ></img>
+              ) : (
+                <i
+                  class='icon-monitor icon-zhongzhi1 refresh'
+                  onClick={this.handleRefresh}
+                ></i>
+              )}
             </span>
           </div>
         </div>

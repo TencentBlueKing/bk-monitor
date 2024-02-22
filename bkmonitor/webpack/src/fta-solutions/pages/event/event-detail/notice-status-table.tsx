@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 
 import './notice-status-table.scss';
 
@@ -56,19 +57,19 @@ export default class NoticeStatusTable extends tsc<IProps> {
   render() {
     return (
       <div class='notice-status-table'>
-        <bk-table
+        <Table
           data={this.tableData}
           border={false}
           outer-border={false}
         >
-          <bk-table-column
+          <TableColumn
             label={window.i18n.t('通知对象')}
             prop={'target'}
             resizable={false}
-          ></bk-table-column>
+          ></TableColumn>
           {this.tableColumns.map((item, i) =>
             this.hasColumns.includes(item.prop) ? (
-              <bk-table-column
+              <TableColumn
                 key={i}
                 label={item.label}
                 prop={item.prop}
@@ -105,10 +106,10 @@ export default class NoticeStatusTable extends tsc<IProps> {
                 }}
                 resizable={false}
                 align='center'
-              ></bk-table-column>
+              ></TableColumn>
             ) : undefined
           )}
-        </bk-table>
+        </Table>
       </div>
     );
   }

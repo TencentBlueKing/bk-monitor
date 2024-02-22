@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../monitor-common/utils/utils';
 
@@ -84,7 +85,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
       <div class='uptime-check-header-tools'>
         <div class='left'>
           {this.option.showNode && (
-            <bk-button
+            <Button
               class='left-btn'
               theme='primary'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
@@ -96,10 +97,10 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
             >
               <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建节点')}
-            </bk-button>
+            </Button>
           )}
           {this.option.showTask && (
-            <bk-button
+            <Button
               class='left-btn'
               theme='primary'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
@@ -109,10 +110,10 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
             >
               <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建拨测')}
-            </bk-button>
+            </Button>
           )}
           {this.option.showGroup && (
-            <bk-button
+            <Button
               class='left-btn'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
               on-click={() =>
@@ -121,10 +122,10 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
             >
               <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建任务组')}
-            </bk-button>
+            </Button>
           )}
           {this.option.showImport && (
-            <bk-button
+            <Button
               class='left-btn'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
               on-click={() =>
@@ -132,18 +133,18 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
               }
             >
               {this.$t('导入拨测任务')}
-            </bk-button>
+            </Button>
           )}
         </div>
         <div class='right'>
-          <bk-input
+          <Input
             class='search-input'
             placeholder={this.$t('输入')}
             right-icon='bk-icon icon-search'
             v-model={this.searchValue}
             clearable
             on-change={(v: string) => this.handleSearch(v)}
-          ></bk-input>
+          ></Input>
         </div>
       </div>
     );

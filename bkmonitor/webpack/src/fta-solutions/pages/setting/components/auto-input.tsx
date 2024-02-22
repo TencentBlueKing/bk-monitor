@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input } from 'bk-magic-vue';
 
 import './auto-input.scss';
 
@@ -177,13 +178,13 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
   render() {
     return (
       <div class='auto-input-component-setting'>
-        <bk-input
+        <Input
           v-model={this.params}
           type='text'
           ref='input'
           behavior={'simplicity'}
           on-input={this.handleInput}
-        ></bk-input>
+        ></Input>
         <div style={{ display: 'none' }}>
           <ul
             ref='list'

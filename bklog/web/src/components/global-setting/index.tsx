@@ -50,10 +50,6 @@ export default class MaskingDialog extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) readonly menuList: IMenuItem[];
   @Prop({ default: '', type: String }) readonly activeMenu: string;
 
-  get showAlert() {
-    return this.$store.state.showAlert;
-  }
-
   handleCloseDialog() {
     this.$store.commit('updateIsShowGlobalDialog', false);
   }
@@ -80,11 +76,11 @@ export default class MaskingDialog extends tsc<IProps> {
         close-icon={false}
         ext-cls="masking-dialog"
         position={{
-          top: this.showAlert ? 90 : 50,
+          top: 50,
           left: 0,
         }}
       >
-        <div class={`masking-container ${this.showAlert ? 'is-show-notice' : ''}`}>
+        <div class="masking-container">
           <div class="masking-title">
             <div></div>
             <span>{this.$t('全局设置')}</span>

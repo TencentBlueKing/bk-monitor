@@ -11,12 +11,13 @@ specific language governing permissions and limitations under the License.
 
 import mock
 from django.test import TestCase
-
-from bkmonitor.models.aiops import AIFeatureSettings
+from monitor.models import ApplicationConfig
+from monitor_web.aiops.ai_setting.constant import AI_SETTING_APPLICATION_CONFIG_KEY
 
 AI_SETTING_INIT_DATA = {
-    "bk_biz_id": 1,
-    "config": {
+    "cc_biz_id": 1,
+    "key": AI_SETTING_APPLICATION_CONFIG_KEY,
+    "value": {
         "kpi_anomaly_detection": {},
         "multivariate_anomaly_detection": {
             "host": {
@@ -43,8 +44,8 @@ PARAMS_TWO = {"bk_biz_id": 2, "host": HOST}
 
 class TestHostMonitorViewSet(TestCase):
     def setUp(self):
-        AIFeatureSettings.objects.all().delete()
-        AIFeatureSettings(**AI_SETTING_INIT_DATA)
+        ApplicationConfig.objects.filter(key=AI_SETTING_APPLICATION_CONFIG_KEY).delete()
+        ApplicationConfig(**AI_SETTING_INIT_DATA)
 
     @mock.patch("bkmonitor.data_source.unify_query.query.UnifyQuery.query_data")
     @mock.patch("bkmonitor.data_source.data_source.BkdataTimeSeriesDataSource")

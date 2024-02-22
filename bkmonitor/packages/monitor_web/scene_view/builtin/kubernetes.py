@@ -14,9 +14,6 @@ from typing import Dict, List, Optional, Set
 
 from django.core.exceptions import EmptyResultSet
 from django.utils.translation import gettext as _
-
-from bkmonitor.models import BCSNode, BCSPodMonitor, BCSServiceMonitor
-from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 from monitor_web.scene_view.builtin.constants import (
@@ -31,6 +28,9 @@ from monitor_web.scene_view.builtin.constants import (
     GROUP_TITLE_MAP_KEY,
     VIEW_FILENAMES,
 )
+
+from bkmonitor.models import BCSNode, BCSPodMonitor, BCSServiceMonitor
+from core.drf_resource import resource
 
 
 class KubernetesBuiltinProcessor(BuiltinProcessor):
@@ -834,7 +834,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
             overview_where = [
                 {
                     "key": "bcs_cluster_id",
-                    "method": "contains",
+                    "method": "in",
                     "value": bcs_cluster_ids,
                 },
             ]

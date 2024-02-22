@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Option, Select } from 'bk-magic-vue';
 
 import './simple-select.scss';
 
@@ -56,7 +57,7 @@ export default class SimpleSelect extends tsc<IProps, IEvents> {
   @Prop({ default: 100, type: [Number, String] }) popoverMinWidth: number;
   @Prop({ default: false, type: Boolean }) disabled: boolean;
 
-  @Ref('selectDropdown') selectRef: any;
+  @Ref('selectDropdown') selectRef: Select;
 
   localValue: IValue = [];
 
@@ -90,7 +91,7 @@ export default class SimpleSelect extends tsc<IProps, IEvents> {
         onClick={this.handleClick}
       >
         <span class='btn-content'>{this.$slots?.default}</span>
-        <bk-select
+        <Select
           class='select-dropdown'
           ref='selectDropdown'
           value={this.localValue}
@@ -100,13 +101,13 @@ export default class SimpleSelect extends tsc<IProps, IEvents> {
           on-change={this.handleSelectChange}
         >
           {this.list.map(item => (
-            <bk-option
+            <Option
               key={item.id}
               id={item.id}
               name={item.name}
-            ></bk-option>
+            ></Option>
           ))}
-        </bk-select>
+        </Select>
       </span>
     );
   }

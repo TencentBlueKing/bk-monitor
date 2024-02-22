@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Input, Option, Select } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 import { throttle } from 'throttle-debounce';
 
@@ -428,7 +429,7 @@ export default class Home extends tsc<{}> {
                   <span class='msg'>{this.updataTimeStr}</span>
                 </span>
                 <span class='right'>
-                  <bk-select
+                  <Select
                     v-model={this.dataOverview.timeChecked}
                     ext-cls='time-select'
                     clearable={false}
@@ -436,19 +437,19 @@ export default class Home extends tsc<{}> {
                     on-change={() => this.init(true)}
                   >
                     {this.dataOverview.timeOption.map(option => (
-                      <bk-option
+                      <Option
                         key={option.id}
                         id={option.id}
                         name={option.name}
-                      ></bk-option>
+                      ></Option>
                     ))}
-                  </bk-select>
-                  <bk-button
+                  </Select>
+                  <Button
                     theme={'primary'}
                     onClick={this.handleOpenGuide}
                   >
                     {this.$t('button-接入指引')}
-                  </bk-button>
+                  </Button>
                 </span>
               </div>
               <OverviewContent data={this.dataOverview.data}></OverviewContent>
@@ -460,28 +461,28 @@ export default class Home extends tsc<{}> {
                   <span class='msg'>{this.updataTimeStr}</span>
                 </span>
                 <span class='right'>
-                  <bk-input
+                  <Input
                     placeholder={this.$t('输入空间ID、空间名')}
                     right-icon='bk-icon icon-search'
                     v-model={this.businessOverview.searchValue}
                     on-right-icon-click={() => this.isCanSearch() && this.init()}
                     on-enter={() => this.isCanSearch() && this.init()}
                     on-blur={() => this.isCanSearch() && this.init()}
-                  ></bk-input>
-                  <bk-select
+                  ></Input>
+                  <Select
                     v-model={this.businessOverview.filterItem}
                     clearable={false}
                     ext-cls='filter-select'
                     on-change={() => this.init()}
                   >
                     {this.businessOverview.filterList.map(option => (
-                      <bk-option
+                      <Option
                         key={option.id}
                         id={option.id}
                         name={option.name}
-                      ></bk-option>
+                      ></Option>
                     ))}
-                  </bk-select>
+                  </Select>
                 </span>
               </div>
               {this.businessOverview.data.length ? (

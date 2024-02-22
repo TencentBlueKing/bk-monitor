@@ -28,6 +28,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Checkbox, Pagination, Popover, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { checkAllowedByActionIds } from '../../../monitor-api/modules/iam';
@@ -93,7 +94,9 @@ export interface IShowDetail {
   type: TSliderType;
   activeTab?: string;
 }
-@Component
+@Component({
+  components: { Popover, Pagination, Checkbox }
+})
 export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> {
   @Prop({ required: true }) tableData: IEventItem[];
   @Prop({ required: true }) pagination: IPagination;
@@ -103,7 +106,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   @Prop({ required: true, type: String }) searchType: SearchType;
   @Prop({ type: Array, default: () => [] }) selectedList: string[];
 
-  @Ref('table') tableRef: any;
+  @Ref('table') tableRef: Table;
   @Ref('moreItems') moreItemsRef: HTMLDivElement;
 
   eventStatusMap: Record<string, IEventStatusMap> = {};
@@ -499,7 +502,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         },
         {
           id: 'tags',
-          name: this.$t('维度'),
+          name: this.$t('标签'),
           disabled: false,
           checked: false,
           props: {
@@ -1071,7 +1074,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     const columList = [];
     if (this.searchType === 'alert') {
       columList.push(
-        <bk-table-column
+        <TableColumn
           type='selection'
           width='50'
           minWidth='50'
@@ -1086,7 +1089,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           // 告警id
           if (column.id === 'id') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1108,7 +1111,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           // 告警状态
           if (column.id === 'status') {
             return (
-              <bk-table-column
+              <TableColumn
                 class-name='status-cell'
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
@@ -1208,7 +1211,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           // 关联信息
           if (column.id === 'extend_info') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1229,7 +1232,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
           if (column.id === 'event_count') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1237,12 +1240,12 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 scopedSlots={{
                   default: ({ row }: { row: IEventItem }) =>
                     row.event_count > -1 ? (
-                      <bk-button
+                      <Button
                         onClick={() => this.handleClickEventCount(row)}
                         text={true}
                       >
                         {row.event_count}
-                      </bk-button>
+                      </Button>
                     ) : (
                       '--'
                     )
@@ -1252,7 +1255,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
           if (column.id === 'description') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1285,7 +1288,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         } else {
           if (column.id === 'id') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1306,7 +1309,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
           if (column.id === 'alert_count' || column.id === 'converge_count') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1314,14 +1317,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 scopedSlots={{
                   default: ({ row }: { row: IEventItem }) =>
                     row[column.id] > 0 ? (
-                      <bk-button
+                      <Button
                         onClick={() =>
                           this.handleClickActionCount(column.id === 'alert_count' ? 'trigger' : 'defense', row)
                         }
                         text={true}
                       >
                         {row[column.id]}
-                      </bk-button>
+                      </Button>
                     ) : (
                       '0'
                     )
@@ -1331,7 +1334,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
           if (column.id === 'content') {
             return (
-              <bk-table-column
+              <TableColumn
                 key={`${this.searchType}_${column.id}`}
                 label={column.name}
                 prop={column.id}
@@ -1346,7 +1349,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           }
         }
         return (
-          <bk-table-column
+          <TableColumn
             key={`${this.searchType}_${column.id}`}
             label={column.name}
             prop={column.id}
@@ -1360,7 +1363,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   render() {
     return (
       <div>
-        <bk-table
+        <Table
           data={this.tableData}
           class='event-table'
           size={this.tableSize}
@@ -1394,7 +1397,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 </span>
               </i18n>
               {this.tableToolList.map(item => (
-                <bk-button
+                <Button
                   key={item.id}
                   slot='count'
                   text={true}
@@ -1404,9 +1407,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   onClick={() => !(item.id === 'chat' ? false : this.followerDisabled) && this.handleBatchSet(item.id)}
                 >
                   {item.name}
-                </bk-button>
+                </Button>
               ))}
-              <bk-button
+              <Button
                 slot='count'
                 text={true}
                 theme='primary'
@@ -1414,15 +1417,15 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 onClick={this.handleClearSelected}
               >
                 {this.$t('取消')}
-              </bk-button>
+              </Button>
             </div>
           )}
           {this.handleGetColumns()}
-          <bk-table-column
+          <TableColumn
             type='setting'
             key={`${this.tableKey}_${this.searchType}`}
           >
-            <bk-table-setting-content
+            <TableSettingContent
               class='event-table-setting'
               fields={this.tableColumn}
               value-key='id'
@@ -1430,8 +1433,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               selected={this.tableColumn.filter(item => item.checked || item.disabled)}
               on-setting-change={this.handleSettingChange}
             />
-          </bk-table-column>
-        </bk-table>
+          </TableColumn>
+        </Table>
         {this.getMoreOperate()}
       </div>
     );

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Checkbox, Option, Select } from 'bk-magic-vue';
 
 import AutoHeightTextarea from './auto-height-textarea';
 
@@ -249,7 +250,6 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                       <div class='th-title'>
                         {item.icon ? (
                           <img
-                            alt=''
                             class='title-icon'
                             src={`data:image/png;base64,${item.icon}`}
                           ></img>
@@ -263,7 +263,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               boundary: 'window',
                               placements: ['top'],
                               width: item.width,
-                              allowHTML: true
+                              allowHTML: false
                             }}
                           ></i>
                         ) : undefined}
@@ -298,7 +298,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                         {this.readonly ? (
                           <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]}></i>
                         ) : ['bkchat', 'wxwork-bot'].includes(notice.name) ? undefined : (
-                          <bk-checkbox
+                          <Checkbox
                             size={'small'}
                             v-model={notice.checked}
                             theme='primary'
@@ -309,7 +309,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               disabled: notice.type !== 'voice'
                             }}
                             on-change={() => this.handleParams()}
-                          ></bk-checkbox>
+                          ></Checkbox>
                         )}
                         {notice.name === robot.wxworkBot && (
                           <div class='work-group'>
@@ -324,7 +324,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                                   this.handleParams();
                                 }}
                               ></AutoHeightTextarea>
-                              // <bk-input
+                              // <Input
                               //   v-model={notice.receivers}
                               //   placeholder={this.$t('输入群ID')}
                               //   type='textarea'
@@ -332,7 +332,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               //     notice.checked = !!v;
                               //     this.handleParams();
                               //   }}
-                              // ></bk-input>
+                              // ></Input>
                             )}
                           </div>
                         )}
@@ -341,7 +341,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                             class='chat-group'
                             style={{ textAlign: 'start' }}
                           >
-                            <bk-select
+                            <Select
                               v-model={notice.receivers}
                               readonly={this.readonly}
                               multiple={true}
@@ -353,7 +353,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               }}
                             >
                               {this.bkchatList.map(bkchat => (
-                                <bk-option
+                                <Option
                                   id={bkchat.id}
                                   name={bkchat.name}
                                   key={bkchat.id + bkchat.name}
@@ -370,7 +370,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                                 ></i>
                                 {this.$tc('新增群组')}
                               </div>
-                            </bk-select>
+                            </Select>
                           </div>
                         )}
                       </div>

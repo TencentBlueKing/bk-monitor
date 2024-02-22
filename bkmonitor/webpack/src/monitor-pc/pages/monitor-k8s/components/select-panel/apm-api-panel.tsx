@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Exception, Tab, TabPanel } from 'bk-magic-vue';
 
 import { Debounce, deepClone } from '../../../../../monitor-common/utils/utils';
 import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
@@ -322,12 +323,12 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
-          <bk-button
+          <Button
             class='reflesh-btn'
             onClick={this.handleRefresh}
           >
             <i class='icon-monitor icon-shuaxin'></i>
-          </bk-button>
+          </Button>
         </div>
         {!!this.statusList.length && (
           <StatusTab
@@ -338,7 +339,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
           ></StatusTab>
         )}
         {!!this.tabList.length && (
-          <bk-tab
+          <Tab
             class='list-tab'
             type='unborder-card'
             labelHeight={42}
@@ -346,13 +347,13 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
             active={this.activeTab}
           >
             {this.tabList.map(tab => (
-              <bk-tab-panel
+              <TabPanel
                 name={tab.id}
                 key={tab.id}
                 label={tab.name}
-              ></bk-tab-panel>
+              ></TabPanel>
             ))}
-          </bk-tab>
+          </Tab>
         )}
         <div class='list-wrapper'>
           {this.localList?.length ? (
@@ -379,7 +380,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
               }}
             ></bk-virtual-scroll>
           ) : (
-            <bk-exception
+            <Exception
               class='exception-part'
               type='search-empty'
               scene='part'

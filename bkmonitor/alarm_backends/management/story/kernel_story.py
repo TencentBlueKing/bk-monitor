@@ -13,7 +13,6 @@ import json
 import time
 from collections import defaultdict
 
-import arrow
 from django.conf import settings
 from kafka import KafkaConsumer, TopicPartition
 
@@ -30,11 +29,9 @@ from alarm_backends.management.story.base import (
     register_step,
     register_story,
 )
-from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.common_utils import get_local_ip
 from constants.action import ActionPluginType
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from metadata.models import DataSource
 
@@ -208,36 +205,29 @@ class CacheCronJobCheck(CheckStep):
 
 @register_step(KernelStory)
 class DurationSpace(CheckStep):
-    name = "check api duration"
+    name = "check api pending time"
 
-    # 超过 10s 表示问题
-    warning_duration = 10
+    # pending 超过2s 表示问题
+    warning_duration = 2
 
     def check(self):
         start = time.time()
         bk_biz_id = api.cmdb.get_blueking_biz()
-        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        promql = "sum(count_over_time(bkmonitor:system:cpu_summary:usage[10m]))"
-        data_source = data_source_class(
-            bk_biz_id=bk_biz_id,
-            promql=promql,
-            interval=60,
-        )
-        query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
-        now_ts = arrow.now()
+        sql = f"""select last(usage) from system.cpu_summary where time>'10m'
+         and bk_biz_id='{bk_biz_id}' order by time desc limit 1"""
         try:
-            records = query.query_data(
-                start_time=now_ts.replace(minutes=-1).timestamp * 1000, end_time=now_ts.timestamp * 1000
-            )
+            ret = api.metadata.get_ts_data(sql=sql)
         except Exception as e:
-            return APIERROR("UnifyQuery.query_data Error: %s" % e, self.story)
+            return APIERROR("api.metadata.get_ts_data Error: %s" % e, self.story)
 
         duration = time.time() - start
-        if duration > self.warning_duration:
-            return APIPending("api worker duration cost %s" % duration, self.story)
-        self.story.info("api worker duration cost %s" % duration)
+        timetaken = ret["timetaken"]
+        pending = duration - timetaken
+        if pending > self.warning_duration:
+            return APIPending("api worker pending cost %s" % pending, self.story)
+        self.story.info("api worker pending cost %s" % pending)
 
-        if records[0]["_result_"] == 0:
+        if not ret["list"]:
             # 尝试从kafka拉取最新的一条数据。
             p = self.check_from_kafka(1001)
             if not p:

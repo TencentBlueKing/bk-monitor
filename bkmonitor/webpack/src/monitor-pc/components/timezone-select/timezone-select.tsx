@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Option, Select, Tag } from 'bk-magic-vue';
 
 import timezoneList from './timezone';
 
@@ -68,7 +69,7 @@ export default class TimezoneSelect extends tsc<IProps> {
 
   render() {
     return (
-      <bk-select
+      <Select
         v-model={this.localValue}
         ext-popover-cls={'timezone-select-component-pop'}
         class='time-select-component'
@@ -88,25 +89,25 @@ export default class TimezoneSelect extends tsc<IProps> {
             )}
           </div>
           <div class='right'>
-            {!!this.curInfo.name && <bk-tag>{`UTC${this.curInfo.Z}`}</bk-tag>}
+            {!!this.curInfo.name && <Tag>{`UTC${this.curInfo.Z}`}</Tag>}
             <div class='icon-wrap'>
               <span class={['icon-monitor icon-arrow-down', { active: this.toggle }]}></span>
             </div>
           </div>
         </div>
         {timezoneList.map(item => (
-          <bk-option
+          <Option
             key={item.name}
             id={item.name}
             name={item.name}
           >
             <span class='timezone-option'>
               <span>{`${item.name}, ${item.z}`}</span>
-              <bk-tag>{`UTC${item.Z}`}</bk-tag>
+              <Tag>{`UTC${item.Z}`}</Tag>
             </span>
-          </bk-option>
+          </Option>
         ))}
-      </bk-select>
+      </Select>
     );
   }
 }

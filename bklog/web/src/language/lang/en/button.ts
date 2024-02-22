@@ -154,6 +154,5 @@ export default {
   新增采样: 'New sample',
   钉住: 'Nail sample',
   取消钉住: 'Cancel nail sample',
-  新增备注: 'Add New Label',
-  升级: 'Upgrade',
+  新增备注: 'Add New Label'
 };

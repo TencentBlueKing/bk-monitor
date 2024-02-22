@@ -26,6 +26,7 @@
 /* eslint-disable camelcase */
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { alertGraphQuery } from '../../../../monitor-api/modules/alert';
@@ -588,18 +589,18 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
           <span class='tip-text'>{this.$t('默认显示最近20条')}</span>
         </div>
         <div style={{ height: `${this.tableHeight}px` }}>
-          <bk-table data={this.logData}>
-            <bk-table-column
+          <Table data={this.logData}>
+            <TableColumn
               label={this.$t('时间')}
               width={260}
               scopedSlots={timeSlots}
-            ></bk-table-column>
-            <bk-table-column
+            ></TableColumn>
+            <TableColumn
               label={this.$t('日志')}
               scopedSlots={contentSlots}
               showOverflowTooltip={true}
-            ></bk-table-column>
-          </bk-table>
+            ></TableColumn>
+          </Table>
         </div>
         {this.showLoadingBox ? (
           <div class='source-log-loading'>

@@ -33,7 +33,6 @@ from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Host, ServiceInstance
 from bkmonitor.aiops.alert.utils import parse_anomaly
-from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.data_source import load_data_source
 from bkmonitor.dataflow.constant import VisualType
 from bkmonitor.documents import (
@@ -74,7 +73,7 @@ from constants.alert import (
     CLUSTER_PATTERN,
     AlertFieldDisplay,
     EventStatus,
-    EventTargetType, EVENT_STATUS_DICT,
+    EventTargetType,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import SPLIT_DIMENSIONS
@@ -314,14 +313,7 @@ class AlertDateHistogramResource(Resource):
     def perform_request(self, validated_request_data):
         interval = validated_request_data.pop("interval")
         handler = AlertQueryHandler(**validated_request_data)
-        data = list(handler.date_histogram(interval=interval).values())[0]
-        return {
-            "series": [
-                {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
-                for status, series in data.items()
-            ],
-            "unit": "",
-        }
+        return handler.date_histogram(interval=interval)
 
 
 class AlertDetailResource(Resource):
@@ -1510,7 +1502,7 @@ class SearchEventResource(ApiAuthResource):
             + conditions,
             **validated_request_data,
         )
-        alert_result, _ = handler.search_raw()
+        alert_result = handler.search_raw()
 
         result = {
             "total": min(alert_result.hits.total.value, 10000),
@@ -2573,7 +2565,7 @@ class MetricRecommendationResource(AIOpsBaseResource):
             # 如果配置中没有找到算法类型，则跳过当前检测
             pass
 
-        processing_id = f'{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}'
+        processing_id = f'{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}_{alert.event["bk_biz_id"]}'
         try:
             response = api.bkdata.api_serving_execute(
                 processing_id=processing_id,
@@ -2620,10 +2612,6 @@ class MetricRecommendationResource(AIOpsBaseResource):
         :param alert: 告警信息
         :param exp_config: 查询表达式配置
         """
-        # 查询该业务是否配置有ai设置
-        ai_setting = AiSetting(bk_biz_id=alert.event["bk_biz_id"])
-        metric_recommend = ai_setting.metric_recommend
-
         return {
             "json_args": json.dumps(
                 {
@@ -2634,12 +2622,6 @@ class MetricRecommendationResource(AIOpsBaseResource):
                     "bk_biz_id": alert.event["bk_biz_id"],
                     "alert_id": alert.id,
                 }
-            ),
-            "reference_table": metric_recommend.result_table_id
-            or (
-                f"{settings.DEFAULT_BKDATA_BIZ_ID}_"
-                f"{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}_"
-                f"{alert.event['bk_biz_id']}"
             ),
         }
 

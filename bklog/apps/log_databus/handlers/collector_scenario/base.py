@@ -23,10 +23,6 @@ import copy
 import json
 from typing import Any, Dict, List, Optional
 
-from django.conf import settings
-from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
-
 from apps.api import NodeApi, TransferApi
 from apps.exceptions import ApiResultError
 from apps.log_clustering.constants import PatternEnum
@@ -41,6 +37,9 @@ from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.utils.function import ignored
 from apps.utils.log import logger
+from django.conf import settings
+from django.utils.module_loading import import_string
+from django.utils.translation import ugettext as _
 
 
 class CollectorScenario(object):
@@ -270,18 +269,17 @@ class CollectorScenario(object):
         return local_params
 
     @staticmethod
-    def get_edge_transport_output_params(data_link_id: int = None):
+    def _deal_edge_transport_params(local_params, data_link_id: int = None):
         if not data_link_id:
-            return
+            return local_params
         data_link = DataLinkConfig.objects.filter(data_link_id=data_link_id).first()
-
         if not data_link:
             # 如果找不到链路配置，则不处理
-            return
+            return local_params
 
         if not data_link.is_edge_transport:
             # 如果不是边缘存查链路，则不处理
-            return
+            return local_params
 
         kafka_cluster_info = StorageHandler(data_link.kafka_cluster_id).get_cluster_info_by_id()
         cluster_config = kafka_cluster_info["cluster_config"]
@@ -324,13 +322,6 @@ class CollectorScenario(object):
         if custom_params:
             # 如果DB中有特殊配置，则直接覆盖
             kafka_output_params.update(custom_params)
-        return kafka_output_params
-
-    @staticmethod
-    def _deal_edge_transport_params(local_params, data_link_id: int = None):
-        kafka_output_params = CollectorScenario.get_edge_transport_output_params(data_link_id)
-        if not kafka_output_params:
-            return local_params
 
         # outputs format
         # {"type": "output.kafka", "params": {"hosts": ["127.0.0.1:9092"], "topic": "0bkmonitor_%{[dataid]}0"}}
@@ -372,16 +363,6 @@ class CollectorScenario(object):
         if not ext_meta:
             return local_params
         local_params["ext_meta"] = {em["key"]: em["value"] for em in ext_meta}
-        return local_params
-
-    @staticmethod
-    def _handle_collector_config_overlay(local_params: Dict[str, Any], params: Dict[str, Any]):
-        """
-        处理自定义采集器配置字段
-        """
-        if params.get("collector_config_overlay"):
-            local_params.update(params["collector_config_overlay"])
-
         return local_params
 
     @staticmethod

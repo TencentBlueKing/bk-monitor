@@ -289,7 +289,6 @@ export default defineComponent({
                 <img
                   src={CrossAppTag}
                   class='cross-tag'
-                  alt=''
                 />
                 <span class='cross-span-name'>{this.crossRelationInfo.app_name}</span>
                 <span class='cross-description'>{`${this.$t('所属空间：')}${this.crossRelationInfo.bk_biz_name}`}</span>
@@ -331,7 +330,6 @@ export default defineComponent({
                     <img
                       class='service-icon'
                       src={span.icon}
-                      alt=''
                     />
                   )}
                   <span
@@ -345,7 +343,6 @@ export default defineComponent({
                         <img
                           src={ArrowRightShapeIcon}
                           class='span-bar-row-arrow-icon'
-                          alt=''
                         />
                         <i
                           class='span-bar-row-rpc-color-marker'
@@ -359,7 +356,6 @@ export default defineComponent({
                         <img
                           src={ArrowRightShapeIcon}
                           class='span-bar-row-arrow-icon'
-                          alt=''
                         />
                         <i
                           class='span-bar-row-rpc-color-marker'

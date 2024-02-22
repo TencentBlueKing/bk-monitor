@@ -27,6 +27,7 @@
  */
 import { Component, InjectReactive, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button } from 'bk-magic-vue';
 
 import { deepClone, random } from '../../../monitor-common/utils';
 import AiopsDimensionLint from '../../../monitor-ui/chart-plugins/plugins/aiops-dimension-lint/aiops-dimension-lint';
@@ -535,13 +536,13 @@ export default class ViewDetailNew extends tsc<IProps> {
                         {this.tableData?.length || 0}
                         {this.$t('条数据')}
                       </span>
-                      <bk-button
+                      <Button
                         class='export-csv-btn'
                         size='small'
                         onClick={this.handleExportCsv}
                       >
                         {this.$t('导出CSV')}
-                      </bk-button>
+                      </Button>
                     </div>
                     <div class='source-content'>
                       <table
@@ -590,7 +591,6 @@ export default class ViewDetailNew extends tsc<IProps> {
                                     {item.value === null ? '--' : item.value}
                                     {tdIndex > 0 && (item.max || item.min) && (
                                       <img
-                                        alt=''
                                         class='item-max-min'
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         src={require(`../../static/images/svg/${item.min ? 'min.svg' : 'max.svg'}`)}

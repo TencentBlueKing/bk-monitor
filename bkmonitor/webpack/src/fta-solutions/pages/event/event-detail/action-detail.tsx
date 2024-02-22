@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import { actionDetail, searchAlert } from '../../../../monitor-api/modules/alert';
@@ -230,27 +231,27 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
       </div>
     );
     return (
-      <bk-table data={tableData}>
-        <bk-table-column
+      <Table data={tableData}>
+        <TableColumn
           label={this.$t('告警ID')}
           width='150'
           scopedSlots={{ default: props => props.row.id }}
-        ></bk-table-column>
-        <bk-table-column
+        ></TableColumn>
+        <TableColumn
           label={this.$t('告警名称')}
           width='200'
           scopedSlots={{ default: props => props.row.alert_name }}
-        ></bk-table-column>
-        <bk-table-column
+        ></TableColumn>
+        <TableColumn
           label={this.$t('告警级别')}
           width='100'
           scopedSlots={{ default: props => severity(props.row.severity) }}
-        ></bk-table-column>
-        <bk-table-column
+        ></TableColumn>
+        <TableColumn
           label={this.$t('告警内容')}
           scopedSlots={{ default: props => alertContent(props.row.dimensions, props.row.description) }}
-        ></bk-table-column>
-      </bk-table>
+        ></TableColumn>
+      </Table>
     );
   }
   render() {

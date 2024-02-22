@@ -64,8 +64,11 @@
 </template>
 
 <script>
+import { bkTag } from 'bk-magic-vue';
+
 export default {
   name: 'ViewParam',
+  components: { bkTag },
   props: {
     title: {
       type: String,

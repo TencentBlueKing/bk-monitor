@@ -19,11 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.utils.translation import ugettext as _
-
 from apps.log_databus.constants import EtlConfig, LogPluginInfo
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
+from django.utils.translation import ugettext as _
 
 
 class SysLogScenario(CollectorScenario):
@@ -41,7 +40,6 @@ class SysLogScenario(CollectorScenario):
             "host": f"{syslog_monitor_host}:{syslog_port}",
         }
         local_params = self._deal_edge_transport_params(local_params, data_link_id)
-        local_params = self._handle_collector_config_overlay(local_params, params)
         return [
             {
                 "id": self.PLUGIN_NAME,

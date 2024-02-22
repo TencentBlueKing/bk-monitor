@@ -272,7 +272,7 @@ export default class TableStore {
           break;
       }
       res.push({
-        tip: tips || tmp,
+        tip: tips || `<div>${tmp}</div>`,
         val: tmp
       });
     });

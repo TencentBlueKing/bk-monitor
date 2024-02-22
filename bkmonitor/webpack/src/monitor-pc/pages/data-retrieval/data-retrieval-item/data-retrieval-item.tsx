@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input, TagInput } from 'bk-magic-vue';
 
 import { deepClone } from '../../../../monitor-common/utils/utils';
 import { recheckInterval } from '../../../../monitor-ui/chart-plugins/utils';
@@ -244,7 +245,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             class='query-item-content'
             onClick={() => this.handleShowMetricSelector(true)}
           >
-            <bk-input
+            <Input
               class='metric-selector-target'
               ref='metricInput'
               placeholder={this.$t('选择')}
@@ -293,7 +294,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                 <div class='query-item-wrap query-item-group-by'>
                   <div class='query-item-label'>{this.$t('维度')}</div>
                   <div class='query-item-content'>
-                    <bk-tag-input
+                    <TagInput
                       vModel={this.localValue.agg_dimension}
                       list={this.metricGroupByList}
                       placeholder={String(this.$t('选择'))}

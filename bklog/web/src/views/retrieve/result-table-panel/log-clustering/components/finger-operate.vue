@@ -32,9 +32,7 @@
         v-model="group"
         :popover-min-width="180"
         :disabled="!fingerOperateData.signatureSwitch"
-        @toggle="handleSelectGroup"
-        @tab-remove="handleSelectTag"
-        @clear="handleDeleteAll">
+        @toggle="handleSelectGroup">
         <bk-option
           v-for="item in fingerOperateData.groupList"
           :key="item.id"
@@ -148,7 +146,6 @@ export default {
       interactType: false, // false 为hover true 为click
       alarmSwitch: false,
       group: [], // 当前选择分组的值
-      catchGroup: [],
       isToggle: false, // 当前是否显示分组下拉框
       patternSize: 0,
       yearOnYearHour: 0,
@@ -162,6 +159,17 @@ export default {
       return this.$store.state.bkBizId;
     },
   },
+  watch: {
+    group: {
+      deep: true,
+      handler(list) {
+        // 分组列表未展开时数组变化则发送请求
+        if (!this.isToggle) {
+          this.$emit('handleFingerOperate', 'group', list);
+        }
+      },
+    },
+  },
   mounted() {
     this.initCache();
     this.handlePopoverShow();
@@ -171,38 +179,23 @@ export default {
   },
   methods: {
     handleSelectCompared(newVal) {
-      this.$emit('handleFingerOperate', 'compared', newVal, true);
+      this.$emit('handleFingerOperate', 'compared', newVal);
     },
     handleEnterCompared(val) {
       this.$emit('handleFingerOperate', 'enterCustomize', val);
     },
     handleShowNearPattern(state) {
-      this.$emit('handleFingerOperate', 'isShowNear', state, true);
+      this.$emit('handleFingerOperate', 'isShowNear', state);
     },
     handleChangepatternSize(val) {
-      this.$emit('handleFingerOperate', 'patternSize', this.fingerOperateData.patternList[val], true);
+      this.$emit('handleFingerOperate', 'patternSize', this.fingerOperateData.patternList[val]);
     },
     changeCustomizeState(val) {
       this.$emit('handleFingerOperate', 'customize', val);
     },
     handleSelectGroup(state) {
       this.isToggle = state;
-      if (state) {
-        this.catchGroup = this.group;
-      } else {
-        const catchStr = this.catchGroup.join(',');
-        const groupStr = this.group.join(',');
-        if (catchStr !== groupStr) {
-          this.$emit('handleFingerOperate', 'group', this.group, true);
-        }
-      }
-    },
-    handleSelectTag(option) {
-      const filterGroup = this.group.filter(item => item !== option.id);
-      this.$emit('handleFingerOperate', 'group', filterGroup, true);
-    },
-    handleDeleteAll() {
-      this.$emit('handleFingerOperate', 'group', [], true);
+      !state && this.$emit('handleFingerOperate', 'group', this.group);
     },
     handleEmitEditAlarm() {
       this.$emit('handleFingerOperate', 'editAlarm');

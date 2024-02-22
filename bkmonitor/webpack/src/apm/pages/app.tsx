@@ -26,6 +26,7 @@
 import Vue from 'vue';
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Input, Navigation, NavigationMenu, NavigationMenuGroup, NavigationMenuItem } from 'bk-magic-vue';
 
 import { APP_NAV_COLORS } from '../../monitor-common/utils';
 import { getUrlParam } from '../../monitor-common/utils/utils';
@@ -41,7 +42,7 @@ import './app.scss';
 
 @Component
 export default class App extends tsc<{}> {
-  @Ref('menuSearchInput') menuSearchInputRef;
+  @Ref('menuSearchInput') menuSearchInputRef: Input;
   private routeList = createRouteConfig();
   private menuToggle = false;
   private bizId = window.cc_biz_id;
@@ -224,7 +225,7 @@ export default class App extends tsc<{}> {
           style={{ display: this.showBizList ? 'flex' : 'none' }}
           class='menu-select-list'
         >
-          <bk-input
+          <Input
             ref='menuSearchInput'
             class='menu-select-search'
             clearable={false}
@@ -255,7 +256,7 @@ export default class App extends tsc<{}> {
   render() {
     return (
       <div class={{ 'apm-wrap': true, 'is-micro-app': !this.needMenu }}>
-        <bk-navigation
+        <Navigation
           navigation-type='top-bottom'
           on-toggle={this.handleToggle}
           themeColor='#2c354d'
@@ -299,7 +300,7 @@ export default class App extends tsc<{}> {
                   <span class='menu-title'>{this.bizName.split(']')[1][1].toLocaleUpperCase()}</span>
                 )}
               </div>
-              <bk-navigation-menu
+              <NavigationMenu
                 toggle-active={this.menuToggle}
                 default-active={this.routeId}
                 before-nav-change={this.handleBeforeNavChange}
@@ -307,24 +308,24 @@ export default class App extends tsc<{}> {
               >
                 {this.menuList.map(item =>
                   item?.children?.length ? (
-                    <bk-navigation-menu-group
+                    <NavigationMenuGroup
                       key={item.id}
                       group-name={this.menuToggle ? this.$t(item.name) : this.$t(item.shortName)}
                     >
                       {item.children.map(child => (
-                        <bk-navigation-menu-item
+                        <NavigationMenuItem
                           onClick={() => this.handleMenuItemClick(child.id)}
                           key={child.id}
                           href={child.href}
                           {...{ props: child }}
                         >
                           <span>{this.$t(child.name)}</span>
-                        </bk-navigation-menu-item>
+                        </NavigationMenuItem>
                       ))}
-                    </bk-navigation-menu-group>
+                    </NavigationMenuGroup>
                   ) : undefined
                 )}
-              </bk-navigation-menu>
+              </NavigationMenu>
             </div>
           ) : undefined}
           {/* {this.navigationBar} */}
@@ -355,7 +356,7 @@ export default class App extends tsc<{}> {
             ></router-view>
             <AuthorityModal></AuthorityModal>
           </div>
-        </bk-navigation>
+        </Navigation>
       </div>
     );
   }

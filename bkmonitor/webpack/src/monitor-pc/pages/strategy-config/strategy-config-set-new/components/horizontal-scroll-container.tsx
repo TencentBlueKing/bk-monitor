@@ -23,20 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './horizontal-scroll-container.scss';
 
-interface IProps {
-  isWatchWidth?: boolean;
-  smallBtn?: boolean;
-}
-
 @Component
-export default class HorizontalScrollContainer extends tsc<IProps> {
-  @Prop({ type: Boolean, default: false }) isWatchWidth: boolean;
-  @Prop({ type: Boolean, default: false }) smallBtn: boolean;
+export default class HorizontalScrollContainer extends tsc<{}> {
   hasScroll = false;
   timer = null;
   running = false;
@@ -44,24 +37,7 @@ export default class HorizontalScrollContainer extends tsc<IProps> {
   canNext = false;
   canPre = false;
 
-  resizeObserver = null;
-
   mounted() {
-    if (this.isWatchWidth) {
-      this.resizeObserver = new ResizeObserver(() => {
-        this.handleWatchScroll();
-      });
-      const scrollEl: HTMLDivElement = this.$el.querySelector('.scroll-container');
-      this.resizeObserver.observe(scrollEl);
-    }
-    this.handleWatchScroll();
-  }
-
-  destroyed() {
-    this.resizeObserver?.disconnect?.();
-  }
-
-  handleWatchScroll() {
     const scrollEl: HTMLDivElement = this.$el.querySelector('.scroll-container');
     this.hasScroll = scrollEl.scrollWidth > scrollEl.clientWidth;
     this.canNext = true;
@@ -117,13 +93,7 @@ export default class HorizontalScrollContainer extends tsc<IProps> {
 
   render() {
     return (
-      <div
-        class={[
-          'horizontal-scroll-container',
-          { 'has-scroll': this.hasScroll },
-          { 'small-btn': this.smallBtn && this.hasScroll }
-        ]}
-      >
+      <div class={['horizontal-scroll-container', { 'has-scroll': this.hasScroll }]}>
         <div class='scroll-container'>{this.$slots?.default}</div>
         {this.hasScroll && (
           <div

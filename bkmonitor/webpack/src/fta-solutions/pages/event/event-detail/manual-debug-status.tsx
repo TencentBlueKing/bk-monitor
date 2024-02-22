@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Dialog } from 'bk-magic-vue';
 
 import { getDemoActionDetail } from '../../../../monitor-api/modules/action';
 
@@ -178,18 +179,18 @@ export default class ManualDebugStatus extends tsc<IProps> {
     const statusMap = {
       success: (
         <div class='status-operate'>
-          {/* <bk-button theme="primary" style={{ marginRight: '8px' }}>{this.$t('查看详情')}</bk-button> */}
-          <bk-button onClick={() => this.handleStopDebug()}>{this.$t('button-完成')}</bk-button>
+          {/* <Button theme="primary" style={{ marginRight: '8px' }}>{this.$t('查看详情')}</Button> */}
+          <Button onClick={() => this.handleStopDebug()}>{this.$t('button-完成')}</Button>
         </div>
       ),
       failure: (
         <div class='status-operate'>
-          <bk-button
+          <Button
             theme='primary'
             onClick={() => this.handleStopDebug()}
           >
             {this.$t('再次处理')}
-          </bk-button>
+          </Button>
         </div>
       )
     };
@@ -197,7 +198,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
   }
   render() {
     return (
-      <bk-dialog
+      <Dialog
         extCls={'manual-debug-running-dialog'}
         value={!!this.debugStatusData?.status}
         width={400}
@@ -229,7 +230,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
             this.debugStatusOperate()
           ]}
         </div>
-      </bk-dialog>
+      </Dialog>
     );
   }
 }

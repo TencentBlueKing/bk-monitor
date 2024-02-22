@@ -163,13 +163,10 @@ export default {
     };
   },
   watch: {
-    msg: {
-      handler(val) {
-        if (val === 1) {
-          this.getAlarmConfig();
-        }
-      },
-      immediate: true
+    msg() {
+      if (this.msg === 1) {
+        this.getAlarmConfig();
+      }
     }
   },
   methods: {

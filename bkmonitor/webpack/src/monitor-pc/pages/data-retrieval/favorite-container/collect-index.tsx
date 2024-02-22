@@ -26,6 +26,7 @@
 
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Form, FormItem, Input, Popover, Radio, RadioGroup } from 'bk-magic-vue';
 
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { FavoriteIndexType, IFavList } from '../typings';
@@ -43,9 +44,9 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   @Prop({ default: false, type: Boolean }) isShowFavorite: boolean; // 是否展开收藏列表
   @Prop({ default: false, type: Boolean }) favoriteLoading: boolean; // 请求中
   @Prop({ default: 'metric', type: String }) favoriteSearchType: string; // 当前页收藏类型
-  @Ref('checkInputForm') checkInputFormRef: any;
-  @Ref('popoverGroup') popoverGroupRef: any;
-  @Ref('popoverSort') popoverSortRef: any;
+  @Ref('checkInputForm') checkInputFormRef: Form;
+  @Ref('popoverGroup') popoverGroupRef: Popover;
+  @Ref('popoverSort') popoverSortRef: Popover;
   isShowManageDialog = false; // 是否展示管理弹窗
   isShowSharedDialog = false;
   isSearchFilter = false; // 是否搜索过滤
@@ -275,16 +276,16 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
               ></span>
             </div>
             <div class='search-box fl-jcsb'>
-              <bk-input
+              <Input
                 right-icon='bk-icon icon-search'
                 vModel={this.searchVal}
                 onEnter={this.handleSearchFavorite}
                 onKeyup={this.handleInputSearchFavorite}
                 onRightIconClick={this.handleSearchFavorite}
                 placeholder={this.$t('搜索收藏名')}
-              ></bk-input>
+              ></Input>
               <div class='fl-jcsb operate-box'>
-                <bk-popover
+                <Popover
                   ref='popoverGroup'
                   tippy-options={this.tippyOption}
                   placement='bottom-start'
@@ -292,7 +293,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                 >
                   <span class='bk-icon icon-plus-circle'></span>
                   <div slot='content'>
-                    <bk-form
+                    <Form
                       labelWidth={0}
                       style={{ width: '100%' }}
                       ref='checkInputForm'
@@ -303,28 +304,28 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                         }
                       }}
                     >
-                      <bk-form-item property='groupName'>
-                        <bk-input
+                      <FormItem property='groupName'>
+                        <Input
                           clearable
                           placeholder={this.$t('输入组名,30个字符')}
                           vModel={this.verifyData.groupName}
                           onKeydown={this.handleGroupKeyDown}
                           onEnter={() => this.handleClickGroupBtn('add')}
-                        ></bk-input>
-                      </bk-form-item>
-                    </bk-form>
+                        ></Input>
+                      </FormItem>
+                    </Form>
                     <div class='operate-button'>
-                      <bk-button
+                      <Button
                         text
                         onClick={() => this.handleClickGroupBtn('add')}
                       >
                         {this.$t('确定')}
-                      </bk-button>
+                      </Button>
                       <span onClick={() => this.handleClickGroupBtn('cancel')}>{this.$t('取消')}</span>
                     </div>
                   </div>
-                </bk-popover>
-                <bk-popover
+                </Popover>
+                <Popover
                   ref='popoverSort'
                   tippy-options={this.tippyOption}
                   placement='bottom-start'
@@ -335,25 +336,25 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                   </div>
                   <div slot='content'>
                     <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
-                    <bk-radio-group
+                    <RadioGroup
                       vModel={this.sortType}
                       class='sort-group-container'
                     >
                       {this.groupSortList.map(item => (
-                        <bk-radio value={item.id}>{item.name}</bk-radio>
+                        <Radio value={item.id}>{item.name}</Radio>
                       ))}
-                    </bk-radio-group>
+                    </RadioGroup>
                     <div class='operate-button'>
-                      <bk-button
+                      <Button
                         theme='primary'
                         onClick={() => this.handleClickSortBtn('sort')}
                       >
                         {this.$t('确定')}
-                      </bk-button>
-                      <bk-button onClick={() => this.handleClickSortBtn('cancel')}>{this.$t('取消')}</bk-button>
+                      </Button>
+                      <Button onClick={() => this.handleClickSortBtn('cancel')}>{this.$t('取消')}</Button>
                     </div>
                   </div>
-                </bk-popover>
+                </Popover>
               </div>
             </div>
           </div>
