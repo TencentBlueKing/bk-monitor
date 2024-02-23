@@ -88,7 +88,6 @@ class BaseRedisCache(object):
         raise NotImplementedError()
 
     def refresh_instance(self):
-
         if self._instance is not None:
             self.close_instance(self._instance)
             self.close_instance(self._readonly_instance)
@@ -192,13 +191,9 @@ class SentinelRedisCache(BaseRedisCache):
         }
         if self.SENTINEL_PASS:
             sentinel_kwargs["password"] = self.SENTINEL_PASS
+
         redis_sentinel = Sentinel(
-            [
-                (
-                    self.sentinel_host,
-                    self.sentinel_port,
-                )
-            ],
+            [(h, self.sentinel_port) for h in self.sentinel_host.split(";") if h],
             sentinel_kwargs=sentinel_kwargs,
         )
 
