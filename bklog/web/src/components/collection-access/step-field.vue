@@ -106,6 +106,48 @@
             <VueJsonPretty :deep="5" :data="jsonText" />
           </div>
         </bk-sideslider>
+        <!-- 原始日志配置 -->
+        <div class="origin-log-config">
+          <span class="title">{{ $t('原始日志配置') }}</span>
+          <bk-radio-group v-model="formData.etl_params.retain_original_text">
+            <bk-radio :value="true">
+              <span v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{ $t('保留原始日志') }}</span>
+            </bk-radio>
+            <bk-radio :value="false">
+              <span>{{ $t('不保留') }}</span>
+            </bk-radio>
+          </bk-radio-group>
+          <div
+            v-show="formData.etl_params.retain_original_text"
+            class="flex-box select-container">
+            <div class="flex-box">
+              <div class="select-title">{{ $t('分词符') }}</div>
+              <bk-select
+                :clearable="false"
+                :popover-min-width="160"
+                ext-cls="origin-select-custom"
+                v-model="originParticipleState"
+                @change="handleChangeParticipleState">
+                <bk-option
+                  v-for="option in participleList"
+                  :key="option.id"
+                  :id="option.id"
+                  :name="option.name">
+                </bk-option>
+              </bk-select>
+            </div>
+            <bk-input
+              v-if="originParticipleState === 'custom'"
+              style="margin-left: 8px; width: 170px;"
+              v-model="formData.etl_params.original_text_tokenize_on_chars">
+            </bk-input>
+            <bk-checkbox
+              style="margin-left: 24px;"
+              v-model="formData.etl_params.original_text_is_case_sensitive">
+              <span>{{ $t('大小写敏感') }}</span>
+            </bk-checkbox>
+          </div>
+        </div>
       </template>
 
       <section class="field-method">
@@ -242,10 +284,9 @@
                   :select-etl-config="params.etl_config"
                   :deleted-visible="deletedVisible"
                   :fields="formData.fields"
-                  :retain-original-value="formData.etl_params.retain_original_text"
+                  :original-text-tokenize-on-chars="defaultParticipleStr"
                   :retain-extra-json="formData.etl_params.retain_extra_json"
                   @deleteVisible="visibleHandle"
-                  @handleKeepLog="handleKeepLog"
                   @handleKeepField="handleKeepField"
                   @standard="dialogVisible = true"
                   @reset="getDetail">
@@ -529,6 +570,8 @@ export default {
         etl_config: 'bk_log_text',
         etl_params: {
           retain_original_text: true,
+          original_text_is_case_sensitive: false,
+          original_text_tokenize_on_chars: '',
           separator_regexp: '',
           separator: '',
           retain_extra_json: false,
@@ -571,6 +614,9 @@ export default {
           time_format: '',
           time_zone: '',
         },
+        // 是否是自定义分词
+        tokenize_on_chars: '',
+        participleState: 'default',
       },
       activePanel: 'base',
       panels: [
@@ -591,6 +637,16 @@ export default {
         { id: 'current_biz', name: this.$t('当前空间可见') },
         { id: 'multi_biz', name: this.$t('多空间选择') },
         { id: 'all_biz', name: this.$t('全平台') },
+      ],
+      participleList: [
+        {
+          id: 'default',
+          name: this.$t('默认'),
+        },
+        {
+          id: 'custom',
+          name: this.$t('自定义'),
+        },
       ],
       visibleBkBiz: [], // 多业务选择id列表
       cacheVisibleList: [], // 缓存多业务选择下拉框
@@ -615,7 +671,12 @@ export default {
         is_built_in: false,
         is_dimension: false,
         previous_type: '',
+        tokenize_on_chars: '',
+        participleState: 'default',
       },
+      originParticipleState: 'default',
+      // eslint-disable-next-line
+      defaultParticipleStr: ',.\'";=()[\\]{}@&<>/:\|\\n\\t\\r',
     };
   },
   computed: {
@@ -839,6 +900,8 @@ export default {
         etl_config: this.fieldType,
         etl_params: Object.assign({
           retain_original_text: true,
+          original_text_is_case_sensitive: false,
+          original_text_tokenize_on_chars: '',
           separator_regexp: '',
           separator: '',
           retain_extra_json: false,
@@ -883,16 +946,21 @@ export default {
     fieldCollection(isCollect = false) {
       const {
         etl_config: etlConfig,
-        fields,
         etl_params: etlParams,
         visible_type,
       } = this.formData;
+      const fields = this.formData.fields.map((item) => {
+        const { participleState, ...otherValue } = item;
+        return otherValue;
+      });
       this.isLoading = true;
       this.basicLoading = true;
       let data = {
         clean_type: etlConfig,
         etl_params: {
           retain_original_text: etlParams.retain_original_text,
+          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
           separator_regexp: etlParams.separator_regexp,
           separator: etlParams.separator,
           retain_extra_json: etlParams.retain_extra_json ?? false,
@@ -904,6 +972,8 @@ export default {
       if (etlConfig !== 'bk_log_text') {
         const payload = {
           retain_original_text: etlParams.retain_original_text,
+          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
           retain_extra_json : etlParams.retain_extra_json ?? false
         }
         if (etlConfig === 'bk_log_delimiter') {
@@ -1137,6 +1207,8 @@ export default {
           separator_regexp: '',
           separator: '',
           retain_extra_json: false,
+          original_text_is_case_sensitive: false,
+          original_text_tokenize_on_chars: '',
         }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
         fields: copyFields.filter(item => !item.is_built_in),
       });
@@ -1365,9 +1437,6 @@ export default {
     visibleHandle(val) {
       this.deletedVisible = val;
     },
-    handleKeepLog(value) {
-      this.formData.etl_params.retain_original_text = value;
-    },
     handleKeepField(value) {
       this.formData.etl_params.retain_extra_json = value;
     },
@@ -1441,13 +1510,13 @@ export default {
         },
       }).then((res) => {
         if (res.data) {
-          const { clean_type, etl_params, etl_fields: etlFields } = res.data;
+          const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
           this.formData.fields.splice(0, this.formData.fields.length);
           /* eslint-disable */
           this.params.etl_config = clean_type
           Object.assign(this.params.etl_params, {
-            separator_regexp: etl_params.separator_regexp || '',
-            separator: etl_params.separator || ''
+            separator_regexp: etlParams.separator_regexp || '',
+            separator: etlParams.separator || ''
           })
           this.fieldType = clean_type
           /* eslint-enable */
@@ -1458,9 +1527,13 @@ export default {
               separator_regexp: '',
               separator: '',
               retain_extra_json: false,
-            }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
+            }, etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}), // eslint-disable-line
             fields: etlFields,
           });
+          if (etlParams.original_text_tokenize_on_chars) {
+            this.originParticipleState = 'custom';
+            this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
+          }
         }
       })
         .finally(() => {
@@ -1553,6 +1626,9 @@ export default {
       this.deletedVisible = true;
       this.savaFormData();
     },
+    handleChangeParticipleState(val) {
+      this.formData.etl_params.original_text_tokenize_on_chars = val === 'custom' ? this.defaultParticipleStr : '';
+    },
   },
 };
 </script>
@@ -1582,6 +1658,52 @@ export default {
         margin-right: 16px;
         font-size: 12px;
         color: #63656e;
+      }
+    }
+
+    .origin-log-config {
+      font-size: 12px;
+      color: #63656e;
+
+      .title {
+        display: inline-block;
+        margin: 24px 0 8px 0;
+      }
+
+      label {
+        margin-right: 24px;
+        font-size: 12px;
+      }
+
+      .select-container {
+        margin-top: 15px;
+      }
+
+      .flex-box,
+      %flex-box {
+        display: flex;
+        justify-content: start;
+        align-items: center;
+      }
+
+      .select-title {
+        width: 52px;
+        height: 32px;
+        transform: translateX(1px);
+        background: #fafbfd;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px 0 0 2px;
+        justify-content: center;
+
+        @extend %flex-box;
+      }
+
+      .origin-select-custom {
+        width: 70px;
+      }
+
+      .bk-select-name {
+        padding: 0 22px 0 10px;
       }
     }
 

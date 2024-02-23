@@ -423,7 +423,7 @@ export default class FieldInfo extends tsc<IProps> {
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('是否大小写敏感')}
+            label={this.$t('大小写敏感')}
             key={'is_case_sensitive'}
             width="120"
             align={'center'}

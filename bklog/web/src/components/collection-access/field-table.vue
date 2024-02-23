@@ -39,17 +39,6 @@
               @change="handleKeepField">
               <span class="bk-label" style="margin-right: 20px;">{{ $t('保留未定义字段') }}</span>
             </bk-checkbox>
-            <bk-checkbox
-              :checked="true"
-              :true-value="true"
-              :false-value="false"
-              :disabled="isSettingDisable || isSetDisabled"
-              v-model="retainOriginalText"
-              @change="handleKeepLog">
-              <label class="bk-label has-desc" v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">
-                <span>{{ $t('保留原始日志') }}</span>
-              </label>
-            </bk-checkbox>
             <!-- <bk-switcher size="small" theme="primary" v-model="retainOriginalText"></bk-switcher> -->
           </div>
         </div>
@@ -242,29 +231,53 @@
               :width="getParticipleWidth">
               <template slot-scope="props">
                 <bk-checkbox
-                  :disabled="isPreviewMode
-                    || props.row.is_delete
-                    || props.row.field_type !== 'string'
-                    || props.row.is_time
-                    || isSetDisabled"
+                  :disabled="getCustomizeDisabled(props.row, 'analyzed')"
                   v-model="props.row.is_analyzed"
                   @change="() => handelChangeAnalyzed(props.row.is_analyzed, props.$index)">
                 </bk-checkbox>
               </template>
             </bk-table-column>
-            <!-- 分词 -->
+            <!-- 分词符 -->
             <bk-table-column
-              :label="$t('是否大小写敏感')"
-              align="center"
+              align="left"
+              :label="$t('分词符')"
               :resizable="false"
-              :width="100">
+              :width="getCustomizeTableWidth">
+              <template slot-scope="props">
+                <div class="participle-box">
+                  <bk-select
+                    :disabled="getCustomizeDisabled(props.row)"
+                    :clearable="false"
+                    :popover-min-width="160"
+                    placeholder=" "
+                    ext-cls="select-custom"
+                    v-model="props.row.participleState"
+                    @change="(val) => handleChangeParticipleState(val, props.$index)">
+                    <bk-option
+                      v-for="option in participleList"
+                      :key="option.id"
+                      :id="option.id"
+                      :name="option.name">
+                    </bk-option>
+                  </bk-select>
+                  <bk-input
+                    v-show="props.row.participleState === 'custom'"
+                    v-model="props.row.tokenize_on_chars"
+                    placeholder=" "
+                    :disabled="getCustomizeDisabled(props.row)">
+                  </bk-input>
+                </div>
+              </template>
+            </bk-table-column>
+            <!-- 大小写敏感 -->
+            <bk-table-column
+              :label="$t('大小写敏感')"
+              align="left"
+              :resizable="false"
+              :width="80">
               <template slot-scope="props">
                 <bk-checkbox
-                  :disabled="isPreviewMode
-                    || props.row.is_delete
-                    || props.row.field_type !== 'string'
-                    || !props.row.is_analyzed
-                    || isSetDisabled"
+                  :disabled="getCustomizeDisabled(props.row)"
                   v-model="props.row.is_case_sensitive">
                 </bk-checkbox>
               </template>
@@ -490,9 +503,9 @@ export default {
       type: Boolean,
       default: false,
     },
-    retainOriginalValue: {
-      type: Boolean,
-      default: false,
+    originalTextTokenizeOnChars: {
+      type: String,
+      default: '',
     },
     retainExtraJson: {
       type: Boolean,
@@ -524,6 +537,16 @@ export default {
       checkLoading: false,
       retainOriginalText: true, // 保留原始日志
       retainExtraText: false,
+      participleList: [
+        {
+          id: 'default',
+          name: this.$t('默认'),
+        },
+        {
+          id: 'custom',
+          name: this.$t('自定义'),
+        },
+      ],
       rules: {
         field_name: [ // 存在bug，暂时启用
           // {
@@ -621,6 +644,9 @@ export default {
       if (this.selectEtlConfig === 'bk_log_json') return true;
       return !this.isPreviewMode && this.extractMethod !== 'bk_log_regexp';
     },
+    getCustomizeTableWidth() {
+      return this.tableList.some(item => item.participleState === 'custom') ? 225 : 70;
+    },
   },
   watch: {
     fields: {
@@ -629,15 +655,11 @@ export default {
         this.reset();
       },
     },
-    retainOriginalValue(newVal) {
-      this.retainOriginalText = newVal;
-    },
     retainExtraJson(newVal) {
       this.retainExtraText = newVal;
     },
   },
   async mounted() {
-    this.retainOriginalText = this.retainOriginalValue;
     this.retainExtraText = this.retainExtraJson;
     this.reset();
   },
@@ -675,6 +697,7 @@ export default {
       // 根据预览值 value 判断不是数字，则默认为字符串
       arr.forEach((item) => {
         const { value, field_type } = item;
+        item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
         // eslint-disable-next-line camelcase
         if (field_type === '' && value !== '' && this.judgeNumber(value)) {
           item.field_type = 'string';
@@ -797,9 +820,16 @@ export default {
       const previousType = $row.previous_type;
       const isAnalyzed = $row.is_analyzed;
       const isCaseSensitive = $row.is_case_sensitive;
+      const participleState = $row.participleState;
+      const tokenizeOnChars = $row.tokenize_on_chars;
       if (val !== 'string') {
-        this.tableList[$index].is_analyzed = false;
-        this.tableList[$index].is_case_sensitive = false;
+        const assignObj = {
+          is_analyzed: false,
+          participleState: 'default',
+          tokenize_on_chars: '',
+          is_case_sensitive: false,
+        };
+        Object.assign(this.tableList[$index], assignObj);
       }
       if (fieldType && this.curCollect.table_id) {
         const row = this.fields.find(item => item.field_name === fieldName);
@@ -820,9 +850,14 @@ export default {
               this.checkTypeItem($row);
             },
             cancelFn: () => {
-              this.tableList[$index].field_type = previousType;
-              this.tableList[$index].is_analyzed = isAnalyzed;
-              this.tableList[$index].is_case_sensitive = isCaseSensitive;
+              const assignObj = {
+                field_type: previousType,
+                is_analyzed: isAnalyzed,
+                participleState,
+                tokenize_on_chars: tokenizeOnChars,
+                is_case_sensitive: isCaseSensitive,
+              };
+              Object.assign(this.tableList[$index], assignObj);
               this.checkTypeItem($row);
             },
           });
@@ -836,7 +871,12 @@ export default {
     handelChangeAnalyzed(isAnalyzed, $index) {
       if (!isAnalyzed) {
         this.tableList[$index].is_case_sensitive = false;
+        this.tableList[$index].tokenize_on_chars = '';
+        this.tableList[$index].participleState = 'default';
       }
+    },
+    handleChangeParticipleState(state, $index) {
+      this.tableList[$index].tokenize_on_chars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
     },
     formatChange(val) {
       this.timeCheckResult = false;
@@ -1066,6 +1106,18 @@ export default {
       if (this.selectEtlConfig === 'bk_log_json') return false;
       return row?.is_delete || this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
     },
+    /**
+     * @desc: 判断当前分词符或者分词符有关的子项是否禁用
+     * @param {Any} row 字段信息
+     * @param {String} type 是分词还是分词有关的子项
+     * @returns {Boolean}
+     */
+    getCustomizeDisabled(row, type = 'analyzed-item') {
+      const { is_delete: isDelete, field_type: fieldType, is_time: isTime, is_analyzed: isAnalyzed } = row;
+      let atLastAnalyzed = isAnalyzed;
+      if (type === 'analyzed') atLastAnalyzed = true;
+      return (this.isPreviewMode || isDelete || fieldType !== 'string' || isTime || !atLastAnalyzed || this.isSetDisabled);
+    },
   },
 };
 </script>
@@ -1136,6 +1188,26 @@ export default {
 
     .preview-panel-left {
       flex: 1;
+    }
+
+    .participle-box {
+      width: 100%;
+      display: flex;
+      justify-content: start;
+      align-items: center;
+
+      .select-custom {
+        width: 70px;
+        margin-right: 8px;
+      }
+
+      .bk-select-name {
+        padding: 0 22px 0 10px;
+      }
+
+      .bk-form-control {
+        width: 149px;
+      }
     }
 
     .preview-panel-right {
