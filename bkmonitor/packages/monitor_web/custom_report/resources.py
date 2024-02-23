@@ -217,6 +217,7 @@ class QueryCustomEventGroup(Resource):
         search_key = serializers.CharField(label="名称", required=False)
         page_size = serializers.IntegerField(default=10, label="获取的条数")
         page = serializers.IntegerField(default=1, label="页数")
+        is_platform = serializers.BooleanField(required=False)
 
     @classmethod
     def get_strategy_count_for_each_group(cls, table_ids, request_bk_biz_id: Optional[int] = None):
@@ -252,12 +253,16 @@ class QueryCustomEventGroup(Resource):
 
     def perform_request(self, validated_request_data):
         queryset = CustomEventGroup.objects.filter(type=EVENT_TYPE.CUSTOM_EVENT).order_by("-update_time")
-        context = {}
-        if validated_request_data.get("bk_biz_id"):
-            queryset = queryset.filter(
-                models.Q(bk_biz_id=validated_request_data["bk_biz_id"]) | models.Q(is_platform=True)
-            )
-            context["request_bk_biz_id"] = validated_request_data["bk_biz_id"]
+        context = {"request_bk_biz_id": validated_request_data["bk_biz_id"]}
+
+        # 区分本空间 和 全平台
+        if validated_request_data.get("is_platform"):
+            # 只查全平台, 不关注业务
+            queryset = queryset.filter(is_platform=True)
+
+        elif validated_request_data.get("bk_biz_id"):
+            # 非全平台，查当前业务(0表示全部业务)
+            queryset = queryset.filter(bk_biz_id=validated_request_data["bk_biz_id"])
 
         if validated_request_data.get("search_key"):
             search_key = validated_request_data["search_key"]
@@ -576,8 +581,11 @@ class ProxyHostInfo(Resource):
 
     DEFAULT_PROXY_PORT = 10205
 
+    def get_listen_port(self):
+        return getattr(settings, "BK_MONITOR_PROXY_LISTEN_PORT", ProxyHostInfo.DEFAULT_PROXY_PORT)
+
     def perform_request(self, validated_request_data):
-        port = getattr(settings, "BK_MONITOR_PROXY_LISTEN_PORT", ProxyHostInfo.DEFAULT_PROXY_PORT)
+        port = self.get_listen_port()
         proxy_host_info = []
         bk_biz_id = validated_request_data["bk_biz_id"]
         proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
@@ -627,7 +635,7 @@ class CreateCustomTimeSeries(Resource):
         return "{}.{}".format(database_name, "base")
 
     @staticmethod
-    def get_data_id(data_name, operator, space_uid):
+    def get_data_id(data_name, operator, space_uid=None):
         try:
             data_id_info = api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})
         except BKAPIError:
@@ -639,8 +647,9 @@ class CreateCustomTimeSeries(Resource):
                 "type_label": DataTypeLabel.TIME_SERIES,
                 "source_label": DataSourceLabel.CUSTOM,
                 "option": {"inject_local_time": True},
-                "space_uid": space_uid,
             }
+            if space_uid:
+                param.update(space_uid=space_uid)
             data_id_info = api.metadata.create_data_id(param)
         else:
             raise CustomValidationNameError(data=data_id_info["bk_data_id"], msg=_("数据源名称[{}]已存在").format(data_name))
@@ -671,7 +680,12 @@ class CreateCustomTimeSeries(Resource):
 
         # 当前业务
         data_name = self.data_name(validated_request_data["bk_biz_id"], validated_request_data["name"])
-        space_uid = self.get_space_uid(int(validated_request_data["bk_biz_id"]))
+        # 如果 bk_biz_id 为 0，意味着是全局业务配置，这种情况不需要空间
+        space_uid = (
+            None
+            if validated_request_data["bk_biz_id"] == 0
+            else self.get_space_uid(int(validated_request_data["bk_biz_id"]))
+        )
         try:
             # 保证 data id 已存在
             bk_data_id = self.get_data_id(data_name, operator, space_uid)
@@ -813,6 +827,8 @@ class CustomTimeSeriesList(Resource):
         search_key = serializers.CharField(label="名称", required=False)
         page_size = serializers.IntegerField(default=10, label="获取的条数")
         page = serializers.IntegerField(default=1, label="页数")
+        # 新增参数用以判定是否需要查询平台级 dataid
+        is_platform = serializers.BooleanField(required=False)
 
     @staticmethod
     def get_strategy_count(table_ids, request_bk_biz_id: Optional[int] = None):
@@ -848,12 +864,15 @@ class CustomTimeSeriesList(Resource):
 
     def perform_request(self, validated_request_data):
         queryset = CustomTSTable.objects.all().order_by("-update_time")
-        context = {}
-        if validated_request_data.get("bk_biz_id"):
-            queryset = queryset.filter(
-                models.Q(bk_biz_id=validated_request_data["bk_biz_id"]) | models.Q(is_platform=True)
-            )
-            context["request_bk_biz_id"] = validated_request_data["bk_biz_id"]
+        context = {"request_bk_biz_id": validated_request_data["bk_biz_id"]}
+        # 区分本空间 和 全平台
+        if validated_request_data.get("is_platform"):
+            # 只查全平台, 不关注业务
+            queryset = queryset.filter(is_platform=True)
+
+        elif validated_request_data.get("bk_biz_id"):
+            # 非全平台，查当前业务(0表示全部业务)
+            queryset = queryset.filter(bk_biz_id=validated_request_data["bk_biz_id"])
 
         if validated_request_data.get("search_key"):
             search_key = validated_request_data["search_key"]
@@ -890,11 +909,14 @@ class CustomTimeSeriesDetail(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        model_only = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(pk=params["time_series_group_id"])
         serializer = CustomTSTableSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
+        if params.get("model_only"):
+            return data
         label_display_dict = get_label_display_dict()
         data["scenario_display"] = label_display_dict.get(data["scenario"], [data["scenario"]])
         data["access_token"] = config.token

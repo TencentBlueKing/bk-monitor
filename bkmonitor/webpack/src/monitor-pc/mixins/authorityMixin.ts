@@ -27,42 +27,73 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import authorityStore from '../store/modules/authority';
+import authorityStore from '@store/modules/authority';
 
 Component.registerHooks(['beforeRouteEnter']);
 // eslint-disable-next-line new-cap
-export default (authMap: { [propsName: string]: string }, attachMethod = 'beforeRouteEnter') =>
+export default (authMap: { [propsName: string]: string }) =>
   Component(
     class authorityMixin extends tsc<{}> {
-      authority: Record<string, boolean>;
+      // authority: Record<string, boolean>;
+      __bizIdUnWatch__: any;
       constructor() {
         super();
         this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => ((pre[cur] = false), pre), {});
       }
-      beforeRouteEnter(to: any, from: any, next: any) {
-        next((vm: any) => {
-          if (vm?.showGuidePage) return;
-          const authorityMap: any = authMap || (to.meta.authority?.map ? to.meta.authority.map : false);
-          const isSpecialEvent =
-            ['event-center', 'event-center-detail'].includes(to.name) && location.search.indexOf('specEvent') > -1;
-          authorityMap &&
-            vm.handleInitPageAuthority(
-              Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
-              isSpecialEvent
-            );
-        });
+      get __BizId__() {
+        return this.$store.getters.bizId;
       }
+      // beforeRouteEnter(to: any, from: any, next: any) {
+      //   next((vm: any) => {
+      //     if (vm?.showGuidePage) return;
+      //     const authorityMap: any = authMap || (to.meta.authority?.map ? to.meta.authority.map : false);
+      //     const isSpecialEvent =
+      //       ['event-center', 'event-center-detail'].includes(to.name) && location.search.indexOf('specEvent') > -1;
+      //     authorityMap &&
+      //       vm.handleInitPageAuthority(
+      //         Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
+      //         isSpecialEvent
+      //       );
+      //   });
+      // }
       created() {
-        if ((this as any).showGuide) return;
-        if (
-          !location.hash.includes('#/share/') &&
-          !(window.__POWERED_BY_BK_WEWEB__ && window.token) &&
-          attachMethod === 'created'
-        ) {
-          authMap && this.handleInitPageAuthority(Array.from(new Set((Object.values(authMap) as any).flat(2))), false);
-        }
+        // if (this?.showGuidePage) return;
+        const authorityMap: any = authMap || (this.$route.meta.authority?.map ? this.$route.meta.authority.map : false);
+        const isSpecialEvent =
+          ['event-center', 'event-center-detail'].includes(this.$route.name) &&
+          location.search.indexOf('specEvent') > -1;
+        authorityMap &&
+          this.handleInitPageAuthority(
+            Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
+            isSpecialEvent
+          );
       }
+      // created() {
+      //   if ((this as any).showGuide) return;
+      //   if (
+      //     !location.hash.includes('#/share/') &&
+      //     !(window.__POWERED_BY_BK_WEWEB__ && window.token) &&
+      //     attachMethod === 'created'
+      //   ) {
+      //     authMap && this.handleInitPageAuthority(Array.from(new Set((Object.values(authMap) as any).flat(2))), false);
+      //   }
+      // }
+      // mounted() {
+      //   console.info(this.$route.name, '+++++++++++++++++');
+      //   this.__bizIdUnWatch__ = this.$watch('__BizId__', (v, old) => {
+      //     if (this?.showGuidePage) return;
+      //     const authorityMap: any = authMap || this.$route.meta.authority?.map;
+      //     const isSpecialEvent =
+      //       ['event-center', 'event-center-detail'].includes(this.$route.name) &&
+      //       location.search.indexOf('specEvent') > -1;
+      //     debugger;
+      //     authorityMap &&
+      //       this.handleInitPageAuthority(
+      //         Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
+      //         isSpecialEvent
+      //       );
+      //   });
+      // }
       // 初始化通用页面权限
       public async handleInitPageAuthority(actionList: string[], isSpecialEvent: boolean) {
         // 临时分享模式下 前端不再做权限校验 一致交由api判断

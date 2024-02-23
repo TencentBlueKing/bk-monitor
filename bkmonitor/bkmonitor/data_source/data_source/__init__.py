@@ -925,6 +925,7 @@ class TimeSeriesDataSource(DataSource):
             order_by=self.order_by,
             start_time=start_time,
             end_time=end_time,
+            interval=kwargs.get("interval"),
         )
         records = self._filter_by_advance_method(q.raw_data)
         return [record[dimension_field] for record in records]
@@ -1029,6 +1030,13 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
             if table_prefix != bk_biz_id:
                 logger.error(f"用户请求bkdata数据源无权限(result_table_id:{self.table}, 业务id: {bk_biz_id})")
                 raise PermissionDeniedError(action_name=bk_biz_id)
+
+    def to_unify_query_config(self) -> List[Dict]:
+        # unify 定义 bkdata 查询配置制定data_source字段
+        query_list = super().to_unify_query_config()
+        for query in query_list:
+            query["data_source"] = "bkdata"
+        return query_list
 
     @classmethod
     def _get_queryset(cls, *, metrics: List[Dict] = None, **kwargs):
@@ -1505,6 +1513,7 @@ class BkMonitorLogDataSource(DataSource):
             start_time=start_time,
             end_time=end_time,
             query_string=self.query_string,
+            interval=kwargs.get("interval"),
         )
         records = self._remove_dimensions_prefix(q.raw_data)
         records = self._filter_by_advance_method(records)

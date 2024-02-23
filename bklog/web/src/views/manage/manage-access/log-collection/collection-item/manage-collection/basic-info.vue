@@ -270,7 +270,7 @@
 
 <script>
 import { mapState } from 'vuex';
-import { formatDate, copyMessage } from '@/common/util';
+import { utcFormatDate, copyMessage } from '@/common/util';
 import containerBase from './components/container-base';
 import * as authorityMap from '../../../../../../common/authority-map';
 
@@ -343,7 +343,7 @@ export default {
         }];
         this.createAndTimeData = createAndTimeData.map((item) => {
           if (item.key === 'created_at' || item.key === 'updated_at') {
-            item.value = formatDate(collectorData[item.key]);
+            item.value = utcFormatDate(collectorData[item.key]);
           } else {
             item.value = collectorData[item.key];
           }

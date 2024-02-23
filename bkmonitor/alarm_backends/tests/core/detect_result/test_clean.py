@@ -73,6 +73,9 @@ STRATEGIES = [
 
 
 class TestCleanResult(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     def setUp(self):
         CacheNode.refresh_from_settings()
         self.redis_patcher = patch(ALARM_BACKENDS_REDIS, return_value=fakeredis.FakeRedis(decode_responses=True))
@@ -111,8 +114,8 @@ class TestCleanResult(TestCase):
                     cr.add_check_result_cache(**check_result_data)
                     cr.update_key_to_dimension(dimensions={})
                     last_checkpoints[(algorithm["dimensions_md5"], algorithm["level"])] = timestamps[index]
-                for l in level_list:
-                    last_checkpoints[(LATEST_POINT_WITH_ALL_KEY, l)] = self.now_timestamp
+                for level in level_list:
+                    last_checkpoints[(LATEST_POINT_WITH_ALL_KEY, level)] = self.now_timestamp
 
                 for check_point_key_tuple, point_timestamp in list(last_checkpoints.items()):
                     _dimensions_md5, level = check_point_key_tuple

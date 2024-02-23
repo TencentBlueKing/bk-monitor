@@ -152,7 +152,14 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
       ...this.filters,
       ...this.variables
     });
-    const params = variablesService.transformVariables(this.apiData.data);
+    const { target, ...arg } = this.apiData.data;
+    const params = variablesService.transformVariables({
+      ...arg,
+      target: {
+        ...target,
+        ...this.filters
+      }
+    });
     this.currentParams = params;
     this.$api[this.apiData.apiModule][this.apiData.apiFunc](params).then(result => {
       this.alarmNum = result.event_counts ?? 0;
@@ -177,7 +184,8 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
             content: this.alarmNum < 1 ? this.$t('无告警事件') : this.$t('当前有{0}个告警事件', [this.alarmNum]),
             delay: 200,
             boundary: 'window',
-            placement: 'bottom'
+            placement: 'bottom',
+            allowHTML: false
           }}
         >
           <i class='icon-monitor icon-mc-chart-alert tool-icon' />

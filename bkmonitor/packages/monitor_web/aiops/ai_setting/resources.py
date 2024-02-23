@@ -10,20 +10,19 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
-from monitor_web.aiops.ai_setting.constant import SCENE_METRIC_MAP
+from bkmonitor.aiops.utils import AiSetting
+from bkmonitor.dataflow.constant import AccessStatus
+from bkmonitor.views import serializers
+from constants.aiops import SCENE_METRIC_MAP
+from core.drf_resource import Resource
 from monitor_web.aiops.ai_setting.serializers import (
     KPIAnomalyDetectionSerializer,
     MultivariateAnomalyDetectionSerializer,
 )
-from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.tasks import (
     access_aiops_multivariate_anomaly_detection_by_bk_biz_id,
     stop_aiops_multivariate_anomaly_detection_flow,
 )
-
-from bkmonitor.dataflow.constant import AccessStatus
-from bkmonitor.views import serializers
-from core.drf_resource import Resource
 
 logger = logging.getLogger("monitor_web")
 

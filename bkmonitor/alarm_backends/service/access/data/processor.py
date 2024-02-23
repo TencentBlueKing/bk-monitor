@@ -684,7 +684,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             self.consumers_lock.acquire()
             has_record = False
             for consumer in self.consumers.values():
-                data = consumer.poll(0.1, max_records=5000)
+                data = consumer.poll(500, max_records=5000)
                 if not data:
                     continue
 

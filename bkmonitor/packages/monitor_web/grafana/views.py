@@ -10,10 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from monitor_web.grafana.permissions import (
-    GrafanaReadPermission,
-    GrafanaWritePermission,
-)
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.iam import ActionEnum
@@ -21,6 +17,10 @@ from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.middlewares.authentication import NoCsrfSessionAuthentication
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.grafana.permissions import (
+    GrafanaReadPermission,
+    GrafanaWritePermission,
+)
 
 
 class GrafanaViewSet(ResourceViewSet):
@@ -139,4 +139,10 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.commons.query_async_task_result, endpoint="query_async_task_result"),
         # 添加自定义指标
         ResourceRoute("POST", resource.custom_report.add_custom_metric, endpoint="add_custom_metric"),
+        # 告警事件查询
+        ResourceRoute("POST", resource.grafana.query_alarm_event_graph, endpoint="query_alarm_event_graph"),
+        ResourceRoute("GET", resource.grafana.get_alarm_event_field, endpoint="get_alarm_event_field"),
+        ResourceRoute(
+            "GET", resource.grafana.get_alarm_event_dimension_value, endpoint="get_alarm_event_dimension_value"
+        ),
     ]

@@ -32,7 +32,6 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import { copyText, transformDataKey } from '../../../../../monitor-common/utils/utils';
 import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -308,7 +307,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   /**
    * @description 判断是否展示监控目标提示
    */
-  showTargetMessageTipChange() {
+  getShowTargetMessageTipChange() {
+    if (!this.targetList?.length) return false;
+    if (this.target.targetType !== 'INSTANCE') return false;
     const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
     const ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
     let hasIpDimension = false;
@@ -324,7 +325,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         item => item.agg_dimension.some(d => cloudIdMap.includes(d)) && item.agg_dimension.some(d => ipMap.includes(d))
       );
     }
-    this.showTargetMessageTip = !hasIpDimension && this.targetList?.length;
+    return !hasIpDimension;
   }
 
   handleTopoCheckedChange(data: { value: IIpV6Value; nodeType: INodeType; objectType: TargetObjectType }) {
@@ -332,7 +333,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     this.target.targetType = data.nodeType;
     this.handleSetTargetDesc(this.targetList, this.target.targetType);
     this.handleTargetSave();
-    this.showTargetMessageTipChange();
+    this.showTargetMessageTip = this.getShowTargetMessageTipChange();
   }
 
   // 编辑时设置监控目标描述
@@ -464,7 +465,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     this.metricSelectorShow = v;
   }
   handleSelectMetric(value) {
-    const copyStr = (value.metric_id || '').replace(/\./g, ':').replace('::', ':');
+    const copyStr = value.promql_metric;
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
@@ -559,7 +560,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                                 );
                               })()
                             : tabContent(item.id),
-                        disabled: isTabDisabled(item.id) ? false : this.dataMode !== item.id
+                        disabled: isTabDisabled(item.id) ? false : this.dataMode !== item.id,
+                        allowHTML: false
                         // disabled: !this.metricData?.every(item => item.metric_field)
                         //  || !isTabDisabled(item.id)
                         //  || this.readonly
@@ -575,14 +577,14 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
           {this.supportSource && (
             <div class='monitor-data-tool'>
               <div class='tool-left'>
-                {/* {this.editMode === 'Edit' ? <DropdownMenu trigger="click">
+                {/* {this.editMode === 'Edit' ? <bk-dropdown-menu trigger="click">
                 <div slot="dropdown-trigger">
                   <span class="primary-btn">
                     <span>{this.$t('查询模板')}</span>
                     <span class="icon-monitor icon-mc-triangle-down"></span>
                   </span>
                 </div>
-              </DropdownMenu> : <span class="primary-btn disable">
+              </bk-dropdown-menu> : <span class="primary-btn disable">
                 <span>{this.$t('查询模板')}</span>
                 <span class="icon-monitor icon-mc-triangle-down"></span>
               </span>} */}
@@ -662,7 +664,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 )}
               </div>
               <div class='source-options-wrap'>
-                <Input
+                <bk-input
                   class='step-input'
                   value={this.sourceStep}
                   min={10}
@@ -683,7 +685,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       }}
                     ></span>
                   </div>
-                </Input>
+                </bk-input>
               </div>
             </div>
           )}
@@ -714,12 +716,19 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       {this.target.desc.message}
                       {this.target.desc.subMessage}
                     </span>,
-                    <span
-                      class='ip-wrapper-title'
-                      on-click={this.handleAddTarget}
-                    >
-                      {this.$t(this.readonly ? '查看监控目标' : '修改监控目标')}
-                    </span>,
+                    this.readonly ? (
+                      <span
+                        class='ip-wrapper-title'
+                        onClick={this.handleAddTarget}
+                      >
+                        {this.$t('查看监控目标')}
+                      </span>
+                    ) : (
+                      <span
+                        class='icon-monitor icon-bianji'
+                        onClick={this.handleAddTarget}
+                      ></span>
+                    ),
                     this.showTargetMessageTip && (
                       <span class='ip-dimension-tip'>
                         <span class='icon-monitor icon-remind'></span>

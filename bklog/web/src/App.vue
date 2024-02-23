@@ -21,12 +21,21 @@
   -->
 
 <template>
-  <div id="app" v-bkloading="{ isLoading: pageLoading }" :class="{ 'clear-min-height': $route.name === 'retrieve' }">
+  <div
+    id="app"
+    v-bkloading="{ isLoading: pageLoading }"
+    :class="{ 'clear-min-height': $route.name === 'retrieve' }"
+  >
+    <NoticeComponent
+      v-if="!isAsIframe"
+      api-url="/notice/announcements/"
+      @show-alert-change="showAlertChange"
+    />
     <head-nav
       v-show="!isAsIframe && !pageLoading"
       @reloadRouter="routerKey += 1"
       @welcome="welcomePageData = $event" />
-    <div :class="['log-search-container', isAsIframe && 'as-iframe']">
+    <div :class="['log-search-container', isAsIframe && 'as-iframe', { 'is-show-notice': showAlert }]">
       <welcome-page v-if="welcomePageData" :data="welcomePageData" />
       <!-- 导航改版 -->
       <bk-navigation
@@ -100,6 +109,8 @@ import NoviceGuide from '@/components/novice-guide';
 import jsCookie from 'js-cookie';
 import BkPaasLogin from '@blueking/paas-login';
 import GlobalSettingDialog from '@/components/global-setting';
+import NoticeComponent from '@blueking/notice-component-vue2';
+import '@blueking/notice-component-vue2/dist/style.css';
 
 export default {
   name: 'App',
@@ -113,6 +124,7 @@ export default {
     NoviceGuide,
     BkPaasLogin,
     GlobalSettingDialog,
+    NoticeComponent,
   },
   data() {
     return {
@@ -143,6 +155,7 @@ export default {
       'isShowGlobalDialog',
       'globalSettingList',
       'globalActiveLabel',
+      'showAlert',
     ]),
     ...mapGetters({
       pageLoading: 'pageLoading',
@@ -292,6 +305,9 @@ export default {
       }
       return list;
     },
+    showAlertChange(v) {
+      this.$store.commit('updateNoticeAlert', v);
+    },
   },
 };
 </script>
@@ -365,6 +381,21 @@ export default {
 
     &.as-iframe {
       height: 100%;
+    }
+
+    &.is-show-notice {
+      height: calc(100% - 90px);
+
+      .sub-nav-container {
+        top: 91px;
+      }
+
+      .masking-dialog {
+        .bk-dialog {
+          /* stylelint-disable-next-line declaration-no-important */
+          top: 92px !important;
+        }
+      }
     }
   }
 

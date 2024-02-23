@@ -33,7 +33,6 @@ import Vue from 'vue';
 import i18n from './i18n/i18n';
 
 import './common/import-magicbox-ui';
-import '@blueking/bk-weweb';
 import '../monitor-ui/directive/index';
 import './common/global';
 import '../monitor-static/svg-icons';
@@ -51,6 +50,8 @@ import store from './store/store';
 import '../monitor-static/icons/monitor-icons.css';
 import './static/css/reset.scss';
 import './static/css/global.scss';
+// todo: 子应用externals
+// import './common/externals';
 // app 标识
 window.source_app = 'monitor';
 // 全局图表数量变量
@@ -91,6 +92,7 @@ if (hasRouteHash) {
           window[key.toLocaleLowerCase()] = data[key];
         });
         mergeSpaceList(window.space_list);
+        window.user_name = window.uin;
         window.username = window.uin;
         window.user_name = window.uin;
         window.cc_biz_id = +window.bk_biz_id;
@@ -142,6 +144,9 @@ if (hasRouteHash) {
             });
           });
       })
-      .catch(e => console.error(e));
+      .catch(e => console.error(e))
+      .finally(() => {
+        serviceWorker.immediateRegister();
+      });
   }
 }
