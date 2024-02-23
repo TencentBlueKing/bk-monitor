@@ -96,12 +96,12 @@ def default_celery_worker_num():
 
 class Conf(object):
     # worker
-    worker_max_tasks_per_child = 1000
-    worker_concurrency = int(getattr(settings, "CELERY_WORKERS", 0)) or default_celery_worker_num()
-    task_routes = {}
-    worker_send_task_events = getattr(settings, "CELERY_SEND_EVENTS", False)
-    task_send_sent_event = getattr(settings, "CELERY_SEND_TASK_SENT_EVENT", False)
-    task_track_started = getattr(settings, "CELERY_TRACK_STARTED", False)
+    CELERYD_MAX_TASKS_PER_CHILD = 1000
+    CELERYD_CONCURRENCY = int(getattr(settings, "CELERY_WORKERS", 0)) or default_celery_worker_num()
+    CELERY_ROUTES = {}
+    CELERY_SEND_EVENTS = getattr(settings, "CELERY_SEND_EVENTS", False)
+    CELERY_SEND_TASK_SENT_EVENT = getattr(settings, "CELERY_SEND_TASK_SENT_EVENT", False)
+    CELERY_TRACK_STARTED = getattr(settings, "CELERY_TRACK_STARTED", False)
 
 
 def redis_conf():
