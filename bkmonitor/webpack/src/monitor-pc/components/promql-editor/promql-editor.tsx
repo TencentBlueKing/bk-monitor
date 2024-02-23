@@ -30,6 +30,8 @@ import { promLanguageDefinition } from 'monaco-promql';
 
 import { noop, processSize } from './utils';
 
+import './promql-editor.scss';
+
 function editorWillMount(monaco) {
   const languageId = promLanguageDefinition.id;
   monaco.languages.register(promLanguageDefinition);
