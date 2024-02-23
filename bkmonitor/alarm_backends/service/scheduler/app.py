@@ -102,6 +102,8 @@ class Conf(object):
     CELERY_SEND_EVENTS = getattr(settings, "CELERY_SEND_EVENTS", False)
     CELERY_SEND_TASK_SENT_EVENT = getattr(settings, "CELERY_SEND_TASK_SENT_EVENT", False)
     CELERY_TRACK_STARTED = getattr(settings, "CELERY_TRACK_STARTED", False)
+    task_ignore_result = True
+    result_backend = None
 
 
 def redis_conf():
@@ -138,7 +140,6 @@ def rabbitmq_conf():
     redis_host = redis_celery_conf["host"]
     redis_port = redis_celery_conf["port"]
     redis_password = redis_celery_conf["password"]
-    redis_db = redis_celery_conf["db"]
 
     class RabbitmqConf(Conf):
         CELERY_TASK_SERIALIZER = "pickle"
@@ -165,21 +166,6 @@ def rabbitmq_conf():
         redbeat_lock_timeout = REDBEAT_LOCK_TIMEOUT = 300
 
         if settings.CACHE_BACKEND_TYPE == "SentinelRedisCache":
-            CELERY_RESULT_BACKEND = ";".join(
-                "sentinel://:{}@{}:{}/{}".format(
-                    six.moves.urllib.parse.quote(settings.REDIS_PASSWD),
-                    h,
-                    redis_port,
-                    redis_db,
-                )
-                for h in redis_host.split(";")
-                if h
-            )
-            result_backend_transport_options = {
-                "master_name": settings.REDIS_MASTER_NAME,
-                "sentinel_kwargs": {"password": settings.REDIS_SENTINEL_PASS},
-            }
-
             # celery redbeat config
             redbeat_redis_url = "redis-sentinel://redis-sentinel:26379/0"
             REDBEAT_REDIS_OPTIONS = {
@@ -193,12 +179,6 @@ def rabbitmq_conf():
             if getattr(settings, "REDIS_SENTINEL_PASS", ""):
                 REDBEAT_REDIS_OPTIONS["sentinel_kwargs"] = {"password": settings.REDIS_SENTINEL_PASS}
         else:
-            CELERY_RESULT_BACKEND = "redis://:{}@{}:{}/{}".format(
-                six.moves.urllib.parse.quote(redis_password),
-                redis_host,
-                redis_port,
-                redis_db,
-            )
             redbeat_redis_url = "redis://:{}@{}:{}/0".format(
                 redis_password,
                 redis_host,
