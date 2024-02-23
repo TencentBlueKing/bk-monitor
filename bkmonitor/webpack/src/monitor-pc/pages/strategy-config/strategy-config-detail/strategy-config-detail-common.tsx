@@ -503,8 +503,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.getBaseInfo(this.detailData);
     this.targetsDesc = handleSetTargetDesc(
       this.targetDetail.target_detail,
-      this.metricData[0]?.targetType,
-      this.metricData[0]?.objectType,
+      this.metricData[0]?.targetType || this.targetDetail?.node_type || '',
+      this.metricData[0]?.objectType || this.targetDetail?.instance_type || '',
       this.checkedTarget.node_count,
       this.checkedTarget.instance_count
     );
@@ -1521,8 +1521,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
           >
             <strategy-target-table
               tableData={this.targetsTableData}
-              targetType={this.metricData[0]?.targetType}
-              objType={this.metricData[0]?.objectType}
+              targetType={this.metricData[0]?.targetType || this.targetDetail?.node_type || ''}
+              objType={this.metricData[0]?.objectType || this.targetDetail?.instance_type || ''}
             />
           </bk-dialog>
         ) : undefined}
