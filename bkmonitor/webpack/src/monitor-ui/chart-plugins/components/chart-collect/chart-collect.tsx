@@ -65,7 +65,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
   @Prop({ type: Array, default: () => [] }) localPanels: PanelModel[];
   @Prop({ type: Boolean, default: false }) showCollect: boolean;
   @Prop({ type: Boolean, default: false }) isCollectSingle: boolean;
-  @Prop({ type: Object, default: () => ({}) }) observablePanelsField: boolean;
+  @Prop({ type: Object, default: undefined }) observablePanelsField: boolean;
 
   @InjectReactive('timeRange') readonly timeRange!: number;
   @InjectReactive('timeOffset') readonly timeOffset: string[];
@@ -105,9 +105,15 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
     };
     const checkList = [];
     this.localPanels?.forEach(item => {
-      if (item.type !== 'row' && item.canSetGrafana && this.observablePanelsField[item.id]?.checked) {
+      const { checked } = this.observablePanelsField?.[item.id] || item;
+      if (item.type !== 'row' && item.canSetGrafana && checked) {
         checkList.push(transformVariables(JSON.parse(JSON.stringify({ ...item }))));
       }
+      item.panels?.forEach(panel => {
+        if (panel.checked) {
+          checkList.push(transformVariables(JSON.parse(JSON.stringify({ ...panel }))));
+        }
+      });
     });
     return checkList;
   }

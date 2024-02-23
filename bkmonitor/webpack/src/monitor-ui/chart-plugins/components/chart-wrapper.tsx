@@ -96,8 +96,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Object }) detectionConfig: IDetectionConfig;
   /* 是否可选中图表 */
   @Prop({ type: Boolean, default: true }) needCheck: boolean;
-  @Prop({ type: Boolean, default: true }) collapse: boolean;
-  @Prop({ type: Boolean, default: false }) chartChecked: boolean;
+  @Prop({ type: Boolean, default: undefined }) collapse: boolean;
+  @Prop({ type: Boolean, default: undefined }) chartChecked: boolean;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -142,6 +142,14 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   get needHoverStryle() {
     const { time_series_forecast, time_series_list } = this.panel?.options || {};
     return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
+  }
+
+  get isChecked() {
+    return this.chartChecked === undefined ? this.panel.checked : this.chartChecked;
+  }
+
+  get isCollapsed() {
+    return this.collapse === undefined ? this.panel.collapsed : this.collapse;
   }
 
   mounted() {
@@ -197,11 +205,11 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
   @Emit('chartCheck')
   handleChartCheck() {
-    return !this.chartChecked;
+    return !this.isChecked;
   }
   @Emit('collapse')
   handleCollapsed() {
-    return !this.collapse;
+    return !this.isCollapsed;
   }
   @Emit('changeHeight')
   handleChangeHeight(height: number) {
@@ -501,8 +509,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         class={{
           'chart-wrapper': true,
           'grafana-check': this.panel.canSetGrafana,
-          'is-checked': this.chartChecked,
-          'is-collapsed': this.collapse,
+          'is-checked': this.isChecked,
+          'is-collapsed': this.isCollapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
           'row-chart': this.panel.type === 'row'
         }}
