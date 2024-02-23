@@ -192,6 +192,7 @@ class SentinelRedisCache(BaseRedisCache):
         if self.SENTINEL_PASS:
             sentinel_kwargs["password"] = self.SENTINEL_PASS
 
+        # sentinel host支持多个sentinel节点，以分号分隔
         redis_sentinel = Sentinel(
             [(h, self.sentinel_port) for h in self.sentinel_host.split(";") if h],
             sentinel_kwargs=sentinel_kwargs,

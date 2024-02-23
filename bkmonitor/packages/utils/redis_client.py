@@ -59,8 +59,9 @@ class RedisClient(Singleton):
             password = os.environ[f"{prefix}_REDIS_SENTINEL_PASSWORD"]
             sentinel_host = os.environ[f"{prefix}_REDIS_SENTINEL_HOST"]
             sentinel_port = os.environ[f"{prefix}_REDIS_SENTINEL_PORT"]
+            # sentinel host支持多个sentinel节点，以分号分隔
             sentinel_params = {
-                "sentinels": [(h, int(sentinel_port)) for h in sentinel_host.split(",") if h],
+                "sentinels": [(h, int(sentinel_port)) for h in sentinel_host.split(";") if h],
                 "sentinel_kwargs": {"password": password},
             }
             host, port = Sentinel(**sentinel_params).discover_master(os.environ[f"{prefix}_REDIS_SENTINEL_MASTER_NAME"])
