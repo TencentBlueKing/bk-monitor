@@ -55,7 +55,7 @@ import {
 } from '../../../monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from '../../../monitor-api/modules/model';
 import { debounce, deepClone, random } from '../../../monitor-common/utils/utils';
-import { IEventRetrieval, IFilterCondition } from '../../../monitor-pc/pages/data-retrieval/typings';
+import { type IEventRetrieval, type IFilterCondition } from '../../../monitor-pc/pages/data-retrieval/typings';
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
 import { ISelectMenuOption } from '../../components/select-menu/select-menu';
