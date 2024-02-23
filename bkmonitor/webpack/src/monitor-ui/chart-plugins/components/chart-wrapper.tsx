@@ -70,6 +70,8 @@ import './chart-wrapper.scss';
 
 interface IChartWrapperProps {
   panel: PanelModel;
+  chartChecked?: boolean;
+  collapse?: boolean;
   detectionConfig?: IDetectionConfig;
   needHoverStryle?: boolean;
   needCheck?: boolean;
@@ -94,6 +96,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Object }) detectionConfig: IDetectionConfig;
   /* 是否可选中图表 */
   @Prop({ type: Boolean, default: true }) needCheck: boolean;
+  @Prop({ type: Boolean, default: true }) collapse: boolean;
+  @Prop({ type: Boolean, default: false }) chartChecked: boolean;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -193,11 +197,11 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
   @Emit('chartCheck')
   handleChartCheck() {
-    return !this.panel.checked;
+    return !this.chartChecked;
   }
   @Emit('collapse')
   handleCollapsed() {
-    return !this.panel.collapsed;
+    return !this.collapse;
   }
   @Emit('changeHeight')
   handleChangeHeight(height: number) {
@@ -497,8 +501,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         class={{
           'chart-wrapper': true,
           'grafana-check': this.panel.canSetGrafana,
-          'is-checked': this.panel.checked,
-          'is-collapsed': this.panel.collapsed,
+          'is-checked': this.chartChecked,
+          'is-collapsed': this.collapse,
           'hover-style': this.needCheck && this.needHoverStryle,
           'row-chart': this.panel.type === 'row'
         }}
