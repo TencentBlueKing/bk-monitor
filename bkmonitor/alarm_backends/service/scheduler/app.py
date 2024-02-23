@@ -102,8 +102,8 @@ class Conf(object):
     CELERY_SEND_EVENTS = getattr(settings, "CELERY_SEND_EVENTS", False)
     CELERY_SEND_TASK_SENT_EVENT = getattr(settings, "CELERY_SEND_TASK_SENT_EVENT", False)
     CELERY_TRACK_STARTED = getattr(settings, "CELERY_TRACK_STARTED", False)
-    task_ignore_result = True
-    result_backend = None
+    CELERY_IGNORE_RESULT = True
+    CELERY_RESULT_BACKEND = None
 
 
 def redis_conf():
