@@ -208,6 +208,11 @@ def refresh_kafka_topic_info():
             len_partition = len(client.topic_partitions.get(kafka_topic_info.topic, {}))
             if not len_partition:
                 raise ValueError(_("分区数量获取失败，请确认"))
+
+            # NOTE: 当 metadata 中 topic 对应的 partition 小于 kafka 中实际的 partition 时，直接跳过
+            if kafka_topic_info.partition >= len_partition:
+                continue
+
             kafka_topic_info.partition = len_partition
             # 仅更新变动的字段
             kafka_topic_info.save(update_fields=["partition"])
