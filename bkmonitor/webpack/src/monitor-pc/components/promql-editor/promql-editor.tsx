@@ -42,6 +42,18 @@ function editorWillMount(monaco) {
   });
   return {};
 }
+
+const defalutOptions = {
+  lineNumbers: 'off',
+  minimap: {
+    enabled: false
+  },
+  fontSize: 12,
+  renderLineHighlightOnlyWhenFocus: true,
+  overviewRulerBorder: false,
+  extraEditorClassName: 'promql-monaco-editor-component',
+  automaticLayout: true
+};
 export interface IPromqlMonacoEditorProps {
   width?: string;
   height?: string;
@@ -55,8 +67,11 @@ export interface IPromqlMonacoEditorProps {
   editorDidMount?: Function;
   editorWillUnmount?: Function;
   onChange?: Function;
+  executeQuery?: Function;
   className?: string | null;
   uri?: Function;
+  onBlur?: (value: string, hasErr: boolean) => void;
+  onFocus?: () => void;
 }
 @Component
 export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
@@ -65,15 +80,14 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Prop({ default: '100%' }) readonly height: string;
   @Prop({ default: null }) readonly value: string | null;
   @Prop({ default: '' }) readonly defaultValue?: string;
-  @Prop({ default: 'javascript' }) readonly language?: string;
+  @Prop({ default: 'promql' }) readonly language?: string;
   @Prop({ default: null }) readonly theme?: string | null;
-  @Prop({ default: () => ({}) }) readonly options: object;
+  @Prop({ default: () => defalutOptions }) readonly options: object;
   @Prop({ default: () => ({}) }) readonly overrideServices?: object;
-  // @Prop({ default: noop }) readonly editorWillMount: Function;
   @Prop({ default: noop }) readonly editorDidMount: Function;
   @Prop({ default: noop }) readonly editorWillUnmount?: Function;
-  @Prop({ default: noop }) readonly onChange?: Function;
   @Prop({ default: null }) readonly className?: string | null;
+  @Prop({ default: () => null }) readonly executeQuery: Function;
   @Prop() readonly uri?: Function;
 
   editor: monaco.editor.IStandaloneCodeEditor | null = null;
@@ -86,19 +100,83 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       height: processSize(this.height)
     };
   }
+
+  mounted() {
+    this.initMonaco();
+  }
+
+  beforeDestroy() {
+    this.destroyMonaco();
+  }
+
+  onChange(value: string) {
+    this.$emit('change', value);
+  }
+
+  /**
+   * @description 编辑器事件
+   */
   handleEditorDidMount() {
     this.editorDidMount?.(this.editor, monaco);
-
-    this.subscription = this.editor.onDidChangeModelContent(event => {
+    this.subscription = this.editor.onDidChangeModelContent(_event => {
       if (!this.preventTriggerChangeEvent) {
-        this.onChange(this.editor.getValue(), event);
+        this.onChange(this.editor.getValue());
       }
     });
+    this.editor.onDidBlurEditorText(() => {
+      this.$emit('blur', this.editor.getValue(), this.getLinterStatus());
+    });
+    this.editor.onDidFocusEditorText(() => {
+      this.$emit('focus');
+    });
+    this.editor.addAction({
+      keybindings: [monaco.KeyCode.Enter],
+      id: 'enter',
+      label: 'enter',
+      run: (editor: monaco.editor.ICodeEditor): void | Promise<void> => {
+        const suggestController = editor.getContribution('editor.contrib.suggestController') as any;
+        const suggestCount = suggestController.widget.value._state || 0;
+        if (suggestCount <= 0) {
+          const position = editor.getPosition();
+          editor.executeEdits('', [
+            {
+              range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+              text: ''
+            }
+          ]);
+          this.executeQuery(this.getLinterStatus());
+        } else {
+          editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
+        }
+      }
+    });
+    // monaco.languages.registerCodeActionProvider(this.language, {
+    //   provideCodeActions(model) {
+    //     const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+    //     const actions = [];
+
+    //     markers.forEach(marker => {
+    //       actions.push({
+    //         title: `Syntax Error: ${marker.message}`,
+    //         diagnostics: [marker],
+    //         kind: 'quickfix'
+    //       });
+    //     });
+
+    //     return {
+    //       actions,
+    //       dispose: () => {}
+    //     };
+    //   }
+    // });
   }
   handleEditorWillUnmount() {
     this.editorWillUnmount(this.editor, monaco);
   }
 
+  /**
+   * @description 初始化
+   */
   initMonaco() {
     const finalValue = this.value !== null ? this.value : this.defaultValue;
 
@@ -125,19 +203,19 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       this.handleEditorDidMount();
     }
   }
-  mounted() {
-    this.initMonaco();
-    //   if (this.editor) {
-    //     this.handleEditorWillUnmount();
-    //     this.editor.dispose();
-    //   }
-    //   this.subscription.dispose();
-  }
 
-  // Use the beforeDestroy lifecycle hook instead of useEffect
-  // beforeDestroy() {
-  //   this.destroyMonaco();
-  // }
+  /**
+   * @description 判断是否语法错误
+   */
+  getLinterStatus() {
+    let hasError = false;
+    if (this.editor) {
+      const model = this.editor.getModel();
+      const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+      hasError = !!markers.length;
+    }
+    return hasError;
+  }
 
   @Watch('value')
   onValueChanged() {

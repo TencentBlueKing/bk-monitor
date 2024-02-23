@@ -666,8 +666,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     ref='promql-editor'
                     class='promql-editor'
                     value={this.source}
-                    // onFocus={this.handlePromqlFocus}
-                    // executeQuery={this.handlePromqlEnter}
+                    onFocus={this.handlePromqlFocus}
+                    executeQuery={this.handlePromqlEnter}
                     // onBlur={(val, hasError: boolean) => this.handlePromqlBlur(hasError)}
                     onChange={this.handlePromsqlChange}
                   />
