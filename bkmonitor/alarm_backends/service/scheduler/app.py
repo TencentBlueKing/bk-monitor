@@ -175,7 +175,7 @@ def rabbitmq_conf():
                 for h in redis_host.split(";")
                 if h
             )
-            result_backend_transport_options = {
+            CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {
                 "master_name": settings.REDIS_MASTER_NAME,
                 "sentinel_kwargs": {"password": settings.REDIS_SENTINEL_PASS},
             }
