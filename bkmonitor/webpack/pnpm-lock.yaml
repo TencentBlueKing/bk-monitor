@@ -910,6 +910,18 @@ importers:
       memoize-one:
         specifier: ^5.0.0
         version: 5.2.1
+      monitor-api:
+        specifier: workspace:*
+        version: link:../monitor-api
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-pc:
+        specifier: workspace:*
+        version: link:../monitor-pc
+      monitor-ui:
+        specifier: workspace:*
+        version: link:../monitor-ui
       pinia:
         specifier: 2.0.13
         version: 2.0.13(typescript@4.9.5)(vue@3.3.8)

@@ -10,6 +10,10 @@
     "fix": "npm run lint"
   },
   "dependencies": {
+    "monitor-pc": "workspace:*",
+    "monitor-common": "workspace:*",
+    "monitor-api": "workspace:*",
+    "monitor-ui": "workspace:*",
     "@antv/g6": "^4.7.0",
     "@blueking/date-picker": "^0.0.72",
     "@blueking/fork-resize-detector": "^0.0.2",

@@ -27,9 +27,9 @@ import type { Component, PropType } from 'vue';
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, ResizeLayout, Select } from 'bkui-vue';
+import { type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import * as authorityMap from '../../../../apm/pages/home/authority-map';
-import { type IFilterCondition } from '../../../../monitor-pc/pages/data-retrieval/typings';
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
 import { useAuthorityStore } from '../../../store/modules/authority';
 import { IAppItem, ISearchTypeItem, SearchType } from '../../../typings';

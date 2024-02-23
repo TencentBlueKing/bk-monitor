@@ -27,8 +27,8 @@
 import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Input, Slider } from 'bkui-vue';
+import { debounce } from 'monitor-common/utils/utils';
 
-import { debounce } from '../../../../monitor-common/utils/utils';
 import { ISliderItem } from '../../../components/chart-filtering/chart-filtering';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 

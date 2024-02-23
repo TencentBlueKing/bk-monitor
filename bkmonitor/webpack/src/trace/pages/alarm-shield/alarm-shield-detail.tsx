@@ -27,11 +27,11 @@ import { defineComponent, inject, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, Loading, Sideslider, Table } from 'bkui-vue';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { frontendShieldDetail } from 'monitor-api/modules/shield';
+import { getStrategyV2 } from 'monitor-api/modules/strategies';
+import { random } from 'monitor-common/utils';
 
-import { getNoticeWay } from '../../../monitor-api/modules/notice_group';
-import { frontendShieldDetail } from '../../../monitor-api/modules/shield';
-import { getStrategyV2 } from '../../../monitor-api/modules/strategies';
-import { random } from '../../../monitor-common/utils';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { useAppStore } from '../../store/modules/app';
 import { IAuthority } from '../../typings/authority';
