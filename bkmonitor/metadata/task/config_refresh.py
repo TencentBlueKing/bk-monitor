@@ -209,7 +209,8 @@ def refresh_kafka_topic_info():
             if not len_partition:
                 raise ValueError(_("分区数量获取失败，请确认"))
             kafka_topic_info.partition = len_partition
-            kafka_topic_info.save()
+            # 仅更新变动的字段
+            kafka_topic_info.save(update_fields=["partition"])
 
             # 重新获取一次数据，然后刷新consul
             datasource.clean_cache()
