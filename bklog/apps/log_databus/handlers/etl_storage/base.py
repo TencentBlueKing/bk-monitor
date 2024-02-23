@@ -101,6 +101,11 @@ class EtlStorage(object):
         """
         raise NotImplementedError(_("功能暂未实现"))
 
+    def get_es_field_type(self, field):
+        if not field.get("option", {}).get("es_type"):
+            return FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
+        return BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string")
+
     @staticmethod
     def generate_hash_str(
             type: str,
@@ -211,6 +216,11 @@ class EtlStorage(object):
             else:
                 result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         return result
+
+    def get_es_field_type(self, field):
+        if not field.get("option", {}).get("es_type"):
+            return FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
+        return BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string")
 
     def get_result_table_fields(self, fields, etl_params, built_in_config, es_version="5.X"):
         """
@@ -512,8 +522,6 @@ class EtlStorage(object):
         if "time_option" in params and "es_doc_values" in params["time_option"]:
             del params["time_option"]["es_doc_values"]
 
-        logger.info(f"update_or_create_result_table params: {params}")
-
         # 获取结果表是否已经创建，如果创建则选择更新
         table_id = ""
         try:
@@ -654,7 +662,7 @@ class EtlStorage(object):
         return {
             "key": key,
             "assign_to": key,
-            "type": BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string"),
+            "type": self.get_es_field_type(field),
         }
 
     def _to_bkdata_assign_obj(self, field):
@@ -664,7 +672,7 @@ class EtlStorage(object):
         return {
             "key": "__all_keys__",
             "assign_to": key,
-            "type": BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string"),
+            "type": self.get_es_field_type(field),
         }
 
     def _get_built_in_fields_type_fields(self, built_in_fields):

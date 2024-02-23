@@ -143,7 +143,7 @@ class HostCollector(BaseCollector):
 
         biz_cnt_map = defaultdict(int)
         for item in records:
-            bk_biz_id = item["bk_biz_id"]
+            bk_biz_id = item.get("bk_biz_id")
             if not bk_biz_id:
                 continue
             bk_cloud_id = item["bk_cloud_id"]
@@ -151,7 +151,7 @@ class HostCollector(BaseCollector):
 
         # 正常的指标
         for item in records:
-            bk_biz_id = item["bk_biz_id"]
+            bk_biz_id = item.get("bk_biz_id")
             if not self.biz_exists(bk_biz_id):
                 continue
             bk_cloud_id = item["bk_cloud_id"]
