@@ -110,10 +110,13 @@ class TestAlertHandleChecker:
 
     def test_interval_notice(self, create_interval_actions_mock, action_config, init_configs):
         strategy = copy.deepcopy(STRATEGY)
-        strategy["notice"] = {  # 通知设置
+        # 通知设置
+        strategy["notice"] = {
             "id": 1,
-            "config_id": 55555,  # 套餐ID，如果不选套餐请置为0
-            "user_groups": [],  # 告警组ID
+            # 套餐ID，如果不选套餐请置为0
+            "config_id": 55555,
+            # 告警组ID
+            "user_groups": [],
             "signal": ["abnormal", "recovered", "ack"],
             "options": {
                 "converge_config": {
@@ -150,13 +153,12 @@ class TestAlertHandleChecker:
             },
             "execute_config": {
                 "template_detail": {
-                    "interval_notify_mode": "standard",  # 间隔模式
-                    "notify_interval": 7200,  # 通知间隔
-                    "template": [  # 通知模板配置
-                        {
-                            "signal": "abnormal",
-                        }
-                    ],
+                    # 间隔模式
+                    "interval_notify_mode": "standard",
+                    # 通知间隔
+                    "notify_interval": 7200,
+                    # 通知模板配置
+                    "template": [{"signal": "abnormal"}],
                 }
             },
         }

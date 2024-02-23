@@ -31,7 +31,7 @@ import { Table } from 'bkui-vue';
 import { listAlertTags } from '../../../monitor-api/modules/alert';
 import { getStrategyListV2 } from '../../../monitor-api/modules/strategies';
 import { deepClone, random } from '../../../monitor-common/utils';
-import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
+import { handleTransformToTimestamp } from '../../components/time-range/utils';
 
 import DimensionConditionInput from './components/dimension-input';
 import FormItem from './components/form-item';
