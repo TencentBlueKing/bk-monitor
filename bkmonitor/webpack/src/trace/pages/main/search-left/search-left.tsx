@@ -29,7 +29,7 @@ import { useI18n } from 'vue-i18n';
 import { Button, ResizeLayout, Select } from 'bkui-vue';
 
 import * as authorityMap from '../../../../apm/pages/home/authority-map';
-import { IFilterCondition } from '../../../../monitor-pc/pages/data-retrieval/typings';
+import { type IFilterCondition } from '../../../../monitor-pc/pages/data-retrieval/typings';
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
 import { useAuthorityStore } from '../../../store/modules/authority';
 import { IAppItem, ISearchTypeItem, SearchType } from '../../../typings';

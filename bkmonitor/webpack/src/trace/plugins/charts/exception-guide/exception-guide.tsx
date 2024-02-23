@@ -28,7 +28,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Button, Exception } from 'bkui-vue';
 
 import { random } from '../../../../monitor-common/utils/utils';
-import { ITableItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
+import { type ITableItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import { PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
 
 import './exception-guide.scss';

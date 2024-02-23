@@ -29,7 +29,7 @@ import { Collapse, Progress } from 'bkui-vue';
 import { EnlargeLine, NarrowLine } from 'bkui-vue/lib/icon';
 
 import { deepClone } from '../../../../monitor-common/utils/utils';
-import { FieldListType, FieldValue } from '../../../../monitor-pc/pages/data-retrieval/typings';
+import { type FieldListType, type FieldValue } from '../../../../monitor-pc/pages/data-retrieval/typings';
 import { SPAN_KIND_MAPS, SPAN_STATUS_CODE } from '../../../store/constant';
 
 import './field-list.scss';
