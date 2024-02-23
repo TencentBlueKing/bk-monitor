@@ -231,11 +231,7 @@
               :width="getParticipleWidth">
               <template slot-scope="props">
                 <bk-checkbox
-                  :disabled="isPreviewMode
-                    || props.row.is_delete
-                    || props.row.field_type !== 'string'
-                    || props.row.is_time
-                    || isSetDisabled"
+                  :disabled="getCustomizeDisabled(props.row, 'analyzed')"
                   v-model="props.row.is_analyzed"
                   @change="() => handelChangeAnalyzed(props.row.is_analyzed, props.$index)">
                 </bk-checkbox>
@@ -250,11 +246,7 @@
               <template slot-scope="props">
                 <div class="participle-box">
                   <bk-select
-                    :disabled="isPreviewMode
-                      || props.row.is_delete
-                      || props.row.field_type !== 'string'
-                      || !props.row.is_analyzed
-                      || isSetDisabled"
+                    :disabled="getCustomizeDisabled(props.row)"
                     :clearable="false"
                     :popover-min-width="160"
                     placeholder=" "
@@ -270,13 +262,9 @@
                   </bk-select>
                   <bk-input
                     v-show="props.row.participleState === 'custom'"
-                    :disabled="isPreviewMode
-                      || props.row.is_delete
-                      || props.row.field_type !== 'string'
-                      || !props.row.is_analyzed
-                      || isSetDisabled"
+                    v-model="props.row.tokenize_on_chars"
                     placeholder=" "
-                    v-model="props.row.tokenize_on_chars">
+                    :disabled="getCustomizeDisabled(props.row)">
                   </bk-input>
                 </div>
               </template>
@@ -289,11 +277,7 @@
               :width="80">
               <template slot-scope="props">
                 <bk-checkbox
-                  :disabled="isPreviewMode
-                    || props.row.is_delete
-                    || props.row.field_type !== 'string'
-                    || !props.row.is_analyzed
-                    || isSetDisabled"
+                  :disabled="getCustomizeDisabled(props.row)"
                   v-model="props.row.is_case_sensitive">
                 </bk-checkbox>
               </template>
@@ -1121,6 +1105,18 @@ export default {
     getFieldEditDisabled(row) {
       if (this.selectEtlConfig === 'bk_log_json') return false;
       return row?.is_delete || this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
+    },
+    /**
+     * @desc: 判断当前分词符或者分词符有关的子项是否禁用
+     * @param {Any} row 字段信息
+     * @param {String} type 是分词还是分词有关的子项
+     * @returns {Boolean}
+     */
+    getCustomizeDisabled(row, type = 'analyzed-item') {
+      const { is_delete: isDelete, field_type: fieldType, is_time: isTime, is_analyzed: isAnalyzed } = row;
+      let atLastAnalyzed = isAnalyzed;
+      if (type === 'analyzed') atLastAnalyzed = true;
+      return (this.isPreviewMode || isDelete || fieldType !== 'string' || isTime || !atLastAnalyzed || this.isSetDisabled);
     },
   },
 };

@@ -78,7 +78,7 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   get markList() {
-    let markVal =      this.content.toString().match(/(<mark>).*?(<\/mark>)/g)
+    let markVal = this.content.toString().match(/(<mark>).*?(<\/mark>)/g)
       || ([] as RegExpMatchArray[]);
     if (markVal.length) {
       markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
