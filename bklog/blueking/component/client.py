@@ -52,14 +52,14 @@ class BaseComponentClient(object):
         cls.available_collections = components
 
     def __init__(
-        self,
-        app_code=None,
-        app_secret=None,
-        common_args=None,
-        use_test_env=False,
-        language=None,
-        bk_app_code=None,
-        bk_app_secret=None,
+            self,
+            app_code=None,
+            app_secret=None,
+            common_args=None,
+            use_test_env=False,
+            language=None,
+            bk_app_code=None,
+            bk_app_secret=None,
     ):
         """
         :param str app_code: App code to use
@@ -125,9 +125,13 @@ class BaseComponentClient(object):
             "bk_app_secret": self.app_secret,
             "bk_username": self.common_args.get("bk_username") or get_request_username(),
         }
-        bk_token = self.common_args.pop("bk_token", "")
+        bk_token = params.get("bk_token", "") or data.get("bk_token", "") or self.common_args.get("bk_token", "")
+        access_token = params.get("access_token", "") or data.get("bk_token", "") \
+                       or self.common_args.get("access_token", "")
         if bk_token:
             api_headers["bk_token"] = bk_token
+        if access_token:
+            api_headers["access_token"] = access_token
         headers["X-Bkapi-Authorization"] = json.dumps(api_headers)
 
         params, data = self.merge_params_data_with_common_args(method, params, data)
@@ -159,10 +163,15 @@ class ComponentClientWithSignature(BaseComponentClient):
             "bk_app_code": self.app_code,
             "bk_username": self.common_args.get("bk_username") or get_request_username(),
         }
-        bk_token = self.common_args.pop("bk_token", "")
+        bk_token = params.get("bk_token", "") or data.get("bk_token", "") or self.common_args.get("bk_token", "")
+        access_token = params.get("access_token", "") or data.get("bk_token", "") \
+                       or self.common_args.get("access_token", "")
         if bk_token:
             api_headers["bk_token"] = bk_token
+        if access_token:
+            api_headers["access_token"] = access_token
         headers["X-Bkapi-Authorization"] = json.dumps(api_headers)
+
         params, data = self.merge_params_data_with_common_args(method, params, data)
         if method == "POST":
             params = {}
