@@ -52,23 +52,30 @@
 
       .icon-angle-right {
         display: inline-block;
-        font-size: 14px;
         margin-right: 4px;
+        font-size: 14px;
       }
 
       .name {
-        color: #979ba5;
         font-size: 12px;
+        color: #979ba5;
       }
     }
 
     .icon-menu-collect {
+      display: none;
       font-size: 12px;
       color: #979ba5;
 
       &:hover {
-        cursor: pointer;
         color: rgb(58, 132, 255);
+        cursor: pointer;
+      }
+    }
+
+    &:hover {
+      .icon-menu-collect {
+        display: block;
       }
     }
   }
@@ -79,13 +86,13 @@
     }
 
     .name {
-      color: #313238;
       font-weight: 700;
+      color: #313238;
     }
 
     .group-number {
-      color: #979ba5;
       margin-left: 4px;
+      color: #979ba5;
     }
   }
 

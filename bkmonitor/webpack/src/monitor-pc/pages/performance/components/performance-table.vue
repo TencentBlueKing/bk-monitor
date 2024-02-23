@@ -336,6 +336,9 @@
               @mouseleave="row.totalAlarmCount && handleUnresolveLeave()"
               @click="handleGoEventCenter(row)"
               :class="{ 'status-unresolve': !!row.totalAlarmCount }"
+              :style="{
+                backgroundColor: getStatusLabelBgColor(row.alarm_count)
+              }"
             >
               {{ row.totalAlarmCount >= 0 ? row.totalAlarmCount : '--' }}
             </span>
@@ -563,9 +566,17 @@ import PerformanceModule from '../../../store/modules/performance';
 import MonitorVue from '../../../types/index';
 import ColumnCheck from '../column-check/column-check.vue';
 import { CheckType, ICheck, IPageConfig, ISort, ITableRow } from '../performance-type';
+import { AlarmStatus } from '../types';
 import UnresolveList from '../unresolve-list/unresolve-list.vue';
 
 import IpStatusTips, { handleIpStatusData } from './ip-status-tips';
+
+/** 告警类型对应的颜色 */
+const alarmColorMap: { [key in AlarmStatus]: string } = {
+  [AlarmStatus.DeadlyAlarm]: '#ea3636',
+  [AlarmStatus.WarningAlarm]: '#ff8000',
+  [AlarmStatus.RemindAlarm]: '#ffd000'
+};
 
 @Component({
   name: 'performance-table',
@@ -1011,6 +1022,27 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     this?.tableRef?.clearSort();
   }
 
+  /**
+   * 根据警告等级调整背景色
+   * 取有告警数且等级最高的
+   * level 越低等级越高。
+   */
+  getStatusLabelBgColor(alarmCount: { count: number; level: number; color?: string }[]) {
+    // 第一次执行会为空。
+    if (!alarmCount || alarmCount.length === 0) {
+      return '';
+    }
+
+    // 使用 reduce 方法遍历数组，找到最小的 level 且 count 不为 0 的告警项
+    // 如果找到，则返回该项的颜色和等级，否则返回之前的 minColor
+    return alarmCount
+      .reduce((minColor, { count, level }) => {
+        return count && (!minColor || level < minColor.level)
+          ? { color: alarmColorMap[level], level }
+          : minColor;
+      }, null)?.color || '';
+  }
+
   @Emit('empty-status-operation')
   handleOperation(type: EmptyStatusOperationType) {
     return type;
@@ -1196,8 +1228,6 @@ $processColors: #ea3636 #c4c6cc #63656e;
     }
 
     .status-unresolve {
-      background: #ff9c01;
-
       @include hover();
     }
 

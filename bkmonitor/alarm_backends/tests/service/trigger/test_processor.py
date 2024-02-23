@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 
 
-import copy
 import json
 from datetime import datetime
 from uuid import uuid4
@@ -19,9 +18,14 @@ import mock
 from django.test import TestCase
 from six.moves import range
 
-from alarm_backends.core.cache.key import ANOMALY_LIST_KEY, ANOMALY_SIGNAL_KEY, TRIGGER_EVENT_LIST_KEY
+from alarm_backends.core.cache.key import (
+    ANOMALY_LIST_KEY,
+    ANOMALY_SIGNAL_KEY,
+    TRIGGER_EVENT_LIST_KEY,
+)
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.processor import TriggerProcessor
-from bkmonitor.models import AnomalyRecord, time_tools
+from bkmonitor.models import AnomalyRecord, CacheNode, time_tools
 from core.errors.alarm_backends import StrategyNotFound
 
 from .test_checker import STRATEGY
@@ -137,6 +141,8 @@ class TestProcessor(TestCase):
         AnomalyRecord.objects.all().delete()
 
     def setUp(self):
+        get_node_by_strategy_id(0)
+        CacheNode.refresh_from_settings()
         self.clear_data()
 
     def tearDown(self):
@@ -154,17 +160,34 @@ class TestProcessor(TestCase):
         self.assertEqual(len(processor._strategy_snapshots), 1)
 
     def test_pull(self):
+        def _fake_redis_delay(*args, **kwargs):
+            ANOMALY_SIGNAL_KEY.client.rpush(ANOMALY_SIGNAL_KEY.get_key(), "1.1")
+
         anomaly_list_key = ANOMALY_LIST_KEY.get_key(strategy_id=1, item_id=1)
         for i in range(10):
             ANOMALY_LIST_KEY.client.lpush(anomaly_list_key, json.dumps(POINT))
         TriggerProcessor.MAX_PROCESS_COUNT = 6
         processor = TriggerProcessor(1, 1)
-        processor.pull()
+
+        # 除了 pull 分片拉取逻辑，trigger 信号一般先进先出，此处检测分片拉取将信号直接插入到右侧
+        ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.2")
+
+        with mock.patch(
+            "alarm_backends.service.trigger.processor.ANOMALY_SIGNAL_KEY.client.delay", side_effect=_fake_redis_delay
+        ) as fake_redis_delay:
+            processor.pull()
+            fake_redis_delay.assert_called_once()
+
         self.assertEqual(len(processor.anomaly_points), 6)
         self.assertEqual(ANOMALY_LIST_KEY.client.llen(anomaly_list_key), 4)
-        self.assertEqual(ANOMALY_SIGNAL_KEY.client.lindex(ANOMALY_SIGNAL_KEY.get_key(), 0), "1.1")
+        self.assertEqual(ANOMALY_SIGNAL_KEY.client.lindex(ANOMALY_SIGNAL_KEY.get_key(), -1), "1.1")
 
-        processor.pull()
+        with mock.patch(
+            "alarm_backends.service.trigger.processor.ANOMALY_SIGNAL_KEY.client.delay", side_effect=_fake_redis_delay
+        ) as fake_redis_delay:
+            processor.pull()
+            fake_redis_delay.assert_not_called()
+
         self.assertEqual(len(processor.anomaly_points), 4)
         self.assertEqual(ANOMALY_LIST_KEY.client.llen(anomaly_list_key), 0)
 
@@ -175,3 +198,16 @@ class TestProcessor(TestCase):
         processor = TriggerProcessor(1, 1)
         processor.process_point(json.dumps(POINT))
         self.assertEqual(len(processor.event_records), 1)
+
+    def test_process(self):
+        processor = TriggerProcessor(1, 1)
+        setattr(processor.strategy, "in_alarm_time", lambda: (True, None))
+        anomaly_list_key = ANOMALY_LIST_KEY.get_key(strategy_id=1, item_id=1)
+        for i in range(10):
+            ANOMALY_LIST_KEY.client.lpush(anomaly_list_key, json.dumps(POINT))
+
+        with mock.patch(
+            "alarm_backends.service.trigger.processor.MonitorEventAdapter.push_to_kafka"
+        ) as fake_push_to_kafka:
+            processor.process()
+            print(fake_push_to_kafka.call_args)

@@ -473,7 +473,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (!this.editAllowed) {
       return false;
     }
-    return !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading);
+    return this.monitorDataEditMode === 'Edit'
+      ? !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading)
+      : this.sourceData.sourceCode;
   }
 
   /** 策略监控目标 */
@@ -592,6 +594,15 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       try {
         const metricData = this.$route.query.data ? this.$route.query.data : this.$route.params.data;
         metric = typeof metricData === 'string' ? JSON.parse(decodeURIComponent(metricData)) : metricData;
+        // promql
+        if (metric.mode === 'code' || metric.data?.[0]?.promql) {
+          await this.$nextTick();
+          this.monitorDataEditMode = 'Source';
+          this.sourceData.sourceCode = metric.data[0]?.promql || '';
+          this.sourceData.sourceCodeCache = metric.data[0]?.promql || '';
+          this.sourceData.step = metric.data[0]?.step === 'auto' ? 60 : metric.data[0]?.step || 60;
+          return;
+        }
       } catch (e) {
         console.error(e);
         return;
@@ -1842,7 +1853,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   getAlgorithmList(item: MetricDetail) {
     let algorithmList = [];
     // 系统事件
-    if (item.metricMetaId === 'bk_monitor|event') {
+    if (item?.metricMetaId === 'bk_monitor|event') {
       algorithmList.push({
         level: item.level,
         type: '',
@@ -2536,7 +2547,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   {this.$t('清除')}
                 </bk-button>
               )}
-              {!this.metricData.length
+              {!this.metricData.length && !this.sourceData.sourceCode
                 ? !this.loading && (
                     <MonitorDataEmpty
                       on-add-metric={this.handleShowMetric}

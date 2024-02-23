@@ -99,6 +99,8 @@ export default class SearchComp extends tsc<IProps> {
   conditionList = []; // 条件列表
   isShowFilterOption = false; // 添加条件下拉框是否是展开状态
   aggsItems = []; // 接口返回输入框可选值
+  /** 检索时，清空输入框内缓存的字符串 */
+  isClearCatchInputStr = false;
   tagFocusInputObj: ITagFocusInputObj = {
     index: 0,
     str: '',
@@ -352,6 +354,40 @@ export default class SearchComp extends tsc<IProps> {
     )) ?? {}; // 找不到则是ip选择器
     // 空字符串切割会时会生成一个带有空字符串的数组 空字符串应该使用空数组
     const inputValueList = value !== '' ? value.toString().split(',') : [];
+    // 检查条件列表中是否存在具有相同操作符和字段ID的条件
+    const isExistCondition = this.conditionList.some(item => item.operator === operator && item.id === field);
+    // 获取条件列表中的最后一个条件
+    const lastCondition = this.conditionList[this.conditionList.length - 1];
+    // 检查操作符是否是包含或不包含匹配短语
+    const isContains = ['contains match phrase', 'not contains match phrase'].includes(operator);
+    // 遍历条件列表
+    for (const cIndex in this.conditionList) {
+      // 获取当前遍历到的条件
+      const currentCondition = this.conditionList[cIndex];
+      // 如果当前条件的操作符和字段与给定的匹配
+      if (currentCondition.operator === operator && currentCondition.id === field) {
+        // 如果当前条件的值为空数组
+        if (!currentCondition.value.length) {
+          // 则将输入值数组直接设置为当前条件的值
+          currentCondition.value = inputValueList;
+          return;
+        }
+        // 如果存在具有相同操作符和字段的条件，并且操作符是包含类型
+        if (isExistCondition && isContains) {
+          // 如果最后一个条件的字段与给定的匹配
+          if (lastCondition.id === field) {
+            // 则将输入值数组添加到最后一个条件的值中
+            lastCondition.value = [...lastCondition.value, ...inputValueList];
+            return;
+          }
+          if (!lastCondition.value.length) {
+            // 如果最后一个条件的值为空数组，则将输入值数组添加到当前条件的值中
+            currentCondition.value = [...currentCondition.value, ...inputValueList];
+            return;
+          };
+        };
+      }
+    }
     this.conditionList.push({
       ...findField,
       id: field,
@@ -512,8 +548,23 @@ export default class SearchComp extends tsc<IProps> {
 
   handleClickRequestBtn() {
     const { index, str } = this.tagFocusInputObj;
-    if (str) this.conditionList[index].value.push(str); // 更新操作符和数据
+    if (str) {
+      const oldConditionList = this.conditionList[index].value;
+      const setArr = new Set([...oldConditionList, str]);
+      Object.assign(this.conditionList[index].value, [...setArr].filter(Boolean));
+    };
+    this.isClearCatchInputStr = !this.isClearCatchInputStr;
     this.searchAdditionQuery(true, true);
+  }
+
+  blurUpdateKeyword(val) {
+    const { params, query: routerQuery } = this.$route;
+    const routeData = {
+      name: 'retrieve',
+      params,
+      query: { ...routerQuery, keyword: val },
+    };
+    this.$router.replace(routeData);
   }
 
   render() {
@@ -535,6 +586,7 @@ export default class SearchComp extends tsc<IProps> {
                 retrieved-keyword={this.retrievedKeyword}
                 dropdown-data={this.retrieveDropdownData}
                 is-show-ui-type={this.isShowUiType}
+                onKeywordBlurUpdate={this.blurUpdateKeyword}
                 onInputBlur={this.handleBlurSearchInput}
                 onIsCanSearch={val => this.handleUserOperate('isCanStorageFavorite', val)}
                 onRetrieve={this.handleRetrieveLog}
@@ -565,6 +617,7 @@ export default class SearchComp extends tsc<IProps> {
             is-auto-query={this.isAutoQuery}
             retrieveParams={this.retrieveParams}
             catchIpChooser={this.catchIpChooser}
+            isClearCatchInputStr={this.isClearCatchInputStr}
             // statisticalFieldsData={this.statisticalFieldsData}
             onIsIncludeChange={v => this.handleIsIncludeChange(index, v)}
             onDelete={v => this.handleConditionDelete(index, v)}

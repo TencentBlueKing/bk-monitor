@@ -44,6 +44,7 @@ import {
 import { listSpaces } from '../../../monitor-api/modules/commons';
 import { bizWithAlertStatistics } from '../../../monitor-api/modules/home';
 import { checkAllowed } from '../../../monitor-api/modules/iam';
+import { promqlToQueryConfig } from '../../../monitor-api/modules/strategies';
 import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
 import { random } from '../../../monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
@@ -459,6 +460,23 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           .filter(id => ![authorityBizId, hasDataBizId].includes(+id))
           .some(id => !window.space_list.some(item => item.id === id));
       }
+      if (params?.promql?.length) {
+        const queryData = await promqlToQueryConfig({
+          promql: params.promql
+        }).catch(() => false);
+        if (queryData?.query_configs?.length) {
+          const { query_configs } = queryData;
+          let queryString = '';
+          const uniqueMap = {};
+          query_configs.forEach((item, index) => {
+            if (item.metric_id && !uniqueMap[item.metric_id]) {
+              queryString += `${index > 0 ? ' OR ' : ''}${isEn ? 'metric' : '指标ID'}: "${item.metric_id}"`;
+              uniqueMap[item.metric_id] = true;
+            }
+          });
+          vm.queryString = queryString;
+        }
+      }
       // await vm.handleGetAllBizList();
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
       vm.handleRefleshChange(vm.refleshInterval);
@@ -582,6 +600,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           key === 'from' && this.$set(this.timeRange, 0, val);
           key === 'to' && this.$set(this.timeRange, 1, val);
           query[key] = val;
+        } else if (key === 'promql') {
+          query[key] = decodeURIComponent((val as string) || '');
         } else {
           query[key] = val;
         }
@@ -2101,10 +2121,20 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             />
           </div>
           <MonitorDrag
-            theme={'line-round'}
+            theme={'line'}
+            lineText={''}
             toggleSet={this.toggleSet}
             on-move={this.handleDragFilter}
           />
+          <div
+            class='filter-line-trigger'
+            style={{
+              left: `${this.filterWidth}px`
+            }}
+            onClick={() => (this.filterWidth = 0)}
+          >
+            <span class='icon-monitor icon-arrow-left'></span>
+          </div>
         </div>
         <div
           class='event-content'

@@ -74,12 +74,18 @@ class TriggerProcessor(object):
                     "[pull anomaly record] strategy({}), item({}) pull {} record."
                     "queue has data, process next time".format(self.strategy_id, self.item_id, len(self.anomaly_points))
                 )
-            elif len(self.anomaly_points):
+            else:
                 logger.info(
                     "[pull anomaly record] strategy({}), item({}) pull {} record".format(
                         self.strategy_id, self.item_id, len(self.anomaly_points)
                     )
                 )
+        else:
+            logger.warning(
+                "[pull anomaly record] strategy({}), item({}) pull {} record".format(
+                    self.strategy_id, self.item_id, len(self.anomaly_points)
+                )
+            )
 
     def push_event_to_redis(self, event_records):
         pipeline = TRIGGER_EVENT_LIST_KEY.client.pipeline(transaction=False)
@@ -91,13 +97,23 @@ class TriggerProcessor(object):
 
     def push_event_to_kafka(self, event_records):
         events = []
-        current_time = int(time.time())
+        current_time = time.time()
         for record in event_records:
             event_record = record["event_record"]
-            if event_record.get("data", {}).get("detect_time"):
+            detect_time = event_record.get("data", {}).get("detect_time")
+            if detect_time:
                 latency = current_time - event_record["data"]["detect_time"]
                 if latency > 0:
                     metrics.TRIGGER_PROCESS_LATENCY.labels(strategy_id=metrics.TOTAL_TAG).observe(latency)
+                    if latency > 60:
+                        # 如果当前的处理延迟大于1min, 打印一行日志出来
+                        logger.info(
+                            "[push_event_to_kafka] big latency %s， detect time(%s),  strategy(%s)",
+                            latency,
+                            detect_time,
+                            self.strategy_id,
+                        )
+
             adapter = MonitorEventAdapter(
                 record=record["event_record"],
                 strategy=self.get_strategy_snapshot(record["event_record"]["strategy_snapshot_key"]),

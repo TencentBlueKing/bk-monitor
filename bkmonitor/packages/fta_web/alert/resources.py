@@ -74,7 +74,7 @@ from constants.alert import (
     CLUSTER_PATTERN,
     AlertFieldDisplay,
     EventStatus,
-    EventTargetType,
+    EventTargetType, EVENT_STATUS_DICT,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import SPLIT_DIMENSIONS
@@ -314,7 +314,14 @@ class AlertDateHistogramResource(Resource):
     def perform_request(self, validated_request_data):
         interval = validated_request_data.pop("interval")
         handler = AlertQueryHandler(**validated_request_data)
-        return handler.date_histogram(interval=interval)
+        data = list(handler.date_histogram(interval=interval).values())[0]
+        return {
+            "series": [
+                {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
+                for status, series in data.items()
+            ],
+            "unit": "",
+        }
 
 
 class AlertDetailResource(Resource):
@@ -1503,7 +1510,7 @@ class SearchEventResource(ApiAuthResource):
             + conditions,
             **validated_request_data,
         )
-        alert_result = handler.search_raw()
+        alert_result, _ = handler.search_raw()
 
         result = {
             "total": min(alert_result.hits.total.value, 10000),

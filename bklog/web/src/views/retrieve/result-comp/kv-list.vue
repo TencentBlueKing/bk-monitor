@@ -61,6 +61,7 @@
 </template>
 
 <script>
+import _escape from 'lodash/escape';
 import { mapState } from 'vuex';
 import { getTextPxWidth } from '@/common/util';
 import TextSegmentation from './text-segmentation';
@@ -201,7 +202,7 @@ export default {
       if (['is', 'not'].includes(id)) {
         const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(field), false);
         const operator = id === 'is' ? '=' : '!=';
-        return `${field} ${operator} ${curValue}`;
+        return `${field} ${operator} ${_escape(curValue)}`;
       }
 
       if (id !== 'display') return this.toolMenuTips[id];
@@ -311,7 +312,6 @@ export default {
         case 'serverip':
         case 'ip':
         case 'bk_host_id': {
-          if (this.isHaveBkHostIDAndHaveValue && ['serverip', 'ip'].includes(key)) return; // bk_host_id有值, 不展示ip和serverIp的主机;
           const lowerKeyData = Object.entries(this.data).reduce((pre, [curKey, curVal]) => {
             pre[curKey.toLowerCase()] = curVal;
             return pre;

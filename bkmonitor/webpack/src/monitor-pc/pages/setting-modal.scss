@@ -1,7 +1,7 @@
 @import '../theme';
 
 .setting-modal {
-  top: 52px;
+  top: calc(52px + var(--notice-alert-height));
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -11,7 +11,7 @@
     padding: 0;
 
     &.full-screen {
-      top: 52px;
+      top: calc(52px + var(--notice-alert-height));
     }
 
     &-close {
@@ -50,7 +50,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    max-height: calc(100vh - 104px);
+    max-height: calc(100vh - 104px - var(--notice-alert-height));
     padding-top: 20px;
     margin-top: 0px;
     overflow: auto;
