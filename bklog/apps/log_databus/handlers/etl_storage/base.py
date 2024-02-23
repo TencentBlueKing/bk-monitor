@@ -101,7 +101,8 @@ class EtlStorage(object):
         """
         raise NotImplementedError(_("功能暂未实现"))
 
-    def get_es_field_type(self, field):
+    @staticmethod
+    def get_es_field_type(field):
         if not field.get("option", {}).get("es_type"):
             return FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
         return BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string")
@@ -117,6 +118,7 @@ class EtlStorage(object):
     ) -> str:
         """
         根据字段的配置生成简化的hash值
+        因为监控的索引分裂的判断条件只对比了option的es_analyzer, 当参数变动的时候, 利用生成新的hash值来触发分裂索引
         """
         data = {
             "field_name": field_name,
@@ -124,7 +126,7 @@ class EtlStorage(object):
             "is_case_sensitive": is_case_sensitive,
             "tokenize_on_chars": tokenize_on_chars,
         }
-        # 将字典按照key的顺序转换为字符串
+        # 将字典按照key的顺序转换为字符串, 防止顺序不固定导致的hash值不一致
         data_str = ''.join([f'{k}{v}' for k, v in sorted(data.items())])
         # 使用SHA256算法生成hash值
         hash_obj = hashlib.sha256(data_str.encode('utf-8'))
@@ -165,7 +167,8 @@ class EtlStorage(object):
                 tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
             tokenizer_name = self.generate_field_tokenizer_name(
-                field_name="log", field_alias="data",
+                field_name="log",
+                field_alias="data",
                 is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
                 tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
@@ -174,6 +177,7 @@ class EtlStorage(object):
                 "tokenizer": tokenizer_name,
                 "filter": [],
             }
+            # 大小写不敏感的时候，需要加入lowercase
             if not etl_params.get("original_text_is_case_sensitive", False):
                 result["analyzer"][analyzer_name]["filter"].append("lowercase")
             # original_text_tokenize_on_chars为空时, 使用standard分词器
@@ -216,11 +220,6 @@ class EtlStorage(object):
             else:
                 result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         return result
-
-    def get_es_field_type(self, field):
-        if not field.get("option", {}).get("es_type"):
-            return FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
-        return BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string")
 
     def get_result_table_fields(self, fields, etl_params, built_in_config, es_version="5.X"):
         """

@@ -38,7 +38,8 @@ from apps.log_esquery.exceptions import (
     EsClientMetaInfoException,
     EsClientScrollException,
     EsClientSearchException,
-    EsException, BaseSearchIndexSettingsException,
+    EsException,
+    BaseSearchIndexSettingsException,
 )
 from apps.log_esquery.type_constants import type_mapping_dict
 from apps.log_esquery.utils.es_client import es_socket_ping, get_es_client
