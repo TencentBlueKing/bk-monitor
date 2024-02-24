@@ -27,7 +27,7 @@ import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
 
 import { deepClone } from '../../../monitor-common/utils/utils';
-import { IIableTdArrItem } from '../../../monitor-pc/pages/view-detail/utils';
+import { type IIableTdArrItem } from '../../../monitor-pc/pages/view-detail/utils';
 import { filterDictConvertedToWhere } from '../../../monitor-ui/chart-plugins/utils';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { downFile, reviewInterval, VariablesService } from '../../utils';

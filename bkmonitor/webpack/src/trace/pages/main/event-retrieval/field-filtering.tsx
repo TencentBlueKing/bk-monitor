@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { Exception } from 'bkui-vue';
 
 import { deepClone } from '../../../../monitor-common/utils/utils';
-import { FieldListType, IFilterCondition } from '../../../../monitor-pc/pages/data-retrieval/typings';
+import { type FieldListType, type IFilterCondition } from '../../../../monitor-pc/pages/data-retrieval/typings';
 import { useTraceStore } from '../../../store/modules/trace';
 
 import FieldList, { IDimissionItem, TraceFieldValue } from './field-list';
