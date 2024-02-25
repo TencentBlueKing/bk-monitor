@@ -194,6 +194,7 @@ export default {
   '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
     'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
   存在关联的告警组: 'There is an associated alarm group',
+  已选: 'selected',
   'tips-采集状态': 'Collection Status',
   '已成功发送 {0} 个内部用户': '{0} internal users successfully sent',
   '已成功发送 {0} 个外部邮件': '{0} external messages sent successfully',
