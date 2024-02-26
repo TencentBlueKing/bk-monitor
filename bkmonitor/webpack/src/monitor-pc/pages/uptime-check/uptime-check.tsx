@@ -25,9 +25,9 @@
  */
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { random } from 'monitor-common/utils/utils';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { random } from '../../../monitor-common/utils/utils';
-import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
 import authorityMixinCreate from '../../mixins/authorityMixin';

@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
+import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { Debounce, deepClone, typeTools } from '../../../../../monitor-common/utils/utils';
-import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
-import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
 import { IStatusData } from '../../../collector-config/collector-view-detail/status-tab-list';
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {

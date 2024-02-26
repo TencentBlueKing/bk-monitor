@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
 
-import { listEsClusterGroups } from '../../../../monitor-api/modules/apm_meta';
 import ExpiredSelect from '../../../components/expired-select/expired-select';
 import { ICreateAppFormData } from '../../home/app-list';
 

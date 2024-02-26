@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getLabel } from '../../../monitor-api/modules/commons';
+import { getLabel } from 'monitor-api/modules/commons';
 
 export const SET_ADD_MODE = 'SET_ADD_MODE';
 export const SET_ADD_DATA = 'SET_ADD_DATA';

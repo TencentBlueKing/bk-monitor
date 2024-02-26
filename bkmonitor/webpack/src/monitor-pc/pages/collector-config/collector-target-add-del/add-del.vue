@@ -79,7 +79,8 @@
 </template>
 
 <script>
-import { collectConfigDetail } from '../../../../monitor-api/modules/collecting';
+import { collectConfigDetail } from 'monitor-api/modules/collecting';
+
 import introduce from '../../../common/introduce';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';

@@ -664,10 +664,10 @@
 
 <script>
 import { createNamespacedHelpers } from 'vuex';
+import { collectConfigDetail, getCollectVariables } from 'monitor-api/modules/collecting';
+import { listCollectorPlugin, retrieveCollectorPlugin } from 'monitor-api/modules/model';
+import { deepClone, random } from 'monitor-common/utils/utils';
 
-import { collectConfigDetail, getCollectVariables } from '../../../../../monitor-api/modules/collecting';
-import { listCollectorPlugin, retrieveCollectorPlugin } from '../../../../../monitor-api/modules/model';
-import { deepClone, random } from '../../../../../monitor-common/utils/utils';
 import CycleInput from '../../../../components/cycle-input/cycle-input.tsx';
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 import formLabelMixin from '../../../../mixins/formLabelMixin';

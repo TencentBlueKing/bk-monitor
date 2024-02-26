@@ -26,8 +26,8 @@
 import { Component, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import type { EChartOption } from 'echarts';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { Debounce } from '../../../../monitor-common/utils/utils';
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import BaseEchart from '../monitor-base-echart';
 

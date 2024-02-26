@@ -27,8 +27,8 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
-import { getMetricListV2 } from '../../../../../monitor-api/modules/strategies';
 import CycleInput from '../../../../components/cycle-input/cycle-input';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import { getPopoverWidth } from '../../../../utils';

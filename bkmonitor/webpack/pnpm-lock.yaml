@@ -92,14 +92,17 @@ importers:
       deepmerge:
         specifier: ^4.2.2
         version: 4.3.1
-      fta-solutions:
-        specifier: workspace:^1.0.0
-        version: link:../fta-solutions
-      monitor-mobile:
-        specifier: workspace:^1.0.0
-        version: link:../monitor-mobile
+      monitor-api:
+        specifier: workspace:*
+        version: link:../monitor-api
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-pc:
+        specifier: workspace:*
+        version: link:../monitor-pc
       monitor-ui:
-        specifier: workspace:^1.0.0
+        specifier: workspace:*
         version: link:../monitor-ui
       throttle-debounce:
         specifier: ^3.0.1
@@ -207,6 +210,18 @@ importers:
       deepmerge:
         specifier: ^4.2.2
         version: 4.3.1
+      monitor-api:
+        specifier: workspace:*
+        version: link:../monitor-api
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-pc:
+        specifier: workspace:*
+        version: link:../monitor-pc
+      monitor-ui:
+        specifier: workspace:*
+        version: link:../monitor-ui
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -511,6 +526,9 @@ importers:
       '@blueking/user-selector':
         specifier: ^1.0.5-beta.2
         version: 1.0.11
+      apm:
+        specifier: workspace:*
+        version: link:../apm
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -532,12 +550,24 @@ importers:
       element-ui:
         specifier: 2.7.2
         version: 2.7.2(vue@2.7.14)
+      fta-solutions:
+        specifier: workspace:*
+        version: link:../fta-solutions
       html-to-image:
         specifier: ^1.9.0
         version: 1.11.11
       minimist:
         specifier: ^1.2.6
         version: 1.2.8
+      monitor-api:
+        specifier: workspace:*
+        version: link:../monitor-api
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-ui:
+        specifier: workspace:*
+        version: link:../monitor-ui
       sortablejs:
         specifier: ^1.15.0
         version: 1.15.0
@@ -747,6 +777,18 @@ importers:
       html-to-image:
         specifier: ^1.9.0
         version: 1.11.11
+      monitor-api:
+        specifier: workspace:*
+        version: link:../monitor-api
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-pc:
+        specifier: workspace:*
+        version: link:../monitor-pc
+      monitor-ui:
+        specifier: workspace:*
+        version: 'link:'
       monitor-vue-grid-layout:
         specifier: 0.0.1
         version: 0.0.1(@interactjs/core@1.10.20)(@interactjs/utils@1.10.20)
@@ -853,6 +895,9 @@ importers:
       '@blueking/ip-selector':
         specifier: 0.2.0-beta
         version: 0.2.0-beta
+      apm:
+        specifier: workspace:*
+        version: link:../apm
       bkui-vue:
         specifier: 0.0.2-beta.126
         version: 0.0.2-beta.126(highlight.js@11.5.1)(vue@3.3.8)
@@ -910,6 +955,18 @@ importers:
       memoize-one:
         specifier: ^5.0.0
         version: 5.2.1
+      monitor-api:
+        specifier: workspace:*
+        version: link:../monitor-api
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-pc:
+        specifier: workspace:*
+        version: link:../monitor-pc
+      monitor-ui:
+        specifier: workspace:*
+        version: link:../monitor-ui
       pinia:
         specifier: 2.0.13
         version: 2.0.13(typescript@4.9.5)(vue@3.3.8)

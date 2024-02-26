@@ -23,6 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const { createEslint } = require('../monitor-pc/create-eslint.cjs');
+const { createEslint } = require('monitor-pc/create-eslint.cjs');
 
 module.exports = createEslint(__dirname);

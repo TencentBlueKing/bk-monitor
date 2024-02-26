@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from '../../../monitor-pc/pages/monitor-k8s/typings/book-mark';
 export * from './chart-legend';
 export * from './chart-title';
 export * from './dashboard-panel';
@@ -35,3 +34,4 @@ export * from './pie-chart';
 export * from './status-map';
 export * from './status-map';
 export * from './time-series';
+export * from 'monitor-pc/pages/monitor-k8s/typings/book-mark';

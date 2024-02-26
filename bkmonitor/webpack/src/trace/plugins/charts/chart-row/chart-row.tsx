@@ -32,7 +32,6 @@ import './chart-row.scss';
 
 export default defineComponent({
   name: 'ChartRowMigrated',
-  emits: ['collapse'],
   props: {
     panel: {
       type: Object as PropType<PanelModel>,
@@ -40,6 +39,7 @@ export default defineComponent({
       required: true
     }
   },
+  emits: ['collapse'],
   setup(props, { emit }) {
     const handleCollapsed = () => {
       if (!props.panel.draging) {

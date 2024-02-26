@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-
-import { getVariableValue } from '../../../monitor-api/modules/grafana';
-import { noticeGroupList } from '../../../monitor-api/modules/notice_group';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { noticeGroupList } from 'monitor-api/modules/notice_group';
 import {
   getDimensionValues,
   getIndexSetList,
@@ -39,7 +38,7 @@ import {
   getUnitList,
   noticeVariableList,
   strategyConfig
-} from '../../../monitor-api/modules/strategies';
+} from 'monitor-api/modules/strategies';
 
 export const SET_LOADING = 'SET_LOADING';
 export const SET_LOG_LOADING = 'SET_LOG_LOADING';

@@ -26,11 +26,11 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { releaseCollectorPlugin, retrieveCollectorPlugin } from 'monitor-api/modules/model';
+import { saveMetric } from 'monitor-api/modules/plugin';
+import { getUnitList } from 'monitor-api/modules/strategies';
+import { deepClone, random } from 'monitor-common/utils';
 
-import { releaseCollectorPlugin, retrieveCollectorPlugin } from '../../../../monitor-api/modules/model';
-import { saveMetric } from '../../../../monitor-api/modules/plugin';
-import { getUnitList } from '../../../../monitor-api/modules/strategies';
-import { deepClone, random } from '../../../../monitor-common/utils';
 import MonitorExport from '../../../components/monitor-export/monitor-export.vue';
 import MonitorImport from '../../../components/monitor-import/monitor-import.vue';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';

@@ -25,10 +25,10 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getEventPluginToken } from 'monitor-api/modules/event_plugin';
+import { copyText } from 'monitor-common/utils/utils';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
 
-import { getEventPluginToken } from '../../../../../monitor-api/modules/event_plugin';
-import { copyText } from '../../../../../monitor-common/utils/utils';
-import Viewer from '../../../../../monitor-ui/markdown-editor/viewer';
 import RulesViewer from '../rules-viewer/rules-viewer';
 import { EPluginType, IAlertConfigTable, INormalizationTable, IPushConfigData, TPluginType } from '../types';
 

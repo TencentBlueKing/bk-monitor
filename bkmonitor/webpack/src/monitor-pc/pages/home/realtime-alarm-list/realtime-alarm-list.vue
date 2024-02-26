@@ -124,7 +124,7 @@ export default {
     line-height: 19px;
     color: #3a84ff;
   }
-  
+
   .title-disable {
     color: #979ba5;
     cursor: not-allowed;
