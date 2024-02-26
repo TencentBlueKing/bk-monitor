@@ -165,17 +165,19 @@ class EtlStorage(object):
                 is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
                 tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
-            tokenizer_name = self.generate_field_tokenizer_name(field_name="log",field_alias="data")
+            tokenizer_name = self.generate_field_tokenizer_name(
+                field_name="log", field_alias="data"
+            )
             result["analyzer"][analyzer_name] = {
                 "type": "custom",
-                "tokenizer": tokenizer_name,
                 "filter": [],
             }
             # 大小写不敏感的时候，需要加入lowercase
             if not etl_params.get("original_text_is_case_sensitive", False):
                 result["analyzer"][analyzer_name]["filter"].append("lowercase")
-            # original_text_tokenize_on_chars为空时, 使用standard分词器
+            # original_text_tokenize_on_chars为空时, 不指定分词器
             if etl_params.get("original_text_tokenize_on_chars", ""):
+                result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
                 result["tokenizer"][tokenizer_name] = {
                     "type": "char_group",
                     "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
@@ -191,17 +193,18 @@ class EtlStorage(object):
                 tokenize_on_chars=field.get("tokenize_on_chars", "")
             )
             tokenizer_name = self.generate_field_tokenizer_name(
-                field_name=field.get("field_name", ""), field_alias=field.get("alias_name", "")
+                field_name=field.get("field_name", ""), field_alias=field.get("alias_name", ""),
             )
             result["analyzer"][analyzer_name] = {
                 "type": "custom",
-                "tokenizer": tokenizer_name,
                 "filter": [],
             }
             # 大小写不敏感的时候，需要加入lowercase
             if not field.get("is_case_sensitive", False):
                 result["analyzer"][analyzer_name]["filter"].append("lowercase")
+            # tokenize_on_chars为空时, 不指定分词器
             if field.get("tokenize_on_chars", ""):
+                result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
                 result["tokenizer"][tokenizer_name] = {
                     "type": "char_group",
                     "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
