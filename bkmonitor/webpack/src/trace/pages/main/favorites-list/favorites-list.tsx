@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, onMounted, PropType, reactive, ref, toRefs, watch } from 'vue';
+import { debounce, deepClone } from 'monitor-common/utils/utils';
 
-import { debounce, deepClone } from '../../../../monitor-common/utils/utils';
 import { IFavList, IFavoriteItem } from '../../../typings';
 
 import './favorites-list.scss';

@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { bizWithAlertStatistics } from 'monitor-api/modules/home';
+import { Debounce } from 'monitor-common/utils';
 
-import { bizWithAlertStatistics } from '../../../monitor-api/modules/home';
-import { Debounce } from '../../../monitor-common/utils';
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import { ISpaceItem } from '../../types';
 import { getEventPaths } from '../../utils';

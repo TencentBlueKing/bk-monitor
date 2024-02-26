@@ -25,10 +25,10 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce, random } from 'monitor-common/utils/utils';
 // import ListMenu from './list-menu';
 import { throttle } from 'throttle-debounce';
 
-import { Debounce, random } from '../../../../monitor-common/utils/utils';
 import { BookMarkMode, COMMON_TAB_LIST, CommonTabType, IMenuItem, ISearchItem, ITabItem, SearchType } from '../typings';
 
 import './page-title.scss';

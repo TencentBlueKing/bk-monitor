@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import debounceDecorator from '../../../../../monitor-common/utils/debounce-decorator';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
+import debounceDecorator from 'monitor-common/utils/debounce-decorator';
+import { deepClone } from 'monitor-common/utils/utils';
 
 import './function-menu.scss';
 

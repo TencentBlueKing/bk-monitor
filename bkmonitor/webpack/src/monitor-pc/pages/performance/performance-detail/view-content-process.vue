@@ -84,8 +84,8 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import MonitorEcharts from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue';
 import PerformanceModule from '../../../store/modules/performance';
 
@@ -175,8 +175,8 @@ $statusColors: #dcdee5 #10c178 #fd9c9c #ffeb00;
 $statusBgColors: #f0f1f5 #85dcb8 #ea3636 #ffeb00;
 
 .content-process {
-  color: #63656e;
   font-size: 12px;
+  color: #63656e;
 
   .process-list {
     display: flex;
@@ -186,22 +186,22 @@ $statusBgColors: #f0f1f5 #85dcb8 #ea3636 #ffeb00;
     &-item {
       display: flex;
       align-items: center;
+      height: 24px;
+      padding: 3px 10px 3px 6px;
+      margin: 0 6px 6px 0;
+      line-height: 16px;
+      background-color: #fafbfd;
       border: 1px solid #dcdee5;
       border-radius: 2px;
-      height: 24px;
-      background-color: #fafbfd;
-      padding: 3px 10px 3px 6px;
-      line-height: 16px;
-      margin: 0 6px 6px 0;
 
       @for $i from -1 through 1 {
         .item-status-#{$i} {
-          background-color: nth($statusBgColors, $i + 2);
-          border: 1px solid nth($statusColors, $i + 2);
           width: 6px;
           height: 6px;
-          border-radius: 6px;
           margin-right: 5px;
+          background-color: nth($statusBgColors, $i + 2);
+          border: 1px solid nth($statusColors, $i + 2);
+          border-radius: 6px;
         }
       }
 
@@ -210,8 +210,8 @@ $statusBgColors: #f0f1f5 #85dcb8 #ea3636 #ffeb00;
       }
 
       &.is-active {
-        border-color: #3a84ff;
         color: #3a84ff;
+        border-color: #3a84ff;
       }
     }
   }
@@ -230,9 +230,9 @@ $statusBgColors: #f0f1f5 #85dcb8 #ea3636 #ffeb00;
         width: 100%;
 
         .chart-item {
-          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
-          border-radius: 2px;
           height: 100px;
+          border-radius: 2px;
+          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
         }
       }
     }

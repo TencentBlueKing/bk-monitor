@@ -73,7 +73,8 @@ import {
   isTaskReady,
   rollbackDeploymentConfig,
   toggleCollectConfigStatus,
-  upgradeCollectPlugin } from '../../../../../monitor-api/modules/collecting';
+  upgradeCollectPlugin } from 'monitor-api/modules/collecting';
+
 import configDeploy from '../../config-deploy/config-deploy';
 
 export default {

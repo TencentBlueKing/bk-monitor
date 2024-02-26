@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getActionParams } from '../../../../../../monitor-api/modules/action';
+import { getActionParams } from 'monitor-api/modules/action';
 
 /* 将变量({{xxx}})替换为变量值 */
 export const setVariableToString = (variableMap: Map<string, { id: string; example: string }>, targetStr: string) => {

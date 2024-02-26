@@ -26,7 +26,6 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import {
   addTaskUptimeCheckGroup,
   changeStatusUptimeCheckTask,
@@ -36,8 +35,9 @@ import {
   destroyUptimeCheckTask,
   listUptimeCheckTask,
   updateUptimeCheckGroup
-} from '../../../monitor-api/modules/model';
-import { Debounce } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/model';
+import { Debounce } from 'monitor-common/utils/utils';
+
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { UPTIME_CHECK_LIST } from '../monitor-k8s//typings/tools';

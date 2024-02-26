@@ -86,8 +86,7 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
-
-import { deepClone } from '../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
 export interface IListItem {
   id: string | number;
@@ -160,6 +159,7 @@ export default class TableFilter extends Vue {
     cursor: pointer;
   }
 }
+
 .is-active {
   .table-title-wrap {
     .icon-filter-fill {
@@ -171,52 +171,62 @@ export default class TableFilter extends Vue {
 
 <style lang="scss">
 .menu-list-wrapper-theme {
+  width: 100%;
+
   /* stylelint-disable-next-line declaration-no-important */
   padding: 0 !important;
-  width: 100%;
-  box-shadow: 0 0 6px rgba(204, 204, 204, 0.3);
   border-radius: 0;
+  box-shadow: 0 0 6px rgba(204, 204, 204, .3);
+
   .menu-list-wrap {
     display: inline-block;
     min-width: 100px;
     background-color: #fff;
+
     .menu-list {
       display: flex;
       flex-direction: column;
-      border-radius: 2px;
-      padding: 6px 0;
       max-height: 250px;
+      padding: 6px 0;
       overflow-y: auto;
+      border-radius: 2px;
+
       .list-item {
         display: flex;
-        align-items: center;
         flex-shrink: 0;
+        align-items: center;
         height: 32px;
         padding: 0 10px;
         color: #63656e;
         cursor: pointer;
+
         .name {
           margin-left: 6px;
         }
+
         &:hover {
-          background: #e1ecff;
           color: #3a84ff;
+          background: #e1ecff;
         }
       }
     }
+
     .footer {
       height: 29px;
       border-top: solid 1px #f0f1f5;
+
       .btn-group {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
         // width: 70px;
         height: 100%;
         padding: 0 10px;
+
         .monitor-btn {
           color: #3a84ff;
           cursor: pointer;
+
           &:hover {
             color: #699df4;
           }

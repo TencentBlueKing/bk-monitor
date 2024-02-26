@@ -99,7 +99,7 @@ export default class MonitorDialog extends Vue {
     type: Boolean,
     default: false
   })
-  value: boolean;
+    value: boolean;
 
   // 标题
   @Prop({
@@ -109,71 +109,71 @@ export default class MonitorDialog extends Vue {
       // return this.$t('监控平台')
     }
   })
-  title: string;
+    title: string;
 
   // 宽度
   @Prop({
     type: [String, Number],
     default: 400
   })
-  width: string | number;
+    width: string | number;
 
   // 是否插入到body下
   @Prop({
     type: Boolean,
     default: false
   })
-  appendToBody: boolean;
+    appendToBody: boolean;
 
   // 是否点击mask关闭
   @Prop({
     type: Boolean,
     default: false
   })
-  maskClose: boolean;
+    maskClose: boolean;
 
   // 层级
   @Prop({
     type: [String, Number],
     default: 1000
   })
-  zIndex: number;
+    zIndex: number;
 
   // 是否需要footer
   @Prop({
     type: Boolean,
     default: true
   })
-  needFooter: boolean;
+    needFooter: boolean;
 
   // 关闭之前触发
   @Prop([Function])
-  beforeClose: (args: any) => void;
+    beforeClose: (args: any) => void;
 
   // 是否全屏
   @Prop([Boolean])
-  fullScreen: boolean;
+    fullScreen: boolean;
 
   // 是否需要展示header
   @Prop({
     type: Boolean,
     default: true
   })
-  needHeader: boolean;
+    needHeader: boolean;
 
   // header的主题
   @Prop({
     type: String,
     validator: theme => [HeaderThemeType.headerBar].includes(theme)
   })
-  headerTheme: HeaderThemeType;
+    headerTheme: HeaderThemeType;
 
   // 是否需要展示确定按钮
   @Prop({
     type: Boolean,
     default: true
   })
-  showConfirmBtn: boolean;
+    showConfirmBtn: boolean;
 
   @Watch('value')
   onValueChange(val: boolean): void {

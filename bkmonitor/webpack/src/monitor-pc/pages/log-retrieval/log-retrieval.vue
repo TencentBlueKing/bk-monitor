@@ -35,8 +35,7 @@
 </template>
 <script lang="ts">
 import { Component, Ref, Vue } from 'vue-property-decorator';
-
-import bus from '../../../monitor-common/utils/event-bus';
+import bus from 'monitor-common/utils/event-bus';
 
 @Component({
   name: 'log-retrieval'

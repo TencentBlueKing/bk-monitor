@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce } from 'monitor-common/utils/utils';
+import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { Debounce } from '../../../../monitor-common/utils/utils';
-import { ITableFilterItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import StatusTab from '../../plugins/table-chart/status-tab';
 
 import './relation-chart-title.scss';

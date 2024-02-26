@@ -96,7 +96,7 @@
           v-if="isShowOverInput"
         >
           <img
-            alt=''
+            alt=""
             src="../../../static/images/svg/spinner.svg"
             class="status-loading"
           >
@@ -137,7 +137,7 @@
                 <img
                   class="item-img"
                   :src="item.icon"
-                  alt=''
+                  alt=""
                 >
                 {{ item.label }}
                 <i
@@ -241,8 +241,8 @@
 
 <script>
 import { mapActions } from 'vuex';
+import { noticeGroupConfig, noticeGroupDetail } from 'monitor-api/modules/notice_group';
 
-import { noticeGroupConfig, noticeGroupDetail } from '../../../../monitor-api/modules/notice_group';
 import VerifyInput from '../../../components/verify-input/verify-input';
 import documentLinkMixin from '../../../mixins/documentLinkMixin';
 

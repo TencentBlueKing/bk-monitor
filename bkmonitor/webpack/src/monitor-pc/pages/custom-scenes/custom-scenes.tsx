@@ -26,10 +26,10 @@
 import { Component, Mixins } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 import axios from 'axios';
+import { getLabel } from 'monitor-api/modules/commons';
+import { getObservationSceneList, getObservationSceneStatusList } from 'monitor-api/modules/scene_view';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { getLabel } from '../../../monitor-api/modules/commons';
-import { getObservationSceneList, getObservationSceneStatusList } from '../../../monitor-api/modules/scene_view';
-import { Debounce } from '../../../monitor-common/utils/utils';
 import introduce from '../../common/introduce';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
