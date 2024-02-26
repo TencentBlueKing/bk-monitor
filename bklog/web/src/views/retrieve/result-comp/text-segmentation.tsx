@@ -42,9 +42,7 @@ export default class QueryStatement extends tsc<IProps> {
   markRegStr = '<mark>(.*?)</mark>';
   /** 默认分词字符串 */
   // eslint-disable-next-line
-  segmentRegStr = ",&*+:;?^=!$<>'\"{}()|[\\]/\\\|\\s\\r\\n\\t-";
-  /** 分词超出最大数量边界下标 */
-  segmentLimitIndex = 0;
+  segmentRegStr = ",&*+:;?^=!$<>'\"{}()|[]\\/\\s\\r\\n\\t-";
   /** 支持分词最大数量 */
   limitCount = 256;
   /** 当前点击的分词实例 */
@@ -54,53 +52,69 @@ export default class QueryStatement extends tsc<IProps> {
 
   popoverInstance = null;
 
-  get currentFieldReg() {
+  get currentFieldRegStr() {
     try {
-      if (!this.field.is_analyzed) return new RegExp(this.markRegStr);
-      let currentFieldRegStr = this.segmentRegStr;
-      if (this.field.tokenize_on_chars) currentFieldRegStr = this.field.tokenize_on_chars;
-      return new RegExp(`${this.markRegStr}|([${currentFieldRegStr}])`);
+      let currentRegStr = this.segmentRegStr;
+      if (this.field.tokenize_on_chars) currentRegStr = this.field.tokenize_on_chars;
+      return currentRegStr;
     } catch (error) {
-      return new RegExp(this.markRegStr);
+      return '';
     }
   }
 
   get isVirtual() {
-    return this.field.field_type === '__virtual__';
+    return this.field?.field_type === '__virtual__';
+  }
+
+  get isText() {
+    return this.field?.field_type === 'text';
+  }
+
+  get isAnalyzed() {
+    return this.field.is_analyzed;
   }
 
   get splitList() {
     const value = this.content.toString();
-    let arr = value.split(this.currentFieldReg);
-    arr = arr.filter(val => val && val.length);
-    this.getLimitValidIndex(arr);
+    let arr = [];
+    if (this.isAnalyzed) {
+      // 这里进来的都是开了分词的情况
+      arr = this.splitParticipleWithStr(value, this.currentFieldRegStr);
+    } else {
+      // 未开分词的情况 且非text类型 则是整个值可点击 否则不可点击
+      arr = [{
+        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        isNotParticiple: this.isText,
+        isMark: new RegExp(this.markRegStr).test(value),
+      }];
+    }
     return arr;
   }
 
-  get markList() {
-    let markVal = this.content.toString().match(/(<mark>).*?(<\/mark>)/g)
-      || ([] as RegExpMatchArray[]);
-    if (markVal.length) {
-      markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-      );
-    }
-    return markVal;
-  }
+  splitParticipleWithStr(str: string, delimiterPattern: string) {
+    // 转义特殊字符，并构建用于分割的正则表达式
+    const regexPattern = delimiterPattern.split('').map(delimiter => `\\${delimiter}`)
+      .join('|');
 
-  /**
-   * @desc 获取限制最大分词数下标
-   * @param { Array } list
-   */
-  getLimitValidIndex(list: Array<string>) {
-    let segmentCount = 0;
-    this.segmentLimitIndex = 0;
-    for (let index = 0; index < list.length; index++) {
-      this.segmentLimitIndex += 1;
-      if (!this.currentFieldReg.test(list[index])) {
-        segmentCount += 1;
-      }
-      if (segmentCount > this.limitCount) break;
-    }
+    // 构建正则表达式以找到分隔符或分隔符周围的文本
+    const regex = new RegExp(`(${this.markRegStr}|${regexPattern})`);
+
+    // 高亮
+    const markRegex = new RegExp(this.markRegStr);
+
+    // 使用正则分割字符串
+    const parts = str.split(regex);
+
+    // 转换结果为对象数组，包含分隔符标记
+    const result = parts.filter(part => part && part.length).map((part, index) => {
+      return {
+        text: part.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        isNotParticiple: index < this.limitCount ? regex.test(part) : true,
+        isMark: markRegex.test(part),
+      };
+    });
+
+    return result;
   }
 
   handleClick(e, value) {
@@ -158,15 +172,6 @@ export default class QueryStatement extends tsc<IProps> {
       this.curValue = '';
     }
   }
-  checkMark(splitItem) {
-    if (!this.markList.length) return false;
-    // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-    return this.markList.some(
-      item => item === splitItem
-        || splitItem.startsWith(`.${item}`)
-        || splitItem.endsWith(`${item}.`),
-    );
-  }
 
   handleMenuClick(event: string, isLink = false) {
     this.menuClick(event, this.curValue, isLink);
@@ -180,23 +185,22 @@ export default class QueryStatement extends tsc<IProps> {
           <span class="null-item">{this.content}</span>
         ) : (
           <span class="segment-content">
-            {this.splitList.map((item, index) => {
-              if (item === '\n') return <br />;
-              if (this.currentFieldReg.test(item)) return item;
-              if (this.checkMark(item)) return (
-                  <mark onClick={$event => this.handleClick($event, item)}>
-                    {item}
-                  </mark>
+            {this.splitList.map((item) => {
+              if (item.text === '\n') return <br />;
+              if (item.isMark) return (
+                <mark onClick={$event => this.handleClick($event, item.text)}>
+                  {item.text}
+                </mark>
               );
-              if (index < this.segmentLimitIndex) return (
-                  <span
-                    class="valid-text"
-                    onClick={$event => this.handleClick($event, item)}
-                  >
-                    {item}
-                  </span>
+              if (!item.isNotParticiple) return (
+                <span
+                  class="valid-text"
+                  onClick={$event => this.handleClick($event, item.text)}
+                >
+                  {item.text}
+                </span>
               );
-              return item;
+              return item.text;
             })}
           </span>
         )}
