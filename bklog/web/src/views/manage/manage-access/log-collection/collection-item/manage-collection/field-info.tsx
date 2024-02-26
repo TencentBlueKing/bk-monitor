@@ -57,6 +57,8 @@ export default class FieldInfo extends tsc<IProps> {
 
   tableLoading = false;
 
+  segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
+
   get spaceUid() {
     return this.$store.state.spaceUid;
   }
@@ -348,15 +350,28 @@ export default class FieldInfo extends tsc<IProps> {
       );
     };
 
+    const getTokenizeOnCharsStr = (row) => {
+      if (!row.is_analyzed) return '';
+      return row.tokenize_on_chars ? row.tokenize_on_chars : this.segmentRegStr;
+    };
+
     const maskingStateSlot = {
       default: ({ row }) => (
-        <div>{getMaskingPopover(row)}</div>
+        <div>{ getMaskingPopover(row) }</div>
       ),
     };
 
     const analyzedSlot = {
       default: ({ row }) => (
         <span class={{ 'bk-icon icon-check-line': row.is_analyzed }}></span>
+      ),
+    };
+
+    const tokenizeSlot = {
+      default: ({ row }) => (
+        <div class="title-overflow" v-bk-overflow-tips>
+          <span>{ getTokenizeOnCharsStr(row) }</span>
+        </div>
       ),
     };
 
@@ -420,6 +435,13 @@ export default class FieldInfo extends tsc<IProps> {
             key={'is_analyzed'}
             width="80"
             scopedSlots={analyzedSlot}
+          ></TableColumn>
+
+          <TableColumn
+            label={this.$t('分词符')}
+            key={'tokenize_on_chars'}
+            width="160"
+            scopedSlots={tokenizeSlot}
           ></TableColumn>
 
           <TableColumn

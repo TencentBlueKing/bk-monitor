@@ -640,6 +640,8 @@ export default {
         etl_params: Object.assign({
           retain_original_text: true,
           retain_extra_json: false,
+          original_text_is_case_sensitive: false,
+          original_text_tokenize_on_chars: '',
           separator_regexp: '',
           separator: '',
           // separator_field_list: ''
