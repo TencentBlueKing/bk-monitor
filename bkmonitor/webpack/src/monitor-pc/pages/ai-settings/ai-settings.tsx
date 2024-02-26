@@ -25,11 +25,11 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
+import { getBusinessTargetDetail } from 'monitor-api/modules/commons';
+import { listIntelligentModels } from 'monitor-api/modules/strategies';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
-import { fetchAiSetting, saveAiSetting } from '../../../monitor-api/modules/aiops';
-import { getBusinessTargetDetail } from '../../../monitor-api/modules/commons';
-import { listIntelligentModels } from '../../../monitor-api/modules/strategies';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
 import StrategyTargetTable from '../strategy-config/strategy-config-detail/strategy-config-detail-table.vue';
 
 import AnomalyDetection from './components/anomaly-detection';

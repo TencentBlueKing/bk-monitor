@@ -45,8 +45,8 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
+import { deepClone, random } from 'monitor-common/utils/utils';
 
-import { deepClone, random } from '../../../../../monitor-common/utils/utils';
 import { CONDITION_METHOD_LIST } from '../../../../constant/constant';
 
 import SetAdd from './set-add';
@@ -530,18 +530,19 @@ export default {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  color: #63656e;
-  font-size: 12px;
   width: 100%;
+  font-size: 12px;
+  color: #63656e;
+
   .input-blank {
     box-sizing: border-box;
-    height: 32px;
     flex: 1;
-    border: 1px solid #f0f1f5;
-    background: #fafbfd;
-    border-radius: 2px;
-    margin-right: 2px;
+    height: 32px;
     margin-top: 2px;
+    margin-right: 2px;
+    background: #fafbfd;
+    border: 1px solid #f0f1f5;
+    border-radius: 2px;
   }
 }
 </style>

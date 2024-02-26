@@ -27,7 +27,6 @@
 /* eslint-disable no-param-reassign */
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
-
 import {
   actionDateHistogram,
   alertDateHistogram,
@@ -39,13 +38,13 @@ import {
   listSearchHistory,
   searchAction,
   searchAlert
-} from '../../../monitor-api/modules/alert';
+} from 'monitor-api/modules/alert';
 import {
   createSearchFavorite,
   destroySearchFavorite,
   listSearchFavorite,
   partialUpdateSearchFavorite
-} from '../../../monitor-api/modules/model';
+} from 'monitor-api/modules/model';
 // const sleep = async (timer = 1000) => await new Promise(resolve => setTimeout(resolve, timer))
 @Module({ name: 'event', dynamic: true, namespaced: true, store })
 class Event extends VuexModule {

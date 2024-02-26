@@ -27,10 +27,10 @@ import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
+import { CancelToken } from 'monitor-api/index';
+import { random } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { CancelToken } from '../../../../monitor-api/index';
-import { random } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST_BAR, MONITOR_BAR_OPTIONS } from '../../constants';

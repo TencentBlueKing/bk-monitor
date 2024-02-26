@@ -31,11 +31,11 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
+import { Debounce, random } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { Debounce, random } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import { ITableColumn } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { PanelModel } from '../../typings';
 import { ITableDataItem } from '../../typings/table-chart';

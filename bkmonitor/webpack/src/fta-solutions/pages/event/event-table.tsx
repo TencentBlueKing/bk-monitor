@@ -29,11 +29,10 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { checkAllowedByActionIds } from '../../../monitor-api/modules/iam';
-import { random } from '../../../monitor-common/utils/utils';
-import authorityStore from '../../../monitor-pc/store/modules/authority';
-import { transformLogUrlQuery } from '../../../monitor-pc/utils';
+import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
+import { random } from 'monitor-common/utils/utils';
+import authorityStore from 'monitor-pc/store/modules/authority';
+import { transformLogUrlQuery } from 'monitor-pc/utils';
 
 import { handleToAlertList } from './event-detail/action-detail';
 import { TType as TSliderType } from './event-detail/event-detail-slider';

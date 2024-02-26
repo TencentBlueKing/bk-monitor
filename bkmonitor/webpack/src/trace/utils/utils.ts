@@ -25,8 +25,8 @@
  */
 
 import dayjs from 'dayjs';
+import { xssFilter } from 'monitor-common/utils/xss';
 
-import { xssFilter } from '../../monitor-common/utils/xss';
 import { IExtendMetricData } from '../plugins/typings';
 
 export const specialEqual = (v: any, o: any) => {

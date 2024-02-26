@@ -259,14 +259,14 @@
 
 <script lang="ts">
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { dimensionUnifyQuery } from 'monitor-api/modules/grafana';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { deepClone } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
-import { dimensionUnifyQuery } from '../../../monitor-api/modules/grafana';
-import { getMetricListV2 } from '../../../monitor-api/modules/strategies';
-import { deepClone } from '../../../monitor-common/utils/utils';
-import CustomSelect from '../../../monitor-pc/components/custom-select/custom-select';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
-import PromqlEditor from '../../../monitor-ui/promql-editor/promql-editor';
 import { strategyMapMixin } from '../../common/mixins';
+import CustomSelect from '../../components/custom-select/custom-select';
 import CycleInput from '../../components/cycle-input/cycle-input';
 import { secToString } from '../../components/cycle-input/utils';
 // import { handleTimeRange } from '../../utils/index';

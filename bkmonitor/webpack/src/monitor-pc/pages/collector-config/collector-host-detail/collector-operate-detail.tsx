@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { Component, Provide, ProvideReactive } from 'vue-property-decorator';
+import { collectingTargetStatus } from 'monitor-api/modules/datalink';
+// import { collectingTargetStatus } from 'monitor-api/modules/datalink';
+import { random } from 'monitor-common/utils/index';
 
-import { collectingTargetStatus } from '../../../../monitor-api/modules/datalink';
-// import { collectingTargetStatus } from '../../../../monitor-api/modules/datalink';
-import { random } from '../../../../monitor-common/utils/index';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as collectAuth from '../authority-map';
 import CollectorStatusDetails from '../collector-detail/collector-status-details';

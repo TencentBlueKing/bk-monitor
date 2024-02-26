@@ -27,8 +27,8 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 
-import { TabEnum as CollectorTabEnum } from '../../../../monitor-pc/pages/collector-config/collector-detail/typings/detail';
 import { toPerformanceDetail } from '../../../common/go-link';
 import { getOperatorDisabled } from '../utils';
 

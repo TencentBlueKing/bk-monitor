@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { getCookie } from '../../../../monitor-common/utils/utils';
+import { getCookie } from 'monitor-common/utils/utils';
+
 import { LEVELLIST } from '../typing';
 
 import './alarm-update-content.scss';

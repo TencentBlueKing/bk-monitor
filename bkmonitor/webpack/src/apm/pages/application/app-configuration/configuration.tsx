@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Provide, Ref } from 'vue-property-decorator';
+import { applicationInfo, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
+import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { applicationInfo, listEsClusterGroups, metaConfigInfo } from '../../../../monitor-api/modules/apm_meta';
-import CommonNavBar from '../../../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import { INavItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as authorityMap from '../../home/authority-map';

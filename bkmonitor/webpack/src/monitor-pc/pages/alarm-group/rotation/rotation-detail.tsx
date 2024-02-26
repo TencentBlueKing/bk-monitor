@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { retrieveDutyRule } from 'monitor-api/modules/model';
+import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
-import { retrieveDutyRule } from '../../../../monitor-api/modules/model';
-import { previewDutyRulePlan } from '../../../../monitor-api/modules/user_groups';
 import {
   getAutoOrderList,
   getPreviewParams,

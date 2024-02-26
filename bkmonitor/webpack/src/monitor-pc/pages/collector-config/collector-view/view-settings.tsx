@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { deleteScenePanelConfig, saveScenePanelConfig } from '../../../../monitor-api/modules/data_explorer';
-import { random } from '../../../../monitor-common/utils/utils';
+import { deleteScenePanelConfig, saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
+import { random } from 'monitor-common/utils/utils';
 
 import { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
 import { delCollectScene } from './variable-set';

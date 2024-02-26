@@ -25,12 +25,12 @@
  */
 import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
 import { bkTooltips } from 'bkui-vue';
-
-import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { type IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 // @ts-ignore
-import loadingIcon from '../../../monitor-ui/chart-plugins/icons/spinner.svg';
-import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
-import watermarkMaker from '../../../monitor-ui/monitor-echarts/utils/watermarkMaker';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import watermarkMaker from 'monitor-ui/monitor-echarts/utils/watermarkMaker';
+
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
 import RelatedLogChart from '../charts/related-log-chart/related-log-chart';

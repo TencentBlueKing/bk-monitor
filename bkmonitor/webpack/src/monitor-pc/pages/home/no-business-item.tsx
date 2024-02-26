@@ -25,12 +25,11 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { throttle } from 'throttle-debounce';
-
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from '../../components/access-request-dialog';
-import { spaceTypeTexts } from '../../../fta-solutions/pages/home/business-item';
-import { getAuthorityDetail } from '../../../monitor-api/modules/iam';
+import { spaceTypeTexts } from 'fta-solutions/pages/home/business-item';
+import { getAuthorityDetail } from 'monitor-api/modules/iam';
+import { throttle } from 'throttle-debounce';
 
 import './no-business-item.scss';
 

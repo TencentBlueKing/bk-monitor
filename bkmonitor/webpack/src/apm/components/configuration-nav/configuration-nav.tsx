@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import MonitorTab from '../../../monitor-pc/components/monitor-tab/monitor-tab';
+import MonitorTab from 'monitor-pc/components/monitor-tab/monitor-tab';
 
 import './configuration-nav.scss';
 

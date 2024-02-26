@@ -4,6 +4,7 @@
 pytest==5.4.3
 pytest-django==4.5.2
 pytest-mock==3.6.1
+coverage==6.1.2
 mock==5.0.1
 fakeredis==1.6.1
 pytest-cov==4.0.0

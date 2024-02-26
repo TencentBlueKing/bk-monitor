@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce, random } from 'monitor-common/utils';
 
-import { Debounce, random } from '../../../../monitor-common/utils';
 import { getEventPaths } from '../../../utils';
 import { CONDITIONS, ICondtionItem, METHODS } from '../typing';
 import { conditionCompare, conditionsInclues, ISpecialOptions, TGroupKeys, TValueMap } from '../typing/condition';

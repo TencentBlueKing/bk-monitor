@@ -302,16 +302,16 @@
 
 <script>
 // import uptimeCheckNodeEditTable from './uptime-check-node-edit-table'
-import { debounce } from 'throttle-debounce';
-
-import { countryList, ispList } from '../../../../monitor-api/modules/commons';
+import { countryList, ispList } from 'monitor-api/modules/commons';
 import {
   createUptimeCheckNode,
   fixNameConflictUptimeCheckNode,
   isExistUptimeCheckNode,
   retrieveUptimeCheckNode,
-  updateUptimeCheckNode } from '../../../../monitor-api/modules/model';
-import { selectCarrierOperator, selectUptimeCheckNode } from '../../../../monitor-api/modules/uptime_check';
+  updateUptimeCheckNode } from 'monitor-api/modules/model';
+import { selectCarrierOperator, selectUptimeCheckNode } from 'monitor-api/modules/uptime_check';
+import { debounce } from 'throttle-debounce';
+
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import formLabelMixin from '../../../mixins/formLabelMixin';

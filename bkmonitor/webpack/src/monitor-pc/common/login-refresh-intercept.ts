@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getContext } from '../../monitor-api/modules/commons';
+import { getContext } from 'monitor-api/modules/commons';
 
 function setCsrfToken() {
   getContext({ context_name: 'csrf_token' }).then((res: any) => {

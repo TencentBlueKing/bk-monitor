@@ -25,8 +25,7 @@
  * IN THE SOFTWARE.
  */
 import { ObjectDirective } from 'vue';
-
-import { random } from '../../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
 
 let insertedEl: IDragHtmlElement = null;
 

@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { Debounce } from '../../../monitor-common/utils/utils';
 import { secToString } from '../../components/cycle-input/utils';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';

@@ -25,8 +25,8 @@
  */
 import { computed, defineComponent, ref, toRefs } from 'vue';
 import { Button, Input, Loading, Popover } from 'bkui-vue';
+import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
-import loadingImg from '../../../../monitor-pc/static/images/svg/spinner.svg';
 import { useTraceStore } from '../../../store/modules/trace';
 
 import './handle-btn.scss';
