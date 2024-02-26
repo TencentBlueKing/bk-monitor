@@ -482,7 +482,19 @@ export default defineComponent({
               return (
                 <div>
                   <i class={['icon-circle', data.send_status]} />
-                  <span style='margin-left: 10px;'>{t(SendStatus[data.send_status])}</span>
+                  {data.send_results.filter(item => item.result).length ? (
+                    <span style='margin-left: 10px;'>{t(SendStatus[data.send_status])}</span>
+                  ) : (
+                    <span
+                      v-bk-tooltips={{
+                        content: data.send_results.find(item => !item.result)?.message,
+                        placement: 'top'
+                      }}
+                      style='margin-left: 10px;'
+                    >
+                      {t(SendStatus[data.send_status])}
+                    </span>
+                  )}
                 </div>
               );
             }

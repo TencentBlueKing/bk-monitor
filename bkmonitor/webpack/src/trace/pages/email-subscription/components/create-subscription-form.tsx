@@ -619,7 +619,9 @@ export default defineComponent({
 
     onMounted(() => {
       if (props.mode === 'edit') setFormData();
-      logServiceRelationBkLogIndexSet().then(response => {
+      logServiceRelationBkLogIndexSet({
+        clustering_only: true
+      }).then(response => {
         indexSetIDList.value = response;
       });
     });
