@@ -142,13 +142,12 @@ class EtlStorage(object):
         """
         return self.generate_hash_str("analyzer", field_name, field_alias, is_case_sensitive, tokenize_on_chars)
 
-    def generate_field_tokenizer_name(
-            self, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str
-    ) -> str:
+    @staticmethod
+    def generate_field_tokenizer_name(field_name: str, field_alias: str) -> str:
         """
-        生成tokenizer名称
+        生成tokenizer名称, 因为analyzer和tokenizer的名称是一一对应的, 所以不用特别的hash值
         """
-        return self.generate_hash_str("tokenizer", field_name, field_alias, is_case_sensitive, tokenize_on_chars)
+        return f"tokenizer_{field_name}_{field_alias}"
 
     def generate_fields_analysis(self, fields: List[Dict[str, Any]], etl_params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -166,12 +165,7 @@ class EtlStorage(object):
                 is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
                 tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
-            tokenizer_name = self.generate_field_tokenizer_name(
-                field_name="log",
-                field_alias="data",
-                is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
-                tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
-            )
+            tokenizer_name = self.generate_field_tokenizer_name(field_name="log",field_alias="data")
             result["analyzer"][analyzer_name] = {
                 "type": "custom",
                 "tokenizer": tokenizer_name,
@@ -186,8 +180,6 @@ class EtlStorage(object):
                     "type": "char_group",
                     "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
                 }
-            else:
-                result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         # 处理用户配置的清洗字段
         for field in fields:
             if not field.get("is_analyzed", False):
@@ -199,10 +191,7 @@ class EtlStorage(object):
                 tokenize_on_chars=field.get("tokenize_on_chars", "")
             )
             tokenizer_name = self.generate_field_tokenizer_name(
-                field_name=field.get("field_name", ""),
-                field_alias=field.get("alias_name", ""),
-                is_case_sensitive=field.get("is_case_sensitive", False),
-                tokenize_on_chars=field.get("tokenize_on_chars", "")
+                field_name=field.get("field_name", ""), field_alias=field.get("alias_name", "")
             )
             result["analyzer"][analyzer_name] = {
                 "type": "custom",
@@ -217,8 +206,6 @@ class EtlStorage(object):
                     "type": "char_group",
                     "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
                 }
-            else:
-                result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         return result
 
     def get_result_table_fields(self, fields, etl_params, built_in_config, es_version="5.X"):
