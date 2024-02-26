@@ -182,6 +182,9 @@ class EtlStorage(object):
                     "type": "char_group",
                     "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
                 }
+            else:
+                # 自定义分词器为空时, 使用standard分词器, 不传es会报错
+                result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         # 处理用户配置的清洗字段
         for field in fields:
             if not field.get("is_analyzed", False):
@@ -209,6 +212,8 @@ class EtlStorage(object):
                     "type": "char_group",
                     "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
                 }
+            else:
+                result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         return result
 
     def get_result_table_fields(self, fields, etl_params, built_in_config, es_version="5.X"):
