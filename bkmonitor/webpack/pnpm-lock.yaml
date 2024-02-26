@@ -526,6 +526,9 @@ importers:
       '@blueking/user-selector':
         specifier: ^1.0.5-beta.2
         version: 1.0.11
+      apm:
+        specifier: workspace:*
+        version: link:../apm
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -547,6 +550,9 @@ importers:
       element-ui:
         specifier: 2.7.2
         version: 2.7.2(vue@2.7.14)
+      fta-solutions:
+        specifier: workspace:*
+        version: link:../fta-solutions
       html-to-image:
         specifier: ^1.9.0
         version: 1.11.11
@@ -889,6 +895,9 @@ importers:
       '@blueking/ip-selector':
         specifier: 0.2.0-beta
         version: 0.2.0-beta
+      apm:
+        specifier: workspace:*
+        version: link:../apm
       bkui-vue:
         specifier: 0.0.2-beta.126
         version: 0.0.2-beta.126(highlight.js@11.5.1)(vue@3.3.8)

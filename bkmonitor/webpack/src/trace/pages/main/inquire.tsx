@@ -37,6 +37,8 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+// import TemporaryShare from '../../components/temporary-share/temporary-share';
+import * as authorityMap from 'apm/pages/home/authority-map';
 import { Button, Cascader, Dialog, Input, Loading, Popover, Radio } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import {
@@ -54,8 +56,6 @@ import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monit
 import { debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { type IEventRetrieval, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
-// import TemporaryShare from '../../components/temporary-share/temporary-share';
-import * as authorityMap from '../../../apm/pages/home/authority-map';
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
 import { ISelectMenuOption } from '../../components/select-menu/select-menu';

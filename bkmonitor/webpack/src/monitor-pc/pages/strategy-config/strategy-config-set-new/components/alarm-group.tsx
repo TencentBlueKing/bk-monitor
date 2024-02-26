@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -300,7 +301,6 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                       onClick={this.handleRefresh}
                     >
                       {this.loading ? (
-                        /* eslint-disable-next-line @typescript-eslint/no-require-imports */
                         <img
                           src={require('../../../../static/images/svg/spinner.svg')}
                           class='status-loading'

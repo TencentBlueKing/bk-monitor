@@ -11,6 +11,8 @@
     "fix": "npm run lint"
   },
   "dependencies": {
+    "apm": "workspace:*",
+    "fta-solutions": "workspace:*",
     "monitor-common": "workspace:*",
     "monitor-api": "workspace:*",
     "monitor-ui": "workspace:*",

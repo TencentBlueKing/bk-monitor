@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import SetMealDetail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
   createAssignGroup,
   listActionConfig,
@@ -36,7 +37,6 @@ import {
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
 
-import SetMealDetail from '../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import emptyImageSrc from '../../static/images/png/empty.png';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
 

@@ -28,6 +28,11 @@
 /* eslint-disable camelcase */
 import { Component, Emit, Inject, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import {
+  DEFAULT_MESSAGE_TMPL,
+  DEFAULT_TITLE_TMPL
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { getConvergeFunction } from 'monitor-api/modules/action';
 import { strategySnapshot } from 'monitor-api/modules/alert';
 import { listCalendar } from 'monitor-api/modules/calendar';
@@ -48,11 +53,6 @@ import bus from 'monitor-common/utils/event-bus';
 // import StrategyMetricSelector from './components/strategy-metric-selector';
 import { deepClone, getUrlParam, transformDataKey, typeTools } from 'monitor-common/utils/utils';
 
-import {
-  DEFAULT_MESSAGE_TMPL,
-  DEFAULT_TITLE_TMPL
-} from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealAddStore from '../../../../fta-solutions/store/modules/set-meal-add';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';

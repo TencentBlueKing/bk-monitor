@@ -25,6 +25,9 @@
  */
 import { Component, Inject, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import { templateSignalName } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { getConvergeFunction } from 'monitor-api/modules/action';
 import { strategySnapshot } from 'monitor-api/modules/alert';
 import { listCalendar } from 'monitor-api/modules/calendar';
@@ -39,9 +42,6 @@ import {
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
-import CustomTab from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
-import { templateSignalName } from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealAddStore from '../../../../fta-solutions/store/modules/set-meal-add';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { ISpaceItem } from '../../../types';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';

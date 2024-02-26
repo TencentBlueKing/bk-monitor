@@ -416,7 +416,7 @@ import {
   updateUptimeCheckTask } from 'monitor-api/modules/model';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 
-import HttpEditor from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
+import HttpEditor from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
 import PollingLoading from '../../../../components/polling-loading/polling-loading';
 import VerifyInput from '../../../../components/verify-input/verify-input';
 import authorityMixinCreate from '../../../../mixins/authorityMixin';

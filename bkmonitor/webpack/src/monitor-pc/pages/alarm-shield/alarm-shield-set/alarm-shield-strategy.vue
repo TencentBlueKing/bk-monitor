@@ -246,7 +246,7 @@ import {
   plainStrategyList } from 'monitor-api/modules/strategies';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 
-import WhereDisplay from '../../../../fta-solutions/pages/event/event-detail/where-display';
+import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import alarmShieldMixin from '../../../mixins/alarmShieldMixin';
 import strategyMapMixin from '../../../mixins/strategyMapMixin';
