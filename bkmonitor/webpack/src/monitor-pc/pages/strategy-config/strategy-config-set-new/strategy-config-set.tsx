@@ -321,7 +321,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   localExpFunctions: IFunctionsValue[] = [];
   target: any[] = [];
   defaultCheckedTarget: any = { target_detail: [] };
-
+  targetType = '';
   loading = false;
   metricSelector: {
     type: MetricType;
@@ -1043,6 +1043,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const strategyTarget = targetDetail?.[this.strategyId];
     const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
     const targetType = strategyTarget?.node_type || '';
+    this.targetType = targetType;
     let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
     // 对旧版的策略target进行特殊处理
     if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
@@ -2056,6 +2057,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   // 选择监控目标时需切换target_type
   handleTargetTypeChange(v: string) {
+    this.targetType = v;
     this.metricData.forEach(item => (item.targetType = v));
   }
   // 切换监控对象
@@ -2204,6 +2206,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           result_table_name: resultTableIdList[1],
           data_label: item.data_label
         };
+        if (!!this.targetType) {
+          curMetric.targetType = this.targetType;
+        }
         return new MetricDetail({
           ...curMetric,
           agg_method: item.agg_method,
