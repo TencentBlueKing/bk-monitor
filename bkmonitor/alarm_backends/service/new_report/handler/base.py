@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+import json
 from abc import abstractmethod
 
 from alarm_backends.core.i18n import i18n
@@ -138,7 +139,7 @@ class SendChannelHandler(object):
                 send_status = SendStatusEnum.SUCCESS.value if result["errcode"] == 0 else SendStatusEnum.FAILED.value
                 send_result = result["errcode"] == 0
                 for subscriber in self.channel.subscribers:
-                    send_results.append({"id": subscriber["id"], "result": send_result, "message": result["message"]})
+                    send_results.append({"id": subscriber["id"], "result": send_result, "message": json.dumps(result)})
             else:
                 has_failed = False
                 has_success = False
@@ -153,12 +154,16 @@ class SendChannelHandler(object):
                                 "id": receiver,
                                 "type": StaffEnum.USER.value,
                                 "result": result[receiver]["result"],
-                                "message": result["message"],
+                                "message": result[receiver]["message"],
                             }
                         )
                     else:
                         send_results.append(
-                            {"id": receiver, "result": result[receiver]["result"], "message": result["message"]}
+                            {
+                                "id": receiver,
+                                "result": result[receiver]["result"],
+                                "message": result[receiver]["message"],
+                            }
                         )
 
                 if not has_failed:

@@ -55,8 +55,10 @@ def get_send_status(send_records):
     if not send_records:
         return SendStatusEnum.NO_STATUS.value
     for record in send_records:
-        if record["send_status"] != SendStatusEnum.SUCCESS.value:
+        if record["send_status"] == SendStatusEnum.FAILED.value:
             return SendStatusEnum.FAILED.value
+        if record["send_status"] == SendStatusEnum.NO_STATUS.value:
+            return SendStatusEnum.NO_STATUS.value
     return SendStatusEnum.SUCCESS.value
 
 

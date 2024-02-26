@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import arrow
 from django.db import models
@@ -91,7 +91,9 @@ class Report(AbstractRecordModel):
         if frequency["type"] == 1:
             now_datetime = datetime.now()
             run_time = datetime.strptime(frequency["run_time"], '%Y-%m-%d %H:%M:%S')
-            if now_datetime > run_time:
+            # 过一个检测周期后失效，避免执行前失效
+            threshold_time = run_time + timedelta(minutes=1)
+            if now_datetime > threshold_time:
                 return True
         return False
 
