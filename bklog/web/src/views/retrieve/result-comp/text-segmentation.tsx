@@ -100,22 +100,34 @@ export default class QueryStatement extends tsc<IProps> {
     const regex = new RegExp(`(${this.markRegStr}|${regexPattern})`);
 
     // 高亮
-    const markRegex = new RegExp(this.markRegStr);
+    const markRegex = new RegExp(this.markRegStr, 'g');
 
     // 使用正则分割字符串
-    const parts = str.split(regex);
+    const parts = str.replace(/<mark>/g, '').replace(/<\/mark>/g, '')
+      .split(regex);
+    const markVal = str.match(markRegex) || [];
 
     // 转换结果为对象数组，包含分隔符标记
     const result = parts.filter(part => part && part.length).map((part, index) => {
       return {
-        text: part.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        text: part,
         isNotParticiple: index < this.limitCount ? regex.test(part) : true,
-        isMark: markRegex.test(part),
+        isMark: this.checkMark(part, markVal),
       };
     });
 
     return result;
   }
+
+  checkMark(splitItem, markVal) {
+    if (!markVal.length) return false;
+    const filterMarkArr = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
+    // 以句号开头或句号结尾的分词符匹配成功也高亮展示
+    return filterMarkArr.some(item => item === splitItem
+     || splitItem.startsWith(`.${item}`)
+     || splitItem.endsWith(`${item}.`),
+    );
+  };
 
   handleClick(e, value) {
     if (!value.toString() || value === '--') return;
