@@ -343,7 +343,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     nodeCount = 0,
     instance_count = 0
   ) {
-    const [{ objectType }] = this.metricData;
+    const objectType = this.metricData?.[0]?.objectType || this.defaultCheckedTarget?.instance_type || '';
     const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
     this.target.desc.message = result.message;
     this.target.desc.subMessage = result.subMessage;

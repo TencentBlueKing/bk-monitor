@@ -13,14 +13,9 @@ import logging
 from datetime import datetime, timedelta
 
 from django.utils.translation import ugettext as _
-from fta_web.alert.handlers.base import AlertDimensionFormatter
-from fta_web.alert.resources import (
-    AlertDetailResource,
-    AlertPermissionResource,
-    AlertRelatedInfoResource,
-)
 from rest_framework import serializers
 
+from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionInstance
 from bkmonitor.utils.time_tools import hms_string, utc2localtime
@@ -28,6 +23,12 @@ from constants.alert import EventStatus, EventTargetType
 from constants.shield import ShieldType
 from core.drf_resource import api, resource
 from core.errors.weixin.event import AlertCollectNotFound
+from fta_web.alert.handlers.base import AlertDimensionFormatter
+from fta_web.alert.resources import (
+    AlertDetailResource,
+    AlertPermissionResource,
+    AlertRelatedInfoResource,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +261,7 @@ class GetEventGraphView(AlertPermissionResource):
 
         alert = AlertDocument.get(params["event_id"])
 
-        graph_panel = AlertDetailResource.get_graph_panel(alert)
+        graph_panel = AIOPSManager.get_graph_panel(alert)
         query_params = graph_panel["targets"][0]["data"]
         query_params.update(current_params)
         time_compare = params.get("time_compare")
