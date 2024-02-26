@@ -92,14 +92,17 @@ importers:
       deepmerge:
         specifier: ^4.2.2
         version: 4.3.1
-      fta-solutions:
-        specifier: workspace:^1.0.0
-        version: link:../fta-solutions
-      monitor-mobile:
-        specifier: workspace:^1.0.0
-        version: link:../monitor-mobile
+      monitor-api:
+        specifier: workspace:*
+        version: link:../monitor-api
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-pc:
+        specifier: workspace:*
+        version: link:../monitor-pc
       monitor-ui:
-        specifier: workspace:^1.0.0
+        specifier: workspace:*
         version: link:../monitor-ui
       throttle-debounce:
         specifier: ^3.0.1
@@ -544,9 +547,6 @@ importers:
       monitor-common:
         specifier: workspace:*
         version: link:../monitor-common
-      monitor-pc:
-        specifier: workspace:*
-        version: 'link:'
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui

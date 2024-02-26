@@ -31,8 +31,8 @@
 /* eslint-disable new-cap */
 import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
+import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
 
-import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from '../../../monitor-common/utils';
 import { ISpaceItem } from '../../typings';
 
 export interface IAppState {
