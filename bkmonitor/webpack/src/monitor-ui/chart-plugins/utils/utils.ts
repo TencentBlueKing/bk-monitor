@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import dayjs from 'dayjs';
+import { getUnitInfo } from 'monitor-api/modules/strategies';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import Vue from 'Vue';
 
-import { getUnitInfo } from '../../../monitor-api/modules/strategies';
-import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import { IViewOptions } from '../typings';
 
 export const isEqualObject = (v: Record<string, any>, o: Record<string, any>, keys: string[] = []): boolean => {

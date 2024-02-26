@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -120,7 +121,6 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
       >
         <div class='header'>
           <img
-          {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
             src={require('../../static/img/we-com.svg')}
             alt=''
           />

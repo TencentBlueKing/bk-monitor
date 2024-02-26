@@ -26,12 +26,12 @@
 import { Component, InjectReactive, Vue } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
+import { getDataSourceConfig } from 'monitor-api/modules/grafana';
+import { deepClone } from 'monitor-common/utils/utils';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { handleTimeRange, ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
 
-import { getDataSourceConfig } from '../../../monitor-api/modules/grafana';
-import { deepClone } from '../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
-import { handleTimeRange, ILogUrlParams, transformLogUrlQuery } from '../../../monitor-pc/utils';
 import { IExtendMetricData, IViewOptions, PanelModel } from '../typings';
 import { downFile, filterDictConvertedToWhere, queryConfigTransform, reviewInterval } from '../utils';
 import { VariablesService } from '../utils/variable';
