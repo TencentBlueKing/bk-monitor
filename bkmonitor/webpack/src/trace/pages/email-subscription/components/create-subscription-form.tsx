@@ -1105,9 +1105,9 @@ export default defineComponent({
                           return (
                             <div>
                               {this.t('获取会话ID方法')}: <br />
-                              {this.t('1.群聊列表右键添加群机器人: BK-Monitor')}
+                              {this.t('1.群聊列表右键添加群机器人: 蓝鲸监控上云')}
                               <br />
-                              {this.t(`2.手动 @BK-Monitor 并输入关键字'会话ID'`)}
+                              {this.t(`2.手动 @蓝鲸监控上云 并输入关键字'会话ID'`)}
                               <br />
                               {this.t('3.将获取到的会话ID粘贴到输入框,使用逗号分隔')}
                             </div>

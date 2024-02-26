@@ -194,5 +194,10 @@ export default {
   号: 'th',
   '{0}小时': '{0} hours',
   '每月 {0} 号': '{0} of the month',
-  邮件格式有误: 'Email format is wrong'
+  邮件格式有误: 'Email format is wrong',
+  获取会话ID方法: 'Get session ID method',
+  '1.群聊列表右键添加群机器人: 蓝鲸监控上云': '1. Right-click on the group chat list to add a group robot: BK-Monitor',
+  "2.手动 @蓝鲸监控上云 并输入关键字'会话ID'": "2. Manually @BK-Monitor and enter the keyword 'session ID'",
+  '3.将获取到的会话ID粘贴到输入框,使用逗号分隔':
+    '3. Paste the obtained session ID into the input box, separated by commas'
 };
