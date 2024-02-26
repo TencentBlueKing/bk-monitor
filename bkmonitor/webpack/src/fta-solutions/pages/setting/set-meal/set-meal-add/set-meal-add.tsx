@@ -26,9 +26,9 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
+import { SET_NAV_ROUTE_LIST } from 'monitor-pc/store/modules/app';
 
-import { deepClone, random, transformDataKey } from '../../../../../monitor-common/utils/utils';
-import { SET_NAV_ROUTE_LIST } from '../../../../../monitor-pc/store/modules/app';
 import SetMealAddModule from '../../../../store/modules/set-meal-add';
 
 import MealBasicInfo from './meal-basic-info/meal-basic-info';

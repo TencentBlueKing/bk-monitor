@@ -25,19 +25,19 @@
  */
 import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import dayjs from 'dayjs';
+import { alertDetail, listAlertFeedback, searchAction } from 'monitor-api/modules/alert';
+import { listIndexByHost } from 'monitor-api/modules/alert_events';
+import { graphTraceQuery } from 'monitor-api/modules/grafana';
+import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
+import { getPluginInfoByResultTable } from 'monitor-api/modules/scene_view';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
+import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
+import LogRetrievalDialog from 'monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
+import authorityStore from 'monitor-pc/store/modules/authority';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
-import { alertDetail, listAlertFeedback, searchAction } from '../../../../monitor-api/modules/alert';
-import { listIndexByHost } from '../../../../monitor-api/modules/alert_events';
-import { graphTraceQuery } from '../../../../monitor-api/modules/grafana';
-import { checkAllowedByActionIds } from '../../../../monitor-api/modules/iam';
-import { getPluginInfoByResultTable } from '../../../../monitor-api/modules/scene_view';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import { destroyTimezone } from '../../../../monitor-pc/i18n/dayjs';
-import * as eventAuth from '../../../../monitor-pc/pages/event-center/authority-map';
-import LogRetrievalDialog from '../../../../monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
-import authorityStore from '../../../../monitor-pc/store/modules/authority';
-import authorityMixinCreate from '../../../../monitor-ui/mixins/authorityMixin';
 import ChatGroup from '../../../components/chat-group/chat-group';
 import { IChatGroupDialogOptions } from '../typings/event';
 

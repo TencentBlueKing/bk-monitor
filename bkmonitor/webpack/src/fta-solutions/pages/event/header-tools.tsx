@@ -31,9 +31,8 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import MonitorDateRange from '../../../monitor-pc/components/monitor-date-range/monitor-date-range.vue';
-import DropDownMenu from '../../../monitor-pc/components/monitor-dropdown/dropdown-menu.vue';
+import MonitorDateRange from 'monitor-pc/components/monitor-date-range/monitor-date-range.vue';
+import DropDownMenu from 'monitor-pc/components/monitor-dropdown/dropdown-menu.vue';
 
 import './header-tools.scss';
 

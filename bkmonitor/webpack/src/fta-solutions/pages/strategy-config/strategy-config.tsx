@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop, Provide } from 'vue-property-decorator';
-
-import StrategyConfig from '../../../monitor-pc/pages/strategy-config/strategy-config-common/strategy-config';
-import authorityMixinCreate from '../../../monitor-ui/mixins/authorityMixin';
+import StrategyConfig from 'monitor-pc/pages/strategy-config/strategy-config-common/strategy-config';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import { strategyType } from './typings/strategy';
 import * as authorityMap from './authority-map';
