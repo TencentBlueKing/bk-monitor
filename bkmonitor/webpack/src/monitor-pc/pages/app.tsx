@@ -112,6 +112,7 @@ export default class App extends tsc<{}> {
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
   @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
   routeViewKey = random(10);
+  isMouseleaveBody = false;
   get bizId() {
     return this.$store.getters.bizId;
   }
@@ -234,6 +235,19 @@ export default class App extends tsc<{}> {
     this.handleFetchStickyList();
     bus.$on(WATCH_SPACE_STICKY_LIST, this.handleWatchSpaceStickyList);
     process.env.NODE_ENV === 'production' && process.env.APP === 'pc' && useCheckVersion();
+    // 监听鼠标移出事件
+    document.body.addEventListener('mouseleave', event => {
+      const target = event.relatedTarget as any;
+      if (!target || target?.nodeName === 'HTML') {
+        this.isMouseleaveBody = true;
+      }
+    });
+    document.body.addEventListener('mouseover', event => {
+      const target = event.target as any;
+      if (target === document.body || document.body.contains(target)) {
+        this.isMouseleaveBody = false;
+      }
+    });
   }
   beforeDestroy() {
     this.needMenu && removeListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -313,7 +327,11 @@ export default class App extends tsc<{}> {
    * @return {*}
    */
   handleToggle(v: boolean) {
-    this.menuToggle = v;
+    if (!v && this.isMouseleaveBody) {
+      this.menuToggle = true;
+    } else {
+      this.menuToggle = v;
+    }
   }
   handleHeaderMenuClick(id: string, route: string) {
     if (this.$route.name !== route) {
