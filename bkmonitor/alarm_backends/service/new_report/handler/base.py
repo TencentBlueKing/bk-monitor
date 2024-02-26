@@ -48,16 +48,23 @@ class BaseReportHandler(object):
         """
         if not channels:
             channels = self.channels
-        # 获取渲染参数
-        render_params = self.get_render_params()
-        # 渲染订阅内容,获取上下文
+        context = None
+        error_msg = ""
         try:
+            # 获取渲染参数
+            # 渲染订阅内容,获取上下文
+            render_params = self.get_render_params()
             context = self.render(render_params)
         except Exception as e:
             logger.exception(f"[] failed to send report({self.report.id or self.report.name}), render error: {e}")
-            return
+            error_msg = e.message
+
         for channel in channels:
-            if channel.is_enabled:
+            if not channel.is_enabled:
+                continue
+            if error_msg:
+                SendChannelHandler(channel).update_send_record(context, self.report.send_round, error_msg)
+            else:
                 SendChannelHandler(channel).send(context, self.report.send_round, self.report.bk_biz_id)
 
     @abstractmethod
@@ -111,36 +118,55 @@ class SendChannelHandler(object):
             return
         self.update_send_record(result, send_round)
 
-    def update_send_record(self, result, send_round):
+    def update_send_record(self, result, send_round, error_msg=""):
         send_time = datetime.datetime.now()
         send_results = []
-        # 解析发送结果并记录
-        if result.get("errcode", None) is not None:
-            send_status = SendStatusEnum.SUCCESS.value if result["errcode"] == 0 else SendStatusEnum.FAILED.value
-            send_result = result["errcode"] == 0
-            for subscriber in self.channel.subscribers:
-                send_results.append({"id": subscriber["id"], "result": send_result})
-        else:
-            has_failed = False
-            has_success = False
-            for receiver in result:
-                if result[receiver]["result"]:
-                    has_success = True
-                else:
-                    has_failed = True
-                if self.channel.channel_name == ChannelEnum.USER.value:
+        # 前置渲染失败
+        if error_msg:
+            send_status = SendStatusEnum.FAILED.value
+            if self.channel.channel_name == ChannelEnum.USER.value:
+                for subscriber in self.channel.subscribers:
                     send_results.append(
-                        {"id": receiver, "type": StaffEnum.USER.value, "result": result[receiver]["result"]}
+                        {"id": subscriber, "type": StaffEnum.USER.value, "result": False, "message": error_msg}
                     )
-                else:
-                    send_results.append({"id": receiver, "result": result[receiver]["result"]})
-
-            if not has_failed:
-                send_status = SendStatusEnum.SUCCESS.value
-            elif not has_success:
-                send_status = SendStatusEnum.FAILED.value
             else:
-                send_status = SendStatusEnum.PARTIAL_FAILED.value
+                for subscriber in self.channel.subscribers:
+                    send_results.append({"id": subscriber, "result": False, "message": error_msg})
+        else:
+            # 解析发送结果并记录
+            if result.get("errcode", None) is not None:
+                send_status = SendStatusEnum.SUCCESS.value if result["errcode"] == 0 else SendStatusEnum.FAILED.value
+                send_result = result["errcode"] == 0
+                for subscriber in self.channel.subscribers:
+                    send_results.append({"id": subscriber["id"], "result": send_result, "message": result["message"]})
+            else:
+                has_failed = False
+                has_success = False
+                for receiver in result:
+                    if result[receiver]["result"]:
+                        has_success = True
+                    else:
+                        has_failed = True
+                    if self.channel.channel_name == ChannelEnum.USER.value:
+                        send_results.append(
+                            {
+                                "id": receiver,
+                                "type": StaffEnum.USER.value,
+                                "result": result[receiver]["result"],
+                                "message": result["message"],
+                            }
+                        )
+                    else:
+                        send_results.append(
+                            {"id": receiver, "result": result[receiver]["result"], "message": result["message"]}
+                        )
+
+                if not has_failed:
+                    send_status = SendStatusEnum.SUCCESS.value
+                elif not has_success:
+                    send_status = SendStatusEnum.FAILED.value
+                else:
+                    send_status = SendStatusEnum.PARTIAL_FAILED.value
 
         send_record = {
             "send_results": send_results,

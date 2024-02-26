@@ -14,7 +14,7 @@ import io
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from urllib.parse import urlencode, quote
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -82,10 +82,10 @@ class ClusteringReportHandler(BaseReportHandler):
 
             # 按同比进行过滤
             if (
-                    config["year_on_year_change"] == YearOnYearChangeEnum.RISE.value
-                    and _data["year_on_year_percentage"] < 0
-                    or config["year_on_year_change"] == YearOnYearChangeEnum.DECLINE.value
-                    and _data["year_on_year_percentage"] > 0
+                config["year_on_year_change"] == YearOnYearChangeEnum.RISE.value
+                and _data["year_on_year_percentage"] < 0
+                or config["year_on_year_change"] == YearOnYearChangeEnum.DECLINE.value
+                and _data["year_on_year_percentage"] > 0
             ):
                 continue
 
@@ -116,7 +116,7 @@ class ClusteringReportHandler(BaseReportHandler):
         }
 
         if config.get("log_col_show_type", LogColShowTypeEnum.PATTERN.value) == LogColShowTypeEnum.LOG.value and (
-                patterns or new_patterns
+            patterns or new_patterns
         ):
             # 查询pattern对应的log, 将pattern替换为log
             log_map = {}
@@ -180,9 +180,9 @@ class ClusteringReportHandler(BaseReportHandler):
                     "year_on_year_hour": config.get("year_on_year_hour", 0),
                     "show_new_pattern": config.get("is_show_new_pattern", False),
                     "group_by": [],
-                    "size": 10000
-                }
-            }
+                    "size": 10000,
+                },
+            },
         }
 
         if signature:
@@ -250,11 +250,10 @@ class ClusteringReportHandler(BaseReportHandler):
         time_config = get_data_range(self.report.frequency, self.report.bk_biz_id)
         try:
             result = self.query_patterns(time_config)
+            if not result:
+                logger.info("[{}] Query pattern is empty.".format(self.log_prefix))
         except Exception as e:
             logger.exception(f"{self.log_prefix} query pattern error: {e}")
-            return {}
-        if not result:
-            logger.info("[{}] Query pattern is empty.".format(self.log_prefix))
         content_config = self.report.content_config
         scenario_config = self.report.scenario_config
 
@@ -268,10 +267,9 @@ class ClusteringReportHandler(BaseReportHandler):
         clustering_config = api.log_search.get_clustering_config(index_set_id=scenario_config["index_set_id"])
         try:
             all_patterns = self.clean_pattern(scenario_config, time_config, result, clustering_config)
+            logger.info(f"{self.log_prefix} clean pattern result: {all_patterns}")
         except Exception as e:
             logger.exception(f"{self.log_prefix} clean pattern error: {e}")
-            return {}
-        logger.info(f"{self.log_prefix} clean pattern result: {all_patterns}")
         log_col_show_type = scenario_config.get("log_col_show_type", LogColShowTypeEnum.PATTERN.value).capitalize()
 
         space_name = ""
@@ -309,7 +307,6 @@ class ClusteringReportHandler(BaseReportHandler):
         """
         if not render_params:
             logger.exception(f"render_params {render_params} is None.")
-            return render_params
         title_template = Template(render_params["title"])
         render_params["title"] = title_template.render(**render_params)
         render_params["mail_template_path"] = self.mail_template_path
