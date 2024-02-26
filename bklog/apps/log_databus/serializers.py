@@ -658,8 +658,8 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
     """
     tokenize_on_chars = serializers.CharField(label=_("自定义分词符"), required=False, default="")
 
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
+    def validate(self, attrs):
+        ret = super().validate(attrs)
         if not ret.get("tokenize_on_chars"):
             return ret
         ret["tokenize_on_chars"] = ret["tokenize_on_chars"].replace("\\n", "\n")
@@ -680,8 +680,8 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
 
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
+    def validate(self, attrs):
+        ret = super().validate(attrs)
         if not ret.get("original_text_tokenize_on_chars"):
             return ret
         ret["original_text_tokenize_on_chars"] = ret["original_text_tokenize_on_chars"].replace("\\n", "\n")
