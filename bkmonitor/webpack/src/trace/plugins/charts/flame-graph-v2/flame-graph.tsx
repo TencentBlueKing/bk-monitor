@@ -27,10 +27,10 @@ import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
+import { traceDiagram } from 'monitor-api/modules/apm_trace';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram } from '../../../../monitor-api/modules/apm_trace';
-import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import { getSingleDiffColor } from '../../../utils/compare';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';

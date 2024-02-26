@@ -25,8 +25,7 @@
  */
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { createSpace, listDevopsSpaces } from '../../../../monitor-api/modules/commons';
+import { createSpace, listDevopsSpaces } from 'monitor-api/modules/commons';
 
 import OrganizationSelector from './organization-selector';
 

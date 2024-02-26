@@ -73,8 +73,8 @@
 
 <script lang="ts">
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
+import { typeTools } from 'monitor-common/utils/utils';
 
-import { typeTools } from '../../../monitor-common/utils/utils';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import commonPageSizeMixin from '../../mixins/commonPageSizeMixin';
 import PerformanceModule from '../../store/modules/performance';

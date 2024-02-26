@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
+import { listEventPlugin } from 'monitor-api/modules/event_plugin';
 
-import { listEventPlugin } from '../../../monitor-api/modules/event_plugin';
 import store from '../store';
 
 @Module({ name: 'integrated', dynamic: true, namespaced: true, store })

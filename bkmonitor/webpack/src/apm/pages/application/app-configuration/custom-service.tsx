@@ -26,15 +26,11 @@
 
 import { Component, PropSync, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { customServiceDataView, customServiceList, deleteCustomSerivice } from 'monitor-api/modules/apm_meta';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import {
-  customServiceDataView,
-  customServiceList,
-  deleteCustomSerivice
-} from '../../../../monitor-api/modules/apm_meta';
-import type { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import PanelItem from '../../../components/panel-item/panel-item';
 
 import AddServiceDialog from './add-service-dialog';

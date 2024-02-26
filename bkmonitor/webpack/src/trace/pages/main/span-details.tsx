@@ -29,9 +29,9 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Button, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
+import { getSceneView } from 'monitor-api/modules/scene_view';
+import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
-import { getSceneView } from '../../../monitor-api/modules/scene_view';
-import { copyText, deepClone, random } from '../../../monitor-common/utils/utils';
 import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { Span } from '../../components/trace-view/typings';

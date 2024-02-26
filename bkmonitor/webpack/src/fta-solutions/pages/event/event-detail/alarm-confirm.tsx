@@ -25,10 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getActionConfigByAlerts } from '../../../../monitor-api/modules/action';
-import { ackAlert } from '../../../../monitor-api/modules/alert';
-import MonitorDialog from '../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { getActionConfigByAlerts } from 'monitor-api/modules/action';
+import { ackAlert } from 'monitor-api/modules/alert';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import './alarm-confirm.scss';
 

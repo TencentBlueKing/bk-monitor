@@ -556,8 +556,8 @@
 <script lang="ts">
 import { CreateElement } from 'vue';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { typeTools } from 'monitor-common/utils/utils.js';
 
-import { typeTools } from '../../../../monitor-common/utils/utils.js';
 // import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue'
 import TipsTpl from '../../../components/abnormal-tips/tips-tpl.vue';
 import EmptyStatus from '../../../components/empty-status/empty-status';

@@ -97,7 +97,7 @@
                 <img
                   v-if="item.logo"
                   :src="item.logo"
-                  alt=''
+                  alt=""
                 >
                 <i
                   v-else-if="!item.logo && item.type === 'group'"
@@ -138,7 +138,7 @@
                   <img
                     class="item-img"
                     :src="item.icon"
-                    alt=''
+                    alt=""
                   >
                   {{ item.label }}
                 </div>

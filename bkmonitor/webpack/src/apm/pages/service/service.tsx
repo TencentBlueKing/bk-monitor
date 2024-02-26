@@ -26,15 +26,15 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { random } from 'monitor-common/utils/utils';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
+import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
+import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
+import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import { random } from '../../../monitor-common/utils/utils';
-import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
-import { destroyTimezone } from '../../../monitor-pc/i18n/dayjs';
-import CommonNavBar from '../../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import CommonPage, { SceneType } from '../../../monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { IViewOptions } from '../../../monitor-ui/chart-plugins/typings';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
 import { IAppSelectOptItem } from '../home/app-select';

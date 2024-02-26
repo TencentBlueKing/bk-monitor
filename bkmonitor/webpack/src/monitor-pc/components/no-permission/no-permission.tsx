@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 
-import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
 import authorityStore from '../../store/modules/authority';
 
 // 20231205 代码还原，先保留原有部分

@@ -27,11 +27,11 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce, random, typeTools } from 'monitor-common/utils/utils';
+import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
-import { Debounce, random, typeTools } from '../../../../../../monitor-common/utils/utils';
-import ChartWrapper from '../../../../../../monitor-ui/chart-plugins/components/chart-wrapper';
-import { PanelModel } from '../../../../../../monitor-ui/chart-plugins/typings';
-import { handleThreshold } from '../../../../../../monitor-ui/chart-plugins/utils';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
 import { ChartType } from '../../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
 import { IFunctionsValue } from '../../../strategy-config-set-new/monitor-data/function-select';

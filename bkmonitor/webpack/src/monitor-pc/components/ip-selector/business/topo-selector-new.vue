@@ -63,15 +63,15 @@
 <script lang="ts">
 /* eslint-disable camelcase */
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
-
 import {
   getHostInstanceByIp,
   getHostInstanceByNode,
   getNodesByTemplate,
   getServiceInstanceByNode,
   getTemplate,
-  getTopoTree } from '../../../../monitor-api/modules/commons';
-import { copyText } from '../../../../monitor-common/utils/utils';
+  getTopoTree } from 'monitor-api/modules/commons';
+import { copyText } from 'monitor-common/utils/utils';
+
 import { defaultSearch } from '../common/util';
 import AgentStatus from '../components/agent-status.vue';
 import IpSelector from '../index.vue';

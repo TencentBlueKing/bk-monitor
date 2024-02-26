@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 
-import SetMealAddStore from '../../../../fta-solutions/store/modules/set-meal-add';
 import { isEnFn } from '../../../utils/index';
 import SimpleDayPick from '../duty-arranges/simple-day-pick';
 

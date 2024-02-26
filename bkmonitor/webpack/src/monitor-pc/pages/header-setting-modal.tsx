@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import MonitorDialog from '../../monitor-ui/monitor-dialog';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import {
   COMMON_ROUTE_LIST,

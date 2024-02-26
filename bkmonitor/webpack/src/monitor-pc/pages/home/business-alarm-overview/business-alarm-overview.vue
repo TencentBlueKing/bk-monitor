@@ -72,7 +72,8 @@
 
 <script>
 // import AllOverview from './all-overview'
-import { alarmDetailChartData } from '../../../../monitor-api/modules/event_center';
+import { alarmDetailChartData } from 'monitor-api/modules/event_center';
+
 import BusinessAlarmPanel from '../components/business-alarm-panel/business-alarm-panel';
 import BusinessAlarmAquare from '../components/business-alarm-square/business-alarm-square';
 import PanelCard from '../components/panel-card/panel-card';
@@ -203,8 +204,8 @@ export default {
 
     .content {
       position: relative;
-      left: 80px;
       top: 108px;
+      left: 80px;
     }
   }
 

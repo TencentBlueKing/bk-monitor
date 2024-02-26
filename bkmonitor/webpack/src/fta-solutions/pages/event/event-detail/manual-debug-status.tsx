@@ -25,8 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getDemoActionDetail } from '../../../../monitor-api/modules/action';
+import { getDemoActionDetail } from 'monitor-api/modules/action';
 
 import './manual-debug-status.scss';
 
