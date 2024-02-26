@@ -234,10 +234,15 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
 
   /** 根据表达式生成指标图的title */
   getMetricName() {
-    const metricName = (this.expression || 'a').replace(/\w/g, alias => {
-      const metric = this.metricData.find(item => item.alias === alias);
-      if (metric) return metric.metric_field_name;
-      return alias || '';
+    // 字符串分隔成多个单词
+    const metricName = (this.expression || 'a').replace(/\b\w+\b/g, alias => {
+      // 单词分隔成多个关键字
+      return alias.replace(/and|or|\w/g, keyword => {
+        if (keyword === 'and' || keyword === 'or') return keyword;
+        const metric = this.metricData.find(item => item.alias === keyword);
+        if (metric) return metric.metric_field_name;
+        return keyword || '';
+      });
     });
     return metricName === 'undefined' ? '' : metricName;
   }
