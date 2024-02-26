@@ -27,8 +27,9 @@ def deal_collector_scenario_param(params):
     if condition_type == "separator":
         condition = params["conditions"].get("separator_filters", [])
         filter_bucket = []
-        for (index, item) in enumerate(condition):
-            item["op"] = item["op"] if item["op"] in ["=", "!="] else "="
+        for index, item in enumerate(condition):
+            # item["op"] = item["op"] if item["op"] in ["=", "!="] else "="
+            item["op"] = item["op"] if item["op"] in ["=", "!=", "include", "exclude", "regex", "nregex"] else "="
             if index == 0 or item.get("logic_op", "and") == "and":
                 if item.get("word"):
                     filter_bucket.append({"index": item["fieldindex"], "key": item["word"], "op": item["op"]})
@@ -43,8 +44,10 @@ def deal_collector_scenario_param(params):
             filters.append({"conditions": filter_bucket})
     elif condition_type == "match":
         key = params["conditions"].get("match_content", "")
+        op = params["conditions"].get("match_type", "include")
         if key:
-            filters.append({"conditions": [{"index": "-1", "key": key, "op": "="}]})  # 目前只支持include
+            # filters.append({"conditions": [{"index": "-1", "key": key, "op": "="}]})  # 目前只支持include
+            filters.append({"conditions": [{"index": "-1", "key": key, "op": op}]})
             params["conditions"].update({"separator": "|"})
     return filters, params
 

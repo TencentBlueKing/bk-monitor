@@ -161,6 +161,9 @@ class PluginParamSerializer(serializers.Serializer):
     paths = serializers.ListField(
         label=_("日志路径"), child=serializers.CharField(max_length=255, allow_blank=True), required=False
     )
+    exclude_files = serializers.ListField(
+        label=_("日志路径排除"), child=serializers.CharField(max_length=255, allow_blank=True), required=False
+    )
     conditions = PluginConditionSerializer(required=False)
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True)
     multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000)
@@ -205,6 +208,13 @@ class PluginParamSerializer(serializers.Serializer):
     syslog_protocol = serializers.ChoiceField(label=_("协议"), choices=SyslogProtocolEnum.get_choices(), required=False)
     syslog_port = serializers.IntegerField(label=_("端口"), required=False)
     syslog_monitor_host = serializers.CharField(label=_("syslog监听服务器IP"), required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("exclude_files") and not attrs.get("paths"):
+            raise ValidationError(_("不能单独指定排除路径"))
+
+        return attrs
 
 
 class DataLinkListSerializer(serializers.Serializer):
