@@ -656,7 +656,9 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
     """
     自定义分词符序列化
     """
-    tokenize_on_chars = serializers.CharField(label=_("自定义分词符"), required=False, default="")
+    tokenize_on_chars = serializers.CharField(
+        label=_("自定义分词符"), required=False, default="", allow_blank=True, allow_null=True
+    )
 
     def validate(self, attrs):
         ret = super().validate(attrs)
