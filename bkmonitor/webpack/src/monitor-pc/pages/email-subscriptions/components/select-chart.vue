@@ -184,10 +184,10 @@
 
 <script lang="ts">
 import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
+import { getDashboardList } from 'monitor-api/modules/grafana';
+import { buildInMetric, getPanelsByDashboard } from 'monitor-api/modules/report';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { getDashboardList } from '../../../../monitor-api/modules/grafana';
-import { buildInMetric, getPanelsByDashboard } from '../../../../monitor-api/modules/report';
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import SpaceSelect from '../../../components/space-select/space-select';
 import { IAddChartToolData, IChartDataItem, IChartListAllItem, IDefaultRadioList, IGraphValueItem } from '../types';
 

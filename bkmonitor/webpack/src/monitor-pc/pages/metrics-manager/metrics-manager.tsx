@@ -25,10 +25,10 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getMetricListV2 } from '../../../monitor-api/modules/strategies';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
 // import { MetricType } from '../../components/metric-selector/typings';
-import { random } from '../../../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
+
 import { EmptyStatusType } from '../../components/empty-status/types';
 import FilterPanel, { IFilterData } from '../strategy-config/strategy-config-list/filter-panel';
 import { IGroupData } from '../strategy-config/strategy-config-list/group';

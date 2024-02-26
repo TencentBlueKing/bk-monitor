@@ -26,13 +26,13 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { errorListByTraceIds } from 'monitor-api/modules/apm_metric';
+import { traceListById } from 'monitor-api/modules/apm_trace';
+import bus from 'monitor-common/utils/event-bus';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { IFilterDict, ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
+import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
-import { errorListByTraceIds } from '../../../../monitor-api/modules/apm_metric';
-import { traceListById } from '../../../../monitor-api/modules/apm_trace';
-import bus from '../../../../monitor-common/utils/event-bus';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import { IFilterDict, ITableColumn } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import StatusTab from '../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { formatDuration } from '../../../../trace/components/trace-view/utils/date';
 
 import { createAutoTimerange } from './aiops-chart';

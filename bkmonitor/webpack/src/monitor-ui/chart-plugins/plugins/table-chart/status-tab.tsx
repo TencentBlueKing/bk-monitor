@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { ITableFilterItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
+import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './status-tab.scss';
 

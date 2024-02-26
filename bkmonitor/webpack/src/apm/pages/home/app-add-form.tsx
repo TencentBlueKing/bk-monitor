@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { checkDuplicateName } from '../../../monitor-api/modules/apm_meta';
+import { checkDuplicateName } from 'monitor-api/modules/apm_meta';
 
 import { ICreateAppFormData } from './app-list';
 import { IAppSelectOptItem } from './app-select';

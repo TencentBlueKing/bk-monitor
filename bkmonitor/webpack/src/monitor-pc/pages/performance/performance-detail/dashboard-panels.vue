@@ -253,14 +253,14 @@
 import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
-
 // import { handleTimeRange } from '../../../utils/index';
-import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafana';
-import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
-import { deepClone, random } from '../../../../monitor-common/utils/utils.js';
-import { handleRelateAlert } from '../../../../monitor-ui/chart-plugins/utils';
-import MonitorEcharts from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
-import { echartsConnect, echartsDisconnect } from '../../../../monitor-ui/monitor-echarts/utils';
+import { graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
+import { fetchItemStatus } from 'monitor-api/modules/strategies';
+import { deepClone, random } from 'monitor-common/utils/utils.js';
+import { handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
+import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
+
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import authorityStore from '../../../store/modules/authority';
 import { getCollectVariable, setCollectVariable } from '../../collector-config/collector-view/variable-set';

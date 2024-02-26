@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
 export type ThemeType = 'system' | 'plugin' | 'lang';
 export interface IDescData {

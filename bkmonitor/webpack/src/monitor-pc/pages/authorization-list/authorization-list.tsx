@@ -26,7 +26,6 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
 import {
   createOrUpdateAuthorizer,
   deleteExternalPermission,
@@ -35,8 +34,9 @@ import {
   getAuthorizerList,
   getByAction,
   getExternalPermissionList
-} from '../../../monitor-api/modules/iam';
-import { Debounce } from '../../../monitor-common/utils';
+} from 'monitor-api/modules/iam';
+import { Debounce } from 'monitor-common/utils';
+
 import BizSelect from '../../components/biz-select/biz-select';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';

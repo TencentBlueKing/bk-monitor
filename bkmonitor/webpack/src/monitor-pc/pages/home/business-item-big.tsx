@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Prop, Provide, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import BusinessItem, { IData as IBusinessCard } from '../../../fta-solutions/pages/home/business-item';
-import { monitorInfo } from '../../../monitor-api/modules/overview';
+import BusinessItem, { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
+import { monitorInfo } from 'monitor-api/modules/overview';
 
 import BusinessAlarmOverview from './components/business-alarm-overiview';
 

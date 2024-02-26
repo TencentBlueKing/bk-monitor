@@ -25,8 +25,7 @@
  */
 
 import { TranslateResult } from 'vue-i18n';
-
-import { random } from '../../../../monitor-common/utils';
+import { random } from 'monitor-common/utils';
 
 import {
   conditionFindReplace,

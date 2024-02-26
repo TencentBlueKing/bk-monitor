@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { RouteConfig } from 'vue-router';
-
-import alarmShieldRoutes from '../../../../monitor-pc/router/manager/alarm-shield';
+import alarmShieldRoutes from 'monitor-pc/router/manager/alarm-shield';
 
 export default [...alarmShieldRoutes] as RouteConfig[];

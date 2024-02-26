@@ -25,9 +25,9 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { getVariableValue } from '../../../monitor-api/modules/grafana';
-import { Debounce } from '../../../monitor-common/utils/utils';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import TagList from '../../components/table-tag-list/table-tag-list';

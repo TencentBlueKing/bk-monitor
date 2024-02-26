@@ -330,9 +330,9 @@
 </template>
 <script>
 import dayjs from 'dayjs';
+import { disableShield, frontendShieldList } from 'monitor-api/modules/shield.js';
 import { debounce } from 'throttle-debounce';
 
-import { disableShield, frontendShieldList } from '../../../../monitor-api/modules/shield.js';
 import { commonPageSizeMixin } from '../../../common/mixins';
 import EmptyStatus from '../../../components/empty-status/empty-status.tsx';
 import TableStore from '../store.ts';

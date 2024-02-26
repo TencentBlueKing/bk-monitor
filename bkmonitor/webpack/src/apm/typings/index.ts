@@ -24,5 +24,5 @@
  * IN THE SOFTWARE.
  */
 
-export * from '../../monitor-common/typings';
 export * from './base-info';
+export * from 'monitor-common/typings';

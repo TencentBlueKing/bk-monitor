@@ -26,13 +26,12 @@
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { random } from '../../../../monitor-common/utils/utils';
-import { IDetectionConfig } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-import { transformSensitivityValue } from '../../../../monitor-pc/pages/strategy-config/util';
-import ChartWrapper from '../../../../monitor-ui/chart-plugins/components/chart-wrapper';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
-import { handleThreshold, parseMetricId } from '../../../../monitor-ui/chart-plugins/utils';
+import { random } from 'monitor-common/utils/utils';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { transformSensitivityValue } from 'monitor-pc/pages/strategy-config/util';
+import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { handleThreshold, parseMetricId } from 'monitor-ui/chart-plugins/utils';
 
 import { IDetail } from './type';
 

@@ -29,10 +29,10 @@ import { Exception, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 // import mermaid from '../../../../mermaid/packages/mermaid/dist/mermaid.core.mjs';
 import mermaid from 'fork-mermaid';
+import { traceDiagram } from 'monitor-api/modules/apm_trace.js';
+import { random } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram } from '../../../../monitor-api/modules/apm_trace.js';
-import { random } from '../../../../monitor-common/utils/utils';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
 

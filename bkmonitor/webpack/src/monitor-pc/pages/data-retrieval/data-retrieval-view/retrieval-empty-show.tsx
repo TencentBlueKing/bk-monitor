@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { collectConfigList } from 'monitor-api/modules/collecting';
+import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 
-import { collectConfigList } from '../../../../monitor-api/modules/collecting';
-import { getDataSourceConfig } from '../../../../monitor-api/modules/grafana';
 import { handleGotoLink } from '../../../common/constant';
 import EmptyStatus, { defaultTextMap } from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, IEmptyStatusTextMap } from '../../../components/empty-status/types';
