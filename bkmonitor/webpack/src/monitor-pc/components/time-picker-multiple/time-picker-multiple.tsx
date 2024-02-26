@@ -26,12 +26,12 @@
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
 import {
   defaultAddTimeRange,
   timeRangeValidate
 } from '../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import { Debounce, deepClone } from '../../../monitor-common/utils/utils';
 
 import './time-picker-multiple.scss';
 

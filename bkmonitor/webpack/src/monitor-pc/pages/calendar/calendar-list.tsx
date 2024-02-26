@@ -26,10 +26,10 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { Debounce } from 'monitor-common/utils/utils';
+import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import { deleteItem, itemList } from '../../../monitor-api/modules/calendar';
-import { Debounce } from '../../../monitor-common/utils/utils';
-import StatusTab from '../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { Storage } from '../../utils';

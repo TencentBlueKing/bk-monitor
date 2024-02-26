@@ -28,20 +28,20 @@ import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
-import { debounce } from 'throttle-debounce';
-
-import { CancelToken } from '../../../../monitor-api/index';
-import { exportConfigFile } from '../../../../monitor-api/modules/as_code';
-import { noticeGroupList } from '../../../../monitor-api/modules/notice_group';
-import { disableShield } from '../../../../monitor-api/modules/shield';
+import { CancelToken } from 'monitor-api/index';
+import { exportConfigFile } from 'monitor-api/modules/as_code';
+import { noticeGroupList } from 'monitor-api/modules/notice_group';
+import { disableShield } from 'monitor-api/modules/shield';
 import {
   deleteStrategyV2,
   getScenarioList,
   getStrategyListV2,
   getTargetDetail,
   updatePartialStrategyV2
-} from '../../../../monitor-api/modules/strategies';
-import { xssFilter } from '../../../../monitor-common/utils/xss';
+} from 'monitor-api/modules/strategies';
+import { xssFilter } from 'monitor-common/utils/xss';
+import { debounce } from 'throttle-debounce';
+
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';

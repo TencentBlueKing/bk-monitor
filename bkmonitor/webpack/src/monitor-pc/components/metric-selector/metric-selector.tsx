@@ -26,13 +26,13 @@
 
 import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
+import { addCustomMetric } from 'monitor-api/modules/custom_report';
+import { getMetricListV2, updateMetricListByBiz } from 'monitor-api/modules/strategies';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { copyText, Debounce, deepClone, docCookies } from 'monitor-common/utils/utils';
+import { xssFilter } from 'monitor-common/utils/xss';
 
-import { queryAsyncTaskResult } from '../../../monitor-api/modules/commons';
-import { addCustomMetric } from '../../../monitor-api/modules/custom_report';
-import { getMetricListV2, updateMetricListByBiz } from '../../../monitor-api/modules/strategies';
-import { LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils/constant';
-import { copyText, Debounce, deepClone, docCookies } from '../../../monitor-common/utils/utils';
-import { xssFilter } from '../../../monitor-common/utils/xss';
 import { handleGotoLink } from '../../common/constant';
 import { isEn } from '../../i18n/i18n';
 import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';

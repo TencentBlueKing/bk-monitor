@@ -61,7 +61,7 @@ import DeleteDialogContent from '../../components/delete-dialog-content/delete-d
 import { ISelectMenuOption } from '../../components/select-menu/select-menu';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, TimeRangeType } from '../../components/time-range/utils';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
-import { Span } from '../../components/trace-view/typings';
+import { type Span } from '../../components/trace-view/typings';
 import VerifyInput from '../../components/verify-input/verify-input';
 import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
 import {

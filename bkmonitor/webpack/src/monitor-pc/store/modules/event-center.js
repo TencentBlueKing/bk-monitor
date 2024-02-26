@@ -33,8 +33,8 @@ import {
   listEventLog,
   listSearchItem,
   stackedChart
-} from '../../../monitor-api/modules/alert_events';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/alert_events';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
 export const SET_SEARCH_LIST = 'SET_SEARCH_LIST';
 const state = {

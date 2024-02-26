@@ -25,8 +25,8 @@
  * IN THE SOFTWARE.
  */
 import { TranslateResult } from 'vue-i18n';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../../monitor-common/utils/utils';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { PanelHeaderType, PanelToolsType } from '../../monitor-k8s/typings';

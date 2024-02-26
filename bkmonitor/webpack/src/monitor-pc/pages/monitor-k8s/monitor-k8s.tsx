@@ -26,8 +26,8 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../monitor-common/utils/utils';
 import { handleGotoLink } from '../../common/constant';
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';

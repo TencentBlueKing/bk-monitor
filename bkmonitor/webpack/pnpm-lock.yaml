@@ -538,6 +538,18 @@ importers:
       minimist:
         specifier: ^1.2.6
         version: 1.2.8
+      monitor-api:
+        specifier: workspace:*
+        version: link:../monitor-api
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-pc:
+        specifier: workspace:*
+        version: 'link:'
+      monitor-ui:
+        specifier: workspace:*
+        version: link:../monitor-ui
       sortablejs:
         specifier: ^1.15.0
         version: 1.15.0

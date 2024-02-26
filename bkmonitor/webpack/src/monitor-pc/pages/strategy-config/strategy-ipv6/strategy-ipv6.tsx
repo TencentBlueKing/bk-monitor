@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { bulkEditStrategy, getTargetDetail } from 'monitor-api/modules/strategies';
+import { deepClone } from 'monitor-common/utils';
 
-import { bulkEditStrategy, getTargetDetail } from '../../../../monitor-api/modules/strategies';
-import { deepClone } from '../../../../monitor-common/utils';
 import MonitorIpSelector from '../../../components/monitor-ip-selector/monitor-ip-selector';
 import {
   CoutIntanceName,
