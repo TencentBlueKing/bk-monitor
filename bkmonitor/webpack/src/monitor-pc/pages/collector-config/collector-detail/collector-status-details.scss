@@ -1,0 +1,175 @@
+@mixin pointStatus() {
+  .point {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+
+    .s-point {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+  }
+}
+
+@mixin filterList() {
+  .header-filter {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 4px;
+    color: #63656e;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    .header-filter-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 24px;
+      padding: 0 12px;
+      cursor: pointer;
+
+      @include pointStatus();
+
+      &:not(:last-of-type) {
+        &::after {
+          position: absolute;
+          top: 6px;
+          right: 0px;
+          width: 1px;
+          height: 12px;
+          content: '';
+          background: #dcdee5;
+        }
+      }
+
+      &.active {
+        color: #3a84ff;
+        background: #fff;
+
+        &::after {
+          display: none;
+        }
+
+        &::before {
+          position: absolute;
+          top: 6px;
+          left: -1px;
+          width: 1px;
+          height: 12px;
+          content: '';
+          background: #f0f1f5;
+        }
+      }
+    }
+  }
+}
+
+.collector-status-details-component {
+  padding: 24px;
+  background: #fff;
+
+  .mr-10 {
+    margin-right: 10px;
+  }
+
+  .mr-6 {
+    margin-right: 6px;
+  }
+
+  .mr-3 {
+    margin-right: 3px;
+  }
+
+  .mt-20 {
+    margin-top: 20px;
+  }
+
+  .mt-2 {
+    margin-top: 2px;
+  }
+
+  .header-opreate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    @include filterList();
+
+    .batch-opreate {
+      .copy-target-btn {
+        position: relative;
+        top: 2px;
+        display: inline-block;
+        height: 32px;
+        padding: 0 15px;
+        font-size: 14px;
+        line-height: 30px;
+        background-color: #fff;
+        border: 1px solid #c4c6cc;
+      }
+
+      .bk-dropdown-list {
+        a {
+          cursor: pointer;
+        }
+      }
+    }
+  }
+
+  .table-content-wrap {
+    @include pointStatus();
+
+    .col-retry {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .col-status {
+      display: flex;
+      align-items: center;
+
+      &-img {
+        width: 16px;
+        margin-right: 5px;
+      }
+
+      &-radius {
+        width: 8px;
+        height: 8px;
+        margin: 4px 10px 4px 4px;
+        border: 1px solid;
+        border-radius: 50%;
+      }
+    }
+
+    .col-detail-more {
+      margin-left: 8px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .side-detail {
+    max-height: calc(100vh - 120px);
+    padding: 10px 30px 10px 16px;
+    margin: 28px 40px 20px 40px;
+    overflow-y: auto;
+    color: #fff;
+    background: #000;
+
+    &-code {
+      word-break: break-all;
+      white-space: pre-wrap;
+
+      a {
+        color: #3a84ff;
+      }
+    }
+  }
+}

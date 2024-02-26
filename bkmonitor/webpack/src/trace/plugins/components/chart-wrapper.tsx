@@ -26,7 +26,7 @@
 import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
 import { bkTooltips } from 'bkui-vue';
 
-import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { type IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 // @ts-ignore
 import loadingIcon from '../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
@@ -190,6 +190,7 @@ export default defineComponent({
           <img
             class='loading-icon'
             src={loadingIcon}
+            alt=''
           ></img>
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (

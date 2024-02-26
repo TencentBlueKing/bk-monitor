@@ -61,6 +61,7 @@
               <img
                 src="../../../static/images/svg/spinner.svg"
                 class="status-loading"
+                alt=''
               >
             </div>
             <member-selector

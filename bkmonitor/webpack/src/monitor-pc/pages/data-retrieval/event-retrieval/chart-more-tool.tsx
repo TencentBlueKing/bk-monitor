@@ -147,7 +147,7 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
         {this.toolCheckedList.map(item => (
           <i
             class={['icon-monitor', `icon-${item.icon}`]}
-            v-bk-tooltips={{ content: item.name }}
+            v-bk-tooltips={{ content: item.name, allowHTML: false }}
             onClick={() => this.handleSelect(item.id)}
           ></i>
         ))}

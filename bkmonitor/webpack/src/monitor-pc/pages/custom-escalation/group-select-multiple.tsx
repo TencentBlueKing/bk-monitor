@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Option, Select } from 'bk-magic-vue';
 
 import { matchRuleFn } from './group-manage-dialog';
 
@@ -51,7 +50,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) value: string[];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: Map<string, any>;
   @Prop({ default: '', type: String }) metricName: string;
-  @Ref('selectDropdown') selectDropdownRef: Select;
+  @Ref('selectDropdown') selectDropdownRef: any;
 
   localValue = [];
   localList = [];
@@ -118,7 +117,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
         onClick={this.handleClick}
       >
         <span class='btn-content'>{this.$slots?.default}</span>
-        <Select
+        <bk-select
           ext-popover-cls={'group-select-multiple-component-dropdown-content'}
           class='select-dropdown'
           ref='selectDropdown'
@@ -129,7 +128,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
           onToggle={this.handleToggle}
         >
           {this.list.map((item, index) => (
-            <Option
+            <bk-option
               key={index}
               id={item.id}
               name={item.name}
@@ -140,10 +139,11 @@ export default class GroupSelectMultiple extends tsc<IProps> {
                   : {
                       content: this.$t('由匹配规则{0}生成', [this.getDisableTip(item.id)]),
                       placements: ['right'],
-                      boundary: 'window'
+                      boundary: 'window',
+                      allowHTML: false
                     }
               }
-            ></Option>
+            ></bk-option>
           ))}
           <div
             slot='extension'
@@ -151,7 +151,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
           >
             {this.$slots?.extension}
           </div>
-        </Select>
+        </bk-select>
       </span>
     );
   }

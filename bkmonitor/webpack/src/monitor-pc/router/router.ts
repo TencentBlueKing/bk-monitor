@@ -76,7 +76,7 @@ const router = new VueRouter({
   mode: 'hash',
   routes
 });
-const isAuthority = async (page: string | string[]) => {
+export const isAuthority = async (page: string | string[]) => {
   const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
     action_ids: Array.isArray(page) ? page : [page]
   });
@@ -103,8 +103,9 @@ router.beforeEach(async (to, from, next) => {
     !window.__BK_WEWEB_DATA__?.token &&
     !['no-business', 'event-center', 'event-center-detail', 'event-center-action-detail', 'share'].includes(to.name) &&
     !store.getters.bizList?.length
-  )
+  ) {
     return next({ name: 'no-business' });
+  }
   if ((document.body as any).___zrEVENTSAVED) {
     /* 图表tip异常问题解决办法 */
     (document.body as any).___zrEVENTSAVED = null;

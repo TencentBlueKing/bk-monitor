@@ -12,6 +12,7 @@ import collections
 import logging
 import time
 from collections import defaultdict
+from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
 from django.utils.translation import ugettext as _
@@ -20,15 +21,19 @@ from rest_framework import serializers
 from bkmonitor.commons.tools import get_host_view_display_fields
 from bkmonitor.data_source import (
     BkMonitorLogDataSource,
-    BkMonitorTimeSeriesDataSource,
     CustomEventDataSource,
-    CustomTimeSeriesDataSource,
+    UnifyQuery,
+    load_data_source,
 )
 from bkmonitor.models import QueryConfigModel, StrategyModel
+from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import to_dict
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.cmdb import TargetNodeType, TargetObjectType
-from core.drf_resource import Resource, api
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import CacheResource, Resource, api
 from monitor_web.collecting.constant import OperationType
+from monitor_web.commons.data_access import ResultTable
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import (
     CollectConfigMeta,
@@ -38,8 +43,19 @@ from monitor_web.models import (
     PluginVersionHistory,
 )
 from monitor_web.plugin.constant import PluginType
+from monitor_web.plugin.manager import PluginManagerFactory
 
 logger = logging.getLogger(__name__)
+
+
+class ObservationSceneStatus(Enum):
+    SUCCESS: str = "SUCCESS"
+    # 检测过程出现异常
+    CHECK_ERROR: str = "CHECK_ERROR"
+    # 未知的检测对象
+    UNKNOWN: str = "UNKNOWN"
+    # 无数据
+    NODATA: str = "NODATA"
 
 
 class GetPluginCollectConfigIdList(Resource):
@@ -61,10 +77,12 @@ class GetPluginCollectConfigIdList(Resource):
         return [{"id": collect_config.id, "name": collect_config.name} for collect_config in collect_configs]
 
 
-class GetObservationSceneStatusList(Resource):
+class GetObservationSceneStatusList(CacheResource):
     """
     获取观测场景状态列表
     """
+
+    cache_type = CacheType.SCENE_VIEW
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -78,13 +96,23 @@ class GetObservationSceneStatusList(Resource):
         if not custom_metric:
             return False
 
-        data_source = CustomTimeSeriesDataSource(
-            bk_biz_id=bk_biz_id,
+        sampling_duration = 60 * 3  # 计算三个采集周期
+        metrics = [
+            {"field": metric["name"], "method": "count"}
+            for metric in custom_metric.get_metrics().values()
+            if metric["monitor_type"] == "metric"
+        ]
+        data_source_class = load_data_source(DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES)
+        data_source = data_source_class(
             table=custom_metric.table_id,
-            metrics=[{"field": "COUNT(*)"}],
+            metrics=metrics,
+            interval=sampling_duration,  # 步长设置为整个时间段，模拟即时查询
         )
-        records = data_source.query_data(start_time=(int(time.time()) - 180) * 1000, limit=1)
-        return bool(records)
+        query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
+        now_ts = int(time.time())
+        records = query.query_data(start_time=(now_ts - sampling_duration) * 1000, end_time=now_ts * 1000)
+
+        return records[0]["_result_"] > 0
 
     @classmethod
     def check_custom_event(cls, bk_biz_id: int, bk_event_group_id: int) -> bool:
@@ -97,7 +125,7 @@ class GetObservationSceneStatusList(Resource):
         return bool(records)
 
     @classmethod
-    def check_plugin(cls, bk_biz_id: int, plugin_id: int = None, collect_config_id: int = None) -> bool:
+    def check_plugin(cls, bk_biz_id: int, plugin_id: str = None, collect_config_id: int = None) -> bool:
         if plugin_id:
             plugin = CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id], plugin_id=plugin_id).first()
             if not plugin:
@@ -146,57 +174,93 @@ class GetObservationSceneStatusList(Resource):
             return bool(records)
 
         filter_dict["bk_biz_id"] = str(bk_biz_id)
-        # 获取结果表配置
+
+        # 指标无数据判断
         if plugin.plugin_type == PluginType.PROCESS:
             db_name = "process"
-            table_ids = ["perf"]
+            metric_info = PluginManagerFactory.get_manager(
+                plugin=plugin.plugin_id, plugin_type=plugin.plugin_type
+            ).gen_metric_info()
+            metric_json = [table for table in metric_info if table["table_name"] == "perf"]
         else:
             db_name = "{plugin_type}_{plugin_id}".format(plugin_type=plugin.plugin_type, plugin_id=plugin.plugin_id)
-            table_ids = [table["table_name"] for table in plugin.release_version.info.metric_json]
+            metric_json = plugin.release_version.info.metric_json
 
-        for table_id in table_ids:
+        sampling_duration = period * 3  # 计算三个采集周期
+        result_tables = [ResultTable.new_result_table(table) for table in metric_json]
+        for table in result_tables:
+            metrics = [
+                {"field": field["field_name"], "method": "count"} for field in table.fields if field["tag"] == "metric"
+            ]
+            data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+            data_source = data_source_class(
+                table=f"{db_name.lower()}.{table.table_name}",
+                metrics=metrics,
+                filter_dict=filter_dict,
+                interval=sampling_duration,  # 步长设置为整个时间段，模拟即时查询
+            )
+            query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
+            now_ts = int(time.time())
             try:
-                data_source = BkMonitorTimeSeriesDataSource(
-                    table=f"{db_name.lower()}.{table_id.lower()}",
-                    metrics=[{"field": "count(*)"}],
-                    filter_dict=filter_dict,
-                    group_by=[],
-                )
-                records = data_source.query_data(
-                    start_time=(int(time.time()) - period * 3) * 1000, end_time=int(time.time()) * 1000, limit=1
-                )
+                records = query.query_data(start_time=(now_ts - sampling_duration) * 1000, end_time=now_ts * 1000)
             except Exception as e:
                 logger.exception(e)
-                records = []
-            if records:
-                return True
-        return False
-
-    def perform_request(self, params):
-        result = {}
-        for scene_view_id in params["scene_view_ids"]:
-            if scene_view_id.startswith("scene_plugin_"):
-                checked = self.check_plugin(
-                    bk_biz_id=params["bk_biz_id"], plugin_id=scene_view_id.split("scene_plugin_", 1)[-1]
-                )
-            elif scene_view_id.startswith("scene_collect_"):
-                checked = self.check_plugin(
-                    bk_biz_id=params["bk_biz_id"], collect_config_id=scene_view_id.lstrip("scene_collect_")
-                )
-            elif scene_view_id.startswith("scene_custom_event_"):
-                checked = self.check_custom_event(
-                    bk_biz_id=params["bk_biz_id"], bk_event_group_id=scene_view_id.lstrip("scene_custom_event_")
-                )
-            elif scene_view_id.startswith("scene_custom_metric_"):
-                checked = self.check_custom_metric(
-                    bk_biz_id=params["bk_biz_id"], time_series_group_id=scene_view_id.lstrip("scene_custom_metric_")
-                )
-            else:
                 continue
 
-            result[scene_view_id] = {"status": "SUCCESS" if checked else "NODATA"}
+            if records[0]["_result_"] > 0:
+                return True
 
-        return result
+        return False
+
+    def get_observation_scene_status(self, bk_biz_id: int, scene_view_id: str) -> str:
+        if scene_view_id.startswith("scene_plugin_"):
+            checked = self.check_plugin(bk_biz_id=bk_biz_id, plugin_id=scene_view_id.split("scene_plugin_", 1)[-1])
+        elif scene_view_id.startswith("scene_collect_"):
+            checked = self.check_plugin(
+                bk_biz_id=bk_biz_id, collect_config_id=int(scene_view_id.lstrip("scene_collect_"))
+            )
+        elif scene_view_id.startswith("scene_custom_event_"):
+            checked = self.check_custom_event(
+                bk_biz_id=bk_biz_id, bk_event_group_id=int(scene_view_id.lstrip("scene_custom_event_"))
+            )
+        elif scene_view_id.startswith("scene_custom_metric_"):
+            checked = self.check_custom_metric(
+                bk_biz_id=bk_biz_id, time_series_group_id=int(scene_view_id.lstrip("scene_custom_metric_"))
+            )
+        else:
+            return ObservationSceneStatus.UNKNOWN.value
+
+        return (ObservationSceneStatus.NODATA.value, ObservationSceneStatus.SUCCESS.value)[checked]
+
+    def collect_scene_view_id__status_map(
+        self, bk_biz_id: int, scene_view_id: str, scene_view_id__status_map: Dict[str, Dict[str, str]]
+    ):
+        try:
+            status: str = self.get_observation_scene_status(bk_biz_id, scene_view_id)
+        except Exception:
+            logger.exception(
+                "[collect_scene_view_id__status_map] failed to get_observation_scene_status: "
+                "bk_biz_id -> %s, collect_scene_view_id -> %s",
+                bk_biz_id,
+                scene_view_id,
+            )
+            return
+
+        if status in [ObservationSceneStatus.NODATA.value, ObservationSceneStatus.SUCCESS.value]:
+            scene_view_id__status_map[scene_view_id] = {"status": status}
+
+    def perform_request(self, params):
+        scene_view_id__status_map: Dict[str, str] = {}
+        th_list: List[InheritParentThread] = [
+            InheritParentThread(
+                target=self.collect_scene_view_id__status_map,
+                args=(params["bk_biz_id"], scene_view_id, scene_view_id__status_map),
+            )
+            for scene_view_id in params["scene_view_ids"]
+        ]
+        run_threads(th_list)
+
+        return scene_view_id__status_map
 
 
 class GetObservationSceneList(Resource):
@@ -248,7 +312,6 @@ class GetObservationSceneList(Resource):
 
         collect_plugin_list: List[Dict[str, Any]] = []
         for plugin in plugins:
-
             # 如果存在未停用的采集任务才进行展示
             collect_config_count: int = collect_config_counter.get(f"{bk_biz_id}-{plugin.plugin_id}", 0)
             if collect_config_count == 0:

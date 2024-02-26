@@ -128,6 +128,7 @@
                   class="col-status-img"
                   v-if="isRunning && statusList.includes(props.row.status)"
                   src="../../../static/images/svg/spinner.svg"
+                  alt=''
                 >
                 <div
                   class="col-status-radius"
@@ -816,7 +817,7 @@ export default {
     }
 
     .bk-sideslider-content {
-      height: calc(100% - 52px);
+      height: calc(100% - 52px - var(--notice-alert-height));
       background: #fafbfd;
     }
   }

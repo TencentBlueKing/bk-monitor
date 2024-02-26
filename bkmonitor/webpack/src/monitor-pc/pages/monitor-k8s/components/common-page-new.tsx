@@ -361,11 +361,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   get indexList(): IIndexListItem[] {
     const panels = this.isPreciseFilter
       ? this.preciseFilteringPanels
-      : this.handleGetLocalPanels(this.sceneData.panels);
+      : this.handleGetLocalPanels(this.isOverview ? this.sceneData.overview_panels : this.sceneData.panels);
     if (this.sceneData?.options?.enable_index_list && !!panels.length) {
       let curTagChartId = '';
+      const { mode } = this.sceneData;
       const list = panels.reduce((total, row) => {
-        const { mode } = this.sceneData;
         if (mode === 'auto') {
           // 主机
           const item = {
@@ -508,9 +508,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -1154,8 +1156,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         selectortTarget.compareFieldsSort
       );
       // eslint-disable-next-line max-len
-      compareTargets = targets?.map(
-        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+      compareTargets = targets?.map(item =>
+        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {

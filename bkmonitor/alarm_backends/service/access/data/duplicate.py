@@ -25,6 +25,8 @@ class Duplicate:
         dup_key = key.ACCESS_DUPLICATE_KEY.get_key(strategy_group_key=self.strategy_group_key, dt_event_time=time)
         if dup_key not in self.record_ids_cache:
             if self.strategy_id is not None:
+                # Q：strategy_id setter 的作用是？
+                # A:Redis 路由分片 - alarm_backends/core/storage/redis_cluster.py
                 dup_key.strategy_id = self.strategy_id
             self.record_ids_cache[dup_key] = self.client.smembers(dup_key)
 
@@ -49,6 +51,10 @@ class Duplicate:
         self.pending_to_add.setdefault(dup_key, set()).add(record.record_id)
 
     def refresh_cache(self):
+        # Q1：access 已经是按 item + 拉取周期拆分处理的，为什么这里要推一次 Redis
+        # Q2：CheckPoint 已经控制了一个滑动窗口，按理说应该不会有重复？这里的业务背景是？
+        # A1：是为了防止数据拉取周期之间数据点重复
+        # A2：由于存在入库延迟，每次拉取是基于 last_check_point 往前一个周期拉数据，这里的去重逻辑可以过滤掉重叠窗口的重复数据点
         pipeline = self.client.pipeline(transaction=False)
         for dup_key, record_ids in self.pending_to_add.items():
             if self.strategy_id is not None:

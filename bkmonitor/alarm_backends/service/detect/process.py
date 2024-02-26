@@ -47,7 +47,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 "load5":1.38
             },
             "dimensions":{
-                "ip":"10.0.0.1"
+                "ip":"127.0.0.1"
             },
             "time":1569246480
         }
@@ -107,13 +107,14 @@ class DetectProcess(BaseAbnormalPushProcessor):
         self.outputs[item.id] = item.detect(data_points)
 
     def push_data(self):
-        current_time = int(time.time())
+        current_time = time.time()
         for data_points in self.outputs.values():
             for data_point in data_points:
                 if not data_point["data"].get("access_time"):
                     # 拿不到上一级记录的时间，忽略
                     continue
                 latency = current_time - data_point["data"]["access_time"]
+                # SLI(detect) - 记录当前处理时间，用于 SLI 统计各模块间处理延迟场景
                 data_point["data"]["detect_time"] = current_time
                 if latency > 0:
                     metrics.DETECT_PROCESS_LATENCY.labels(strategy_id=metrics.TOTAL_TAG).observe(latency)
@@ -138,7 +139,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
     def process(self):
         with service_lock(key.SERVICE_LOCK_DETECT, strategy_id=self.strategy_id):
             start_at = time.time()
-            logger.info(f"[detect] strategy({self.strategy_id}) processing start")
+            logger.info(f"[detect][latency] strategy({self.strategy_id}) processing start")
             self.strategy.gen_strategy_snapshot()
             for item in self.strategy.items:
                 self.pull_data(item)
@@ -150,5 +151,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
             self.push_data()
             end_at = time.time()
-            logger.info("[detect] strategy({}) processing end in {}".format(self.strategy_id, end_at - start_at))
+            logger.info(
+                "[detect][latency] strategy({}) processing end in {}".format(self.strategy_id, end_at - start_at)
+            )
             metrics.DETECT_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(end_at - start_at)

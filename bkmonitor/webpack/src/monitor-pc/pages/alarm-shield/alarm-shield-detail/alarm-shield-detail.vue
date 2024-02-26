@@ -165,6 +165,7 @@
               <img
                 v-if="item.logo"
                 :src="item.logo"
+                alt=''
               >
               <i
                 v-else-if="!item.logo && item.type === 'group'"
@@ -431,26 +432,26 @@ export default {
 
 .alarm-shield-content {
   min-height: calc(100vh - 102px);
-  border: 1px solid #dcdee5;
-  border-radius: 2px;
   padding: 18px 94px 18px 30px;
-  background: #fff;
+  margin: 20px;
   font-size: 14px;
   color: #63656e;
-  margin: 20px;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
 
   .operation {
     position: absolute;
-    right: 24px;
     top: 16px;
+    right: 24px;
     font-size: 0;
   }
 
   .title {
+    margin-bottom: 23px;
     font-size: 14px;
     font-weight: bold;
     color: #313238;
-    margin-bottom: 23px;
   }
 
   .scope-item {
@@ -460,9 +461,9 @@ export default {
 
     .item-label {
       min-width: 90px;
+      margin-right: 24px;
       color: #979ba5;
       text-align: right;
-      margin-right: 24px;
     }
 
     .item-img {
@@ -470,22 +471,22 @@ export default {
     }
 
     .item-data {
-      min-height: 19px;
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
+      align-items: center;
+      min-height: 19px;
 
       .item-highlight {
-        color: #3a84ff;
         font-weight: bold;
+        color: #3a84ff;
       }
     }
 
     .item-content {
-      min-height: 19px;
       display: flex;
-      align-items: flex-end;
       flex-wrap: wrap;
+      align-items: flex-end;
+      min-height: 19px;
       word-break: break-all;
 
       .personnel-choice {
@@ -496,16 +497,16 @@ export default {
         img {
           width: 24px;
           height: 24px;
-          border-radius: 16px;
           margin-right: 5px;
+          border-radius: 16px;
         }
 
         .no-img {
-          color: #c4c6cc;
+          margin-right: 5px;
           font-size: 24px;
+          color: #c4c6cc;
           background: #fafbfd;
           border-radius: 16px;
-          margin-right: 5px;
         }
       }
     }

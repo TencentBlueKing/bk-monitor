@@ -192,3 +192,6 @@ build.yml
 
 .idea
 .vscode
+
+pre-*-bkcodeai
+bkcodeai.json

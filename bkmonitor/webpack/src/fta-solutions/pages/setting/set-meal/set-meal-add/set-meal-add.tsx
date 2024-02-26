@@ -26,7 +26,6 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button } from 'bk-magic-vue';
 
 import { deepClone, random, transformDataKey } from '../../../../../monitor-common/utils/utils';
 import { SET_NAV_ROUTE_LIST } from '../../../../../monitor-pc/store/modules/app';
@@ -311,13 +310,13 @@ export default class SetMealAdd extends tsc<{}> {
                 onChange={data => (this.mealData = data)}
               ></MealContentNew>
               <div class='operate-warpper'>
-                <Button
+                <bk-button
                   theme='primary'
                   onClick={this.save}
                 >
                   {this.$t('保存套餐')}
-                </Button>
-                <Button onClick={this.cancel}>{this.$t('取消')}</Button>
+                </bk-button>
+                <bk-button onClick={this.cancel}>{this.$t('取消')}</bk-button>
               </div>
             </div>
             <div

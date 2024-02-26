@@ -50,6 +50,9 @@ config_params:
   desc: "描述 - 事件的详细描述及主体内容"
 
 ingest_config:
+  alert_sources:
+    - name: 腾讯云
+      code: TENCENT
   source_format: json
   method: GET
   url: "{{ url }}"

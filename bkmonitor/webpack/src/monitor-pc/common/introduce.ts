@@ -56,6 +56,12 @@ class IntroduceStore {
       };
     }
   }
+  clear() {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const key in IntroduceRouteKey) {
+      this.data[key].introduce = null;
+    }
+  }
   // 通过 tag 参数获取介绍数据
   async getIntroduce(tag: IntroduceRouteKey) {
     // 如果已有数据，直接返回

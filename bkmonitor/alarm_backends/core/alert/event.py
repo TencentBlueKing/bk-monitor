@@ -396,7 +396,7 @@ class Event:
         """
         获取告警处理延迟
         """
-        current_time = int(time.time())
+        current_time = time.time()
         try:
             # 尝试取 access_time
             origin_alarm = self.extra_info["origin_alarm"]
