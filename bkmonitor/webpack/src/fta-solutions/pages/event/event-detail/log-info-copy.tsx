@@ -26,10 +26,10 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { listIndexByHost } from 'monitor-api/modules/alert_events';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { listIndexByHost } from '../../../../monitor-api/modules/alert_events';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import { ITableColumn } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import TipMsg from '../../setting/components/tip-msg';
 
 import { IDetail } from './type';

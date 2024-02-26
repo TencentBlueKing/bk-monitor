@@ -26,10 +26,9 @@
 import { defineComponent, onMounted, PropType, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Button, Exception } from 'bkui-vue';
-
-import { random } from '../../../../monitor-common/utils/utils';
-import { ITableItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import { PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import { random } from 'monitor-common/utils/utils';
+import { type ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './exception-guide.scss';
 

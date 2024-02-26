@@ -53,8 +53,8 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 
-import MonitorEcharts from '../../../../monitor-ui/monitor-echarts/monitor-echarts.vue';
 import { ICurNode } from '../../../store/modules/performance';
 import { ChartType, IHostGroup, IQueryOption, ViewType } from '../performance-type';
 
@@ -112,10 +112,10 @@ export default class ViewContent extends Vue {
 </script>
 <style lang="scss" scoped>
 .view-content {
-  background: #fafbfd;
-  padding: 16px;
-  height: 100%;
   width: 100%;
+  height: 100%;
+  padding: 16px;
   overflow: auto;
+  background: #fafbfd;
 }
 </style>

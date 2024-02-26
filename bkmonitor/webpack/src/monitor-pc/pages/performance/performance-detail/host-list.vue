@@ -133,9 +133,9 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { deepClone } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import PerformanceModule, { ICurNode } from '../../../store/modules/performance';
 import { IQueryOption } from '../performance-type';
 

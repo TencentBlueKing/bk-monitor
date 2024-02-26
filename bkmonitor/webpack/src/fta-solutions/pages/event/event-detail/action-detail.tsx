@@ -26,9 +26,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { actionDetail, searchAlert } from '../../../../monitor-api/modules/alert';
-import { isZh } from '../../../../monitor-pc/common/constant';
+import { actionDetail, searchAlert } from 'monitor-api/modules/alert';
+import { isZh } from 'monitor-pc/common/constant';
 
 import { getStatusInfo } from './type';
 

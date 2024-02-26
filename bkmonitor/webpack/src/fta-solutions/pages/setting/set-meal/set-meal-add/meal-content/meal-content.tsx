@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { createDemoAction, getDemoActionDetail } from 'monitor-api/modules/action';
+import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
-import { createDemoAction, getDemoActionDetail } from '../../../../../../monitor-api/modules/action';
-import { deepClone, transformDataKey } from '../../../../../../monitor-common/utils/utils';
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 import CommonItem from '../components/common-item';
 import SimpleForm from '../components/simple-form';

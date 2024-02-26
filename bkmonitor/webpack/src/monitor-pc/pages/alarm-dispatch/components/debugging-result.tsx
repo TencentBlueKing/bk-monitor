@@ -25,10 +25,10 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { batchUpdate, matchDebug } from 'monitor-api/modules/assign';
+import { destroyAssignGroup } from 'monitor-api/modules/model';
+import { random } from 'monitor-common/utils';
 
-import { batchUpdate, matchDebug } from '../../../../monitor-api/modules/assign';
-import { destroyAssignGroup } from '../../../../monitor-api/modules/model';
-import { random } from '../../../../monitor-common/utils';
 import TimeRange, { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import emptyImageSrc from '../../../static/images/png/empty.png';

@@ -161,8 +161,9 @@
   </div>
 </template>
 <script>
-import { addShield, editShield } from '../../../../../monitor-api/modules/shield';
-import { deepClone } from '../../../../../monitor-common/utils';
+import { addShield, editShield } from 'monitor-api/modules/shield';
+import { deepClone } from 'monitor-common/utils';
+
 import { transformMonitorToValue, transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import ShieldDateConfig from '../../alarm-shield-components/alarm-shield-date';
 import ShiledNotice from '../../alarm-shield-components/alarm-shield-notice';

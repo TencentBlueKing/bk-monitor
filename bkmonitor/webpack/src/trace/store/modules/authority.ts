@@ -24,15 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineStore } from 'pinia';
-
 import {
   checkAllowedByActionIds,
   getAuthorityApplyInfo,
   getAuthorityDetail,
   getAuthorityMeta
-} from '../../../monitor-api/modules/iam';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/iam';
+import { transformDataKey } from 'monitor-common/utils/utils';
+import { defineStore } from 'pinia';
 
 export interface IAuthorityState {
   authorityMeta: any[];

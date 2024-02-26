@@ -65,10 +65,10 @@
 <script>
 import { createNamespacedHelpers } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { addTaskUptimeCheckGroup,   changeStatusUptimeCheckTask, cloneUptimeCheckTask,
+  createUptimeCheckGroup, destroyUptimeCheckGroup,   destroyUptimeCheckTask, updateUptimeCheckGroup } from 'monitor-api/modules/model';
 import { debounce } from 'throttle-debounce';
 
-import { addTaskUptimeCheckGroup,   changeStatusUptimeCheckTask, cloneUptimeCheckTask,
-  createUptimeCheckGroup, destroyUptimeCheckGroup,   destroyUptimeCheckTask, updateUptimeCheckGroup } from '../../../../../monitor-api/modules/model';
 import DeleteSubtitle from '../../../strategy-config/strategy-config-common/delete-subtitle';
 
 import GroupCards from './group-cards.vue';

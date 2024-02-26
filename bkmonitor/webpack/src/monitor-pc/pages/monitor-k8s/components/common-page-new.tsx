@@ -29,14 +29,14 @@
  */
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
+import bus from 'monitor-common/utils/event-bus';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
+import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
-import bus from '../../../../monitor-common/utils/event-bus';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { DEFAULT_INTERVAL, DEFAULT_METHOD } from '../../../../monitor-ui/chart-plugins/constants/dashbord';
-import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../monitor-ui/chart-plugins/utils/variable';
 import introduce from '../../../common/introduce';
 import Collapse from '../../../components/collapse/collapse';
 import GuidePage from '../../../components/guide-page/guide-page';
@@ -1156,8 +1156,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         selectortTarget.compareFieldsSort
       );
       // eslint-disable-next-line max-len
-      compareTargets = targets?.map(item =>
-        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+      compareTargets = targets?.map(
+        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {

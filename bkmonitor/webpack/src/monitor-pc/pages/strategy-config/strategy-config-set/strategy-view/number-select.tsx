@@ -25,8 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Debounce } from '../../../../../monitor-common/utils';
+import { Debounce } from 'monitor-common/utils';
 
 import './number-select.scss';
 

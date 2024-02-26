@@ -26,9 +26,8 @@
 /* eslint-disable no-param-reassign */
 import { Component, Emit, InjectReactive, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import debounceDecorator from '../../../../../monitor-common/utils/debounce-decorator';
-import { random } from '../../../../../monitor-common/utils/utils';
+import debounceDecorator from 'monitor-common/utils/debounce-decorator';
+import { random } from 'monitor-common/utils/utils';
 
 import FunctionMenu, { IFunctionItem, IFunctionParam } from './function-menu';
 

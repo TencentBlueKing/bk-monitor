@@ -27,9 +27,9 @@ import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { IMenuItem, ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import { IMenuItem, ITableColumn, ITablePagination } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';

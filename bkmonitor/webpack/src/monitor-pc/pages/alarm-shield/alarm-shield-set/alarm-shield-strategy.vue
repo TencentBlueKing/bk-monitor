@@ -238,15 +238,15 @@ import { TranslateResult } from 'vue-i18n/types/index';
 import { Component, Mixins, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 // eslint-disable-next-line no-unused-vars
 import { Location } from 'vue-router/types/router';
-
-import WhereDisplay from '../../../../fta-solutions/pages/event/event-detail/where-display';
-import { addShield, editShield } from '../../../../monitor-api/modules/shield';
+import { addShield, editShield } from 'monitor-api/modules/shield';
 import {
   getMetricListV2,
   getStrategyListV2,
   getStrategyV2,
-  plainStrategyList } from '../../../../monitor-api/modules/strategies';
-import { random, transformDataKey } from '../../../../monitor-common/utils/utils';
+  plainStrategyList } from 'monitor-api/modules/strategies';
+import { random, transformDataKey } from 'monitor-common/utils/utils';
+
+import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import alarmShieldMixin from '../../../mixins/alarmShieldMixin';
 import strategyMapMixin from '../../../mixins/strategyMapMixin';

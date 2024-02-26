@@ -25,13 +25,13 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { CancelToken } from '../../../../../../../monitor-api/index';
+import { CancelToken } from 'monitor-api/index';
 import {
   getIntelligentDetectAccessStatus,
   getIntelligentModel,
   listIntelligentModels
-} from '../../../../../../../monitor-api/modules/strategies';
+} from 'monitor-api/modules/strategies';
+
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
 import Form from '../form/form';
 import { FormItem, IFormDataItem } from '../form/utils';

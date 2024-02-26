@@ -26,10 +26,10 @@
  * IN THE SOFTWARE.
  */
 import dayjs from 'dayjs';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
 import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
 import { IOption } from '../pages/monitor-k8s/typings';
 import store from '../store/store';
 /**
