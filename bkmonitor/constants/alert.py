@@ -8,8 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import typing
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
 
@@ -22,16 +23,16 @@ class EventTargetType:
 
 
 EVENT_TARGET_TYPE = (
-    (EventTargetType.EMPTY, _lazy("无")),
-    (EventTargetType.HOST, _lazy("主机")),
-    (EventTargetType.SERVICE, _lazy("服务实例")),
-    (EventTargetType.TOPO, _lazy("拓扑")),
+    (EventTargetType.EMPTY, _("无")),
+    (EventTargetType.HOST, _("主机")),
+    (EventTargetType.SERVICE, _("服务实例")),
+    (EventTargetType.TOPO, _("拓扑")),
 )
 
 
 class AlertFieldDisplay:
-    ID = _lazy("告警ID")
-    RELATED_INFO = _lazy("关联信息")
+    ID = _("告警ID")
+    RELATED_INFO = _("关联信息")
 
 
 class EventStatus:
@@ -42,9 +43,9 @@ class EventStatus:
 
 
 EVENT_STATUS = (
-    (EventStatus.ABNORMAL, _lazy("未恢复")),
-    (EventStatus.RECOVERED, _lazy("已恢复")),
-    (EventStatus.CLOSED, _lazy("已关闭")),
+    (EventStatus.ABNORMAL, _("未恢复")),
+    (EventStatus.RECOVERED, _("已恢复")),
+    (EventStatus.CLOSED, _("已关闭")),
 )
 
 EVENT_STATUS_DICT = {status: desc for (status, desc) in EVENT_STATUS}
@@ -58,10 +59,10 @@ class HandleStage:
 
 
 HANDLE_STAGE = (
-    (HandleStage.NOISE_REDUCE, _lazy("已抑制")),
-    (HandleStage.HANDLE, _lazy("已通知")),
-    (HandleStage.SHIELD, _lazy("已屏蔽")),
-    (HandleStage.ACK, _lazy("已确认")),
+    (HandleStage.NOISE_REDUCE, _("已抑制")),
+    (HandleStage.HANDLE, _("已通知")),
+    (HandleStage.SHIELD, _("已屏蔽")),
+    (HandleStage.ACK, _("已确认")),
 )
 
 HANDLE_STAGE_DICT = {stage: display for (stage, display) in HANDLE_STAGE}
@@ -73,9 +74,9 @@ class EventSeverity:
     REMIND = 3
 
     EVENT_SEVERITY = (
-        (FATAL, _lazy("致命")),
-        (WARNING, _lazy("预警")),
-        (REMIND, _lazy("提醒")),
+        (FATAL, _("致命")),
+        (WARNING, _("预警")),
+        (REMIND, _("提醒")),
     )
 
     EVENT_SEVERITY_DICT = {status: desc for (status, desc) in EVENT_SEVERITY}
@@ -106,7 +107,7 @@ IGNORED_TAGS = (
     "ip",
     "bk_cloud_id",
     "bk_host_id",
-    NO_DATA_TAG_DIMENSION
+    NO_DATA_TAG_DIMENSION,
 )
 
 TARGET_DIMENSIONS = [
@@ -125,3 +126,71 @@ TARGET_DIMENSIONS = [
 DEFAULT_DEDUPE_FIELDS = ["alert_name", "strategy_id", "target_type", "target", "bk_biz_id"]
 
 CLUSTER_PATTERN = r"{[^}]+}"
+
+
+OLD_DEFAULT_TEMPLATE: str = (
+    "{{content.level}}\n"
+    "{{content.begin_time}}\n"
+    "{{content.time}}\n"
+    "{{content.duration}}\n"
+    "{{content.target_type}}\n"
+    "{{content.data_source}}\n"
+    "{{content.content}}\n"
+    "{{content.current_value}}\n"
+    "{{content.biz}}\n"
+    "{{content.target}}\n"
+    "{{content.dimension}}\n"
+    "{{content.detail}}\n"
+    "{{content.assign_detail}}\n"
+    "{{content.related_info}}\n"
+)
+
+DEFAULT_TEMPLATE: str = OLD_DEFAULT_TEMPLATE + "{{content.recommended_metrics}}\n" "{{content.anomaly_dimensions}}\n"
+
+DEFAULT_TITLE_TEMPLATE: str = "{{business.bk_biz_name}} - {{alarm.name}} {{alarm.display_type}}"
+
+
+# TODO(crayon) 灰度验证无误后再进行调整
+DEFAULT_NOTICE_MESSAGE_TEMPLATE: typing.List[typing.Dict[str, str]] = [
+    {"signal": "abnormal", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
+    {"signal": "recovered", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
+    {"signal": "closed", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
+]
+
+
+PUBLIC_NOTICE_CONFIG: typing.Dict[str, typing.Union[str, typing.List[typing.Dict]]] = {
+    "alert_notice": [
+        {
+            "time_range": "00:00:00--23:59:59",
+            "notify_config": [
+                {"level": 1, "type": ["weixin", "mail"]},
+                {"level": 2, "type": ["weixin", "mail"]},
+                {"level": 3, "type": ["weixin", "mail"]},
+            ],
+        }
+    ],
+    "action_notice": [
+        {
+            "time_range": "00:00:00--23:59:59",
+            "notify_config": [
+                {"phase": 1, "type": ["mail"]},
+                {"phase": 2, "type": ["mail"]},
+                {"phase": 3, "type": ["mail"]},
+            ],
+        }
+    ],
+    "message": "",
+}
+
+
+DEFAULT_NOTICE_GROUPS: typing.List[typing.Dict[str, typing.Any]] = [
+    {
+        "name": _("主备负责人"),
+        "notice_receiver": [{"id": "operator", "type": "group"}, {"id": "bk_bak_operator", "type": "group"}],
+        **PUBLIC_NOTICE_CONFIG,
+    },
+    {"name": _("运维"), "notice_receiver": [{"id": "bk_biz_maintainer", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
+    {"name": _("开发"), "notice_receiver": [{"id": "bk_biz_developer", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
+    {"name": _("测试"), "notice_receiver": [{"id": "bk_biz_tester", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
+    {"name": _("产品"), "notice_receiver": [{"id": "bk_biz_productor", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
+]
