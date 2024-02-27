@@ -3,8 +3,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 0 auto;
     width: 1366px;
+    margin: 0 auto;
   }
 
   .monitor-home-content {
@@ -27,25 +27,25 @@
           }
 
           .msg {
-            font-size: 12px;
-            color: rgba(0,0,0,.40);
-            font-weight: 400;
             margin-left: 10px;
+            font-size: 12px;
+            font-weight: 400;
+            color: rgba(0,0,0,.40);
           }
         }
 
         .right {
-          margin: 0 0 0 auto;
           display: flex;
           align-items: center;
+          margin: 0 0 0 auto;
 
           .time-select {
             margin-right: 10px;
           }
 
           .filter-select {
-            margin-left: 10px;
             min-width: 92px;
+            margin-left: 10px;
           }
         }
       }
@@ -56,32 +56,32 @@
 
       .overview-content {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
         height: 114px;
-        background: #fff;
-        box-shadow: 0px 1px 8px 0px #f0f1f5;
-        border-radius: 2px;
-        margin-top: 10px;
         padding: 0 7px;
+        margin-top: 10px;
+        background: #fff;
+        border-radius: 2px;
+        box-shadow: 0px 1px 8px 0px #f0f1f5;
 
         .data-item {
           position: relative;
-          width: 163px;
-          height: 88px;
           display: flex;
           flex-direction: column;
           align-items: center;
+          width: 163px;
+          height: 88px;
           transition: background-color .5s linear;
 
           &.border-right::before {
+            position: absolute;
+            top: 14px;
+            right: 0;
+            width: 1px;
+            height: 59px;
             content: '';
             background: #f0f1f5;
-            height: 59px;
-            width: 1px;
-            position: absolute;
-            right: 0;
-            top: 14px;
           }
 
           &:hover {
@@ -96,31 +96,31 @@
             margin-top: 13px;
 
             .num {
-              color: #313238;
               font-size: 30px;
+              color: #313238;
             }
 
             .unit {
-              color: #313238;
-              font-size: 14px;
               margin: 0 0 5px 4px;
+              font-size: 14px;
+              color: #313238;
             }
           }
 
           .item-bottom {
-            margin-top: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-top: 10px;
 
             .icon {
               color: #3a84ff;
             }
 
             .title {
+              margin-left: 4px;
               font-size: 14px;
               color: rgba(0,0,0,.60);
-              margin-left: 4px;
             }
           }
         }
@@ -131,10 +131,10 @@
       margin-top: 38px;
 
       .overview-content {
-        padding: 17px 0;
         display: flex;
         flex-direction: column;
         align-items: center;
+        padding: 17px 0;
       }
     }
   }
@@ -155,17 +155,17 @@
 
     &-msg {
       position: relative;
-      font-size: 12px;
       top: -42px;
+      font-size: 12px;
     }
   }
 
   .no-business-guide {
-    display: flex;
     top: 52px;
-    background-color: white;
+    display: flex;
     flex-direction: column;
     width: 100%;
+    background-color: white;
 
     .monitor-dialog {
       padding: 0;
