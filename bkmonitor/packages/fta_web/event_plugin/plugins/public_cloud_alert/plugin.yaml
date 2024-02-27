@@ -142,7 +142,7 @@ clean_configs:
       - field: event_id
         expr: "['tencent_cloud_alert_{{plugin_inst_biz_id}}', sessionId] | join('.', @)"
       - field: description
-        expr: join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName]
+        expr: "join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName])"
       - field: metric
         expr: alarmPolicyInfo.conditions.metricName
       - field: status
