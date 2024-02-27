@@ -26,11 +26,11 @@
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import { random } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import { ITableItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { IExtendMetricData, PanelModel } from '../../typings';
 import { VariablesService } from '../../utils/variable';

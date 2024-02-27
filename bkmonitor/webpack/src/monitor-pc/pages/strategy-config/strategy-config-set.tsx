@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../monitor-common/utils/utils';
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 

@@ -215,9 +215,8 @@
 </template>
 
 <script>
+import { fileImportUptimeCheck, fileParse } from 'monitor-api/modules/uptime_check';
 import XLSX from 'xlsx';
-
-import { fileImportUptimeCheck, fileParse } from '../../../../../monitor-api/modules/uptime_check';
 
 export default {
   name: 'UptimeCheckImport',

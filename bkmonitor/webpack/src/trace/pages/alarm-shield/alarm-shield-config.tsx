@@ -28,10 +28,10 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Button, Checkbox, Input, Loading, Message, Select, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
+import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
+import { deepClone, random } from 'monitor-common/utils';
 
-import { getNoticeWay, getReceiver } from '../../../monitor-api/modules/notice_group';
-import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from '../../../monitor-api/modules/shield';
-import { deepClone, random } from '../../../monitor-common/utils';
 import { transformMonitorToValue, transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NavBar from '../../components/nav-bar/nav-bar';
 import { useAppStore } from '../../store/modules/app';

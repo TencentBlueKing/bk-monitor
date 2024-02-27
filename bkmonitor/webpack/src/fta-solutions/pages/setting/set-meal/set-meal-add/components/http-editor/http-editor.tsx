@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
-import { Debounce, deepClone, transformDataKey } from '../../../../../../../monitor-common/utils/utils';
 import ResizeContainer from '../../../../../../components/resize-container/resize-container';
 import VerifyItem from '../../../../../../components/verify-item/verify-item';
 

@@ -27,10 +27,10 @@
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import bus from '../../../monitor-common/utils/event-bus';
-import { random } from '../../../monitor-common/utils/utils';
-import { ITableItem, SceneType } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import { DashboardColumnType, IPanelModel, ObservablePanelField, PanelModel } from '../typings';
 
 import ChartCollect from './chart-collect/chart-collect';

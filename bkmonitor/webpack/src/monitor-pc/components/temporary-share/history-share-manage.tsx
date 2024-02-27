@@ -27,11 +27,11 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
 import dayjs from 'dayjs';
+import { deleteShareToken, getShareTokenList } from 'monitor-api/modules/share';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import { INavItem } from '@/pages/monitor-k8s/typings';
 
-import { deleteShareToken, getShareTokenList } from '../../../monitor-api/modules/share';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog';
 import { shortcuts } from '../time-range/utils';
 
 import MiddleOmitted from './middle-omitted';

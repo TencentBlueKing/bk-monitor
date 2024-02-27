@@ -26,9 +26,9 @@
 
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { shareFavorite } from 'monitor-api/modules/model';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { shareFavorite } from '../../../../../monitor-api/modules/model';
-import { Debounce } from '../../../../../monitor-common/utils/utils';
 import { ISpaceItem } from '../../../../types';
 import { IFavList } from '../../typings';
 

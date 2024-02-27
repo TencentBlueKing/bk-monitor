@@ -23,13 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  getNoticeWay,
-  getReceiver,
-  noticeGroupDetail,
-  noticeGroupList
-} from '../../../monitor-api/modules/notice_group';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+import { getNoticeWay, getReceiver, noticeGroupDetail, noticeGroupList } from 'monitor-api/modules/notice_group';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
 const state = {
   isEdit: false

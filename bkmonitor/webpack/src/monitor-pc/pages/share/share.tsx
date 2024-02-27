@@ -27,8 +27,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 // import { activated, loadApp, deactivated } from '../../../bk-weweb/src/index';
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
-
-import { getShareParams } from '../../../monitor-api/modules/share';
+import { getShareParams } from 'monitor-api/modules/share';
 
 import './share.scss';
 

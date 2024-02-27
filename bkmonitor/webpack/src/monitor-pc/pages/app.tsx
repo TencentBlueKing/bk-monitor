@@ -30,12 +30,12 @@ import BkPaasLogin from '@blueking/paas-login';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
-import { getFooter, listStickySpaces } from '../../monitor-api/modules/commons';
-import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
-import debounce from '../../monitor-common/utils/debounce-decorator';
-import bus from '../../monitor-common/utils/event-bus';
-import { docCookies, getUrlParam, random } from '../../monitor-common/utils/utils';
-import AuthorityModal from '../../monitor-ui/authority-modal';
+import { getFooter, listStickySpaces } from 'monitor-api/modules/commons';
+import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import debounce from 'monitor-common/utils/debounce-decorator';
+import bus from 'monitor-common/utils/event-bus';
+import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
+import AuthorityModal from 'monitor-ui/authority-modal';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
@@ -57,7 +57,7 @@ import './app.scss';
 import introduce from '../common/introduce';
 import { isAuthority } from '../router/router';
 import { getDashboardCache } from './grafana/utils';
-import { getDashboardList } from '../../monitor-api/modules/grafana';
+import { getDashboardList } from 'monitor-api/modules/grafana';
 import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
 

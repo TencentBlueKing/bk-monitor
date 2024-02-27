@@ -12,8 +12,15 @@ specific language governing permissions and limitations under the License.
 import logging
 from typing import List, Optional
 
-from django.conf import settings
 from django.utils.translation import ugettext as _
+
+from bkmonitor.models import MetricListCache, StrategyModel
+from bkmonitor.strategy.new_strategy import get_metric_id
+from constants.action import ActionSignal
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.strategy import EVENT_DETECT_LIST, EVENT_QUERY_CONFIG_MAP
+from core.drf_resource import resource
 from monitor_web.strategies.constant import (
     DEFAULT_ALARM_STRATEGY_ATTR_NAME_OS,
     DEFAULT_ALARM_STRATEGY_LOADER_TYPE_OS,
@@ -24,13 +31,6 @@ from monitor_web.strategies.user_groups import (
     create_default_notice_group,
     get_or_create_gse_manager_group,
 )
-
-from bkmonitor.models import MetricListCache, StrategyModel
-from bkmonitor.strategy.new_strategy import get_metric_id
-from constants.action import ActionSignal
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.strategy import EVENT_DETECT_LIST, EVENT_QUERY_CONFIG_MAP
-from core.drf_resource import resource
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +186,7 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
                     "config": {
                         "interval_notify_mode": "standard",
                         "notify_interval": 2 * 60 * 60,
-                        "template": settings.DEFAULT_NOTICE_MESSAGE_TEMPLATE,
+                        "template": DEFAULT_NOTICE_MESSAGE_TEMPLATE,
                     },
                 },
                 "actions": [],

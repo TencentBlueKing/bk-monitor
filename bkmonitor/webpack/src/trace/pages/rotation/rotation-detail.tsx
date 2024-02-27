@@ -27,9 +27,9 @@ import { defineComponent, inject, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, Loading, Sideslider } from 'bkui-vue';
+import { retrieveDutyRule } from 'monitor-api/modules/model';
+import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
-import { retrieveDutyRule } from '../../../monitor-api/modules/model';
-import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { IAuthority } from '../../typings/authority';
 

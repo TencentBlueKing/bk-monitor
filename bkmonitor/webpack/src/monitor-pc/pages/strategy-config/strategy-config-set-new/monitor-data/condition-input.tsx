@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getVariableValue } from 'monitor-api/modules/grafana';
 
-import { getVariableValue } from '../../../../../monitor-api/modules/grafana';
 import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../constant/constant';
 import { getPopoverWidth } from '../../../../utils';
 import SelectMenu from '../components/select-menu';
