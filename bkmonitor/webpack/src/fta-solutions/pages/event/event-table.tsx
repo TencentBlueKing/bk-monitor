@@ -29,11 +29,10 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { checkAllowedByActionIds } from '../../../monitor-api/modules/iam';
-import { random } from '../../../monitor-common/utils/utils';
-import authorityStore from '../../../monitor-pc/store/modules/authority';
-import { transformLogUrlQuery } from '../../../monitor-pc/utils';
+import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
+import { random } from 'monitor-common/utils/utils';
+import authorityStore from 'monitor-pc/store/modules/authority';
+import { transformLogUrlQuery } from 'monitor-pc/utils';
 
 import { handleToAlertList } from './event-detail/action-detail';
 import { TType as TSliderType } from './event-detail/event-detail-slider';
@@ -120,6 +119,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   tableKey: string = random(10);
   extendInfoMap: Record<string, TranslateResult>;
   popoperInstance: any = null;
+  metricPopoverIns = null;
   selectedCount = 0;
   tableToolList: {
     id: string;
@@ -385,33 +385,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           checked: true,
           props: {
             minWidth: 180,
-            sortable: 'curstom',
-            formatter: (row: IEventItem) => {
-              const isEmpt = !row?.metric_display?.length;
-              if (isEmpt) return '--';
-              const key = random(10);
-              return (
-                <div class='tag-column-wrap'>
-                  <div
-                    class='tag-column'
-                    id={key}
-                    v-bk-overflow-tips={{
-                      allowHTML: true,
-                      interactive: true
-                    }}
-                  >
-                    {row.metric_display.map(item => (
-                      <div
-                        key={item.id}
-                        class='tag-item set-item'
-                      >
-                        {item.name || item.id}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            }
+            sortable: 'curstom'
           }
         },
         {
@@ -1066,6 +1040,22 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     this.popoperOperateInstance?.show(100);
   }
 
+  handleMetricMouseenter(e: MouseEvent, data: IEventItem['metric_display']) {
+    this.metricPopoverIns?.hide?.(0);
+    const { clientWidth, scrollWidth } = e.target as HTMLDivElement;
+    if (scrollWidth > clientWidth) {
+      this.metricPopoverIns = this.$bkPopover(e.target, {
+        content: `${data.map(item => `<div>${item.name}</div>`).join('')}`,
+        interactive: true,
+        distance: 0,
+        duration: [200, 0]
+      });
+      this.metricPopoverIns?.show?.(100);
+    } else {
+      this.metricPopoverIns?.destroy?.();
+    }
+  }
+
   // 表格column设置
   handleGetColumns() {
     const columList = [];
@@ -1100,6 +1090,35 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                     >
                       {row.id}
                     </span>
+                  )
+                }}
+              />
+            );
+          }
+          if (column.id === 'metric') {
+            return (
+              <bk-table-column
+                key={`${this.searchType}_${column.id}`}
+                label={column.name}
+                prop={column.id}
+                {...{ props: column.props }}
+                scopedSlots={{
+                  default: ({ row }: { row: IEventItem }) => (
+                    <div class='tag-column-wrap'>
+                      <div
+                        class='tag-column'
+                        onMouseenter={e => this.handleMetricMouseenter(e, row.metric_display)}
+                      >
+                        {row.metric_display.map(item => (
+                          <div
+                            key={item.id}
+                            class='tag-item set-item'
+                          >
+                            {item.name || item.id}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )
                 }}
               />

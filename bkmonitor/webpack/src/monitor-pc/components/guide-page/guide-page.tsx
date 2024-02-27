@@ -26,8 +26,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+import { getDocLink } from 'monitor-api/modules/commons';
 
-import { getDocLink } from '../../../monitor-api/modules/commons';
 import { IBtnAndLinkItem, ISPaceIntroduceData, SpaceIntroduceKeys } from '../../types/common/common';
 
 import './guide-page.scss';

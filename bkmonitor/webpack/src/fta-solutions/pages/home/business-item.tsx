@@ -25,10 +25,9 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { favorite, sticky } from '../../../monitor-api/modules/home';
-import { SPACE_TYPE_MAP } from '../../../monitor-pc/common/constant';
-import MonitorPieEchart from '../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
+import { favorite, sticky } from 'monitor-api/modules/home';
+import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
+import MonitorPieEchart from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import { initUnit } from './home';
 

@@ -44,7 +44,7 @@
   </div>
 </template>
 <script>
-import { deepClone, random } from '../../../../../monitor-common/utils/utils';
+import { deepClone, random } from 'monitor-common/utils/utils';
 
 import SetAdd from './set-add';
 import SetInput from './set-input';
@@ -301,22 +301,22 @@ export default {
 </script>
 <style lang="scss" scoped>
 .strategy-set-input {
-  color: #63656e;
-  flex-wrap: wrap;
   display: flex;
-  font-size: 12px;
-  width: 100%;
+  flex-wrap: wrap;
   align-items: center;
+  width: 100%;
+  font-size: 12px;
+  color: #63656e;
 
   .input-blank {
-    margin-right: 2px;
-    height: 32px;
-    border: 1px solid #f0f1f5;
-    background: #fafbfd;
-    flex: 1;
-    border-radius: 2px;
     box-sizing: border-box;
+    flex: 1;
+    height: 32px;
     margin-top: 2px;
+    margin-right: 2px;
+    background: #fafbfd;
+    border: 1px solid #f0f1f5;
+    border-radius: 2px;
   }
 }
 </style>

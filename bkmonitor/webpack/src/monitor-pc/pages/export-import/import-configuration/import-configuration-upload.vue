@@ -36,7 +36,8 @@
   </article>
 </template>
 <script>
-import { getCookie } from '../../../../monitor-common/utils/utils';
+import { getCookie } from 'monitor-common/utils/utils';
+
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import Upload from '../components/upload';
 

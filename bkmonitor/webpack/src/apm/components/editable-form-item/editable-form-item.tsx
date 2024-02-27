@@ -27,8 +27,8 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { copyText } from 'monitor-common/utils/utils';
 
-import { copyText } from '../../../monitor-common/utils/utils';
 import ExpiredSelect from '../../components/expired-select/expired-select';
 import { IUnitItme } from '../../pages/application/app-configuration/type';
 import VerifyItem from '../verify-item/verify-item';

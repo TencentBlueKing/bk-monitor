@@ -247,8 +247,9 @@
   </div>
 </template>
 <script>
-import { countryList } from '../../../../../monitor-api/modules/commons';
-import { getHttpHeaders } from '../../../../../monitor-api/modules/uptime_check';
+import { countryList } from 'monitor-api/modules/commons';
+import { getHttpHeaders } from 'monitor-api/modules/uptime_check';
+
 import CycleInput from '../../../../components/cycle-input/cycle-input.tsx';
 
 const DEFAULT_INTERVAL = 60; // 默认周期 单位:秒

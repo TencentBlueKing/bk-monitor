@@ -25,8 +25,7 @@
  */
 import { RouteConfig } from 'vue-router';
 
-const NoBusiness = () =>
-  import(/* webpackChunkName: 'no-business' */ '../../../monitor-pc/pages/no-business/no-business.vue');
+const NoBusiness = () => import(/* webpackChunkName: 'no-business' */ 'monitor-pc/pages/no-business/no-business.vue');
 export default [
   {
     name: 'no-business',

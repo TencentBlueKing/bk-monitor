@@ -25,10 +25,9 @@
  */
 import { Component, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { type TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
-import { MetricType } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import { MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import AiopsContainer from './aiops/aiops-container';
 import CirculationRecord from './circulation-record';

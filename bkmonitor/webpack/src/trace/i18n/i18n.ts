@@ -24,12 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { createI18n } from 'vue-i18n';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { docCookies } from 'monitor-common/utils/utils';
+import { mergeI18nJson } from 'monitor-pc/i18n/commmon';
 
 import './dayjs';
-
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
-import { docCookies } from '../../monitor-common/utils/utils';
-import { mergeI18nJson } from '../../monitor-pc/i18n/commmon';
 
 let currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
 if (currentLang === 'en') {

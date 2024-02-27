@@ -25,9 +25,8 @@
  */
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
-
-import { checkAllowedByActionIds, getAuthorityDetail, getAuthorityMeta } from '../../../monitor-api/modules/iam';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+import { checkAllowedByActionIds, getAuthorityDetail, getAuthorityMeta } from 'monitor-api/modules/iam';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
 // eslint-disable-next-line new-cap
 @Module({ name: 'authority', dynamic: true, namespaced: true, store })

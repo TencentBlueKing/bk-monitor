@@ -28,8 +28,8 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import echarts, { EChartOption } from 'echarts';
+import { hexToRgbA } from 'monitor-common/utils/utils';
 
-import { hexToRgbA } from '../../../monitor-common/utils/utils';
 import { ICurPoint } from '../typings';
 
 import BaseEchart, { IChartEvent, IChartProps } from './base-echart';

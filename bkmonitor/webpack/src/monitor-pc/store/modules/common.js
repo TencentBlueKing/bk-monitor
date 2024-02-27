@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getLabel, getServiceCategory, getTopoTree } from '../../../monitor-api/modules/commons';
+import { getLabel, getServiceCategory, getTopoTree } from 'monitor-api/modules/commons';
 
 export const SET_TREE_DATA = 'SET_TREE_DATA';
 export const SET_DATA_OBJECT = 'SET_DATA_OBJECT';

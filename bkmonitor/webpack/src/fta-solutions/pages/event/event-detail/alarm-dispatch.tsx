@@ -26,9 +26,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkUserSelector from '@blueking/user-selector';
-
-import { assignAlert } from '../../../../monitor-api/modules/action';
-import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
+import { assignAlert } from 'monitor-api/modules/action';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
 
 import './alarm-dispatch.scss';
 

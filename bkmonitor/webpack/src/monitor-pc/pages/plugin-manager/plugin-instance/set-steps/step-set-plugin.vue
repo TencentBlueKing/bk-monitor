@@ -464,16 +464,16 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-
-import { queryAsyncTaskResult } from '../../../../../monitor-api/modules/commons';
+import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
 import {
   checkIdCollectorPlugin,
   createCollectorPlugin,
   editCollectorPlugin,
   retrieveCollectorPlugin
-} from '../../../../../monitor-api/modules/model';
-import { pluginRegister } from '../../../../../monitor-api/modules/plugin';
-import Editor from '../../../../../monitor-ui/markdown-editor/editor.tsx';
+} from 'monitor-api/modules/model';
+import { pluginRegister } from 'monitor-api/modules/plugin';
+import Editor from 'monitor-ui/markdown-editor/editor.tsx';
+
 import PollingLoading from '../../../../components/polling-loading/polling-loading';
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 import documentLinkMixin from '../../../../mixins/documentLinkMixin';

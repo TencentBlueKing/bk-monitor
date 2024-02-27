@@ -25,8 +25,8 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
 import {
   ChartTitleMenuType,
   CurrentTargetType,

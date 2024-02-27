@@ -165,7 +165,7 @@
               <img
                 v-if="item.logo"
                 :src="item.logo"
-                alt=''
+                alt=""
               >
               <i
                 v-else-if="!item.logo && item.type === 'group'"
@@ -206,11 +206,11 @@
 
 <script>
 import { mapMutations } from 'vuex';
+import { shieldSnapshot } from 'monitor-api/modules/alert_events';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { frontendShieldDetail } from 'monitor-api/modules/shield';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
-import { shieldSnapshot } from '../../../../monitor-api/modules/alert_events';
-import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
-import { frontendShieldDetail } from '../../../../monitor-api/modules/shield';
-import { transformDataKey } from '../../../../monitor-common/utils/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
