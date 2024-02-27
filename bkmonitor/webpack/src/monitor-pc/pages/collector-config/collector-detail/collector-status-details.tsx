@@ -26,7 +26,6 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import {
   batchRetry,
   batchRevokeTargetNodes,
@@ -34,8 +33,9 @@ import {
   isTaskReady,
   retryTargetNodes,
   revokeTargetNodes
-} from '../../../../monitor-api/modules/collecting';
-import { copyText } from '../../../../monitor-common/utils/utils.js';
+} from 'monitor-api/modules/collecting';
+import { copyText } from 'monitor-common/utils/utils.js';
+
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
 import { transformJobUrl } from '../../../utils/index';
 import {

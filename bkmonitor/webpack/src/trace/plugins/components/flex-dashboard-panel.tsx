@@ -27,10 +27,9 @@
 import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, provide, ref, toRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import * as echarts from 'echarts';
-
-import { random } from '../../../monitor-common/utils/utils';
-import { SceneType } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { DashboardColumnType, IPanelModel, PanelModel } from '../../../monitor-ui/chart-plugins/typings';
+import { random } from 'monitor-common/utils/utils';
+import { type SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { DashboardColumnType, IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ChartWrapper from './chart-wrapper';
 

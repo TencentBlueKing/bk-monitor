@@ -25,8 +25,7 @@
  */
 import { Component, Vue } from 'vue-property-decorator';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-
-import { Debounce } from '../../../monitor-common/utils/utils';
+import { Debounce } from 'monitor-common/utils/utils';
 
 @Component
 export default class ResizeMixin extends Vue {

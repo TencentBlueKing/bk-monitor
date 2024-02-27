@@ -250,9 +250,9 @@
   </div>
 </template>
 <script>
+import { destroyUptimeCheckNode, listUptimeCheckNode } from 'monitor-api/modules/model';
 import { debounce } from 'throttle-debounce';
 
-import { destroyUptimeCheckNode, listUptimeCheckNode } from '../../../../monitor-api/modules/model';
 import { commonPageSizeMixin } from '../../../common/mixins';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';
 

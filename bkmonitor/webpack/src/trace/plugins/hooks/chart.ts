@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { inject, onBeforeUnmount, provide, Ref, watch, WatchStopHandle } from 'vue';
+import { type PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { PanelToolsType } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import { TimeRangeType } from '../../components/time-range/utils';
 import { isShadowEqual } from '../../utils';
 import { IViewOptions } from '../typings';

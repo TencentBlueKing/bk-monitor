@@ -39,23 +39,6 @@
       ],
       "@static/*": [
         "./static/*"
-      ],
-      "@api/*": [
-        "../monitor-api/*"
-      ],
-      "@common/*": [
-        "../monitor-common/*"
-      ],     "@ui/*": [
-        "../monitor-ui/*"
-      ],
-      "@pc/*": [
-        "../monitor-pc/*"
-      ],
-      "@apm/*": [
-        "../apm/*"
-      ],
-      "@fta/*": [
-        "../fta/*"
       ]
     }
   }

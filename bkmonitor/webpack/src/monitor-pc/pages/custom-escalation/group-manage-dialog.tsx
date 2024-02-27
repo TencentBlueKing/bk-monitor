@@ -25,9 +25,8 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { modifyCustomTsGroupingRuleList } from '../../../monitor-api/modules/custom_report';
-import { Debounce, random } from '../../../monitor-common/utils/utils';
+import { modifyCustomTsGroupingRuleList } from 'monitor-api/modules/custom_report';
+import { Debounce, random } from 'monitor-common/utils/utils';
 
 import MoreList from './more-list';
 

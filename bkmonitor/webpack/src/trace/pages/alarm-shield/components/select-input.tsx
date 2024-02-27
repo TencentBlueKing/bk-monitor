@@ -26,9 +26,9 @@
 import { computed, defineComponent, nextTick, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { bkTooltips, Exception, Input, Loading, Popover, Radio } from 'bkui-vue';
+import { getMetricListV2, getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { debounce } from 'monitor-common/utils';
 
-import { getMetricListV2, getStrategyListV2 } from '../../../../monitor-api/modules/strategies';
-import { debounce } from '../../../../monitor-common/utils';
 import { IDimensionItem } from '../typing';
 
 import './select-input.scss';

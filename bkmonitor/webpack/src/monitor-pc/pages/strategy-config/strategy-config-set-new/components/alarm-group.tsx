@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,8 +26,8 @@
  */
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import AlarmGroupDetail, { IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
 import * as ruleAuth from '../../authority-map';
 
@@ -300,7 +301,6 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                       onClick={this.handleRefresh}
                     >
                       {this.loading ? (
-                        /* eslint-disable-next-line @typescript-eslint/no-require-imports */
                         <img
                           src={require('../../../../static/images/svg/spinner.svg')}
                           class='status-loading'

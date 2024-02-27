@@ -26,8 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-
-import { deepClone } from '../../../monitor-common/utils';
+import { deepClone } from 'monitor-common/utils';
 
 import './table-tag-list.scss';
 

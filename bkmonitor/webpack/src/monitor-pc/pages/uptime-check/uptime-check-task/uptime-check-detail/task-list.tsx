@@ -25,10 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Debounce, deepClone } from '../../../../../monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import './task-list.scss';
 

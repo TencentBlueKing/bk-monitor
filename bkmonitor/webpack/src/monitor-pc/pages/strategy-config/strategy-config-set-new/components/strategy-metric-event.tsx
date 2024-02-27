@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { deepClone } from '../../../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
 import StrategyMetricWrap from './strategy-metric-wrap';
 

@@ -25,9 +25,9 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { renameCollectConfig } from 'monitor-api/modules/collecting';
+import { copyText } from 'monitor-common/utils/utils.js';
 
-import { renameCollectConfig } from '../../../../monitor-api/modules/collecting';
-import { copyText } from '../../../../monitor-common/utils/utils.js';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 

@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../monitor-ui/chart-plugins/utils/variable';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 /**
  * @description: 获取单个panel数据
  * @param {PanelModel} panel panelModel

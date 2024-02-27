@@ -32,23 +32,23 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
-
 // 原先绑定 Vue 原型的 $api
-import api from '../../../../monitor-api/api';
+import api from 'monitor-api/api';
 // TODO：需要重新实现
-// import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
+// import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 // TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
 // import { CommonSimpleChart } from '../../common-simple-chart';
-import { debounce } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import { ITableColumn } from '../../../../monitor-pc/pages/monitor-k8s/typings';
+import { debounce } from 'monitor-common/utils/utils';
+import { type ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 // import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { MONITOR_BAR_OPTIONS } from '../../../../monitor-ui/chart-plugins/constants';
+import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 // 原有类型
 // import { PanelModel } from '../../typings';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 // src/monitor-ui/chart-plugins/utils/index.ts
-import { downFile } from '../../../../monitor-ui/chart-plugins/utils';
+import { downFile } from 'monitor-ui/chart-plugins/utils';
+
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 // import { VariablesService } from '../../utils/variable';
 import { VariablesService } from '../../../utils';
 // import BaseEchart from '../monitor-base-echart';

@@ -25,9 +25,8 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getExperience, saveExperience } from '../../../../monitor-api/modules/alert';
-import Editor from '../../../../monitor-ui/markdown-editor/editor';
+import { getExperience, saveExperience } from 'monitor-api/modules/alert';
+import Editor from 'monitor-ui/markdown-editor/editor';
 
 import './handle-experience.scss';
 

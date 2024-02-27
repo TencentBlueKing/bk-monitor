@@ -36,9 +36,9 @@ import {
   queryCustomEventGroup,
   validateCustomEventGroupName,
   validateCustomTsGroupName
-} from '../../../monitor-api/modules/custom_report';
-import { getScenarioList } from '../../../monitor-api/modules/strategies';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/custom_report';
+import { getScenarioList } from 'monitor-api/modules/strategies';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
 const actions = {
   //  获取监控对象列表
