@@ -185,7 +185,7 @@ class QuickCreateSubscription extends tsc<IProps> {
   /** 发送配置 表单实例 */
   refOfSendingConfigurationForm = null;
 
-  isShowAdvancedOption = true;
+  isShowAdvancedOption = false;
   /** 展示同比 的 switcher */
   isShowYOY = true;
 
@@ -495,7 +495,10 @@ class QuickCreateSubscription extends tsc<IProps> {
     });
   }
 
-  /** 给 邮件标题 和 订阅名称 添加默认变量 */
+  /**
+   * 给 邮件标题 和 订阅名称 添加默认变量
+   * 以及从 url 中提取并赋值 展示同比 和 敏感度 。
+   */
   setDefaultValue() {
     const spaceList = this.$store.state.mySpaceList;
     const bizId = this.$store.state.bkBizId;
@@ -512,6 +515,16 @@ class QuickCreateSubscription extends tsc<IProps> {
     this.formData.content_config.title = targetName;
     this.formData.content_config__title = targetName;
     this.formData.name = `${targetTitle}-${this.$store.state.userMeta?.username || ''}`
+
+    const clusterRouteParams = JSON.parse(this.$route.query.clusterRouteParams || '{}');
+    this.pattenLevelSlider = PatternLevelEnum[clusterRouteParams?.requestData?.pattern_level || '09'];
+    this.handleSliderChange();
+    if (clusterRouteParams?.requestData?.year_on_year_hour) {
+      this.formData.scenario_config.year_on_year_hour = clusterRouteParams?.requestData?.year_on_year_hour;
+    } else {
+      this.isShowYOY = false;
+      this.formData.scenario_config.year_on_year_hour = 0;
+    }
   }
 
   /** 获取索引集 列表，需要取其中的 name */
