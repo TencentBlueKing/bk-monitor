@@ -329,6 +329,9 @@ export default class App extends tsc<{}> {
   handleToggle(v: boolean) {
     if (!v && this.isMouseleaveBody) {
       this.menuToggle = true;
+      if ((this.$refs?.navigation as any)?.nav) {
+        (this.$refs.navigation as any).nav.hover = true;
+      }
     } else {
       this.menuToggle = v;
     }
@@ -712,6 +715,7 @@ export default class App extends tsc<{}> {
           class={{
             'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share'
           }}
+          ref={'navigation'}
           navigation-type='top-bottom'
           on-toggle={this.handleToggle}
           themeColor='#2c354d'
