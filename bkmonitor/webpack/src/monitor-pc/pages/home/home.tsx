@@ -26,13 +26,13 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
+import { initUnit } from 'fta-solutions/pages/home/home';
+import { fetchBusinessInfo } from 'monitor-api/modules/commons';
+import { statistics } from 'monitor-api/modules/home';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 import { throttle } from 'throttle-debounce';
 
-import { IData as IBusinessCard } from '../../../fta-solutions/pages/home/business-item';
-import { initUnit } from '../../../fta-solutions/pages/home/home';
-import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
-import { statistics } from '../../../monitor-api/modules/home';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import NoBussiness from '../no-business/no-business.vue';

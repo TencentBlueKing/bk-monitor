@@ -49,7 +49,9 @@ class MonitorEventAdapter:
             topic = settings.MONITOR_EVENT_KAFKA_TOPIC
         else:
             topic = f"{settings.MONITOR_EVENT_KAFKA_TOPIC}_{get_cluster().name}"
-        kafka_queue = KafkaQueue(topic=topic)
+        # 使用专用kafka集群: ALERT_KAFKA_HOST  ALERT_KAFKA_PORT
+        kafka_queue = KafkaQueue.get_alert_kafka_queue()
+        kafka_queue.set_topic(topic)
         return kafka_queue.put(value=messages)
 
     def __init__(self, record: dict, strategy: dict):
@@ -61,7 +63,7 @@ class MonitorEventAdapter:
                 "record_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480",
                 "value": 1.38,
                 "values": {"timestamp": 1569246480, "load5": 1.38},
-                "dimensions": {"ip": "10.0.0.1", "bk_cloud_id": "0"},
+                "dimensions": {"ip": "127.0.0.1", "bk_cloud_id": "0"},
                 "time": 1569246480,
             },
             "anomaly": {

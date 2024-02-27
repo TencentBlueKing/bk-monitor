@@ -117,9 +117,8 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { deepClone } from 'monitor-common/utils/utils';
 
-
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import SelectMenu from '../components/select-menu.vue';
 import { IFuncListItem, IFuncLocalParamsItem, IFuncLocalValue, IFuncValueItem, IIdNameItem } from '../type';
 

@@ -144,8 +144,8 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { sort } from 'monitor-common/utils/utils.js';
 
-import { sort } from '../../../../monitor-common/utils/utils.js';
 import { FieldValue, IConditionValue, InputType, IOption } from '../performance-type';
 
 @Component({ name: 'filter-panel-item' })

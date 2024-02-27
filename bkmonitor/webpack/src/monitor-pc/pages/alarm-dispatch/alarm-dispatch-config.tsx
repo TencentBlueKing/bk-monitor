@@ -26,12 +26,12 @@
 import { Component, Inject, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { listActionConfig, listAssignGroup, listAssignRule, listUserGroup } from 'monitor-api/modules/model';
+import { getCookie, random, transformDataKey } from 'monitor-common/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { listActionConfig, listAssignGroup, listAssignRule, listUserGroup } from '../../../monitor-api/modules/model';
-import { getCookie, random, transformDataKey } from '../../../monitor-common/utils';
-import { deepClone } from '../../../monitor-common/utils/utils';
-import MonitorImport from '../../../monitor-pc/components/monitor-import/monitor-import.vue';
 import { Debounce } from '../../components/ip-selector/common/util';
+import MonitorImport from '../../components/monitor-import/monitor-import.vue';
 import { getEventPaths } from '../../utils';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
 import { csvToArr } from '../custom-escalation/utils';

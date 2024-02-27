@@ -26,9 +26,9 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { transferCountSeries, transferLatestMsg } from 'monitor-api/modules/datalink';
+import { copyText } from 'monitor-common/utils/utils';
 
-import { transferCountSeries, transferLatestMsg } from '../../../../../monitor-api/modules/datalink';
-import { copyText } from '../../../../../monitor-common/utils/utils';
 import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
 import { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
@@ -60,8 +60,8 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     data: []
   };
 
-  dayChartConfig: ChartConfigModel = {
-    timeRange: ['now-7d', 'now'],
+  hourChartConfig: ChartConfigModel = {
+    timeRange: ['now-6h', 'now'],
     data: []
   };
 
@@ -84,17 +84,17 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     }
   }
 
-  handleTimeRange(val, type: 'minute' | 'day') {
+  handleTimeRange(val, type: 'minute' | 'hour') {
     if (type === 'minute') {
       this.minuteChartConfig.timeRange = val;
     } else {
-      this.dayChartConfig.timeRange = val;
+      this.hourChartConfig.timeRange = val;
     }
   }
 
-  async getChartData(type: 'minute' | 'day') {
+  async getChartData(type: 'minute' | 'hour') {
     const [startTime, endTime] = handleTransformToTimestamp(
-      type === 'minute' ? this.minuteChartConfig.timeRange : this.dayChartConfig.timeRange
+      type === 'minute' ? this.minuteChartConfig.timeRange : this.hourChartConfig.timeRange
     );
     const res = await transferCountSeries({
       collect_config_id: this.collectId,
@@ -106,7 +106,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
       if (type === 'minute') {
         this.minuteChartConfig.data = res[0].datapoints;
       } else {
-        this.dayChartConfig.data = res[0].datapoints;
+        this.hourChartConfig.data = res[0].datapoints;
       }
     }
   }
@@ -144,8 +144,6 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   }
 
   init() {
-    this.getChartData('minute');
-    this.getChartData('day');
     this.getTableData();
   }
 
@@ -167,11 +165,11 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
           <div class='chart-container'>
             <LinkStatusChart
               ref='dayChartRef'
-              type='day'
-              timeRange={this.dayChartConfig.timeRange}
-              data={this.dayChartConfig.data}
-              getChartData={() => this.getChartData('day')}
-              onTimeRangeChange={val => this.handleTimeRange(val, 'day')}
+              type='hour'
+              timeRange={this.hourChartConfig.timeRange}
+              data={this.hourChartConfig.data}
+              getChartData={() => this.getChartData('hour')}
+              onTimeRangeChange={val => this.handleTimeRange(val, 'hour')}
             />
           </div>
         </div>

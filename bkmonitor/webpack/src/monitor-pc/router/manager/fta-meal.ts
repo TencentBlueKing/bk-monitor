@@ -25,15 +25,11 @@
  */
 /* eslint-disable max-len */
 import { RouteConfig } from 'vue-router';
+import * as ruleAuth from 'fta-solutions/pages/setting/set-meal/authority-map';
 
-import * as ruleAuth from '../../../fta-solutions/pages/setting/set-meal/authority-map';
-
-const SetMeal = () =>
-  import(/* webpackChunkName: "SetMeal" */ '../../../fta-solutions/pages/setting/set-meal/set-meal');
+const SetMeal = () => import(/* webpackChunkName: "SetMeal" */ 'fta-solutions/pages/setting/set-meal/set-meal');
 const AddSetMeal = () =>
-  import(
-    /* webpackChunkName: "AddSetMeal" */ '../../../fta-solutions/pages/setting/set-meal/set-meal-add/set-meal-add'
-  );
+  import(/* webpackChunkName: "AddSetMeal" */ 'fta-solutions/pages/setting/set-meal/set-meal-add/set-meal-add');
 export default [
   {
     path: '/set-meal',

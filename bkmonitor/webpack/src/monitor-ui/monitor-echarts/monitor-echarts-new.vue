@@ -235,11 +235,11 @@ import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
+import { traceListById } from 'monitor-api/modules/apm_trace';
+import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
+import { downCsvFile, IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
 
-import { traceListById } from '../../monitor-api/modules/apm_trace';
-import { copyText, hexToRgbA } from '../../monitor-common/utils/utils';
-import { downCsvFile, IUnifyQuerySeriesItem } from '../../monitor-pc/pages/view-detail/utils';
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
 
 import ChartAnnotation from './components/chart-annotation.vue';
@@ -720,7 +720,7 @@ export default class MonitorEcharts extends Vue {
     this.needObserver = false;
     try {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
-      const data = await this.getSeriesData(startTime, endTime, isRange).catch((e) => {
+      const data = await this.getSeriesData(startTime, endTime, isRange).catch(() => {
         return [];
       });
       this.seriesData = [...data].map(item => ({
@@ -839,33 +839,33 @@ export default class MonitorEcharts extends Vue {
                 this.initChartAction();
                 this.chart.on('dataZoom', async (event) => {
                   this.loading = true;
-                    const [batch] = event.batch;
-                    if (batch.startValue && batch.endValue) {
-                      const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-                      let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-                      if (!this.showTitleTool) {
-                        const dataPoints = this.seriesData?.[0]?.datapoints;
-                        if(dataPoints?.length) {
-                          const maxX = dataPoints[dataPoints.length - 1]?.[1];
-                          if(+batch.endValue.toFixed(0) === maxX) {
-                            timeTo = dayjs().format('YYYY-MM-DD HH:mm');
-                          }
+                  const [batch] = event.batch;
+                  if (batch.startValue && batch.endValue) {
+                    const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                    let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                    if (!this.showTitleTool) {
+                      const dataPoints = this.seriesData?.[0]?.datapoints;
+                      if (dataPoints?.length) {
+                        const maxX = dataPoints[dataPoints.length - 1]?.[1];
+                        if (+batch.endValue.toFixed(0) === maxX) {
+                          timeTo = dayjs().format('YYYY-MM-DD HH:mm');
                         }
                       }
-                      this.timeRange = [timeFrom, timeTo];
-                      if (this.getSeriesData) {
-                        this.chart.dispatchAction({
-                          type: 'restore'
-                        });
-                        if (this.enableSelectionRestoreAll) {
-                          this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
-                        } else {
-                          await this.handleSeriesData(timeFrom, timeTo);
-                        }
-                      }
-                      this.$emit('data-zoom', this.timeRange);
                     }
-                    this.loading = false;
+                    this.timeRange = [timeFrom, timeTo];
+                    if (this.getSeriesData) {
+                      this.chart.dispatchAction({
+                        type: 'restore'
+                      });
+                      if (this.enableSelectionRestoreAll) {
+                        this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
+                      } else {
+                        await this.handleSeriesData(timeFrom, timeTo);
+                      }
+                    }
+                    this.$emit('data-zoom', this.timeRange);
+                  }
+                  this.loading = false;
                   // if (this.showTitleTool) {
                   //   this.loading = true;
                   //   const [batch] = event.batch;

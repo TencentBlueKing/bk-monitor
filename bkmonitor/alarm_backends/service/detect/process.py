@@ -114,6 +114,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
                     # 拿不到上一级记录的时间，忽略
                     continue
                 latency = current_time - data_point["data"]["access_time"]
+                # SLI(detect) - 记录当前处理时间，用于 SLI 统计各模块间处理延迟场景
                 data_point["data"]["detect_time"] = current_time
                 if latency > 0:
                     metrics.DETECT_PROCESS_LATENCY.labels(strategy_id=metrics.TOTAL_TAG).observe(latency)

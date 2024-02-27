@@ -73,9 +73,9 @@
 
 <script>
 import { mapActions } from 'vuex';
+import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
+import { exportPackage } from 'monitor-api/modules/export_import';
 
-import { queryAsyncTaskResult } from '../../../../monitor-api/modules/commons';
-import { exportPackage } from '../../../../monitor-api/modules/export_import';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import * as importExportAuth from '../authority-map';
@@ -304,16 +304,16 @@ export default {
 
 <style lang="scss" scoped>
 .export {
+  margin: 24px;
   font-size: 12px;
   color: #63656e;
-  margin: 24px;
 
   &-table {
-    height: calc(100vh - 234px);
     display: flex;
     width: 100%;
-    background: #fff;
+    height: calc(100vh - 234px);
     margin-bottom: 20px;
+    background: #fff;
 
     .view-border {
       border-right: 1px solid #dcdee5;

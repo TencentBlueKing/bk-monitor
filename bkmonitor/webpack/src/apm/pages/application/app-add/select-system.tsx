@@ -25,12 +25,12 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { checkDuplicateName, getDataEncoding } from 'monitor-api/modules/apm_meta';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
+import { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
+import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 
-import { checkDuplicateName, getDataEncoding } from '../../../../monitor-api/modules/apm_meta';
-import { Debounce, deepClone } from '../../../../monitor-common/utils/utils';
-import { IIpV6Value, INodeType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
-import { transformValueToMonitor } from '../../../../monitor-pc/components/monitor-ip-selector/utils';
-import StrategyIpv6 from '../../../../monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 import { ICreateAppFormData } from '../../home/app-list';
 
 import { IDescData, ThemeType } from './select-card-item';

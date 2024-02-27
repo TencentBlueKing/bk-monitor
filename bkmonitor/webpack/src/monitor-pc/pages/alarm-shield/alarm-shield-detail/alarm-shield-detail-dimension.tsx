@@ -25,9 +25,8 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import WhereDisplay from '../../../../fta-solutions/pages/event/event-detail/where-display';
-import { random } from '../../../../monitor-common/utils/utils';
+import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
+import { random } from 'monitor-common/utils/utils';
 
 import './alarm-shield-detail-dimension.scss';
 

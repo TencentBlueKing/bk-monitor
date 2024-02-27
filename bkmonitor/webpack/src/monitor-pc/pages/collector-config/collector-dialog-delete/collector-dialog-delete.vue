@@ -151,14 +151,14 @@
 
 <script lang="ts">
 import { Component, Prop, PropSync, Vue, Watch } from 'vue-property-decorator';
-
 import {
   collectTargetStatus,
   deleteCollectConfig,
   listRelatedStrategy,
-  toggleCollectConfigStatus } from '../../../../monitor-api/modules/collecting';
-import { deleteStrategyConfig } from '../../../../monitor-api/modules/strategies';
-import monitorDialog from '../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+  toggleCollectConfigStatus } from 'monitor-api/modules/collecting';
+import { deleteStrategyConfig } from 'monitor-api/modules/strategies';
+import monitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+
 import { ICollectorTaskData, IDeletingStepListItem } from '../collector-type';
 
 // 删除采集配置弹层

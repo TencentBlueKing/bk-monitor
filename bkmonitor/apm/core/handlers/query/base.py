@@ -47,12 +47,12 @@ class EsQueryBuilderMixin:
     @classproperty
     def operator_mapping(self):
         return {
-            EsOperator.EXISTS: lambda q, k, v: q.query("bool", must=[Q("exists", field=k)]),
+            EsOperator.EXISTS: lambda q, k, v: q.query("bool", filter=[Q("exists", field=k)]),
             EsOperator.NOT_EXISTS: lambda q, k, v: q.query("bool", must_not=[Q("exists", field=k)]),
-            EsOperator.EQUAL: lambda q, k, v: q.query("bool", must=[Q("terms", **{k: v})]),
+            EsOperator.EQUAL: lambda q, k, v: q.query("bool", filter=[Q("terms", **{k: v})]),
             EsOperator.NOT_EQUAL: lambda q, k, v: q.query("bool", must_not=[Q("terms", **{k: v})]),
-            EsOperator.BETWEEN: lambda q, k, v: q.query("bool", must=[Q("range", **{k: {"gte": v[0], "lte": v[1]}})]),
-            EsOperator.LIKE: lambda q, k, v: q.query("bool", must=[Q("wildcard", **{k: f'*{v[0]}*'})]),
+            EsOperator.BETWEEN: lambda q, k, v: q.query("bool", filter=[Q("range", **{k: {"gte": v[0], "lte": v[1]}})]),
+            EsOperator.LIKE: lambda q, k, v: q.query("bool", filter=[Q("wildcard", **{k: f'*{v[0]}*'})]),
             LogicSupportOperator.LOGIC: lambda q, k, v: self._add_logic_filter(q, k, v),
         }
 
@@ -71,7 +71,7 @@ class EsQueryBuilderMixin:
             time_field = cls.DEFAULT_SORT_FIELD
         return query.query(
             "bool",
-            must=[Q("range", **{time_field: time_query})],
+            filter=[Q("range", **{time_field: time_query})],
         )
 
     @classmethod

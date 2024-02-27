@@ -23,6 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import i18n from '../../monitor-pc/i18n/i18n';
+import i18n from 'monitor-pc/i18n/i18n';
 
 export default i18n;

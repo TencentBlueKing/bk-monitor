@@ -54,7 +54,7 @@ def oom_event_generator(ip, cloud_id):
 
 
 def push_to_kafka(values: List[str], bk_data_id):
-    kafka_queue = KafkaQueue.get_common_kafka_queue()
+    kafka_queue = KafkaQueue.get_alert_kafka_queue()
     topic_info = api.metadata.get_data_id(bk_data_id=bk_data_id, with_rt_info=False)
     topic = topic_info["mq_config"]["storage_config"]["topic"]
     kafka_queue.put(values, topic)

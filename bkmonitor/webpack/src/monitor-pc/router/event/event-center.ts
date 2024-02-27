@@ -28,13 +28,13 @@ import { RouteConfig } from 'vue-router';
 
 import * as eventCenterAuth from '../../pages/event-center/authority-map';
 // import PageLoading from '../../pages/loading/page-loading';
-const EventCenter = () => import(/* webpackChunkName: "Event" */ '../../../fta-solutions/pages/event/event');
+const EventCenter = () => import(/* webpackChunkName: "Event" */ 'fta-solutions/pages/event/event');
 const EventCenterDetail = () =>
-  import(/* webpackChunkName: "EventDetail" */ '../../../fta-solutions/pages/event/event-detail/event-detail');
+  import(/* webpackChunkName: "EventDetail" */ 'fta-solutions/pages/event/event-detail/event-detail');
 const ActionDetail = () =>
-  import(/* webpackChunkName: "EventDetail" */ '../../../fta-solutions/pages/event/event-detail/action-detail');
+  import(/* webpackChunkName: "EventDetail" */ 'fta-solutions/pages/event/event-detail/action-detail');
 // const createAsyncComponent = () => ({
-//   component: import(/* webpackChunkName: "Event" */ '../../../fta-solutions/pages/event/event'),
+//   component: import(/* webpackChunkName: "Event" */ 'fta-solutions/pages/event/event'),
 //   // 异步组件加载时使用的组件
 //   loading: PageLoading,
 //   // 加载失败时使用的组件

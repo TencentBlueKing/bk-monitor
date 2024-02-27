@@ -25,11 +25,10 @@
  */
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { IEvent, IntervalType, IOption, IProps, unitType } from 'monitor-pc/components/cycle-input/typings';
+import { defaultCycleOptionMin, defaultCycleOptionSec } from 'monitor-pc/components/cycle-input/utils';
 
-import { IEvent, IntervalType, IOption, IProps, unitType } from '../../../monitor-pc/components/cycle-input/typings';
-import { defaultCycleOptionMin, defaultCycleOptionSec } from '../../../monitor-pc/components/cycle-input/utils';
-
-import '../../../monitor-pc/components/cycle-input/cycle-input.scss';
+import 'monitor-pc/components/cycle-input/cycle-input.scss';
 
 const { i18n } = window;
 

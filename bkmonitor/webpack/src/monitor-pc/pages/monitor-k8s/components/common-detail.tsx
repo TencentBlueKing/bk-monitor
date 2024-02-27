@@ -25,13 +25,13 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
+import { CancelToken } from 'monitor-api/index';
+import { copyText, Debounce, random } from 'monitor-common/utils/utils';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
-import { CancelToken } from '../../../../monitor-api/index';
-import { copyText, Debounce, random } from '../../../../monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
-import { isShadowEqual } from '../../../../monitor-ui/chart-plugins/utils';
-import { VariablesService } from '../../../../monitor-ui/chart-plugins/utils/variable';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { resize } from '../../../components/ip-selector/common/observer-directive';

@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { listDutyRule } from 'monitor-api/modules/model';
+import { previewUserGroupPlan } from 'monitor-api/modules/user_groups';
+import { Debounce, random } from 'monitor-common/utils';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
-import { listDutyRule } from '../../../../monitor-api/modules/model';
-import { previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
-import { Debounce, random } from '../../../../monitor-common/utils';
-import loadingIcon from '../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import { EStatus, getEffectiveStatus, statusMap } from '../../../../trace/pages/rotation/typings/common';
 import { IGroupListItem } from '../duty-arranges/user-selector';
 

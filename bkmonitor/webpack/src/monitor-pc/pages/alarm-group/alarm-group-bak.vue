@@ -166,9 +166,9 @@
 
 <script>
 import { mapActions } from 'vuex';
+import { deleteNoticeGroup } from 'monitor-api/modules/notice_group';
 import { debounce } from 'throttle-debounce';
 
-import { deleteNoticeGroup } from '../../../monitor-api/modules/notice_group';
 import { commonPageSizeMixin } from '../../common/mixins';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 

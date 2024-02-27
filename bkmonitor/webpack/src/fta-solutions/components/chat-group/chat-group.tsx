@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,8 +27,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkUserSelector from '@blueking/user-selector';
-
-import { createChatGroup } from '../../../monitor-api/modules/action';
+import { createChatGroup } from 'monitor-api/modules/action';
 
 import './chat-group.scss';
 
@@ -120,7 +120,6 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
         on-value-change={this.handleShowChange}
       >
         <div class='header'>
-          {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
           <img
             src={require('../../static/img/we-com.svg')}
             alt=''

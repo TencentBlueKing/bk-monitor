@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 
-import { saveScenePanelConfig } from '../../../../monitor-api/modules/data_explorer';
 import SortPanel from '../../performance/performance-detail/sort-panel.vue';
 
 import { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
