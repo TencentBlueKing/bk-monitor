@@ -1,5 +1,5 @@
 plugin_id: public_cloud_alert
-version: 0.0.1
+version: 0.1.0
 plugin_display_name: 公有云告警接收
 plugin_type: http_push
 summary: 接收公有云告警，目前支持腾讯云和谷歌云
@@ -52,7 +52,7 @@ clean_configs:
       - field: bk_biz_id
         expr: "'{{plugin_inst_biz_id}}'"
       - field: dimensions
-        expr: "merge(incident.resource.labels, incident.metric.labels, {resource_type: incident.resource.type, metric_type: incident.metric.type})"
+        expr: "merge(incident.resource.labels, incident.metric.labels, {resource_type: incident.resource.type, metric_type: incident.metric.type, source: 'GOOGLE_CLOUD'})"
       - field: tags
         expr: |
           {
@@ -98,7 +98,8 @@ clean_configs:
             {
               region: alarmObjInfo.region,
               namespace: alarmObjInfo.namespace,
-              policyId: alarmPolicyInfo.policyId
+              policyId: alarmPolicyInfo.policyId,
+              source: 'TENCENT_CLOUD'
             }
           ) ||
           alarmObjInfo."tapm.instance.key" &&
@@ -107,14 +108,16 @@ clean_configs:
             "service.name": alarmObjInfo."service.name",
             "span.kind": alarmObjInfo."span.kind",
             operation: alarmObjInfo.operation,
-            policyId: alarmPolicyInfo.policyId
+            policyId: alarmPolicyInfo.policyId,
+            source: 'TENCENT_CLOUD'
           } || 
           alarmObjInfo.level &&
           {
             level: alarmObjInfo.level,
             id: alarmObjInfo.id,
             instanceId: alarmObjInfo.instanceId,
-            policyId: alarmPolicyInfo.policyId
+            policyId: alarmPolicyInfo.policyId,
+            source: 'TENCENT_CLOUD'
           }
       - field: tags
         expr: |
@@ -158,7 +161,8 @@ clean_configs:
             {
               region: alarmObjInfo.region,
               namespace: alarmObjInfo.namespace,
-              policyId: alarmPolicyInfo.policyId
+              policyId: alarmPolicyInfo.policyId,
+              source: 'TENCENT_CLOUD'
             }
           )
       - field: tags
@@ -203,7 +207,8 @@ clean_configs:
           merge(
             alarmObjInfo.tags,
             {
-              policyId: alarmPolicyInfo.policyId
+              policyId: alarmPolicyInfo.policyId,
+              source: 'TENCENT_CLOUD'
             }
           )
       - field: tags
