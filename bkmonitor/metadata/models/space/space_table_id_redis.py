@@ -27,6 +27,7 @@ from metadata.models.space.constants import (
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
     DATA_LABEL_TO_RESULT_TABLE_KEY,
     DBM_1001_TABLE_ID_PREFIX,
+    P4_1001_TABLE_ID_PREFIX,
     RESULT_TABLE_DETAIL_CHANNEL,
     RESULT_TABLE_DETAIL_KEY,
     SPACE_TO_RESULT_TABLE_CHANNEL,
@@ -353,7 +354,14 @@ class SpaceTableIDRedis:
         tids = models.ResultTable.objects.filter(table_id__startswith=BKCI_1001_TABLE_ID_PREFIX).values_list(
             "table_id", flat=True
         )
-        return {tid: {"filters": [{"projectId": space_id}]} for tid in tids}
+        # bkci 访问 p4 主机数据对应的结果表
+        p4_tids = models.ResultTable.objects.filter(table_id__startswith=P4_1001_TABLE_ID_PREFIX).values_list(
+            "table_id", flat=True
+        )
+        # 组装结果表对应的 filter
+        tid_filters = {tid: {"filters": [{"projectId": space_id}]} for tid in tids}
+        tid_filters.update({tid: {"filters": [{"devops_id": space_id}]} for tid in p4_tids})
+        return tid_filters
 
     def _compose_all_type_table_ids(self, space_type: str, space_id: str) -> Dict:
         """组装非业务类型的全空间类型的结果表数据"""
