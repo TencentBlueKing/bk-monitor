@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 import logging
 from typing import Dict, List, Optional
 
@@ -76,3 +77,32 @@ def filter_data_id_and_transfer() -> Dict:
     for r in records:
         data.setdefault(r["transfer_cluster_id"], []).append(r["bk_data_id"])
     return data
+
+
+def stop_or_enable_datasource(data_id_list: List[int], is_enabled: bool) -> bool:
+    """停止或启用数据源"""
+    # 校验数据源存在
+    datasources = models.DataSource.objects.filter(bk_data_id__in=data_id_list)
+    exist_data_ids = set(datasources.values_list("bk_data_id", flat=True))
+    diff_data_ids = set(data_id_list) - exist_data_ids
+    # 如果存在不匹配的数据源，则需要返回
+    if diff_data_ids:
+        raise ValueError(f"data_ids: {json.dumps(diff_data_ids)} not found")
+    if is_enabled not in [True, False]:
+        raise ValueError("is_enabled must be True or False")
+    # 设置状态
+    datasources.update(is_enable=is_enabled)
+    # 逐个删除consul中配置
+    if is_enabled is False:
+        # 如果是停用，则需要删除对应的consul记录
+        hash_consul = consul_tools.HashConsul()
+        for datasource in datasources:
+            hash_consul.delete(datasource.consul_config_path)
+            logger.info("delete data_id: %s consul config", datasource.bk_data_id)
+    else:
+        # 启用时，需要下发gse路由
+        for datasource in datasources:
+            datasource.refresh_outer_config()
+            logger.info("delete data_id: %s consul config", datasource.bk_data_id)
+
+    return True

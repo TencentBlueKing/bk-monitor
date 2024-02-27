@@ -194,6 +194,7 @@ export default class Home extends tsc<{}> {
   loading = false;
 
   oldSearchValue = '';
+
   showGuide = false;
   throttledScroll: Function = () => {};
 

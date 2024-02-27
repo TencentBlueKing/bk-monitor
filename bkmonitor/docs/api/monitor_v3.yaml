@@ -2701,3 +2701,13 @@
   path: /v2/monitor_v3/metadata_query_result_table_storage_detail/
   method: GET
 
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/stop_or_enable_datasource/
+  is_hidden: false
+  label: 修改指定数据源的配置信息
+  label_en: metadata stop or enable data source
+  name: metadata_stop_or_enable_datasource
+  path: /v2/monitor_v3/metadata_stop_or_enable_datasource/
+  method: POST
