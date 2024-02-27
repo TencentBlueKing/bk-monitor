@@ -11,12 +11,18 @@ specific language governing permissions and limitations under the License.
 import copy
 
 import arrow
+import pytest
 from django.test import TestCase
 
+from alarm_backends.constants import NO_DATA_TAG_DIMENSION
 from alarm_backends.core.cache.key import CHECK_RESULT_CACHE_KEY
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.checker import AnomalyChecker
+from bkmonitor.models import CacheNode
 from bkmonitor.utils import time_tools
 from core.errors.alarm_backends import StrategyItemNotFound
+
+pytestmark = pytest.mark.django_db
 
 STRATEGY = {
     "bk_biz_id": 2,
@@ -171,16 +177,27 @@ CHECK_RESULT_SETS = {
         ("1569246480|ANOMALY", 1569246480),
     ],
     4: [
+        # 距离较远的点
         ("1690517000|ANOMALY", 1569244240),
         ("1690516000|2", 1569246300),
         ("1690515000|ANOMALY", 1569246360),
         ("1690514000|ANOMALY", 1569246420),
         ("1690513000|ANOMALY", 1569246480),
     ],
+    5: [
+        ("1569246240|ANOMALY", 1569246240),
+        ("1569246300|ANOMALY", 1569246300),
+        ("1569246360|ANOMALY", 1569246360),
+        ("1569246420|ANOMALY", 1569246420),
+        ("1569246480|ANOMALY", 1569246480),
+    ],
 }
 
 
 class TestChecker(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     @classmethod
     def gen_check_result_key(cls, level):
         return CHECK_RESULT_CACHE_KEY.get_key(
@@ -205,12 +222,15 @@ class TestChecker(TestCase):
             AnomalyChecker(POINT, STRATEGY, 23)
 
     def setUp(self):
+        get_node_by_strategy_id(0)
+        CacheNode.refresh_from_settings()
         self.clear_check_result()
 
     def tearDown(self):
         self.clear_check_result()
 
-    def clear_check_result(self):
+    @classmethod
+    def clear_check_result(cls):
         CHECK_RESULT_CACHE_KEY.client.flushall()
 
     def insert_check_result(self, anomaly_count):
@@ -238,56 +258,63 @@ class TestChecker(TestCase):
     def test_check_anomaly_by_multi_metrics(self):
         self.insert_check_result(4)
         multi_strategy = copy.deepcopy(STRATEGY)
-        multi_strategy["detects"][0] ={
+        multi_strategy["detects"][0] = {
             "expression": "",
             "connector": "and",
             "level": 1,
             "trigger_config": {"count": 4, "check_window": 5},
             "recovery_config": {"check_window": 5},
         }
-        multi_strategy["items"][0]["query_configs"] = [{
-                    "metric_field": "idle",
-                    "agg_dimension": ["ip", "bk_cloud_id"],
-                    "id": 2,
-                    "agg_method": "AVG",
-                    "agg_condition": [],
-                    "agg_interval": 480,
-                    "result_table_id": "system.cpu_detail",
-                    "unit": "%",
-                    "data_type_label": "time_series",
-                    "metric_id": "bk_monitor.system.cpu_detail.idle",
-                    "data_source_label": "bk_monitor",
-                },{
-                    "metric_field": "idle",
-                    "agg_dimension": ["ip", "bk_cloud_id"],
-                    "id": 2,
-                    "agg_method": "AVG",
-                    "agg_condition": [],
-                    "agg_interval": 60,
-                    "result_table_id": "system.cpu_detail",
-                    "unit": "%",
-                    "data_type_label": "time_series",
-                    "metric_id": "bk_monitor.system.cpu_detail.idle",
-                    "data_source_label": "bk_monitor",
-                }]
+        multi_strategy["items"][0]["query_configs"] = [
+            {
+                "metric_field": "idle",
+                "agg_dimension": ["ip", "bk_cloud_id"],
+                "id": 2,
+                "agg_method": "AVG",
+                "agg_condition": [],
+                "agg_interval": 480,
+                "result_table_id": "system.cpu_detail",
+                "unit": "%",
+                "data_type_label": "time_series",
+                "metric_id": "bk_monitor.system.cpu_detail.idle",
+                "data_source_label": "bk_monitor",
+            },
+            {
+                "metric_field": "idle",
+                "agg_dimension": ["ip", "bk_cloud_id"],
+                "id": 2,
+                "agg_method": "AVG",
+                "agg_condition": [],
+                "agg_interval": 60,
+                "result_table_id": "system.cpu_detail",
+                "unit": "%",
+                "data_type_label": "time_series",
+                "metric_id": "bk_monitor.system.cpu_detail.idle",
+                "data_source_label": "bk_monitor",
+            },
+        ]
 
         checker = AnomalyChecker(POINT, multi_strategy, 1)
+        # 取小的周期
+        assert checker.check_window_unit == 60
         is_triggered, anomaly_timestamps = checker._check_anomaly_by_level("1")
         self.assertFalse(is_triggered)
 
-        multi_strategy["items"][0]["query_configs"] = [{
-            "metric_field": "idle",
-            "agg_dimension": ["ip", "bk_cloud_id"],
-            "id": 2,
-            "agg_method": "AVG",
-            "agg_condition": [],
-            "agg_interval": 480,
-            "result_table_id": "system.cpu_detail",
-            "unit": "%",
-            "data_type_label": "time_series",
-            "metric_id": "bk_monitor.system.cpu_detail.idle",
-            "data_source_label": "bk_monitor",
-        }]
+        multi_strategy["items"][0]["query_configs"] = [
+            {
+                "metric_field": "idle",
+                "agg_dimension": ["ip", "bk_cloud_id"],
+                "id": 2,
+                "agg_method": "AVG",
+                "agg_condition": [],
+                "agg_interval": 480,
+                "result_table_id": "system.cpu_detail",
+                "unit": "%",
+                "data_type_label": "time_series",
+                "metric_id": "bk_monitor.system.cpu_detail.idle",
+                "data_source_label": "bk_monitor",
+            }
+        ]
 
         checker = AnomalyChecker(POINT, multi_strategy, 1)
         is_triggered, anomaly_timestamps = checker._check_anomaly_by_level("1")
@@ -346,7 +373,7 @@ class TestChecker(TestCase):
         self.assertFalse(is_triggered)
         self.assertListEqual(anomaly_timestamps, [])
 
-    def test_check_anomaly_by_level_no_data(self):
+    def test_check_anomaly_by_level_no_anomaly_data(self):
         checker = AnomalyChecker(POINT, STRATEGY, 1)
 
         is_triggered, anomaly_timestamps = checker._check_anomaly_by_level("1")
@@ -360,6 +387,19 @@ class TestChecker(TestCase):
         is_triggered, anomaly_timestamps = checker._check_anomaly_by_level("3")
         self.assertFalse(is_triggered)
         self.assertListEqual(anomaly_timestamps, [])
+
+    def test_check_anomaly_by_level_no_data(self):
+        self.insert_check_result(5)
+        strategy = copy.deepcopy(STRATEGY)
+        strategy["no_data_config"] = {"continuous": 5}
+
+        point = copy.deepcopy(POINT)
+        point["data"]["dimensions"][NO_DATA_TAG_DIMENSION] = True
+
+        checker = AnomalyChecker(point, strategy, 1)
+        anomaly_level, anomaly_timestamps = checker.check_anomaly()
+        self.assertEqual(anomaly_level, 1)
+        self.assertListEqual(anomaly_timestamps, [1569246240, 1569246300, 1569246360, 1569246420, 1569246480])
 
     def test_check_anomaly_level_3(self):
         self.insert_check_result(3)

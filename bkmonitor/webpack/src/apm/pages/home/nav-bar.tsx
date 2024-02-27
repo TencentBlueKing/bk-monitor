@@ -25,9 +25,8 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import CommonNavBar from '../../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import { INavItem, IRouteBackItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
+import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
+import { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './nav-bar.scss';
 

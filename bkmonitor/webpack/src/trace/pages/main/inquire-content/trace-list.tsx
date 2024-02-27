@@ -41,10 +41,10 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
+import { CancelToken } from 'monitor-api/index';
+import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
+import { random } from 'monitor-common/utils/utils';
 
-import { CancelToken } from '../../../../monitor-api/index';
-import { listOptionValues, spanDetail, traceDetail } from '../../../../monitor-api/modules/apm_trace';
-import { random } from '../../../../monitor-common/utils/utils';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import transformTraceTree from '../../../components/trace-view/model/transform-trace-data';

@@ -25,10 +25,10 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import TemplateInput from 'monitor-pc/pages/strategy-config/strategy-config-set/strategy-template-input/strategy-template-input';
+import StrategyTemplatePreview from 'monitor-pc/pages/strategy-config/strategy-config-set/strategy-template-preview/strategy-template-preview';
 
-import { deepClone, random } from '../../../../../../monitor-common/utils/utils';
-import TemplateInput from '../../../../../../monitor-pc/pages/strategy-config/strategy-config-set/strategy-template-input/strategy-template-input';
-import StrategyTemplatePreview from '../../../../../../monitor-pc/pages/strategy-config/strategy-config-set/strategy-template-preview/strategy-template-preview';
 import ResizeContainer from '../../../../../components/resize-container/resize-container';
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 import AutoInput from '../../../components/auto-input';

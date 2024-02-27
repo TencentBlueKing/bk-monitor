@@ -67,8 +67,14 @@ from alarm_backends.service.fta_action.webhook.processor import (
 from alarm_backends.tests.service.access.data.config import STRATEGY_CONFIG_V3
 from api.cmdb.define import Business, Host
 from bkmonitor.action.serializers import DutyArrange
+from bkmonitor.aiops.alert.utils import (
+    DimensionDrillLightManager,
+    RecommendMetricManager,
+)
+from bkmonitor.aiops.utils import ReadOnlyAiSetting
 from bkmonitor.documents import AlertLog, EventDocument
 from bkmonitor.models import ActionPlugin, CacheRouter, DutyPlan, UserGroup
+from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.models.fta.action import (
     ActionConfig,
     ActionInstance,
@@ -96,6 +102,7 @@ from constants.action import (
     NotifyStep,
     UserGroupType,
 )
+from constants.aiops import DIMENSION_DRILL
 from constants.alert import EventSeverity, EventStatus
 from constants.data_source import KubernetesResultTableLabel
 from core.errors.alarm_backends import EmptyAssigneeError
@@ -651,6 +658,7 @@ class TestActionProcessor(TransactionTestCase):
         DutyPlan.objects.all().delete()
         UserGroup.objects.all().delete()
         DutyArrange.objects.all().delete()
+        AIFeatureSettings.objects.all().delete()
         register_builtin_plugins()
         settings.ENABLE_MESSAGE_QUEUE = False
         settings.MESSAGE_QUEUE_DSN = ""
@@ -716,7 +724,7 @@ class TestActionProcessor(TransactionTestCase):
             MagicMock(return_value={"info": {"recommended_metric_count": 0}, "recommended_metrics": []}),
         )
         self.get_anomaly_dimensions = patch(
-            "bkmonitor.aiops.alert.utils.DimensionDrillManager.fetch_aiops_result",
+            "bkmonitor.aiops.alert.utils.DimensionDrillLightManager.fetch_aiops_result",
             MagicMock(
                 return_value={
                     "info": {"anomaly_dimension_count": 2, "anomaly_dimension_value_count": 2},
@@ -2198,6 +2206,24 @@ class TestActionProcessor(TransactionTestCase):
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx").get_dictionary()
         content = Jinja2Renderer.render("{{content.recommended_metrics}}", context)
         self.assertEqual(content, "关联指标: 0 个指标,0 个维度")
+
+    def test_ai_setting__config_exist(self):
+        alert = AlertDocument(**self.alert_info)
+        DimensionDrillLightManager(alert)
+        action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx")
+        ai_setting_config = action_context.alarm.ai_setting_config
+        ai_setting_config[DIMENSION_DRILL]["is_enabled"] = True
+
+        manager = DimensionDrillLightManager(alert, ReadOnlyAiSetting(alert.event["bk_biz_id"], ai_setting_config))
+        assert manager.is_enable() is True
+
+    def test_ai_setting__config_not_exist(self):
+        alert = AlertDocument(**self.alert_info)
+        action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx")
+        assert action_context.alarm.ai_setting_config is None
+
+        manager = RecommendMetricManager(alert, ReadOnlyAiSetting(alert.event["bk_biz_id"], None))
+        assert manager.is_enable() is False
 
     def test_render_content_length(self):
         alert = AlertDocument(**self.alert_info)
@@ -4255,9 +4281,13 @@ class TestActionProcessor(TransactionTestCase):
 
 
 class TestNoiseReduce(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     def setUp(self):
         redis = fakeredis.FakeRedis(decode_responses=True)
         redis.flushall()
+
         NOISE_REDUCE_ABNORMAL_KEY.client.flushall()
         self.create_alert_patch = patch("bkmonitor.documents.AlertDocument.bulk_create", MagicMock(return_value=True))
         self.create_alert_patch.start()

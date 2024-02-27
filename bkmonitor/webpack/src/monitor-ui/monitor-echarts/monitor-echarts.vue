@@ -137,10 +137,9 @@ import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
+import { hexToRgbA } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce } from 'throttle-debounce';
-
-import { hexToRgbA } from '../../monitor-common/utils/utils';
-import MonitorDialog from '../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import ChartAnnotation from './components/chart-annotation.vue';
 import ChartLegend from './components/chart-legend.vue';

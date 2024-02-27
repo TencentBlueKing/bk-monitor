@@ -187,10 +187,10 @@
 
 <script lang="ts">
 import { Component, Emit, Inject, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
-
-import { saveScenePanelConfig } from '../../../../monitor-api/modules/data_explorer';
+import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 // import PerformanceModule from '../../../store/modules/performance'
-import { deepClone } from '../../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import { COLLECT_CHART_TYPE } from '../../../constant/constant';
 import EventRetrievalView from '../../data-retrieval/event-retrieval/event-retrieval-view';
 import { IFilterCondition } from '../../data-retrieval/typings';

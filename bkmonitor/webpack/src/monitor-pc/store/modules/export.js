@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getAllConfigList } from '../../../monitor-api/modules/export_import';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+import { getAllConfigList } from 'monitor-api/modules/export_import';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
 const state = {};
 const getters = {};

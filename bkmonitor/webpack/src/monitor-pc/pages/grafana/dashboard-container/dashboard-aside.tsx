@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { listStickySpaces } from '../../../../monitor-api/modules/commons';
+import { listStickySpaces } from 'monitor-api/modules/commons';
 import {
   createDashboardOrFolder,
   deleteDashboard,
@@ -36,9 +35,10 @@ import {
   renameFolder,
   starDashboard,
   unstarDashboard
-} from '../../../../monitor-api/modules/grafana';
-import bus from '../../../../monitor-common/utils/event-bus';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/grafana';
+import bus from 'monitor-common/utils/event-bus';
+import { deepClone, random } from 'monitor-common/utils/utils';
+
 import BizSelect from '../../../components/biz-select/biz-select';
 import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';

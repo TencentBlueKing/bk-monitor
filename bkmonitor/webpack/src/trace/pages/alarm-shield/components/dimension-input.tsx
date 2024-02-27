@@ -26,15 +26,11 @@
  */
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
 import { Message, Popover, TagInput } from 'bkui-vue';
+import { alertTopN } from 'monitor-api/modules/alert';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'monitor-pc/constant/constant';
 
-import { alertTopN } from '../../../../monitor-api/modules/alert';
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import {
-  CONDITION,
-  NUMBER_CONDITION_METHOD_LIST,
-  STRING_CONDITION_METHOD_LIST
-} from '../../../../monitor-pc/constant/constant';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
 import { IConditionItem, IDimensionItem, IMetricMeta } from '../typing';
 

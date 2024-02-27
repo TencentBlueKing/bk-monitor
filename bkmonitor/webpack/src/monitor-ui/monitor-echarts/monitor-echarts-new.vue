@@ -240,11 +240,11 @@ import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
+import { traceListById } from 'monitor-api/modules/apm_trace';
+import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
+import { downCsvFile, IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
 
-import { traceListById } from '../../monitor-api/modules/apm_trace';
-import { copyText, hexToRgbA } from '../../monitor-common/utils/utils';
-import { downCsvFile, IUnifyQuerySeriesItem } from '../../monitor-pc/pages/view-detail/utils';
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
 
 import ChartAnnotation from './components/chart-annotation.vue';

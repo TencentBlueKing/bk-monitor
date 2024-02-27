@@ -34,7 +34,8 @@
 </template>
 
 <script>
-import { retrieveCollectorPlugin } from '../../../monitor-api/modules/model';
+import { retrieveCollectorPlugin } from 'monitor-api/modules/model';
+
 import authorityMixinCreate from '../../mixins/authorityMixin';
 
 import MetricDimension from './plugin-instance/set-steps/metric-dimension/metric-dimension-dialog.vue';

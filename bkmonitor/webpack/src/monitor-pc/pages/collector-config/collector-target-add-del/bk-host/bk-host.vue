@@ -127,9 +127,10 @@
 </template>
 <script>
 // import TopoSelector from '../../../../components/ip-selector/business/topo-selector-new';
-import { checkPluginVersion, saveCollectConfig } from '../../../../../monitor-api/modules/collecting';
-import { getNodesByTemplate, hostAgentStatus } from '../../../../../monitor-api/modules/commons';
-import { deepClone } from '../../../../../monitor-common/utils';
+import { checkPluginVersion, saveCollectConfig } from 'monitor-api/modules/collecting';
+import { getNodesByTemplate, hostAgentStatus } from 'monitor-api/modules/commons';
+import { deepClone } from 'monitor-common/utils';
+
 import MonitorIpSelector from '../../../../components/monitor-ip-selector/monitor-ip-selector';
 import { transformMonitorToValue, transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import SelectHost from '../../../plugin-manager/plugin-instance/set-steps/components/select-host';

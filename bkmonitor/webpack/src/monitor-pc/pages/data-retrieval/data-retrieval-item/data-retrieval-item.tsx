@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone } from 'monitor-common/utils/utils';
+import { recheckInterval } from 'monitor-ui/chart-plugins/utils';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
-import { recheckInterval } from '../../../../monitor-ui/chart-plugins/utils';
 import CycleInput from '../../../components/cycle-input/cycle-input';
 import { IntervalType } from '../../../components/cycle-input/typings';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';

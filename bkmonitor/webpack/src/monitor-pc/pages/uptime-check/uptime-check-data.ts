@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { padIPv6 } from '../../../monitor-common/utils/ip-utils';
-import { deepClone } from '../../../monitor-common/utils/utils';
+import { padIPv6 } from 'monitor-common/utils/ip-utils';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import { ICommonTableProps } from '../monitor-k8s/components/common-table';
 
 import { IData as IGroupData, ITaskItem as IGroupDataTaskItem } from './components/group-card';
