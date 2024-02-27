@@ -220,12 +220,17 @@
 
 <script>
 import { formatDate } from '@/common/util';
+import { axiosInstance } from '@/api';
 
 export default {
   props: {
     showHistoryExport: {
       type: Boolean,
       default: false,
+    },
+    indexSetList: {
+      type: Array,
+      required: true,
     },
   },
   data() {
@@ -305,13 +310,26 @@ export default {
      * @param { Object } params
      */
     openDownloadUrl(params) {
-      const exportParams = encodeURIComponent(JSON.stringify({ ...params }));
-      // eslint-disable-next-line max-len
-      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?export_dict=${exportParams}`;
-      const net = window.open(targetUrl, '_blank', '', false);
-      net.addEventListener('beforeunload', () => {
-        this.getTableList(true);
-      });
+      const data = { ...params };
+      const stringParamsIndexSetID = String(params.log_index_set_id);
+      axiosInstance.post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
+        .then((res) => {
+          const lightName = this.indexSetList.find(item => item.index_set_id === stringParamsIndexSetID)?.lightenName;
+          const downloadName = lightName ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt` : 'bk_log_search.txt';
+          const blob = new Blob([res], { type: 'text/plain' });
+          const downloadElement = document.createElement('a');
+          const href = window.URL.createObjectURL(blob); // 创建下载的链接
+          downloadElement.href = href;
+          downloadElement.download = params.export_pkg_name ? `${params.export_pkg_name}.txt` : downloadName; // 下载后文件名
+          document.body.appendChild(downloadElement);
+          downloadElement.click(); // 点击下载
+          document.body.removeChild(downloadElement);
+          window.URL.revokeObjectURL(href); // 释放掉blob对象
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.getTableList(true);
+        });
     },
     /**
      * @desc: 异步下载

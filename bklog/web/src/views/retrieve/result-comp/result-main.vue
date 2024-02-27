@@ -53,6 +53,7 @@
         ref="resultTablePanel"
         v-bind="$attrs"
         v-on="$listeners"
+        :index-set-list="indexSetList"
         :date-picker-value="datePickerValue"
         :retrieve-params="retrieveParams"
         :total-count="totalCount"
