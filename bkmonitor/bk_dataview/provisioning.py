@@ -135,22 +135,6 @@ class SimpleProvisioning(BaseProvisioning):
                                 yield Dashboard(title=title, dashboard=dashboard)
 
     @classmethod
-    def upsert_dashboards(cls, org_id, org_name, dashboard_mapping):
-        from monitor.models import ApplicationConfig
-
-        dashboard_keys = set(dashboard_mapping.keys())
-        created = set(
-            ApplicationConfig.objects.filter(key__in=dashboard_keys, cc_biz_id=org_name, value="created").values_list(
-                "key", flat=True
-            )
-        )
-        not_created = dashboard_keys - created
-        for i in not_created:
-            # 不存在则进行创建
-            if cls.create_default_dashboard(org_id, f"{dashboard_mapping[i]}.json", bk_biz_id=org_name):
-                ApplicationConfig.objects.get_or_create(cc_biz_id=org_name, key=i, value="created")
-
-    @classmethod
     def create_default_dashboard(cls, org_id, json_name, folder_id=0, bk_biz_id=None):
         """
         创建仪表盘，并且设置为组织默认仪表盘
