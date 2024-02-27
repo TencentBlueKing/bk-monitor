@@ -140,13 +140,18 @@ class EtlStorage(object):
         """
         生成analyzer名称
         """
+        # 当大小写敏感和自定义分词器都为空时, 不使用自定义analyzer
+        if not is_case_sensitive and not tokenize_on_chars:
+            return ""
         return self.generate_hash_str("analyzer", field_name, field_alias, is_case_sensitive, tokenize_on_chars)
 
     @staticmethod
-    def generate_field_tokenizer_name(field_name: str, field_alias: str) -> str:
+    def generate_field_tokenizer_name(field_name: str, field_alias: str, tokenize_on_chars: str) -> str:
         """
         生成tokenizer名称, 因为analyzer和tokenizer的名称是一一对应的, 所以不用特别的hash值
         """
+        if not tokenize_on_chars:
+            return ""
         return f"tokenizer_{field_name}_{field_alias}"
 
     def generate_fields_analysis(self, fields: List[Dict[str, Any]], etl_params: Dict[str, Any]) -> Dict[str, Any]:
@@ -165,26 +170,28 @@ class EtlStorage(object):
                 is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
                 tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
-            tokenizer_name = self.generate_field_tokenizer_name(
-                field_name="log", field_alias="data"
-            )
-            result["analyzer"][analyzer_name] = {
-                "type": "custom",
-                "filter": [],
-            }
-            # 大小写不敏感的时候，需要加入lowercase
-            if not etl_params.get("original_text_is_case_sensitive", False):
-                result["analyzer"][analyzer_name]["filter"].append("lowercase")
-            # original_text_tokenize_on_chars为空时, 不指定分词器
-            if etl_params.get("original_text_tokenize_on_chars", ""):
-                result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
-                result["tokenizer"][tokenizer_name] = {
-                    "type": "char_group",
-                    "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
+            if analyzer_name:
+                tokenizer_name = self.generate_field_tokenizer_name(
+                    field_name="log",
+                    field_alias="data",
+                    tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
+                )
+                result["analyzer"][analyzer_name] = {
+                    "type": "custom",
+                    "filter": [],
                 }
-            else:
-                # 自定义分词器为空时, 使用standard分词器, 不传es会报错
-                result["analyzer"][analyzer_name]["tokenizer"] = "standard"
+                # 大小写不敏感的时候，需要加入lowercase
+                if not etl_params.get("original_text_is_case_sensitive", False):
+                    result["analyzer"][analyzer_name]["filter"].append("lowercase")
+                if tokenizer_name:
+                    result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                    result["tokenizer"][tokenizer_name] = {
+                        "type": "char_group",
+                        "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
+                    }
+                else:
+                    # 自定义分词器为空时, 使用standard分词器, 不传es会报错
+                    result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         # 处理用户配置的清洗字段
         for field in fields:
             if not field.get("is_analyzed", False):
@@ -195,8 +202,12 @@ class EtlStorage(object):
                 is_case_sensitive=field.get("is_case_sensitive", False),
                 tokenize_on_chars=field.get("tokenize_on_chars", "")
             )
+            if not analyzer_name:
+                continue
             tokenizer_name = self.generate_field_tokenizer_name(
-                field_name=field.get("field_name", ""), field_alias=field.get("alias_name", ""),
+                field_name=field.get("field_name", ""),
+                field_alias=field.get("alias_name", ""),
+                tokenize_on_chars=field.get("tokenize_on_chars", "")
             )
             result["analyzer"][analyzer_name] = {
                 "type": "custom",
@@ -205,13 +216,11 @@ class EtlStorage(object):
             # 大小写不敏感的时候，需要加入lowercase
             if not field.get("is_case_sensitive", False):
                 result["analyzer"][analyzer_name]["filter"].append("lowercase")
-            # tokenize_on_chars为空时, 不指定分词器
-            if field.get("tokenize_on_chars", ""):
+            if tokenizer_name:
                 result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
                 result["tokenizer"][tokenizer_name] = {
                     "type": "char_group",
-                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
-                }
+                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")]}
             else:
                 result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         return result
@@ -227,35 +236,30 @@ class EtlStorage(object):
         # 是否保留原文
         if etl_params.get("retain_original_text"):
             # 保留原文默认text类型大小写敏感
-            field_list.append(
-                {
-                    "field_name": "log",
-                    "field_type": "string",
-                    "tag": "metric",
-                    "alias_name": "data",
-                    "description": "original_text",
-                    "option": {
-                        "es_type": "text",
-                        "es_analyzer": self.generate_field_analyzer_name(
-                            field_name="log",
-                            field_alias="data",
-                            is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
-                            tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
-                        ),
-                        "es_include_in_all": True
-                    }
-                    if es_version.startswith("5.")
-                    else {
-                        "es_type": "text",
-                        "es_analyzer": self.generate_field_analyzer_name(
-                            field_name="log",
-                            field_alias="data",
-                            is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
-                            tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
-                        )
-                    },
-                }
+            es_analyzer = self.generate_field_analyzer_name(
+                field_name="log",
+                field_alias="data",
+                is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
+                tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
+            original_text_field = {
+                "field_name": "log",
+                "field_type": "string",
+                "tag": "metric",
+                "alias_name": "data",
+                "description": "original_text",
+                "option": {
+                    "es_type": "text",
+                    "es_include_in_all": True
+                }
+                if es_version.startswith("5.")
+                else {
+                    "es_type": "text"
+                },
+            }
+            if es_analyzer:
+                original_text_field["option"]["es_analyzer"] = es_analyzer
+            field_list.append(original_text_field)
         # 是否保留用户未定义字段
         if etl_params.get("retain_extra_json"):
             field_list.append(
@@ -323,12 +327,14 @@ class EtlStorage(object):
                 if field.get("option", {}).get("es_analyzer"):
                     field_option["es_analyzer"] = field["option"]["es_analyzer"]
                 else:
-                    field_option["es_analyzer"] = self.generate_field_analyzer_name(
+                    analyzer_name = self.generate_field_analyzer_name(
                         field_name=field["field_name"],
                         field_alias=field.get("alias_name", ""),
                         is_case_sensitive=field.get("is_case_sensitive", False),
                         tokenize_on_chars=field.get("tokenize_on_chars", "")
                     )
+                    if analyzer_name:
+                        field_option["es_analyzer"] = analyzer_name
 
             # ES_INCLUDE_IN_ALL
             if field["is_analyzed"] and es_version.startswith("5."):
