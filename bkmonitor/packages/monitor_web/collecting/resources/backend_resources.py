@@ -400,6 +400,8 @@ class CollectConfigListResource(Resource):
 
             logger.error(traceback.format_exc())
 
+        return {"type_list": [], "config_list": [], "total": 0}
+
 
 class CollectConfigDetailResource(Resource):
     """
