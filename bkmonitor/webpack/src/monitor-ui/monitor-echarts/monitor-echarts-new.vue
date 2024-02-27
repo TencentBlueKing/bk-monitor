@@ -173,7 +173,12 @@
     <span
       class="is-error"
       v-if="errorMsg"
-      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip', allowHTML: false }"
+      v-bk-tooltips="{
+        content: errorMsg,
+        placement: 'top-start',
+        extCls: 'monitor-wrapper-error-tooltip',
+        allowHTML: false
+      }"
     />
     <div
       v-if="hasResize"
@@ -801,6 +806,7 @@ export default class MonitorEcharts extends Vue {
           showExtremum: this.chartOption.legend.asTable,
           chartOption: this.chartOption
         });
+
         const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(series), {});
         if (['bar', 'line'].includes(this.chartType)) {
           this.legend.show = hasSeries && optionData.legendData.length > 0;
@@ -1212,28 +1218,36 @@ export default class MonitorEcharts extends Vue {
     if (this.legend.list.length < 2) {
       return;
     }
-    if (actionType === 'shift-click') {
-      this.chart.dispatchAction({
-        type: !item.show ? 'legendSelect' : 'legendUnSelect',
-        name: item.name
+    const setOnlyOneMarkArea = () => {
+      const showSeries = [];
+      this.legend.list.forEach((l) => {
+        if (l.show) {
+          const serice = this.seriesData.find(s => s.target === l.name);
+          showSeries.push({
+            ...serice,
+            color: l.color
+          });
+        }
       });
+
+      const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(showSeries), {});
+      this.chart.setOption(deepMerge(optionData.options, this.defaultOptions), {
+        notMerge: true,
+        lazyUpdate: false,
+        silent: false
+      });
+    };
+    if (actionType === 'shift-click') {
       item.show = !item.show;
+      setOnlyOneMarkArea();
     } else if (actionType === 'click') {
       const hasOtherShow = this.legend.list
         .filter(item => !item.hidden)
         .some(set => set.name !== item.name && set.show);
       this.legend.list.forEach((legend) => {
-        this.chart.dispatchAction({
-          type:
-            legend.name === item.name
-            || !hasOtherShow
-            || (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
-              ? 'legendSelect'
-              : 'legendUnSelect',
-          name: legend.name
-        });
         legend.show = legend.name === item.name || !hasOtherShow;
       });
+      setOnlyOneMarkArea();
     }
   }
 

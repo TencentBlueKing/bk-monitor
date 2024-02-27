@@ -39,6 +39,7 @@ from metadata.models.bcs import (
 )
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from metadata.service.data_source import stop_or_enable_datasource
 from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
@@ -377,6 +378,20 @@ class ModifyDataSource(Resource):
             space_type_id=request_data["space_type_id"],
         )
         return data_source.to_json()
+
+
+class StopOrEnableDatasource(Resource):
+    """批量启停数据源
+    1. 设置数据源的状态为启停
+    2. 增删transfer依赖的consul配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        data_id_list = serializers.ListField(required=True, child=serializers.IntegerField(), label="数据源列表")
+        is_enabled = serializers.BooleanField(required=False, label="是否启用数据源", default=True)
+
+    def perform_request(self, request_data):
+        stop_or_enable_datasource(request_data["data_id_list"], request_data["is_enabled"])
 
 
 class QueryDataSourceBySpaceUidResource(Resource):
