@@ -237,13 +237,13 @@ export default class App extends tsc<{}> {
     process.env.NODE_ENV === 'production' && process.env.APP === 'pc' && useCheckVersion();
     // 监听鼠标移出事件
     document.body.addEventListener('mouseleave', event => {
-      const target = event.relatedTarget as any;
+      const target = event.relatedTarget as Node;
       if (!target || target?.nodeName === 'HTML') {
         this.isMouseleaveBody = true;
       }
     });
     document.body.addEventListener('mouseover', event => {
-      const target = event.target as any;
+      const target = event.target as Node;
       if (target === document.body || document.body.contains(target)) {
         this.isMouseleaveBody = false;
       }
