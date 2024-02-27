@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import functools
 import re
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, Dict, List
 
 from django.conf import settings
@@ -402,7 +403,12 @@ class MappingHandlers(object):
 
     @cache_one_minute("latest_mapping_key_{index_set_id}")
     def _get_latest_mapping(self, *, index_set_id):  # noqa
-        start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+        # 当没有指定时间范围时，默认获取最近一天的mapping
+        if not self.start_time and not self.end_time:
+            start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+        else:
+            start_time = datetime.fromtimestamp(int(self.start_time))
+            end_time = datetime.fromtimestamp(int(self.end_time))
         latest_mapping = BkLogApi.mapping(
             {
                 "indices": self.indices,
