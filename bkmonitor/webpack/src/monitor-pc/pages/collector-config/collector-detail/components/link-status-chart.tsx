@@ -27,8 +27,8 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
+import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
-import BaseEchart from '../../../../../monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TimeRange, { DateValue, TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, shortcuts } from '../../../../components/time-range/utils';

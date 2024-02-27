@@ -311,68 +311,6 @@ CLOSE_EVNET_METRIC_IDS = [
 
 FAKE_EVENT_AGG_INTERVAL = 60
 
-PUBLIC_NOTICE_CONFIG = {
-    "alert_notice": [
-        {
-            "time_range": "00:00:00--23:59:59",
-            "notify_config": [
-                {"level": 1, "type": ["weixin", "mail"]},
-                {"level": 2, "type": ["weixin", "mail"]},
-                {"level": 3, "type": ["weixin", "mail"]},
-            ],
-        }
-    ],
-    "action_notice": [
-        {
-            "time_range": "00:00:00--23:59:59",
-            "notify_config": [
-                {"phase": 1, "type": ["mail"]},
-                {"phase": 2, "type": ["mail"]},
-                {"phase": 3, "type": ["mail"]},
-            ],
-        }
-    ],
-    "message": "",
-}
-DEFAULT_NOTICE_GROUPS = [
-    {
-        "name": _("主备负责人"),
-        "notice_receiver": [{"id": "operator", "type": "group"}, {"id": "bk_bak_operator", "type": "group"}],
-        **PUBLIC_NOTICE_CONFIG,
-    },
-    {"name": _("运维"), "notice_receiver": [{"id": "bk_biz_maintainer", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("开发"), "notice_receiver": [{"id": "bk_biz_developer", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("测试"), "notice_receiver": [{"id": "bk_biz_tester", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("产品"), "notice_receiver": [{"id": "bk_biz_productor", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-]
-
-DEFAULT_NOTICE_MESSAGE_TEMPLATE = [
-    {
-        "signal": "abnormal",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n"
-        "{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n"
-        "{{content.dimension}}\n{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-    {
-        "signal": "recovered",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}"
-        "\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n"
-        "{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-    {
-        "signal": "closed",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n"
-        "{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n"
-        "{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-]
-
 AES_X_KEY_FIELD = "SECRET_KEY"
 
 # 时序数据精度
@@ -591,8 +529,10 @@ APM_APP_DEFAULT_ES_SHARDS = 3
 APM_APP_BKDATA_OPERATOR = ""
 APM_APP_BKDATA_MAINTAINER = []
 APM_APP_BKDATA_FETCH_STATUS_THRESHOLD = 10
+APM_APP_BKDATA_REQUIRED_TEMP_CONVERT_NODE = False
 # APM计算平台尾部采样Flow配置
 APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID = 0
+APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE = "inland"
 # APM计算平台虚拟指标Flow配置
 APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID = 0
 APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE = 30
@@ -607,6 +547,7 @@ APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
+APM_TRPC_ENABLED = False
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"

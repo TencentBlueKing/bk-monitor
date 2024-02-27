@@ -59,6 +59,9 @@ def _set_recovery_with_event_id(event_id, timedelta=1000):
 
 
 class TestRecoverStatusChecker(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     def clear_data(self):
         LAST_CHECKPOINTS_CACHE_KEY.client.flushall()
         CHECK_RESULT_CACHE_KEY.client.flushall()

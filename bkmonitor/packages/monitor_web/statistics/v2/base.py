@@ -36,7 +36,6 @@ class MySQLStorage(Storage):
 
 
 class BaseCollector(Collector):
-
     STORAGE_BACKEND = MySQLStorage
 
     @cached_property
@@ -48,6 +47,9 @@ class BaseCollector(Collector):
         """
         业务是否存在
         """
+        # 特殊处理tsdb中 tag values为 null的情况
+        if bk_biz_id == "null":
+            return False
         return bool(bk_biz_id) and int(bk_biz_id) in self.biz_info
 
     def get_biz_name(self, bk_biz_id):

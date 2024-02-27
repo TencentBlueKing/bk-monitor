@@ -26,15 +26,14 @@
 import { defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Popover } from 'bkui-vue';
-
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { random } from '../../../../monitor-common/utils';
-import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../monitor-pc/constant/constant';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { random } from 'monitor-common/utils';
+import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'monitor-pc/constant/constant';
 import {
-  ICommonItem,
-  IWhereItem,
-  MetricDetail
-} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+  type ICommonItem,
+  type IWhereItem,
+  type MetricDetail
+} from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './where-display.scss';
 

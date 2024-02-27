@@ -100,7 +100,7 @@
 </template>
 
 <script>
-import { getCollectVariables } from '../../../../../monitor-api/modules/collecting';
+import { getCollectVariables } from 'monitor-api/modules/collecting';
 
 export default {
   props: {

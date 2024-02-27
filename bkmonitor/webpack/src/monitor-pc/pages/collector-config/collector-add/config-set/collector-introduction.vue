@@ -98,7 +98,7 @@
 </template>
 
 <script>
-import Viewer from '../../../../../monitor-ui/markdown-editor/viewer.tsx';
+import Viewer from 'monitor-ui/markdown-editor/viewer.tsx';
 
 export default {
   name: 'CollectorIntroduction',

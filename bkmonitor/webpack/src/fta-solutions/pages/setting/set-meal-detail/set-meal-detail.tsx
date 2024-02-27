@@ -26,13 +26,13 @@
 /* eslint-disable camelcase */
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getPlugins, getPluginTemplates, getTemplateDetail } from 'monitor-api/modules/action';
+import { retrieveActionConfig } from 'monitor-api/modules/model';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
+import HistoryDialog from 'monitor-pc/components/history-dialog/history-dialog';
 
-import { getPlugins, getPluginTemplates, getTemplateDetail } from '../../../../monitor-api/modules/action';
-import { retrieveActionConfig } from '../../../../monitor-api/modules/model';
-import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
-import { getStrategyListV2 } from '../../../../monitor-api/modules/strategies';
-import { Debounce, deepClone, transformDataKey } from '../../../../monitor-common/utils/utils';
-import HistoryDialog from '../../../../monitor-pc/components/history-dialog/history-dialog';
 import { strategyType } from '../../strategy-config/typings/strategy';
 import * as ruleAuth from '../set-meal/authority-map';
 import Container from '../set-meal/set-meal-add/components/container';

@@ -119,8 +119,7 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-
-import MonitorDialog from '../../../../monitor-ui/monitor-dialog/monitor-dialog';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 
 const { mapActions } = createNamespacedHelpers('event-center');
 export default {
@@ -281,12 +280,12 @@ export default {
   &-select {
     display: flex;
     align-items: center;
-    font-size: 14px;
     margin-bottom: 16px;
+    font-size: 14px;
 
     .select-lable {
-      color: #979ba5;
       margin-right: 12px;
+      color: #979ba5;
     }
 
     .select-input {

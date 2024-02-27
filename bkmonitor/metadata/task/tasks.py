@@ -304,6 +304,15 @@ def access_bkdata_vm(
 
     push_and_publish_space_router(space_type, space_id, table_id_list=[table_id])
 
+    # 更新数据源依赖的 consul
+    try:
+        # 保证有 backend，才进行更新
+        if models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
+            data_source = models.DataSource.objects.get(bk_data_id=data_id, is_enable=True)
+            data_source.refresh_consul_config()
+    except models.DataSource.DoesNotExist:
+        logger.error("data_id: %s not found for vm link, please check data_id status", data_id)
+
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s end access bkdata vm", bk_biz_id, table_id, data_id)
 
 

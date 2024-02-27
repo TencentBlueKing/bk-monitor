@@ -30,7 +30,6 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
 import {
   actionDateHistogram,
   actionTopN,
@@ -40,26 +39,27 @@ import {
   searchAction,
   searchAlert,
   validateQueryString
-} from '../../../monitor-api/modules/alert';
-import { listSpaces } from '../../../monitor-api/modules/commons';
-import { bizWithAlertStatistics } from '../../../monitor-api/modules/home';
-import { checkAllowed } from '../../../monitor-api/modules/iam';
-import { promqlToQueryConfig } from '../../../monitor-api/modules/strategies';
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
-import { random } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/alert';
+import { listSpaces } from 'monitor-api/modules/commons';
+import { bizWithAlertStatistics } from 'monitor-api/modules/home';
+import { checkAllowed } from 'monitor-api/modules/iam';
+import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
-// import { showAccessRequest } from '../../../monitor-pc/components/access-request-dialog';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
-import SpaceSelect from '../../../monitor-pc/components/space-select/space-select';
-import { type TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../../monitor-pc/i18n/dayjs';
-import * as eventAuth from '../../../monitor-pc/pages/event-center/authority-map';
-import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import SplitPanel from '../../../monitor-pc/pages/monitor-k8s/components/split-panel';
-import { SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { setLocalStoreRoute } from '../../../monitor-pc/router/router-config';
-import authorityMixinCreate from '../../../monitor-ui/mixins/authorityMixin';
+// import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import SpaceSelect from 'monitor-pc/components/space-select/space-select';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { destroyTimezone, getDefautTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
+import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
+import SplitPanel from 'monitor-pc/pages/monitor-k8s/components/split-panel';
+import { SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from 'monitor-pc/pages/monitor-k8s/typings';
+import { setLocalStoreRoute } from 'monitor-pc/router/router-config';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
+
 import ChatGroup from '../../components/chat-group/chat-group';
 import EventStoreModule from '../../store/modules/event';
 import Group, { IGroupData } from '../integrated/group';
@@ -2121,10 +2121,20 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             />
           </div>
           <MonitorDrag
-            theme={'line-round'}
+            theme={'line'}
+            lineText={''}
             toggleSet={this.toggleSet}
             on-move={this.handleDragFilter}
           />
+          <div
+            class='filter-line-trigger'
+            style={{
+              left: `${this.filterWidth}px`
+            }}
+            onClick={() => (this.filterWidth = 0)}
+          >
+            <span class='icon-monitor icon-arrow-left'></span>
+          </div>
         </div>
         <div
           class='event-content'

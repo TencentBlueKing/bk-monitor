@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { random } from '../../../monitor-common/utils';
+import { random } from 'monitor-common/utils';
 
 import { IInfluxdbChildData } from './type';
 

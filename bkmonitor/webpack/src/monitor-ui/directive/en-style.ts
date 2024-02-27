@@ -25,8 +25,7 @@
  */
 import { VueConstructor } from 'vue';
 import { DirectiveBinding } from 'vue/types/options';
-
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
 export default class EnStyleDirective {
   public static install(Vue: VueConstructor) {

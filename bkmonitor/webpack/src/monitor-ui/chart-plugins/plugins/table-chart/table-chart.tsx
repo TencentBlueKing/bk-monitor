@@ -27,10 +27,9 @@
 import { Component, Emit, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { Debounce } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
+import { Debounce } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import {
   IFilterDict,
   IMenuItem,
@@ -39,13 +38,14 @@ import {
   ITableColumn,
   ITableFilterItem,
   ITablePagination
-} from '../../../../monitor-pc/pages/monitor-k8s/typings';
+} from 'monitor-pc/pages/monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
-} from '../../../../monitor-pc/pages/monitor-k8s/utils';
+} from 'monitor-pc/pages/monitor-k8s/utils';
+
 import ChartHeader from '../../components/chart-title/chart-title';
 import { PanelModel } from '../../typings';
 import { ITableDataItem } from '../../typings/table-chart';

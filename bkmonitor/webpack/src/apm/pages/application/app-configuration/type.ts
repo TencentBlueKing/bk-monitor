@@ -25,8 +25,8 @@
  */
 /* eslint-disable camelcase */
 
-import { INodeType, TargetObjectType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
-import { IPanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 export interface IApdexConfig {
   apdex_default: number;

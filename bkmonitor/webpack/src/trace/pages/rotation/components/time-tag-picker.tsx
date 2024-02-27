@@ -27,8 +27,7 @@ import { computed, defineComponent, nextTick, onUnmounted, PropType, reactive, r
 import { useI18n } from 'vue-i18n';
 import { Tag, TimePicker } from 'bkui-vue';
 import dayjs from 'dayjs';
-
-import { getEventPaths } from '../../../../monitor-pc/utils';
+import { getEventPaths } from 'monitor-pc/utils';
 
 import './time-tag-picker.scss';
 

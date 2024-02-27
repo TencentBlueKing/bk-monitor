@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
+import { xssFilter } from 'monitor-common/utils/xss';
 
-import { xssFilter } from '../../monitor-common/utils/xss';
 import { MetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
 
 @Component

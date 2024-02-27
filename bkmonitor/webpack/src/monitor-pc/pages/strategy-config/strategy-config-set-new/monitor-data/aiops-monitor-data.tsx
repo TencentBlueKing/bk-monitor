@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { multivariateAnomalyScenes } from 'monitor-api/modules/strategies';
+import { random, transformDataKey } from 'monitor-common/utils/utils';
 
-import { multivariateAnomalyScenes } from '../../../../../monitor-api/modules/strategies';
-import { random, transformDataKey } from '../../../../../monitor-common/utils/utils';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import { handleSetTargetDesc } from '../../common';

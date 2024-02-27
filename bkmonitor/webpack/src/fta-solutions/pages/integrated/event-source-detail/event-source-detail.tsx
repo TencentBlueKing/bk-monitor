@@ -25,11 +25,10 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 // import { getPluginDetail } from './mock'
-import { getEventPluginInstance } from '../../../../monitor-api/modules/event_plugin';
-import { random } from '../../../../monitor-common/utils/utils';
-import Viewer from '../../../../monitor-ui/markdown-editor/viewer';
+import { getEventPluginInstance } from 'monitor-api/modules/event_plugin';
+import { random } from 'monitor-common/utils/utils';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import Config from './config/config';
 import DataStatus from './data-status/data-status';

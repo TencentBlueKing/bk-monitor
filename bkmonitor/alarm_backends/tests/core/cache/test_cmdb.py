@@ -13,6 +13,7 @@ specific language governing permissions and limitations under the License.
 import json
 
 import mock
+from django.core.cache import caches
 from django.test import TestCase
 
 from alarm_backends.core.cache.cmdb import (
@@ -23,93 +24,73 @@ from alarm_backends.core.cache.cmdb import (
     ServiceInstanceManager,
     TopoManager,
 )
-from api.cmdb.define import Business, Host, Module, ServiceInstance, TopoNode, TopoTree
+from alarm_backends.tests.utils.cmdb_data import (
+    ALL_HOSTS,
+    ALL_MODULES,
+    ALL_SERVICE_INSTANCES,
+    TOPO_TREE,
+)
+from api.cmdb.define import Business, Host, Module, ServiceInstance, TopoNode
+from bkmonitor.utils.local import local
 
 BIZ_IDS = [2, 3, 4, 5, 6, 10, 20, 21]
 
 ALL_BUSINESS = [Business(bk_biz_id=i) for i in BIZ_IDS]
 
-mock.patch("alarm_backends.core.cache.cmdb.business.api.cmdb.get_business", return_value=ALL_BUSINESS).start()
 
-ALL_HOSTS = [
-    Host(bk_host_innerip="10.0.0.1", bk_cloud_id=1, bk_host_id=1, bk_biz_id=2, bk_module_ids=[5, 6]),
-    Host(bk_host_innerip="10.0.0.2", bk_cloud_id=2, bk_host_id=2, bk_biz_id=2),
-    Host(bk_host_innerip="10.0.0.3", bk_cloud_id=3, bk_host_id=3, bk_biz_id=3),
-    Host(bk_host_innerip="10.0.0.4", bk_cloud_id=4, bk_host_id=4, bk_biz_id=3),
-    Host(bk_host_innerip="10.0.0.5", bk_cloud_id=5, bk_host_id=5, bk_biz_id=4),
-    Host(bk_host_innerip="10.0.0.6", bk_cloud_id=6, bk_host_id=6, bk_biz_id=4),
-]
-
-get_hosts = mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_host_by_topo_node").start()
-get_hosts.side_effect = lambda bk_biz_id, **kwargs: [host for host in ALL_HOSTS if host.bk_biz_id == bk_biz_id]
-
-ALL_MODULES = [
-    Module(bk_module_id=1, bk_module_name="m1", bk_biz_id=2),
-    Module(bk_module_id=2, bk_module_name="m2", bk_biz_id=2),
-    Module(bk_module_id=3, bk_module_name="m3", bk_biz_id=3),
-    Module(bk_module_id=4, bk_module_name="m4", bk_biz_id=3),
-]
-
-get_modules = mock.patch("alarm_backends.core.cache.cmdb.module.api.cmdb.get_module").start()
-get_modules.side_effect = lambda bk_biz_id: [module for module in ALL_MODULES if module.bk_biz_id == bk_biz_id]
-
-ALL_SERVICE_INSTANCES = [
-    ServiceInstance(service_instance_id=1, name="s1", bk_host_id=1, bk_module_id=5, bk_biz_id=2),
-    ServiceInstance(service_instance_id=2, name="s2", bk_host_id=2, bk_module_id=2, bk_biz_id=2),
-    ServiceInstance(service_instance_id=3, name="s3", bk_host_id=3, bk_module_id=3, bk_biz_id=3),
-    ServiceInstance(service_instance_id=4, name="s4", bk_host_id=4, bk_module_id=4, bk_biz_id=3),
-]
-
-get_service_instances = mock.patch(
-    "alarm_backends.core.cache.cmdb." "service_instance.api.cmdb.get_service_instance_by_topo_node"
-).start()
-get_service_instances.side_effect = lambda bk_biz_id: [
-    instance for instance in ALL_SERVICE_INSTANCES if instance.bk_biz_id == bk_biz_id
-]
-
-TOPO_TREE = TopoTree(
-    {
-        "bk_inst_id": 2,
-        "bk_inst_name": "blueking",
-        "bk_obj_id": "biz",
-        "bk_obj_name": "business",
-        "child": [
-            {
-                "bk_inst_id": 3,
-                "bk_inst_name": "job",
-                "bk_obj_id": "set",
-                "bk_obj_name": "set",
-                "child": [
-                    {
-                        "bk_inst_id": 5,
-                        "bk_inst_name": "job",
-                        "bk_obj_id": "module",
-                        "bk_obj_name": "module",
-                        "child": [],
-                    },
-                    {
-                        "bk_inst_id": 6,
-                        "bk_inst_name": "mysql",
-                        "bk_obj_id": "module",
-                        "bk_obj_name": "module",
-                        "child": [],
-                    },
-                ],
-            }
-        ],
-    }
-)
-
-mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_topo_tree", return_value=TOPO_TREE).start()
-mock.patch("alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_topo_tree", return_value=TOPO_TREE).start()
-mock.patch("alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_set", return_value=[]).start()
-
-
-class TestBusinessManager(TestCase):
+class TestCMDBBaseTestCase(TestCase):
     def setUp(self):
+        self.get_hosts = mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_host_by_topo_node")
+        self.get_hosts.start().side_effect = lambda bk_biz_id, **kwargs: [
+            host for host in ALL_HOSTS if host.bk_biz_id == bk_biz_id
+        ]
+
+        self.get_modules = mock.patch("alarm_backends.core.cache.cmdb.module.api.cmdb.get_module")
+        self.get_modules.start().side_effect = lambda bk_biz_id: [
+            module for module in ALL_MODULES if module.bk_biz_id == bk_biz_id
+        ]
+
+        self.get_service_instances = mock.patch(
+            "alarm_backends.core.cache.cmdb." "service_instance.api.cmdb.get_service_instance_by_topo_node"
+        )
+        self.get_service_instances.start().side_effect = lambda bk_biz_id: [
+            instance for instance in ALL_SERVICE_INSTANCES if instance.bk_biz_id == bk_biz_id
+        ]
+
+        self.get_topo_tree = mock.patch(
+            "alarm_backends.core.cache.cmdb.host.api.cmdb.get_topo_tree", return_value=TOPO_TREE
+        )
+
+        self.get_topo_tree_1 = mock.patch(
+            "alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_topo_tree", return_value=TOPO_TREE
+        )
+        self.get_set = mock.patch("alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_set", return_value=[])
+        self.get_business = mock.patch(
+            "alarm_backends.core.cache.cmdb.business.api.cmdb.get_business", return_value=ALL_BUSINESS
+        )
+
+        self.get_topo_tree.start()
+        self.get_topo_tree_1.start()
+        self.get_set.start()
+        self.get_business.start()
+
+    def tearDown(self):
+        self.get_hosts.stop()
+        self.get_modules.stop()
+        self.get_service_instances.stop()
+        self.get_topo_tree.stop()
+        self.get_topo_tree_1.stop()
+        self.get_set.stop()
+        self.get_business.stop()
+
+
+class TestBusinessManager(TestCMDBBaseTestCase):
+    def setUp(self):
+        super().setUp()
         BusinessManager.clear()
 
     def tearDown(self):
+        super().tearDown()
         BusinessManager.clear()
 
     def test_serialize(self):
@@ -168,11 +149,15 @@ class TestBusinessManager(TestCase):
         self.assertSetEqual(set(new_business_list), set(BusinessManager.all()))
 
 
-class TestHostManager(TestCase):
+class TestHostManager(TestCMDBBaseTestCase):
     def setUp(self):
+        super().setUp()
+        caches["locmem"].clear()
         HostManager.clear()
+        local.host_cache = {}
 
     def tearDown(self):
+        super().tearDown()
         HostManager.clear()
 
     def test_serialize(self):
@@ -288,6 +273,9 @@ class TestHostManager(TestCase):
         self.assertSetEqual(set(excepted_hosts_result), set(hosts))
 
         # 业务迁移
+        # 清理本地缓存
+        caches["locmem"].clear()
+
         self.assertEqual(2, HostManager.get(ip="10.0.0.3", bk_cloud_id=3).bk_biz_id)
         self.assertIsNone(HostManager.get(ip="10.0.0.2", bk_cloud_id=2))
 
@@ -312,12 +300,43 @@ class TestHostManager(TestCase):
         HostManager.refresh()
         self.assertEqual(8, len(HostManager.all()))
 
+    @mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_host_without_biz_v2")
+    def test_get_using_api(self, get_host_without_biz_v2):
+        HostManager.refresh()
+        ip, bk_cloud_id = "127.0.0.1", 0
+        get_host_without_biz_v2.side_effect = lambda *args, **kwargs: {
+            "count": 1,
+            "hosts": [Host(bk_host_innerip=ip, bk_cloud_id=bk_cloud_id, bk_host_id=7, bk_biz_id=3).get_attrs()],
+        }
+        # 没有设置调用 API，拉不到数据
+        self.assertIsNone(HostManager.get(ip=ip, bk_cloud_id=bk_cloud_id))
+        get_host_without_biz_v2.assert_not_called()
 
-class TestHostIDManager(TestCase):
+        # 主机已存在，不写 local / 不查 API
+        self.assertEqual(HostManager.get(ip="10.0.0.3", bk_cloud_id=3, using_api=True, using_mem=True).bk_biz_id, 3)
+        get_host_without_biz_v2.assert_not_called()
+        self.assertTrue(HostManager.key_to_internal_value(ip, bk_cloud_id) not in local.host_cache)
+        get_host_without_biz_v2.assert_not_called()
+
+        # 穿透缓存走 API 查询
+        self.assertEqual(HostManager.get(ip=ip, bk_cloud_id=bk_cloud_id, using_api=True).bk_host_id, 7)
+        get_host_without_biz_v2.assert_called_once_with(ips=[ip], bk_cloud_id=[bk_cloud_id], limit=1)
+        # 只是实时获取，但没有更新 local
+        self.assertTrue(HostManager.key_to_internal_value(ip, bk_cloud_id) not in local.host_cache)
+
+        # 穿透缓存走 API 查询，并设置到 local
+        self.assertEqual(HostManager.get(ip=ip, bk_cloud_id=bk_cloud_id, using_api=True, using_mem=True).bk_host_id, 7)
+
+        self.assertTrue(HostManager.key_to_internal_value(ip, bk_cloud_id) in local.host_cache)
+
+
+class TestHostIDManager(TestCMDBBaseTestCase):
     def setUp(self):
+        super().setUp()
         HostIDManager.clear()
 
     def tearDown(self):
+        super().tearDown()
         HostIDManager.clear()
 
     def test_serialize(self):
@@ -354,11 +373,13 @@ class TestHostIDManager(TestCase):
         self.assertSetEqual({"{}|{}".format(host.ip, host.bk_cloud_id) for host in ALL_HOSTS}, set(host_keys))
 
 
-class TestModuleManager(TestCase):
+class TestModuleManager(TestCMDBBaseTestCase):
     def setUp(self):
+        super().setUp()
         ModuleManager.clear()
 
     def tearDown(self):
+        super().tearDown()
         ModuleManager.clear()
 
     def test_serialize(self):
@@ -411,11 +432,13 @@ class TestModuleManager(TestCase):
         self.assertEqual(len(ModuleManager.cache.hkeys(ModuleManager.get_biz_cache_key())), 0)
 
 
-class TestServiceInstanceManager(TestCase):
+class TestServiceInstanceManager(TestCMDBBaseTestCase):
     def setUp(self):
+        super().setUp()
         ServiceInstanceManager.clear()
 
     def tearDown(self):
+        super().tearDown()
         ServiceInstanceManager.clear()
 
     def test_serialize(self):
@@ -476,12 +499,14 @@ class TestServiceInstanceManager(TestCase):
         self.assertEqual(len(ServiceInstanceManager.cache.hkeys(ServiceInstanceManager.get_biz_cache_key())), 0)
 
 
-class TestTopoManager(TestCase):
+class TestTopoManager(TestCMDBBaseTestCase):
     def setUp(self):
+        super().setUp()
         TopoManager.clear()
         TopoManager.refresh()
 
     def tearDown(self):
+        super().tearDown()
         TopoManager.clear()
 
     def test_serialize(self):

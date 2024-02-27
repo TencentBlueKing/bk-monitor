@@ -25,16 +25,16 @@
  */
 // eslint-disable-next-line simple-import-sort/imports
 import './public-path';
-import '../monitor-common/polyfill';
+import 'monitor-common/polyfill';
 import i18n from './i18n/i18n';
 
 import { createApp } from 'vue';
 import { Message } from 'bkui-vue';
 
-import Api from '../monitor-api/api';
-import { setVue } from '../monitor-api/utils/index';
-import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
-import { getUrlParam, mergeSpaceList, setGlobalBizId } from '../monitor-common/utils';
+import Api from 'monitor-api/api';
+import { setVue } from 'monitor-api/utils/index';
+import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import directives from './directive/index';
 import App from './pages/app';

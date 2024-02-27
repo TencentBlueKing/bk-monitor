@@ -26,8 +26,8 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import MonitorImport from '../../../../components/monitor-import/monitor-import.vue';
 import GroupSelectMultiple from '../../../custom-escalation/group-select-multiple';
 import { csvToArr } from '../../../custom-escalation/utils';
