@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import os
+import random
 
 import redis
 from django.conf import settings
@@ -64,6 +65,8 @@ class RedisClient(Singleton):
                 "sentinels": [(h, int(sentinel_port)) for h in sentinel_host.split(";") if h],
                 "sentinel_kwargs": {"password": password},
             }
+            # 随机打乱顺序，避免每次都是同一个节点
+            random.shuffle(sentinel_params["sentinels"])
             host, port = Sentinel(**sentinel_params).discover_master(os.environ[f"{prefix}_REDIS_SENTINEL_MASTER_NAME"])
             redis_password = os.environ[f"{prefix}_REDIS_PASSWORD"]
             configs = {
