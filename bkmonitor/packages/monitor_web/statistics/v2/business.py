@@ -119,10 +119,11 @@ class BusinessCollector(BaseCollector):
 
         biz_info = set()
         for item in records:
-            if not item["bk_biz_id"]:
+            bk_biz_id = item.get("bk_biz_id")
+            if not bk_biz_id:
                 continue
 
-            biz_info.add(item["bk_biz_id"])
+            biz_info.add(bk_biz_id)
 
         return len(biz_info)
 
@@ -148,10 +149,11 @@ class BusinessCollector(BaseCollector):
 
         biz_info = set()
         for item in records:
-            if not item["bk_biz_id"]:
+            bk_biz_id = item.get("bk_biz_id")
+            if not bk_biz_id:
                 continue
 
-            biz_info.add(item["bk_biz_id"])
+            biz_info.add(bk_biz_id)
 
         return len(biz_info)
 
