@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
-import time
 
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -113,7 +112,6 @@ class ListApplicationServicesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
-        end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, data):
         applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
@@ -121,46 +119,33 @@ class ListApplicationServicesResource(Resource):
         apps = []
         nodata_apps = []
 
-        # 获取结束时间前一天的开始时间
-        start_time = int((datetime.datetime.fromtimestamp(data["end_time"]) - datetime.timedelta(days=1)).timestamp())
-
         for application in applications:
             services = api.apm_api.query_profile_services_detail(
                 **{"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
             )
-            app_has_data = False
-            app_services = []
-
-            for svr in services:
-                # 如果此服务的上次更新时间在一天内就认为是有数据应用 避免时间范围带来的边界问题
-                check_timestamp = int(time.mktime(time.strptime(svr["last_check_time"], "%Y-%m-%d %H:%M:%S")))
-                if start_time <= check_timestamp <= data["end_time"]:
-                    app_has_data = True
-                    app_services.append(
-                        {
-                            "id": svr["id"],
-                            "name": svr["name"],
-                            "has_data": True,
-                        }
-                    )
-                else:
-                    app_services.append(
-                        {
-                            "id": svr["id"],
-                            "name": svr["name"],
-                            "has_data": False,
-                        }
-                    )
-            [nodata_apps, apps][app_has_data].append(
-                {
-                    "bk_biz_id": application.bk_biz_id,
-                    "application_id": application.application_id,
-                    "description": application.description,
-                    "app_name": application.app_name,
-                    "app_alias": application.app_alias,
-                    "services": app_services,
-                }
-            )
+            # 如果曾经发现过 service，都认为是有数据应用
+            if len(services) > 0:
+                apps.append(
+                    {
+                        "bk_biz_id": application.bk_biz_id,
+                        "application_id": application.application_id,
+                        "description": application.description,
+                        "app_name": application.app_name,
+                        "app_alias": application.app_alias,
+                        "services": [{"id": i["id"], "name": i["name"], "has_data": True} for i in services],
+                    }
+                )
+            else:
+                nodata_apps.append(
+                    {
+                        "bk_biz_id": application.bk_biz_id,
+                        "application_id": application.application_id,
+                        "description": application.description,
+                        "app_name": application.app_name,
+                        "app_alias": application.app_alias,
+                        "services": [],
+                    }
+                )
 
         return {
             "normal": apps,

@@ -13,7 +13,7 @@ import re
 
 from django.utils import timezone
 
-from apm.constants import ProfileApiType, ProfileQueryType
+from apm.constants import ProfileApiType
 from apm.core.discover.profile.base import Discover
 from apm.models.profile import ProfileService
 
@@ -36,15 +36,13 @@ class ServiceDiscover(Discover):
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
         # Step1: 查询所有出现过的服务
-        response = (
-            self.get_builder().with_api_type(ProfileApiType.SERVICE_NAME).with_type(ProfileQueryType.CPU).execute()
-        )
+        response = self.get_builder().with_api_type(ProfileApiType.SERVICE_NAME).execute()
         service_names = list({i["service_name"] for i in response if i.get("service_name")})
         logger.info(f"[ProfileServiceDiscover] found {len(service_names)} services: {service_names}")
 
         instances = []
         for svr in service_names:
-            # Step2: 按照服务下出现过的 type
+            # Step2: 按照此服务下出现过的 type
             types = self.get_builder().with_api_type(ProfileApiType.COL_TYPE).with_service_filter(svr).execute()
             if not types:
                 logger.warning(f"[ProfileServiceDiscover] could not found types of service: {svr}")
