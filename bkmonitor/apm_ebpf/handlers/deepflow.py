@@ -18,13 +18,13 @@ from kubernetes.client import ApiException
 from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
 from apm_ebpf.handlers.kube import BcsKubeClient
+from apm_ebpf.handlers.provisioning import ApmEbpfProvisioning
 from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
 from apm_ebpf.utils import group_by
 from bk_dataview.provisioning import sync_data_sources
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from core.drf_resource import api
-from monitor_web.grafana.provisioning import ApmEbpfProvisioning
 
 
 @dataclass
