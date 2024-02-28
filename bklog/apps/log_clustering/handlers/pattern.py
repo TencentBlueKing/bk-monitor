@@ -20,9 +20,13 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import hashlib
+import json
 from typing import List
 
 import arrow
+from django.db.models import Q
+from django.db.transaction import atomic
 from django.utils.functional import cached_property
 
 from apps.log_clustering.constants import (
@@ -37,11 +41,14 @@ from apps.log_clustering.constants import (
     NEW_CLASS_QUERY_TIME_RANGE,
     NEW_CLASS_SENSITIVITY_FIELD,
     PERCENTAGE_RATE,
+    OwnerConfigEnum,
     PatternEnum,
+    RemarkConfigEnum,
 )
 from apps.log_clustering.models import (
     AiopsSignatureAndPattern,
     ClusteringConfig,
+    ClusteringRemark,
     SignatureStrategySettings,
 )
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
@@ -63,6 +70,10 @@ class PatternHandler:
         self._group_by = query.get("group_by", [])
         self._clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         self._query = query
+
+        self._remark_config = query.get("remark_config", RemarkConfigEnum.ALL.value)
+        self._owner_config = query.get("owner_config", OwnerConfigEnum.ALL.value)
+        self._owners = query.get("owners", [])
 
     def pattern_search(self):
         """
@@ -91,32 +102,61 @@ class PatternHandler:
         pattern_aggs = result.get("pattern_aggs", [])
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
+        # 同步的pattern保存信息
         if self._clustering_config.model_output_rt:
             # 在线训练逻辑适配
             pattern_map = AiopsSignatureAndPattern.objects.filter(
                 model_id=self._clustering_config.model_output_rt
-            ).values("signature", "pattern", "label", "remark", "owners")
+            ).values("signature", "pattern", "origin_pattern", "label")
         else:
             pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
-                "signature", "pattern", "label", "remark", "owners"
+                "signature", "pattern", "origin_pattern", "label"
             )
         signature_map_pattern = array_hash(pattern_map, "signature", "pattern")
+        signature_map_origin_pattern = array_hash(pattern_map, "signature", "origin_pattern")
         signature_map_label = array_hash(pattern_map, "signature", "label")
-        signature_map_remark = array_hash(pattern_map, "signature", "remark")
-        signature_map_owners = array_hash(pattern_map, "signature", "owners")
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs])
+
+        # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
+        clustering_remarks = ClusteringRemark.objects.filter(
+            group_hash=self._convert_groups_to_groups_hash(self._clustering_config.group_fields),
+        ).values_list("signature", "origin_pattern", "remark", "owners")
+        clustering_remark_list = []
+        clustering_remark_dict = {}
+        for clustering_remark in clustering_remarks:
+            signature, origin_pattern, remark, owners = clustering_remark
+            clustering_remark_dict["signature"] = signature
+            clustering_remark_dict["origin_pattern"] = origin_pattern
+            clustering_remark_dict["remark"] = remark
+            clustering_remark_dict["owners"] = owners
+            clustering_remark_list.append(clustering_remark_dict)
+
         result = []
         for pattern in pattern_aggs:
             count = pattern["doc_count"]
             signature = pattern["key"]
+            signature_pattern = signature_map_pattern.get(signature, "")
+            signature_origin_pattern = signature_map_origin_pattern.get(signature, "")
             group_key = f"{signature}|{pattern.get('group', '')}"
             year_on_year_compare = year_on_year_result.get(group_key, MIN_COUNT)
+            remark = []
+            owners = []
+            for clustering_remark in clustering_remark_list:
+                # signature或origin_pattern匹配的，找到一条就行，如果没有就为[]
+                if (
+                    signature == clustering_remark["signature"]
+                    or signature_origin_pattern == clustering_remark["origin_pattern"]
+                ):
+                    remark = clustering_remark["remark"]
+                    owners = clustering_remark["owners"]
+                    break
             result.append(
                 {
-                    "pattern": signature_map_pattern.get(signature, ""),
+                    "pattern": signature_pattern,
+                    "origin_pattern": signature_origin_pattern,
                     "label": signature_map_label.get(signature, ""),
-                    "remark": signature_map_remark.get(signature, []),
-                    "owners": signature_map_owners.get(signature, []),
+                    "remark": remark,
+                    "owners": owners,
                     "count": count,
                     "signature": signature,
                     "percentage": self.percentage(count, sum_count),
@@ -131,6 +171,21 @@ class PatternHandler:
             )
         if self._show_new_pattern:
             result = map_if(result, if_func=lambda x: x["is_new_class"])
+        result = self._get_remark_and_owner(result)
+        return result
+
+    def _get_remark_and_owner(self, result):
+        if self._remark_config == RemarkConfigEnum.REMARKED.value:
+            result = [pattern for pattern in result if pattern["remark"]]
+        elif self._remark_config == RemarkConfigEnum.NO_REMARK.value:
+            result = [pattern for pattern in result if not pattern["remark"]]
+
+        if self._owner_config == OwnerConfigEnum.NO_OWNER.value:
+            result = [pattern for pattern in result if not pattern["owners"]]
+        elif self._owner_config == OwnerConfigEnum.OWNER.value:
+            if not self._owners:
+                return result
+            result = [pattern for pattern in result if pattern["owners"] and set(self._owners) & set(pattern["owners"])]
         return result
 
     def _multi_query(self):
@@ -249,76 +304,214 @@ class PatternHandler:
             )
         return {new_class["signature"] for new_class in new_classes}
 
-    def set_signature_config(self, signature: str, configs: dict):
+    def set_signature_config(self, params: dict):
         """
         日志聚类-数据指纹 页面展示信息修改
         """
-        if self._clustering_config.model_output_rt:
-            qs = AiopsSignatureAndPattern.objects.filter(
-                model_id=self._clustering_config.model_output_rt, signature=signature
-            )
-        else:
-            qs = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id, signature=signature)
-        qs_obj = qs.first()
-        if not qs_obj:
-            return
-        for k, v in configs.items():
-            if k == "label":
-                qs_obj.label = v
-            if k == "owners":
-                qs_obj.owners = v
-        qs_obj.save()
-        return model_to_dict(qs_obj)
 
-    def set_clustering_remark(self, signature: str, configs: dict, method: str = "create"):
+        qs_objs = ClusteringRemark.objects.filter(
+            Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
+        )
+        current_qs_obj = qs_objs.filter(group_hash=self._convert_groups_to_groups_hash(params["groups"])).first()
+        if not current_qs_obj:
+            return
+        if params.get("label", ""):
+            current_qs_obj.label = params["label"]
+            current_qs_obj.save()
+            if qs_objs.exclude(id=current_qs_obj.id):
+                for q in qs_objs.exclude(id=current_qs_obj.id):
+                    q.label = params.get("label", "")
+                    q.save()
+        if params.get("owners", []):
+            if current_qs_obj.owners:
+                for o in params.get("owners", []):
+                    if o not in current_qs_obj.owners:
+                        current_qs_obj.owners.append(o)
+            else:
+                current_qs_obj.owners = params["owners"]
+            current_qs_obj.save()
+            if qs_objs.exclude(id=current_qs_obj.id):
+                for q in qs_objs.exclude(id=current_qs_obj.id):
+                    if q.owners:
+                        for o in params.get("owners", []):
+                            if o not in q.owners:
+                                q.owners.append(o)
+                    else:
+                        q.owners = params.get("owners", [])
+                    q.save()
+        return model_to_dict(current_qs_obj)
+
+    def update_group_fields(self, params: dict):
+        """
+        更新分组字段
+        """
+        self._clustering_config.group_fields = params["group_fields"]
+        self._clustering_config.save()
+        return model_to_dict(self._clustering_config)
+
+    def _convert_groups_to_groups_hash(self, groups: dict) -> str:
+        """
+        对 groups 字段进行 hash
+        """
+        groups = dict(sorted(groups.items(), key=lambda x: x[1]))
+        return hashlib.md5(json.dumps(groups).encode()).hexdigest()
+
+    @atomic
+    def set_clustering_remark(self, params: dict, method: str = "create"):
         """
         日志聚类-数据指纹 页面展示信息修改
         """
-        if self._clustering_config.model_output_rt:
-            qs = AiopsSignatureAndPattern.objects.filter(
-                model_id=self._clustering_config.model_output_rt, signature=signature
-            )
-        else:
-            qs = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id, signature=signature)
-        qs_obj = qs.first()
-        if not qs_obj:
-            return
+        qs_objs = ClusteringRemark.objects.filter(
+            Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
+        )
+        current_qs_obj = qs_objs.filter(group_hash=self._convert_groups_to_groups_hash(params["groups"])).first()
         now = int(arrow.now().timestamp * 1000)
+        # 如果不存在则新建  同时同步其它signature或origin_pattern相同的ClusteringRemark
         if method == "create":
-            current_remark = {
-                "username": get_request_username(),
-                "create_time": now,
-                "remark": configs["remark"],
-            }
-            if qs_obj.remark:
-                qs_obj.remark.append(current_remark)
+            remark_info = {"username": get_request_username(), "create_time": now, "remark": params["remark"]}
+            if not current_qs_obj:
+                new_qs_obj = ClusteringRemark.objects.create(
+                    bk_biz_id=self._clustering_config.bk_biz_id,
+                    signature=params["signature"],
+                    origin_pattern=params["origin_pattern"],
+                    groups=params["groups"],
+                    group_hash=self._convert_groups_to_groups_hash(params["groups"]),
+                    remark=[remark_info],
+                )
+                # signature 或者origin_pattern 相同的需要同步 新增
+                if qs_objs.exclude(id=new_qs_obj.id):
+                    for q in qs_objs.exclude(id=new_qs_obj.id):
+                        if q.remark:
+                            q.remark.append(remark_info)
+                        else:
+                            q.remark = [remark_info]
+                        q.save()
+                return model_to_dict(new_qs_obj)
             else:
-                qs_obj.remark = [current_remark]
+                if current_qs_obj.remark:
+                    current_qs_obj.remark.append(remark_info)
+                else:
+                    current_qs_obj.remark = [remark_info]
+                current_qs_obj.save()
+                # signature 或者origin_pattern 相同的需要同步 新增
+                if qs_objs.exclude(id=current_qs_obj.id):
+                    for q in qs_objs.exclude(id=current_qs_obj.id):
+                        if q.remark:
+                            q.remark.append(remark_info)
+                        else:
+                            q.remark = [remark_info]
+                        q.save()
         elif method == "update":
-            for remark in qs_obj.remark:
-                # 完全匹配才能修改成功
-                if (
-                    remark["create_time"] == configs["create_time"]
-                    and remark["username"] == get_request_username()
-                    and remark["remark"] == configs["old_remark"]
-                ):
-                    remark["remark"] = configs["new_remark"]
-                    remark["create_time"] = now
-                    break
+            if current_qs_obj:
+                # 当前备注信息修改
+                for remark in current_qs_obj.remark:
+                    if (
+                        remark["create_time"] == params["create_time"]
+                        and remark["username"] == get_request_username()
+                        and remark["remark"] == params["old_remark"]
+                    ):
+                        remark["remark"] = params["new_remark"]
+                        remark["create_time"] = now
+                        break
+                current_qs_obj.save()
+                # signature 或者origin_pattern 相同的需要同步 修改
+                if qs_objs.exclude(id=current_qs_obj.id):
+                    for q in qs_objs.exclude(id=current_qs_obj.id):
+                        # 如果有备注
+                        if q.remark:
+                            for remark in q.remark:
+                                if (
+                                    remark["create_time"] == params["create_time"]
+                                    and remark["username"] == get_request_username()
+                                    and remark["remark"] == params["old_remark"]
+                                ):
+                                    remark["remark"] = params["new_remark"]
+                                    remark["create_time"] = now
+                        # 如果没有备注则需要添加一条
+                        else:
+                            q.remark = [
+                                {"username": get_request_username(), "create_time": now, "remark": params["new_remark"]}
+                            ]
+                        q.save()
+            else:
+                return
         elif method == "delete":
-            for remark in qs_obj.remark:
-                # 完全匹配才能删除成功
-                if (
-                    remark["create_time"] == configs["create_time"]
-                    and remark["username"] == get_request_username()
-                    and remark["remark"] == configs["remark"]
-                ):
-                    qs_obj.remark.remove(remark)
-                    break
+            if current_qs_obj:
+                for remark in current_qs_obj.remark:
+                    if (
+                        remark["create_time"] == params["create_time"]
+                        and remark["username"] == get_request_username()
+                        and remark["remark"] == params["remark"]
+                    ):
+                        current_qs_obj.remark.remove(remark)
+                        break
+                current_qs_obj.save()
+                if qs_objs.exclude(id=current_qs_obj.id):
+                    for q in qs_objs.exclude(id=current_qs_obj.id):
+                        if q.remark:
+                            for remark in q.remark:
+                                if (
+                                    remark["create_time"] == params["create_time"]
+                                    and remark["username"] == get_request_username()
+                                    and remark["remark"] == params["remark"]
+                                ):
+                                    q.remark.remove(remark)
+                                    break
+                        else:
+                            continue
+                        q.save()
+            else:
+                return
         else:
             return
-        qs_obj.save()
-        return model_to_dict(qs_obj)
+        return model_to_dict(current_qs_obj)
+
+        #
+        #
+        #
+        # # 如果不存在
+        # if not qs_obj:
+        #     return
+        # now = int(arrow.now().timestamp * 1000)
+        # result = []
+        # for q in qs_obj:
+        #     if method == "create":
+        #         current_remark = {
+        #             "username": get_request_username(),
+        #             "create_time": now,
+        #             "remark": params["remark"],
+        #         }
+        #         if q.remark:
+        #             q.remark.append(current_remark)
+        #         else:
+        #             q.remark = [current_remark]
+        #     elif method == "update":
+        #         for remark in q.remark:
+        #             # 完全匹配才能修改成功
+        #             if (
+        #                 remark["create_time"] == params["create_time"]
+        #                 and remark["username"] == get_request_username()
+        #                 and remark["remark"] == params["old_remark"]
+        #             ):
+        #                 remark["remark"] = params["new_remark"]
+        #                 remark["create_time"] = now
+        #                 break
+        #     elif method == "delete":
+        #         for remark in q.remark:
+        #             # 完全匹配才能删除成功
+        #             if (
+        #                 remark["create_time"] == params["create_time"]
+        #                 and remark["username"] == get_request_username()
+        #                 and remark["remark"] == params["remark"]
+        #             ):
+        #                 q.remark.remove(remark)
+        #                 break
+        #     else:
+        #         return
+        #     q.bk_biz_id = self._clustering_config.bk_biz_id
+        #     q.save()
+        #     result.append(model_to_dict(q))
+        # return result
 
     @classmethod
     def _generate_strategy_result(cls, strategy_result):
@@ -328,3 +521,15 @@ class PatternHandler:
             labels = map_if(strategy_obj["labels"], if_func=lambda x: x not in default_labels_set)
             result.append({"strategy_id": strategy_obj["id"], "labels": labels})
         return result
+
+    def get_signature_owners(self) -> list:
+        # 获取 AiopsSignatureAndPattern 表中的 signature 和 origin_pattern 字段的值
+        signature_values = AiopsSignatureAndPattern.objects.values_list('signature', 'origin_pattern')
+        query = Q()
+        for signature, origin_pattern in signature_values:
+            query |= Q(signature=signature) | Q(origin_pattern=origin_pattern)
+        owners = ClusteringRemark.objects.values_list('owners', flat=True).distinct()
+        result = set()
+        for owner in owners:
+            result.update(owner)
+        return list(result)
