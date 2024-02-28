@@ -58,6 +58,7 @@ from apps.log_search.models import (
     UserIndexSetFieldsConfig,
 )
 from apps.utils.cache import cache_one_minute, cache_ten_minute
+from apps.utils.codecs import unicode_str_encode
 from apps.utils.local import (
     get_local_param,
     get_request_app_code,
@@ -448,11 +449,7 @@ class MappingHandlers(object):
         result = "".join(
             field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", [])
         )
-        # 转义特殊字符在前端展示的时候, \n会直接生效, 所以需要转义
-        result = result.replace("\n", "\\n")
-        result = result.replace("\t", "\\t")
-        result = result.replace("\r", "\\r")
-        return result
+        return unicode_str_encode(result)
 
     @classmethod
     def get_all_index_fields_by_mapping(cls, properties_dict: Dict) -> List:
