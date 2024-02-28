@@ -4220,6 +4220,7 @@ class CollectorHandler(object):
                     },
                     "params": {
                         "paths": config.get("path", []),
+                        "exclude_files": config.get("exclude_files", []),
                         "conditions": conditions,
                         "multiline_pattern": config.get("multiline", {}).get("pattern") or "",
                         "multiline_max_lines": config.get("multiline", {}).get("maxLines") or 10,
@@ -4428,6 +4429,7 @@ class CollectorHandler(object):
         filters, _ = deal_collector_scenario_param(container_config.params)
         raw_config = {
             "path": container_config.params["paths"],
+            "exclude_files": container_config.params["exclude_files"],
             "encoding": container_config.data_encoding,
             "logConfigType": container_config.collector_type,
             "allContainer": container_config.all_container,

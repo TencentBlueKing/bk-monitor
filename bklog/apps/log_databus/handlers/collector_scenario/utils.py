@@ -27,8 +27,8 @@ def deal_collector_scenario_param(params):
     if condition_type == "separator":
         condition = params["conditions"].get("separator_filters", [])
         filter_bucket = []
-        for (index, item) in enumerate(condition):
-            item["op"] = item["op"] if item["op"] in ["=", "!="] else "="
+        for index, item in enumerate(condition):
+            item["op"] = item["op"] if item["op"] in ["eq", "neq", "include", "exclude", "regex", "nregex"] else "eq"
             if index == 0 or item.get("logic_op", "and") == "and":
                 if item.get("word"):
                     filter_bucket.append({"index": item["fieldindex"], "key": item["word"], "op": item["op"]})
@@ -43,8 +43,9 @@ def deal_collector_scenario_param(params):
             filters.append({"conditions": filter_bucket})
     elif condition_type == "match":
         key = params["conditions"].get("match_content", "")
+        op = params["conditions"].get("match_type", "include")
         if key:
-            filters.append({"conditions": [{"index": "-1", "key": key, "op": "="}]})  # 目前只支持include
+            filters.append({"conditions": [{"index": "-1", "key": key, "op": op}]})
             params["conditions"].update({"separator": "|"})
     return filters, params
 
@@ -61,11 +62,12 @@ def convert_filters_to_collector_condition(filters_config, delimiter=""):
         logic_op = "and" if len(filters_config) <= 1 else "or"
         for filter_item in filters_config:
             for condition_item in filter_item["conditions"]:
+                op = condition_item["op"] if condition_item["op"] != "=" else "eq"
                 separator_filters.append(
                     {
                         "fieldindex": condition_item["index"],
                         "word": condition_item["key"],
-                        "op": condition_item["op"],
+                        "op": op,
                         "logic_op": logic_op,
                     }
                 )
@@ -73,9 +75,11 @@ def convert_filters_to_collector_condition(filters_config, delimiter=""):
         separator_filters = []
 
     match_content = ""
+    match_type = "include"
     if separator_filters and str(separator_filters[0]["fieldindex"]) == "-1":
         _type = "match"
         match_content = separator_filters[0].get("word", "")
+        match_type = separator_filters[0].get("op", "=") if separator_filters[0].get("op", "=") != "=" else "include"
         separator_filters = []
     elif not separator_filters:
         _type = "none"
@@ -85,7 +89,7 @@ def convert_filters_to_collector_condition(filters_config, delimiter=""):
         "separator": delimiter,
         "separator_filters": separator_filters,
         "type": _type,
-        "match_type": "include",  # 目前只支持include
+        "match_type": match_type,
         "match_content": match_content,
     }
 

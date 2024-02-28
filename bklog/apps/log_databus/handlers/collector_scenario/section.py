@@ -153,11 +153,12 @@ class SectionCollectorScenario(CollectorScenario):
                 logic_op = "and" if len(config["local"][0]["filters"]) <= 1 else "or"
                 for filter_item in config["local"][0]["filters"]:
                     for condition_item in filter_item["conditions"]:
+                        op = condition_item["op"] if condition_item["op"] != "=" else "eq"
                         separator_filters.append(
                             {
                                 "fieldindex": condition_item["index"],
                                 "word": condition_item["key"],
-                                "op": condition_item["op"],
+                                "op": op,
                                 "logic_op": logic_op,
                             }
                         )
@@ -165,9 +166,14 @@ class SectionCollectorScenario(CollectorScenario):
                 separator_filters = []
 
             match_content = ""
+            match_type = "include"
             if separator_filters and separator_filters[0]["fieldindex"] == "-1":
                 _type = "match"
                 match_content = separator_filters[0].get("word", "")
+                match_type = separator_filters[0].get("op", "=")
+                # 兼容历史数据（历史数据 match_type 固定为 '=' ）
+                if match_type == "=":
+                    match_type = "include"
                 separator_filters = []
             elif not separator_filters:
                 _type = "none"
@@ -179,7 +185,7 @@ class SectionCollectorScenario(CollectorScenario):
                     "separator": config["local"][0]["delimiter"],
                     "separator_filters": separator_filters,
                     "type": _type,
-                    "match_type": "include",  # 目前只支持include
+                    "match_type": match_type,
                     "match_content": match_content,
                 }
                 if _type != "none"
