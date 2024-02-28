@@ -575,6 +575,8 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
                 set_template_id.append(node["bk_inst_id"])
             elif node["bk_obj_id"].upper() == "BIZ":
                 return []
+            else:
+                topo_nodes[node["bk_obj_id"]].append(node["bk_inst_id"])
         elif ("bk_target_service_instance_id" in node or "service_instance_id" in node) and is_service_instance:
             service_instance_id = str(node.get("service_instance_id") or node["bk_target_service_instance_id"])
             if "bk_target_service_instance_id" in dimensions:
