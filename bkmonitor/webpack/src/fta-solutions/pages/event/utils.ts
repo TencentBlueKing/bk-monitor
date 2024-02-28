@@ -65,11 +65,11 @@ export function addHoverScroll(target: HTMLDivElement) {
     // height: '8px',
     position: 'sticky',
     left: '0',
-    bottom: '0',
+    bottom: '1px',
     background: '#fff',
     'overflow-x': 'scroll',
     'overflow-y': 'hidden',
-    'margin-bottom': '-1px'
+    'z-index': '999'
   };
   if (!customScrollbarWrap) {
     customScrollbarWrap = document.createElement('div');
