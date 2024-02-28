@@ -29,6 +29,7 @@ import { Collapse, Radio } from 'bkui-vue';
 import { random } from '../../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import loadingIcon from '../../../../monitor-ui/chart-plugins/icons/spinner.svg';
+import { profilingTraceChartTooltip } from '../../../../monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
 import { IQueryParams, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import {
@@ -43,6 +44,7 @@ import { PanelModel } from '../../../plugins/typings';
 import { ToolsFormData } from '../typings';
 
 import './trend-chart.scss';
+import '../../../../monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';
 
 const DEFAULT_PANEL_CONFIG = {
   title: '',
@@ -81,6 +83,11 @@ export default defineComponent({
 
     const timeRange = computed(() => toolsFormData.value.timeRange);
     const refreshInterval = computed(() => toolsFormData.value.refreshInterval);
+    const chartCustomTooltip = computed(() => {
+      if (chartType.value === 'all') return {};
+
+      return profilingTraceChartTooltip;
+    });
 
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
@@ -139,7 +146,8 @@ export default defineComponent({
       panel,
       collapse,
       handleCollapseChange,
-      loading
+      loading,
+      chartCustomTooltip
     };
   },
   render() {
@@ -153,10 +161,12 @@ export default defineComponent({
               <div class='trend-chart-wrap'>
                 {this.collapse && this.panel && (
                   <TimeSeries
+                    key={this.chartType}
                     panel={this.panel}
                     showChartHeader={false}
                     showHeaderMoreTool={false}
                     onLoading={val => (this.loading = val)}
+                    customTooltip={this.chartCustomTooltip}
                   />
                 )}
               </div>

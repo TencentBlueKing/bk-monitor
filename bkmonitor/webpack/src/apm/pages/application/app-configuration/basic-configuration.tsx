@@ -27,21 +27,6 @@
 
 import { Component, Emit, Inject, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Button,
-  Checkbox,
-  DropdownMenu,
-  Form,
-  FormItem,
-  Icon,
-  Input,
-  Option,
-  RadioButton,
-  RadioGroup,
-  Select,
-  Switcher,
-  TagInput
-} from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
 import {

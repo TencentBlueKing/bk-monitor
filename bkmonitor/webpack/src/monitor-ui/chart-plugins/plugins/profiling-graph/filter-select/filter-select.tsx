@@ -25,7 +25,6 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Select, Switcher, TagInput } from 'bk-magic-vue';
 
 import { queryLabels, queryLabelValues } from '../../../../../monitor-api/modules/apm_profile';
 import { TimeRangeType } from '../../../../../monitor-pc/components/time-range/time-range';
@@ -181,7 +180,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
           <span class='filter-var-select-wrap'>
             <span class='filter-var-label'>{item.title}</span>
             <span class='filter-var-tag-input'>
-              <TagInput
+              <bk-tag-input
                 v-model={item.value}
                 list={item.options}
                 trigger='focus'
@@ -191,7 +190,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
                 allow-auto-match
                 placeholder={this.$t('输入')}
                 on-change={() => this.handleSelectValueChange(mode)}
-              ></TagInput>
+              ></bk-tag-input>
             </span>
           </span>
         )),
@@ -239,7 +238,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
           <div class='filter-var-select-main'>{getSelectorTpl('filter')}</div>
           <div class='diff-mode-btn'>
             <span>{this.$t('对比模式')}</span>
-            <Switcher
+            <bk-switcher
               theme='primary'
               size='small'
               v-model={this.enableDiffMode}

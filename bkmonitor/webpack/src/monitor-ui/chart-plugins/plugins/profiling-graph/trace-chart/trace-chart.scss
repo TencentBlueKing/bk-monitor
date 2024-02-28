@@ -1,0 +1,19 @@
+.trace-chart-tips-table {
+  display: table;
+  width: calc(100% - 16px);
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 0 16px;
+    font-weight: 400;
+    border: 1px solid #63656e;
+    color: #fff;
+    text-align: left;
+  }
+
+  td:last-child {
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}

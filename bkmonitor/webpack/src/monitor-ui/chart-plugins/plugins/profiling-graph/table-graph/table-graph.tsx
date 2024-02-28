@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Exception } from 'bk-magic-vue';
 
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
 import { ColorTypes, ITableTipsDetail, ProfilingTableItem, TableColumn, TextDirectionType } from '../../../typings';
@@ -280,7 +279,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
             ) : (
               <tr>
                 <td colspan={3}>
-                  <Exception
+                  <bk-exception
                     class='empty-table-exception'
                     type='search-empty'
                     scene='part'
