@@ -163,6 +163,7 @@ class UnifyQuery:
             # 灰度数据源基于业务进行灰度
             elif self.bk_biz_id in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST:
                 return True
+            return False
 
         # 如果是多指标，必然会走统一查询模块
         if len(self.data_sources) > 1:
