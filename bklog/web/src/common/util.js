@@ -1027,3 +1027,21 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
     return false;
   }
 };
+
+/**
+ * @desc: 下载blob类型的文件
+ * @param {Any} data 数据源
+ * @param {String} fileName 文件名
+ * @param {String} type 文件类型
+ */
+export const blobDownload = (data, fileName = 'default', type = 'text/plain') => {
+  const blob = new Blob([data], { type });
+  const downloadElement = document.createElement('a');
+  const href = window.URL.createObjectURL(blob); // 创建下载的链接
+  downloadElement.href = href;
+  downloadElement.download = fileName; // 下载后文件名
+  document.body.appendChild(downloadElement);
+  downloadElement.click(); // 点击下载
+  document.body.removeChild(downloadElement);
+  window.URL.revokeObjectURL(href); // 释放掉blob对象
+};

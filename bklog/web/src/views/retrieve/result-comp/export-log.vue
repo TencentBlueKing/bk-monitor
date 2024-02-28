@@ -123,6 +123,7 @@
 import { mapGetters } from 'vuex';
 import exportHistory from './export-history';
 import { axiosInstance } from '@/api';
+import { blobDownload } from '@/common/util';
 
 export default {
   components: {
@@ -271,17 +272,16 @@ export default {
       };
       axiosInstance.post(`/search/index_set/${this.routerIndexSet}/export/`, data)
         .then((res) => {
+          if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            this.$bkMessage({
+              theme: 'error',
+              message: this.$t('导出失败'),
+            });
+            return;
+          };
           const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
           const downloadName = lightName ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt` : 'bk_log_search.txt';
-          const blob = new Blob([res], { type: 'text/plain' });
-          const downloadElement = document.createElement('a');
-          const href = window.URL.createObjectURL(blob); // 创建下载的链接
-          downloadElement.href = href;
-          downloadElement.download = downloadName; // 下载后文件名
-          document.body.appendChild(downloadElement);
-          downloadElement.click(); // 点击下载
-          document.body.removeChild(downloadElement);
-          window.URL.revokeObjectURL(href); // 释放掉blob对象
+          blobDownload(res, downloadName);
         })
         .catch(() => {})
         .finally(() => {

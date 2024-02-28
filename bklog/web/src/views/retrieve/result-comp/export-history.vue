@@ -219,8 +219,9 @@
 </template>
 
 <script>
-import { formatDate } from '@/common/util';
+import { formatDate, blobDownload } from '@/common/util';
 import { axiosInstance } from '@/api';
+
 
 export default {
   props: {
@@ -314,17 +315,16 @@ export default {
       const stringParamsIndexSetID = String(params.log_index_set_id);
       axiosInstance.post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
         .then((res) => {
+          if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            this.$bkMessage({
+              theme: 'error',
+              message: this.$t('导出失败'),
+            });
+            return;
+          };
           const lightName = this.indexSetList.find(item => item.index_set_id === stringParamsIndexSetID)?.lightenName;
           const downloadName = lightName ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt` : 'bk_log_search.txt';
-          const blob = new Blob([res], { type: 'text/plain' });
-          const downloadElement = document.createElement('a');
-          const href = window.URL.createObjectURL(blob); // 创建下载的链接
-          downloadElement.href = href;
-          downloadElement.download = params.export_pkg_name ? `${params.export_pkg_name}.txt` : downloadName; // 下载后文件名
-          document.body.appendChild(downloadElement);
-          downloadElement.click(); // 点击下载
-          document.body.removeChild(downloadElement);
-          window.URL.revokeObjectURL(href); // 释放掉blob对象
+          blobDownload(res, downloadName);
         })
         .catch(() => {})
         .finally(() => {
