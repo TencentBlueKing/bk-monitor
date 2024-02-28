@@ -285,18 +285,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 
     .hover-scroll {
       &::-webkit-scrollbar {
-        height: 8px;
+        height: 12px;
       }
-    }
-  }
-
-  #------add-hover-scroll-class---- {
-    height: 1px;
-  }
-
-  &:hover {
-    #------add-hover-scroll-class---- {
-      height: 8px;
     }
   }
 }
