@@ -272,6 +272,5 @@ export default {
   AI设置: 'AI settings',
   内置的分派规则组不允许修改: 'The built-in assignment rule group does not allow modification',
   内置策略不允许修改: 'The built-in strategy does not allow modification',
-  关注人禁用此操作: 'The follower disables this action',
-  当前空间: 'Set as current space'
+  关注人禁用此操作: 'The follower disables this action'
 };
