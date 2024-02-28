@@ -35,25 +35,26 @@ from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CleanStash
 from apps.log_search.constants import CollectorScenarioEnum
+from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
 
 
 class TransferEtlHandler(EtlHandler):
     def update_or_create(
-        self,
-        etl_config,
-        table_id,
-        storage_cluster_id,
-        retention,
-        allocation_min_days,
-        storage_replies,
-        es_shards=settings.ES_SHARDS,
-        view_roles=None,
-        etl_params=None,
-        fields=None,
-        username="",
-        *args,
-        **kwargs,
+            self,
+            etl_config,
+            table_id,
+            storage_cluster_id,
+            retention,
+            allocation_min_days,
+            storage_replies,
+            es_shards=settings.ES_SHARDS,
+            view_roles=None,
+            etl_params=None,
+            fields=None,
+            username="",
+            *args,
+            **kwargs,
     ):
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
@@ -124,6 +125,9 @@ class TransferEtlHandler(EtlHandler):
 
         # 2. 创建索引集
         index_set = self._update_or_create_index_set(etl_config, storage_cluster_id, view_roles, username=username)
+
+        # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
+        LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})
 
         # add user_operation_record
         operation_record = {
