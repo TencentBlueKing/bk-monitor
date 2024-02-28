@@ -113,6 +113,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       { id: 13, name: i18n.t('修改处理套餐') },
       { id: 14, name: i18n.t('修改告警组') },
       { id: 15, name: i18n.t('修改通知场景') },
+      { id: 20, name: i18n.t('修改通知升级') },
       { id: 16, name: i18n.t('修改通知间隔') },
       { id: 17, name: i18n.t('修改通知模板') },
       { id: 18, name: i18n.t('修改告警风暴开关') },
