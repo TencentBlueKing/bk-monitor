@@ -83,7 +83,7 @@ TRACE_SCOPE = ["trace", "trace_detail", "trace_detail_log"]
 
 class MappingHandlers(object):
     def __init__(
-        self, indices, index_set_id, scenario_id, storage_cluster_id, time_field="", start_time="", end_time=""
+            self, indices, index_set_id, scenario_id, storage_cluster_id, time_field="", start_time="", end_time=""
     ):
         self.indices = indices
         self.index_set_id = index_set_id
@@ -295,7 +295,7 @@ class MappingHandlers(object):
         # 判断是否有gseindex和_iteration_idx字段
         final_fields_list = [i["field_name"] for i in final_fields_list]
         if ("gseindex" in final_fields_list and "_iteration_idx" in final_fields_list) or (
-            "gseIndex" in final_fields_list and "iterationIndex" in final_fields_list
+                "gseIndex" in final_fields_list and "iterationIndex" in final_fields_list
         ):
             default_sort_tag = True
         sort_list = self.get_default_sort_list(
@@ -317,11 +317,11 @@ class MappingHandlers(object):
 
     @classmethod
     def get_default_sort_list(
-        cls,
-        index_set_id: int = None,
-        scenario_id: str = None,
-        scope: str = SearchScopeEnum.DEFAULT.value,
-        default_sort_tag: bool = False,
+            cls,
+            index_set_id: int = None,
+            scenario_id: str = None,
+            scope: str = SearchScopeEnum.DEFAULT.value,
+            default_sort_tag: bool = False,
     ):
         """默认字段排序规则"""
         time_field = cls.get_time_field(index_set_id)
@@ -445,7 +445,14 @@ class MappingHandlers(object):
         # tokenizer_details在analyzer_details中
         if not field_dict["analyzer_details"].get("tokenizer_details", {}):
             return ""
-        return "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
+        result = "".join(
+            field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", [])
+        )
+        # 转义特殊字符在前端展示的时候, \n会直接生效, 所以需要转义
+        result = result.replace("\n", "\\n")
+        result = result.replace("\t", "\\t")
+        result = result.replace("\r", "\\r")
+        return result
 
     @classmethod
     def get_all_index_fields_by_mapping(cls, properties_dict: Dict) -> List:
