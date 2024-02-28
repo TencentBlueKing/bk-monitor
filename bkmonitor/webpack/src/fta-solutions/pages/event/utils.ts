@@ -41,13 +41,11 @@ export function getOperatorDisabled(follower: string[], assignee: string[]) {
  * @returns
  */
 export function addHoverScroll(target: HTMLDivElement) {
-  // 获取当前容器宽度
   const id = '------add-hover-scroll-class----';
   if (!target) {
     return;
   }
   function setScrollInfo(scrollEl: HTMLDivElement, barEl: HTMLDivElement) {
-    // 创建一个 ResizeObserver 实例
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const { target } = entry;
@@ -60,9 +58,12 @@ export function addHoverScroll(target: HTMLDivElement) {
   }
   const { scrollWidth, clientWidth } = target;
   let customScrollbarWrap: HTMLDivElement = target.querySelector(`#${id}`);
+  if (scrollWidth === clientWidth && customScrollbarWrap) {
+    target.removeChild(customScrollbarWrap);
+    return;
+  }
   const style = {
     'max-width': `${clientWidth}px`,
-    // height: '8px',
     position: 'sticky',
     left: '0',
     bottom: '1px',

@@ -667,13 +667,13 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     }
   }
 
-  @Watch('tableData', { immediate: true })
-  handleTableDataWatch(v) {
-    if (v.length) {
-      this.$nextTick(() => {
-        const el = document.querySelector('.bk-table-scrollable-x .bk-table-body-wrapper');
+  @Watch('tableKey', { immediate: true })
+  handleTableDataWatch() {
+    if (this.tableData.length) {
+      setTimeout(() => {
+        const el = document.querySelector('.bk-table-body-wrapper');
         addHoverScroll(el as any);
-      });
+      }, 50);
     }
   }
 
