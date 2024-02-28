@@ -34,3 +34,69 @@ export function getOperatorDisabled(follower: string[], assignee: string[]) {
   const hasAssignee = (assignee || []).some(u => u === username);
   return hasAssignee ? false : hasFollower;
 }
+
+/**
+ * @description 给表格组件增加一个自定义的横向滚动条
+ * @param target
+ * @returns
+ */
+export function addHoverScroll(target: HTMLDivElement) {
+  // 获取当前容器宽度
+  const id = '------add-hover-scroll-class----';
+  if (!target) {
+    return;
+  }
+  function setScrollInfo(scrollEl: HTMLDivElement, barEl: HTMLDivElement) {
+    // 创建一个 ResizeObserver 实例
+    const resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { target } = entry;
+        const { scrollWidth, clientWidth } = target;
+        scrollEl.style.maxWidth = `${clientWidth}px`;
+        barEl.style.width = `${scrollWidth}px`;
+      }
+    });
+    resizeObserver.observe(target);
+  }
+  const { scrollWidth, clientWidth } = target;
+  let customScrollbarWrap: HTMLDivElement = target.querySelector(`#${id}`);
+  const style = {
+    'max-width': `${clientWidth}px`,
+    // height: '8px',
+    position: 'sticky',
+    left: '0',
+    bottom: '0',
+    background: '#fff',
+    'overflow-x': 'scroll',
+    'overflow-y': 'hidden',
+    'margin-bottom': '-1px'
+  };
+  if (!customScrollbarWrap) {
+    customScrollbarWrap = document.createElement('div');
+  }
+  Object.keys(style).forEach(key => {
+    customScrollbarWrap.style[key] = style[key];
+  });
+  customScrollbarWrap.id = id;
+  customScrollbarWrap.addEventListener('mouseenter', () => {
+    customScrollbarWrap.className = 'hover-scroll';
+  });
+  customScrollbarWrap.addEventListener('mouseleave', () => {
+    customScrollbarWrap.className = '';
+  });
+  customScrollbarWrap.addEventListener('scroll', e => {
+    const { scrollLeft } = e.target as HTMLDivElement;
+    target.scrollLeft = scrollLeft;
+  });
+  const customScrollbar = document.createElement('div');
+  const barStyle = {
+    height: '4px',
+    width: `${scrollWidth}px`
+  };
+  Object.keys(barStyle).forEach(key => {
+    customScrollbar.style[key] = barStyle[key];
+  });
+  customScrollbarWrap.appendChild(customScrollbar);
+  target.appendChild(customScrollbarWrap);
+  setScrollInfo(customScrollbarWrap, customScrollbar);
+}

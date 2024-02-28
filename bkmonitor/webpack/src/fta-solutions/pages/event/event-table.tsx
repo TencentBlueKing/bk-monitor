@@ -38,54 +38,9 @@ import { handleToAlertList } from './event-detail/action-detail';
 import { TType as TSliderType } from './event-detail/event-detail-slider';
 import { getStatusInfo } from './event-detail/type';
 import { eventPanelType, IEventItem, IPagination, SearchType } from './typings/event';
+import { addHoverScroll } from './utils';
 
 import './event-table.scss';
-
-function addHoverScroll(target: HTMLDivElement) {
-  // 获取当前容器宽度
-  const id = '------add-hover-scroll-class----';
-  const { scrollWidth, clientWidth } = target;
-  target.style.transform = 'translate(0, 0)';
-  let customScrollbarWrap: HTMLDivElement = target.querySelector(`#${id}`);
-  if (customScrollbarWrap) {
-    return;
-  }
-  const style = {
-    'max-width': `${clientWidth}px`,
-    height: '8px',
-    position: 'fixed',
-    left: '0',
-    bottom: '0',
-    background: '#fff',
-    'overflow-x': 'scroll',
-    'overflow-y': 'hidden'
-  };
-  customScrollbarWrap = document.createElement('div');
-  Object.keys(style).forEach(key => {
-    customScrollbarWrap.style[key] = style[key];
-  });
-  customScrollbarWrap.id = id;
-  customScrollbarWrap.addEventListener('mouseenter', () => {
-    customScrollbarWrap.className = 'hover-scroll';
-  });
-  customScrollbarWrap.addEventListener('mouseleave', () => {
-    customScrollbarWrap.className = '';
-  });
-  customScrollbarWrap.addEventListener('scroll', e => {
-    const { scrollLeft } = e.target as HTMLDivElement;
-    target.scrollLeft = scrollLeft;
-  });
-  const customScrollbar = document.createElement('div');
-  const barStyle = {
-    height: '4px',
-    width: `${scrollWidth}px`
-  };
-  Object.keys(barStyle).forEach(key => {
-    customScrollbar.style[key] = barStyle[key];
-  });
-  customScrollbarWrap.appendChild(customScrollbar);
-  target.appendChild(customScrollbarWrap);
-}
 
 const alertStoreKey = '__ALERT_EVENT_COLUMN__';
 const actionStoreKey = '__ACTION_EVENT_COLUMN__';
