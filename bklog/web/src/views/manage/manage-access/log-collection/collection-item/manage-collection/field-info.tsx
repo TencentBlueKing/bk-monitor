@@ -352,7 +352,7 @@ export default class FieldInfo extends tsc<IProps> {
 
     const getTokenizeOnCharsStr = (row) => {
       if (!row.is_analyzed) return '';
-      return row.tokenize_on_chars ? row.tokenize_on_chars : this.segmentRegStr;
+      return row.tokenize_on_chars ? row.tokenize_on_chars : this.$t('默认');
     };
 
     const maskingStateSlot = {
