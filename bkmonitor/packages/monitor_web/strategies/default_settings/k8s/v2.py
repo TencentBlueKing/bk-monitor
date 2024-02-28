@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.utils.translation import ugettext as _
+
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -76,10 +77,10 @@ DEFAULT_K8S_STRATEGIES = [
                 "expression": "a/b-(c-1)/c",
                 "functions": [],
                 "name": (
-                    _("sum_without_time(内存 "
+                    "sum_without_time(mem "
                     "requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-"
                     "(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/"
-                    "count_without_time(kube_node_status_allocatable_memory_bytes)")
+                    "count_without_time(kube_node_status_allocatable_memory_bytes)"
                 ),
                 "no_data_config": NO_DATA_CONFIG,
                 "query_configs": [
@@ -226,7 +227,12 @@ DEFAULT_K8S_STRATEGIES = [
                     {
                         "agg_condition": [
                             {"condition": "and", "key": "namespace", "method": "neq", "value": ["bkmonitor-operator"]},
-                            {"condition": "and", "key": "container", "method": "neq", "value": ["tke-monitor-agent"]},
+                            {
+                                "condition": "and",
+                                "key": "container",
+                                "method": "neq",
+                                "value": ["tke-monitor-agent", "bscp-sidecar"],
+                            },
                         ],
                         "agg_dimension": ["bcs_cluster_id", "namespace", "pod", "container"],
                         "agg_interval": 60,
@@ -244,7 +250,12 @@ DEFAULT_K8S_STRATEGIES = [
                     {
                         "agg_condition": [
                             {"condition": "and", "key": "namespace", "method": "neq", "value": ["bkmonitor-operator"]},
-                            {"condition": "and", "key": "container", "method": "neq", "value": ["tke-monitor-agent"]},
+                            {
+                                "condition": "and",
+                                "key": "container",
+                                "method": "neq",
+                                "value": ["tke-monitor-agent", "bscp-sidecar"],
+                            },
                         ],
                         "agg_dimension": ["bcs_cluster_id", "namespace", "pod", "container"],
                         "agg_interval": 60,

@@ -279,9 +279,17 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                     if group_detail["id"] not in user_group_ids:
                         user_group_ids.append(group_detail["id"])
                         user_groups_dict[group_detail["name"]] = group_detail
-                    if group_detail["duty_arranges"]:
-                        group_detail["duty_arranges"][0].pop("id", None)
-                        group_detail["duty_arranges"][0].pop("user_group_id", None)
+
+                    for duty_arrange in group_detail.get("duty_arranges") or []:
+                        duty_arrange.pop("id", None)
+                        duty_arrange.pop("user_group_id", None)
+                        duty_arrange.pop("duty_rule_id", None)
+
+            # TODO(crayon) 目前导入功能没有考虑轮值，预设方案：
+            # 1. 导出：group_detail["duty_rules_info"] 增加 duty_arranges 信息
+            # 1. 创建用户组之前，要把 group_detail["duty_rules_info"] 先创建好，得到 duty_rule_id old - new ID 映射关系
+            # 2. 将 group_detail["duty_rules"]: List[int] 按映射关系进行替换
+
             qs = UserGroup.objects.filter(name__in=list(user_groups_dict.keys()), bk_biz_id=bk_biz_id)
             for user_group in qs:
                 group_detail = user_groups_dict[user_group.name]
