@@ -31,6 +31,7 @@
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+import { CancelToken } from 'monitor-api/index';
 import { getMainlineObjectTopo } from 'monitor-api/modules/commons';
 import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -303,6 +304,7 @@ export default class DataRetrieval extends tsc<{}> {
   eventSelectTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
+  cancelFn = null; // 取消查询接口
 
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
@@ -1633,7 +1635,8 @@ export default class DataRetrieval extends tsc<{}> {
         }
       };
     }
-    getGraphQueryConfig(params)
+    this.cancelFn?.();
+    getGraphQueryConfig(params, { cancelToken: new CancelToken(c => (this.cancelFn = c)) })
       .then(data => {
         this.queryTimeRange = +new Date() - queryStartTime;
         this.queryResult = data.panels;
