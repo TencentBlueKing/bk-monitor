@@ -175,9 +175,9 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   created() {
     let queryConfig = null;
     try {
-      queryConfig = JSON.parse(this.$route.query?.queryConfig as string);
+      queryConfig = JSON.parse((this.$route.query?.queryConfig || null) as string);
       if (!queryConfig) {
-        queryConfig = JSON.parse(this.$route.query?.targets as string)?.[0]?.data?.query_configs?.[0];
+        queryConfig = JSON.parse((this.$route.query?.targets || null) as string)?.[0]?.data?.query_configs?.[0];
       }
     } catch (err) {
       queryConfig = null;
