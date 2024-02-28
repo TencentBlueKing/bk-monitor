@@ -671,7 +671,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   handleTableDataWatch() {
     if (this.tableData.length) {
       setTimeout(() => {
-        const el = document.querySelector('.bk-table-body-wrapper');
+        const el = this.$el.querySelector('.bk-table-body-wrapper');
         addHoverScroll(el as any);
       }, 50);
     }
