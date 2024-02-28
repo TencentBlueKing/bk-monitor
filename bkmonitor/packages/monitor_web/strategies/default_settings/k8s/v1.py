@@ -440,7 +440,7 @@ DEFAULT_K8S_STRATEGIES = [
         "detects": fatal_detects_config(5, 5, 4),
         "items": [
             {
-                "name": "系统内置[kubernetes-system]-KubeClientCertificateExpiration",
+                "name": _("[kube master] apiserver证书过期监控 KubeClientCertificateExpiration"),
                 "no_data_config": NO_DATA_CONFIG,
                 "target": [[]],
                 "expression": "b>0 and a",
