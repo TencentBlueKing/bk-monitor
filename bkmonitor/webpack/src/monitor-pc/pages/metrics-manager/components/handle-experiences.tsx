@@ -27,19 +27,19 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import Viewer from 'fta-solutions/pages/event/event-detail/custom-view';
+import { IDetail } from 'fta-solutions/pages/event/event-detail/type';
+import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
+import TipMsg from 'fta-solutions/pages/setting/components/tip-msg';
+// import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { deleteExperience, getExperience, saveExperience } from 'monitor-api/modules/alert';
+import { random, transformDataKey } from 'monitor-common/utils/utils';
+import Editor from 'monitor-ui/markdown-editor/editor';
 
-import Viewer from '../../../../fta-solutions/pages/event/event-detail/custom-view';
-import { IDetail } from '../../../../fta-solutions/pages/event/event-detail/type';
-import WhereDisplay from '../../../../fta-solutions/pages/event/event-detail/where-display';
-import TipMsg from '../../../../fta-solutions/pages/setting/components/tip-msg';
-// import { getMetricListV2 } from '../../../../monitor-api/modules/strategies';
-import { deleteExperience, getExperience, saveExperience } from '../../../../monitor-api/modules/alert';
-import { random, transformDataKey } from '../../../../monitor-common/utils/utils';
-import DeleteSubtitle from '../../../../monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
+import DeleteSubtitle from '../../../pages/strategy-config/strategy-config-common/delete-subtitle';
 import ConditionInput, {
   IConditionItem
-} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
-import Editor from '../../../../monitor-ui/markdown-editor/editor';
+} from '../../../pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import { IMetricDetail } from '../../strategy-config/strategy-config-set-new/typings';
 
 import './handle-experiences.scss';

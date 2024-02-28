@@ -27,20 +27,15 @@ import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import G6 from '@antv/g6';
 import dayjs from 'dayjs';
+import bus from 'monitor-common/utils/event-bus';
+import { Debounce, random } from 'monitor-common/utils/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { IFilterDict, ITableColumn, ITableFilterItem, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
+import { transformConditionValueParams } from 'monitor-pc/pages/monitor-k8s/utils';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import { Debounce, random } from '../../../../monitor-common/utils/utils';
-import EmptyStatus from '../../../../monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../../monitor-pc/components/empty-status/types';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import {
-  IFilterDict,
-  ITableColumn,
-  ITableFilterItem,
-  ITablePagination
-} from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import { transformConditionValueParams } from '../../../../monitor-pc/pages/monitor-k8s/utils';
 import RatioLegend from '../../components/chart-legend/relation-legend';
 import RelationChartTitle from '../../components/relation-chart-title/relation-chart-title';
 import backIcon from '../../icons/back.svg';

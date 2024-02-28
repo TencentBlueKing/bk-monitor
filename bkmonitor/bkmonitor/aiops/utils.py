@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from dataclasses import asdict, dataclass, field, fields
+from typing import Any, Dict, Optional
 
 from django.conf import settings
 
@@ -106,44 +107,35 @@ class MetricRecommend(BaseAnomalyConfig):
     result_table_id: str = field(default="")
 
 
-class AiSetting:
-    def __init__(self, bk_biz_id):
+class ReadOnlyAiSetting:
+    def __init__(self, bk_biz_id: int, config: Optional[Dict[str, Dict[str, Any]]] = None):
+
         self.bk_biz_id = bk_biz_id
+        config = config or self.default_config
 
-        kpi_anomaly_detection = KpiAnomalyConfig()
-        multivariate_anomaly_detection = MultivariateAnomalyDetection()
-        for scene in MultivariateAnomalyDetection.get_scene_list():
-            setattr(multivariate_anomaly_detection, scene, MultivariateAnomalySceneConfig())
-
-        dimension_drill = DimensionDrill()
-        metric_recommend = MetricRecommend()
-
-        self.ai_setting, created = AIFeatureSettings.objects.get_or_create(
-            bk_biz_id=bk_biz_id,
-            defaults={
-                "config": {
-                    KPI_ANOMALY_DETECTION: kpi_anomaly_detection.to_dict(),
-                    MULTIVARIATE_ANOMALY_DETECTION: multivariate_anomaly_detection.to_dict(),
-                    DIMENSION_DRILL: dimension_drill.to_dict(),
-                    METRIC_RECOMMEND: metric_recommend.to_dict(),
-                }
-            },
-        )
-
-        if not created:
-            kpi_anomaly_detection = KpiAnomalyConfig().from_dict(self.ai_setting.config[KPI_ANOMALY_DETECTION])
-            multivariate_anomaly_detection = MultivariateAnomalyDetection.from_dict(
-                self.ai_setting.config[MULTIVARIATE_ANOMALY_DETECTION]
-            )
-            if DIMENSION_DRILL in self.ai_setting.config:
-                dimension_drill = DimensionDrill.from_dict(self.ai_setting.config[DIMENSION_DRILL])
-            if METRIC_RECOMMEND in self.ai_setting.config:
-                metric_recommend = MetricRecommend.from_dict(self.ai_setting.config[METRIC_RECOMMEND])
+        kpi_anomaly_detection = KpiAnomalyConfig().from_dict(config[KPI_ANOMALY_DETECTION])
+        multivariate_anomaly_detection = MultivariateAnomalyDetection.from_dict(config[MULTIVARIATE_ANOMALY_DETECTION])
+        if DIMENSION_DRILL in config:
+            dimension_drill = DimensionDrill.from_dict(config[DIMENSION_DRILL])
+        else:
+            dimension_drill = DimensionDrill()
+        if METRIC_RECOMMEND in config:
+            metric_recommend = MetricRecommend.from_dict(config[METRIC_RECOMMEND])
+        else:
+            metric_recommend = MetricRecommend()
 
         self.kpi_anomaly_detection = kpi_anomaly_detection
         self.multivariate_anomaly_detection = multivariate_anomaly_detection
         self.dimension_drill = dimension_drill
         self.metric_recommend = metric_recommend
+
+    def to_dict(self):
+        return {
+            KPI_ANOMALY_DETECTION: self.kpi_anomaly_detection.to_dict(),
+            MULTIVARIATE_ANOMALY_DETECTION: self.multivariate_anomaly_detection.to_dict(),
+            DIMENSION_DRILL: self.dimension_drill.to_dict(),
+            METRIC_RECOMMEND: self.metric_recommend.to_dict(),
+        }
 
     def scene_is_access_aiops(self, scene):
         scene_config = getattr(self, scene)
@@ -153,6 +145,33 @@ class AiSetting:
             err_msg = "ai setting(bk_biz_id:{}) unknow scene({})".format(self.bk_biz_id, scene)
             logger.error(err_msg)
             raise AiSettingException(err_msg)
+
+    @property
+    def default_config(self):
+        multivariate_anomaly_detection = MultivariateAnomalyDetection()
+        for scene in MultivariateAnomalyDetection.get_scene_list():
+            setattr(multivariate_anomaly_detection, scene, MultivariateAnomalySceneConfig())
+
+        return {
+            KPI_ANOMALY_DETECTION: KpiAnomalyConfig().to_dict(),
+            MULTIVARIATE_ANOMALY_DETECTION: multivariate_anomaly_detection.to_dict(),
+            DIMENSION_DRILL: DimensionDrill().to_dict(),
+            METRIC_RECOMMEND: MetricRecommend().to_dict(),
+        }
+
+
+class AiSetting(ReadOnlyAiSetting):
+    def __init__(self, bk_biz_id: int):
+
+        multivariate_anomaly_detection = MultivariateAnomalyDetection()
+        for scene in MultivariateAnomalyDetection.get_scene_list():
+            setattr(multivariate_anomaly_detection, scene, MultivariateAnomalySceneConfig())
+
+        self.ai_setting, __ = AIFeatureSettings.objects.get_or_create(
+            bk_biz_id=bk_biz_id, defaults={"config": self.default_config}
+        )
+
+        super().__init__(bk_biz_id, self.ai_setting.config)
 
     def create(self, kpi_anomaly_detection, multivariate_anomaly_detection):
         value = {
@@ -184,11 +203,3 @@ class AiSetting:
 
         self.kpi_anomaly_detection = KpiAnomalyConfig.from_dict(kpi_anomaly_detection)
         self.multivariate_anomaly_detection = MultivariateAnomalyDetection.from_dict(multivariate_anomaly_detection)
-
-    def to_dict(self):
-        return {
-            KPI_ANOMALY_DETECTION: self.kpi_anomaly_detection.to_dict(),
-            MULTIVARIATE_ANOMALY_DETECTION: self.multivariate_anomaly_detection.to_dict(),
-            DIMENSION_DRILL: self.dimension_drill.to_dict(),
-            METRIC_RECOMMEND: self.metric_recommend.to_dict(),
-        }

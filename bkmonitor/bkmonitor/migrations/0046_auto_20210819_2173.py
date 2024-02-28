@@ -60,7 +60,7 @@ def add_default_no_data_dimensions(apps, scheme_editor):
             Q(data_source_label__in=[DataSourceLabel.BK_LOG_SEARCH, DataSourceLabel.BK_DATA, DataSourceLabel.CUSTOM])
             | Q(data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR, data_type_label=DataTypeLabel.EVENT)
         )
-        .annotate(agg_dimension=models.F("config__aggdimension"))
+        .annotate(agg_dimension=models.F("config__agg_dimension"))
         .values("strategy_id", "agg_dimension")
     )
     for query_config in query_configs:

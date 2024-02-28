@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
-import { Debounce, deepClone, transformDataKey } from '../../../../../../monitor-common/utils/utils';
 import ResizeContainer from '../../../../../components/resize-container/resize-container';
 import VerifyItem from '../../../../../components/verify-item/verify-item';
 import CommonItem from '../components/common-item';
@@ -42,6 +42,7 @@ import {
 import { localDataConvertToRequest } from '../components/http-editor/utils';
 
 import { IWebhook } from './meal-content-data';
+import { setVariableToString, variableJsonVerify } from './utils';
 
 import './http-callback.scss';
 
@@ -50,6 +51,9 @@ interface IProps {
   value?: any;
   label?: string;
   isOnlyHttp?: boolean; // 是否只显示头部http数据
+  validatorHasVariable?: boolean;
+  variableList?: { example: string; id: string }[];
+  pluginId?: string | number;
 }
 
 interface IEvents {
@@ -69,6 +73,12 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   @Prop({ default: null, type: Object }) readonly value: any;
   @Prop({ default: '', type: String }) readonly label: string;
   @Prop({ default: false, type: Boolean }) readonly isOnlyHttp: boolean;
+  /* 校验是否需要填入变量值 */
+  @Prop({ default: false, type: Boolean }) readonly validatorHasVariable: boolean;
+  /* 所有变量 用于校验 */
+  @Prop({ default: () => [], type: Array }) readonly variableList: { example: string; id: string }[];
+  /* 当前插件id */
+  @Prop({ default: 0, type: [String, Number] }) pluginId: string | number;
 
   data: IWebhook = {};
 
@@ -184,7 +194,10 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   }
 
   get checkUrl(): boolean {
-    return /^(((ht|f)tps?):\/\/)[\w-]+(\.[\w-]+)+([\w.,@?^=%&:/~+#-{}]*[\w@?^=%&/~+#-{}])?$/.test(this.httpData.url);
+    // eslint-disable-next-line no-useless-escape
+    return /(^(((ht|f)tps?):\/\/)[\w-]+(\.[\w-]+)+([\w.,@?^=%&:/~+#-{}]*[\w@?^=%&/~+#-{}])?$)|({{[\w\.]+?}})/.test(
+      this.httpData.url
+    );
   }
 
   @Watch('value', { immediate: true, deep: true })
@@ -377,25 +390,42 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
    * @param {*} content
    * @return {*}
    */
-  handleRawBlur(type, content) {
+  async handleRawBlur(type, content) {
     let errorMsg = '';
     const typeNameMap = {
       json: 'JSON',
       xml: 'XML',
       html: 'HTML'
     };
+    // eslint-disable-next-line no-useless-escape
+    const isVar = /{{[\w\.]+?}}/.test(content);
     if (content && type === 'json') {
+      let target = '';
+      if (isVar && this.validatorHasVariable) {
+        const variableMap = new Map();
+        this.variableList.forEach(template => {
+          variableMap.set(template.id, template);
+        });
+        target = setVariableToString(variableMap, content);
+      } else {
+        target = content;
+      }
       try {
-        JSON.parse(content);
+        JSON.parse(target);
       } catch (error) {
-        errorMsg = this.$t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string;
+        const isVerify = await variableJsonVerify(this.pluginId, content).catch(() => false);
+        if (!isVerify) {
+          errorMsg = this.$t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string;
+        }
       }
     }
     if (content && ['html', 'xml'].includes(type)) {
       const parser = new DOMParser();
       const res = parser.parseFromString(content, 'application/xhtml+xml');
       const parsererror = res.querySelector('parsererror');
-      parsererror && (errorMsg = this.$t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string);
+      if (!isVar) {
+        parsererror && (errorMsg = this.$t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string);
+      }
     }
     this.rawErrorMsg = errorMsg;
     this.emitLocalHeaderInfo();

@@ -80,8 +80,8 @@
   </div>
 </template>
 <script>
-import { uploadFileCollectorPlugin } from '../../../../../monitor-api/modules/model';
-import { dataDogPluginUpload } from '../../../../../monitor-api/modules/plugin';
+import { uploadFileCollectorPlugin } from 'monitor-api/modules/model';
+import { dataDogPluginUpload } from 'monitor-api/modules/plugin';
 
 export default {
   name: 'MoUpload',
@@ -220,106 +220,122 @@ export default {
 <style lang="scss" scoped>
 .upload-container {
   position: relative;
-  height: 32px;
   box-sizing: border-box;
+  height: 32px;
   border: 1px dashed #c4c6cc;
+
   input {
     position: absolute;
-    left: 0;
     top: 0;
-    height: 100%;
-    width: 100%;
+    left: 0;
     z-index: 10;
+    width: 100%;
+    height: 100%;
     cursor: pointer;
     opacity: 0;
   }
+
   .upload-view {
     display: flex;
-    height: 100%;
     width: 100%;
+    height: 100%;
+
     .file-icon {
       flex: 0 0 32px;
       height: 100%;
+
       .item-icon {
         position: relative;
         display: inline-block;
-        height: 100%;
         width: 100%;
-        text-align: center;
-        line-height: 32px;
-        font-size: 16px;
+        height: 100%;
         overflow: hidden;
+        font-size: 16px;
+        line-height: 32px;
+        text-align: center;
+
         .set-mark {
           position: absolute;
-          left: -14px;
           top: -14px;
+          left: -14px;
           width: 28px;
           height: 28px;
           background-color: #979ba5;
           transform: rotate(-45deg);
+
           .set-mark-font {
             position: absolute;
             top: 2px;
             left: 6px;
             font-size: 12px;
             color: #fff;
-            transform: scale(0.8);
+            transform: scale(.8);
           }
         }
       }
+
       .icon-arm {
         font-size: 12px;
       }
     }
+
     .upload-operator {
       position: relative;
       width: calc(100% - 32px);
       font-size: 12px;
       line-height: 32px;
       border-left: 0;
+
       .upload-btn {
         color: #c4c6cc;
         cursor: pointer;
       }
+
       .file-name {
         position: relative;
         display: flex;
         align-items: center;
         height: 100%;
+
         .name {
           display: inline-block;
+          width: calc(100% - 35px);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-          width: calc(100% - 35px);
         }
       }
+
       .icon-wrapper {
         position: absolute;
         top: 8px;
         right: 8px;
         display: flex;
-        justify-content: center;
         align-items: center;
-        height: 16px;
+        justify-content: center;
         width: 16px;
+        height: 16px;
       }
+
       .icon-mc-check-fill {
-        color: #2dcb56;
         font-size: 16px;
+        color: #2dcb56;
       }
+
       .clear-icon {
+        z-index: 11;
+        font-size: 16px;
         color: #c4c6cc;
         cursor: pointer;
-        font-size: 16px;
-        z-index: 11;
       }
+
       .error-icon {
-        color: red;
-        font-weight: 600;
         font-size: 18px;
+        font-weight: 600;
+        color: red;
         cursor: pointer;
       }
+
       .progress {
         position: absolute;
         bottom: 4px;
@@ -327,6 +343,7 @@ export default {
         height: 2px;
         padding-right: 9px;
         background: #fff;
+
         div {
           width: 100%;
           height: 2px;

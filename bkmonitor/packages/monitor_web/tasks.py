@@ -45,7 +45,6 @@ from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
-from bkmonitor.utils.local import local
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.user import set_local_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -71,14 +70,6 @@ from utils import business, count_md5
 logger = logging.getLogger("monitor_web")
 
 
-User = get_user_model()
-
-
-def set_client_user():
-    biz_set = business.get_all_activate_business()
-    local.username = business.maintainer(biz_set[0])
-
-
 @task(ignore_result=True)
 def record_login_user(username: str, source: str, last_login: float, space_info: Dict[str, Any]):
     logger.info(
@@ -90,7 +81,7 @@ def record_login_user(username: str, source: str, last_login: float, space_info:
     )
 
     try:
-        user = User.objects.get(username=username)
+        user = get_user_model().objects.get(username=username)
         user.last_login = datetime.datetime.now()
         user.save()
 

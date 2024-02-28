@@ -149,6 +149,10 @@ ADVANCED_OPTIONS = OrderedDict(
             "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
             slz.IntegerField(label=_("APM应用操作BkdataFlow时拉取运行状态的最大操作次数"), default=10),
         ),
+        (
+            "APM_APP_BKDATA_REQUIRED_TEMP_CONVERT_NODE",
+            slz.BooleanField(label=_("APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点"), default=False),
+        ),
         ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label=_("APM尾部采样项目id"), default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
@@ -346,6 +350,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
+        ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
         ("COLLECTING_CONFIG_FILE_MAXSIZE", slz.IntegerField(label=_("采集配置文件参数最大值(M)"), default=2)),

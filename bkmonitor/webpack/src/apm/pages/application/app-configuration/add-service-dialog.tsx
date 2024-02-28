@@ -26,12 +26,7 @@
 
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import {
-  customServiceConfig,
-  customServiceDataSource,
-  customServiceMatchList
-} from '../../../../monitor-api/modules/apm_meta';
+import { customServiceConfig, customServiceDataSource, customServiceMatchList } from 'monitor-api/modules/apm_meta';
 
 import { ICustomServiceInfo } from './type';
 

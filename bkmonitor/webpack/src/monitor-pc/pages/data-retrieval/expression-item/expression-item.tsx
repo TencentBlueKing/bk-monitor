@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { IDataRetrieval } from '../typings';
 

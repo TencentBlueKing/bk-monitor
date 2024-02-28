@@ -26,11 +26,11 @@
 import { Component, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
+import { CancelToken } from 'monitor-api/index';
+import { metricRecommendationFeedback } from 'monitor-api/modules/alert';
+import { random } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { CancelToken } from '../../../../monitor-api/index';
-import { metricRecommendationFeedback } from '../../../../monitor-api/modules/alert';
-import { random } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';

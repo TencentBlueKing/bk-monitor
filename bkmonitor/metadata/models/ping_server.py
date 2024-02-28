@@ -124,7 +124,13 @@ class PingServerSubscriptionConfig(models.Model):
                         logger.info("update ping server subscription successful, result:{}".format(result))
                         config.config = subscription_params
                         config.save()
-                        api.node_man.run_subscription(subscription_id=config.subscription_id)
+                        # A1：目标 - 确保每次更新时都会主动触发一次订阅执行
+                        # Q：为什么去掉执行订阅的逻辑
+                        # A2：run_immediately=True 时更新订阅会「同时触发订阅执行」，如果订阅此刻在执行中便会失败
+                        # A3：更新订阅失败 - 最新配置不保存，下个周期对比差异恒定成功，会继续触发订阅更新和执行
+                        # A4：更新订阅成功 - 最新配置保存，符合预期
+                        # A5：综上 run_subscription 的调用是冗余且恒定失败的，由此移除
+                        # api.node_man.run_subscription(subscription_id=config.subscription_id)
                 except Exception as e:  # noqa
                     logger.exception(
                         "update ping server subscription error:{}, params:{}".format(e, subscription_params)

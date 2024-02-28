@@ -25,9 +25,8 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { MethodType } from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
-import { isHttpUrl, isIpv6Url } from '../../../../../monitor-common/regex/url';
+import { MethodType } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
+import { isHttpUrl, isIpv6Url } from 'monitor-common/regex/url';
 
 import AddBtn from './add-btn';
 import CommonAddDialog from './common-add-dialog';

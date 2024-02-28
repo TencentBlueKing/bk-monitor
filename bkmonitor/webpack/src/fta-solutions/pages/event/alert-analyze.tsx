@@ -26,10 +26,9 @@
 import VueI18n, { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { copyText } from '../../../monitor-common/utils/utils';
-import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType } from '../../../monitor-pc/components/empty-status/types';
+import { copyText } from 'monitor-common/utils/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
 
 import { ActionAnlyzeField, AnlyzeField, ICommonItem, SearchType } from './typings/event';
 

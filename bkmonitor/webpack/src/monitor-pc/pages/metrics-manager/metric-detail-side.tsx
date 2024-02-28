@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 
-import { getStrategyListV2 } from '../../../monitor-api/modules/strategies';
 import { secToString } from '../../components/cycle-input/utils';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 // import InputConfirm from './input-confirm';

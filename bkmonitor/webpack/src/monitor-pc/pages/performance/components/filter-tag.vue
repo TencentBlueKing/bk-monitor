@@ -70,8 +70,8 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Inject, Vue } from 'vue-property-decorator';
+import { typeTools } from 'monitor-common/utils/utils.js';
 
-import { typeTools } from '../../../../monitor-common/utils/utils.js';
 import { IConditionValue, IOption, ITag } from '../performance-type';
 import TableStore from '../table-store';
 

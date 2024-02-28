@@ -28,17 +28,16 @@
 /* eslint-disable camelcase */
 import { Component, Emit, Inject, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import {
   DEFAULT_MESSAGE_TMPL,
   DEFAULT_TITLE_TMPL
-} from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealAddStore from '../../../../fta-solutions/store/modules/set-meal-add';
-import { getConvergeFunction } from '../../../../monitor-api/modules/action';
-import { strategySnapshot } from '../../../../monitor-api/modules/alert';
-import { listCalendar } from '../../../../monitor-api/modules/calendar';
-import { getFunctions } from '../../../../monitor-api/modules/grafana';
-import { listActionConfig, listUserGroup } from '../../../../monitor-api/modules/model';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
+import { getConvergeFunction } from 'monitor-api/modules/action';
+import { strategySnapshot } from 'monitor-api/modules/alert';
+import { listCalendar } from 'monitor-api/modules/calendar';
+import { getFunctions } from 'monitor-api/modules/grafana';
+import { listActionConfig, listUserGroup } from 'monitor-api/modules/model';
 import {
   getMetricListV2,
   getScenarioList,
@@ -48,11 +47,12 @@ import {
   promqlToQueryConfig,
   queryConfigToPromql,
   saveStrategyV2
-} from '../../../../monitor-api/modules/strategies';
-import debouceDecorator from '../../../../monitor-common/utils/debounce-decorator';
-import bus from '../../../../monitor-common/utils/event-bus';
+} from 'monitor-api/modules/strategies';
+import debouceDecorator from 'monitor-common/utils/debounce-decorator';
+import bus from 'monitor-common/utils/event-bus';
 // import StrategyMetricSelector from './components/strategy-metric-selector';
-import { deepClone, getUrlParam, transformDataKey, typeTools } from '../../../../monitor-common/utils/utils';
+import { deepClone, getUrlParam, transformDataKey, typeTools } from 'monitor-common/utils/utils';
+
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
@@ -321,7 +321,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   localExpFunctions: IFunctionsValue[] = [];
   target: any[] = [];
   defaultCheckedTarget: any = { target_detail: [] };
-
+  targetType = '';
   loading = false;
   metricSelector: {
     type: MetricType;
@@ -473,7 +473,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (!this.editAllowed) {
       return false;
     }
-    return !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading);
+    return this.monitorDataEditMode === 'Edit'
+      ? !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading)
+      : this.sourceData.sourceCode;
   }
 
   /** 策略监控目标 */
@@ -1041,6 +1043,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const strategyTarget = targetDetail?.[this.strategyId];
     const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
     const targetType = strategyTarget?.node_type || '';
+    this.targetType = targetType;
     let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
     // 对旧版的策略target进行特殊处理
     if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
@@ -1851,7 +1854,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   getAlgorithmList(item: MetricDetail) {
     let algorithmList = [];
     // 系统事件
-    if (item.metricMetaId === 'bk_monitor|event') {
+    if (item?.metricMetaId === 'bk_monitor|event') {
       algorithmList.push({
         level: item.level,
         type: '',
@@ -2054,6 +2057,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   // 选择监控目标时需切换target_type
   handleTargetTypeChange(v: string) {
+    this.targetType = v;
     this.metricData.forEach(item => (item.targetType = v));
   }
   // 切换监控对象
@@ -2202,6 +2206,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           result_table_name: resultTableIdList[1],
           data_label: item.data_label
         };
+        if (!!this.targetType) {
+          curMetric.targetType = this.targetType;
+        }
         return new MetricDetail({
           ...curMetric,
           agg_method: item.agg_method,

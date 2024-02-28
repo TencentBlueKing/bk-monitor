@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
-
-import { getTopoTree } from '../../../monitor-api/modules/commons';
-import { createUserConfig, listUserConfig, partialUpdateUserConfig } from '../../../monitor-api/modules/model';
+import { getTopoTree } from 'monitor-api/modules/commons';
+import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
 import {
   hostPerformance,
   hostPerformanceDetail,
   hostTopoNodeDetail,
   searchHostInfo,
   searchHostMetric
-} from '../../../monitor-api/modules/performance';
-// import { savePanelOrder, deletePanelOrder } from '../../../monitor-api/modules/data_explorer';
+} from 'monitor-api/modules/performance';
+
+// import { savePanelOrder, deletePanelOrder } from 'monitor-api/modules/data_explorer';
 import store from '../store';
 
 interface IHostData {

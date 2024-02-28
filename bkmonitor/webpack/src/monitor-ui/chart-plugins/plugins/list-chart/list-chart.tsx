@@ -25,9 +25,9 @@
  */
 import { Component, InjectReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import bus from 'monitor-common/utils/event-bus';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
 import { PanelModel } from '../../typings';
 import { TableChart } from '../table-chart/table-chart';
 

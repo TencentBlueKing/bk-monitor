@@ -25,13 +25,13 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+// import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
+import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { PanelToolsType } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { IQueryOption } from '../../../monitor-pc/pages/performance/performance-type';
-import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-// import ViewDetail from '../../../monitor-pc/pages/view-detail/view-detail.vue';
-import ViewDetail from '../../../monitor-pc/pages/view-detail/view-detail-new';
 import watermarkMaker from '../../monitor-echarts/utils/watermarkMaker';
 import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
@@ -70,6 +70,8 @@ import './chart-wrapper.scss';
 
 interface IChartWrapperProps {
   panel: PanelModel;
+  chartChecked?: boolean;
+  collapse?: boolean;
   detectionConfig?: IDetectionConfig;
   needHoverStryle?: boolean;
   needCheck?: boolean;
@@ -94,6 +96,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Object }) detectionConfig: IDetectionConfig;
   /* 是否可选中图表 */
   @Prop({ type: Boolean, default: true }) needCheck: boolean;
+  @Prop({ type: Boolean, default: undefined }) collapse: boolean;
+  @Prop({ type: Boolean, default: undefined }) chartChecked: boolean;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -138,6 +142,14 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   get needHoverStryle() {
     const { time_series_forecast, time_series_list } = this.panel?.options || {};
     return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
+  }
+
+  get isChecked() {
+    return this.chartChecked === undefined ? this.panel.checked : this.chartChecked;
+  }
+
+  get isCollapsed() {
+    return this.collapse === undefined ? this.panel.collapsed : this.collapse;
   }
 
   mounted() {
@@ -193,11 +205,11 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
   @Emit('chartCheck')
   handleChartCheck() {
-    return !this.panel.checked;
+    return !this.isChecked;
   }
   @Emit('collapse')
   handleCollapsed() {
-    return !this.panel.collapsed;
+    return !this.isCollapsed;
   }
   @Emit('changeHeight')
   handleChangeHeight(height: number) {
@@ -497,8 +509,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         class={{
           'chart-wrapper': true,
           'grafana-check': this.panel.canSetGrafana,
-          'is-checked': this.panel.checked,
-          'is-collapsed': this.panel.collapsed,
+          'is-checked': this.isChecked,
+          'is-collapsed': this.isCollapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
           'row-chart': this.panel.type === 'row'
         }}

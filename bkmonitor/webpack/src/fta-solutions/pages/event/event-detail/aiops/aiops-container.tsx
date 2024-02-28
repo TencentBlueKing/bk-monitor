@@ -25,11 +25,11 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { fetchAiSetting } from 'monitor-api/modules/aiops';
+import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/alert';
+import { frontendReportEvent } from 'monitor-api/modules/commons';
+import { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { fetchAiSetting } from '../../../../../monitor-api/modules/aiops';
-import { dimensionDrillDown, metricRecommendation } from '../../../../../monitor-api/modules/alert';
-import { frontendReportEvent } from '../../../../../monitor-api/modules/commons';
-import { IPanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
 import { IDetail } from '../type';
 
 import DimensionTable from './dimension.table';

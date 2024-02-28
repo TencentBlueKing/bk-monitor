@@ -82,8 +82,8 @@
 
 <script>
 import { createNamespacedHelpers } from 'vuex';
+import { bulkEditStrategy, getTargetDetail } from 'monitor-api/modules/strategies';
 
-import { bulkEditStrategy, getTargetDetail } from '../../../../monitor-api/modules/strategies';
 import TopoSelector from '../../../components/ip-selector/business/topo-selector-new';
 
 const { mapGetters } = createNamespacedHelpers('strategy-config');

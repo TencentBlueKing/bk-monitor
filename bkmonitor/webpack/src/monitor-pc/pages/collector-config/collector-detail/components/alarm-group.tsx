@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import AlarmGroupDetail, { IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
 import * as ruleAuth from '../../../strategy-config/authority-map';
 

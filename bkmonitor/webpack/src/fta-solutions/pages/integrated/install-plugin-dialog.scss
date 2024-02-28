@@ -26,11 +26,11 @@
   .installed-tips {
     display: block;
     height: 42px;
-    line-height: 42px;
     padding: 0 16px;
+    margin-top: 24px;
+    line-height: 42px;
     background: #fafbfd;
     border-radius: 2px;
-    margin-top: 24px;
 
     .count {
       font-weight: 700;
@@ -39,9 +39,6 @@
 }
 
 .integrated-install-plugin-dialog {
-  /* stylelint-disable-next-line declaration-no-important */
-  z-index: 3000 !important;
-
   .dialog-form-content {
     min-height: 50px;
   }
