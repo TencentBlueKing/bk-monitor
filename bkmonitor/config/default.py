@@ -1307,3 +1307,6 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+
+# BCS 数据合流配置， 默认为 不启用
+BCS_DATA_CONVERGENCE_CONFIG = {}
