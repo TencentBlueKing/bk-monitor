@@ -90,12 +90,12 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
         index_list = list(_mappings.keys())
         for index_name in index_list:
             # 获取索引的分析器设置
-            index_settings = _settings[index_name]['settings']['index']
-            analyzers = index_settings.get('analysis', {}).get('analyzer', {})
-            tokenizers = index_settings.get('analysis', {}).get('tokenizer', {})
+            index_settings = _settings[index_name]["settings"]["index"]
+            analyzers = index_settings.get("analysis", {}).get("analyzer", {})
+            tokenizers = index_settings.get("analysis", {}).get("tokenizer", {})
             # 遍历映射中的字段
-            for field, properties in _mappings[index_name]['mappings']['properties'].items():
-                analyzer_name = properties.get('analyzer')
+            for field, properties in _mappings[index_name]["mappings"]["properties"].items():
+                analyzer_name = properties.get("analyzer")
                 if not analyzer_name:
                     continue
                 # 从索引设置中获取分析器详细信息
@@ -103,7 +103,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
                 if not analyzer_details:
                     continue
                 # 将分析器详细信息添加到字段配置中
-                properties['analyzer_details'] = analyzer_details
+                properties["analyzer_details"] = analyzer_details
                 if properties["analyzer_details"].get("tokenizer"):
                     properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
                         properties["analyzer_details"]["tokenizer"]
