@@ -27,13 +27,13 @@
  */
 import { Component, InjectReactive, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone, random } from 'monitor-common/utils';
+import AiopsDimensionLint from 'monitor-ui/chart-plugins/plugins/aiops-dimension-lint/aiops-dimension-lint';
+import PerformanceChart from 'monitor-ui/chart-plugins/plugins/performance-chart/performance-chart';
+import LineEcharts from 'monitor-ui/chart-plugins/plugins/time-series/time-series';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
-import { deepClone, random } from '../../../monitor-common/utils';
-import AiopsDimensionLint from '../../../monitor-ui/chart-plugins/plugins/aiops-dimension-lint/aiops-dimension-lint';
-import PerformanceChart from '../../../monitor-ui/chart-plugins/plugins/performance-chart/performance-chart';
-import LineEcharts from '../../../monitor-ui/chart-plugins/plugins/time-series/time-series';
-import { PanelModel } from '../../../monitor-ui/chart-plugins/typings/dashboard-panel';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 import MonitorDropdown from '../../components/monitor-dropdown';
 import SortButton from '../../components/sort-button/sort-button';
 import TimeRange, { TimeRangeType } from '../../components/time-range/time-range';
@@ -49,7 +49,7 @@ import QueryCriteriaItem from './query-criteria-item.vue';
 import { downCsvFile, refleshList, transformSrcData, transformTableDataToCsvStr } from './utils';
 
 import './view-detail-new.scss';
-// import { IViewOptions } from '../../../monitor-ui/chart-plugins/typings';
+// import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 interface IViewConfig {
   config: PanelModel;

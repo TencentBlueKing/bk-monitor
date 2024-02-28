@@ -12,6 +12,7 @@ import base64
 import copy
 import json
 import logging
+from typing import Any, Dict, Optional
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -19,8 +20,13 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import AttrDict
 
-from bkmonitor.aiops.alert.utils import DimensionDrillManager, RecommendMetricManager
+from bkmonitor.aiops.alert.utils import (
+    DimensionDrillLightManager,
+    RecommendMetricManager,
+)
+from bkmonitor.aiops.utils import ReadOnlyAiSetting
 from bkmonitor.documents import AlertLog
+from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.time_tools import (
@@ -40,6 +46,7 @@ from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 
 from ...service.converge.shield.shielder import AlertShieldConfigShielder
 from . import BaseContextObject
+from .utils import context_field_timer
 
 logger = logging.getLogger("fta_action.run")
 
@@ -794,34 +801,47 @@ class Alarm(BaseContextObject):
         return False
 
     @cached_property
+    def ai_setting_config(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        try:
+            return AIFeatureSettings.objects.get(bk_biz_id=self.parent.alert.event["bk_biz_id"]).config
+        except AIFeatureSettings.DoesNotExist:
+            return None
+
+    @cached_property
+    @context_field_timer
     def anomaly_dimensions(self):
         if not self.parent.alert:
             return None
         try:
-            result = DimensionDrillManager().fetch_aiops_result(self.parent.alert)
+            result = DimensionDrillLightManager(
+                self.parent.alert, ReadOnlyAiSetting(self.parent.alert.event["bk_biz_id"], self.ai_setting_config)
+            ).fetch_aiops_result()
         except Exception as e:
             logger.exception(
                 f"alert({self.parent.alert.id})-action("
                 f"{self.parent.action.id if self.parent.action else ''}) aiops维度下钻接口请求异常: {e}"
             )
-            return None
+            raise
 
         anomaly_dimension_count = result["info"]["anomaly_dimension_count"]
         anomaly_dimension_value_count = result["info"]["anomaly_dimension_value_count"]
         return f"异常维度 {anomaly_dimension_count}，异常维度值 {anomaly_dimension_value_count}"
 
     @cached_property
+    @context_field_timer
     def recommended_metrics(self):
         if not self.parent.alert:
             return None
         try:
-            result = RecommendMetricManager().fetch_aiops_result(self.parent.alert)
+            result = RecommendMetricManager(
+                self.parent.alert, ReadOnlyAiSetting(self.parent.alert.event["bk_biz_id"], self.ai_setting_config)
+            ).fetch_aiops_result()
         except Exception as e:
             logger.exception(
                 f"alert({self.parent.alert.id})-action("
                 f"{self.parent.action.id if self.parent.action else ''}) aiops关联指标接口请求异常: {e}"
             )
-            return None
+            raise
         # 推荐指标维度数
         recommended_metric_dimension_count = result["info"]["recommended_metric_count"]
         # 推荐指标数

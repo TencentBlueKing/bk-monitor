@@ -242,9 +242,9 @@
 
 <script lang="ts">
 import { Component, Vue, Watch } from 'vue-property-decorator';
+import { getLabel } from 'monitor-api/modules/commons';
+import { createCustomEventGroup, createCustomTimeSeries, validateCustomEventGroupLabel, validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
 
-import { getLabel } from '../../../monitor-api/modules/commons';
-import { createCustomEventGroup, createCustomTimeSeries, validateCustomEventGroupLabel, validateCustomTsGroupLabel } from '../../../monitor-api/modules/custom_report';
 import VerifyInput from '../../components/verify-input/verify-input.vue';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
 import { IFormData, IParams, IRule } from '../../types/custom-escalation/custom-escalation-set';

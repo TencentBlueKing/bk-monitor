@@ -52,7 +52,7 @@ const components = layout.keys().reduce<ILayoutComponents>((pre, next) => {
     && props
     && Object.keys(props).forEach((key) => {
       if (optionsSet.has(key)) {
-        !abstractProp.includes(key)
+        !abstractProp.includes(key);
       } else {
         optionsSet.add(key);
       }

@@ -74,8 +74,6 @@ class TestPriority:
         assert not pc.is_inhibited(RECORD_LIST[0], ITEMS[1])
         assert not pc.is_inhibited(RECORD_LIST[0], ITEMS[2])
         assert not pc.is_inhibited(RECORD_LIST[0], ITEMS[3])
-        assert pc.is_inhibited(RECORD_LIST[1], ITEMS[0])
-        assert pc.is_inhibited(RECORD_LIST[1], ITEMS[1])
 
         assert pc.is_inhibited(RECORD_LIST[1], ITEMS[0])
         assert pc.is_inhibited(RECORD_LIST[1], ITEMS[1])

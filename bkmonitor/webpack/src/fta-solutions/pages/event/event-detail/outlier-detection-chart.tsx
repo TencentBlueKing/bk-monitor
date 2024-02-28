@@ -25,9 +25,8 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import ChartWrapper from '../../../../monitor-ui/chart-plugins/components/chart-wrapper';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail } from './type';

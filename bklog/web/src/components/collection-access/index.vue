@@ -203,12 +203,15 @@ export default {
     },
     isFinish() {
       if (this.isItsmAndNotStartOrStop) {
-        const finishStepNum = this.isShowMaskingTemplate ? 6 : 5;
-        return this.curStep === finishStepNum;
+        return this.curStep === this.finishStepNum;
       }
       // 非开关步骤下需要判断当前是否是日志脱敏步骤 如果不是 则当前step + 1 与stepFinish结束步骤保持同步
       const isMaskingStep = this.isSwitch || this.isShowMaskingTemplate;
       return finishRefer[this.operateType] === (isMaskingStep ? this.curStep : (this.curStep + 1));
+    },
+    /** 根据是否开启脱敏功能确定完成的步骤 */
+    finishStepNum() {
+      return this.isShowMaskingTemplate ? 6 : 5;
     },
   },
   watch: {
@@ -281,7 +284,7 @@ export default {
           if (statusRes.data[0].status === 'PREPARE') {
             // 准备中编辑时跳到第一步，所以不用修改步骤
           } else {
-            const finishPag = 6;
+            const finishPag = this.finishStepNum;
             let jumpPage = 1;
             switch (this.operateType) {
               case 'edit', 'editFinish': // 未完成编辑

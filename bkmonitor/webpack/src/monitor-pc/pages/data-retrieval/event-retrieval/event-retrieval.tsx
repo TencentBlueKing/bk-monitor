@@ -26,11 +26,11 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getGroupByCount } from '../../../../monitor-api/modules/data_explorer';
-import { getDataSourceConfig } from '../../../../monitor-api/modules/grafana';
+import { getGroupByCount } from 'monitor-api/modules/data_explorer';
+import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 // import { handleTimeRange } from '../../../utils';
-import { deepClone } from '../../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import { handleGotoLink } from '../../../common/constant';
 import { EmptyStatusType } from '../../../components/empty-status/types';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';

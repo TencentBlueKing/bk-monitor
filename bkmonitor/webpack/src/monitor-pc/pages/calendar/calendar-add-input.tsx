@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { saveCalendar } from '../../../monitor-api/modules/calendar';
+import { saveCalendar } from 'monitor-api/modules/calendar';
 
 import './calendar-add-input.scss';
 /** 日历颜色组 [[深色, 浅色]] */

@@ -502,15 +502,10 @@ class ResultTable(models.Model):
         default_storage_config: Optional[Dict] = None,
     ) -> bool:
         """检测并创建存储
-        NOTE: 针对 influxdb 类型的存储，当为单指标单表时，如果功能开关设置为禁用，则禁用 influxdb 写入
+        NOTE: 针对 influxdb 类型的存储，如果功能开关设置为禁用，则禁用所有新建结果表 influxdb 写入
         """
         storage_enabled = True
-        if (
-            self.default_storage == ClusterInfo.TYPE_INFLUXDB
-            and option
-            and option.get("is_split_measurement", False)
-            and not settings.ENABLE_INFLUXDB_STORAGE
-        ):
+        if self.default_storage == ClusterInfo.TYPE_INFLUXDB and not settings.ENABLE_INFLUXDB_STORAGE:
             storage_enabled = False
 
         if storage_enabled:

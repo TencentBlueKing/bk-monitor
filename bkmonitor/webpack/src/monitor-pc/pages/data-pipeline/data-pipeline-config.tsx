@@ -26,14 +26,14 @@
 
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import {
   createDataPipeline,
   getClusterInfo,
   getEtlConfig,
   getTransferList,
   updateDataPipeline
-} from '../../../monitor-api/modules/commons';
+} from 'monitor-api/modules/commons';
+
 import SpaceSelect from '../../components/space-select/space-select';
 
 import CustomSelect from './custom-select';

@@ -63,7 +63,7 @@ class SaveAiSettingResource(Resource):
 
         ai_setting = AiSetting(bk_biz_id=bk_biz_id)
 
-        # 需要接入的场景列表
+        # 需要接入的场景列
         need_access_scenes = []
 
         # 需要停止的flow

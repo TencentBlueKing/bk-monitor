@@ -25,15 +25,15 @@
  */
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { applicationList, CMDBInfoList, logList, serviceInfo } from '../../../../monitor-api/modules/apm_base_info';
+import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
 import {
   logServiceRelationBkLogIndexSet,
   serviceConfig,
   serviceUrlList,
   uriregularVerify
-} from '../../../../monitor-api/modules/apm_service';
-import ChangeRcord from '../../../../monitor-pc/components/change-record/change-record';
+} from 'monitor-api/modules/apm_service';
+import ChangeRcord from 'monitor-pc/components/change-record/change-record';
+
 import PanelItem from '../../../components/panel-item/panel-item';
 import {
   IAppInfoItem,

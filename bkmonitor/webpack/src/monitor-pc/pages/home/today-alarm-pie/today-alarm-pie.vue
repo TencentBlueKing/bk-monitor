@@ -104,7 +104,8 @@
 </template>
 
 <script>
-import MonitorPieEchart from '../../../../monitor-ui/monitor-echarts/monitor-echarts';
+import MonitorPieEchart from 'monitor-ui/monitor-echarts/monitor-echarts';
+
 import { gotoPageMixin } from '../../../common/mixins';
 
 export default {
@@ -208,13 +209,13 @@ export default {
     min-height: 330px;
 
     .alarm-title {
+      float: left;
       height: 19px;
+      margin: 20px 0px 0px 18px;
       font-size: 14px;
       font-weight: bold;
       line-height: 19px;
-      float: left;
       color: #63656e;
-      margin: 20px 0px 0px 18px;
     }
 
     .slot-center {
@@ -224,91 +225,91 @@ export default {
         height: 30px;
         font-size: 24px;
         font-weight: 600;
-        color: #313238;
         line-height: 30px;
+        color: #313238;
         text-align: center;
       }
 
       .alarm-name {
         height: 19px;
         font-size: $fontSmSize;
-        color: #3a84ff;
         line-height: 19px;
+        color: #3a84ff;
       }
     }
 
     .no-data {
       position: absolute;
-      left: 50%;
       top: 50%;
+      left: 50%;
       width: 220px;
       height: 220px;
-      background: #fff;
-      transform: translate3d(-110px, -120px, 0);
       text-align: center;
+      background: #fff;
       background-image: url('../../../static/images/svg/no-alarm.svg');
       background-repeat: no-repeat;
       background-size: contain;
+      transform: translate3d(-110px, -120px, 0);
 
       &-desc {
         position: absolute;
         bottom: -40px;
-        text-align: center;
         width: 100%;
         font-size: 20px;
-        color: $defaultFontColor;
         font-weight: 300;
+        color: $defaultFontColor;
+        text-align: center;
       }
 
       .alarm-num {
         height: 45px;
         font-size: 32px;
         font-weight: 600;
-        color: #313238;
         line-height: 45px;
+        color: #313238;
         text-align: center;
       }
 
       .alarm-name {
         height: 19px;
         font-size: $fontSmSize;
-        color: #3a84ff;
         line-height: 19px;
+        color: #3a84ff;
       }
     }
   }
 
   &__footer {
-    border-top: 1px solid $defaultBorderColor;
+    bottom: 0;
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    bottom: 0;
+    border-top: 1px solid $defaultBorderColor;
 
     .item {
+      display: inline-block;
       flex: 1;
       height: 72px;
-      display: inline-block;
       border-right: 1px solid $defaultBorderColor;
 
       &:hover {
-        background: #fafbfd;
         cursor: pointer;
+        background: #fafbfd;
       }
 
       h3 {
         height: 33px;
+        margin: 7px 0 0 0;
         font-size: 24px;
         font-weight: 600;
         line-height: 33px;
         text-align: center;
-        margin: 7px 0 0 0;
       }
 
       div {
-        text-align: center;
         font-size: $fontSmSize;
         color: #63656e;
+        text-align: center;
       }
 
       .serious {

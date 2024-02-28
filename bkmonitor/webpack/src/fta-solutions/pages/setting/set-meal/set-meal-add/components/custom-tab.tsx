@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../../../../monitor-common/utils/utils';
 import { defaultAddTimeRange } from '../meal-content/meal-content-data';
 
 import './custom-tab.scss';

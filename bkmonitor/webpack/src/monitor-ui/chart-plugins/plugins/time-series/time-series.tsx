@@ -29,18 +29,18 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
-
-import { CancelToken } from '../../../../monitor-api/index';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
+import { CancelToken } from 'monitor-api/index';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
   downCsvFile,
   IUnifyQuerySeriesItem,
   transformSrcData,
   transformTableDataToCsvStr
-} from '../../../../monitor-pc/pages/view-detail/utils';
-import { handleTimeRange } from '../../../../monitor-pc/utils';
+} from 'monitor-pc/pages/view-detail/utils';
+import { handleTimeRange } from 'monitor-pc/utils';
+
 import { getValueFormat, ValueFormatter } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';

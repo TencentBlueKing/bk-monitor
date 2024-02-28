@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { subActionDetail } from '../../../../monitor-api/modules/alert';
-import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
+import { subActionDetail } from 'monitor-api/modules/alert';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
 
 import NoticeStatusTable from './notice-status-table';
 

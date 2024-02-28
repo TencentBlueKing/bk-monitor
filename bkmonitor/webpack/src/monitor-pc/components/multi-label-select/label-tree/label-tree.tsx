@@ -27,9 +27,9 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deleteStrategyLabel, strategyLabel } from 'monitor-api/modules/strategies';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deleteStrategyLabel, strategyLabel } from '../../../../monitor-api/modules/strategies';
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import { ITreeItem, TMode } from '../types';
 
 import './label-tree.scss';

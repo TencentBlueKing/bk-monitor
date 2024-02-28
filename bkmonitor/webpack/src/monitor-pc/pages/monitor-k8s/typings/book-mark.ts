@@ -26,14 +26,14 @@
  */
 
 import type { TranslateResult } from 'vue-i18n';
-
-import { random } from '../../../../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
 import {
   IPanelModel,
   IVariableModel,
   PanelModel,
   VariableModel
-} from '../../../../monitor-ui/chart-plugins/typings/dashboard-panel';
+} from 'monitor-ui/chart-plugins/typings/dashboard-panel';
+
 import { type SceneType } from '../components/common-page-new';
 
 import { IMenuItem } from '.';
