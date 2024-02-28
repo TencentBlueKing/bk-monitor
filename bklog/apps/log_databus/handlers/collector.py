@@ -3533,8 +3533,6 @@ class CollectorHandler(object):
             return {"rule_id": rule_id}
 
         collectors = CollectorConfig.objects.filter(rule_id=bcs_rule.id)
-        # if len(collectors) != DEFAULT_COLLECTOR_LENGTH:
-        #     raise RuleCollectorException(RuleCollectorException.MESSAGE.format(rule_id=rule_id))
         for collector in collectors:
             self.deal_self_call(
                 collector_config_id=collector.collector_config_id, collector=collector, func=self.destroy
