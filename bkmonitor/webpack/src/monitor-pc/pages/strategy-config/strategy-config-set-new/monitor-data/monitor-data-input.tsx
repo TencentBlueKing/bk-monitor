@@ -230,7 +230,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
    * @description 获取日志检索指标列表
    */
   async getLogMetricList() {
-    if (!this.isLogSearchType) return [];
+    if (!this.isLogSearchType || !this.metricData?.length) return [];
     const [metric] = this.metricData;
     const data = await getMetricListV2({
       conditions: [

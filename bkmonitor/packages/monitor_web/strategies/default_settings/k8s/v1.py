@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.utils.translation import ugettext as _
+
 from monitor_web.strategies.default_settings.common import (
     DEFAULT_NOTICE,
     NO_DATA_CONFIG,
@@ -439,49 +440,36 @@ DEFAULT_K8S_STRATEGIES = [
         "detects": fatal_detects_config(5, 5, 4),
         "items": [
             {
-                "algorithms": fatal_algorithms_config("lt", 604800),
+                "name": _("[kube master] apiserver证书过期监控 KubeClientCertificateExpiration"),
+                "no_data_config": NO_DATA_CONFIG,
+                "target": [[]],
                 "expression": "b>0 and a",
                 "functions": [],
-                "name": "sum_without_time(apiserver_client_certificate_expiration_seconds_count)>0 "
-                "sum_without_time(apiserver_client_certificate_expiration_seconds_bucket)nd "
-                "sum_without_time(apiserver_client_certificate_expiration_seconds_bucket)",
-                "no_data_config": NO_DATA_CONFIG,
+                "origin_sql": (
+                    "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
+                    "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket"
+                    "{job=\"apiserver\"}[5m])))"
+                ),
                 "query_configs": [
                     {
-                        "agg_condition": [{"key": "job", "method": "eq", "value": ["apiserver"]}],
-                        "agg_dimension": ["job", "bcs_cluster_id", "le"],
-                        "agg_interval": 60,
-                        "agg_method": "sum_without_time",
+                        "data_source_label": "prometheus",
+                        "data_type_label": "time_series",
                         "alias": "a",
-                        "data_source_label": "bk_monitor",
-                        "data_type_label": "time_series",
-                        "functions": [
-                            {"id": "rate", "params": [{"id": "window", "value": "5m"}]},
-                            {"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.01"}]},
-                        ],
-                        "metric_field": "apiserver_client_certificate_expiration_seconds_bucket",
-                        "metric_id": "bk_monitor..apiserver_client_certificate_expiration_seconds_bucket",
-                        "name": "apiserver_client_certificate_expiration_seconds_bucket",
-                        "result_table_id": "",
-                        "unit": "",
-                    },
-                    {
-                        "agg_condition": [{"condition": "and", "key": "job", "method": "eq", "value": ["apiserver"]}],
-                        "agg_dimension": ["job", "bcs_cluster_id"],
-                        "agg_interval": 60,
-                        "agg_method": "sum_without_time",
-                        "alias": "b",
-                        "data_source_label": "bk_monitor",
-                        "data_type_label": "time_series",
+                        "metric_id": (
+                            "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
+                            "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket{j..."
+                        ),
                         "functions": [],
-                        "metric_field": "apiserver_client_certificate_expiration_seconds_count",
-                        "metric_id": "bk_monitor..apiserver_client_certificate_expiration_seconds_count",
-                        "name": "apiserver_client_certificate_expiration_seconds_count",
-                        "result_table_id": "",
-                        "unit": "",
-                    },
+                        "promql": (
+                            "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
+                            "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket"
+                            "{job=\"apiserver\"}[5m])))"
+                        ),
+                        "agg_interval": 60,
+                    }
                 ],
-                "target": [[]],
+                "algorithms": fatal_algorithms_config("lt", 86400),
+                "metric_type": "time_series",
             }
         ],
         "labels": [_("k8s_系统内置"), "kube-master"],
