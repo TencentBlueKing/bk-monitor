@@ -54,7 +54,11 @@ const defalutOptions = {
   renderLineHighlightOnlyWhenFocus: true,
   overviewRulerBorder: false,
   extraEditorClassName: 'promql-monaco-editor-component',
-  automaticLayout: true
+  automaticLayout: true,
+  padding: {
+    top: 8,
+    bottom: 8
+  }
 };
 export interface IPromqlMonacoEditorProps {
   width?: string;
@@ -72,6 +76,7 @@ export interface IPromqlMonacoEditorProps {
   executeQuery?: Function;
   className?: string | null;
   uri?: Function;
+  readonly?: boolean;
   onBlur?: (value: string, hasErr: boolean) => void;
   onFocus?: () => void;
 }
@@ -91,6 +96,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Prop({ default: null }) readonly className?: string | null;
   @Prop({ default: () => null }) readonly executeQuery: Function;
   @Prop() readonly uri?: Function;
+  @Prop({ default: false }) readonly: boolean;
 
   editor: monaco.editor.IStandaloneCodeEditor | null = null;
   subscription: monaco.IDisposable | null = null;
@@ -152,26 +158,35 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         }
       }
     });
-    // monaco.languages.registerCodeActionProvider(this.language, {
-    //   provideCodeActions(model) {
-    //     const markers = monaco.editor.getModelMarkers({ resource: model.uri });
-    //     const actions = [];
-
-    //     markers.forEach(marker => {
-    //       actions.push({
-    //         title: `Syntax Error: ${marker.message}`,
-    //         diagnostics: [marker],
-    //         kind: 'quickfix'
-    //       });
-    //     });
-
-    //     return {
-    //       actions,
-    //       dispose: () => {}
-    //     };
-    //   }
-    // });
+    this.editor.onDidChangeModelContent(() => {
+      const model = this.editor.getModel();
+      if (model) {
+        const markers = this.checkLuaSyntax(model.getValue());
+        monaco.editor.setModelMarkers(model, this.language, markers);
+      }
+    });
   }
+
+  checkLuaSyntax(_code) {
+    try {
+      // const { parse } = promqlUtils();
+      // parse(code, {});
+      return [];
+    } catch (error) {
+      console.log(error);
+      return [
+        {
+          severity: monaco.MarkerSeverity.Error,
+          message: error.message,
+          startLineNumber: error.location.start.line,
+          startColumn: error.location.start.column,
+          endLineNumber: error.location.end.line,
+          endColumn: error.location.end.column
+        }
+      ];
+    }
+  }
+
   handleEditorWillUnmount() {
     this.editorWillUnmount(this.editor, monaco);
   }
@@ -198,7 +213,8 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           model,
           ...(this.className ? { extraEditorClassName: this.className } : {}),
           ...finalOptions,
-          ...(this.theme ? { theme: this.theme } : {})
+          ...(this.theme ? { theme: this.theme } : {}),
+          readOnly: this.readonly
         },
         this.overrideServices
       );
@@ -297,7 +313,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       <div
         ref='containerElement'
         style={this.style}
-        class='react-monaco-editor-container'
       />
     );
   }
