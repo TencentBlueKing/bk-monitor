@@ -28,8 +28,8 @@ import { defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch
 import { useI18n } from 'vue-i18n';
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
+import { listApplicationServices, queryLabels, queryLabelValues } from 'monitor-api/modules/apm_profile';
 
-import { listApplicationServices, queryLabels, queryLabelValues } from '../../../../monitor-api/modules/apm_profile';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import {
   ApplicationList,

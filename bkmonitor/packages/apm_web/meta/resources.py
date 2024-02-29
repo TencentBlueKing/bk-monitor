@@ -107,7 +107,7 @@ from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import get_global_user, get_request_username
 from common.log import logger
-from constants.alert import EventSeverity
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.apm import (
     DataSamplingLogTypeChoices,
     FlowType,
@@ -1636,7 +1636,7 @@ class NoDataStrategyInfoResource(Resource):
                 "config": {
                     "interval_notify_mode": "standard",
                     "notify_interval": 2 * 60 * 60,
-                    "template": settings.DEFAULT_NOTICE_MESSAGE_TEMPLATE,
+                    "template": DEFAULT_NOTICE_MESSAGE_TEMPLATE,
                 },
             },
             "actions": [],

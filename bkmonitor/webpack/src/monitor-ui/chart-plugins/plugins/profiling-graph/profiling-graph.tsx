@@ -28,10 +28,10 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
+import { Debounce, typeTools } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { query, queryServicesDetail } from '../../../../monitor-api/modules/apm_profile';
-import { Debounce, typeTools } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import {
   BaseDataType,
   DataTypeItem,

@@ -24,17 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { alertTopN, listAlertTags } from '../../../../monitor-api/modules/alert';
-import { getAssignConditionKeys, searchObjectAttribute } from '../../../../monitor-api/modules/assign';
-import { listEventPlugin } from '../../../../monitor-api/modules/event_plugin';
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { listUsersUser } from '../../../../monitor-api/modules/model';
-import {
-  getMetricListV2,
-  getScenarioList,
-  getStrategyV2,
-  plainStrategyList
-} from '../../../../monitor-api/modules/strategies';
+import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
+import { getAssignConditionKeys, searchObjectAttribute } from 'monitor-api/modules/assign';
+import { listEventPlugin } from 'monitor-api/modules/event_plugin';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { listUsersUser } from 'monitor-api/modules/model';
+import { getMetricListV2, getScenarioList, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
+
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 
 import { CONDITIONS, ICondtionItem } from './index';

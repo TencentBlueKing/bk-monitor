@@ -34,9 +34,8 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import tz from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
-
-import { LANGUAGE_COOKIE_KEY, TIMEZONE_STORE_KEY } from '../../monitor-common/utils/constant';
-import { docCookies } from '../../monitor-common/utils/utils';
+import { LANGUAGE_COOKIE_KEY, TIMEZONE_STORE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
 
 dayjs.extend(customParseFormat);
 dayjs.extend(localizedFormat);

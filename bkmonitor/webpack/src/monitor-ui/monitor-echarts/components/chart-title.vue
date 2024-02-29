@@ -46,8 +46,7 @@
         <span
           class="title-interval"
           v-if="hasMetric && extendMetricData.collect_interval"
-          >{{ extendMetricData.collect_interval }}m</span
-        >
+        >{{ extendMetricData.collect_interval }}m</span>
         <i
           v-show="showMore"
           v-if="hasMetric"
@@ -113,13 +112,13 @@ export default class ChartTitle extends Vue {
   @Prop({ default: '' }) title: string;
   @Prop({ default: '' }) subtitle: string;
   @Prop({ default: () => ({ status: 0, number: 0 }) })
-  alarmStatus: { status: number; alert_number: number; strategy_number: number };
+    alarmStatus: { status: number; alert_number: number; strategy_number: number };
   @Prop({
     default() {
       return {};
     }
   })
-  extendMetricData: IExtendMetricData;
+    extendMetricData: IExtendMetricData;
   @Prop({ default: '3' }) collectInterval: string;
   @Prop({ default: false }) showMore: boolean;
   @Prop({ default: () => [] }) menuList: string[];
@@ -227,15 +226,12 @@ export default class ChartTitle extends Vue {
     const relatedId = data.related_id;
     if (resultTableLabel === 'uptimecheck' && !relatedId) {
       const list = elList.bk_monitor_time_series;
-      elList.bk_monitor_time_series = list.filter(
-        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名')
-      );
+      elList.bk_monitor_time_series = list.filter(item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名'));
     }
     const curElList = elList[curActive] || [...options];
-    let content =
-      curActive === 'bk_log_search_time_series'
-        ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
-        : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
+    let content =      curActive === 'bk_log_search_time_series'
+      ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
+      : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
     if (data.collect_config) {
       const collectorConfig = data.collect_config
         .split(';')
@@ -248,7 +244,7 @@ export default class ChartTitle extends Vue {
       const index = curElList.indexOf(item => item.label === this.$t('指标别名'));
       curElList.splice(index, 1);
     }
-    curElList.forEach(item => {
+    curElList.forEach((item) => {
       content += `<div class="item"><div>${item.label}：${item.val || '--'}</div></div>\n`;
     });
     return content;

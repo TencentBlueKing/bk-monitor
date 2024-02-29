@@ -160,7 +160,7 @@ class DataRecord(base.BaseRecord):
             standard_prop[prop] = clean_value
         self.data.update(standard_prop)
 
-        # 记录当前处理时间
+        # SLI(access) - 记录当前处理时间，用于 SLI 统计各模块间处理延迟场景
         self.data["access_time"] = time.time()
         return self
 

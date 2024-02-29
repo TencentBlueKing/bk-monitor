@@ -26,15 +26,14 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { random } from '../../../../monitor-common/utils/utils';
-import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../monitor-pc/constant/constant';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { random } from 'monitor-common/utils/utils';
+import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'monitor-pc/constant/constant';
 import {
   ICommonItem,
   IWhereItem,
   MetricDetail
-} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+} from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './where-display.scss';
 

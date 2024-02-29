@@ -26,12 +26,12 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers as m } from 'vue-tsx-support';
+import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
+import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
+import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IOption, IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { isFullIpv6, padIPv6 } from '../../../../../monitor-common/utils/ip-utils';
-import { Debounce, deepClone, typeTools } from '../../../../../monitor-common/utils/utils';
-import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
-import { IOption, IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';

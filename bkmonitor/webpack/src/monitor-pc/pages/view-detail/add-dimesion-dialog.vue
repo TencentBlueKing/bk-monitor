@@ -47,8 +47,7 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
-
-import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 @Component({
   name: 'add-dimesion-dialog',
@@ -58,11 +57,11 @@ import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue
 })
 export default class AddDimesionDialog extends Vue {
   @Prop({ default: false })
-  isShow: boolean;
+    isShow: boolean;
   @Prop({ default: () => [] })
-  dimensionsList: any[];
+    dimensionsList: any[];
   @Prop({ default: () => [] })
-  checkedDimensions: [];
+    checkedDimensions: [];
 
   aaa = [];
   created() {
@@ -82,7 +81,7 @@ export default class AddDimesionDialog extends Vue {
 
 <style lang="scss" scoped>
 .dialog-checkbox {
-  margin-top: 8px;
   padding-right: 16px;
+  margin-top: 8px;
 }
 </style>

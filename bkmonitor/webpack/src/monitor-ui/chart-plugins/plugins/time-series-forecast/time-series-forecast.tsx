@@ -28,11 +28,11 @@ import { Component, Ref, Watch } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { EChartOption } from 'echarts/lib/echarts';
+import { CancelToken } from 'monitor-api/index';
+import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { findRight, handleTimeRange, ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
 
-import { CancelToken } from '../../../../monitor-api/index';
-import { Debounce, deepClone, random } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import { findRight, handleTimeRange, ILogUrlParams, transformLogUrlQuery } from '../../../../monitor-pc/utils';
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';

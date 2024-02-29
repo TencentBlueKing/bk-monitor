@@ -26,21 +26,21 @@
 
 import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deleteApplication, listApplication, listApplicationAsync } from 'monitor-api/modules/apm_meta';
+import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
+import { Debounce } from 'monitor-common/utils/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import GuidePage from 'monitor-pc/components/guide-page/guide-page';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
+import CommonTable, { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
+import { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import OperateOptions, { IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
+import introduceData from 'monitor-pc/router/space';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { deleteApplication, listApplication, listApplicationAsync } from '../../../monitor-api/modules/apm_meta';
-import { serviceList, serviceListAsync } from '../../../monitor-api/modules/apm_metric';
-import { Debounce } from '../../../monitor-common/utils/utils';
-import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
-import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
-import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
-import AlarmTools from '../../../monitor-pc/pages/monitor-k8s/components/alarm-tools';
-import CommonTable, { ICommonTableProps } from '../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import { IFilterDict, INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import OperateOptions, { IOperateOption } from '../../../monitor-pc/pages/uptime-check/components/operate-options';
-import introduceData from '../../../monitor-pc/router/space';
-import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 

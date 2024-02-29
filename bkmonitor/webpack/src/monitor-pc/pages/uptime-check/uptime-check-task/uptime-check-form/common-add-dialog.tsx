@@ -26,8 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import './common-add-dialog.scss';
 

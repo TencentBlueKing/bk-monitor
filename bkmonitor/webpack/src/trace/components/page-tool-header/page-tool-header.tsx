@@ -25,8 +25,8 @@
  */
 
 import { defineComponent, PropType } from 'vue';
+import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
 
-import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
 import { IFavoriteItem } from '../../typings';
 import RefreshRate from '../refresh-rate/refresh-rate';
 import SelectMenu, { ISelectMenuOption } from '../select-menu/select-menu';

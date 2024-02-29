@@ -26,11 +26,11 @@
 import Vue from 'vue';
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { APP_NAV_COLORS } from 'monitor-common/utils';
+import { getUrlParam } from 'monitor-common/utils/utils';
+import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
+import AuthorityModal from 'monitor-ui/authority-modal';
 
-import { APP_NAV_COLORS } from '../../monitor-common/utils';
-import { getUrlParam } from '../../monitor-common/utils/utils';
-import CommonNavBar from '../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import AuthorityModal from '../../monitor-ui/authority-modal';
 import debounce from '../common/debounce-decorator';
 import { createRouteConfig } from '../router/router-config';
 import appStoreModule from '../store/modules/app';

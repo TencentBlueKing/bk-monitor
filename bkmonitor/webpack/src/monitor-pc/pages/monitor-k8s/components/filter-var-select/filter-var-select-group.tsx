@@ -27,9 +27,9 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone } from 'monitor-common/utils/utils';
+import { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import { deepClone } from '../../../../../monitor-common/utils/utils';
-import { IVariableModel, IViewOptions } from '../../../../../monitor-ui/chart-plugins/typings';
 import CustomSelect from '../../../../components/custom-select/custom-select';
 import { handleGetReferenceKeyList } from '../../utils';
 

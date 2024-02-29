@@ -25,10 +25,10 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+import { ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import { random } from '../../../../monitor-common/utils/utils';
-import { ITableItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import { PanelModel } from '../../typings';
 import CommonSimpleChart from '../common-simple-chart';
 

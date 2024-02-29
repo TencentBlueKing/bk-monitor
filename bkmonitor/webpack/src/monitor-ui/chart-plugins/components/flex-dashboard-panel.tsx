@@ -27,11 +27,11 @@
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import bus from '../../../monitor-common/utils/event-bus';
-import { random } from '../../../monitor-common/utils/utils';
-import { ITableItem, SceneType } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { DashboardColumnType, IPanelModel, PanelModel } from '../typings';
+import { DashboardColumnType, IPanelModel, ObservablePanelField, PanelModel } from '../typings';
 
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
@@ -84,6 +84,8 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   @Prop({ default: null }) customHeightFn: Function | null;
   // 视图实例集合
   // localPanels: PanelModel[] = [];
+  /** 需要有响应式变化的属性 */
+  observablePanelsField: ObservablePanelField = {};
   // 拖拽视图的id
   movedId: string | number = '';
   /* 展示收藏弹窗 */
@@ -100,6 +102,10 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
     if (!this.panels) return;
     this.handleInitPanelsGridpos(this.panels);
     (this as any).localPanels = this.handleInitLocalPanels(this.panels.slice());
+    this.observablePanelsField = (this as any).localPanels.reduce((pre, cur) => {
+      pre[cur.id] = { show: cur.show, collapsed: cur.collapsed, checked: cur.checked };
+      return pre;
+    }, {});
   }
   @Watch('column')
   handleColumnChange() {
@@ -253,6 +259,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
       }
       list.push(...unGroupList);
     }
+
     return list;
   }
   /**
@@ -263,6 +270,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
    */
   handleChartCheck(check: boolean, panel: PanelModel) {
     panel.updateChecked(check);
+    this.observablePanelsField[panel.id].checked = check;
   }
   /**
    * @description: 全选或全不选
@@ -273,9 +281,11 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
     (this as any).localPanels.forEach(item => {
       if (item.type !== 'row' && item.canSetGrafana) {
         item.updateChecked(isCheck);
+        this.observablePanelsField[item.id].checked = isCheck;
       }
       item.panels?.forEach(panels => {
         panels?.updateChecked?.(isCheck);
+        this.observablePanelsField[panels.id].checked = isCheck;
       });
     });
   }
@@ -287,8 +297,10 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
    */
   handleCollapse(collapse: boolean, panel: PanelModel) {
     panel.updateCollapsed(collapse);
+    this.observablePanelsField[panel.id].collapsed = collapse;
     panel.panels?.forEach(item => {
       const panel = (this as any).localPanels.find(set => set.id === item.id);
+      this.observablePanelsField[panel.id].show = collapse;
       panel?.updateShow(collapse);
     });
   }
@@ -317,7 +329,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   }
 
   getPanelDisplay(panel: PanelModel) {
-    if (!panel.show) return 'none';
+    if (!this.observablePanelsField[panel.id].show) return 'none';
     if (panel.matchDisplay && this.matchFields) {
       return Object.keys(panel.matchDisplay).every(key => this.matchFields[key] === panel.matchDisplay[key])
         ? 'flex'
@@ -370,6 +382,8 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
                   <ChartWrapper
                     key={`${panel.id}__key__`}
                     panel={panel}
+                    collapse={this.observablePanelsField[panel.id].collapsed}
+                    chartChecked={this.observablePanelsField[panel.id].checked}
                     onChartCheck={v => this.handleChartCheck(v, panel)}
                     onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                     onCollectChart={() => this.handleCollectChart(panel)}
@@ -381,6 +395,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
             (this as any).localPanels.length ? (
               <ChartCollect
                 localPanels={(this as any).localPanels}
+                observablePanelsField={this.observablePanelsField}
                 showCollect={this.showCollect}
                 isCollectSingle={this.isCollectSingle}
                 onCheckAll={() => this.handleCheckAll()}

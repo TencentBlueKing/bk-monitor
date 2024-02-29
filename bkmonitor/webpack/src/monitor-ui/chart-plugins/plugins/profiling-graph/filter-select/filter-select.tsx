@@ -25,11 +25,10 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { queryLabels, queryLabelValues } from '../../../../../monitor-api/modules/apm_profile';
-import { TimeRangeType } from '../../../../../monitor-pc/components/time-range/time-range';
-import { handleTransformToTimestamp } from '../../../../../monitor-pc/components/time-range/utils';
-import { getPopoverWidth } from '../../../../../monitor-pc/utils';
+import { queryLabels, queryLabelValues } from 'monitor-api/modules/apm_profile';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { getPopoverWidth } from 'monitor-pc/utils';
 
 import './filter-select.scss';
 
@@ -60,8 +59,8 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
   @Prop({ default: '', type: String }) appName: string;
   @Prop({ default: '', type: String }) serviceName: string;
 
-  @Ref() filterKeySelectRef: Select;
-  @Ref() diffKeySelectRef: Select;
+  @Ref() filterKeySelectRef: HTMLDivElement;
+  @Ref() diffKeySelectRef: HTMLDivElement;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 

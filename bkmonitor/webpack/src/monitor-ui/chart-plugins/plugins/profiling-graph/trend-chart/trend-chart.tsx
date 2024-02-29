@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../../../monitor-common/utils/utils';
 import loadingIcon from '../../../icons/spinner.svg';
 import { IQueryParams, PanelModel } from '../../../typings';
 import TimeSeries from '../../time-series/time-series';

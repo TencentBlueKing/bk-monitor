@@ -27,8 +27,8 @@ import { computed, defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Exception, Select } from 'bkui-vue';
 import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
+import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
 
-import { listProfileUploadRecord } from '../../../../monitor-api/modules/apm_profile';
 import { IQueryParams } from '../../../typings/trace';
 import { ConditionType, DataTypeItem, RetrievalFormData } from '../typings';
 import { EFileStatus, fileStatusMap } from '../typings/profiling-file';

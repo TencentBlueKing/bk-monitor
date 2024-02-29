@@ -26,9 +26,9 @@
 
 import { computed, defineComponent, PropType, ref } from 'vue';
 import { Dropdown, Input } from 'bkui-vue';
+import { ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
 
-import { ViewModeItem, ViewModeType } from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
 import { DirectionType } from '../../../../typings';
 
 import './chart-title.scss';

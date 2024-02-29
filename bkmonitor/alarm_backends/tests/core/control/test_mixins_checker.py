@@ -16,7 +16,6 @@ from alarm_backends.constants import NO_DATA_LEVEL, NO_DATA_TAG_DIMENSION
 from alarm_backends.core.cache import key
 from alarm_backends.core.control.mixins.nodata import CheckMixin
 from alarm_backends.service.detect import DataPoint
-from bkmonitor.models import CacheRouter
 from bkmonitor.utils.common_utils import count_md5
 
 RECORDS = [
@@ -116,9 +115,10 @@ def mock_last_check_key(self, check_timestamp, dms_md5_list=None):
 
 
 class TestChecker(TestCase):
-    def setUp(self):
-        CacheRouter.get_node_by_strategy_id(0)
 
+    databases = {"monitor_api", "default"}
+
+    def setUp(self):
         class Strategy(object):
             id = 100
             scenario = "host_process"
@@ -150,6 +150,11 @@ class TestChecker(TestCase):
 
         self.item_cls = Item
         self.item = self.item_cls()
+
+        key.LAST_CHECKPOINTS_CACHE_KEY.client.flushall()
+
+    def tearDown(self):
+        key.LAST_CHECKPOINTS_CACHE_KEY.client.flushall()
 
     def test_process_dimensions__invalid_data(self):
         records = [

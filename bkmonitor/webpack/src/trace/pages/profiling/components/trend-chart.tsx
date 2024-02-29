@@ -25,12 +25,12 @@
  */
 import { computed, defineComponent, inject, PropType, provide, Ref, ref, watch } from 'vue';
 import { Collapse, Radio } from 'bkui-vue';
+import { random } from 'monitor-common/utils/utils';
+import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import { profilingTraceChartTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
+import { IQueryParams, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import { random } from '../../../../monitor-common/utils/utils';
-import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
-import loadingIcon from '../../../../monitor-ui/chart-plugins/icons/spinner.svg';
-import { profilingTraceChartTooltip } from '../../../../monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
-import { IQueryParams, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import {
   REFLESH_IMMEDIATE_KEY,
@@ -44,7 +44,7 @@ import { PanelModel } from '../../../plugins/typings';
 import { ToolsFormData } from '../typings';
 
 import './trend-chart.scss';
-import '../../../../monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';
+import 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';
 
 const DEFAULT_PANEL_CONFIG = {
   title: '',

@@ -27,9 +27,9 @@
 import { computed, defineComponent, onMounted, provide, reactive, Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Dialog } from 'bkui-vue';
+import { queryServicesDetail } from 'monitor-api/modules/apm_profile';
+import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
 
-import { queryServicesDetail } from '../../../monitor-api/modules/apm_profile';
-import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
 import { ISelectMenuOption } from '../../components/select-menu/select-menu';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import ProfilingQueryImage from '../../static/img/profiling-query.png';

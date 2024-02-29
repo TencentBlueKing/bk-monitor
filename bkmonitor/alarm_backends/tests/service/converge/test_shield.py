@@ -134,10 +134,11 @@ def init_host_cache():
         "alarm_backends.core.cache.cmdb.host.api.cmdb.get_host_by_topo_node",
         side_effect=lambda bk_biz_id, **kwargs: [host for host in ALL_HOSTS if host.bk_biz_id == bk_biz_id],
     )
-    get_topo_tree = mock.patch(
-        "alarm_backends.service.alert.enricher.kubernetes_cmdb.api.cmdb.get_topo_tree", return_value=TOPO_TREE
-    )
+    get_topo_tree = mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_topo_tree", return_value=TOPO_TREE)
 
+    get_set = mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_set", return_value=[])
+
+    get_set.start()
     get_business.start()
     get_topo_tree.start()
     get_host_by_topo_node.start()
@@ -146,6 +147,7 @@ def init_host_cache():
 
     yield
 
+    get_set.stop()
     get_business.stop()
     get_topo_tree.stop()
     get_host_by_topo_node.stop()

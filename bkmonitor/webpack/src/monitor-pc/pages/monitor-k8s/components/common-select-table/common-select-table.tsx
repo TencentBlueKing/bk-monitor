@@ -26,12 +26,12 @@
 
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
+import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { Debounce, deepClone, random } from '../../../../../monitor-common/utils/utils';
-import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
-import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
-import { ITableDataItem } from '../../../../../monitor-ui/chart-plugins/typings/table-chart';
-import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';

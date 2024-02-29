@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import bus from 'monitor-common/utils/event-bus';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import bus from '../../../../../monitor-common/utils/event-bus';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import { handleGotoLink } from '../../../../common/constant';
 import TimePickerMultiple, {
   IProps as ITimeRangeMultipleProps

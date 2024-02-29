@@ -26,15 +26,11 @@
 
 import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
 import { Exception } from 'bkui-vue';
+import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
+import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
+import { ITableTipsDetail, ProfilingTableItem, TableColumn } from 'monitor-ui/chart-plugins/typings/profiling-graph';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { getHashVal } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
-import { ColorTypes } from '../../../../../monitor-ui/chart-plugins/typings';
-import {
-  ITableTipsDetail,
-  ProfilingTableItem,
-  TableColumn
-} from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
-import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
 import { DirectionType } from '../../../../typings';
 
 // import { ColorTypes } from './../../flame-graph-v2/types';

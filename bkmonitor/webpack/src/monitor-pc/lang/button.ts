@@ -443,6 +443,7 @@ export default {
   新增接入: 'Add Access',
   上传: 'Upload',
   取消上传: 'Cancel Upload',
+  设为当前空间: 'Set as current space',
   复制主机IP: 'Copy host IP',
   复制服务实例: 'Copy service instance',
   当前空间: 'Current space',

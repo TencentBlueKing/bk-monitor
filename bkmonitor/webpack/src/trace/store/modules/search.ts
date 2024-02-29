@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { traceChats } from 'monitor-api/modules/apm_trace';
 import { defineStore } from 'pinia';
 
-import { traceChats } from '../../../monitor-api/modules/apm_trace';
 import { IPanelModel, PanelModel } from '../../plugins/typings';
 
 export interface ISearchState {

@@ -26,15 +26,15 @@
 import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { deleteExperience, getExperience, saveExperience } from '../../../../monitor-api/modules/alert';
-import { getMetricListV2 } from '../../../../monitor-api/modules/strategies';
-import { random, transformDataKey } from '../../../../monitor-common/utils/utils';
-import DeleteSubtitle from '../../../../monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
+import { deleteExperience, getExperience, saveExperience } from 'monitor-api/modules/alert';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { random, transformDataKey } from 'monitor-common/utils/utils';
+import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
 import ConditionInput, {
   IConditionItem
-} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
-import Editor from '../../../../monitor-ui/markdown-editor/editor';
+} from 'monitor-pc/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
+import Editor from 'monitor-ui/markdown-editor/editor';
+
 import TipMsg from '../../setting/components/tip-msg';
 
 import Viewer from './custom-view';

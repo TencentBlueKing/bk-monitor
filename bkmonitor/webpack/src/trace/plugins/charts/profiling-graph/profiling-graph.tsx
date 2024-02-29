@@ -26,11 +26,11 @@
 
 import { computed, defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
 import { Exception, Loading } from 'bkui-vue';
+import { query } from 'monitor-api/modules/apm_profile';
+import { typeTools } from 'monitor-common/utils';
+import { BaseDataType, ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
 import { debounce } from 'throttle-debounce';
 
-import { query } from '../../../../monitor-api/modules/apm_profile';
-import { typeTools } from '../../../../monitor-common/utils';
-import { BaseDataType, ProfilingTableItem, ViewModeType } from '../../../../monitor-ui/chart-plugins/typings';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { ToolsFormData } from '../../../pages/profiling/typings';
 import { DirectionType, IQueryParams } from '../../../typings';

@@ -148,7 +148,7 @@
 </template>
 
 <script>
-import { releaseCollectorPlugin } from '../../../../../monitor-api/modules/model';
+import { releaseCollectorPlugin } from 'monitor-api/modules/model';
 
 export default {
   name: 'StepSetDone',

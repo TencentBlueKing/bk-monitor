@@ -15,7 +15,6 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union
 
 from django.conf import settings
-from monitor.constants import AGENT_STATUS
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -30,6 +29,7 @@ from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import HOST_SCENARIO, TargetFieldType
 from core.drf_resource import api
+from monitor.constants import AGENT_STATUS
 
 logger = logging.getLogger(__name__)
 
@@ -573,6 +573,8 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
                 service_template_id.append(node["bk_inst_id"])
             elif node["bk_obj_id"].upper() == TargetNodeType.SET_TEMPLATE:
                 set_template_id.append(node["bk_inst_id"])
+            elif node["bk_obj_id"].upper() == "BIZ":
+                return []
             else:
                 topo_nodes[node["bk_obj_id"]].append(node["bk_inst_id"])
         elif ("bk_target_service_instance_id" in node or "service_instance_id" in node) and is_service_instance:

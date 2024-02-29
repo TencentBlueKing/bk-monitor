@@ -26,9 +26,9 @@
 
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { metricInfo } from 'monitor-api/modules/apm_meta';
+import { getUnitList } from 'monitor-api/modules/strategies';
 
-import { metricInfo } from '../../../../monitor-api/modules/apm_meta';
-import { getUnitList } from '../../../../monitor-api/modules/strategies';
 import PanelItem from '../../../components/panel-item/panel-item';
 
 import IndicatorDetail from './indicator-detail';

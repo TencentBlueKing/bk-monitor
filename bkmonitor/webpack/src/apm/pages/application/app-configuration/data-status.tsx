@@ -28,20 +28,20 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Component, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
 import {
   dataSampling,
   dataViewConfig,
   noDataStrategyDisable,
   noDataStrategyEnable,
   noDataStrategyInfo
-} from '../../../../monitor-api/modules/apm_meta';
-import { copyText } from '../../../../monitor-common/utils/utils';
-import TimeRange, { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { getDefautTimezone, updateTimezone } from '../../../../monitor-pc/i18n/dayjs';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { ApdexChart } from '../../../../monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+} from 'monitor-api/modules/apm_meta';
+import { copyText } from 'monitor-common/utils/utils';
+import TimeRange, { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { getDefautTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { ApdexChart } from 'monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+
 import PanelItem from '../../../components/panel-item/panel-item';
 
 import { IStrategyData } from './type';

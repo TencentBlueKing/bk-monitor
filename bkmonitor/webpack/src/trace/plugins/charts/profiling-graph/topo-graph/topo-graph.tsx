@@ -25,8 +25,7 @@
  */
 
 import { defineComponent, nextTick, ref, watch } from 'vue';
-
-import { UseTopoChart } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/topo-graph/use-topo';
+import { UseTopoChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/topo-graph/use-topo';
 
 import './topo-graph.scss';
 

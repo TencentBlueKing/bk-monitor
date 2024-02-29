@@ -27,8 +27,7 @@ import { VNode } from 'vue';
 import { Component, Prop } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
-
-import AlarmGroupAdd from '../../../../monitor-pc/pages/alarm-group/alarm-group-add/alarm-group-add-common/alarm-group-add';
+import AlarmGroupAdd from 'monitor-pc/pages/alarm-group/alarm-group-add/alarm-group-add-common/alarm-group-add';
 
 interface IAlarmGroupAdd {
   id?: number | string;

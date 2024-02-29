@@ -28,7 +28,6 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
 import {
   bulkDeleteFavorite,
   bulkUpdateFavorite,
@@ -36,8 +35,8 @@ import {
   destroyFavorite,
   listFavorite,
   listFavoriteGroup
-} from '../../../../monitor-api/modules/model';
-import { deepClone } from '../../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/model';
+import { deepClone } from 'monitor-common/utils/utils';
 
 import 'vue-json-pretty/lib/styles.css';
 import './manage-group-dialog.scss';

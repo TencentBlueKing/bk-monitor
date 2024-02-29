@@ -29,11 +29,11 @@ import { bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { debounce } from 'throttle-debounce';
+import { CancelToken } from 'monitor-api/index';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
+import { getValueFormat, ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { CancelToken } from '../../../../monitor-api/index';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../../../monitor-ui/chart-plugins/constants';
-import { getValueFormat, ValueFormatter } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { isShadowEqual, reviewInterval, VariablesService } from '../../../utils';
 import BaseEchart from '../../base-echart';

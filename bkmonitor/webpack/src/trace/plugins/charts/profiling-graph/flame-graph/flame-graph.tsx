@@ -27,10 +27,8 @@ import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
-import { debounce } from 'throttle-debounce';
-
-import { query } from '../../../../../monitor-api/modules/apm_profile';
-import { FlameChart } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
+import { query } from 'monitor-api/modules/apm_profile';
+import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
 import {
   BaseDataType,
   CommonMenuList,
@@ -41,8 +39,10 @@ import {
   ITipsDetail,
   IZoomRect,
   RootId
-} from '../../../../../monitor-ui/chart-plugins/typings/flame-graph';
-import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
+} from 'monitor-ui/chart-plugins/typings/flame-graph';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import { debounce } from 'throttle-debounce';
+
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';

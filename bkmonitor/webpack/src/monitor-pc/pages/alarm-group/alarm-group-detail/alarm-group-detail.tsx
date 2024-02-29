@@ -25,19 +25,19 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import NoticeModeNew, {
   INoticeWayValue
-} from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
 import {
   executionNotifyConfigChange,
   getNotifyConfig
-} from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
-import { getBkchatGroup, previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
-import { random } from '../../../../monitor-common/utils/utils';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import { listDutyRule, retrieveUserGroup } from 'monitor-api/modules/model';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { getBkchatGroup, previewUserGroupPlan } from 'monitor-api/modules/user_groups';
+import { random } from 'monitor-common/utils/utils';
+
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-import { listDutyRule, retrieveUserGroup } from '../.././../../monitor-api/modules/model';
 import RotationPreview from '../rotation/rotation-preview';
 import { getCalendarOfNum, setPreviewDataOfServer } from '../rotation/utils';
 

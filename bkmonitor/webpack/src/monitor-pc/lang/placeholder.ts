@@ -286,5 +286,6 @@ export default {
   '可输入规则名称，标签搜索': 'Enter Rule name, label search',
   请输入搜索或筛选: 'Please enter search or filter',
 
-  '选择应用/服务': 'Select Application/Service'
+  '选择应用/服务': 'Select Application/Service',
+  请输入关键字或标签: 'Please enter keywords or tags'
 };

@@ -28,8 +28,8 @@ import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import { Alert, Button, Dialog, Upload } from 'bkui-vue';
 import { TextFill as UploadTextFill, Upload as UploadIcon } from 'bkui-vue/lib/icon';
+import { upload } from 'monitor-api/modules/apm_profile';
 
-import { upload } from '../../../../monitor-api/modules/apm_profile';
 import { FILES_TYPE_NAME } from '../typings/profiling-file';
 import { ConditionType } from '../typings/profiling-retrieval';
 

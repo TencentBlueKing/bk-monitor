@@ -26,8 +26,7 @@
 import { defineComponent, ref, toRefs } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input, Loading, Popover } from 'bkui-vue';
-
-import loadingImg from '../../../../monitor-pc/static/images/svg/spinner.svg';
+import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
 import './handle-btn.scss';
 

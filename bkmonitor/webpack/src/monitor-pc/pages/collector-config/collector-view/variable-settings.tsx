@@ -27,10 +27,10 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { saveScenePanelConfig } from '../../../../monitor-api/modules/data_explorer';
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import { Debounce } from '../../../components/ip-selector/common/util';
 
 import { metric, orderList, variable } from './type';

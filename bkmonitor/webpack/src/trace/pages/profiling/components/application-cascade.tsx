@@ -26,8 +26,8 @@
 import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
+import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 
-import { queryBkDataToken } from '../../../../monitor-api/modules/apm_meta';
 import { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
 
 import './application-cascade.scss';
