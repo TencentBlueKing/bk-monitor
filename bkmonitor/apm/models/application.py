@@ -39,18 +39,18 @@ class ApmApplication(AbstractRecordModel):
         for datasource in [MetricDataSource, TraceDataSource]:
             datasource.start(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         self.is_enabled = True
-        self.save()
+        self.save(update_fields=["is_enabled"])
 
     def stop(self):
         for datasource in [MetricDataSource, TraceDataSource]:
             datasource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
 
         self.is_enabled = False
-        self.save()
+        self.save(update_fields=["is_enabled"])
 
     def start_profiling(self):
         self.is_enabled_profiling = True
-        self.save()
+        self.save(update_fields=["is_enabled_profiling"])
 
         profile_datasource = ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
         if not profile_datasource:
@@ -62,7 +62,7 @@ class ApmApplication(AbstractRecordModel):
 
     def stop_profiling(self):
         self.is_enabled_profiling = False
-        self.save()
+        self.save(update_fields=["is_enabled_profiling"])
 
         profile_datasource = ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
         if profile_datasource:

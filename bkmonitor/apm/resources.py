@@ -15,6 +15,7 @@ import traceback
 
 import pytz
 from django.conf import settings
+from django.db import models as db_models
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -210,12 +211,12 @@ class ApplyDatasourceResource(Resource):
 
 
 class OperateApplicationSerializer(serializers.Serializer):
-    _type = (
-        ("tracing", "tracing"),
-        ("profiling", "profiling"),
-    )
+    class OperateType(db_models.TextChoices):
+        TRACING = "tracing", _("tracing")
+        PROFILING = "profiling", _("profiling")
+
     application_id = serializers.IntegerField(label="应用id")
-    type = serializers.ChoiceField(label="开启/暂停类型", choices=_type, required=False, default="tracing")
+    type = serializers.ChoiceField(label="开启/暂停类型", choices=OperateType.choices, required=False, default="tracing")
 
 
 class StartApplicationResource(Resource):
