@@ -29,8 +29,8 @@ import { RouteConfig } from 'vue-router';
 import * as reportAuth from '../../pages/new-report/authority-map';
 
 const Report = () => import(/* webpackChunkName: 'NewReport' */ '../../pages/new-report/new-report');
-// const MyReport = () => import(/* webpackChunkName: 'MyReport' */ '../../pages/my-subscription/my-subscription');
-// const MyAppliedReport = () => import(/* webpackChunkName: 'MyAppliedReport' */ '../../pages/my-apply/my-apply');
+const MyReport = () => import(/* webpackChunkName: 'MyReport' */ '../../pages/my-subscription/my-subscription-iframe');
+const MyAppliedReport = () => import(/* webpackChunkName: 'MyAppliedReport' */ '../../pages/my-apply/my-apply-iframe');
 export default [
   {
     path: '/trace/report',
@@ -70,37 +70,39 @@ export default [
       },
       noNavBar: true
     }
+  },
+  // 20240229 该 我的订阅 页面作为 iframe 嵌入到 日志平台 展示
+  {
+    path: '/trace/report/my-report',
+    name: 'my-report',
+    components: {
+      noCache: MyReport
+    },
+    meta: {
+      title: '我的订阅',
+      needBack: true,
+      navId: 'report',
+      route: {
+        parent: 'report'
+      },
+      noNavBar: true
+    }
+  },
+  // 20240229 该 我的申请 页面作为 iframe 嵌入到 日志平台 展示
+  {
+    path: '/trace/report/my-applied-report',
+    name: 'my-applied-report',
+    components: {
+      noCache: MyAppliedReport
+    },
+    meta: {
+      title: '我的申请',
+      needBack: true,
+      navId: 'report',
+      route: {
+        parent: 'report'
+      },
+      noNavBar: true
+    }
   }
-  // {
-  //   path: '/my-report',
-  //   name: 'my-report',
-  //   components: {
-  //     noCache: MyReport
-  //   },
-  //   meta: {
-  //     title: '我的订阅',
-  //     needBack: true,
-  //     navId: 'new-report-config',
-  //     route: {
-  //       parent: 'new-report-config'
-  //     },
-  //     noNavBar: true
-  //   }
-  // },
-  // {
-  //   path: '/my-applied-report',
-  //   name: 'my-applied-report',
-  //   components: {
-  //     noCache: MyAppliedReport
-  //   },
-  //   meta: {
-  //     title: '我的申请',
-  //     needBack: true,
-  //     navId: 'new-report-config',
-  //     route: {
-  //       parent: 'new-report-config'
-  //     },
-  //     noNavBar: true
-  //   }
-  // }
 ] as RouteConfig[];
