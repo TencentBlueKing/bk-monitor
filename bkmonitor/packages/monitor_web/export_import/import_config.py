@@ -327,7 +327,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 action.pop("id", None)
                 config.pop("id", None)
                 config["bk_biz_id"] = bk_biz_id
-                action_config_instance, _ = ActionConfig.objects.update_or_create(
+                action_config_instance, created = ActionConfig.objects.update_or_create(
                     name=config["name"], bk_biz_id=bk_biz_id, defaults=config
                 )
                 action["config_id"] = action_config_instance.id

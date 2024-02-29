@@ -173,9 +173,18 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   }
 
   created() {
-    const { queryConfig } = this.$route.query;
+    let queryConfig = null;
+    try {
+      queryConfig = JSON.parse((this.$route.query?.queryConfig || null) as string);
+      if (!queryConfig) {
+        queryConfig = JSON.parse((this.$route.query?.targets || null) as string)?.[0]?.data?.query_configs?.[0];
+      }
+    } catch (err) {
+      queryConfig = null;
+      console.log(err);
+    }
     if (queryConfig) {
-      const { data_source_label, data_type_label, result_table_id, where } = JSON.parse(queryConfig as string);
+      const { data_source_label, data_type_label, result_table_id, where } = queryConfig;
       this.localValue.where = where;
       // eslint-disable-next-line camelcase
       this.localValue.result_table_id = result_table_id;
