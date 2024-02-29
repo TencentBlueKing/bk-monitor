@@ -184,7 +184,7 @@ class QueryProfileBarGraphResource(Resource):
         trace_data[int(query_params["start_time"] / 1000)] = [
             {
                 "time": datetime.datetime.fromtimestamp(i["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S"),
-                "span_id": i.get("profile_id", "unknown"),
+                "span_id": i.get("labels", {}).get("profile_id", "unknown"),
             }
             for i in labels
         ]
