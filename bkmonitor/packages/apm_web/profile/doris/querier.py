@@ -271,6 +271,8 @@ class QueryTemplate:
         limit: int = None,
     ):
         """根据查询条件获取 labels 列表"""
+
+        # todo 待 bkbase 支持 distinct 查询
         label_filter = label_filter or {}
         res = Query(
             api_type=APIType.LABELS,
