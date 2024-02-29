@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
-import time
 
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -17,6 +16,8 @@ from rest_framework import serializers
 from apm_web.models import Application
 from apm_web.profile.constants import DataType
 from apm_web.profile.doris.querier import QueryTemplate
+from apm_web.utils import get_interval, split_by_interval
+from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource, api
 
 
@@ -113,7 +114,6 @@ class ListApplicationServicesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
-        end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, data):
         applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
@@ -121,48 +121,117 @@ class ListApplicationServicesResource(Resource):
         apps = []
         nodata_apps = []
 
-        # 获取结束时间前一天的开始时间
-        start_time = int((datetime.datetime.fromtimestamp(data["end_time"]) - datetime.timedelta(days=1)).timestamp())
-
         for application in applications:
             services = api.apm_api.query_profile_services_detail(
                 **{"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
             )
-            app_has_data = False
-            app_services = []
-
-            for svr in services:
-                # 如果此服务的上次更新时间在一天内就认为是有数据应用 避免时间范围带来的边界问题
-                check_timestamp = int(time.mktime(time.strptime(svr["last_check_time"], "%Y-%m-%d %H:%M:%S")))
-                if start_time <= check_timestamp <= data["end_time"]:
-                    app_has_data = True
-                    app_services.append(
-                        {
-                            "id": svr["id"],
-                            "name": svr["name"],
-                            "has_data": True,
-                        }
-                    )
-                else:
-                    app_services.append(
-                        {
-                            "id": svr["id"],
-                            "name": svr["name"],
-                            "has_data": False,
-                        }
-                    )
-            [nodata_apps, apps][app_has_data].append(
-                {
-                    "bk_biz_id": application.bk_biz_id,
-                    "application_id": application.application_id,
-                    "description": application.description,
-                    "app_name": application.app_name,
-                    "app_alias": application.app_alias,
-                    "services": app_services,
-                }
-            )
+            # 如果曾经发现过 service，都认为是有数据应用
+            if len(services) > 0:
+                apps.append(
+                    {
+                        "bk_biz_id": application.bk_biz_id,
+                        "application_id": application.application_id,
+                        "description": application.description,
+                        "app_name": application.app_name,
+                        "app_alias": application.app_alias,
+                        "services": [{"id": i["id"], "name": i["name"], "has_data": True} for i in services],
+                    }
+                )
+            else:
+                nodata_apps.append(
+                    {
+                        "bk_biz_id": application.bk_biz_id,
+                        "application_id": application.application_id,
+                        "description": application.description,
+                        "app_name": application.app_name,
+                        "app_alias": application.app_alias,
+                        "services": [],
+                    }
+                )
 
         return {
             "normal": apps,
             "no_data": nodata_apps,
+        }
+
+
+class QueryProfileBarGraphResource(Resource):
+    """获取 profile 数据柱状图"""
+
+    # 每个时间点获取 spanId 数量为前 10 条
+    POINT_LABEL_LIMIT = 10
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        service_name = serializers.CharField(label="服务名称")
+        data_type = serializers.CharField(label="Sample 数据类型")
+        start_time = serializers.IntegerField(label="开始时间", help_text="请使用 Second")
+        end_time = serializers.IntegerField(label="结束时间", help_text="请使用 Second")
+        filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
+
+    def _query_by_timerange(self, datapoints, trace_data, query_template, query_params, filter_labels):
+        point_count = query_template.get_count(
+            **query_params,
+            label_filter={"profile_id": "op_is_not_null", **filter_labels},
+        )
+
+        labels = query_template.parse_labels(
+            **query_params,
+            label_filter={"profile_id": "op_is_not_null"},
+            limit=self.POINT_LABEL_LIMIT,
+        )
+        trace_data[int(query_params["start_time"] / 1000)] = [
+            {
+                "time": datetime.datetime.fromtimestamp(i["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S"),
+                "span_id": i.get("profile_id", "unknown"),
+            }
+            for i in labels
+        ]
+        datapoints.append([point_count, int(query_params["start_time"] / 1000)])
+
+    def perform_request(self, validate_data):
+        interval = get_interval(validate_data["start_time"], validate_data["end_time"])
+        datapoints = split_by_interval(validate_data["start_time"], validate_data["end_time"], interval)
+
+        query_template = QueryTemplate(validate_data["bk_biz_id"], validate_data["app_name"])
+
+        res = []
+        trace_data = {}
+        if not datapoints:
+            # 时间查询范围过小的时候，用参数的范围
+            datapoints = [[validate_data["start_time"], validate_data["end_time"]]]
+
+        pool = ThreadPool()
+        pool.map_ignore_exception(
+            self._query_by_timerange,
+            [
+                (
+                    res,
+                    trace_data,
+                    query_template,
+                    {
+                        "start_time": start_time * 1000,
+                        "end_time": end_time * 1000,
+                        "data_type": validate_data["data_type"],
+                        "service_name": validate_data["service_name"],
+                    },
+                    validate_data["filter_labels"],
+                )
+                for start_time, end_time in datapoints
+            ],
+        )
+
+        return {
+            "series": [
+                {
+                    "alias": "_result_",
+                    "datapoints": res,
+                    "dimensions": {},
+                    "target": "",
+                    "type": "line",
+                    "unit": "",
+                    "trace_data": trace_data,
+                }
+            ]
         }

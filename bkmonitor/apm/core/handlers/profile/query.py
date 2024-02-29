@@ -56,8 +56,6 @@ class ApiParam:
             "biz_id": self.biz_id,
             "app": self.app,
             "type": self.type,
-            "start": self.start,
-            "end": self.end,
         }
         if self.label_filter:
             r["label_filter"] = self.label_filter
@@ -67,7 +65,10 @@ class ApiParam:
             r["limit"] = asdict(self.limit)
         if self.order:
             r["order"] = asdict(self.order)
-
+        if self.start:
+            r["start"] = self.start
+        if self.end:
+            r["end"] = self.end
         return r
 
 
