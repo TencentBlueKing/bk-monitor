@@ -471,7 +471,7 @@ export default defineComponent({
                     }
                   }}
                 >
-                  <div style='white-space: normal;line-height: 16px;padding: 14px 0;'>{content}</div>
+                  <div style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'>{content}</div>
                 </Popover>
               );
             }
