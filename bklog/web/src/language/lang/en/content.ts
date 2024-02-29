@@ -622,5 +622,6 @@ export default {
   观测场景: 'Observations',
   选择时间范围: 'Select Time Range',
   '{0}-日志聚类统计报表-{1}': '{0}-Log clustering statistics report-{1}',
-  请至少选择一种订阅方式: 'Please select at least one subscription method'
+  请至少选择一种订阅方式: 'Please select at least one subscription method',
+  我申请的: 'My Application'
 };
