@@ -24,44 +24,38 @@
  * IN THE SOFTWARE.
  */
 
-import { EChartOption } from 'echarts';
+import dayjs from 'dayjs';
 
-// 时序性图表类型 bar: 柱状图 line: 线性图
-export type TimeSeriesType = 'bar' | 'line';
+export const profilingTraceChartTooltip = {
+  position(point: any) {
+    // 控制tolltip框的位置
+    return [point[0], point[1]]; // 设置为鼠标的位置
+  },
+  enterable: true, // 可以让鼠标进入tooltip
+  formatter: (params: any) => {
+    let liHtmls = [];
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const traceData = params[0].data?.traceData ?? [];
 
-export interface ITimeSeriesItem extends EChartOption.SeriesLine {
-  // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
-  data: [number, number][];
-  // 图例名称
-  name: string;
-  // 单位
-  unit: string;
-  // 图表显示类型 bar | line
-  type: TimeSeriesType;
-  // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
-  stack?: string;
-  color?: string;
-  metricField?: string; // 指标
-  traceData?: Record<number, IProfilingTraceInfo[]>;
-}
+    liHtmls = traceData.map(item => {
+      return `<tr>
+        <td>${item.time}</td>
+        <td>${item.span_id}</td>
+      </tr>`;
+    });
+    if (liHtmls?.length < 1) return '';
 
-export interface IProfilingTraceInfo {
-  time: string;
-  span_id: string;
-}
-
-export interface ITimeSeriesData {
-  // 指标数据
-  metrics?: [];
-  // 图表数据
-  series: ITimeSeriesItem[];
-}
-
-export interface IPlotBand {
-  from: number;
-  to?: number;
-  color?: string;
-  borderColor?: string;
-  shadowColor?: string;
-  borderType?: 'solid' | 'dashed' | 'dotted';
-}
+    return `<div class="monitor-chart-tooltips">
+        <p class="tooltips-header">${pointTime}</p>
+        <table class='trace-chart-tips-table'>
+          <thead>
+            <th>Time</th>
+            <th>Span ID</th>
+          </thead>
+          <tbody>
+            ${liHtmls?.join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+};

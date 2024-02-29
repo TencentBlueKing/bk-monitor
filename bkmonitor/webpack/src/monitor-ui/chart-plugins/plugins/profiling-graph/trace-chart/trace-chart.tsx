@@ -23,45 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component } from 'vue-property-decorator';
 
-import { EChartOption } from 'echarts';
+import TimeSeries from '../../time-series/time-series';
 
-// 时序性图表类型 bar: 柱状图 line: 线性图
-export type TimeSeriesType = 'bar' | 'line';
+import { profilingTraceChartTooltip } from './util';
 
-export interface ITimeSeriesItem extends EChartOption.SeriesLine {
-  // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
-  data: [number, number][];
-  // 图例名称
-  name: string;
-  // 单位
-  unit: string;
-  // 图表显示类型 bar | line
-  type: TimeSeriesType;
-  // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
-  stack?: string;
-  color?: string;
-  metricField?: string; // 指标
-  traceData?: Record<number, IProfilingTraceInfo[]>;
-}
+import './trace-chart.scss';
 
-export interface IProfilingTraceInfo {
-  time: string;
-  span_id: string;
-}
-
-export interface ITimeSeriesData {
-  // 指标数据
-  metrics?: [];
-  // 图表数据
-  series: ITimeSeriesItem[];
-}
-
-export interface IPlotBand {
-  from: number;
-  to?: number;
-  color?: string;
-  borderColor?: string;
-  shadowColor?: string;
-  borderType?: 'solid' | 'dashed' | 'dotted';
+@Component
+export default class TraceChart extends TimeSeries {
+  handleSetTooltip() {
+    return profilingTraceChartTooltip;
+  }
 }

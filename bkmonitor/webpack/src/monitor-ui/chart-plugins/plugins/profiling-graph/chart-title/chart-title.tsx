@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { DropdownMenu, Input } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../../monitor-common/utils/utils';
 import { TextDirectionType, ViewModeType } from '../../../typings/profiling-graph';
@@ -106,7 +105,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             </div>
           ))}
         </div>
-        <Input
+        <bk-input
           right-icon='bk-icon icon-search'
           v-model={this.keyword}
           onInput={this.handleKeywordChange}
@@ -122,7 +121,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           ))}
         </div>
 
-        <DropdownMenu
+        <bk-dropdown-menu
           class='option-dropdown-menu'
           align='right'
         >
@@ -144,7 +143,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               </li>
             ))}
           </ul>
-        </DropdownMenu>
+        </bk-dropdown-menu>
       </div>
     );
   }

@@ -96,6 +96,11 @@ const TimeSeriesProps = {
   isUseAlone: {
     type: Boolean,
     default: false
+  },
+  // 使用自定义tooltips
+  customTooltip: {
+    type: Object as PropType<Record<string, any>>,
+    required: false
   }
 };
 export default defineComponent({
@@ -266,6 +271,8 @@ export default defineComponent({
             if (hasNoBrother) {
               showSymbol = true;
             }
+            // profiling 趋势图 其中 Trace 数据需包含span列表
+            const traceData = item.traceData ? item.traceData[seriesItem[0]] : undefined;
             return {
               symbolSize: hasNoBrother ? 10 : 6,
               value: [seriesItem[0], seriesItem[1]],
@@ -274,7 +281,8 @@ export default defineComponent({
                 enabled: true,
                 shadowBlur: 0,
                 opacity: 1
-              }
+              },
+              traceData
             } as any;
           }
           return seriesItem;
@@ -547,7 +555,8 @@ export default defineComponent({
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
               unit: item.unit,
-              z: 1
+              z: 1,
+              traceData: item.trace_data ?? ''
             })) as any
           );
           seriesList = seriesList.map((item: any) => ({
@@ -627,7 +636,8 @@ export default defineComponent({
                 splitNumber: Math.ceil(width.value / 80),
                 min: 'dataMin'
               },
-              series: seriesList
+              series: seriesList,
+              tooltip: props.customTooltip ?? {}
             })
           );
           metrics.value = metricList || [];

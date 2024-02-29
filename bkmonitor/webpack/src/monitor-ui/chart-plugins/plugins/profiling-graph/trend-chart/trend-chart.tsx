@@ -25,12 +25,12 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Collapse, CollapseItem } from 'bk-magic-vue';
 
 import { random } from '../../../../../monitor-common/utils/utils';
 import loadingIcon from '../../../icons/spinner.svg';
 import { IQueryParams, PanelModel } from '../../../typings';
 import TimeSeries from '../../time-series/time-series';
+import TraceChart from '../trace-chart/trace-chart';
 
 import './trend-chart.scss';
 
@@ -101,25 +101,31 @@ export default class TrendChart extends tsc<ITrendChartProps> {
   }
 
   render() {
+    const chartHtml =
+      this.chartType === 'all' ? (
+        <TimeSeries
+          panel={this.panel}
+          showChartHeader={false}
+          showHeaderMoreTool={false}
+          onLoading={val => (this.loading = val)}
+        />
+      ) : (
+        <TraceChart
+          panel={this.panel}
+          showChartHeader={false}
+          showHeaderMoreTool={false}
+          onLoading={val => (this.loading = val)}
+        />
+      );
+
     return (
       <div class='trend-chart'>
-        <Collapse v-model={this.collapse}>
-          <CollapseItem
+        <bk-collapse v-model={this.collapse}>
+          <bk-collapse-item
             ext-cls='trend-chart-collapse'
             name='trend'
             scopedSlots={{
-              content: () => (
-                <div class='trend-chart-wrap'>
-                  {this.collapse && this.panel && (
-                    <TimeSeries
-                      panel={this.panel}
-                      showChartHeader={false}
-                      showHeaderMoreTool={false}
-                      onLoading={val => (this.loading = val)}
-                    />
-                  )}
-                </div>
-              )
+              content: () => <div class='trend-chart-wrap'>{this.collapse && this.panel && chartHtml}</div>
             }}
           >
             <div
@@ -127,20 +133,20 @@ export default class TrendChart extends tsc<ITrendChartProps> {
               onClick={e => e.stopPropagation()}
             >
               <div class='bk-button-group'>
-                <Button
+                <bk-button
                   size='small'
                   class={`${this.chartType === 'all' ? 'is-selected' : ''}`}
                   onClick={() => (this.chartType = 'all')}
                 >
                   {this.$t('总趋势')}
-                </Button>
-                <Button
+                </bk-button>
+                <bk-button
                   size='small'
                   class={`${this.chartType === 'trace' ? 'is-selected' : ''}`}
                   onClick={() => (this.chartType = 'trace')}
                 >
                   {this.$t('Trace 数据')}
-                </Button>
+                </bk-button>
               </div>
               {this.loading ? (
                 <img
@@ -149,8 +155,8 @@ export default class TrendChart extends tsc<ITrendChartProps> {
                 ></img>
               ) : undefined}
             </div>
-          </CollapseItem>
-        </Collapse>
+          </bk-collapse-item>
+        </bk-collapse>
       </div>
     );
   }

@@ -26,7 +26,6 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception } from 'bk-magic-vue';
 import { HierarchyNode } from 'd3-hierarchy';
 
 import { Debounce } from '../../../../../monitor-common/utils/utils';
@@ -415,7 +414,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   render() {
     if (this.showException)
       return (
-        <Exception
+        <bk-exception
           type='empty'
           scene='part'
           description={this.$t('暂无数据')}
