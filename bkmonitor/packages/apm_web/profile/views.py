@@ -37,6 +37,7 @@ from apm_web.profile.doris.querier import APIParams, APIType, Query
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.profile.resources import (
     ListApplicationServicesResource,
+    QueryProfileBarGraphResource,
     QueryServicesDetailResource,
 )
 from apm_web.profile.serializers import (
@@ -454,5 +455,6 @@ class ResourceQueryViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("GET", ListApplicationServicesResource, endpoint="services"),
+        ResourceRoute("POST", QueryProfileBarGraphResource, endpoint="services_trace_bar"),
         ResourceRoute("GET", QueryServicesDetailResource, endpoint="services_detail"),
     ]

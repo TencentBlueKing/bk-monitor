@@ -142,8 +142,7 @@ class QueryTemplate:
         self, start: int, end: int, data_types: List[str], service_name: str, label_filter: dict = None
     ):
         """查询样本基本信息"""
-        if not label_filter:
-            label_filter = {}
+        label_filter = label_filter or {}
 
         res = {}
         for data_type in data_types:
@@ -158,7 +157,7 @@ class QueryTemplate:
                     service_name=service_name,
                     limit={"offset": 0, "rows": 1},
                     order={"expr": "dtEventTimeStamp", "sort": "desc"},
-                    **label_filter,
+                    label_filter=label_filter,
                 ),
                 result_table_id=self.result_table_id,
             ).execute()
@@ -238,3 +237,65 @@ class QueryTemplate:
         count = next((i["count(1)"] for i in count_response.get("list", []) if i.get("count(1)")), None)
 
         return {service_name: {"profiling_data_count": count}} if count else {}
+
+    def get_count(
+        self, start_time: int, end_time: int, data_type: str, service_name: str = None, label_filter: dict = None
+    ):
+        """根据查询条件获取数据条数"""
+        label_filter = label_filter or {}
+        res = Query(
+            api_type=APIType.SELECT_COUNT,
+            api_params=APIParams(
+                start=start_time,
+                end=end_time,
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                type=data_type,
+                label_filter=label_filter,
+                service_name=service_name,
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+        if not res or not res.get("list", []):
+            return None
+
+        return res["list"][0].get("count(1)", None)
+
+    def list_labels(
+        self,
+        start_time: int,
+        end_time: int,
+        data_type: str,
+        service_name: str = None,
+        label_filter: dict = None,
+        limit: int = None,
+    ):
+        """根据查询条件获取 labels 列表"""
+        label_filter = label_filter or {}
+        res = Query(
+            api_type=APIType.LABELS,
+            api_params=APIParams(
+                start=start_time,
+                end=end_time,
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                type=data_type,
+                label_filter=label_filter,
+                service_name=service_name,
+                limit={"rows": limit} if limit else None,
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+
+        if not res or not res.get("list", []):
+            return None
+
+        return res["list"]
+
+    def parse_labels(self, *args, **kwargs):
+        """获取 labels 后，进行解析并返回"""
+        labels = self.list_labels(*args, **kwargs)
+        if not labels:
+            return []
+
+        return [{"time": i["dtEventTimeStamp"], "labels": json.loads(i["labels"])} for i in labels]
