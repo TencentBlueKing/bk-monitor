@@ -14,6 +14,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.trace import SpanAttributes
+from celery import task
 
 from apm_web.constants import (
     APM_IS_SLOW_ATTR_KEY,
@@ -495,22 +496,32 @@ class Application(AbstractRecordModel):
                 ResourceEnum.APM_APPLICATION.create_simple_instance(self.application_id, {"bk_biz_id": self.bk_biz_id}),
                 creator=self.update_user,
             )
-            try:
-                maintainers = resource.cc.get_app_by_id(self.bk_biz_id).maintainers
-            except Exception as e:
-                logger.error("get maintainers failed with error: %s", e)
-                maintainers = []
-            need_create_users = set(maintainers) | {self.update_user}
-
-            for user in list(need_create_users):
-                permission.grant_creator_action(
-                    ResourceEnum.APM_APPLICATION.create_simple_instance(
-                        self.application_id, {"bk_biz_id": self.bk_biz_id}
-                    ),
-                    creator=user,
-                )
+            Application.authorization_to_maintainers.delay(self.application_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("application->({}) grant creator action failed, reason: {}".format(self.application_id, e))
+
+    @staticmethod
+    @task()
+    def authorization_to_maintainers(app_id):
+        """给业务的负责人授权"""
+        logger.info(f"[authorization_to_maintainers] grant app_id: {app_id}")
+        application = Application.get_application_by_app_id(app_id)
+
+        try:
+            maintainers = resource.cc.get_app_by_id(application.bk_biz_id).maintainers
+        except Exception as e:
+            raise ValueError("get maintainers failed with error: %s", e)
+
+        permission = Permission()
+        for user in list(maintainers):
+            permission.grant_creator_action(
+                ResourceEnum.APM_APPLICATION.create_simple_instance(
+                    app_id, {"bk_biz_id": application.bk_biz_id}
+                ),
+                creator=user,
+            )
+
+        logger.info(f"[authorization_to_maintainers] grant app_id: {app_id} to maintainers: {maintainers} finished")
 
     @classmethod
     def setup_datasource(cls, application_id, datasource_option: dict):

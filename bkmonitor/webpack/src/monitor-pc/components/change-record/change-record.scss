@@ -1,18 +1,21 @@
 .change-record {
   display: flex;
   flex-direction: column;
+  padding-bottom: 8px;
+  margin: 3px -24px -26px;
   font-size: 14px;
   color: #63656e;
-  margin: 3px -24px -26px;
-  padding-bottom: 8px;
+
   &-item {
     display: flex;
     margin-bottom: 20px;
+
     .item-label {
       flex: 0 0 131px;
-      text-align: right;
       color: #979ba5;
+      text-align: right;
     }
+
     .item-content {
       flex: 1;
       margin-left: 24px;
