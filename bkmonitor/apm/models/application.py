@@ -30,6 +30,7 @@ class ApmApplication(AbstractRecordModel):
     app_alias = models.CharField("应用别名", max_length=128)
     description = models.CharField("应用描述", max_length=255)
     is_enabled = models.BooleanField("是否启用", default=True)
+    is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
 
     class Meta:
         unique_together = ("app_name", "bk_biz_id")
@@ -38,14 +39,36 @@ class ApmApplication(AbstractRecordModel):
         for datasource in [MetricDataSource, TraceDataSource]:
             datasource.start(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         self.is_enabled = True
-        self.save()
+        self.save(update_fields=["is_enabled"])
 
     def stop(self):
         for datasource in [MetricDataSource, TraceDataSource]:
             datasource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
 
         self.is_enabled = False
-        self.save()
+        self.save(update_fields=["is_enabled"])
+
+    def start_profiling(self):
+        self.is_enabled_profiling = True
+        self.save(update_fields=["is_enabled_profiling"])
+
+        profile_datasource = ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
+        if not profile_datasource:
+            ProfileDataSource.apply_datasource(bk_biz_id=self.bk_biz_id, app_name=self.app_name, **{})
+
+        from apm.task.tasks import refresh_apm_application_config
+
+        refresh_apm_application_config.delay(self.bk_biz_id, self.app_name)
+
+    def stop_profiling(self):
+        self.is_enabled_profiling = False
+        self.save(update_fields=["is_enabled_profiling"])
+
+        profile_datasource = ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
+        if profile_datasource:
+            from apm.task.tasks import refresh_apm_application_config
+
+            refresh_apm_application_config.delay(self.bk_biz_id, self.app_name)
 
     @classmethod
     def get_application(cls, bk_biz_id, app_name):
@@ -67,6 +90,7 @@ class ApmApplication(AbstractRecordModel):
         # 创建和更新性能分析数据源
         if options and options.get("enabled_profiling", False):
             ProfileDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name, **es_storage_config)
+            cls.objects.filter(id=application.id).update(is_enabled_profiling=True)
 
         configs = {
             "metric_config": application.metric_datasource.to_json(),

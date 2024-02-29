@@ -435,7 +435,7 @@ class StartResource(Resource):
     def perform_request(self, validated_request_data):
         Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=True)
         Application.start_plugin_config(validated_request_data["application_id"])
-        return api.apm_api.start_application(validated_request_data)
+        return api.apm_api.start_application(application_id=validated_request_data["application_id"], type="tracing")
 
 
 class StopResource(Resource):
@@ -568,7 +568,8 @@ class SetupResource(Resource):
         application_db_config = serializers.ListField(label="db配置", child=DbConfigSerializer(), default=[])
 
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
-        is_enabled = serializers.BooleanField(label="启/停", required=False)
+        is_enabled = serializers.BooleanField(label="Tracing启/停", required=False)
+        profiling_is_enabled = serializers.BooleanField(label="Profiling启/停", required=False)
         plugin_config = PluginConfigSerializer(required=False)
 
     class SetupProcessor:
@@ -688,16 +689,28 @@ class SetupResource(Resource):
             SamplingHelpers(validated_data['application_id']).setup(validated_data["application_sampler_config"])
 
         # 判断是否需要启动/停止项目
-        if validated_data.get("is_enabled"):
+        if validated_data.get("is_enabled") is not None:
             if application.is_enabled != validated_data["is_enabled"]:
                 Application.objects.filter(application_id=application.application_id).update(
                     is_enabled=validated_data["is_enabled"]
                 )
 
                 if validated_data["is_enabled"]:
-                    api.apm_api.start_application(validated_data)
+                    api.apm_api.start_application(application_id=validated_data["application_id"], type="tracing")
                 else:
-                    api.apm_api.stop_application(validated_data)
+                    api.apm_api.stop_application(application_id=validated_data["application_id"], type="tracing")
+
+        # 判断是否需要启动/暂停 profiling
+        if validated_data.get("profiling_is_enabled") is not None:
+            if application.is_enabled_profiling != validated_data["profiling_is_enabled"]:
+                Application.objects.filter(application_id=application.application_id).update(
+                    is_enabled_profiling=validated_data["profiling_is_enabled"]
+                )
+
+                if validated_data["profiling_is_enabled"]:
+                    api.apm_api.start_application(application_id=validated_data["application_id"], type="profiling")
+                else:
+                    api.apm_api.stop_application(application_id=validated_data["application_id"], type="profiling")
 
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
