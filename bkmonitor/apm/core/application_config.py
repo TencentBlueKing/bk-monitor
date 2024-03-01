@@ -85,7 +85,8 @@ class ApplicationConfig(BkCollectorConfig):
         db_slow_command_config = self.get_config(
             ConfigTypes.DB_SLOW_COMMAND_CONFIG, DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG
         )
-        sampler_drop_config = self.get_drop_sampler_config()
+        profiles_drop_sampler_config = self.get_profiles_drop_sampler_config()
+        traces_drop_sampler_config = self.get_traces_drop_sampler_config()
 
         if apdex_config:
             config["apdex_config"] = apdex_config.get(self._application.app_name)
@@ -99,8 +100,10 @@ class ApplicationConfig(BkCollectorConfig):
             config["qps_config"] = qps_config
         if license_config:
             config["license_config"] = license_config
-        if sampler_drop_config:
-            config["drop_sampler_config"] = sampler_drop_config
+        if profiles_drop_sampler_config:
+            config["profiles_drop_sampler_config"] = profiles_drop_sampler_config
+        if traces_drop_sampler_config:
+            config["traces_drop_sampler_config"] = traces_drop_sampler_config
         if queue_config:
             config["queue_config"] = queue_config
 
@@ -271,11 +274,18 @@ class ApplicationConfig(BkCollectorConfig):
             sampler_config[config.config_key] = config.to_config_json()
         return sampler_config
 
-    def get_drop_sampler_config(self):
+    def get_profiles_drop_sampler_config(self):
         return {
-            "name": "sampler/drop",
+            "name": "sampler/drop_profiles",
             "type": "drop",
-            "enabled": self._application.is_enabled_profiling,
+            "enabled": not self._application.is_enabled_profiling,
+        }
+
+    def get_traces_drop_sampler_config(self):
+        return {
+            "name": "sampler/drop_traces",
+            "type": "drop",
+            "enabled": not self._application.is_enabled,
         }
 
     def get_license_config(self):
