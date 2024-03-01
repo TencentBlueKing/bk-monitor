@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
-import { listApplicationServices, queryLabels, queryLabelValues } from 'monitor-api/modules/apm_profile';
+import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_profile';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import {
@@ -142,7 +142,6 @@ export default defineComponent({
     }
 
     const labelList = ref<string[]>([]);
-    const labelValueMap = reactive(new Map());
     /**
      * 添加条件
      * @param type 条件类型
@@ -215,42 +214,30 @@ export default defineComponent({
       }));
     }
 
+    /** 查询项公共参数 */
+    const labelCommonParams = computed(() => {
+      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
+      const params =
+        localFormData.type === SearchType.Profiling
+          ? { ...localFormData.server, global_query: false }
+          : { global_query: true };
+      return {
+        ...params,
+        start: start * 1000 * 1000,
+        end: end * 1000 * 1000
+      };
+    });
+
     /** 获取过滤项列表 */
     async function getLabelList() {
       localFormData.where = localFormData.where.filter(item => !item.key);
       localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
-      labelValueMap.clear();
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
-      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      const params =
-        localFormData.type === SearchType.Profiling
-          ? { ...localFormData.server, global_query: false }
-          : { global_query: true };
       const labels = await queryLabels({
-        ...params,
-        start: start * 1000 * 1000,
-        end: end * 1000 * 1000
+        ...labelCommonParams.value
       }).catch(() => ({ label_keys: [] }));
       labelList.value = labels.label_keys;
-    }
-
-    /** 获取过滤项值列表 */
-    async function getLabelValues(label: string) {
-      /** 缓存 */
-      if (labelValueMap.has(label)) return;
-      const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
-      const params =
-        localFormData.type === SearchType.Profiling
-          ? { ...localFormData.server, global_query: false }
-          : { global_query: true };
-      const res = await queryLabelValues({
-        ...params,
-        start: start * 1000 * 1000,
-        end: end * 1000 * 1000,
-        label_key: label
-      }).catch(() => ({ label_values: [] }));
-      labelValueMap.set(label, res.label_values);
     }
 
     /**
@@ -266,15 +253,14 @@ export default defineComponent({
       localFormData,
       retrievalType,
       labelList,
-      labelValueMap,
+      labelCommonParams,
       handleTypeChange,
       handleApplicationChange,
       handleDetailClick,
       handleComparisonChange,
       addCondition,
       deleteCondition,
-      handleConditionChange,
-      getLabelValues
+      handleConditionChange
     };
   },
   render() {
@@ -332,9 +318,8 @@ export default defineComponent({
                   class='condition-item'
                   data={item}
                   labelList={this.labelList}
-                  valueList={this.labelValueMap.get(item.key) || []}
+                  valueListParams={this.labelCommonParams}
                   onChange={val => this.handleConditionChange(val, index, ConditionType.Where)}
-                  onKeyChange={this.getLabelValues}
                   onDelete={() => this.deleteCondition(index, ConditionType.Where)}
                 />
               ))}
@@ -354,9 +339,8 @@ export default defineComponent({
                     class='condition-item'
                     data={item}
                     labelList={this.labelList}
-                    valueList={this.labelValueMap.get(item.key) || []}
+                    valueListParams={this.labelCommonParams}
                     onChange={val => this.handleConditionChange(val, index, ConditionType.Comparison)}
-                    onKeyChange={this.getLabelValues}
                     onDelete={() => this.deleteCondition(index, ConditionType.Comparison)}
                   />
                 ))}
