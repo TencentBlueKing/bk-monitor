@@ -106,6 +106,7 @@ export interface IAppInfo {
   application_apdex_config: IApdexConfig;
   owner: string;
   is_enabled: boolean;
+  is_enabled_profiling: boolean;
   es_storage_index_name: string;
   application_datasource_config: IDatasourceConfig;
   create_user: string;

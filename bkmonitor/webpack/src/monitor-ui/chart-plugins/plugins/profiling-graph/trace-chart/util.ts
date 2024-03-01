@@ -26,36 +26,61 @@
 
 import dayjs from 'dayjs';
 
-export const profilingTraceChartTooltip = {
-  position(point: any) {
-    // 控制tolltip框的位置
-    return [point[0], point[1]]; // 设置为鼠标的位置
-  },
-  enterable: true, // 可以让鼠标进入tooltip
-  formatter: (params: any) => {
-    let liHtmls = [];
-    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
-    const traceData = params[0].data?.traceData ?? [];
+export const setTraceTooltip = ($el: Element, appName = '') => {
+  return {
+    position: (pos, params, dom, rect, size: any) => {
+      const { contentSize } = size;
+      const chartRect = $el.getBoundingClientRect();
+      const posRect = {
+        x: chartRect.x + +pos[0],
+        y: chartRect.y + +pos[1]
+      };
+      const position = {
+        left: 0,
+        top: 0
+      };
+      const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
+      if (canSetBootom > 0) {
+        position.top = +pos[1] - Math.min(0, canSetBootom);
+      } else {
+        position.top = +pos[1] + canSetBootom;
+      }
+      const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
+      if (canSetLeft > 0) {
+        position.left = +pos[0] + Math.min(0, canSetLeft);
+      } else {
+        position.left = +pos[0] - contentSize[0];
+      }
+      return position;
+    },
+    enterable: true, // 可以让鼠标进入tooltip
+    formatter: (params: any) => {
+      let liHtmls = [];
+      const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+      const traceData = params[0].data?.traceData ?? [];
 
-    liHtmls = traceData.map(item => {
-      return `<tr>
-        <td>${item.time}</td>
-        <td>${item.span_id}</td>
-      </tr>`;
-    });
-    if (liHtmls?.length < 1) return '';
+      liHtmls = traceData.map(item => {
+        const hash = `#/trace/home?app_name=${appName}&search_type=accurate&search_id=spanID&trace_id=${item.span_id}`;
+        const href = location.href.replace(location.href, hash);
+        return `<tr>
+          <td>${item.time}</td>
+          <td><a target="_blank" href="${href}">${item.span_id}</a></td>
+        </tr>`;
+      });
+      if (liHtmls?.length < 1) return '';
 
-    return `<div class="monitor-chart-tooltips">
-        <p class="tooltips-header">${pointTime}</p>
-        <table class='trace-chart-tips-table'>
-          <thead>
-            <th>Time</th>
-            <th>Span ID</th>
-          </thead>
-          <tbody>
-            ${liHtmls?.join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
+      return `<div class="monitor-chart-tooltips">
+          <p class="tooltips-header">${pointTime}</p>
+          <table class='trace-chart-tips-table'>
+            <thead>
+              <th>Time</th>
+              <th>Span ID</th>
+            </thead>
+            <tbody>
+              ${liHtmls?.join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+  };
 };

@@ -27,13 +27,14 @@ import { Component } from 'vue-property-decorator';
 
 import TimeSeries from '../../time-series/time-series';
 
-import { profilingTraceChartTooltip } from './util';
+import { setTraceTooltip } from './util';
 
 import './trace-chart.scss';
 
 @Component
 export default class TraceChart extends TimeSeries {
   handleSetTooltip() {
-    return profilingTraceChartTooltip;
+    const appName = (this.viewOptions as any)?.app_name ?? '';
+    return setTraceTooltip(this.$el, appName);
   }
 }
