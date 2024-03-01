@@ -2,7 +2,7 @@ rm -rf ./build
 
 docker build -t bkmonitor_web_build .
 
-docker run create --name web-temp-container bkmonitor_web_build
+docker run -d --name web-temp-container bkmonitor_web_build
 
 mkdir -p ./build
 
