@@ -328,7 +328,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     @action(methods=["GET"], detail=False, url_path="labels")
     def labels(self, request: Request):
         """获取 profiling 数据的 label_key 列表"""
-        limit = 5000
+        limit = 1000
 
         serializer = ProfileQueryLabelsSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
@@ -378,13 +378,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         start, end = self._enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
         results = self._query(
-            api_type=APIType.LABEL_VALUES,
+            api_type=APIType.LABELS,
             app_name=app_name,
             bk_biz_id=bk_biz_id,
             service_name=service_name,
             data_type=validated_data["data_type"],
             extra_params={
-                "label_key": validated_data["label_key"],
+                "label_filter": {validated_data["label_key"]: "op_is_not_null"},
                 "limit": {"offset": offset, "rows": rows},
             },
             result_table_id=result_table_id,
@@ -393,7 +393,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             converted=False,
         )
 
-        return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})
+        return Response(
+            data={
+                "label_values": {
+                    json.loads(i["labels"]).get(validated_data["label_key"]) for i in results["list"] if i.get("labels")
+                }
+            }
+        )
 
     @action(methods=["GET"], detail=False, url_path="export")
     def export(self, request: Request):
