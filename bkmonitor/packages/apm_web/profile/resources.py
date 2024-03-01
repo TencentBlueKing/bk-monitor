@@ -181,7 +181,7 @@ class QueryProfileBarGraphResource(Resource):
             label_filter={"profile_id": "op_is_not_null"},
             limit=self.POINT_LABEL_LIMIT,
         )
-        trace_data[int(query_params["start_time"] / 1000)] = [
+        trace_data[int(query_params["start_time"])] = [
             {
                 "time": datetime.datetime.fromtimestamp(i["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S"),
                 "span_id": i.get("labels", {}).get("profile_id", "unknown"),
