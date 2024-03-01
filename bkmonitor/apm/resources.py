@@ -216,7 +216,12 @@ class OperateApplicationSerializer(serializers.Serializer):
         PROFILING = "profiling", _("profiling")
 
     application_id = serializers.IntegerField(label="应用id")
-    type = serializers.ChoiceField(label="开启/暂停类型", choices=OperateType.choices, required=False, default="tracing")
+    type = serializers.ChoiceField(
+        label="开启/暂停类型",
+        choices=OperateType.choices,
+        required=False,
+        default=OperateType.TRACING.value,
+    )
 
 
 class StartApplicationResource(Resource):

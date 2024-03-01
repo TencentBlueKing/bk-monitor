@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import models
 from django.db.models import Count, Q
 from django.db.transaction import atomic
 from django.utils import timezone
@@ -427,27 +428,41 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
         return data
 
 
+class OperateType(models.TextChoices):
+    TRACING = "tracing", _("tracing")
+    PROFILING = "profiling", _("profiling")
+
+
 class StartResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
+        type = serializers.ChoiceField(label="暂停类型", choices=OperateType.choices, default=OperateType.TRACING.value)
 
     @atomic
-    def perform_request(self, validated_request_data):
-        Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=True)
-        Application.start_plugin_config(validated_request_data["application_id"])
-        return api.apm_api.start_application(application_id=validated_request_data["application_id"], type="tracing")
+    def perform_request(self, validated_data):
+        if validated_data["type"] == OperateType.TRACING.value:
+            Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled=True)
+            Application.start_plugin_config(validated_data["application_id"])
+            return api.apm_api.start_application(application_id=validated_data["application_id"], type="tracing")
+
+        Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled_profiling=True)
+        return api.apm_api.start_application(application_id=validated_data["application_id"], type="profiling")
 
 
 class StopResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
+        type = serializers.ChoiceField(label="暂停类型", choices=OperateType.choices, default=OperateType.TRACING.value)
 
     @atomic
-    def perform_request(self, validated_request_data):
-        Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=False)
-        Application.stop_plugin_config(validated_request_data["application_id"])
+    def perform_request(self, validated_data):
+        if validated_data["type"] == OperateType.TRACING.value:
+            Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled=False)
+            Application.stop_plugin_config(validated_data["application_id"])
+            return api.apm_api.stop_application(validated_data, type="tracing")
 
-        return api.apm_api.stop_application(validated_request_data)
+        Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled_profiling=False)
+        return api.apm_api.stop_application(application_id=validated_data["application_id"], type="profiling")
 
 
 class SamplingOptionsResource(Resource):
@@ -696,8 +711,10 @@ class SetupResource(Resource):
                 )
 
                 if validated_data["is_enabled"]:
+                    Application.start_plugin_config(validated_data["application_id"])
                     api.apm_api.start_application(application_id=validated_data["application_id"], type="tracing")
                 else:
+                    Application.stop_plugin_config(validated_data["application_id"])
                     api.apm_api.stop_application(application_id=validated_data["application_id"], type="tracing")
 
         # 判断是否需要启动/暂停 profiling
