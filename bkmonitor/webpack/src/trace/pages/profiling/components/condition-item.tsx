@@ -23,9 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, watch } from 'vue';
+import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Select } from 'bkui-vue';
+import { debounce } from 'lodash';
+import { queryLabelValues } from 'monitor-api/modules/apm_profile';
 
 import { IConditionItem } from '../typings';
 
@@ -42,14 +44,15 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => []
     },
-    valueList: {
-      type: Array as PropType<string[]>,
-      default: () => []
+    valueListParams: {
+      type: Object,
+      default: () => ({})
     }
   },
-  emits: ['change', 'delete', 'keyChange'],
+  emits: ['change', 'delete'],
   setup(props, { emit }) {
     const { t } = useI18n();
+
     const localValue = reactive<IConditionItem>({
       key: '',
       method: 'eq',
@@ -59,6 +62,9 @@ export default defineComponent({
       toggle: false,
       hover: false
     });
+
+    const scrollLoading = ref(false);
+    const valueList = ref<string[]>([]);
 
     watch(
       () => props.data,
@@ -70,8 +76,37 @@ export default defineComponent({
       }
     );
 
+    watch(
+      () => props.labelList,
+      () => {
+        valueList.value = [];
+      }
+    );
+
+    const getLabelValuesDebounce = debounce(getLabelValues, 100);
+
+    /** 获取过滤项值列表 */
+    async function getLabelValues() {
+      // 每页数量
+      const rows = 30;
+      // 如果列表数据量不是每页数量的倍数，说明所有数据都请求完成了
+      if (valueList.value.length % rows !== 0) return;
+      const offset = Math.floor(valueList.value.length / rows);
+      scrollLoading.value = true;
+      const res = await queryLabelValues({
+        ...props.valueListParams,
+        label_key: localValue.key,
+        rows,
+        offset
+      }).catch(() => ({ label_values: [] }));
+      valueList.value = [...valueList.value, ...res.label_values];
+      scrollLoading.value = false;
+    }
+
     function handleKeyChange() {
-      emit('keyChange', localValue.key);
+      localValue.value = '';
+      valueList.value = [];
+      getLabelValuesDebounce();
       handleEmitData();
     }
 
@@ -87,6 +122,9 @@ export default defineComponent({
       t,
       localValue,
       labelStatus,
+      valueList,
+      scrollLoading,
+      getLabelValuesDebounce,
       handleKeyChange,
       handleEmitData,
       handleDelete
@@ -139,6 +177,9 @@ export default defineComponent({
         <div class='content'>
           <Select
             v-model={this.localValue.value}
+            filterable
+            scroll-loading={this.scrollLoading}
+            onScroll-end={this.getLabelValuesDebounce}
             onChange={this.handleEmitData}
           >
             {this.valueList.map(option => (
