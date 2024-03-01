@@ -188,7 +188,7 @@ class QueryProfileBarGraphResource(Resource):
             }
             for i in labels
         ]
-        datapoints.append([point_count, int(query_params["start_time"] / 1000)])
+        datapoints.append([point_count, int(query_params["start_time"])])
 
     def perform_request(self, validate_data):
         interval = get_interval(validate_data["start_time"], validate_data["end_time"])

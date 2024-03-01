@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 import gzip
 import hashlib
+import itertools
+import json
 import logging
 from typing import Optional, Tuple, Union
 
@@ -325,7 +327,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
     @action(methods=["GET"], detail=False, url_path="labels")
     def labels(self, request: Request):
-        """获取 profiling 数据的 label 列表"""
+        """获取 profiling 数据的 label_key 列表"""
+        limit = 5000
+
         serializer = ProfileQueryLabelsSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
@@ -336,10 +340,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self._enlarge_duration(
-            int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
-        )
+        start, end = self._enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
 
+        # 因为 bkbase label 接口已经改为返回原始格式的所以这里改成取前 5000条 label 进行提取 key 列表
         results = self._query(
             api_type=APIType.LABELS,
             app_name=app_name,
@@ -350,14 +353,18 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             start=start,
             end=end,
+            extra_params={"limit": {"rows": limit}},
         )
 
-        label_keys = [label["label_key"] for label in results["list"]]
+        label_keys = set(
+            itertools.chain(*[list(json.loads(i["labels"]).keys()) for i in results["list"] if i.get("labels")])
+        )
+
         return Response(data={"label_keys": label_keys})
 
     @action(methods=["GET"], detail=False, url_path="label_values")
     def label_values(self, request: Request):
-        """获取 profiling 数据的 label 列表"""
+        """获取 profiling 数据的 label_values 列表"""
         serializer = ProfileQueryLabelValuesSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
@@ -369,9 +376,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self._enlarge_duration(
-            int(timezone.now().timestamp() * 1000), int(timezone.now().timestamp() * 1000), offset=300
-        )
+        start, end = self._enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
         results = self._query(
             api_type=APIType.LABEL_VALUES,
             app_name=app_name,
@@ -388,9 +393,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             converted=False,
         )
 
-        # TODO: offset/limit not working in bkbase now, handle it manually
-        label_values = [label["label_value"] for label in results["list"][offset * rows : (offset + 1) * rows]]
-        return Response(data={"label_values": label_values})
+        return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})
 
     @action(methods=["GET"], detail=False, url_path="export")
     def export(self, request: Request):
