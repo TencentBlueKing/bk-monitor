@@ -11,11 +11,9 @@ WORKDIR /code
 
 COPY . .
 
-ENV NODE_ENV production
-
 RUN npm i -g pnpm@${PNPM_VERSION} \
 && pnpm i \
 && pnpm run build \
-&& tar -czvf ./${TARGET_NAME} monitor fta weixin apm trace external
+&& tar -czvf ${TARGET_NAME} monitor fta weixin apm trace external
 
 CMD [ "echo", "前端构建完毕" ]
