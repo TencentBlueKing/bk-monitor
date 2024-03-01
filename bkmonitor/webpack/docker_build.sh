@@ -1,3 +1,5 @@
+#!/bin/bash -e
+
 rm -rf ./build
 
 docker build -t bkmonitor_web_build .
