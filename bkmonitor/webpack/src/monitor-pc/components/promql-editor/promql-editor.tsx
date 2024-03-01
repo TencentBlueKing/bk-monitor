@@ -58,7 +58,8 @@ const defalutOptions = {
   padding: {
     top: 8,
     bottom: 8
-  }
+  },
+  wordWrap: 'on'
 };
 export interface IPromqlMonacoEditorProps {
   width?: string;
@@ -145,13 +146,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         const suggestController = editor.getContribution('editor.contrib.suggestController') as any;
         const suggestCount = suggestController.widget.value._state || 0;
         if (suggestCount <= 0) {
-          const position = editor.getPosition();
-          editor.executeEdits('', [
-            {
-              range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-              text: ''
-            }
-          ]);
           this.executeQuery(this.getLinterStatus());
         } else {
           editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
