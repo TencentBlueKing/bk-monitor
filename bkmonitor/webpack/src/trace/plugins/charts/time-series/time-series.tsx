@@ -28,11 +28,11 @@ import { useI18n } from 'vue-i18n';
 import { bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { debounce } from 'throttle-debounce';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import { getValueFormat, ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
+import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { isShadowEqual, reviewInterval, VariablesService } from '../../../utils';
@@ -445,8 +445,9 @@ export default defineComponent({
           window.open(
             location.href.replace(
               location.hash,
-              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${timeRange
-                ?.value[0]}&to=${timeRange?.value[1]}`
+              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${
+                timeRange?.value[0]
+              }&to=${timeRange?.value[1]}`
             )
           );
           break;

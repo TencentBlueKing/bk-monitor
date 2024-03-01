@@ -28,7 +28,7 @@ import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
 import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import { profilingTraceChartTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
+import { setTraceTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
 import { IQueryParams, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
@@ -80,13 +80,15 @@ export default defineComponent({
     const panel = ref<PanelModel>(null);
     const chartType = ref('all');
     const loading = ref(false);
+    const chartRef = ref<Element>();
 
     const timeRange = computed(() => toolsFormData.value.timeRange);
     const refreshInterval = computed(() => toolsFormData.value.refreshInterval);
     const chartCustomTooltip = computed(() => {
       if (chartType.value === 'all') return {};
 
-      return profilingTraceChartTooltip;
+      const appName = (props.queryParams as IQueryParams)?.app_name ?? '';
+      return setTraceTooltip(chartRef.value, appName);
     });
 
     provide(TIME_RANGE_KEY, timeRange);
@@ -112,7 +114,7 @@ export default defineComponent({
           };
         } else {
           type = 'bar';
-          targetApi = 'apm_profile.query';
+          targetApi = 'apm_profile.queryProfileBarGraph';
           targetData = {
             ...props.queryParams
           };
@@ -142,6 +144,7 @@ export default defineComponent({
       collapse.value = v;
     }
     return {
+      chartRef,
       chartType,
       panel,
       collapse,
@@ -158,7 +161,10 @@ export default defineComponent({
           onUpdate:modelValue={this.handleCollapseChange}
           v-slots={{
             content: () => (
-              <div class='trend-chart-wrap'>
+              <div
+                class='trend-chart-wrap'
+                ref='chartRef'
+              >
                 {this.collapse && this.panel && (
                   <TimeSeries
                     key={this.chartType}

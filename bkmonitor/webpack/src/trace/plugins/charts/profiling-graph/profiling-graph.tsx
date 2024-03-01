@@ -50,7 +50,7 @@ export default defineComponent({
       default: () => ({
         app_name: '',
         service_name: '',
-        profile_type: ''
+        data_type: ''
       })
     }
   },
@@ -276,7 +276,7 @@ export default defineComponent({
                 highlightId={this.highlightId}
                 filterKeyword={this.filterKeyword}
                 isCompared={this.isCompared}
-                dataType={this.queryParams.profile_type}
+                dataType={this.queryParams.data_type}
                 onUpdateHighlightId={id => (this.highlightId = id)}
                 onSortChange={this.handleSortChange}
               />

@@ -329,7 +329,7 @@ export interface IQueryParams {
   app_name?: string;
   start?: number;
   end?: number;
-  profile_type?: string;
+  data_type?: string;
   profile_id?: string;
   diff_profile_id?: string;
   offset?: number;

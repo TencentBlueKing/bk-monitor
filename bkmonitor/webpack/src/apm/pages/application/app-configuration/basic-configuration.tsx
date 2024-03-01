@@ -91,8 +91,6 @@ type IFormData = IApdexConfig &
   IApplicationSamplerConfig & {
     app_alias: string;
     description: string;
-    enable_profiling: boolean;
-    enable_tracing: boolean;
   } & {
     plugin_config: {
       target_nodes: any[];
@@ -139,8 +137,6 @@ export default class BasicInfo extends tsc<IProps> {
   formData: IFormData = {
     app_alias: '', // 别名
     description: '', // 描述
-    enable_profiling: false,
-    enable_tracing: false,
     apdex_default: 0,
     apdex_http: 0,
     apdex_db: 0,
@@ -436,8 +432,9 @@ export default class BasicInfo extends tsc<IProps> {
   /**
    * @desc 开关前置校验
    * @param { boolean } val 当前开关状态
+   * @param { string } val 事件类型
    */
-  handleEnablePreCheck(val: boolean) {
+  handleEnablePreCheck(val: boolean, eventType: string) {
     if (!this.authority.MANAGE_AUTH) {
       this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
       return Promise.reject();
@@ -451,7 +448,7 @@ export default class BasicInfo extends tsc<IProps> {
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         confirmFn: async () => {
           const api = val ? stop : start;
-          const isPass = await api({ application_id: applicationId })
+          const isPass = await api({ application_id: applicationId, type: eventType })
             .then(() => {
               this.handleBaseInfoChange();
               return true;
@@ -470,14 +467,7 @@ export default class BasicInfo extends tsc<IProps> {
     this.showInstanceSelector = !show;
     if (show) {
       if (!this.logAsciiList.length && this.isShowLog2TracesFormItem) this.fetchEncodingList();
-      const {
-        app_alias: appAlias,
-        description,
-        plugin_config,
-        application_sampler_config,
-        enable_profiling,
-        enable_tracing
-      } = this.appInfo;
+      const { app_alias: appAlias, description, plugin_config, application_sampler_config } = this.appInfo;
       const apdexConfig = this.appInfo.application_apdex_config || {};
       const samplerConfig = Object.assign({}, application_sampler_config, {
         sampler_percentage: application_sampler_config.sampler_percentage || 0
@@ -485,9 +475,7 @@ export default class BasicInfo extends tsc<IProps> {
       Object.assign(this.formData, apdexConfig, samplerConfig, {
         app_alias: appAlias,
         description,
-        plugin_config,
-        enable_profiling,
-        enable_tracing
+        plugin_config
       });
     }
     if (!isSubmit) {
@@ -572,8 +560,6 @@ export default class BasicInfo extends tsc<IProps> {
     const {
       app_alias: appAlias,
       description,
-      enable_tracing,
-      enable_profiling,
       sampler_type: samplerType,
       sampler_percentage: samplerPercentage,
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -587,8 +573,6 @@ export default class BasicInfo extends tsc<IProps> {
       is_enabled: this.appInfo.is_enabled,
       app_alias: appAlias,
       description,
-      enable_tracing,
-      enable_profiling,
       application_sampler_config: {
         sampler_type: samplerType
       },
@@ -980,20 +964,6 @@ export default class BasicInfo extends tsc<IProps> {
     return (
       <div class='conf-content base-info-wrap'>
         <PanelItem title={this.$t('基础信息')}>
-          <div
-            slot='titleExtend'
-            style='display: flex;align-items: center;'
-          >
-            <bk-switcher
-              v-model={this.appInfo.is_enabled}
-              v-authority={{ active: !this.authority.MANAGE_AUTH }}
-              class='switcher-self'
-              theme='primary'
-              size='small'
-              pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled)}
-            />
-            <span class='switcher-text'>{this.$t('启/停')}</span>
-          </div>
           <div class='form-content'>
             {this.isEditing
               ? [
@@ -1062,24 +1032,25 @@ export default class BasicInfo extends tsc<IProps> {
                     >
                       <bk-form-item label={`Tracing ${this.$t('启/停')}`}>
                         <bk-switcher
-                          disabled
-                          // value={this.formData.enable_tracing}
-                          value={true}
+                          v-model={this.appInfo.is_enabled}
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           theme='primary'
                           size='small'
+                          pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled, 'tracing')}
                         />
                       </bk-form-item>
-                      {/* <bk-form-item
+                      <bk-form-item
                         label={`Profiling ${this.$t('启/停')}`}
                         class='form-flex-item'
                       >
                         <bk-switcher
-                          disabled
-                          value={this.formData.enable_profiling}
+                          v-model={this.appInfo.is_enabled_profiling}
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           theme='primary'
                           size='small'
+                          pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled_profiling, 'profiling')}
                         />
-                      </bk-form-item> */}
+                      </bk-form-item>
                     </div>
                     <div class='item-row'>
                       <bk-form-item label={this.$t('Tracing 的插件')}>
@@ -1145,20 +1116,18 @@ export default class BasicInfo extends tsc<IProps> {
                   <div class='item-row'>
                     <EditableFormItem
                       label='Tracing'
-                      // value={this.appInfo.enable_tracing ? [this.$t('已开启')] : [this.$t('未开启')]}
-                      // tagTheme={this.appInfo.enable_tracing ? 'success' : ''}
-                      value={[this.$t('已开启')]}
-                      tagTheme={'success'}
+                      value={this.appInfo.is_enabled ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      tagTheme={this.appInfo.is_enabled ? 'success' : ''}
                       formType='tag'
                       showEditable={false}
                     />
-                    {/* <EditableFormItem
+                    <EditableFormItem
                       label='Profiling'
-                      value={this.appInfo.enable_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
-                      tagTheme={this.appInfo.enable_tracing ? 'success' : ''}
+                      value={this.appInfo.is_enabled_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      tagTheme={this.appInfo.is_enabled_profiling ? 'success' : ''}
                       formType='tag'
                       showEditable={false}
-                    /> */}
+                    />
                   </div>,
                   <div class='item-row'>
                     <EditableFormItem

@@ -79,7 +79,7 @@ export default class TrendChart extends tsc<ITrendChartProps> {
       };
     } else {
       type = 'bar';
-      targetApi = 'apm_profile.query';
+      targetApi = 'apm_profile.queryProfileBarGraph';
       targetData = {
         ...this.queryParams
       };

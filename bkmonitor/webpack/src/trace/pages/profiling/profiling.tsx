@@ -217,7 +217,7 @@ export default defineComponent({
           if (cur.key && cur.value && isComparison) pre[cur.key] = cur.value;
           return pre;
         }, {}),
-        profile_type: dataType.value,
+        data_type: dataType.value,
         ...(type === SearchType.Upload ? uploadParams : profilingParams)
       };
     }

@@ -94,7 +94,7 @@ class ProfilingChart extends CommonSimpleChart {
       service_name,
       start: (start_time ? dayjs.tz(start_time).unix() : startTime) * Math.pow(10, 6),
       end: (end_time ? dayjs.tz(end_time).unix() : endTime) * Math.pow(10, 6),
-      profile_type: this.dataType
+      data_type: this.dataType
     };
 
     return params;
@@ -126,7 +126,7 @@ class ProfilingChart extends CommonSimpleChart {
           this.queryParams = {
             app_name,
             service_name,
-            profile_type: this.dataType
+            data_type: this.dataType
           };
           this.handleQuery(start_time, end_time);
         }
@@ -228,7 +228,7 @@ class ProfilingChart extends CommonSimpleChart {
     if (this.dataType === val) return;
 
     this.dataType = val;
-    this.queryParams.profile_type = val;
+    this.queryParams.data_type = val;
   }
   getUrlParamsString(obj) {
     const str = Object.keys(obj)
@@ -335,7 +335,7 @@ class ProfilingChart extends CommonSimpleChart {
                   highlightId={this.highlightId}
                   filterKeyword={this.filterKeyword}
                   isCompared={this.queryParams.is_compared}
-                  dataType={this.queryParams.profile_type}
+                  dataType={this.queryParams.data_type}
                   onUpdateHighlightId={id => (this.highlightId = id)}
                   onSortChange={this.handleSortChange}
                 />
