@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-echarts.vue';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 
 import { ICommonItem, SearchType } from './typings/event';
 

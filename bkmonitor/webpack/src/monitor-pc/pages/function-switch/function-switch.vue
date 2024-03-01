@@ -45,7 +45,7 @@
       class="abnormal-data"
     >
       <img
-        alt=''
+        alt=""
         class="abnormal-img"
         src="../../static/images/svg/Abnormal-data.svg"
       >
@@ -62,9 +62,9 @@
 
 <script lang="ts">
 import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
+import { listFunction } from 'monitor-api/modules/function_switch.js';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
-import { listFunction } from '../../../monitor-api/modules/function_switch.js';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 
 import * as funcAuth from './authority-map';

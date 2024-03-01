@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import debounceDecorator from '../../../../../monitor-common/utils/debounce-decorator';
+import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 
 import './group-select.scss';
 

@@ -1167,6 +1167,7 @@ export default {
         const scopeLoadNameShow = Boolean(container.workload_type) || Boolean(container.workload_name);
         const containerExclude = !!containerNameExclude ? '!=' : '=';
         const namespacesExclude = itemNamespacesExclude?.length ? '!=' : '=';
+        const namespaceStr = this.getNameSpaceStr(namespaces);
         return {
           namespaces,
           noQuestParams: {
@@ -1183,7 +1184,7 @@ export default {
               load: !scopeLoadNameShow,
               containerName: !scopeContainerNameShow,
             },
-            namespaceStr: '',
+            namespaceStr,
             containerExclude,
             namespacesExclude,
           },

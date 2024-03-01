@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { feedbackAlert } from '../../../../monitor-api/modules/alert';
-import MonitorDialog from '../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { feedbackAlert } from 'monitor-api/modules/alert';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import './feedback.scss';
 

@@ -99,6 +99,11 @@ class EtlStorage(object):
         """
         raise NotImplementedError(_("功能暂未实现"))
 
+    def get_es_field_type(self, field):
+        if not field.get("option", {}).get("es_type"):
+            return FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
+        return BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string")
+
     def get_result_table_fields(self, fields, etl_params, built_in_config, es_version="5.X"):
         """
         META
@@ -509,7 +514,7 @@ class EtlStorage(object):
         return {
             "key": key,
             "assign_to": key,
-            "type": BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string"),
+            "type": self.get_es_field_type(field),
         }
 
     def _to_bkdata_assign_obj(self, field):
@@ -519,7 +524,7 @@ class EtlStorage(object):
         return {
             "key": "__all_keys__",
             "assign_to": key,
-            "type": BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string"),
+            "type": self.get_es_field_type(field),
         }
 
     def _get_built_in_fields_type_fields(self, built_in_fields):

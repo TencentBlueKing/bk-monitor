@@ -26,9 +26,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { actionDetail } from '../../../../monitor-api/modules/alert';
-import { copyText } from '../../../../monitor-common/utils/utils';
+import { actionDetail } from 'monitor-api/modules/alert';
+import { copyText } from 'monitor-common/utils/utils';
 
 import ActionDetail from './action-detail';
 import EventDetail from './event-detail';

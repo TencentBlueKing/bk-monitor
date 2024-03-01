@@ -27,7 +27,6 @@
 import { Component, Emit, Inject, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
 import {
   getDataEncoding,
   instanceDiscoverKeys,
@@ -36,24 +35,25 @@ import {
   setup,
   start,
   stop
-} from '../../../../monitor-api/modules/apm_meta';
-import { getFieldOptionValues } from '../../../../monitor-api/modules/apm_trace';
-import { deepClone, typeTools } from '../../../../monitor-common/utils/utils';
-import ChangeRcord from '../../../../monitor-pc/components/change-record/change-record';
+} from 'monitor-api/modules/apm_meta';
+import { getFieldOptionValues } from 'monitor-api/modules/apm_trace';
+import { deepClone, typeTools } from 'monitor-common/utils/utils';
+import ChangeRcord from 'monitor-pc/components/change-record/change-record';
 // import CycleInput from '../../../components/cycle-input/cycle-input';
-import CycleInput from '../../../../monitor-pc/components/cycle-input/cycle-input';
+import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 // import {
 // defaultCycleOptionMicroSec,
 // defaultCycleOptionMillisec,
 // defaultCycleOptionMin,
 // defaultCycleOptionSec
-// } from '../../../../monitor-pc/components/cycle-input/utils';
-import { IIpV6Value, INodeType, TargetObjectType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
-import { transformValueToMonitor } from '../../../../monitor-pc/components/monitor-ip-selector/utils';
-import { CONDITION } from '../../../../monitor-pc/constant/constant';
-import SimpleSelectInput from '../../../../monitor-pc/pages/alarm-shield/components/simple-select-input';
-import SelectMenu from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/components/select-menu';
-import StrategyIpv6 from '../../../../monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
+// } from 'monitor-pc/components/cycle-input/utils';
+import { IIpV6Value, INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
+import { CONDITION } from 'monitor-pc/constant/constant';
+import SimpleSelectInput from 'monitor-pc/pages/alarm-shield/components/simple-select-input';
+import SelectMenu from 'monitor-pc/pages/strategy-config/strategy-config-set-new/components/select-menu';
+import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
+
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';

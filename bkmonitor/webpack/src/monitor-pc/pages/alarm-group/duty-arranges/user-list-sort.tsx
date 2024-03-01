@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { random } from '../../../../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
 
 import { randomColor } from './color';
 import UserSelector, { IGroupListItem } from './user-selector';

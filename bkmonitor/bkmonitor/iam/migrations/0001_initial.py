@@ -21,14 +21,17 @@ def migrate_iam(*args, **kwargs):
     # 如果存在view_business的权限，则需要进行旧版权限的迁移
     try:
         pm.query_polices_by_action_id("view_business")
+        IAMMigrator("0001_legacy.json").migrate()
     except AuthAPIError as e:
         if "not found" not in str(e):
             raise e
-        IAMMigrator("0001_initial.json").migrate()
-        return
 
-    IAMMigrator("0001_legacy.json").migrate()
-    IAMMigrator("0001_initial.json").migrate()
+    try:
+        IAMMigrator("0001_initial.json").migrate()
+    except AuthAPIError as e:
+        # 已存在更新的权限，不需要再次迁移
+        if "conflict" not in str(e):
+            raise e
 
 
 class Migration(BaseMigration):

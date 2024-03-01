@@ -748,7 +748,11 @@ class TimeSeriesDataSource(DataSource):
         # 聚合方法参数
         query_list = []
         for metric in self.metrics:
-            table = self.table.lower()
+            if self.data_source_label == DataSourceLabel.BK_DATA:
+                # 计算平台表名大小写敏感
+                table = self.table
+            else:
+                table = self.table.lower()
 
             # 如果接入了数据平台，且是cmdb level表的查询，则需要去除后缀
             if settings.IS_ACCESS_BK_DATA and self.is_cmdb_level_query(
@@ -1030,6 +1034,13 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
             if table_prefix != bk_biz_id:
                 logger.error(f"用户请求bkdata数据源无权限(result_table_id:{self.table}, 业务id: {bk_biz_id})")
                 raise PermissionDeniedError(action_name=bk_biz_id)
+
+    def to_unify_query_config(self) -> List[Dict]:
+        # unify 定义 bkdata 查询配置制定data_source字段
+        query_list = super().to_unify_query_config()
+        for query in query_list:
+            query["data_source"] = "bkdata"
+        return query_list
 
     @classmethod
     def _get_queryset(cls, *, metrics: List[Dict] = None, **kwargs):

@@ -25,11 +25,11 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { createApplication, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { Debounce } from 'monitor-common/utils/utils';
+import { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
 
-import { createApplication, metaConfigInfo } from '../../../../monitor-api/modules/apm_meta';
-import { Debounce } from '../../../../monitor-common/utils/utils';
-import { INavItem, IRouteBackItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import Viewer from '../../../../monitor-ui/markdown-editor/viewer';
 import { ICreateAppFormData } from '../../home/app-list';
 import NavBar from '../../home/nav-bar';
 

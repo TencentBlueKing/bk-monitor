@@ -26,9 +26,8 @@
 import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { TagInput } from 'bkui-vue';
-
-import { listUsersUser } from '../../../../monitor-api/modules/model';
-import { debounce, random } from '../../../../monitor-common/utils';
+import { listUsersUser } from 'monitor-api/modules/model';
+import { debounce, random } from 'monitor-common/utils';
 
 import './member-selector.scss';
 

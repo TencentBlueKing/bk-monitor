@@ -28,7 +28,7 @@
 import Vue from 'vue';
 import VueRouter, { Route, RouteConfig } from 'vue-router';
 
-import { getUrlParam, random } from '../../monitor-common/utils/utils';
+import { getUrlParam, random } from 'monitor-common/utils/utils';
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
@@ -105,6 +105,10 @@ router.beforeEach(async (to, from, next) => {
     !store.getters.bizList?.length
   ) {
     return next({ name: 'no-business' });
+  }
+  if ((document.body as any).___zrEVENTSAVED) {
+    /* 图表tip异常问题解决办法 */
+    (document.body as any).___zrEVENTSAVED = null;
   }
   // 设置本地缓存常用访问列表
   if (isInCommonRoute(to.name)) {

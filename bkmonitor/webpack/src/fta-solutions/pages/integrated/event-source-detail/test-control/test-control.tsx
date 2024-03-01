@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Model } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import Terminal from '../../../../../monitor-pc/pages/plugin-manager/plugin-instance/terminal-instance/terminal-instance';
+import Terminal from 'monitor-pc/pages/plugin-manager/plugin-instance/terminal-instance/terminal-instance';
 
 import './test-control.scss';
 /**

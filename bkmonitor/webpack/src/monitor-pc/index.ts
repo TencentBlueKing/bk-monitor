@@ -28,20 +28,20 @@
 
 // eslint-disable-next-line simple-import-sort/imports
 import './public-path';
-import '../monitor-common/polyfill';
+import 'monitor-common/polyfill';
 import Vue from 'vue';
 import i18n from './i18n/i18n';
 
 import './common/import-magicbox-ui';
-import '../monitor-ui/directive/index';
+import 'monitor-ui/directive/index';
 import './common/global';
 import '../monitor-static/svg-icons';
 
-import Api from '../monitor-api/api';
-import Axios from '../monitor-api/axios/axios';
-import { setVue } from '../monitor-api/utils/index';
-import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
-import { getUrlParam, mergeSpaceList, setGlobalBizId } from '../monitor-common/utils';
+import Api from 'monitor-api/api';
+import Axios from 'monitor-api/axios/axios';
+import { setVue } from 'monitor-api/utils/index';
+import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import App from './pages/app';
 import router from './router/router';

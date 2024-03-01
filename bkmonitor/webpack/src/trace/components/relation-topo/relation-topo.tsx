@@ -42,8 +42,8 @@ import G6, { Graph, IEdge, INode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { traceDiagram } from 'monitor-api/modules/apm_trace';
 
-import { traceDiagram } from '../../../monitor-api/modules/apm_trace';
 import { formatDuration } from '../../components/trace-view/utils/date';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';

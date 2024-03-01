@@ -36,6 +36,9 @@ pytestmark = pytest.mark.django_db
 
 
 class TestCloseStatusChecker(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     def setUp(self) -> None:
         LAST_CHECKPOINTS_CACHE_KEY.client.flushall()
         check_time = arrow.now().replace(seconds=-200).timestamp

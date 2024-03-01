@@ -27,8 +27,7 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { createFavoriteGroup, listFavoriteGroup } from '../../../../monitor-api/modules/model';
+import { createFavoriteGroup, listFavoriteGroup } from 'monitor-api/modules/model';
 
 import './add-collect-dialog.scss';
 import 'vue-json-pretty/lib/styles.css';

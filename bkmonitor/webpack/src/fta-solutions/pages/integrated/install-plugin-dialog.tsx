@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 //
-import { createEventPluginInstance, getEventPluginInstance } from '../../../monitor-api/modules/event_plugin';
+import { createEventPluginInstance, getEventPluginInstance } from 'monitor-api/modules/event_plugin';
+
 import DynamicForm from '../setting/set-meal/set-meal-add/components/dynamic-form/dynamic-form';
 
 import './install-plugin-dialog.scss';

@@ -26,11 +26,11 @@
 /* eslint-disable camelcase */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { deepClone } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce, throttle } from 'throttle-debounce';
 
-import { getMetricListV2 } from '../../../../../monitor-api/modules/strategies';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { MetricDetail } from '../typings/index';
 
 import './strategy-metric-alert.scss';

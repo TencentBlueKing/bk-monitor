@@ -27,17 +27,13 @@
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { alertGraphQuery } from '../../../../monitor-api/modules/alert';
-import { logQuery } from '../../../../monitor-api/modules/grafana';
-import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
-import { transformDataKey, typeTools } from '../../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import {
-  IDetectionConfig,
-  MetricType
-} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-import MonitorEchart from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
+import { alertGraphQuery } from 'monitor-api/modules/alert';
+import { logQuery } from 'monitor-api/modules/grafana';
+import { fetchItemStatus } from 'monitor-api/modules/strategies';
+import { transformDataKey, typeTools } from 'monitor-common/utils/utils';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { IDetectionConfig, MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import MonitorEchart from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import AiopsChartEvent, { createAutoTimerange } from './aiops-chart';
 import IntelligenceScene from './intelligence-scene';

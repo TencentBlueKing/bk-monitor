@@ -27,8 +27,8 @@
 /* eslint-disable no-nested-ternary */
 /* eslint-disable camelcase */
 import { TranslateResult } from 'vue-i18n';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../../../monitor-common/utils/utils';
 import { CP_METHOD_LIST, INTERVAL_LIST, METHOD_LIST } from '../../../../constant/constant';
 import { IModelData } from '../detection-rules/components/time-series-forecast/time-series-forecast';
 

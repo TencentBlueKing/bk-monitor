@@ -506,7 +506,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "nested",
                 path="event.tags",
                 query=Q("term", **{"event.tags.key": condition["key"][5:]})
-                & Q("terms", **{"event.tags.value": condition["value"]}),
+                & Q("terms", **{"event.tags.value.raw": condition["value"]}),
             )
         elif condition["key"] == "alert_name":
             condition["key"] = "alert_name.raw"

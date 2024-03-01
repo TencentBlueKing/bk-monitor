@@ -27,11 +27,11 @@
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 import { GridItem, GridLayout } from 'monitor-vue-grid-layout';
 
-import bus from '../../../monitor-common/utils/event-bus';
-import { random } from '../../../monitor-common/utils/utils';
-import { ITableItem, SceneType } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import { DashboardColumnType, IGridPos, IPanelModel, PanelModel } from '../typings';
 
 import ChartCollect from './chart-collect/chart-collect';

@@ -21,9 +21,6 @@ from django.conf import settings
 from django.db.models import Q
 from django.forms import model_to_dict
 from django.utils import timezone
-from monitor_web.grafana.utils import get_cookies_filter, remove_all_conditions
-from monitor_web.statistics.v2.query import unify_query_count
-from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -57,6 +54,9 @@ from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
+from monitor_web.grafana.utils import get_cookies_filter, remove_all_conditions
+from monitor_web.statistics.v2.query import unify_query_count
+from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 
 logger = logging.getLogger(__name__)
 
@@ -689,11 +689,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         # 指标信息查询
         metrics = self.get_metric_info(params)
 
-        # 查询目标实例
-        if not self.get_target_instance(params):
-            return {"series": [], "metrics": metrics}
-
-        # 数据查询
+        # 配置预处理
         for query_config in params["query_configs"]:
             query_config.pop("time_field", None)
 
@@ -720,6 +716,10 @@ class UnifyQueryRawResource(ApiAuthResource):
                 query_config["interval"] = get_auto_interval(60, params["start_time"], params["end_time"])
             # 删除全选条件
             query_config["where"] = remove_all_conditions(query_config["where"])
+
+        # 查询目标实例
+        if not self.get_target_instance(params):
+            return {"series": [], "metrics": metrics}
 
         # 维度top/bottom排序
         params = RankProcessor.process_params(params)
@@ -949,6 +949,9 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
     def perform_request(self, params):
         raw_query_result = super(GraphUnifyQueryResource, self).perform_request(params)
         points = raw_query_result["series"]
+        if not points:
+            return raw_query_result
+
         metrics = raw_query_result["metrics"]
 
         # 数据格式化

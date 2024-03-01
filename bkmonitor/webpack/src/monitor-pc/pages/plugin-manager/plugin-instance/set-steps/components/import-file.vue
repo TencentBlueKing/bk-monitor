@@ -51,7 +51,6 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
-
 import MonitorImport from '../../../../../components/monitor-import/monitor-import.vue';
 
 interface IFileInfo {

@@ -25,9 +25,9 @@
  */
 import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { IQueryData } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import { ChartLoadingMixin, ErrorMsgMixins, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../mixins';
 import { ICommonCharts, IViewOptions, PanelModel } from '../typings';
 

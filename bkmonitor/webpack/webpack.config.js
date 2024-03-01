@@ -58,11 +58,11 @@ module.exports = async (baseConfig, { production, app }) => {
     config.devServer = {
       port,
       host: devConfig.host,
-      proxy: {
+      proxy: [{
         ...devConfig.proxy,
         proxyTimeout: 5 * 60 * 1000,
         timeout: 5 * 60 * 1000
-      },
+      }],
       client: {
         overlay: false
       },

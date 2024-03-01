@@ -1,3 +1,3 @@
 module.exports = {
- ...require('../monitor-pc/.prettierrc.js')
+ ...require('monitor-pc/.prettierrc.js')
 };

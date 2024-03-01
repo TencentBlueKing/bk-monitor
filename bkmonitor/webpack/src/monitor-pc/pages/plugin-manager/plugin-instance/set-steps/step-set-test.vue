@@ -58,7 +58,9 @@
                   {{ rules.port.message }}
                 </div>
               </bk-popover>
-              <div class="item-param-name">${port}=</div>
+              <div class="item-param-name">
+                ${port}=
+              </div>
               <verify-input
                 :show-validate.sync="rules.port.validate"
                 :validator="{ content: '' }"
@@ -78,7 +80,9 @@
           </div>
           <div class="item-content">
             <div class="item-param readonly-container">
-              <div class="item-param-name">${host}=</div>
+              <div class="item-param-name">
+                ${host}=
+              </div>
               <bk-input
                 v-model="info.url"
                 class="item-param-input"
@@ -298,8 +302,7 @@
             <span
               class="item-icon icon-arm"
               v-if="item.osType === 'linux_aarch64'"
-              >ARM</span
-            >
+            >ARM</span>
             <i
               v-else
               :class="['item-icon icon-monitor', `icon-${item.osType}`]"
@@ -309,8 +312,7 @@
               <span
                 v-else
                 class="item-placeholder"
-                >{{ $t('点击选择测试目标') }}</span
-              >
+              >{{ $t('点击选择测试目标') }}</span>
             </div>
             <i
               v-show="item.ip"
@@ -344,8 +346,7 @@
                       <span
                         class="title-icon-logo icon-arm"
                         v-if="item.osType === 'linux_aarch64'"
-                        >ARM</span
-                      >
+                      >ARM</span>
                       <i
                         v-else
                         :class="['icon-monitor title-icon-logo', `icon-${item.osType}`]"
@@ -354,8 +355,8 @@
                       <img
                         src="../../../../static/images/svg/spinner.svg"
                         v-if="item.status === 3"
-                        alt=''
-                      />
+                        alt=""
+                      >
                       <i
                         class="bk-icon icon-exclamation-circle-shape status-exception title-icon-status"
                         v-else-if="item.status === 2"
@@ -393,7 +394,9 @@
               >
                 {{ $t('设置指标&维度') }}
               </div>
-              <div class="desc-text">{{ $t('数据抓取限时') }} <span class="desc-time">600</span> {{ $t('秒') }}</div>
+              <div class="desc-text">
+                {{ $t('数据抓取限时') }} <span class="desc-time">600</span> {{ $t('秒') }}
+              </div>
             </div>
           </div>
         </div>
@@ -454,15 +457,16 @@
   </div>
 </template>
 <script>
-import { CancelToken } from '../../../../../monitor-api/index';
-// import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { CancelToken } from 'monitor-api/index';
+// import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 // import MetricDimension from './metric-dimension/metric-dimension-dialog.vue';
 import {
   fetchDebugLogCollectorPlugin,
   startDebugCollectorPlugin,
   stopDebugCollectorPlugin
-} from '../../../../../monitor-api/modules/model';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/model';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 import formLabelMixin from '../../../../mixins/formLabelMixin';
 import { transformJobUrl } from '../../../../utils/index';
@@ -666,27 +670,23 @@ export default {
      * @param {*} data 指标数据
      */
     automaticGrouping(data, allDataList) {
-      const allData =
-        allDataList ||
-        data.reduce(
-          (total, cur) =>
-            total.concat(
-              cur?.metricJson?.map(metric => ({
-                osType: cur.osType,
-                ...metric
-              })) || []
-            ),
+      const allData =        allDataList
+        || data.reduce(
+          (total, cur) => total.concat(cur?.metricJson?.map(metric => ({
+            osType: cur.osType,
+            ...metric
+          })) || []),
           []
         );
       const groupMap = {};
       const EMPTY_DIMENSIONS = '__is_empty_dimensions__';
-      const getKey = dimensions => {
+      const getKey = (dimensions) => {
         const keys = dimensions.map(dim => dim.dimension_name).sort();
         return keys?.length ? keys.join('-') : EMPTY_DIMENSIONS;
       };
       allData
         .sort((a, b) => b.dimensions.length - a.dimensions.length)
-        .forEach(item => {
+        .forEach((item) => {
           const key = getKey(item.dimensions);
           const groupMapKeyList = Object.keys(groupMap);
           const resKey = groupMapKeyList.find(itemKey => key.split('-').every(k => itemKey.indexOf(k) > -1));
@@ -694,7 +694,7 @@ export default {
           list ? list.push(item) : (groupMap[key] = [item]);
         });
       const result = [];
-      Object.keys(groupMap).forEach(key => {
+      Object.keys(groupMap).forEach((key) => {
         if (key === EMPTY_DIMENSIONS) {
           result.unshift(groupMap[key]);
         } else {
@@ -714,10 +714,10 @@ export default {
         }
         return total;
       }, list);
-      list.map(item => {
+      list.map((item) => {
         item.disabled = false;
-        item.type === 'list' &&
-          (item.election = item.election.map(option => {
+        item.type === 'list'
+          && (item.election = item.election.map((option) => {
             if (typeof option === 'object') return option;
             return {
               id: option,
@@ -734,7 +734,7 @@ export default {
         return item;
       });
       const securityLevel = list.find(item => item.key === 'security_level');
-      list.forEach(item => {
+      list.forEach((item) => {
         // snmp v3 必选参数
         if (this.info.plugin_type === 'SNMP' && +this.info.collector_json?.snmp_version === 3) {
           // eslint-disable-line
@@ -841,11 +841,11 @@ export default {
         enable_field_blacklist: pluginInfo.enable_field_blacklist,
         is_split_measurement: pluginInfo.is_split_measurement
       };
-      Object.keys(pluginInfo).forEach(item => {
+      Object.keys(pluginInfo).forEach((item) => {
         info[item] = pluginInfo[item];
       });
       // 处理 `pluginInfo.systemList`，并赋值给 `info.host_info`
-      pluginInfo.systemList.forEach(item => {
+      pluginInfo.systemList.forEach((item) => {
         info.host_info.push({
           osName: item.os_type,
           osType: item.os_type,
@@ -894,11 +894,11 @@ export default {
       const hostInfo = data || this.info.host_info;
       //  合并各种操作系统的数据到arr
       const arr = [];
-      hostInfo.forEach(host => {
+      hostInfo.forEach((host) => {
         if (host.metricJson) {
-          host.metricJson.forEach(item => {
+          host.metricJson.forEach((item) => {
             const metric = this.getNewRow('metric', item.metric_name, item.metric_value, item.osType || host.osType);
-            item.dimensions.forEach(el => {
+            item.dimensions.forEach((el) => {
               arr.push(this.getNewRow('dimension', el.dimension_name, el.dimension_value, item.osType || host.osType));
               metric.dimensions.push(el.dimension_name);
               metric.tag_list.push({
@@ -914,7 +914,7 @@ export default {
       });
       //  把不同操作系统的相同指标/维度的Value合并在一起
       const newArr = [];
-      arr.forEach(item => {
+      arr.forEach((item) => {
         const newItem = newArr.find(el => el.name === item.name);
         if (newItem) {
           newItem.value[item.osType] = item.value[item.osType];
@@ -934,10 +934,10 @@ export default {
         allName = [...allName, ...res];
       });
       //  把新增的指标/维度放进默认分组，并刷新 指标维度关联表(dimensions: [])
-      newData.forEach(item => {
+      newData.forEach((item) => {
         const newItem = allName.find(el => el.name === item.name);
         if (newItem) {
-          tableData[newItem.groupIndex].fields.forEach(el => {
+          tableData[newItem.groupIndex].fields.forEach((el) => {
             if (el.name === item.name) {
               el.dimensions = item.dimensions;
             }
@@ -964,12 +964,12 @@ export default {
           fields: []
         });
       } else {
-        metricJson.forEach(group => {
+        metricJson.forEach((group) => {
           group.dimensions = group.fields.reduce((total, item) => {
             if (item.dimensions) total.push(...item.dimensions);
             return total;
           }, []);
-          group.fields.forEach(item => {
+          group.fields.forEach((item) => {
             item.showInput = false;
             item.isCheck = false;
             item.isDel = true;
@@ -988,33 +988,29 @@ export default {
       }
       let allMetric = this.getAllNewMetricDimensions(this.info.host_info);
       const allMetricOld = metricJson.reduce((total, item) => total.concat(item.fields), []);
-      metricJson.forEach(group => {
+      metricJson.forEach((group) => {
         const temp = deepClone(group.fields);
         const groupDim = group.dimensions;
         const fieldsName = group.fields.reduce((total, field) => {
           if (field.monitor_type === 'metric') total.push(field.name);
           return total;
         }, []);
-        allMetric = allMetric.map(metric => {
+        allMetric = allMetric.map((metric) => {
           if (!metric) return null;
           const diemArr = metric.dimensions?.map?.(item => item.dimension_name) || [];
           const newMetric = this.getNewRow('metric', metric.metric_name, metric.metric_value, metric.osType);
           // eslint-disable-next-line vue/max-len
-          const dimensionsList = metric.dimensions.map(dim =>
-            this.getNewRow('dimension', dim.dimension_name, dim.dimension_value, metric.osType)
-          );
+          const dimensionsList = metric.dimensions.map(dim => this.getNewRow('dimension', dim.dimension_name, dim.dimension_value, metric.osType));
           /** 是否存在重复的指标 */
           // eslint-disable-next-line vue/max-len
-          const isExistMetric = !!allMetricOld.find(
-            old => old.name === newMetric.name || old.sourceName === newMetric.name
-          );
+          const isExistMetric = !!allMetricOld.find(old => old.name === newMetric.name || old.sourceName === newMetric.name);
           if (fieldsName.includes(metric.metric_name)) {
             /** 存在的指标 更新指标和维度*/
             const existItem = temp.find(tem => tem.name === newMetric.name || tem.sourceName === newMetric.name);
             if (!!existItem) {
               existItem.value = newMetric.value;
             }
-            dimensionsList.forEach(dim => {
+            dimensionsList.forEach((dim) => {
               const existItem = temp.find(tem => tem.name === dim.name || tem.sourceName === dim.name);
               if (!!existItem) {
                 existItem.value = dim.value;
@@ -1027,7 +1023,7 @@ export default {
           if (!isExistMetric) {
             /** 新的指标添加到具有同维度的分组 */
             if (this.checkArrIntersection(groupDim, diemArr)) {
-              dimensionsList.forEach(dim => {
+              dimensionsList.forEach((dim) => {
                 const existItem = temp.find(tem => tem.name === dim.name || tem.sourceName === dim.name);
                 if (!!existItem) {
                   existItem.value = dim.value;
@@ -1061,15 +1057,14 @@ export default {
       }
 
       // 根据dimensions 生成 tag_list
-      metricJson.forEach(group => {
-        group.fields.forEach(field => {
-          field.tag_list =
-            field.dimensions?.map(dim => ({
-              field_name: dim,
-              unit: '--',
-              type: 'string',
-              description: ''
-            })) || [];
+      metricJson.forEach((group) => {
+        group.fields.forEach((field) => {
+          field.tag_list =            field.dimensions?.map(dim => ({
+            field_name: dim,
+            unit: '--',
+            type: 'string',
+            description: ''
+          })) || [];
         });
       });
       this.metricData = deepClone(metricJson);
@@ -1086,13 +1081,10 @@ export default {
      */
     getAllNewMetricDimensions(list) {
       return list.reduce(
-        (total, cur) =>
-          total.concat(
-            cur?.metricJson?.map(metric => ({
-              osType: cur.osType,
-              ...metric
-            })) || []
-          ),
+        (total, cur) => total.concat(cur?.metricJson?.map(metric => ({
+          osType: cur.osType,
+          ...metric
+        })) || []),
         []
       );
     },
@@ -1158,7 +1150,7 @@ export default {
         const portParam = configJson.find(item => item.name === 'port') || {};
         collector.port = portParam.default.trim() || '';
       }
-      configJson.forEach(item => {
+      configJson.forEach((item) => {
         if (pluginType === 'Pushgateway' && item.mode === 'collector') {
           collector[item.name] = this.getItemParam(item);
         } else if (pluginType === 'Pushgateway' && item.mode !== 'collector') {
@@ -1191,7 +1183,7 @@ export default {
       this.debugLoading = true;
       const params = this.getDebugParams();
       this.isSelectedTip = this.isSelectedTip || false;
-      this.info.host_info.forEach(async item => {
+      this.info.host_info.forEach(async (item) => {
         // 只对选择了主机的操作系统  status： 1成功  2失败  3调试中
         if (item.ip) {
           if (item.taskId && item.status === 1) {
@@ -1210,7 +1202,7 @@ export default {
               bk_host_id: item.bk_host_id
             }
           })
-            .then(data => {
+            .then((data) => {
               const taskId = data.task_id;
               item.isDebug = true;
               item.status = 3; // 调试中
