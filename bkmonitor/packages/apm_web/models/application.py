@@ -8,13 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from celery import task
 from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.trace import SpanAttributes
-from celery import task
 
 from apm_web.constants import (
     APM_IS_SLOW_ATTR_KEY,
@@ -484,6 +484,7 @@ class Application(AbstractRecordModel):
         self.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
         self.metric_result_table_id = datasource_info["metric_config"]["result_table_id"]
         self.time_series_group_id = datasource_info["metric_config"]["time_series_group_id"]
+        # 应用创建时根据是否创建了 profiling 作为开启/关闭状态
         self.is_enabled_profiling = True if "profile_config" in datasource_info else False
         self.save()
         ApmMetaConfig.application_config_setup(
@@ -538,9 +539,7 @@ class Application(AbstractRecordModel):
         permission = Permission()
         for user in list(maintainers):
             permission.grant_creator_action(
-                ResourceEnum.APM_APPLICATION.create_simple_instance(
-                    app_id, {"bk_biz_id": application.bk_biz_id}
-                ),
+                ResourceEnum.APM_APPLICATION.create_simple_instance(app_id, {"bk_biz_id": application.bk_biz_id}),
                 creator=user,
             )
 
