@@ -263,12 +263,12 @@ import { dimensionUnifyQuery } from 'monitor-api/modules/grafana';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
-import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
 import { strategyMapMixin } from '../../common/mixins';
 import CustomSelect from '../../components/custom-select/custom-select';
 import CycleInput from '../../components/cycle-input/cycle-input';
 import { secToString } from '../../components/cycle-input/utils';
+import PromqlEditor from '../../components/promql-editor/promql-editor';
 // import { handleTimeRange } from '../../utils/index';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { CONDITION_METHOD_LIST } from '../../constant/constant';

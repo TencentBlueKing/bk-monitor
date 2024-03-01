@@ -22,7 +22,6 @@
     "async-validator": "^3.5.2",
     "big.js": "^6.1.1",
     "bk-magic-vue": "^2.5.8-beta.5",
-    "codemirror": "^5.52.2",
     "dayjs": "^1.11.10",
     "deepmerge": "^4.2.2",
     "element-ui": "2.7.2",
