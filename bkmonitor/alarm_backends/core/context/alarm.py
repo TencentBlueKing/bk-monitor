@@ -840,6 +840,9 @@ class Alarm(BaseContextObject):
             result = RecommendMetricManager(
                 self.parent.alert, ReadOnlyAiSetting(self.parent.alert.event["bk_biz_id"], self.ai_setting_config)
             ).fetch_aiops_result()
+        except AIOpsFunctionAccessedError:
+            # 功能未开启通过指标暴露，不额外打日志
+            raise
         except Exception as e:
             logger.exception(
                 f"alert({self.parent.alert.id})-action("
