@@ -15,4 +15,3 @@ docker cp web-temp-container:/code/frontend.tar.gz "$target"
 
 docker rm web-temp-container
 
-docker rmi bkmonitor_web_build
