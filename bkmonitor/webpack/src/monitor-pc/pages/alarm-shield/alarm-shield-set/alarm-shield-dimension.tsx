@@ -25,12 +25,12 @@
  */
 import { Component, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
+import { addShield, editShield } from 'monitor-api/modules/shield';
+import { getMetricListV2, getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { Debounce, random } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
-import WhereDisplay from '../../../../fta-solutions/pages/event/event-detail/where-display';
-import { addShield, editShield } from '../../../../monitor-api/modules/shield';
-import { getMetricListV2, getStrategyListV2 } from '../../../../monitor-api/modules/strategies';
-import { Debounce, random } from '../../../../monitor-common/utils/utils';
 import ShieldDateConfig from '../alarm-shield-components/alarm-shield-date.vue';
 import AlarmShieldNotice from '../alarm-shield-components/alarm-shield-notice.vue';
 import SimpleConditionInput from '../components/simple-condition-input';

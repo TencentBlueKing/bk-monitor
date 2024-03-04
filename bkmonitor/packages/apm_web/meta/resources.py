@@ -107,7 +107,7 @@ from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import get_global_user, get_request_username
 from common.log import logger
-from constants.alert import EventSeverity
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.apm import (
     DataSamplingLogTypeChoices,
     FlowType,
@@ -496,7 +496,7 @@ class SetupResource(Resource):
                         raise ValueError(_("随机采样未配置采集百分比"))
                 elif attrs["sampler_type"] == SamplerTypeChoices.TAIL:
                     if "sampler_percentage" not in attrs:
-                        raise ValueError(f"尾部采样未配置采集百分比")
+                        raise ValueError("尾部采样未配置采集百分比")
 
                 if attrs.get("tail_conditions"):
                     t = [i for i in attrs["tail_conditions"] if i["key"] and i["method"] and i["value"]]
@@ -1608,7 +1608,7 @@ class NoDataStrategyInfoResource(Resource):
                 "config": {
                     "interval_notify_mode": "standard",
                     "notify_interval": 2 * 60 * 60,
-                    "template": settings.DEFAULT_NOTICE_MESSAGE_TEMPLATE,
+                    "template": DEFAULT_NOTICE_MESSAGE_TEMPLATE,
                 },
             },
             "actions": [],

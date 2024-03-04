@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 
-import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
 import { handleGotoLink } from '../../common/constant';
 import { ETagsType } from '../biz-select/list';
 

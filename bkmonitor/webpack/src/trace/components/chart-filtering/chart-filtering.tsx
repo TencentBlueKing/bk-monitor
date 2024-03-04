@@ -27,8 +27,8 @@
 import { computed, defineComponent, ref, watch } from 'vue';
 import { Slider } from 'bkui-vue';
 import deepmerge from 'deepmerge';
+import { deepClone } from 'monitor-common/utils';
 
-import { deepClone } from '../../../monitor-common/utils';
 import { useTraceStore } from '../../store/modules/trace';
 import { formatDuration } from '../trace-view/utils/date';
 

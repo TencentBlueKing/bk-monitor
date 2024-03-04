@@ -25,9 +25,9 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { monitorDrag } from 'monitor-common/utils/drag-directive';
+import { deepClone, random } from 'monitor-common/utils/utils';
 
-import { monitorDrag } from '../../../../monitor-common/utils/drag-directive';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import CompareSelect from '../../monitor-k8s/components/panel-tools/compare-select';
 import PanelsTools from '../../monitor-k8s/components/panel-tools/panel-tools';

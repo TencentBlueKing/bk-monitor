@@ -26,8 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { importEventPlugin } from '../../../monitor-api/modules/event_plugin';
+import { importEventPlugin } from 'monitor-api/modules/event_plugin';
 
 export type ViewType = 'list' | 'card';
 interface ITypeData {

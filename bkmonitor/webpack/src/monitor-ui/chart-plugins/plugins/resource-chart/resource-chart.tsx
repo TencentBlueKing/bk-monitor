@@ -27,10 +27,10 @@
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { getDataSourceConfig } from 'monitor-api/modules/grafana';
+import { deepClone } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { getDataSourceConfig } from '../../../../monitor-api/modules/grafana';
-import { deepClone } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import ChartHeader from '../../components/chart-title/chart-title';
 import {
   ChartTitleMenuType,

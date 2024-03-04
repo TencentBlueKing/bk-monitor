@@ -25,17 +25,17 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import ResizeContainer from '../../../../fta-solutions/components/resize-container/resize-container';
-import AutoInput from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
-import CustomTab from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import ResizeContainer from 'fta-solutions/components/resize-container/resize-container';
+import AutoInput from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
+import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import {
   DEFAULT_MESSAGE_TMPL,
   DEFAULT_TITLE_TMPL
-} from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import { getConvergeFunction, getVariables } from '../../../../monitor-api/modules/action';
-import { listActionConfig, listUserGroup } from '../../../../monitor-api/modules/model';
-import { deepClone } from '../../../../monitor-common/utils/utils';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import { getConvergeFunction, getVariables } from 'monitor-api/modules/action';
+import { listActionConfig, listUserGroup } from 'monitor-api/modules/model';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import MultiLabelSelect from '../../../components/multi-label-select/multi-label-select';
 import TimePickerMultiple from '../../../components/time-picker-multiple/time-picker-multiple';
 import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input.vue';

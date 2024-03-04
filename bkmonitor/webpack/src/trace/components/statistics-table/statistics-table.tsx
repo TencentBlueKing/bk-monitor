@@ -26,15 +26,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { computed, defineComponent, inject, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Loading, Message, Popover, Table } from 'bkui-vue';
 import { AngleDownFill, AngleUpFill } from 'bkui-vue/lib/icon';
+import { traceDiagram, traceStatistics } from 'monitor-api/modules/apm_trace';
+import { deepClone, random } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram, traceStatistics } from '../../../monitor-api/modules/apm_trace';
-import { deepClone, random } from '../../../monitor-common/utils';
 import { statisticDiffTableSetting, statisticTableSetting } from '../../pages/main/inquire-content/table-settings';
 import { useTraceStore } from '../../store/modules/trace';
 import { updateTemporaryCompareTrace } from '../../utils/compare';

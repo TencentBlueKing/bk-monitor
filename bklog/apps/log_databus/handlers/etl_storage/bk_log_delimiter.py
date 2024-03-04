@@ -22,9 +22,10 @@ the project delivered to anyone in the future.
 import copy
 import json
 
+from django.utils.translation import ugettext_lazy as _
+
 from apps.exceptions import ValidationError
 from apps.log_databus.constants import (
-    BKDATA_ES_TYPE_MAP,
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
@@ -36,7 +37,6 @@ from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
 from apps.utils.db import array_group
 from apps.utils.log import logger
-from django.utils.translation import ugettext_lazy as _
 
 
 class BkLogDelimiterEtlStorage(EtlStorage):
@@ -182,9 +182,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                                                                     "assign_to": field["alias_name"]
                                                                     if field["alias_name"]
                                                                     else field["field_name"],
-                                                                    "type": BKDATA_ES_TYPE_MAP.get(
-                                                                        field.get("option").get("es_type"), "string"
-                                                                    ),
+                                                                    "type": self.get_es_field_type(field),
                                                                 }
                                                                 for field in bkdata_fields
                                                             ],

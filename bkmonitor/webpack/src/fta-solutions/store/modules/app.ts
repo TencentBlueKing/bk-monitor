@@ -30,8 +30,8 @@
  */
 /* eslint-disable new-cap */
 import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
 import { ISpaceItem } from '../../typings';
 
 export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';

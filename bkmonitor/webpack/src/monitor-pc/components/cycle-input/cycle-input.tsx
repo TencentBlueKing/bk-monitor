@@ -87,6 +87,11 @@ export default class CycleInput extends tsc<IProps, IEvent> {
       return;
     }
     const timeVal = /([0-9]+)([sm]?)/.exec(val.toString());
+    // 因为1m和60s相等， 需要进行特殊处理，否则会出现手动切换成1m时，会转化成60s
+    if (val === 60) {
+      this.localValue = this.unit === 's' ? 60 : 1;
+      return;
+    }
     if (!timeVal[2] && +timeVal[1] > 60) {
       this.unit = 'm';
       this.localValue = +timeVal[1] / 60;

@@ -39,6 +39,10 @@ from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
 from apps.utils.log import logger
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class DataAccessHandler(BaseAiopsHandler):
@@ -114,6 +118,24 @@ class DataAccessHandler(BaseAiopsHandler):
             return settings.DEFAULT_KAFKA_HOST
         return broker
 
+    def validate_bk_biz_id(bk_biz_id: int) -> int:
+        """
+        采集项业务id校验
+        :return:
+        """
+
+        # 业务id为正数，表示空间类型是bkcc，可以调用cmdb相关接口
+        bk_biz_id = int(bk_biz_id)
+        if bk_biz_id > 0:
+            return bk_biz_id
+        # 业务id为负数，需要获取空间关联的真实业务id
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+        if space:
+            return space.bk_biz_id
+        # 无业务关联的空间，不允许创建清洗任务
+        raise NoRelatedResourceError(_(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建清洗任务").format(bk_biz_id=bk_biz_id))
+
     def sync_bkdata_etl(self, collector_config_id):
         collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
         etl_config = collector_config.get_etl_config()
@@ -152,7 +174,7 @@ class DataAccessHandler(BaseAiopsHandler):
                 fields_names.add(field_name)
 
         if clustering_config.bkdata_data_id == collector_config.bk_data_id:
-            bk_biz_id = collector_config.bk_biz_id
+            bk_biz_id = self.validate_bk_biz_id(collector_config.bk_biz_id)
         else:
             # 旧版聚类链路，清洗走公共业务
             bk_biz_id = self.conf.get("bk_biz_id")

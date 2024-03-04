@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Vue } from 'vue-property-decorator';
 import type { EChartOption } from 'echarts';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../monitor-common/utils/utils';
 import { ILegendItem, LegendActionType } from '../typings';
 
 @Component

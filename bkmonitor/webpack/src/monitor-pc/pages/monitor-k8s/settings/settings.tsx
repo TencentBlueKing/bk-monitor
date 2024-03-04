@@ -25,14 +25,9 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import {
-  deleteSceneView,
-  getSceneView,
-  getSceneViewList,
-  updateSceneView
-} from '../../../../monitor-api/modules/scene_view';
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import { IBookMark, ISettingTpl, SettingsDashboardType, SettingsWrapType } from '../typings';
 import { SettingsTabType, SettingsVarType, SettingType } from '../typings/settings';
 import { SETTINGS_POP_ZINDEX } from '../utils';

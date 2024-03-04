@@ -25,8 +25,8 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
 
-import Viewer from '../../../../../../monitor-ui/markdown-editor/viewer';
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 
 import VariableList from './variable-list/variable-list';

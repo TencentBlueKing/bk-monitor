@@ -1167,6 +1167,7 @@ export default {
         const scopeLoadNameShow = Boolean(container.workload_type) || Boolean(container.workload_name);
         const containerExclude = !!containerNameExclude ? '!=' : '=';
         const namespacesExclude = itemNamespacesExclude?.length ? '!=' : '=';
+        const namespaceStr = this.getNameSpaceStr(namespaces);
         return {
           namespaces,
           noQuestParams: {
@@ -1183,7 +1184,7 @@ export default {
               load: !scopeLoadNameShow,
               containerName: !scopeContainerNameShow,
             },
-            namespaceStr: '',
+            namespaceStr,
             containerExclude,
             namespacesExclude,
           },
@@ -2332,6 +2333,7 @@ export default {
       background: #fafbfd;
       border-bottom: 1px solid #dcdee5;
       margin-top: 0;
+      font-size: 12px;
     }
 
     .choose-table-item-body {
@@ -2504,7 +2506,7 @@ export default {
       .environment-category {
         display: inline-block;
         font-weight: 400;
-        font-size: 14px;
+        font-size: 12px;
         margin: 6px 0;
         color: #63656e;
       }
@@ -2523,6 +2525,7 @@ export default {
           align-items: center;
           cursor: pointer;
           user-select: none;
+          font-size: 12px;
 
           img {
             padding: 0 8px 0 4px;

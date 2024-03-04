@@ -173,7 +173,12 @@
     <span
       class="is-error"
       v-if="errorMsg"
-      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip', allowHTML: false }"
+      v-bk-tooltips="{
+        content: errorMsg,
+        placement: 'top-start',
+        extCls: 'monitor-wrapper-error-tooltip',
+        allowHTML: false
+      }"
     />
     <div
       v-if="hasResize"
@@ -235,11 +240,11 @@ import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
+import { traceListById } from 'monitor-api/modules/apm_trace';
+import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
+import { downCsvFile, IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
 
-import { traceListById } from '../../monitor-api/modules/apm_trace';
-import { copyText, hexToRgbA } from '../../monitor-common/utils/utils';
-import { downCsvFile, IUnifyQuerySeriesItem } from '../../monitor-pc/pages/view-detail/utils';
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
 
 import ChartAnnotation from './components/chart-annotation.vue';
@@ -720,7 +725,7 @@ export default class MonitorEcharts extends Vue {
     this.needObserver = false;
     try {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
-      const data = await this.getSeriesData(startTime, endTime, isRange).catch((e) => {
+      const data = await this.getSeriesData(startTime, endTime, isRange).catch(() => {
         return [];
       });
       this.seriesData = [...data].map(item => ({
@@ -801,6 +806,7 @@ export default class MonitorEcharts extends Vue {
           showExtremum: this.chartOption.legend.asTable,
           chartOption: this.chartOption
         });
+
         const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(series), {});
         if (['bar', 'line'].includes(this.chartType)) {
           this.legend.show = hasSeries && optionData.legendData.length > 0;
@@ -839,33 +845,33 @@ export default class MonitorEcharts extends Vue {
                 this.initChartAction();
                 this.chart.on('dataZoom', async (event) => {
                   this.loading = true;
-                    const [batch] = event.batch;
-                    if (batch.startValue && batch.endValue) {
-                      const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-                      let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-                      if (!this.showTitleTool) {
-                        const dataPoints = this.seriesData?.[0]?.datapoints;
-                        if(dataPoints?.length) {
-                          const maxX = dataPoints[dataPoints.length - 1]?.[1];
-                          if(+batch.endValue.toFixed(0) === maxX) {
-                            timeTo = dayjs().format('YYYY-MM-DD HH:mm');
-                          }
+                  const [batch] = event.batch;
+                  if (batch.startValue && batch.endValue) {
+                    const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                    let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                    if (!this.showTitleTool) {
+                      const dataPoints = this.seriesData?.[0]?.datapoints;
+                      if (dataPoints?.length) {
+                        const maxX = dataPoints[dataPoints.length - 1]?.[1];
+                        if (+batch.endValue.toFixed(0) === maxX) {
+                          timeTo = dayjs().format('YYYY-MM-DD HH:mm');
                         }
                       }
-                      this.timeRange = [timeFrom, timeTo];
-                      if (this.getSeriesData) {
-                        this.chart.dispatchAction({
-                          type: 'restore'
-                        });
-                        if (this.enableSelectionRestoreAll) {
-                          this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
-                        } else {
-                          await this.handleSeriesData(timeFrom, timeTo);
-                        }
-                      }
-                      this.$emit('data-zoom', this.timeRange);
                     }
-                    this.loading = false;
+                    this.timeRange = [timeFrom, timeTo];
+                    if (this.getSeriesData) {
+                      this.chart.dispatchAction({
+                        type: 'restore'
+                      });
+                      if (this.enableSelectionRestoreAll) {
+                        this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
+                      } else {
+                        await this.handleSeriesData(timeFrom, timeTo);
+                      }
+                    }
+                    this.$emit('data-zoom', this.timeRange);
+                  }
+                  this.loading = false;
                   // if (this.showTitleTool) {
                   //   this.loading = true;
                   //   const [batch] = event.batch;
@@ -1212,28 +1218,36 @@ export default class MonitorEcharts extends Vue {
     if (this.legend.list.length < 2) {
       return;
     }
-    if (actionType === 'shift-click') {
-      this.chart.dispatchAction({
-        type: !item.show ? 'legendSelect' : 'legendUnSelect',
-        name: item.name
+    const setOnlyOneMarkArea = () => {
+      const showSeries = [];
+      this.legend.list.forEach((l) => {
+        if (l.show) {
+          const serice = this.seriesData.find(s => s.target === l.name);
+          showSeries.push({
+            ...serice,
+            color: l.color
+          });
+        }
       });
+
+      const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(showSeries), {});
+      this.chart.setOption(deepMerge(optionData.options, this.defaultOptions), {
+        notMerge: true,
+        lazyUpdate: false,
+        silent: false
+      });
+    };
+    if (actionType === 'shift-click') {
       item.show = !item.show;
+      setOnlyOneMarkArea();
     } else if (actionType === 'click') {
       const hasOtherShow = this.legend.list
         .filter(item => !item.hidden)
         .some(set => set.name !== item.name && set.show);
       this.legend.list.forEach((legend) => {
-        this.chart.dispatchAction({
-          type:
-            legend.name === item.name
-            || !hasOtherShow
-            || (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
-              ? 'legendSelect'
-              : 'legendUnSelect',
-          name: legend.name
-        });
         legend.show = legend.name === item.name || !hasOtherShow;
       });
+      setOnlyOneMarkArea();
     }
   }
 

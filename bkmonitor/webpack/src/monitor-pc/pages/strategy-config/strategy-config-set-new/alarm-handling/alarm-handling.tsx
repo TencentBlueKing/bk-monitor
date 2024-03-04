@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import SetMealDeail from '../../../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import * as ruleAuth from '../../authority-map';
 import CommonItem from '../components/common-form-item';
 import GroupSelect, { IGroupItem } from '../components/group-select';

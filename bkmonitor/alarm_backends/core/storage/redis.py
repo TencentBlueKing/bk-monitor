@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import random
 import sys
 import time
 import uuid
@@ -88,7 +89,6 @@ class BaseRedisCache(object):
         raise NotImplementedError()
 
     def refresh_instance(self):
-
         if self._instance is not None:
             self.close_instance(self._instance)
             self.close_instance(self._readonly_instance)
@@ -192,13 +192,13 @@ class SentinelRedisCache(BaseRedisCache):
         }
         if self.SENTINEL_PASS:
             sentinel_kwargs["password"] = self.SENTINEL_PASS
+
+        # sentinel host支持多个sentinel节点，以分号分隔
+        sentinel_hosts = self.sentinel_host.split(";")
+        # 随机打乱顺序，避免每次都是同一个节点
+        random.shuffle(sentinel_hosts)
         redis_sentinel = Sentinel(
-            [
-                (
-                    self.sentinel_host,
-                    self.sentinel_port,
-                )
-            ],
+            [(h, self.sentinel_port) for h in sentinel_hosts if h],
             sentinel_kwargs=sentinel_kwargs,
         )
 

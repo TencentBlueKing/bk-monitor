@@ -174,7 +174,10 @@
                 v-show="right.scrollLoading"
                 class="footer-loading"
               >
-                <img src="../../../../static/images/svg/spinner.svg"  alt=''> {{ $t('正加载更多内容…') }}
+                <img
+                  src="../../../../static/images/svg/spinner.svg"
+                  alt=""
+                > {{ $t('正加载更多内容…') }}
               </div>
             </template>
           </bk-table>
@@ -211,9 +214,8 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
+import { getMetricList } from 'monitor-api/modules/strategies';
 import { debounce, throttle } from 'throttle-debounce';
-
-import { getMetricList } from '../../../../../monitor-api/modules/strategies';
 
 const { mapGetters } = createNamespacedHelpers('strategy-config');
 

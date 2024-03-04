@@ -26,12 +26,7 @@
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Form, Input, Message, Popover } from 'bkui-vue';
-
-import {
-  applyTraceComparison,
-  deleteTraceComparison,
-  listTraceComparison
-} from '../../../monitor-api/modules/apm_trace';
+import { applyTraceComparison, deleteTraceComparison, listTraceComparison } from 'monitor-api/modules/apm_trace';
 
 import './compare-select.scss';
 

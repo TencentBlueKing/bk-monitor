@@ -25,10 +25,10 @@
  */
 import { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, TransitionGroup, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { listUsersUser } from '@api/modules/model';
-import { getReceiver } from '@api/modules/notice_group';
 import { Loading, Popover } from 'bkui-vue';
 import { debounce, random } from 'lodash';
+import { listUsersUser } from 'monitor-api/modules/model';
+import { getReceiver } from 'monitor-api/modules/notice_group';
 
 import './member-select.scss';
 

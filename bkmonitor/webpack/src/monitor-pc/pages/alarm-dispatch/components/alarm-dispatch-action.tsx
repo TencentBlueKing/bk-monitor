@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import './alarm-dispatch-action.scss';
-// import { getCookie } from '../../../../monitor-common/utils/utils';
+// import { getCookie } from 'monitor-common/utils/utils';
 
 const AlarmDispatchAction = ctx => {
   const {

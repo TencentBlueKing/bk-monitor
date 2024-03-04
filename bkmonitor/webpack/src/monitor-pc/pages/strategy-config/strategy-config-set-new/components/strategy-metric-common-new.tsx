@@ -26,12 +26,12 @@
 
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { deepClone } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 // import MonitorDateRange from '../../../../components/monitor-date-range/monitor-date-range.vue'
 import { debounce, throttle } from 'throttle-debounce';
 
-import { getMetricListV2 } from '../../../../../monitor-api/modules/strategies';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { handleGotoLink } from '../../../../common/constant';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import {

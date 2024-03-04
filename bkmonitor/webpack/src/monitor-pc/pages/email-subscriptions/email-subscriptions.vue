@@ -202,19 +202,19 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-
 import {
   groupList,
   reportClone,
   // statusList,
   reportCreateOrUpdate,
   reportDelete,
-  reportList } from '../../../monitor-api/modules/report';
-import { deepClone, getCookie, transformDataKey } from '../../../monitor-common/utils/utils';
+  reportList } from 'monitor-api/modules/report';
+import { deepClone, getCookie, transformDataKey } from 'monitor-common/utils/utils';
+
 import { isEn } from '../../i18n/i18n';
 
 import ListCollapse from './components/list-collapse.vue';
-// import { getReceiver } from '../../../monitor-api/modules/notice_group'
+// import { getReceiver } from 'monitor-api/modules/notice_group'
 import ReceiverList from './components/receiver-list.vue';
 import { ITableColumnItem } from './types';
 
