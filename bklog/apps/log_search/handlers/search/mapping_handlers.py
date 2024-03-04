@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import math
 import functools
 import re
 from collections import defaultdict
@@ -402,13 +403,20 @@ class MappingHandlers(object):
         # 当没有指定时间范围时，默认获取最近一天的mapping
         if not self.start_time and not self.end_time:
             start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+            start_time = start_time.timestamp
+            end_time = end_time.timestamp
         else:
-            start_time = datetime.fromtimestamp(int(self.start_time))
-            end_time = datetime.fromtimestamp(int(self.end_time))
+            start_time = int(self.start_time)
+            end_time = int(self.end_time)
+        # 时间戳取整, 开始时间上取整, 结束时间下取整
+        start_time = math.floor(start_time / 3600) * 3600
+        end_time = math.ceil(end_time / 3600) * 3600
         return self._get_latest_mapping(index_set_id=self.index_set_id, start_time=start_time, end_time=end_time)
 
     @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
     def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
+        start_time = datetime.fromtimestamp(start_time)
+        end_time = datetime.fromtimestamp(end_time)
         latest_mapping = BkLogApi.mapping(
             {
                 "indices": self.indices,
