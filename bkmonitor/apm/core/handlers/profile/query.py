@@ -19,14 +19,6 @@ from core.drf_resource import api
 logger = logging.getLogger("apm")
 
 
-class QueryTemplate:
-    pass
-
-
-class QueryServiceNameTemplate:
-    pass
-
-
 @dataclass
 class ApiParamLimit:
     offset: int
