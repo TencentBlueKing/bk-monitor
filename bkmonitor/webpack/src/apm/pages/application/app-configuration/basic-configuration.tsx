@@ -184,14 +184,13 @@ export default class BasicInfo extends tsc<IProps> {
     ],
     'plugin_config.target_nodes': [
       {
-        required: true,
+        validator: (val: []) => val?.length,
         message: window.i18n.tc('必填项'),
         trigger: 'change'
       }
     ],
     'plugin_config.paths': [
       {
-        required: true,
         validator: (val: []) => val.every(item => !!item),
         message: window.i18n.tc('必填项'),
         trigger: 'blur'
