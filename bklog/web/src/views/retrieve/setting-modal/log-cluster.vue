@@ -336,7 +336,6 @@ export default {
       operateIndex: 0, // 赋值过滤字段的操作的当前下标
       isShowFingerTips: false,
       isActive: false,
-      aggsItems: [],
     };
   },
   watch: {
@@ -385,6 +384,11 @@ export default {
           clustering_fields,
           filter_rules: filterRules,
         } = res.data;
+        const newFilterRules = filterRules.map(item => ({
+          ...this.totalFields.find(tItem => tItem.field_name === item.fields_name) ?? {},
+          ...item,
+          value: [item.value],
+        }));
         const assignObj = {
           collector_config_name_en: collectorConfigNameEn || '',
           min_members,
@@ -394,15 +398,17 @@ export default {
           max_log_length,
           is_case_sensitive,
           clustering_fields,
-          filter_rules: filterRules || [],
+          filter_rules: newFilterRules || [],
         };
         Object.assign(this.formData, assignObj);
         Object.assign(this.defaultData, assignObj);
         // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
         const isHaveFieldsItem = this.clusterField.find(item => item.id === res.data.clustering_fields);
-        if (!isHaveFieldsItem) {
-          this.formData.clustering_fields = '';
-        }
+        if (!isHaveFieldsItem) this.formData.clustering_fields = '';
+        this.$nextTick(() => {
+          const requestFields = this.fieldsKeyStrList();
+          this.queryValueList(requestFields);
+        });
       } catch (e) {
         console.warn(e);
       } finally {
@@ -476,8 +482,8 @@ export default {
       });
     },
     blurFilter() {
-      if (this.formData.filter_rules.length > 0) {
-        this.isFilterRuleError = this.formData.filter_rules.some(el => el.value.length === 0);
+      if (this.formData.filter_rules?.length > 0) {
+        this.isFilterRuleError = this.formData.filter_rules.some(el => !el.value.length);
         this.isFieldsError = this.formData.filter_rules.some(el => el.fields_name === '');
       };
     },
@@ -516,7 +522,7 @@ export default {
           fields_name: item.fields_name,
           logic_operator: item.logic_operator,
           op: item.op,
-          value: (item.value.length ? item.value[0] : ''),
+          value: (item.value?.length ? item.value[0] : ''),
         }));
         this.$http.request('/logClustering/changeConfig', {
           params: {
@@ -541,11 +547,10 @@ export default {
     },
     // 字段改变
     handleFieldChange(fieldName, index) {
-      const field = this.totalFields.find(item => item.field_name === fieldName);
+      const field = this.totalFields.find(item => item.field_name === fieldName) ?? {};
       Object.assign(this.formData.filter_rules[index], {
+        ...field,
         value: [],
-        esDocValues: field.es_doc_values,
-        fieldType: field.field_type,
       });
       const requestFields = this.fieldsKeyStrList();
       this.queryValueList(requestFields);
@@ -565,23 +570,19 @@ export default {
             end_time: formatDate(tempList[1] * 1000),
           },
         });
-        this.aggsItems = res.data.aggs_items;
-        this.initValueList();
+        this.formData.filter_rules.forEach((item) => {
+          item.valueList = res.data.aggs_items[item.fields_name]?.map(item => ({
+            id: item.toString(),
+            name: item.toString(),
+          })) ?? [];
+        });
       } catch (err) {
         this.formData.filter_rules.forEach(item => item.valueList = []);
       }
     },
-    initValueList() {
-      this.formData.filter_rules.forEach((item) => {
-        item.valueList = this.aggsItems[item.fields_name]?.map(item => ({
-          id: item.toString(),
-          name: item.toString(),
-        })) ?? [];
-      });
-    },
     fieldsKeyStrList() {
       const fieldsStrList = this.formData.filter_rules
-        .filter(item => (item.fieldType !== 'text' && item.esDocValues))
+        .filter(item => (item.field_type !== 'text' && item.es_doc_values))
         .map(item => item.fields_name);
       return Array.from(new Set(fieldsStrList));
     },

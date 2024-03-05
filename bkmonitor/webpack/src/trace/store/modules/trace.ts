@@ -25,9 +25,9 @@
  */
 
 import { ref, shallowRef } from 'vue';
+import { deepClone } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
-import { deepClone } from '../../../monitor-common/utils';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { Span, TraceData } from '../../components/trace-view/typings';
 import { formatDuration } from '../../components/trace-view/utils/date';

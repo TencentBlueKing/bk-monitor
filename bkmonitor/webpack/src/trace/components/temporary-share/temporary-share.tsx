@@ -29,9 +29,9 @@ import { TranslateResult, useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
+import { copyText } from 'monitor-common/utils/utils';
 
-import { createShareToken, deleteShareToken, updateShareToken } from '../../../monitor-api/modules/share';
-import { copyText } from '../../../monitor-common/utils/utils';
 import { useAppStore } from '../../store/modules/app';
 import TimeRangeComp from '../time-range/time-range';
 import { TimeRange, TimeRangeType } from '../time-range/utils';

@@ -72,7 +72,6 @@ from apps.log_search.serializers import (
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
     OriginalSearchAttrSerializer,
-    SearchAsyncExportSerializer,
     SearchAttrSerializer,
     SearchExportSerializer,
     SearchIndexSetScopeSerializer,
@@ -81,6 +80,7 @@ from apps.log_search.serializers import (
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
     UnionSearchHistorySerializer,
+    UnionSearchSearchExportSerializer,
     UpdateIndexSetFieldsConfigSerializer,
 )
 from apps.utils.drf import detail_route, list_route
@@ -448,28 +448,42 @@ class SearchViewSet(APIViewSet):
         search_handler = SearchHandlerEsquery(index_set_id, data)
         return Response(search_handler.search_tail_f())
 
-    @detail_route(methods=["GET"], url_path="export")
+    @detail_route(methods=["POST"], url_path="export")
     def export(self, request, index_set_id=None):
         """
-        @api {get} /search/index_set/$index_set_id/export/ 14_搜索-导出日志
+        @api {post} /search/index_set/$index_set_id/export/ 14_搜索-导出日志
         @apiName search_log_export
         @apiGroup 11_Search
-        @apiParam {Dict} export_dict 序列化后的查询字典
-        @apiParam {String} start_time 开始时间
-        @apiParam {String} end_time 结束时间
-        @apiParam {String} time_range 时间标识符符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]
-        @apiParam {String} keyword 搜索关键字
-        @apiParam {Json} ip IP列表
-        @apiParam {Json} addition 搜索条件
-        @apiParam {Int} start 起始位置
-        @apiDescription 直接下载结果
+        @apiParam bk_biz_id [Int] 业务id
+        @apiParam keyword [String] 搜索关键字
+        @apiParam time_range [String] 时间范围
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam host_scopes [Dict] 检索模块ip等信息
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiParam interval [String] 匹配规则
         @apiParamExample {Json} 请求参数
-        /api/v1/search/index_set/3/export/
-        ?export_dict={"start_time":"2019-06-26 00:00:00","end_time":"2019-06-27 11:11:11","time_range":"customized",
-        "keyword":"error",
-        "host_scopes":{"modules":[{"bk_obj_id":"module","bk_inst_id":4},
-        {"bk_obj_id":"set","bk_inst_id":4}],"ips":"127.0.0.1, 127.0.0.2"},
-        "addition":[{"field":"ip","operator":"eq","value":[]}],"begin":0,"size":10000}
+        {
+            "bk_biz_id":"215",
+            "keyword":"*",
+            "time_range":"5m",
+            "start_time":"2021-06-08 11:02:21",
+            "end_time":"2021-06-08 11:07:21",
+            "host_scopes":{
+                "modules":[
+
+                ],
+                "ips":""
+            },
+            "addition":[
+
+            ],
+            "begin":0,
+            "size":188,
+            "interval":"auto",
+            "isTrusted":true
+        }
 
         @apiSuccessExample text/plain 成功返回:
         {"a": "good", "b": {"c": ["d", "e"]}}
@@ -477,8 +491,7 @@ class SearchViewSet(APIViewSet):
         {"a": "good", "b": {"c": ["d", "e"]}}
         """
         request_user = get_request_external_username() or get_request_username()
-        params = self.params_valid(SearchExportSerializer).get("export_dict")
-        data = json.loads(params)
+        data = self.params_valid(SearchExportSerializer)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
         else:
@@ -587,7 +600,7 @@ class SearchViewSet(APIViewSet):
             "message": ""
         }
         """
-        data = self.params_valid(SearchAsyncExportSerializer)
+        data = self.params_valid(SearchExportSerializer)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
         else:
@@ -1231,25 +1244,40 @@ class SearchViewSet(APIViewSet):
     @list_route(methods=["GET"], url_path="union_search/export")
     def union_search_export(self, request, *args, **kwargs):
         """
-        @api {get} /search/index_set/union_search/export/ 14_联合检索-导出日志
+        @api {post} /search/index_set/union_search/export/ 14_联合检索-导出日志
         @apiName search_log_export
         @apiGroup 11_Search
-        @apiParam {Dict} export_dict 序列化后的查询字典
-        @apiParam {String} start_time 开始时间
-        @apiParam {String} end_time 结束时间
-        @apiParam {String} time_range 时间标识符符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]
-        @apiParam {String} keyword 搜索关键字
-        @apiParam {Json} ip IP列表
-        @apiParam {Json} addition 搜索条件
-        @apiParam {Int} start 起始位置
-        @apiParam {Array} index_set_ids 索引集列表
-        @apiDescription 直接下载结果
+        @apiParam bk_biz_id [Int] 业务id
+        @apiParam keyword [String] 搜索关键字
+        @apiParam time_range [String] 时间范围
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam host_scopes [Dict] 检索模块ip等信息
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiParam interval [String] 匹配规则
+        @apiParam index_set_ids [List] 索引集ID列表
         @apiParamExample {Json} 请求参数
-        /search/index_set/union_search/export/
-        ?export_dict={"start_time":"2019-06-26 00:00:00","end_time":"2019-06-27 11:11:11","time_range":"customized",
-        "keyword":"error","host_scopes":{"modules":[{"bk_obj_id":"module","bk_inst_id":4},
-        {"bk_obj_id":"set","bk_inst_id":4}],"ips":"127.0.0.1, 127.0.0.2"},
-        "addition":[{"field":"ip","operator":"eq","value":[]}],"begin":0,"size":10000,"index_set_ids": [146, 147]}
+        {
+            "bk_biz_id":"215",
+            "keyword":"*",
+            "time_range":"5m",
+            "start_time":"2021-06-08 11:02:21",
+            "end_time":"2021-06-08 11:07:21",
+            "host_scopes":{
+                "modules":[
+
+                ],
+                "ips":""
+            },
+            "addition":[
+
+            ],
+            "begin":0,
+            "size":188,
+            "interval":"auto",
+            "isTrusted":true
+        }
 
         @apiSuccessExample text/plain 成功返回:
         {"a": "good", "b": {"c": ["d", "e"]}}
@@ -1257,8 +1285,7 @@ class SearchViewSet(APIViewSet):
         {"a": "good", "b": {"c": ["d", "e"]}}
         """
 
-        params = self.params_valid(SearchExportSerializer).get("export_dict")
-        data = json.loads(params)
+        data = self.params_valid(UnionSearchSearchExportSerializer)
         request_data = copy.deepcopy(data)
         index_set_ids = sorted(data.get("index_set_ids", []))
 

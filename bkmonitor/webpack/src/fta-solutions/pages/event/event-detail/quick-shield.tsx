@@ -26,10 +26,9 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { bulkAddAlertShield } from '../../../../monitor-api/modules/shield';
-import VerifyInput from '../../../../monitor-pc/components/verify-input/verify-input.vue';
-import MonitorDialog from '../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { bulkAddAlertShield } from 'monitor-api/modules/shield';
+import VerifyInput from 'monitor-pc/components/verify-input/verify-input.vue';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import './quick-shield.scss';
 

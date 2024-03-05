@@ -1,18 +1,18 @@
 import time
+from datetime import datetime, timedelta
 
 from celery.schedules import crontab
 from celery.task import periodic_task
-
 from django.core.cache import cache
 
 from apps.log_search.constants import (
+    INDEX_SET_NO_DATA_CHECK_INTERVAL,
+    INDEX_SET_NO_DATA_CHECK_PREFIX,
     InnerTag,
     TimeEnum,
-    INDEX_SET_NO_DATA_CHECK_PREFIX,
-    INDEX_SET_NO_DATA_CHECK_INTERVAL,
 )
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory
 from apps.utils.lock import share_lock
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -22,8 +22,15 @@ from apps.utils.thread import MultiExecuteFunc
 @share_lock()
 def no_data_check():
     logger.info("[no_data_check] start check index set no data")
+    index_set_ids = list(
+        UserIndexSetSearchHistory.objects.filter(created_at__gte=datetime.now() - timedelta(days=1)).values_list(
+            "index_set_id", flat=True
+        )
+    )
+    index_set_id_list = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values_list(
+        "index_set_id", flat=True
+    )
     multi_execute_func = MultiExecuteFunc()
-    index_set_id_list = LogIndexSet.objects.filter(is_active=True).values_list("index_set_id", flat=True)
     for index_set_id in index_set_id_list:
         multi_execute_func.append(index_set_id, index_set_no_data_check, index_set_id, use_request=False)
         cache.set(

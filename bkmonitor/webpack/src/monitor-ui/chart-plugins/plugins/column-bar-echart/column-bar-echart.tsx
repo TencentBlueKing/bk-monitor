@@ -27,8 +27,8 @@
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { IExtendMetricData, PanelModel } from '../../typings';
 import { IColumnBarData } from '../../typings/column-bar';

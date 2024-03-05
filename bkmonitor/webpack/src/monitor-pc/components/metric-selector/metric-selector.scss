@@ -168,6 +168,7 @@
   .metric-selector-content {
     display: flex;
     height: 100%;
+    transform: translate(0, 0);
 
     &.common {
       height: calc(100% - 35px);
@@ -195,6 +196,51 @@
         &.common-type {
           display: table-caption;
           width: 100%;
+
+          &.pin-top-top {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #d8e6ff;
+            opacity: 1;
+
+            .selected-label {
+              position: fixed;
+              top: 0;
+              left: 524px;
+              z-index: 2;
+              width: 28px;
+              height: 28px;
+              overflow: hidden;
+
+              .blue-bg {
+                position: relative;
+                display: flex;
+                align-items: flex-end;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                background: #3a84ff;
+                transform: rotate(45deg) translate(-9px, -20px);
+
+                .text {
+                  font-size: 12px;
+                  color: #fff;
+                  transform: scale(.8) translate(0, 2px);
+                }
+
+                .icon-mc-check-small {
+                  font-size: 20px;
+                  color: #fff;
+                  transform: rotate(315deg) translate(-1px, 3px);
+                }
+              }
+            }
+
+            .metric-item-common:hover {
+              background-color: #d8e6ff;
+            }
+          }
         }
 
         &.selected {

@@ -39,12 +39,6 @@
       ],
       "@static/*": [
         "./static/*"
-      ],
-      "@api/*": [
-        "../monitor-api/*"
-      ],
-      "@common/*": [
-        "../monitor-common/*"
       ]
     }
   }

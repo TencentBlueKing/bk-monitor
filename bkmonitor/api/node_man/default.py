@@ -17,7 +17,7 @@ from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
-from bkmonitor.utils.user import get_global_user
+from bkmonitor.utils.user import get_backend_username, get_global_user
 from constants.cmdb import TargetNodeType
 from core.drf_resource import APIResource
 from core.drf_resource.base import Resource
@@ -575,6 +575,11 @@ class PluginSearch(NodeManAPIGWResource):
         detail = serializers.ListField(label="是否为详情", required=False)
         page = serializers.IntegerField(required=True, label="页数")
         pagesize = serializers.IntegerField(required=True, label="数量")
+
+    def full_request_data(self, validated_request_data):
+        # plugin search 在节点管理侧会针对请求用户鉴权，监控有自己的鉴权系统，此处直接使用后台账户进行查询
+        setattr(self, "bk_username", get_backend_username())
+        return super().full_request_data(validated_request_data)
 
 
 def adapter_nodeman_bk_cloud_id(instance):

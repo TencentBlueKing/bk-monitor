@@ -29,11 +29,11 @@ import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception } from 'bkui-vue';
 // import stackTrace from './data.json';
 import * as echarts from 'echarts';
+import { traceDiagram } from 'monitor-api/modules/apm_trace';
+import { lightenDarkenColor, random } from 'monitor-common/utils';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram } from '../../../../monitor-api/modules/apm_trace';
-import { lightenDarkenColor, random } from '../../../../monitor-common/utils';
-import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import traceIcons from '../../utls/icons';
 import { storeImage } from '../../utls/store-img';
 

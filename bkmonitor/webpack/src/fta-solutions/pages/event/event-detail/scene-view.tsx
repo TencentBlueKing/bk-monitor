@@ -25,13 +25,12 @@
  */
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
-import { random } from '../../../../monitor-common/utils/utils';
-import { type TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
+import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
+import { random } from 'monitor-common/utils/utils';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail, setBizIdToPanel } from './type';

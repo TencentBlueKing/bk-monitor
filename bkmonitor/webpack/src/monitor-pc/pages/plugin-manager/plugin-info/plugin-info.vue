@@ -95,7 +95,7 @@
                     class="logo-img"
                     v-if="pluginInfo.logo"
                     :src="`data:image/png;base64,${pluginInfo.logo}`"
-                    alt=''
+                    alt=""
                   >
                   <div
                     class="logo-text"
@@ -416,9 +416,9 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { retrieveCollectorPlugin } from 'monitor-api/modules/model';
+import Viewer from 'monitor-ui/markdown-editor/viewer.tsx';
 
-import { retrieveCollectorPlugin } from '../../../../monitor-api/modules/model';
-import Viewer from '../../../../monitor-ui/markdown-editor/viewer.tsx';
 import MonacoEditor from '../../../components/editors/monaco-editor';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import ViewParam from '../../../components/history-dialog/view-param.vue';

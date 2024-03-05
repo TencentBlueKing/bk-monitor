@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone } from 'monitor-common/utils/utils';
 import Sortable from 'sortablejs';
-
-import { deepClone } from '../../../../monitor-common/utils/utils';
 
 import './subscription-content.scss';
 

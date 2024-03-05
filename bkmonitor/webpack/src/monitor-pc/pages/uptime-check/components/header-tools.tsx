@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Debounce } from '../../../../monitor-common/utils/utils';
+import { Debounce } from 'monitor-common/utils/utils';
 
 import './header-tools.scss';
 

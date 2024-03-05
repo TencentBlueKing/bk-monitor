@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 
+from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from bkmonitor.dataflow.node.processor import (
@@ -195,29 +196,40 @@ class APMTailSamplingTask(BaseTask):
         self.flink_code = flink_code
 
         stream_source_node = StreamSourceNode(self.rt_id)
-        # TODO !临时方案 因Bkbase未上线pulsar 使用空实时节点作为数据中转
-        empty_node = EmptyRealTimeNode(
-            from_result_table_id=stream_source_node.output_table_name,
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            parent=stream_source_node,
-        )
-        flink_node = TailSamplingFlinkNode(
-            source_rt_id=empty_node.output_table_name,
-            flink_code=self.flink_code,
-            conditions=self.config.get("tail_conditions"),
-            trace_gap_min=self.config.get("tail_trace_session_gap_min"),
-            trace_timeout_min=self.config.get("tail_trace_mark_timeout"),
-            sampling_ratio=self.config.get("tail_percentage"),
-            name="tail_sampling",
-            parent=empty_node,
-        )
 
-        # flink_node = TailSamplingFlinkNode(
-        #     source_rt_id=stream_source_node.output_table_name,
-        #     name="tail_sampling",
-        #     parent=stream_source_node,
-        # )
+        node_list = [stream_source_node]
+
+        if settings.APM_APP_BKDATA_REQUIRED_TEMP_CONVERT_NODE:
+            # Notice: bkbase 对于所有环境还没有全部覆盖 pulsar 作为消息队列 对于没有 pulsar 的环境需要新增一个中转节点 待之后去除
+            empty_node = EmptyRealTimeNode(
+                from_result_table_id=stream_source_node.output_table_name,
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                parent=stream_source_node,
+            )
+            flink_node = TailSamplingFlinkNode(
+                source_rt_id=empty_node.output_table_name,
+                flink_code=self.flink_code,
+                conditions=self.config.get("tail_conditions"),
+                trace_gap_min=self.config.get("tail_trace_session_gap_min"),
+                trace_timeout_min=self.config.get("tail_trace_mark_timeout"),
+                sampling_ratio=self.config.get("tail_percentage"),
+                name="tail_sampling",
+                parent=empty_node,
+            )
+            node_list.extend([empty_node, flink_node])
+        else:
+            flink_node = TailSamplingFlinkNode(
+                source_rt_id=stream_source_node.output_table_name,
+                flink_code=self.flink_code,
+                conditions=self.config.get("tail_conditions"),
+                trace_gap_min=self.config.get("tail_trace_session_gap_min"),
+                trace_timeout_min=self.config.get("tail_trace_mark_timeout"),
+                sampling_ratio=self.config.get("tail_percentage"),
+                name="tail_sampling",
+                parent=stream_source_node,
+            )
+            node_list.append(flink_node)
 
         es_storage_node = ElasticsearchStorageNode(
             cluster=self.es_extra_data["cluster_name"],
@@ -232,7 +244,8 @@ class APMTailSamplingTask(BaseTask):
             parent=flink_node,
         )
 
-        self.node_list = [stream_source_node, empty_node, flink_node, es_storage_node]
+        node_list.append(es_storage_node)
+        self.node_list = node_list
 
     @property
     def flow_name(self):

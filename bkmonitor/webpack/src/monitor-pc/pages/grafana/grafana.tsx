@@ -25,9 +25,9 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getDashboardList } from 'monitor-api/modules/grafana';
+import bus from 'monitor-common/utils/event-bus';
 
-import { getDashboardList } from '../../../monitor-api/modules/grafana';
-import bus from '../../../monitor-common/utils/event-bus';
 import { DASHBOARD_ID_KEY } from '../../constant/constant';
 
 import { getDashboardCache } from './utils';

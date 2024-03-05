@@ -1,12 +1,14 @@
+/* stylelint-disable comment-empty-line-before */
+/* stylelint-disable declaration-no-important */
+/* stylelint-disable indentation */
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1703833310980') format('woff2'),
-    url('monitor-icons.woff?t=1703833310980') format('woff'),
-    url('monitor-icons.ttf?t=1703833310980') format('truetype');
+  src: url('monitor-icons.woff2?t=1705908796951') format('woff2'),
+       url('monitor-icons.woff?t=1705908796951') format('woff'),
+       url('monitor-icons.ttf?t=1705908796951') format('truetype');
 }
 
 .icon-monitor {
-  /* stylelint-disable-next-line declaration-no-important */
   font-family: 'icon-monitor' !important;
   font-size: 1em;
   font-style: normal;
@@ -14,11 +16,35 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-Flame1:before {
+.icon-dingwei1:before {
+  content: '\e7a4';
+}
+
+.icon-fuwumokuai:before {
+  content: '\e7a3';
+}
+
+.icon-yingjian:before {
+  content: '\e79f';
+}
+
+.icon-fuwuzujian:before {
+  content: '\e7a0';
+}
+
+.icon-OS:before {
+  content: '\e7a1';
+}
+
+.icon-jincheng:before {
+  content: '\e7a2';
+}
+
+.icon-mc-flame:before {
   content: '\e79d';
 }
 
-.icon-fenping:before {
+.icon-mc-fenping:before {
   content: '\e79e';
 }
 

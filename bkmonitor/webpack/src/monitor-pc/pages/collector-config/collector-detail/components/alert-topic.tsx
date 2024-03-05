@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { alertStatus, updateAlertUserGroups } from 'monitor-api/modules/datalink';
+import { Debounce } from 'monitor-common/utils';
 
-import { alertStatus, updateAlertUserGroups } from '../../../../../monitor-api/modules/datalink';
-import { Debounce } from '../../../../../monitor-common/utils';
 // import { isEnFn } from '../../../../utils/index';
 import { TCollectorAlertStage } from '../typings/detail';
 

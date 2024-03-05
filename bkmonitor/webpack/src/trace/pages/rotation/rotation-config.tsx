@@ -28,10 +28,10 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Button, DatePicker, Input, Popover, Switcher, TagInput } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { createDutyRule, retrieveDutyRule, updateDutyRule } from 'monitor-api/modules/model';
+import { getReceiver } from 'monitor-api/modules/notice_group';
+import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
-import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
-import { getReceiver } from '../../../monitor-api/modules/notice_group';
-import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import NavBar from '../../components/nav-bar/nav-bar';
 
 import {

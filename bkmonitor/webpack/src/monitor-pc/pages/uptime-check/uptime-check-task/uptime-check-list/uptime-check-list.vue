@@ -210,11 +210,11 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-
 import {
   changeStatusUptimeCheckTask,
   cloneUptimeCheckTask,
-  destroyUptimeCheckTask } from '../../../../../monitor-api/modules/model';
+  destroyUptimeCheckTask } from 'monitor-api/modules/model';
+
 import { uptimeCheckMixin } from '../../../../common/mixins';
 import { SET_PAGE, SET_PAGE_SIZE } from '../../../../store/modules/uptime-check-task';
 import DeleteSubtitle from '../../../strategy-config/strategy-config-common/delete-subtitle';

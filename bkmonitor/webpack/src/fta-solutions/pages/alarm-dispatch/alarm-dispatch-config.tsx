@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
-
-import AlarmDispatchConfig from '../../../monitor-pc/pages/alarm-dispatch/alarm-dispatch-config';
-import * as authorityMap from '../../../monitor-pc/pages/alarm-dispatch/authority-map';
-import authorityMixinCreate from '../../../monitor-ui/mixins/authorityMixin';
+import AlarmDispatchConfig from 'monitor-pc/pages/alarm-dispatch/alarm-dispatch-config';
+import * as authorityMap from 'monitor-pc/pages/alarm-dispatch/authority-map';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component

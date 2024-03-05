@@ -25,8 +25,8 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getHostInfo } from 'monitor-api/modules/scene_view';
 
-import { getHostInfo } from '../../../../monitor-api/modules/scene_view';
 import introduce from '../../../common/introduce';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../../i18n/dayjs';

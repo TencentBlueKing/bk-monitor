@@ -28,9 +28,9 @@ import JsonViewer from 'vue-json-viewer';
 import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import { random } from '../../../../monitor-common/utils/utils';
 import { Storage } from '../../../utils';
 import {
   ColumnSort,

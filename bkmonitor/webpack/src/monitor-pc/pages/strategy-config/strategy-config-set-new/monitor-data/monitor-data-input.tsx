@@ -27,8 +27,8 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
-import { getMetricListV2 } from '../../../../../monitor-api/modules/strategies';
 import CycleInput from '../../../../components/cycle-input/cycle-input';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import { getPopoverWidth } from '../../../../utils';
@@ -230,7 +230,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
    * @description 获取日志检索指标列表
    */
   async getLogMetricList() {
-    if (!this.isLogSearchType) return [];
+    if (!this.isLogSearchType || !this.metricData?.length) return [];
     const [metric] = this.metricData;
     const data = await getMetricListV2({
       conditions: [

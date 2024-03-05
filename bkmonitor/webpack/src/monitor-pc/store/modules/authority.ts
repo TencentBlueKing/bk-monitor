@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+import { checkAllowedByActionIds, getAuthorityDetail, getAuthorityMeta } from 'monitor-api/modules/iam';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
-import { checkAllowedByActionIds, getAuthorityDetail, getAuthorityMeta } from '../../../monitor-api/modules/iam';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
 import store from '../store';
 
 // eslint-disable-next-line new-cap

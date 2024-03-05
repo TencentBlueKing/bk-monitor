@@ -61,7 +61,8 @@
 </template>
 
 <script>
-import { transformDataKey } from '../../../../../monitor-common/utils/utils';
+import { transformDataKey } from 'monitor-common/utils/utils';
+
 import SvgLoadingIcon from '../../../../components/svg-loading-icon/svg-loading-icon';
 
 import TopHint from './top-hint';

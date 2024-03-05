@@ -28,10 +28,10 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
+import { copyText } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import { createShareToken, deleteShareToken, updateShareToken } from '../../../monitor-api/modules/share';
-import { copyText } from '../../../monitor-common/utils/utils';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog';
 import { NavBarMode } from '../../pages/monitor-k8s/components/common-nav-bar';
 import { INavItem } from '../../pages/monitor-k8s/typings';
 import TimeRangeComponent, { TimeRangeType } from '../time-range/time-range';

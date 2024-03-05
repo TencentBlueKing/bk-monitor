@@ -510,6 +510,18 @@ class SpanKindKey:
     CONSUMER = "SPAN_KIND_CONSUMER"
 
 
+class TrpcAttributes:
+    """for trpc"""
+
+    TRPC_NAMESPACE = "trpc.namespace"
+    TRPC_CALLER_SERVICE = "trpc.caller_service"
+    TRPC_CALLEE_SERVICE = "trpc.callee_service"
+    TRPC_CALLER_METHOD = "trpc.caller_method"
+    TRPC_CALLEE_METHOD = "trpc.callee_method"
+    TRPC_STATUS_TYPE = "trpc.status_type"
+    TRPC_STATUS_CODE = "trpc.status_code"
+
+
 class IndexSetSource(TextChoices):
     """日志索引集来源类型"""
 

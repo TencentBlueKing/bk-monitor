@@ -25,10 +25,9 @@
  */
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { random } from '../../../../../monitor-common/utils/utils';
-import DashboardPanel from '../../../../../monitor-ui/chart-plugins/components/flex-dashboard-panel';
-import { IPanelModel, IViewOptions } from '../../../../../monitor-ui/chart-plugins/typings';
+import { random } from 'monitor-common/utils/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
+import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import CorrelationNav from './correlation-nav';
 import MetricsCollapse from './metrics-collapse';

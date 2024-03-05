@@ -25,8 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import AlarmShieldSet from '../../../monitor-pc/pages/alarm-shield/alarm-shield-set/alarm-shield-set.vue';
+import AlarmShieldSet from 'monitor-pc/pages/alarm-shield/alarm-shield-set/alarm-shield-set.vue';
 
 import './alarm-shield-set.scss';
 

@@ -17,10 +17,14 @@ from collections import defaultdict
 import arrow
 from django.conf import settings
 
-from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cache.cmdb import HostManager
+from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.strategy import Strategy
-from alarm_backends.service.access.data.filters import ExpireFilter, RangeFilter, HostStatusFilter
+from alarm_backends.service.access.data.filters import (
+    ExpireFilter,
+    HostStatusFilter,
+    RangeFilter,
+)
 from alarm_backends.service.access.data.records import DataRecord
 from api.cmdb.define import Host
 
@@ -87,18 +91,23 @@ class TestRangeFilter(object):
         raw_data_1["bk_target_ip"] = "127.0.0.1"
         record = DataRecord(strategy.items[0], raw_data_1)
         assert f.filter(record) is False
+        assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is True
 
         raw_data_1["bk_target_ip"] = "127.0.0.2"
         record = DataRecord(strategy.items[0], raw_data_1)
         assert f.filter(record) is False
+        assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is True
 
         raw_data_1["bk_target_ip"] = "127.0.0.3"
         record = DataRecord(strategy.items[0], raw_data_1)
         assert f.filter(record) is False
+        # 数据需要被保留，但对于 item 来说实际上这个数据点已经被过滤了
+        assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is False
 
         raw_data_1["bk_target_cloud_id"] = "2"
         record = DataRecord(strategy.items[0], raw_data_1)
         assert f.filter(record) is False
+        assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is False
 
     def test_topo_node_filter(self, mocker):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
@@ -126,6 +135,7 @@ class TestRangeFilter(object):
         record = DataRecord(strategy.items[0], raw_data_1)
         record.dimensions["bk_topo_node"] = ["biz|2", "set|1", "module|1"]
         assert f.filter(record) is False
+        assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is True
 
         record = DataRecord(strategy.items[0], raw_data_1)
         record.dimensions["bk_topo_node"] = [
@@ -134,10 +144,12 @@ class TestRangeFilter(object):
             "module|1",
         ]
         assert f.filter(record) is False
+        assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is False
 
         record = DataRecord(strategy.items[0], raw_data_1)
         record.dimensions = {"bk_obj_id": "biz", "bk_inst_id": 2}
         assert f.filter(record) is False
+        assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is True
 
 
 class TestHostStatusFilter(object):

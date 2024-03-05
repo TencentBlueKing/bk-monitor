@@ -248,7 +248,7 @@ class UptimeCheckTaskListResource(Resource):
         for protocol, data in query_group.items():
             table_name = "{}.{}".format(UPTIME_CHECK_DB, protocol.lower())
             for period, task_id_list in data.items():
-                where = [{"key": "task_id", "method": "in", "value": task_id_list}]
+                where = [{"key": "task_id", "method": "contains", "value": task_id_list}]
 
                 if validated_request_data["get_available"]:
                     th_list.append(

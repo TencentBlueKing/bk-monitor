@@ -46,7 +46,7 @@ import { Component, Model, Prop, Vue } from 'vue-property-decorator';
 })
 export default class StrategyCustomDesc extends Vue {
   @Prop()
-  descList: string[];
+    descList: string[];
 
   @Model('change', { type: Boolean })
   readonly value!: boolean;

@@ -48,7 +48,7 @@
             theme="primary"
             @click="authority.MANAGE_AUTH ? handlePluginAdd(null) : handleShowAuthorityDetail()"
           >
-            <span class="icon-monitor icon-plus-line mr-6"></span>
+            <span class="icon-monitor icon-plus-line mr-6" />
             {{ $t('新建') }}
           </bk-button>
           <bk-button
@@ -418,18 +418,18 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-import { debounce } from 'throttle-debounce';
-
-import { CancelToken } from '../../../monitor-api/index';
-import { getLabel } from '../../../monitor-api/modules/commons';
+import { CancelToken } from 'monitor-api/index';
+import { getLabel } from 'monitor-api/modules/commons';
 import {
   deleteCollectorPlugin,
   editCollectorPlugin,
   exportPluginCollectorPlugin,
   importPluginCollectorPlugin,
   listCollectorPlugin,
-  tagOptionsCollectorPlugin } from '../../../monitor-api/modules/model';
-import { saveAndReleasePlugin } from '../../../monitor-api/modules/plugin';
+  tagOptionsCollectorPlugin } from 'monitor-api/modules/model';
+import { saveAndReleasePlugin } from 'monitor-api/modules/plugin';
+import { debounce } from 'throttle-debounce';
+
 import introduce from '../../common/introduce';
 import { commonPageSizeMixin } from '../../common/mixins';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';
@@ -1214,6 +1214,7 @@ export default {
 .mr-6 {
   margin-right: 6px;
 }
+
 .popover-tag {
   display: flex;
   flex-direction: column;
