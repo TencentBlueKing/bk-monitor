@@ -32,6 +32,9 @@ USER_SEARCH_TIME_SECOND = 10
 
 # 数据上报默认config对象字段名
 BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY = "search_history"
+BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD = "search_history_duration"
+# 按时间聚合的时间间隔
+DATE_HISTOGRAM_INTERVAL = 60 * 60 * 24
 
 # 运营数据饼状图分类
 OPERATION_PIE_CHOICE_MAP = [
