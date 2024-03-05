@@ -270,6 +270,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             profile_id=validated_data.get("profile_id"),
             filter_labels=validated_data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
+            extra_params={"order": {"expr": "dtEventTimeStamp", "sort": "desc"}},
         )
 
         if (
@@ -301,6 +302,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 profile_id=validated_data.get("diff_profile_id"),
                 filter_labels=validated_data.get("diff_filter_labels"),
                 result_table_id=essentials["result_table_id"],
+                extra_params={"order": {"expr": "dtEventTimeStamp", "sort": "desc"}},
             )
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter, **options)

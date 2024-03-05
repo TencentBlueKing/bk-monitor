@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import tempfile
+from datetime import datetime, timedelta
 
 from bkstorages.backends.bkrepo import BKRepoStorage
 from django.utils.translation import ugettext_lazy as _
@@ -83,4 +84,10 @@ class ProfilingFileHandler:
             queryset.update(status=UploadedFileStatus.STORE_FAILED, content=content)
             return
 
-        queryset.update(status=UploadedFileStatus.STORE_SUCCEED)
+        # 获取查询此 profile 文件的开始/结束时间 规则为：开始时间 = now - 30m 结束时间 = now + 30m
+        now = datetime.now()
+        queryset.update(
+            status=UploadedFileStatus.STORE_SUCCEED,
+            query_start_time=int((now - timedelta(minutes=30)).timestamp() * 1000000),
+            query_end_time=int((now + timedelta(minutes=30)).timestamp() * 1000000),
+        )

@@ -178,7 +178,7 @@ class QueryProfileBarGraphResource(Resource):
 
         labels = query_template.parse_labels(
             **query_params,
-            label_filter={"profile_id": "op_is_not_null"},
+            label_filter={"profile_id": "op_is_not_null", **filter_labels},
             limit=self.POINT_LABEL_LIMIT,
         )
         trace_data[int(query_params["start_time"])] = [
