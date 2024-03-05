@@ -26,8 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { isHttpUrl, isIpv6Url } from '../../../../../monitor-common/regex/url';
+import { isHttpUrl, isIpv6Url } from 'monitor-common/regex/url';
 
 import './http-url-input.scss';
 
@@ -108,7 +107,7 @@ export default class HttpUrlInput extends tsc<
             />
             {this.isError && (
               <i
-                v-bk-tooltips={{ content: this.errorTips }}
+                v-bk-tooltips={{ content: this.errorTips, allowHTML: false }}
                 class='bk-icon icon-exclamation-circle-shape terror-tips-icon'
               />
             )}

@@ -57,7 +57,8 @@ export default class CommonStatus extends tsc<IProps> {
           content: this.tips,
           delay: 300,
           theme: 'light',
-          disabled: !this.tips
+          disabled: !this.tips,
+          allowHTML: false
         }}
       >
         <span class={['common-status-icon', this.icon ? `${this.icon} status-icon` : `status-${this.type}`]}></span>

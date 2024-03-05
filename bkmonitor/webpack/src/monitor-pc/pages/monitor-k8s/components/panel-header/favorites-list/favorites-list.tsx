@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Debounce, deepClone } from '../../../../../../monitor-common/utils/utils';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
 import './favorites-list.scss';
 

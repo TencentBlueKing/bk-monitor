@@ -25,11 +25,11 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getSceneViewDimensions, getSceneViewDimensionValue } from 'monitor-api/modules/scene_view';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import DragItem from 'monitor-ui/monitor-draggable/drag-item';
+import MonitorDraggable, { IOnDrop } from 'monitor-ui/monitor-draggable/monitor-draggable';
 
-import { getSceneViewDimensions, getSceneViewDimensionValue } from '../../../../../monitor-api/modules/scene_view';
-import { deepClone, random } from '../../../../../monitor-common/utils/utils';
-import DragItem from '../../../../../monitor-ui/monitor-draggable/drag-item';
-import MonitorDraggable, { IOnDrop } from '../../../../../monitor-ui/monitor-draggable/monitor-draggable';
 import ConditionInput, {
   IVarOption
 } from '../../../strategy-config/strategy-config-set-new/monitor-data/condition-input';

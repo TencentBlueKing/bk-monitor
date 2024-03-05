@@ -127,10 +127,9 @@
 // eslint-disable-next-line no-unused-vars
 import { TranslateResult } from 'vue-i18n/types/index';
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+import { getMetricList } from 'monitor-api/modules/strategies';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce } from 'throttle-debounce';
-
-import { getMetricList } from '../../../../../monitor-api/modules/strategies';
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 interface IParams {
   bk_biz_id: number | string;

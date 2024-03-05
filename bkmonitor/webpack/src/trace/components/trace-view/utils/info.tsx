@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { typeTools } from '../../../../monitor-common/utils/utils';
-import { ISpanClassifyItem, ITraceData, ITraceTree } from '../../../typings';
+import { typeTools } from 'monitor-common/utils/utils';
 
+import { ISpanClassifyItem, ITraceData, ITraceTree } from '../../../typings';
 /**
  * @desc 插入跨应用 span 合并 trace_tree
  * @param { ITraceTree } originTree

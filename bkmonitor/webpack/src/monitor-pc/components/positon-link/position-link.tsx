@@ -25,8 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { copyText, Debounce } from '../../../monitor-common/utils/utils';
+import { copyText, Debounce } from 'monitor-common/utils/utils';
 
 import './position-link.scss';
 
@@ -73,7 +72,8 @@ export default class PositionLink extends tsc<IProps> {
           delay: 200,
           boundary: 'window',
           disabled: !this.tipsText,
-          placement: 'right'
+          placement: 'right',
+          allowHTML: false
         }}
         onClick={this.handleCopyText}
       >

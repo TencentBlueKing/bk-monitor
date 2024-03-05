@@ -107,6 +107,19 @@ class SetRemarkSerializer(serializers.Serializer):
     remark = serializers.CharField()
 
 
+class UpdateRemarkSerializer(serializers.Serializer):
+    signature = serializers.CharField()
+    old_remark = serializers.CharField()
+    new_remark = serializers.CharField()
+    create_time = serializers.IntegerField()
+
+
+class DeleteRemarkSerializer(serializers.Serializer):
+    signature = serializers.CharField()
+    remark = serializers.CharField()
+    create_time = serializers.IntegerField()
+
+
 class SetOwnerSerializer(serializers.Serializer):
     signature = serializers.CharField()
     owners = serializers.ListField(child=serializers.CharField(), allow_empty=True)

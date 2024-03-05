@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
+import { frontendReportEvent } from 'monitor-api/modules/commons';
+import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 
-import { frontendReportEvent } from '../../../monitor-api/modules/commons';
-import debounceDecorator from '../../../monitor-common/utils/debounce-decorator';
 import { getRouteConfigById } from '../../router/router-config';
 import store from '../store';
 

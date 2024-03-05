@@ -29,7 +29,7 @@ from apps.log_esquery.permission import EsquerySearchPermissions
 from apps.utils import build_auth_args
 from apps.utils.local import get_request
 from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import bk_biz_id_to_space_uid
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
 def get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id):
@@ -43,6 +43,19 @@ def get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id):
     if related_space:
         return related_space.bk_biz_id
     return bk_biz_id
+
+
+def get_bkcc_biz_id_related_spaces(bk_biz_id, query_type="space_uid"):
+    """
+    获取CC业务关联的非CC空间资源
+    """
+    from apps.log_search.models import SpaceApi
+
+    space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+    related_space_uids = SpaceApi.get_related_space_uids(space_uid)
+    if query_type == "space_uid":
+        return related_space_uids
+    return [space_uid_to_bk_biz_id(space_uid) for space_uid in related_space_uids]
 
 
 def adapt_non_bkcc(params):

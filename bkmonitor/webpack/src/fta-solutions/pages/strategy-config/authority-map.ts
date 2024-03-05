@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { MANAGE_AUTH as MANAGE } from '../../../monitor-pc/pages/alarm-group/authority-map';
+import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-map';
 
 export const VIEW_AUTH = 'view_rule_v2'; // 策略查看
 export const MANAGE_AUTH = 'manage_rule_v2'; // 策略管理

@@ -86,6 +86,7 @@
           clearable
           :popover-options="{ boundary: 'window' }"
           check-any-level
+          :scroll-width="cascaderScrollWidth"
           ref="cascade"
           :multiple="multiple"
           filterable
@@ -143,21 +144,21 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { sort } from 'monitor-common/utils/utils.js';
 
-import { sort } from '../../../../monitor-common/utils/utils.js';
 import { FieldValue, IConditionValue, InputType, IOption } from '../performance-type';
 
 @Component({ name: 'filter-panel-item' })
 export default class PanelItem extends Vue {
   @Ref('cascade') readonly cascadeRef: any;
   @Ref('select') readonly selectRef: any;
-  @Model('update-value', { type: [String, Number, Array] })readonly value: FieldValue;
-  @Prop({ default: 'title' })readonly title: string;
-  @Prop({ default: 'select', type: String })readonly type: InputType;
-  @Prop({ default: false })readonly disabled: boolean;
-  @Prop({ default: false })readonly multiple: boolean;
-  @Prop({ default: false })readonly allowEmpt: boolean;
-  @Prop({ default: () => [], type: Array })readonly options: IOption[];
+  @Model('update-value', { type: [String, Number, Array] }) readonly value: FieldValue;
+  @Prop({ default: 'title' }) readonly title: string;
+  @Prop({ default: 'select', type: String }) readonly type: InputType;
+  @Prop({ default: false }) readonly disabled: boolean;
+  @Prop({ default: false }) readonly multiple: boolean;
+  @Prop({ default: false }) readonly allowEmpt: boolean;
+  @Prop({ default: () => [], type: Array }) readonly options: IOption[];
   @Prop({
     default: () => ({
       list: [],
@@ -227,6 +228,11 @@ export default class PanelItem extends Vue {
     return this.conditionsData.length === 1;
   }
 
+  get cascaderScrollWidth() {
+    /** 搜索并且展开的面板数只有一个时，面板宽度设置为320 */
+    return this.cascadeKeyWord && this.cascadeRef?.popoverWidth === 1 ? 320 : 160;
+  }
+
   @Watch('value', { immediate: true })
   handleValueChange(v) {
     if (this.type === 'condition') {
@@ -267,7 +273,8 @@ export default class PanelItem extends Vue {
   @Emit('update-value')
   handleUpdateValue(v) {
     if (typeof v === 'string') {
-      return v.trim()
+      return v
+        .trim()
         .split('\n')
         .map(item => item.trim())
         .filter(item => !!item)

@@ -29,11 +29,11 @@ import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception } from 'bkui-vue';
 // import stackTrace from './data.json';
 import * as echarts from 'echarts';
+import { traceDiagram } from 'monitor-api/modules/apm_trace';
+import { lightenDarkenColor, random } from 'monitor-common/utils';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram } from '../../../../monitor-api/modules/apm_trace';
-import { lightenDarkenColor, random } from '../../../../monitor-common/utils';
-import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import traceIcons from '../../utls/icons';
 import { storeImage } from '../../utls/store-img';
 
@@ -91,17 +91,17 @@ export interface ICommonMenuItem {
 const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'span',
-    name: window.i18n.tc('Span 详情'),
+    name: window.i18n.t('Span 详情'),
     icon: 'icon-menu-view'
   },
   {
     id: 'reset',
-    name: window.i18n.tc('重置图表'),
+    name: window.i18n.t('重置图表'),
     icon: 'icon-menu-view'
   },
   {
     id: 'highlight',
-    name: window.i18n.tc('高亮相似 Span'),
+    name: window.i18n.t('高亮相似 Span'),
     icon: 'icon-menu-view'
   }
 ];
@@ -370,17 +370,17 @@ export default defineComponent({
             <table class="tips-table">
               <tbody>
                 <tr>
-                  <td>${window.i18n.tc('占比')}</td>
+                  <td>${window.i18n.t('占比')}</td>
                   <td>${params.value[4].toFixed(4).replace(/[0]+$/g, '')}%</td>
                 </tr>
                 <tr>
-                  <td>${window.i18n.tc('耗时')}</td>
+                  <td>${window.i18n.t('耗时')}</td>
                   <td>${text}${suffix}</td>
                 </tr>
               </tbody>
             </table>
             <div class="tips-info">
-              <span class="icon-monitor icon-mc-mouse tips-info-icon"></span>${window.i18n.tc('鼠标右键有更多菜单')}
+              <span class="icon-monitor icon-mc-mouse tips-info-icon"></span>${window.i18n.t('鼠标右键有更多菜单')}
             </div>
           </div>`;
             return html;

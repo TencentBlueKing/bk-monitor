@@ -25,12 +25,11 @@
  */
 import Vue from 'vue';
 import dayjs from 'dayjs';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 import './common/import-email-magicbox-ui';
-
-import MonitorEcharts from '../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import './static/assets/css/global.scss';
 import './static/css/reset.scss';

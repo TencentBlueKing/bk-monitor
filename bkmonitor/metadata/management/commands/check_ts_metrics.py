@@ -16,7 +16,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from metadata import models
 from metadata.utils import consul_tools
-from packages.utils.redis_client import RedisClient
+from utils.redis_client import RedisClient
 
 
 class Command(BaseCommand):

@@ -198,9 +198,10 @@
   </div>
 </template>
 <script>
-import { bkTag } from 'bk-magic-vue';
 
-import { pluginUpgradeInfo } from '../../../../monitor-api/modules/plugin';
+
+import { pluginUpgradeInfo } from 'monitor-api/modules/plugin';
+
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import AutoCompleteInput from '../collector-add/config-set/auto-complete-input';
 import AutoMulti from '../collector-add/config-set/auto-multi';
@@ -210,8 +211,7 @@ export default {
   components: {
     AutoCompleteInput,
     AutoMulti,
-    VerifyInput,
-    bkTag
+    VerifyInput
   },
   props: {
     updateParams: {

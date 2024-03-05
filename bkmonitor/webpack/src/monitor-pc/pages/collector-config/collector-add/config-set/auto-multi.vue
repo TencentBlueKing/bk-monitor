@@ -138,9 +138,10 @@
   </div>
 </template>
 <script>
-import { bkIcon } from 'bk-magic-vue';
 
-import { deepClone } from '../../../../../monitor-common/utils/utils';
+
+import { deepClone } from 'monitor-common/utils/utils';
+
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 
 import AutoCompleteInput from './auto-complete-input';
@@ -150,8 +151,7 @@ export default {
   name: 'AutoMulti',
   components: {
     AutoCompleteInput,
-    VerifyInput,
-    bkIcon
+    VerifyInput
   },
   props: {
     templateData: {

@@ -25,9 +25,9 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { IPanelModel, IViewOptions } from '../../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
 import CustomSelect from '../../../../components/custom-select/custom-select';
 import { IOption } from '../../typings';
 
@@ -141,7 +141,8 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
               v-bk-tooltips={{
                 content: item,
                 zIndex: 9999,
-                boundary: document.body
+                boundary: document.body,
+                allowHTML: false
               }}
             >
               {this.handleDisplayName(item)}
@@ -168,7 +169,8 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
                     content: opt.id,
                     placement: 'right',
                     zIndex: 9999,
-                    boundary: document.body
+                    boundary: document.body,
+                    allowHTML: false
                   }}
                 >
                   {opt.name}

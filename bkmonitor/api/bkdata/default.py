@@ -22,6 +22,32 @@ from constants.dataflow import AutoOffsetResets
 from core.drf_resource import APIResource
 
 
+class UseSaaSAuthInfoMixin:
+
+    """
+    计算平台当前是按 AppCode 分配 data token，考虑到监控在企业版二进制部署模式下后台和 Web AppCode 独立
+    当前情况下依赖 BKDATA_DATA_TOKEN 的接口都使用 SaaS 侧应用认证信息进行请求
+    Q：后台如何获取 SaaS 侧应用认证信息
+    A：packages/monitor_web/apps.py ready 时由 web 进程写入 GlobalSettings，为通用逻辑
+    """
+
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(UseSaaSAuthInfoMixin, self).full_request_data(validated_request_data)
+        validated_request_data.update(
+            {
+                "bk_app_code": settings.SAAS_APP_CODE,
+                "bk_app_secret": settings.SAAS_SECRET_KEY,
+            }
+        )
+        return validated_request_data
+
+    def get_headers(self):
+        headers = super(UseSaaSAuthInfoMixin, self).get_headers()
+        headers["X-Bk-App-Code"] = settings.SAAS_APP_CODE
+        headers["X-Bk-App-Secret"] = settings.SAAS_SECRET_KEY
+        return headers
+
+
 class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     base_url_statement = None
     base_url = settings.BKDATA_API_BASE_URL or "%s/api/c/compapi/data/" % settings.BK_COMPONENT_API_URL
@@ -94,7 +120,7 @@ class GetResultTableResource(BkDataAPIGWResource):
         )
 
 
-class QueryDataResource(BkDataQueryAPIGWResource):
+class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
     """
     查询数据
     """
@@ -342,7 +368,7 @@ class GetReleaseModelInfo(DataAccessAPIResource):  # noqa
         model_release_id = serializers.IntegerField(required=True, label="发布模型ID")
 
 
-class ApiServingExecute(DataAccessAPIResource):  # noqa
+class ApiServingExecute(UseSaaSAuthInfoMixin, DataAccessAPIResource):  # noqa
     """
     执行模型API Serving并获取算法执行结果
     """

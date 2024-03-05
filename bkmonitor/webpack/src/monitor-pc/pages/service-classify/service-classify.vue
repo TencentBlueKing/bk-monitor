@@ -200,9 +200,9 @@
 </template>
 
 <script>
+import { serviceCategoryList } from 'monitor-api/modules/service_classify';
 import { debounce } from 'throttle-debounce';
 
-import { serviceCategoryList } from '../../../monitor-api/modules/service_classify';
 import { commonPageSizeMixin } from '../../common/mixins';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 

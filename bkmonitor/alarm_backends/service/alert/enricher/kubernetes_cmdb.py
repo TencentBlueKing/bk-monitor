@@ -9,9 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+import time
 from collections import defaultdict
 from itertools import chain
-from typing import List
+from typing import Dict, List, Optional, Set
 
 from django.utils.translation import ugettext as _
 
@@ -19,6 +20,7 @@ import settings
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.cmdb import HostIPManager, HostManager
 from alarm_backends.service.alert.enricher.base import BaseAlertEnricher
+from api.cmdb.define import Host
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import api
 
@@ -51,6 +53,81 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
         hosts = {host for host in chain(*[ips for ips in self.ip_cache.values() if ips])}
         self.hosts_cache = HostManager.multi_get_with_dict(hosts)
 
+        # 容器场景告警和主机创建时间相近，差量同步不存在主机避免缓存刷新不及时导致维度无法正常补充的问题
+        try:
+            self.refresh_host_by_increment()
+        except Exception:  # noqa
+            logger.exception(
+                "[KubernetesCMDBEnricher][refresh_by_increment] alerts(%s) error but skip",
+                ",".join([alert.id for alert in self.alerts]),
+            )
+
+    def refresh_host_by_increment(self):
+
+        total_host_keys: Set[str] = set(self.hosts_cache.keys())
+        to_be_refresh_ips_gby_biz_id: Dict[int, Set[str]] = defaultdict(set)
+        for alert in self.alerts:
+            bk_biz_id: int = int(alert.bk_biz_id)
+            if bk_biz_id <= 0:
+                continue
+
+            if alert.id not in self.alert_relations:
+                continue
+
+            ip_list: List[str] = self.alert_relations[alert.id]["ip_list"]
+            for ip in ip_list:
+                host_keys: Optional[List[str]] = self.ip_cache.get(ip)
+                if not host_keys:
+                    # 主机 IP - Host Keys 缓存不存在
+                    to_be_refresh_ips_gby_biz_id[bk_biz_id].add(ip)
+                elif not set(host_keys) & total_host_keys:
+                    # Host Keys 匹配不到任何主机
+                    to_be_refresh_ips_gby_biz_id[bk_biz_id].add(ip)
+
+        if not to_be_refresh_ips_gby_biz_id:
+            return
+
+        logger.info(
+            "[KubernetesCMDBEnricher][refresh_by_increment] alerts(%s) start: to_be_refresh_ips_gby_biz_id -> %s",
+            ",".join([alert.id for alert in self.alerts]),
+            to_be_refresh_ips_gby_biz_id,
+        )
+
+        for bk_biz_id, to_be_refresh_ips in to_be_refresh_ips_gby_biz_id.items():
+
+            try:
+                partial_hosts: List = api.cmdb.get_host_by_ip(
+                    ips=[{"ip": ip} for ip in to_be_refresh_ips], bk_biz_id=bk_biz_id
+                )
+                HostManager.fill_attr_to_hosts(bk_biz_id, partial_hosts, with_world_ids=False)
+            except Exception:  # noqa
+                # 单个业务的更新失败可以不影响整体，记录异常并跳过
+                logger.exception(
+                    "[KubernetesCMDBEnricher][refresh_by_increment] "
+                    "alerts(%s) failed to sync biz(%s)'s ip(%s) but skip.",
+                    ",".join([alert.id for alert in self.alerts]),
+                    bk_biz_id,
+                    to_be_refresh_ips,
+                )
+                continue
+
+            partial_host_key__obj_map: Dict[str, Host] = HostManager.to_kv(partial_hosts)
+
+            # 补充到主机缓存
+            self.hosts_cache.update(partial_host_key__obj_map)
+            # 补充 IP - IP Keys 缓存
+            partial_host_keys_gby_ip: Dict[str, List[str]] = HostIPManager.to_kv(list(partial_host_key__obj_map.keys()))
+            # 不同业务可能存在同 IP 不同管控区域主机的场景
+            # 采取在原有基础上合并列表更新的方式，避免上述场景下导致同 IP 的 Host Keys 相互覆盖
+            for ip, host_keys in partial_host_keys_gby_ip.items():
+                self.ip_cache[ip] = list(set(self.ip_cache.get(ip) or [] + host_keys))
+            self.ip_cache.update(HostIPManager.to_kv(list(partial_host_key__obj_map.keys())))
+
+        logger.info(
+            "[KubernetesCMDBEnricher][refresh_by_increment] alerts(%s) end.",
+            ",".join([alert.id for alert in self.alerts]),
+        )
+
     def get_kubernetes_relations(self, biz_source_info_list):
         """
         获取容器关联关系
@@ -73,8 +150,11 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
 
             # 获取origin_alarm的维度字典， 原生没有做后期丰富，的比较接近查询的内容
             source_info = alert.get_origin_alarm_dimensions()
-            # 请求的时间戳以第一个异常点的时间为准
-            source_info["data_timestamp"] = alert.first_anomaly_time
+            # 1. 容器关联本身也是一个指标，如果查询时间戳使用「首次异常时间」，时间早于「容器指标」最早可查询时间，会出现查询不到关联信息的问题
+            # 2. 容器关联指标会跟随时间动态变化，unify query 根据给定时间戳往前找 5min 内第一个点，如果查询时间和 「首次异常时间」如果有较大时间差距，也可能会导致查不到关联关系
+            # 3. 此处加一个偏移量用于规避指标收敛窗口周期查的问题，基于 2. 这个偏移量不能过大并且不能是未来时间
+            offset = 2 * 60
+            source_info["data_timestamp"] = min(int(time.time()), alert.first_anomaly_time + offset)
             biz_source_info_list[alert.bk_biz_id].append(source_info)
 
         # step2 确定需要获取节点ip的告警
@@ -153,7 +233,14 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
         for ip in ip_list:
             host = self.get_host_info(alert, ip)
             if not host:
-                # 没有找到对应主机，直接忽略
+                # 补偿后仍获取不到主机，打印一条日志
+                logger.warning(
+                    "[KubernetesCMDBEnricher][enrich_alert] "
+                    "ignore to enrich alert(%s) because ip(%s) not found in cache(%s)",
+                    alert.id,
+                    ip,
+                    ("host_ip", "host")[ip in self.ip_cache],
+                )
                 continue
             self.enrich_host(alert, host)
             break

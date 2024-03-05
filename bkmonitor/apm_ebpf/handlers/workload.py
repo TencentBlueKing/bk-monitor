@@ -193,3 +193,8 @@ class WorkloadHandler:
     @classmethod
     def list_deepflow_cluster_ids(cls, bk_biz_id):
         return list(set(DeepflowWorkload.objects.filter(bk_biz_id=bk_biz_id).values_list("cluster_id", flat=True)))
+
+    @classmethod
+    def list_exist_biz_ids(cls):
+        """获取具有workload的业务ID集合"""
+        return list(set(DeepflowWorkload.objects.values_list("bk_biz_id", flat=True)))

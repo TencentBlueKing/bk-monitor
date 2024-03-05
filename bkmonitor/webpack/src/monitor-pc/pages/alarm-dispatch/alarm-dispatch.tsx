@@ -26,9 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input, Table, TableColumn, Tag } from 'bk-magic-vue';
-
-import SetMealDetail from '../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
+import SetMealDetail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
   createAssignGroup,
   listActionConfig,
@@ -36,8 +34,9 @@ import {
   listAssignRule,
   listUserGroup,
   partialUpdateAssignGroup
-} from '../../../monitor-api/modules/model';
-import { Debounce, random } from '../../../monitor-common/utils';
+} from 'monitor-api/modules/model';
+import { Debounce, random } from 'monitor-common/utils';
+
 import emptyImageSrc from '../../static/images/png/empty.png';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
 
@@ -228,7 +227,8 @@ export default class AlarmDispatch extends tsc<{}> {
             name: item.name,
             priority: item.priority,
             isExpan: true,
-            ruleData: []
+            ruleData: [],
+            editAllowed: !!item?.edit_allowed
           })
       ) || [];
     this.loading = false;
@@ -492,7 +492,8 @@ export default class AlarmDispatch extends tsc<{}> {
             item.tag.map(key => key.split(':')[0]).includes(value) ||
             item.tag.map(value => value.split(':')[1]).includes(value) ||
             reg.test(item.user_groups.map(g => g.name)) ||
-            item.user_groups.map(g => String(g.id)).includes(value)
+            String(item.id) === value
+          // item.user_groups.map(g => String(g.id)).includes(value)
         )
         .map(item => item.id);
       this.ruleGroups = this.cacheRuleGroups.filter(item => filterRuleGroupList.includes(item.id));
@@ -564,35 +565,35 @@ export default class AlarmDispatch extends tsc<{}> {
       >
         <div class='alarm-dispath-page-wrap'>
           <div class='wrap-header'>
-            <Button
+            <bk-button
               icon='plus'
               theme='primary'
               class='mr10'
               onClick={this.handleAddAlarmDispatch}
             >
               {this.$t('新建')}
-            </Button>
-            <Button
+            </bk-button>
+            <bk-button
               class='mr10'
               disabled={!this.ruleGroups.length}
               onClick={this.handleDebug}
             >
               {this.$t('调试')}
-            </Button>
-            <Button
+            </bk-button>
+            <bk-button
               class='expand-up-btn'
               onClick={this.handleExpandAll}
             >
               <span class={['icon-monitor', this.isExpandAll ? 'icon-zhankai1' : 'icon-shouqi1']}></span>
               {this.$t(this.isExpandAll ? '展开所有分组' : '收起所有分组')}
-            </Button>
-            <Input
+            </bk-button>
+            <bk-input
               class='search-input'
               placeholder={`ID/${this.$t('告警组名称')}`}
               right-icon='bk-icon icon-search'
               v-model={this.search}
               onInput={this.handleSearch}
-            ></Input>
+            ></bk-input>
           </div>
           <div class='wrap-content'>
             {this.ruleGroups.length > 0 ? (
@@ -611,28 +612,38 @@ export default class AlarmDispatch extends tsc<{}> {
                     {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
                     {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
                     <div
-                      class='edit-btn-wrap'
-                      onClick={() => this.handleToConfig(item.id)}
+                      class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
+                      v-bk-tooltips={{
+                        placements: ['top'],
+                        content: this.$t('内置的分派规则组不允许修改'),
+                        disabled: item.editAllowed
+                      }}
+                      onClick={() => item.editAllowed && this.handleToConfig(item.id)}
                     >
                       <span class='icon-monitor icon-bianji'></span>
                       <span>{this.$t('配置规则')}</span>
                     </div>
                     <div
-                      class='del-btn-wrap'
+                      class={['del-btn-wrap', { 'del-btn-disabled': !item.editAllowed }]}
+                      v-bk-tooltips={{
+                        placements: ['top'],
+                        content: this.$t('内置的分派规则组不允许修改'),
+                        disabled: item.editAllowed
+                      }}
                       onClick={e => {
-                        this.handleDeleteGroup(e, item);
+                        item.editAllowed && this.handleDeleteGroup(e, item);
                       }}
                     >
                       <span class='icon-monitor icon-mc-delete-line'></span>
                     </div>
                   </div>
                   <div class={['expan-item-content', { 'is-expan': item.isExpan }]}>
-                    <Table
+                    <bk-table
                       v-bkloading={{ isLoading: this.groupLoading }}
                       data={item.ruleData}
                       stripe
                     >
-                      <TableColumn
+                      <bk-table-column
                         label={this.$t('告警组')}
                         prop='user_groups'
                         min-width={100}
@@ -640,7 +651,7 @@ export default class AlarmDispatch extends tsc<{}> {
                           default: ({ row }) => (
                             <div class='alarm-group-list'>
                               {row.user_groups.map(groupId => (
-                                <Tag
+                                <bk-tag
                                   class='alarm-tag'
                                   v-bk-overflow-tips
                                   onClick={() => {
@@ -648,13 +659,13 @@ export default class AlarmDispatch extends tsc<{}> {
                                   }}
                                 >
                                   {this.getAlarmGroupByID(groupId)}
-                                </Tag>
+                                </bk-tag>
                               ))}
                             </div>
                           )
                         }}
-                      ></TableColumn>
-                      <TableColumn
+                      ></bk-table-column>
+                      <bk-table-column
                         label={this.$t('匹配规则')}
                         prop='rule'
                         min-width={400}
@@ -675,8 +686,8 @@ export default class AlarmDispatch extends tsc<{}> {
                               '--'
                             )
                         }}
-                      ></TableColumn>
-                      <TableColumn
+                      ></bk-table-column>
+                      <bk-table-column
                         label={this.$t('分派动作')}
                         prop='action'
                         min-width={400}
@@ -689,11 +700,12 @@ export default class AlarmDispatch extends tsc<{}> {
                               detailData={this.detailData}
                               processPackage={this.processPackage}
                               actions={row.actions}
+                              userType={row.user_type}
                             />
                           )
                         }}
-                      ></TableColumn>
-                      <TableColumn
+                      ></bk-table-column>
+                      <bk-table-column
                         label={this.$t('修改告警内容')}
                         min-width={300}
                         prop='content'
@@ -705,19 +717,19 @@ export default class AlarmDispatch extends tsc<{}> {
                             />
                           )
                         }}
-                      ></TableColumn>
-                      <TableColumn
+                      ></bk-table-column>
+                      <bk-table-column
                         label={this.$t('状态')}
                         prop='is_enabled'
                         width={160}
                         scopedSlots={{
                           default: ({ row }) => (
-                            <Tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
+                            <bk-tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
                               {this.$t(row.is_enabled ? '启用' : '停用')}
-                            </Tag>
+                            </bk-tag>
                           )
                         }}
-                      ></TableColumn>
+                      ></bk-table-column>
                       <div
                         slot='empty'
                         class='alarm-group-empty'
@@ -736,7 +748,7 @@ export default class AlarmDispatch extends tsc<{}> {
                           {this.$t('配置规则')}
                         </div>
                       </div>
-                    </Table>
+                    </bk-table>
                   </div>
                 </div>
               ))

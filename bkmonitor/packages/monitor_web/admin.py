@@ -12,7 +12,7 @@ import inspect
 
 from django.contrib import admin
 
-from packages.monitor_web import models
+from monitor_web import models
 
 # 因为配置admin界面时，list_display, search_fields, list_filter 都是全部字段中排除效果不好的几个，
 # 所以在这里对每个model名称后面提供这三个选项要排除的字段，并以全小写提供。

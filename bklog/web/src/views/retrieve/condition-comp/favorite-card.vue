@@ -209,7 +209,7 @@ export default {
       color: #63656e;
       white-space: nowrap;
 
-      .icon-star-shape {
+      .icon-lc-star-shape {
         color: rgb(254, 156, 0);
       }
     }

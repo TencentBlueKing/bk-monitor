@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input, Option, Select } from 'bk-magic-vue';
 
 import VerifyItem from '../../../../../components/verify-item/verify-item';
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
@@ -256,7 +255,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                 class='verify-item'
                 errorMsg={this.errorMsg.getFormTemplateId}
               >
-                <Select
+                <bk-select
                   class='select input-width'
                   clearable={false}
                   behavior='simplicity'
@@ -266,11 +265,11 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                   onSelected={this.handleFormDataChange}
                 >
                   {this.templates.map(option => (
-                    <Option
+                    <bk-option
                       key={option.id}
                       id={option.id}
                       name={option.name}
-                    ></Option>
+                    ></bk-option>
                   ))}
                   <div
                     slot='extension'
@@ -283,7 +282,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                     ></i>
                     {this.newInfo.tips}
                   </div>
-                </Select>
+                </bk-select>
               </VerifyItem>
               <span class='icon-btn'>
                 {this.curLink ? (
@@ -320,14 +319,14 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                   [this.$t('当前{n}无需填写参数', { n: this.label }), <br />]
                 )}
                 {this.formList.length ? (
-                  <Button
+                  <bk-button
                     theme='primary'
                     outline
                     style={{ marginTop: '16px' }}
                     onClick={this.handleDebug}
                   >
                     {this.$t('调试')}
-                  </Button>
+                  </bk-button>
                 ) : undefined}
               </Container>
             ) : undefined}
@@ -341,14 +340,14 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                     path='当执行{0}分钟未结束按失败处理。'
                     class='failure-text'
                   >
-                    <Input
+                    <bk-input
                       class='input-inline'
                       v-model={this.data.timeout}
                       behavior={'simplicity'}
                       type={'number'}
                       showControls={false}
                       on-change={() => this.handleDataChange()}
-                    ></Input>
+                    ></bk-input>
                   </i18n>
                 </CommonItem>
               </div>

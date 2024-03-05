@@ -42,7 +42,7 @@
         :field-list="totalFields"
         :total-fields="totalFields"
         :kv-show-fields-list="kvShowFieldsList"
-        @menuClick="(val) => $emit('menuClick', val)" />
+        @menuClick="(val, isLink) => $emit('menuClick', val, isLink)" />
     </div>
     <div class="view-content json-view-content" v-show="activeExpandView === 'json'">
       <VueJsonPretty :deep="5" :data="jsonShowData" />

@@ -29,14 +29,14 @@
  */
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
+import bus from 'monitor-common/utils/event-bus';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
+import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
-import bus from '../../../../monitor-common/utils/event-bus';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { DEFAULT_INTERVAL, DEFAULT_METHOD } from '../../../../monitor-ui/chart-plugins/constants/dashbord';
-import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../monitor-ui/chart-plugins/utils/variable';
 import introduce from '../../../common/introduce';
 import Collapse from '../../../components/collapse/collapse';
 import GuidePage from '../../../components/guide-page/guide-page';
@@ -508,9 +508,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {

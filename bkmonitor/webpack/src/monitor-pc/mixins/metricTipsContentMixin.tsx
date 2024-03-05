@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
+import { xssFilter } from 'monitor-common/utils/xss';
 
-import { IConditionsItem } from '../pages/data-retrieval';
 import { MetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
 
 @Component
@@ -37,7 +37,7 @@ export default class metricTipsContentMixin extends Vue {
         ? 'log_time_series'
         : `${data.data_source_label}_${data.data_type_label}`;
     if (data.result_table_label === 'uptimecheck' && data.default_condition) {
-      const response = (data.default_condition as IConditionsItem[]).find(
+      const response = (data.default_condition as any[]).find(
         item => item.key === 'response_code' || item.key === 'message'
       );
       if (response && !response.value) {
@@ -151,12 +151,12 @@ export default class metricTipsContentMixin extends Vue {
     };
     let content =
       sourceType === 'log_time_series'
-        ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
-        : `<div class="item">${metricNameValue(data.result_table_id, data.metric_field)}</div>\n`;
+        ? `<div class="item">${xssFilter(data.related_name)}.${xssFilter(data.metric_field)}</div>\n`
+        : `<div class="item">${xssFilter(metricNameValue(data.result_table_id, data.metric_field))}</div>\n`;
     if (data.collect_config) {
       const collectorConfig = data.collect_config
         .split(';')
-        .map(item => `<div>${item}</div>`)
+        .map(item => `<div>${xssFilter(item)}</div>`)
         .join('');
       curElList.splice(0, 0, { label: this.$t('采集配置'), val: collectorConfig });
     }
@@ -169,7 +169,9 @@ export default class metricTipsContentMixin extends Vue {
       });
     }
     curElList?.forEach(item => {
-      content += `<div class="item"><div>${item.label}：${item.val || '--'}</div></div>\n`;
+      content += `<div class="item"><div>${item.label}：${
+        (this.$t('采集配置') === item.label ? item.val : xssFilter(item.val)) || '--'
+      }</div></div>\n`;
     });
     return content;
   }

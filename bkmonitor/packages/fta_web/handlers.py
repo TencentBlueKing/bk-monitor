@@ -389,18 +389,13 @@ def register_event_plugin(config_params=None, all_alarm_types=None):
     plugins = {}
     document_root = os.path.join(settings.PROJECT_ROOT, "support-files/fta/event_plugins")
 
-    def is_invalid_plugin(plugin_file_name):
+    def is_exist_plugin(plugin_id: str, version: str) -> bool:
         """
-        通过文件名来判断当前的插件是否有效
-        :param plugin_file_name: 插件名称
-        :return: True: 无效 False: 有效
+        通过文件名对应插件ID与插件版本来判断当前的插件是否存在
+        :param plugin_id: 插件ID
+        :param version: 插件版本
+        :return: True: 不存在 False: 存在
         """
-        plugin_version_info = plugin_file_name.split(".")[0].split("__")
-        if not plugin_version_info:
-            print("[event plugin initial] none plugin: {}".format(file_path))
-            return True
-        plugin_id = plugin_version_info[0]
-        version = plugin_version_info[1] if len(plugin_version_info) == 2 else "v1.0.0"
         if EventPluginV2.objects.filter(plugin_id=plugin_id, version=version).exists():
             print("[event plugin initial]  plugin({}) already existed".format(file_path))
             return True
@@ -411,7 +406,16 @@ def register_event_plugin(config_params=None, all_alarm_types=None):
             file_path = os.path.join(document_root, plugin_file)
             if not os.path.isfile(file_path):
                 continue
-            if is_invalid_plugin(plugin_file):
+            # 判断是否存在，同时从文件名称拆分id与version
+            pure_plugin_file_name = plugin_file.rsplit(".tar.gz")[0]
+            if not pure_plugin_file_name:
+                print("[event plugin initial] none plugin: {}".format(file_path))
+                continue
+            plugin_version_info = pure_plugin_file_name.rsplit('__', 1)
+            plugin_id = plugin_version_info[0]
+            version = plugin_version_info[1] if len(plugin_version_info) == 2 else "1.0.0"  # 命名没有默认1.0.0
+
+            if is_exist_plugin(plugin_id=plugin_id, version=version):
                 continue
             print("[event plugin initial] package to import: {}".format(file_path))
             with open(file_path, "rb") as tar_obj:
@@ -427,13 +431,11 @@ def register_event_plugin(config_params=None, all_alarm_types=None):
                         plugin_info["alert_config"] = all_alarm_types[plugin_info["plugin_id"]]
                 plugin_info["bk_biz_id"] = 0
                 plugin_info["version"] = plugin_info.get("version") or "1.0.0"
+                if not(plugin_id == plugin_info["plugin_id"] and version == plugin_info["version"]):
+                    print("[event plugin initial] match pluginId or version error, plugin:{}, plugin_id：{} version：{}".
+                          format(plugin_file, plugin_info["plugin_id"], plugin_info["version"]))
+                    continue
                 try:
-                    if EventPluginV2.objects.filter(
-                        plugin_id=plugin_info["plugin_id"], version=plugin_info["version"]
-                    ).exists():
-                        # 存在相同版本的,不进行更新
-                        print("[event plugin initial]  plugin({}) already existed".format(file_path))
-                        continue
                     plugin = CreateEventPluginResource().perform_request(plugin_info)
                 except BaseException as error:
                     print("[fta migration] create plugin({}) error: {}".format(plugin_info["plugin_id"], str(error)))

@@ -25,9 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button } from 'bk-magic-vue';
-
-import { random } from '../../../../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
 
 import { randomColor } from './color';
 import UserSelector, { IGroupListItem } from './user-selector';
@@ -220,7 +218,7 @@ export default class UserListSort extends tsc<IProps, IEvents> {
             ))}
           </transition-group>
           {this.hasAdd && (
-            <Button
+            <bk-button
               class='add-btn'
               text={true}
               title='primary'
@@ -229,7 +227,7 @@ export default class UserListSort extends tsc<IProps, IEvents> {
               onClick={this.handleAdd}
             >
               {window.i18n.t('添加用户组')}
-            </Button>
+            </bk-button>
           )}
         </div>
       </div>

@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY, xssFilter } from 'monitor-common/utils';
+
 import { ICommonChartTips, IExtendMetricData } from '../typings';
 
 export const createTooltip = (tipsData: ICommonChartTips) => {
@@ -104,12 +105,12 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   const curElList = elList[curActive] || [...options];
   let content =
     curActive === 'bk_log_search_time_series'
-      ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
-      : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
+      ? `<div class="item">${xssFilter(data.related_name)}.${xssFilter(data.metric_field)}</div>\n`
+      : `<div class="item">${xssFilter(data.result_table_id)}.${xssFilter(data.metric_field)}</div>\n`;
   if (data.collect_config) {
     const collectorConfig = data.collect_config
       .split(';')
-      .map(item => `<div>${item}</div>`)
+      .map(item => `<div>${xssFilter(item)}</div>`)
       .join('');
     curElList.splice(0, 0, { label: window.i18n.tc('采集配置'), val: collectorConfig });
   }
@@ -119,7 +120,9 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
     curElList.splice(index, 1);
   }
   curElList.forEach(item => {
-    content += `<div class="item"><div>${item.label}：${item.val || '--'}</div></div>\n`;
+    content += `<div class="item"><div>${item.label}：${
+      item.label === window.i18n.tc('采集配置') ? item.val : xssFilter(item.val) || '--'
+    }</div></div>\n`;
   });
   return content;
 };

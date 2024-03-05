@@ -101,7 +101,7 @@ export default class StatusTablList extends tsc<IStatusTablListProps, IStatusTab
           <div
             class={['tab-item', { active: item.type === this.type }]}
             key={item.type}
-            v-bk-tooltips={{ content: item?.tips || '', disabled: item.type === 'all' }}
+            v-bk-tooltips={{ content: item?.tips || '', disabled: item.type === 'all', allowHTML: false }}
             onClick={() => this.handleClickTab(item)}
           >
             {item.type !== 'all' ? <span class={['dots', item.color]}></span> : undefined}

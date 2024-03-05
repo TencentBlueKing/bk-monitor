@@ -26,8 +26,7 @@
 
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { deepClone } from '../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
 import { CheckedboxListEvents, CheckedboxListProps, CheckedboxListVlaue, ICheckedboxList } from './typings';
 

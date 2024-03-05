@@ -74,6 +74,8 @@ urlpatterns = [
     url(r"^{}".format(config.ENTRANCE_URL), include("version_log.urls")),
     url(r"^media/(?P<path>.*)$", wrapped_serve, {"document_root": settings.MEDIA_ROOT}),
     url(r"^metrics/$", metrics),
+    # env: `BK_API_URL_TMPL` must be set
+    url(r'^notice/', include(('bk_notice_sdk.urls', 'notice'), namespace='notice')),
 ]
 
 # 添加API访问子路径

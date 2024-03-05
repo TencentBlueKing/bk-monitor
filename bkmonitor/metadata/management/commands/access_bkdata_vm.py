@@ -166,7 +166,7 @@ class Command(BaseCommand):
         """获取 0 空间下的结果表"""
         if not input_table_id_list:
             input_table_id_list = (
-                models.ResultTable.objects.filter(bk_biz_id=0)
+                models.ResultTable.objects.filter(bk_biz_id=0, default_storage="influxdb")
                 .exclude(table_id__startswith="agentmetrix")
                 .values_list("table_id", flat=True)
             )
@@ -189,10 +189,6 @@ class Command(BaseCommand):
                 "cluster_id", "CustomMetricDataID"
             )
         }
-        # 获取写入 influxdb 的结果表
-        influxdb_table_ids = models.InfluxDBStorage.objects.filter(table_id__in=table_id_data_id.keys()).values_list(
-            "table_id", flat=True
-        )
 
         # 获取数据源对应的上报时间戳的长度
         ds_time_len = self._get_data_time_len(list(table_id_data_id.values()))
@@ -204,7 +200,6 @@ class Command(BaseCommand):
                 "bcs_cluster_id": k8s_custom_metric_data.get(bk_data_id) or k8s_metric_data.get(bk_data_id),
             }
             for table_id, bk_data_id in table_id_data_id.items()
-            if table_id in influxdb_table_ids
         }
 
     def _get_space_table_id(self, space_type: str, space_id: str, input_table_id_list: List) -> Dict:
@@ -234,13 +229,12 @@ class Command(BaseCommand):
             )
         }
         # 获取写入 influxdb 的结果表
-        influxdb_table_ids = models.InfluxDBStorage.objects.filter(table_id__in=table_id_data_id.keys()).values_list(
-            "table_id", flat=True
-        )
+        table_id_list = models.ResultTable.objects.filter(
+            table_id__in=table_id_data_id.keys(), default_storage="influxdb"
+        ).values_list("table_id", flat=True)
+
         if input_table_id_list:
-            influxdb_table_ids = models.InfluxDBStorage.objects.filter(table_id__in=input_table_id_list).values_list(
-                "table_id", flat=True
-            )
+            table_id_list = table_id_list.filter(table_id__in=input_table_id_list)
 
         # 获取数据源对应的上报时间戳的长度
         ds_time_len = self._get_data_time_len(list(table_id_data_id.values()))
@@ -252,7 +246,7 @@ class Command(BaseCommand):
                 "bcs_cluster_id": k8s_custom_metric_data.get(bk_data_id) or k8s_metric_data.get(bk_data_id),
             }
             for table_id, bk_data_id in table_id_data_id.items()
-            if table_id in influxdb_table_ids
+            if table_id in table_id_list
         }
 
     def _get_data_time_len(self, bk_data_id_list: list) -> Dict:

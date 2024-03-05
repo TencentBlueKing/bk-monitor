@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { listUptimeCheckTask } from '../../../monitor-api/modules/model';
+import { listUptimeCheckTask } from 'monitor-api/modules/model';
 
 export const SET_TABLE_STORE = 'SET_TABLE_STORE';
 export const SET_KEY_WORD = 'SET_KEY_WORD';

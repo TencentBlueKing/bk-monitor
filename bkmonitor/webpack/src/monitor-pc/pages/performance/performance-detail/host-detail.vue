@@ -178,8 +178,8 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { copyText } from 'monitor-common/utils/utils.js';
 
-import { copyText } from '../../../../monitor-common/utils/utils.js';
 import PerformanceModule, { ICurNode } from '../../../store/modules/performance';
 import MonitorVue from '../../../types/index';
 import IpStatusTips, { handleIpStatusData } from '../components/ip-status-tips';
@@ -456,16 +456,16 @@ export default class HostDetail extends Vue<MonitorVue> {
 
   &-title {
     display: flex;
-    align-items: center;
     flex: 0 0 42px;
+    align-items: center;
     border-bottom: 1px solid #f0f1f5;
 
     i {
-      transform: rotate(90deg);
+      margin-left: 2px;
       font-size: 24px;
       color: #979ba5;
       cursor: pointer;
-      margin-left: 2px;
+      transform: rotate(90deg);
     }
 
     span {
@@ -479,13 +479,13 @@ export default class HostDetail extends Vue<MonitorVue> {
 
     .host-info {
       display: flex;
-      line-height: 20px;
       margin-bottom: 10px;
+      line-height: 20px;
 
       &-title {
-        text-align: left;
-        color: #979ba5;
         flex: 0 0 60px;
+        color: #979ba5;
+        text-align: left;
       }
 
       &-content {
@@ -505,8 +505,8 @@ export default class HostDetail extends Vue<MonitorVue> {
         }
 
         .module-item {
-          line-height: 20px;
           margin: 0;
+          line-height: 20px;
         }
 
         .btn {
@@ -518,8 +518,8 @@ export default class HostDetail extends Vue<MonitorVue> {
         }
 
         .icon-mc-copy {
-          color: #3a84ff;
           font-size: 14px;
+          color: #3a84ff;
         }
 
         .icon-mc-link {
@@ -528,9 +528,9 @@ export default class HostDetail extends Vue<MonitorVue> {
 
         .content-bk-state {
           .icon-monitor {
+            margin-left: 13px;
             font-size: 18px;
             color: #63656e;
-            margin-left: 13px;
 
             &:hover {
               color: #3a84ff;
@@ -546,13 +546,13 @@ export default class HostDetail extends Vue<MonitorVue> {
 
     .node-info {
       display: flex;
-      line-height: 20px;
       margin-bottom: 10px;
+      line-height: 20px;
 
       &-title {
-        text-align: left;
-        color: #979ba5;
         flex: 0 0 80px;
+        color: #979ba5;
+        text-align: left;
       }
 
       &-content {
@@ -560,8 +560,8 @@ export default class HostDetail extends Vue<MonitorVue> {
 
 
         .module-item {
-          line-height: 20px;
           margin: 0;
+          line-height: 20px;
         }
 
         .status-unkown {
@@ -587,8 +587,8 @@ export default class HostDetail extends Vue<MonitorVue> {
         }
 
         .icon-mc-copy {
-          color: #3a84ff;
           font-size: 14px;
+          color: #3a84ff;
         }
 
         .icon-mc-link {
@@ -602,13 +602,13 @@ export default class HostDetail extends Vue<MonitorVue> {
 
       .alarm-info-panel {
         display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
         flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         height: 64px;
-        border-radius: 2px;
         background: #f5f6fa;
+        border-radius: 2px;
 
         &:hover {
           background: #3a84ff;
@@ -630,8 +630,8 @@ export default class HostDetail extends Vue<MonitorVue> {
 
         .count {
           font-size: 16px;
-          color: #979ba5;
           line-height: 26px;
+          color: #979ba5;
 
           &.active {
             color: #000;
@@ -644,8 +644,8 @@ export default class HostDetail extends Vue<MonitorVue> {
         }
 
         .desc {
-          color: #979ba5;
           line-height: 20px;
+          color: #979ba5;
         }
       }
     }

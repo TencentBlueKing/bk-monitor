@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { destroyUptimeCheckNode, listUptimeCheckNode } from 'monitor-api/modules/model';
 
-import { destroyUptimeCheckNode, listUptimeCheckNode } from '../../../monitor-api/modules/model';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import CommonTable from '../monitor-k8s/components/common-table';

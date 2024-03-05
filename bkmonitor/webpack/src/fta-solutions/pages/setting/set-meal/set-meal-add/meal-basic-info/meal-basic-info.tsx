@@ -25,7 +25,6 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Form, Input, Option, Select, Switcher } from 'bk-magic-vue';
 
 import ResizeContainer from '../../../../../components/resize-container/resize-container';
 import VerifyItem from '../../../../../components/verify-item/verify-item';
@@ -54,8 +53,8 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
   @Prop({ default: 'add', type: String }) type: string;
 
   $refs!: {
-    basicInfoRef: Form;
-    mealNameRef: Input;
+    basicInfoRef: any;
+    mealNameRef: any;
   };
 
   errorMsg = {
@@ -113,7 +112,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
   protected render() {
     return (
       <div class='meal-basic-info'>
-        <Form
+        <bk-form
           {...{
             props: {
               labelWidth: 0,
@@ -127,7 +126,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
             <div class='info-item auto'>
               <div class='item-title'>{this.$t('业务')}</div>
               <div class='item-input'>
-                <Select
+                <bk-select
                   v-model={this.basicInfo.bizId}
                   searchable
                   clearable={false}
@@ -135,13 +134,13 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
                   behavior={'simplicity'}
                 >
                   {this.bizList.map((option, index) => (
-                    <Option
+                    <bk-option
                       key={index}
                       id={option.id}
                       name={option.text}
-                    ></Option>
+                    ></bk-option>
                   ))}
-                </Select>
+                </bk-select>
               </div>
             </div>
             <div class='info-item auto'>
@@ -149,18 +148,18 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
                 <span class='required'>{this.$t('套餐名称')}</span>
               </div>
               <div class='item-input'>
-                {/* <FormItem property={'name'} error-display-type={'normal'} required={true}> */}
+                {/* <bk-form-item property={'name'} error-display-type={'normal'} required={true}> */}
                 <VerifyItem errorMsg={this.errorMsg.name}>
-                  <Input
+                  <bk-input
                     ref='mealNameRef'
                     maxlength={128}
                     minlength={1}
                     v-model={this.basicInfo.name}
                     behavior={'simplicity'}
                     onChange={v => v && (this.errorMsg.name = '')}
-                  ></Input>
+                  ></bk-input>
                 </VerifyItem>
-                {/* </FormItem> */}
+                {/* </bk-form-item> */}
               </div>
             </div>
             {this.type !== 'add' && (
@@ -176,10 +175,10 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
             <div class='info-item'>
               <div class='item-title'>{this.$t('是否启用')}</div>
               <div class='item-input'>
-                <Switcher
+                <bk-switcher
                   v-model={this.basicInfo.enable}
                   theme={'primary'}
-                ></Switcher>
+                ></bk-switcher>
               </div>
             </div>
           </div>
@@ -191,17 +190,17 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
                 maxHeight={500}
                 minWidth={200}
               >
-                <Input
+                <bk-input
                   class='textarea'
                   type={'textarea'}
                   placeholder={this.$t('输入套餐说明')}
                   maxlength={200}
                   v-model={this.basicInfo.desc}
-                ></Input>
+                ></bk-input>
               </ResizeContainer>
             </div>
           </div>
-        </Form>
+        </bk-form>
       </div>
     );
   }

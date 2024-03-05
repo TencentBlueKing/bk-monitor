@@ -189,8 +189,10 @@ export default {
   排在前面的规则优先级高: 'The rule that comes first has a high priority',
   '时间段冲突，优先执行节假日排班': 'Time conflict, priority for the implementation of the holiday schedule',
   主机当前状态: 'Host current status',
+  可对当前采集内容进行检索: 'The current collection can be retrieved',
+  去检索: 'To retrieve',
   '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
     'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
   存在关联的告警组: 'There is an associated alarm group',
-  'tips-采集状态': 'Collection Status'
+  已选: 'selected'
 };

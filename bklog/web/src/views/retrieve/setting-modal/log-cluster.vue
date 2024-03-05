@@ -145,7 +145,7 @@
                 :disabled="!globalEditable"
                 :popover-min-width="150"
                 :class="['min-100 mr-neg1 above', item.fields_name === '' && isFieldsError ? 'rule-error' : '']"
-                @change="handleFieldChange(index)"
+                @selected="(fieldsName) => handleFieldChange(fieldsName, index)"
                 @blur="blurFilter">
                 <bk-option
                   v-for="option in filterSelectList"
@@ -252,6 +252,8 @@
 
 <script>
 import RuleTable from './rule-table';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { formatDate } from '@/common/util';
 
 export default {
   components: {
@@ -278,10 +280,13 @@ export default {
       type: Object,
       require: true,
     },
-    statisticalFieldsData: { // 过滤条件字段可选值关系表
-      type: Object,
+    datePickerValue: { // 过滤条件字段可选值关系表
+      type: Array,
       required: true,
-      default: {},
+    },
+    retrieveParams: {
+      type: Object,
+      default: () => ({}),
     },
   },
   data() {
@@ -368,9 +373,8 @@ export default {
         const requestBehindUrl = isDefault ? '/getDefaultConfig' : '/getConfig';
         const requestUrl = `${baseUrl}${requestBehindUrl}`;
         const res =  await this.$http.request(requestUrl, !isDefault && { params, data });
-        this.initFilterShow(res);
         const {
-          collector_config_name_en,
+          collector_config_name_en: collectorConfigNameEn,
           min_members,
           max_dist_list,
           predefined_varibles,
@@ -378,10 +382,15 @@ export default {
           max_log_length,
           is_case_sensitive,
           clustering_fields,
-          filter_rules,
+          filter_rules: filterRules,
         } = res.data;
+        const newFilterRules = filterRules.map(item => ({
+          ...this.totalFields.find(tItem => tItem.field_name === item.fields_name) ?? {},
+          ...item,
+          value: [item.value],
+        }));
         const assignObj = {
-          collector_config_name_en,
+          collector_config_name_en: collectorConfigNameEn || '',
           min_members,
           max_dist_list,
           predefined_varibles,
@@ -389,15 +398,17 @@ export default {
           max_log_length,
           is_case_sensitive,
           clustering_fields,
-          filter_rules,
+          filter_rules: newFilterRules || [],
         };
         Object.assign(this.formData, assignObj);
         Object.assign(this.defaultData, assignObj);
         // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
         const isHaveFieldsItem = this.clusterField.find(item => item.id === res.data.clustering_fields);
-        if (!isHaveFieldsItem) {
-          this.formData.clustering_fields = '';
-        }
+        if (!isHaveFieldsItem) this.formData.clustering_fields = '';
+        this.$nextTick(() => {
+          const requestFields = this.fieldsKeyStrList();
+          this.queryValueList(requestFields);
+        });
       } catch (e) {
         console.warn(e);
       } finally {
@@ -471,8 +482,8 @@ export default {
       });
     },
     blurFilter() {
-      if (this.formData.filter_rules.length > 0) {
-        this.isFilterRuleError = this.formData.filter_rules.some(el => el.value.length === 0);
+      if (this.formData.filter_rules?.length > 0) {
+        this.isFilterRuleError = this.formData.filter_rules.some(el => !el.value.length);
         this.isFieldsError = this.formData.filter_rules.some(el => el.fields_name === '');
       };
     },
@@ -511,7 +522,7 @@ export default {
           fields_name: item.fields_name,
           logic_operator: item.logic_operator,
           op: item.op,
-          value: (item.value.length ? item.value[0] : ''),
+          value: (item.value?.length ? item.value[0] : ''),
         }));
         this.$http.request('/logClustering/changeConfig', {
           params: {
@@ -535,17 +546,45 @@ export default {
       }, () => {});
     },
     // 字段改变
-    handleFieldChange(index) {
-      this.operateItemIndex = index;
-      const operateItem = this.formData.filter_rules[index];
-      operateItem.value = [];
-      operateItem.valueList = [];
-      if (operateItem.fields_name && this.statisticalFieldsData[operateItem.fields_name]) {
-        const fieldValues = Object.keys(this.statisticalFieldsData[operateItem.fields_name]);
-        if (fieldValues?.length) {
-          operateItem.valueList = fieldValues.map(item => ({ id: item, name: item }));
-        }
+    handleFieldChange(fieldName, index) {
+      const field = this.totalFields.find(item => item.field_name === fieldName) ?? {};
+      Object.assign(this.formData.filter_rules[index], {
+        ...field,
+        value: [],
+      });
+      const requestFields = this.fieldsKeyStrList();
+      this.queryValueList(requestFields);
+    },
+    async queryValueList(fields = []) {
+      if (!fields.length) return;
+      const tempList = handleTransformToTimestamp(this.datePickerValue);
+      try {
+        const res = await this.$http.request('retrieve/getAggsTerms', {
+          params: {
+            index_set_id: this.$route.params.indexId,
+          },
+          data: {
+            keyword: this.retrieveParams?.keyword ?? '*',
+            fields,
+            start_time: formatDate(tempList[0] * 1000),
+            end_time: formatDate(tempList[1] * 1000),
+          },
+        });
+        this.formData.filter_rules.forEach((item) => {
+          item.valueList = res.data.aggs_items[item.fields_name]?.map(item => ({
+            id: item.toString(),
+            name: item.toString(),
+          })) ?? [];
+        });
+      } catch (err) {
+        this.formData.filter_rules.forEach(item => item.valueList = []);
       }
+    },
+    fieldsKeyStrList() {
+      const fieldsStrList = this.formData.filter_rules
+        .filter(item => (item.field_type !== 'text' && item.es_doc_values))
+        .map(item => item.fields_name);
+      return Array.from(new Set(fieldsStrList));
     },
     /**
      * @desc: 赋值过滤字段的下标
@@ -559,15 +598,6 @@ export default {
       if (!operateItem.value.length && val !== '') {
         operateItem.value.push(val);
       }
-    },
-    initFilterShow(res) {
-      res.data.filter_rules = res.data.filter_rules || [];
-      res.data.filter_rules.forEach((item) => {
-        item.value = [item.value];
-        if (JSON.stringify(this.statisticalFieldsData) === '{}') return;
-        const fieldValues = Object.keys(this.statisticalFieldsData[item.fields_name]);
-        item.valueList = fieldValues?.length ? fieldValues.map(item => ({ id: item, name: item })) : [] ;
-      });
     },
     handleDeleteSelect(index) {
       this.formData.filter_rules.splice(index, 1);

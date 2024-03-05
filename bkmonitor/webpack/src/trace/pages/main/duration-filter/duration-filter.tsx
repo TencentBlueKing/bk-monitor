@@ -25,9 +25,10 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Input, Slider } from 'bkui-vue';
+import { debounce } from 'monitor-common/utils/utils';
 
-import { debounce } from '../../../../monitor-common/utils/utils';
 import { ISliderItem } from '../../../components/chart-filtering/chart-filtering';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 
@@ -52,6 +53,7 @@ export default defineComponent({
   },
   emits: ['change'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 滑动选择器配置 */
     const durationSlider = ref<ISliderItem>({ ...DEFAULT_SLIDER_VALUE });
     const startVal = ref<string>('');
@@ -96,7 +98,7 @@ export default defineComponent({
       if (start > end) {
         // 当最小耗时大于最大耗时
         showExchange.value = true;
-        errMsg.value = window.i18n.t('最小耗时不能大于最大耗时，');
+        errMsg.value = t('最小耗时不能大于最大耗时，');
       } else {
         Object.assign(durationSlider.value, {
           curValue: [start, end],
@@ -147,7 +149,7 @@ export default defineComponent({
           handleSetSlider();
         }
       } else {
-        errMsg.value = window.i18n.t('单位仅支持ns, μs, ms, s');
+        errMsg.value = t('单位仅支持ns, μs, ms, s');
       }
     };
     /** 数值互换 */

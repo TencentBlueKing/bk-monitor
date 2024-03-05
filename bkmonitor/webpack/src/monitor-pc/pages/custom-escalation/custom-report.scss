@@ -10,39 +10,52 @@
 .custom-report-page {
   position: relative;
 
+  @include layout-flex(row, stretch, flex-start);
+
   .mr-6 {
     margin-right: 6px;
   }
 
-  @include layout-flex(row, stretch, flex-start);
+  .mr-16 {
+    margin-right: 16px;
+  }
+
+  .custom-report-page-content {
+    padding: 24px 16px 16px 16px;
+    margin-top: 8px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
 
   .content-left {
     flex: 1 1 auto;
-    padding: 0 20px;
-    height: calc(100vh - 52px);
+    height: calc(100vh - 52px - var(--notice-alert-height));
+    padding: 0 20px 20px 20px;
     overflow-y: auto;
 
     &-operator {
-      margin-top: 20px;
-
-      @include layout-flex(row, center, space-between);
+      // margin-top: 20px;
+      display: flex;
+      align-items: center;
 
       .operator-input {
         width: 360px;
+        margin: 0 0 0 auto;
       }
     }
 
     &-table {
       margin-top: 16px;
-      border: 1px solid #dfe0e5;
-      border-radius: 2px;
-      border-top: 0;
       background: #fff;
+      // border: 1px solid #dfe0e5;
+      border-top: 0;
+      border-radius: 2px;
 
       .col-strategy {
         width: 48px;
-        text-align: right;
         color: $unsetColor;
+        text-align: right;
       }
 
       .col-btn {
@@ -69,8 +82,8 @@
       }
 
       .table-empty-title {
-        font-size: $fontSmSize;
         margin-top: 10px;
+        font-size: $fontSmSize;
       }
 
       .bk-table-pagination-wrapper {
@@ -79,25 +92,25 @@
       }
 
       .platform-tag {
-        height: 20px;
-        padding: 4px;
-        font-size: 12px;
-        color: #fff;
-        background: #979ba5;
-        border-radius: 2px;
-        margin-left: 6px;
-        white-space: nowrap;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        height: 20px;
+        padding: 4px;
+        margin-left: 6px;
+        font-size: 12px;
+        color: #fff;
+        white-space: nowrap;
+        background: #979ba5;
+        border-radius: 2px;
       }
     }
   }
 
   .content-right {
     flex-basis: 246px;
+    background: $whiteColor;
     border-left: 1px solid $defaultBorderColor;
     border-radius: 0 0 2px 2px;
-    background: $whiteColor;
   }
 }

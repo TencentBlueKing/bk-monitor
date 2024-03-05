@@ -70,6 +70,7 @@
           <div style="margin-top: -4px; min-width: 500px;">
             <div class="bk-button-group">
               <bk-button
+                size="small"
                 v-for=" (item,index) of globalsData.databus_custom"
                 :key="index"
                 :data-test-id="`addNewCustomBox_button_typeTo${item.id}`"
@@ -704,7 +705,6 @@ export default {
       z-index: 999;
       height: calc(100vh - 99px);
       overflow: hidden;
-      border-left: 1px solid transparent;
 
       .drag-item {
         width: 20px;

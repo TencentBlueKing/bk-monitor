@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Collapse, Progress } from 'bkui-vue';
 import { EnlargeLine, NarrowLine } from 'bkui-vue/lib/icon';
+import { deepClone } from 'monitor-common/utils/utils';
+import { type FieldListType, type FieldValue } from 'monitor-pc/pages/data-retrieval/typings';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
-import { FieldListType, FieldValue } from '../../../../monitor-pc/pages/data-retrieval/typings';
 import { SPAN_KIND_MAPS, SPAN_STATUS_CODE } from '../../../store/constant';
 
 import './field-list.scss';
@@ -71,6 +72,7 @@ export default defineComponent({
   props: IProps,
   emits: ['addCondition', 'showMoreChange', 'checkedChange'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 展开字段的key 默认展开 */
     const expandedData = ref(['rootService']);
     const localValue = ref<TraceFieldValue[]>([]);
@@ -119,19 +121,19 @@ export default defineComponent({
       const aliasMap: AliasMapType = {
         event_name: '事件名',
         target: '目标',
-        root_service_status_code: window.i18n.t('状态码'),
-        root_service: window.i18n.t('入口服务'),
-        root_span_name: window.i18n.t('入口接口'),
-        root_service_category: window.i18n.t('调用类型'),
-        'service.name': window.i18n.t('所属服务'),
-        span_name: window.i18n.t('Span 名称'),
-        status: window.i18n.t('状态码'),
-        kind: window.i18n.t('调用类型'),
-        interface_type: window.i18n.t('接口类型'),
-        interface_name: window.i18n.t('接口名'),
-        interface_service_name: window.i18n.t('所属Service'),
+        root_service_status_code: t('状态码'),
+        root_service: t('入口服务'),
+        root_span_name: t('入口接口'),
+        root_service_category: t('调用类型'),
+        'service.name': t('所属服务'),
+        span_name: t('Span 名称'),
+        status: t('状态码'),
+        kind: t('调用类型'),
+        interface_type: t('接口类型'),
+        interface_name: t('接口名'),
+        interface_service_name: t('所属Service'),
         service_name_in_service_statistic: 'Service',
-        service_type_in_service_statistic: window.i18n.t('服务类型')
+        service_type_in_service_statistic: t('服务类型')
       };
       return aliasMap[key] || key;
     };

@@ -25,11 +25,11 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, provide, ref, toRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import * as echarts from 'echarts';
-
-import { random } from '../../../monitor-common/utils/utils';
-import { SceneType } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { DashboardColumnType, IPanelModel, PanelModel } from '../../../monitor-ui/chart-plugins/typings';
+import { random } from 'monitor-common/utils/utils';
+import { type SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { DashboardColumnType, IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ChartWrapper from './chart-wrapper';
 
@@ -61,6 +61,7 @@ export default defineComponent({
   },
   emits: ['linkTo', 'lintToDetail', 'backToOverview'],
   setup(props) {
+    const { t } = useI18n();
     provide('isSplitPanel', toRef(props, 'isSplitPanel'));
     // 视图实例集合
     const localPanels = ref<PanelModel[]>([]);
@@ -260,7 +261,7 @@ export default defineComponent({
     }
 
     function renderFn() {
-      if (!props.panels?.length) return <div class='dashboard-panel empty-data'>{window.i18n.t('查无数据')}</div>;
+      if (!props.panels?.length) return <div class='dashboard-panel empty-data'>{t('查无数据')}</div>;
       return (
         <div
           id='dashboard-panel'

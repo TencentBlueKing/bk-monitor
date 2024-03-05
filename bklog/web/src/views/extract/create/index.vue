@@ -32,6 +32,7 @@
         <div class="flex-box">
           <bk-button
             theme="primary"
+            size="small"
             @click="showSelectDialog = true"
             data-test-id="addNewExtraction_button_selectTheServer"
           >{{ $t('选择服务器') }}</bk-button>
@@ -364,7 +365,7 @@ export default {
         margin-right: 16px;
         font-size: 16px;
         line-height: 40px;
-        font-size: 14px;
+        font-size: 12px;
         text-align: right;
 
         .required {
@@ -383,6 +384,7 @@ export default {
         flex-flow: column;
         justify-content: center;
         min-height: 40px;
+        font-size: 12px;
 
         .flex-box {
           display: flex;

@@ -27,10 +27,10 @@ import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
+import { profileQuery } from 'monitor-api/modules/apm_profile';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
-import { profileQuery } from '../../../../monitor-api/modules/apm_profile';
-import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import { getSingleDiffColor } from '../../../utils/compare';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
@@ -487,22 +487,19 @@ export default defineComponent({
                       {this.diffTraceId && (
                         <thead>
                           <th></th>
-                          <th>{window.i18n.tc('当前')}</th>
-                          {this.tipDetail.id !== RootId && [
-                            <th>{window.i18n.tc('参照')}</th>,
-                            <th>{window.i18n.tc('差异')}</th>
-                          ]}
+                          <th>{this.$t('当前')}</th>
+                          {this.tipDetail.id !== RootId && [<th>{this.$t('参照')}</th>, <th>{this.$t('差异')}</th>]}
                         </thead>
                       )}
                       <tbody>
                         {!this.diffTraceId && (
                           <tr>
-                            <td>{window.i18n.tc('占比')}</td>
+                            <td>{this.$t('占比')}</td>
                             <td>{this.tipDetail.proportion}%</td>
                           </tr>
                         )}
                         <tr>
-                          <td>{window.i18n.tc('耗时')}</td>
+                          <td>{this.$t('耗时')}</td>
                           <td>{this.tipDetail.duration}</td>
                           {this.diffTraceId &&
                             this.tipDetail.id !== RootId && [
@@ -520,7 +517,7 @@ export default defineComponent({
                     </table>,
                     <div class='tips-info'>
                       <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
-                      {window.i18n.tc('鼠标右键有更多菜单')}
+                      {this.$t('鼠标右键有更多菜单')}
                     </div>
                   ]}
                 </div>
