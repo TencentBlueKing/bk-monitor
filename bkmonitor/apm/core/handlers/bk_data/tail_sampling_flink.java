@@ -337,10 +337,10 @@ public class CodeTransform extends AbstractFlinkBasicTransform {
                     List<SamplingConditions> tmp = new ArrayList<>();
                     tmp.add(samplingConditions.get(i));
                     structConditions.add(tmp);
-                } else if (i > 0 && samplingConditions.get(i).getCondition().equals("OR")) {
+                } else if (i > 0 && samplingConditions.get(i).getCondition().equalsIgnoreCase("OR")) {
                     List<SamplingConditions> tmp = new ArrayList<>();
                     structConditions.add(tmp);
-                } else if (i > 0 && samplingConditions.get(i).getCondition().equals("AND")) {
+                } else if (i > 0 && samplingConditions.get(i).getCondition().equalsIgnoreCase("AND")) {
                     structConditions.get(structConditions.size() - 1).add(samplingConditions.get(i));
                 } else {
                     throw new IllegalArgumentException("Not support condition "
