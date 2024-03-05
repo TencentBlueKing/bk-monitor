@@ -696,6 +696,16 @@ export default {
     width: 184px;
     height: 32px;
   }
+
+  .filter-title {
+    margin-left: 10px;
+  }
+}
+
+.filter-content {
+  .bk-form-radio {
+    font-size: 12px;
+  }
 }
 
 .log-path {
@@ -729,5 +739,6 @@ export default {
   display: inline-block;
   border-bottom: 1px dashed #000;
   margin-bottom: 8px;
+  font-size: 12px;
 }
 </style>

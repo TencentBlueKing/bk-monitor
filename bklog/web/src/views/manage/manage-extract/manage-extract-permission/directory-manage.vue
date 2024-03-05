@@ -119,7 +119,7 @@
         </div>
         <div class="content">
           <div class="flex-box">
-            <bk-button @click="showSelectDialog = true">+ {{$t('选择目标')}}</bk-button>
+            <bk-button size="small" @click="showSelectDialog = true">+ {{$t('选择目标')}}</bk-button>
             <div class="select-text">
               <i18n path="已选择{0}个节点">
                 <span
@@ -169,7 +169,7 @@
               :value="manageStrategyData.operator"
               :class="!manageStrategyData.operator && 'is-input-error'">
             </bk-input>
-            <bk-button :loading="isChangeOperatorLoading" @click="changeOperator">{{$t('改为我')}}</bk-button>
+            <bk-button size="small" :loading="isChangeOperatorLoading" @click="changeOperator">{{$t('改为我')}}</bk-button>
           </div>
         </div>
       </div>
@@ -348,7 +348,7 @@ export default {
         margin: 20px 24px 0;
 
         .title {
-          font-size: 14px;
+          font-size: 12px;
           line-height: 20px;
           margin-bottom: 8px;
           color: #313238;
@@ -372,7 +372,7 @@ export default {
 
           .select-text {
             margin-left: 12px;
-            font-size: 14px;
+            font-size: 12px;
             line-height: 16px;
 
             .primary {

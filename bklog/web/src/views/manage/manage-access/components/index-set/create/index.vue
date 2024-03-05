@@ -154,6 +154,7 @@
             <bk-button
               class="king-button"
               icon="plus"
+              size="small"
               @click="openDialog"
               data-test-id="newlogIndexSetBox_button_addNewIndex"
             >{{ $t('新增索引') }}</bk-button>
@@ -572,6 +573,7 @@ export default {
         padding: 10px 24px 10px 0;
         line-height: 32px;
         text-align: right;
+        font-size: 12px;
 
         &:after {
           content: '*';

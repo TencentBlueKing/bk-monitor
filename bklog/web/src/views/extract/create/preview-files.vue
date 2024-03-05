@@ -37,7 +37,7 @@
           :name="option.name"
         ></bk-option>
       </bk-select>
-      <span>{{ $t('文件日期') }}：</span>
+      <span style="font-size: 12px;">{{ $t('文件日期') }}：</span>
       <file-date-picker :time-range.sync="timeRange" :time-value.sync="timeValue" />
       <bk-checkbox
         v-model="isSearchChild"
@@ -46,6 +46,7 @@
       >{{ $t('是否搜索子目录') }}</bk-checkbox>
       <bk-button
         theme="primary"
+        size="small"
         :disabled="!ipList.length || !fileOrPath"
         :loading="isLoading"
         data-test-id="addNewExtraction_button_searchFilterCondition"
