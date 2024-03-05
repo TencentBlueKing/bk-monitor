@@ -103,7 +103,7 @@ TIME_RANGE = {
     TimeRangeEnum.THIRTY_DAY.value: 60 * 24 * 30,
 }
 
-TABLE_BKUNIFYBEAT_TASK = "bkunifylogbeat_task.base"
+TABLE_BKUNIFYBEAT_TASK = "bkunifylogbeat_k8s_task.base"
 FIELD_CRAWLER_RECEIVED = "crawler_received"
 FIELD_CRAWLER_STATE = "crawler_state"
 MAX_QUERY_SUBSCRIPTION = 100

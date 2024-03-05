@@ -187,7 +187,9 @@ class Strategy(object):
         for items in calendars:
             # 只要命中了任意一个节假日，则这个告警就不生效
             for item in items:
-                item_messages.append(f'{item["calendar_name"]}({item["name"]})')
+                item_list = item.get("list", [])
+                for _item in item_list:
+                    item_messages.append(f'{_item["calendar_name"]}({_item["name"]})')
 
         if item_messages:
             return False, _("当前时刻命中日历休息事项: {}").format(", ".join(item_messages))

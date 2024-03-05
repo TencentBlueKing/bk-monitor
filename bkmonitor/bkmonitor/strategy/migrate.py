@@ -89,7 +89,10 @@ def update_notice_template(apps: Apps, old: str, new: str, bk_biz_ids: typing.Op
         for action_config in action_configs:
             try:
                 for template in action_config["execute_config"]["template_detail"]["template"]:
-                    if template["message_tmpl"] == old:
+                    if (
+                        template["message_tmpl"].strip() == old.strip()
+                        or template["message_tmpl"].strip() == old.strip()
+                    ):
                         template["message_tmpl"] = new
                         is_change = True
             except Exception:
