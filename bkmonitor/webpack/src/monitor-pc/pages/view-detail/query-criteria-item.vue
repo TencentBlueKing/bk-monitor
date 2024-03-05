@@ -626,6 +626,8 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
         height: 100%;
         min-height: 80px;
         border: 0;
+        resize: vertical;
+        overflow: auto;
 
         .cm-content {
           padding: 8px 20px 8px 18px;

@@ -125,6 +125,8 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
           height: 100%;
           min-height: 68px;
           border: 0;
+          resize: vertical;
+          overflow: auto;
 
           .cm-content {
             padding: 10px 12px 10px 10px;

@@ -224,7 +224,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
    */
   initMonaco() {
     const finalValue = this.value !== null ? this.value : this.defaultValue;
-
     if (this.containerElement) {
       const finalOptions = { ...this.options, ...editorWillMount(monaco) };
       const modelUri = this.uri?.(monaco);
