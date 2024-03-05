@@ -88,6 +88,6 @@ class ProfilingFileHandler:
         now = datetime.now()
         queryset.update(
             status=UploadedFileStatus.STORE_SUCCEED,
-            query_start_time=int((now - timedelta(minutes=30)).timestamp() * 1000000),
-            query_end_time=int((now + timedelta(minutes=30)).timestamp() * 1000000),
+            query_start_time=str(int((now - timedelta(minutes=30)).timestamp() * 1000000)),
+            query_end_time=str(int((now + timedelta(minutes=30)).timestamp() * 1000000)),
         )

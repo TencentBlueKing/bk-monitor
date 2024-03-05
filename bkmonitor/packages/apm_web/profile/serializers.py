@@ -94,11 +94,14 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
     class Meta:
         model = ProfileUploadRecord
         fields = "__all__"
-        
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["data_types"] = instance.meta_info.get("data_types", [])
-        return data  
+        data["query_start_time"] = str(instance.query_start_time) if instance.query_start_time else None
+        data["query_end_time"] = str(instance.query_end_time) if instance.query_end_time else None
+
+        return data
 
 
 class ProfileListFileSerializer(serializers.Serializer):
