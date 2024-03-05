@@ -88,7 +88,8 @@ class BkDataDorisProvider:
         return {
             "bk_data_id": bk_data_id,
             "result_table_id": result_table_ids[0],
-            "retention": self.config.expires,
+            # 提取过期天数
+            "retention": int(self.config.expires.split("d")[0]),
         }
 
     def get_result_table_name(self) -> str:
