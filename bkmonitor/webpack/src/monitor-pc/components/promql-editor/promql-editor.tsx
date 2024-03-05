@@ -45,6 +45,38 @@ function editorWillMount(monaco) {
   return {};
 }
 
+/**
+ * @description placeholder
+ */
+class PlaceholderWidget {
+  editor = null;
+  domNode = null;
+  constructor(editor) {
+    this.editor = editor;
+    this.domNode = document.createElement('div');
+    this.domNode.className = 'placeholder-widget';
+    this.domNode.innerHTML = window.i18n.tc('Shift + Enter换行，Enter查询');
+    this.editor.addOverlayWidget(this);
+    this.update();
+  }
+  getId() {
+    return 'my.placeholder.widget';
+  }
+  getDomNode() {
+    return this.domNode;
+  }
+  getPosition() {
+    return {
+      preference: monaco.editor.OverlayWidgetPositionPreference.TOP_CENTER
+    };
+  }
+  update() {
+    const model = this.editor.getModel();
+    const isEmpty = model.getValueLength() === 0;
+    this.domNode.style.display = isEmpty ? 'block' : 'none';
+  }
+}
+
 const defalutOptions = {
   lineNumbers: 'off',
   minimap: {
@@ -127,10 +159,12 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
    */
   handleEditorDidMount() {
     this.editorDidMount?.(this.editor, monaco);
+    const placeholderWidget = new PlaceholderWidget(this.editor);
     this.subscription = this.editor.onDidChangeModelContent(_event => {
       if (!this.preventTriggerChangeEvent) {
         this.onChange(this.editor.getValue());
       }
+      placeholderWidget.update();
     });
     this.editor.onDidBlurEditorText(() => {
       this.$emit('blur', this.editor.getValue(), this.getLinterStatus());

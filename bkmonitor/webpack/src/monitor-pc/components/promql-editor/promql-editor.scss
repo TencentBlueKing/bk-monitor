@@ -1,6 +1,13 @@
+/* stylelint-disable declaration-no-important */
 .promql-monaco-editor-component {
   .monaco-scrollable-element {
-    /* stylelint-disable-next-line declaration-no-important */
     left: 10px !important;
+  }
+
+  .placeholder-widget {
+    top: 8px !important;
+    left: 12px !important;
+    color: #888;
+    pointer-events: none;
   }
 }
