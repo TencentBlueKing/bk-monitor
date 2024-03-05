@@ -23,6 +23,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 
 __all__ = ["get_event_relation_info", "get_alert_relation_info"]
 
+from core.drf_resource import api
 
 logger = logging.getLogger("fta_action.run")
 
@@ -159,6 +160,7 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
 
     # 查询关联日志，最多展示1条
     record = {}
+    log_signature = None
     try:
         log_data_source_class = load_data_source(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)
         log_data_source = log_data_source_class.init_by_query_config(
@@ -173,6 +175,9 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
             record = logs[0]
             for key in record.copy():
                 if key.startswith("__dist_"):
+                    # 获取pattern
+                    if key == sensitivity:
+                        log_signature = record.pop(key)
                     # 去掉数据签名相关字段，精简显示内容
                     record.pop(key)
 
@@ -180,6 +185,29 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
         logger.exception(f"get alert[{alert.id}] log clustering new class log error: {e}")
 
     record["bklog_link"] = bklog_link
+
+    if log_signature:
+        try:
+            pattern_params = {
+                "bizId": alert.event.bk_biz_id,
+                "addition": json.dumps([{"field": sensitivity, "operator": "=", "value": log_signature}]),
+                "start_time": start_time_str,
+                "end_time": end_time_str,
+                "index_set_id": index_set_id,
+                "pattern_level": sensitivity.lstrip("__dist_"),
+                "show_new_pattern": False,
+            }
+            patterns = api.log_search.search_pattern(pattern_params)
+            log_pattern = patterns[0]
+            record["owners"] = ",".join(log_pattern["owners"])
+            if log_pattern["remark"]:
+                remark = log_pattern["remark"][-1]
+                record["remark_text"] = remark["remark"]
+                record["remark_user"] = remark["username"]
+                record["remark_time"] = remark["create_time"]
+        except Exception as e:
+            logger.exception(f"get alert[{alert.id}] signature[{log_signature}] log clustering new pattern error: {e}")
+
     content = json.dumps(record, ensure_ascii=False)
     # 截断
     content = content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
