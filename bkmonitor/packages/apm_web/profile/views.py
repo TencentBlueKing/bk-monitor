@@ -274,6 +274,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         if (
             validated_data.get("global_query", False)
+            and isinstance(DorisConverter, dict)
             and not doris_converter.get("list")
             and validated_data.get("profile_id")
         ):
@@ -284,7 +285,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     f"文件解析失败，状态：{dict(UploadedFileStatus.choices).get(record.status)}，异常信息：{record.content}",
                 )
 
-        if not doris_converter.get("list"):
+        if isinstance(doris_converter, dict) and not doris_converter.get("list"):
             raise ValueError(_("未查询到有效数据"))
 
         diagram_types = validated_data["diagram_types"]
