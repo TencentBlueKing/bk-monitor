@@ -91,8 +91,9 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
 
         data = uploaded.read()
         md5 = hashlib.md5(data).hexdigest()
-        if ProfileUploadRecord.objects.filter(file_md5=md5).exists():
-            raise ValueError(_("相同文件已上传"))
+        exist_record = ProfileUploadRecord.objects.filter(bk_biz_id=validated_data["bk_biz_id"], file_md5=md5).first()
+        if exist_record:
+            raise ValueError(_(f"已上传过相同文件，名称：{exist_record.file_name}({exist_record.origin_file_name})"))
 
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
         try:
@@ -120,8 +121,8 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             service_name=service_name,
         )
 
-        # 异步任务： 文件解析及存储
-        profile_file_upload_and_parse.delay(
+        # 文件解析及存储
+        profile_file_upload_and_parse(
             uploaded.name,
             validated_data["file_type"],
             profile_id,
@@ -267,6 +268,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             filter_labels=validated_data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
         )
+        if not doris_converter.get("list"):
+            raise ValueError(_("未查询到有效数据"))
+
         diagram_types = validated_data["diagram_types"]
         options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         if validated_data.get("is_compared"):
