@@ -280,17 +280,14 @@ class StatisticsQuery(EsQueryBuilderMixin):
         t_q_response = t_q.execute()
         specific_span_ids = [i.to_dict()[field_span_id] for i in t_q_response.hits]
 
-        return list(set(specific_span_ids))
+        return specific_span_ids
 
     def _batch_query_specific_span_ids(self, start_time, end_time, group_key_mapping, logic_filters):
         pool = ThreadPool()
         params = [(start_time, end_time, logic_name, group_key_mapping) for logic_name in logic_filters]
         results = pool.map_ignore_exception(self._get_specific_span_ids, params)
-        specific_span_ids = list()
-        for result in results:
-            if result:
-                specific_span_ids.extend(result)
-        return specific_span_ids
+        specific_span_ids = {span_id for result in results if result for span_id in result}
+        return list(specific_span_ids)
 
     def _query_statistics_by_group(self, group_key, start_time, end_time, limit, offset, filters=None, es_dsl=None):
         query = self.span_query.search
