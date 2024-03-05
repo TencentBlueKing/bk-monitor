@@ -34,6 +34,7 @@ class ProfileUploadRecord(models.Model):
         max_length=50,
         db_index=True,
     )
+    file_key = models.CharField("文件存储路径", max_length=1024)
     file_md5 = models.CharField("文件MD5", max_length=32, db_index=True)
     profile_id = models.CharField("profile ID", max_length=128)
     operator = models.CharField("操作人", max_length=128)
@@ -48,3 +49,5 @@ class ProfileUploadRecord(models.Model):
     service_name = models.CharField("服务名称", max_length=50, default="default")
 
     meta_info = models.JSONField("数据元信息", default=dict)
+
+    content = models.TextField("运行信息", null=True)

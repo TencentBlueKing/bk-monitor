@@ -40,6 +40,8 @@ class ProfilingFileHandler:
         :param int bk_biz_id: 业务id
         :param str service_name: 服务名
         """
+        param = {"file_type": file_type, "profile_id": profile_id, "bk_biz_id": bk_biz_id}
+        queryset = ProfileUploadRecord.objects.filter(**param)
 
         try:
             converter = get_converter_by_input_type(file_type)(
@@ -54,13 +56,11 @@ class ProfilingFileHandler:
             # 从 bkrepo 中获取文件数据
             data = self.get_file_data(key)
             p = converter.convert(data)
-        except Exception as e:
-            logger.exception(f"convert profiling data failed, error: {e}")
+        except Exception as e:  # noqa
+            content = f"convert profiling data failed, error: {e}"
+            logger.exception(content)
+            queryset.update(content=content)
             p = None
-
-        param = {"file_type": file_type, "profile_id": profile_id, "bk_biz_id": bk_biz_id}
-
-        queryset = ProfileUploadRecord.objects.filter(**param)
 
         if p is None:
             queryset.update(status=UploadedFileStatus.PARSING_FAILED)
@@ -78,8 +78,9 @@ class ProfilingFileHandler:
         try:
             CollectorHandler.send_to_builtin_datasource(p)
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(f"save profiling data to doris failed, error: {e}")
-            queryset.update(status=UploadedFileStatus.STORE_FAILED)
+            content = f"save profiling data to doris failed, error: {e}"
+            logger.exception(content)
+            queryset.update(status=UploadedFileStatus.STORE_FAILED, content=content)
             return
 
         queryset.update(status=UploadedFileStatus.STORE_SUCCEED)

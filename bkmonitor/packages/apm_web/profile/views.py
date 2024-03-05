@@ -97,7 +97,9 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
 
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
         try:
-            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(data, key=uploaded.name)
+            # 文件 key: {bk_biz_id}_{uploaded.name}
+            key = f"{validated_data['bk_biz_id']}_{uploaded.name}"
+            ProfilingFileHandler().bk_repo_storage.client.upload_fileobj(data, key=key)
         except Exception as e:
             logger.exception("failed to upload file to bkrepo")
             raise Exception(_("上传文件失败， 失败原因: {}").format(e))
@@ -110,6 +112,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         record = ProfileUploadRecord.objects.create(
             bk_biz_id=validated_data["bk_biz_id"],
             app_name=app_name,
+            file_key=key,
             file_md5=md5,
             file_type=validated_data["file_type"],
             profile_id=profile_id,
@@ -121,9 +124,9 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             service_name=service_name,
         )
 
-        # 文件解析及存储
-        profile_file_upload_and_parse(
-            uploaded.name,
+        # 异步任务：文件解析及存储
+        profile_file_upload_and_parse.delay(
+            key,
             validated_data["file_type"],
             profile_id,
             validated_data["bk_biz_id"],
@@ -268,6 +271,19 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             filter_labels=validated_data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
         )
+
+        if (
+            validated_data.get("global_query", False)
+            and not doris_converter.get("list")
+            and validated_data.get("profile_id")
+        ):
+            # 全局查询并且无数据时 查询文件上传记录的异常信息并展示
+            record = ProfileUploadRecord.objects.filter(profile_id=validated_data["profile_id"]).first()
+            if record:
+                raise ValueError(
+                    f"文件解析失败，状态：{dict(UploadedFileStatus.choices).get(record.status)}，异常信息：{record.content}",
+                )
+
         if not doris_converter.get("list"):
             raise ValueError(_("未查询到有效数据"))
 
