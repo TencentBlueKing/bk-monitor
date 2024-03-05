@@ -409,8 +409,8 @@ class MappingHandlers(object):
             start_time = int(self.start_time)
             end_time = int(self.end_time)
         # 时间戳取整, 开始时间上取整, 结束时间下取整
-        start_time = math.floor(start_time / 3600) * 3600
-        end_time = math.ceil(end_time / 3600) * 3600
+        start_time = start_time // 3600 * 3600
+        end_time = ((end_time // 3600) + 1) * 3600
         return self._get_latest_mapping(index_set_id=self.index_set_id, start_time=start_time, end_time=end_time)
 
     @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
