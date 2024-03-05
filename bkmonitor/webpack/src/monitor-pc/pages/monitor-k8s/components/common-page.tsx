@@ -28,21 +28,15 @@
  */
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
+import bus from 'monitor-common/utils/event-bus';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
+import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
+import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
-import bus from '../../../../monitor-common/utils/event-bus';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import FlexDashboardPanel from '../../../../monitor-ui/chart-plugins/components/flex-dashboard-panel';
-import { DEFAULT_INTERVAL, DEFAULT_METHOD } from '../../../../monitor-ui/chart-plugins/constants/dashbord';
-import {
-  BookMarkModel,
-  DashboardMode,
-  IPanelModel,
-  IViewOptions,
-  PanelModel
-} from '../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../monitor-ui/chart-plugins/utils/variable';
 import Collapse from '../../../components/collapse/collapse';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
@@ -528,9 +522,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {

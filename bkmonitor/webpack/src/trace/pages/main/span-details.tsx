@@ -29,9 +29,9 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Button, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
+import { getSceneView } from 'monitor-api/modules/scene_view';
+import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
-import { getSceneView } from '../../../monitor-api/modules/scene_view';
-import { copyText, deepClone, random } from '../../../monitor-common/utils/utils';
 import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { Span } from '../../components/trace-view/typings';
@@ -236,6 +236,7 @@ export default defineComponent({
                 <img
                   class='span-icon'
                   src={icon}
+                  alt=''
                 />
                 <span>{serviceName}</span>
                 <i class='icon-monitor icon-fenxiang' />
@@ -601,7 +602,7 @@ export default defineComponent({
       if (content === 'text') {
         text = spanID;
       } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}?app_name=${
+        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
           appName.value
         }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
         text = location.href.replace(location.hash, hash);
@@ -808,32 +809,32 @@ export default defineComponent({
     provide('SpanDetailActiveTab', activeTab);
     const tabList = [
       {
-        label: window.i18n.t('基础信息'),
+        label: t('基础信息'),
         name: 'BasicInfo'
       },
       {
-        label: window.i18n.t('异常事件'),
+        label: t('异常事件'),
         name: 'Event'
       },
       {
-        label: window.i18n.t('日志'),
+        label: t('日志'),
         name: 'Log'
       },
       {
-        label: window.i18n.t('主机'),
+        label: t('主机'),
         name: 'Host'
       }
       // 20230525 这期暂时不需要
       // {
-      //   label: window.i18n.t('进程'),
+      //   label: t('进程'),
       //   name: 'Process'
       // },
       // {
-      //   label: window.i18n.t('容器'),
+      //   label: t('容器'),
       //   name: 'Container'
       // },
       // {
-      //   label: window.i18n.t('指标'),
+      //   label: t('指标'),
       //   name: 'Index'
       // }
     ];
@@ -919,7 +920,7 @@ export default defineComponent({
     );
     if (window.enable_apm_profiling) {
       tabList.push({
-        label: window.i18n.t('性能分析'),
+        label: t('性能分析'),
         name: 'Profiling'
       });
     }
@@ -1058,7 +1059,7 @@ export default defineComponent({
                               onClick={handleEventErrLink}
                               style='margin-top: 16px;'
                             >
-                              {window.i18n.t('错误分析')}
+                              {t('错误分析')}
                               <span
                                 class='icon-monitor icon-fenxiang'
                                 style='margin-left: 8px;'

@@ -46,8 +46,7 @@
         <span
           class="title-interval"
           v-if="hasMetric && extendMetricData.collect_interval"
-          >{{ extendMetricData.collect_interval }}m</span
-        >
+        >{{ extendMetricData.collect_interval }}m</span>
         <i
           v-show="showMore"
           v-if="hasMetric"
@@ -113,13 +112,13 @@ export default class ChartTitle extends Vue {
   @Prop({ default: '' }) title: string;
   @Prop({ default: '' }) subtitle: string;
   @Prop({ default: () => ({ status: 0, number: 0 }) })
-  alarmStatus: { status: number; alert_number: number; strategy_number: number };
+    alarmStatus: { status: number; alert_number: number; strategy_number: number };
   @Prop({
     default() {
       return {};
     }
   })
-  extendMetricData: IExtendMetricData;
+    extendMetricData: IExtendMetricData;
   @Prop({ default: '3' }) collectInterval: string;
   @Prop({ default: false }) showMore: boolean;
   @Prop({ default: () => [] }) menuList: string[];
@@ -146,7 +145,8 @@ export default class ChartTitle extends Vue {
       content,
       showOnInit: false,
       trigger: 'mouseenter',
-      placements: ['top']
+      placements: ['top'],
+      allowHTML: false
     };
   }
   get hasMetric() {
@@ -226,15 +226,12 @@ export default class ChartTitle extends Vue {
     const relatedId = data.related_id;
     if (resultTableLabel === 'uptimecheck' && !relatedId) {
       const list = elList.bk_monitor_time_series;
-      elList.bk_monitor_time_series = list.filter(
-        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名')
-      );
+      elList.bk_monitor_time_series = list.filter(item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名'));
     }
     const curElList = elList[curActive] || [...options];
-    let content =
-      curActive === 'bk_log_search_time_series'
-        ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
-        : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
+    let content =      curActive === 'bk_log_search_time_series'
+      ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
+      : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
     if (data.collect_config) {
       const collectorConfig = data.collect_config
         .split(';')
@@ -247,7 +244,7 @@ export default class ChartTitle extends Vue {
       const index = curElList.indexOf(item => item.label === this.$t('指标别名'));
       curElList.splice(index, 1);
     }
-    curElList.forEach(item => {
+    curElList.forEach((item) => {
       content += `<div class="item"><div>${item.label}：${item.val || '--'}</div></div>\n`;
     });
     return content;
@@ -258,33 +255,33 @@ export default class ChartTitle extends Vue {
 $alarmColor: #dcdee5 #63656e #ea3636;
 
 .title-wrapper {
-  width: 100%;
   flex: 1;
+  width: 100%;
 
   .chart-title {
     padding: 5px 10px;
     margin-left: -10px;
-    border-radius: 2px;
+    font-size: 12px;
     // background-color: white;
     color: #63656e;
-    font-size: 12px;
+    border-radius: 2px;
 
     .main-title {
-      font-weight: 700;
       display: flex;
-      align-items: center;
       flex-wrap: nowrap;
+      align-items: center;
+      font-weight: 700;
 
       .alarm-icon {
-        color: #dcdee5;
-        height: 14px;
-        width: 14px;
+        z-index: 9;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        width: 14px;
+        height: 14px;
         margin-right: 6px;
-        z-index: 9;
+        font-size: 14px;
+        color: #dcdee5;
 
         @for $i from 1 through 3 {
           &.status-#{$i} {
@@ -299,39 +296,39 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       }
 
       .title-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        line-height: 20px;
-        height: 20px;
         display: flex;
         align-items: center;
+        height: 20px;
+        overflow: hidden;
+        line-height: 20px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .title-interval {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0 2px;
-        border: 1px solid rgba(151, 155, 165, 0.3);
-        border-radius: 2px;
-        font-weight: normal;
-        margin-left: 6px;
-        color: #63656e;
         height: 16px;
+        padding: 0 2px;
+        margin-left: 6px;
         font-size: 12px;
+        font-weight: normal;
+        color: #63656e;
+        border: 1px solid rgba(151, 155, 165, .3);
+        border-radius: 2px;
       }
 
       .tips-icon,
       %tips-icon {
-        margin-left: auto;
-        height: 14px;
-        width: 14px;
-        font-size: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 14px;
+        height: 14px;
         margin-right: 10px;
+        margin-left: auto;
+        font-size: 14px;
         color: #979ba5;
 
         &::before {
@@ -348,8 +345,8 @@ $alarmColor: #dcdee5 #63656e #ea3636;
     }
 
     &:hover {
-      background-color: #f4f6fa;
       cursor: pointer;
+      background-color: #f4f6fa;
 
       .main-title {
         color: black;
@@ -362,13 +359,13 @@ $alarmColor: #dcdee5 #63656e #ea3636;
     }
 
     .sub-title {
-      line-height: 16px;
       height: 16px;
-      color: #979ba5;
+      margin-left: 20px;
       overflow: hidden;
+      line-height: 16px;
+      color: #979ba5;
       text-overflow: ellipsis;
       white-space: nowrap;
-      margin-left: 20px;
     }
   }
 }

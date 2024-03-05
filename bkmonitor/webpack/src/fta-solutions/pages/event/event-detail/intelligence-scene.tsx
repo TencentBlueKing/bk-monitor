@@ -26,13 +26,12 @@
 import { Component, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
-
-import { multiAnomalyDetectGraph } from '../../../../monitor-api/modules/alert';
-import { random } from '../../../../monitor-common/utils';
-import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
-import ChartWrapper from '../../../../monitor-ui/chart-plugins/components/chart-wrapper';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import { multiAnomalyDetectGraph } from 'monitor-api/modules/alert';
+import { random } from 'monitor-common/utils';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
 
@@ -68,9 +67,11 @@ export default class IntelligenceScene extends tsc<IProps> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {

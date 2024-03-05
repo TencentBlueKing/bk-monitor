@@ -141,6 +141,7 @@
         <img
           class="monitor-logo-icon"
           src="../../static/images/svg/monitor-logo.svg"
+          alt=""
         >
       </div>
       <div
@@ -222,10 +223,10 @@
 import Vue from 'vue';
 import { createNamespacedHelpers } from 'vuex';
 import BkPaasLogin from '@blueking/paas-login';
+import { getFooter } from 'monitor-api/modules/commons';
+import { copyText, deleteCookie, getUrlParam, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/utils';
+import AuthorityModal from 'monitor-ui/authority-modal/index';
 
-import { getFooter } from '../../../monitor-api/modules/commons';
-import { copyText, deleteCookie, getUrlParam, LOCAL_BIZ_STORE_KEY } from '../../../monitor-common/utils/utils';
-import AuthorityModal from '../../../monitor-ui/authority-modal/index';
 import LogVersion from '../../components/log-version/log-version';
 import LogVersionMixin from '../../components/log-version/log-version-mixin';
 import documentLinkMixin from '../../mixins/documentLinkMixin.ts';
@@ -706,7 +707,7 @@ export default {
     /* stylelint-disable-next-line declaration-no-important */
     position: absolute !important;
     width: 100%;
-    height: calc(100vh - 52px);
+    height: calc(100vh - 52px - var(--notice-alert-height));
     margin-top: -20px;
     margin-left: -24px;
   }

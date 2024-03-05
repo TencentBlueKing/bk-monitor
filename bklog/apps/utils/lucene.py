@@ -192,16 +192,15 @@ class LuceneParser(object):
         return fields
 
     def parsing_not(self, node):
-        """ """
-        field = LuceneField(
-            pos=node.pos,
-            name=FULL_TEXT_SEARCH_FIELD_NAME,
-            operator=NOT_OPERATOR,
-            type=LuceneSyntaxEnum.NOT,
-            value=self._get_method(node.a).value,
-            is_full_text_field=True,
-        )
-        return field
+        """解析NOT操作, 和解析group的逻辑保持一致"""
+        fields = []
+        for children in node.children:
+            children_fields = self._get_method(children)
+            if isinstance(children_fields, list):
+                fields.extend(children_fields)
+            else:
+                fields.append(children_fields)
+        return fields
 
     def parsing_plus(self, node):
         """ """

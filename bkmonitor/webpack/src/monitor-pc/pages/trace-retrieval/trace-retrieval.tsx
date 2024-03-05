@@ -26,6 +26,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import '@blueking/bk-weweb';
+
 import './trace-retrieval.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
@@ -50,10 +52,6 @@ export default class TraceRetrieval extends tsc<{}> {
     setTimeout(() => {
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
     }, 300);
-  }
-  beforeRouteLeave(to, from, next) {
-    (document.body as any).___zrEVENTSAVED = null;
-    next();
   }
   render() {
     return (

@@ -28,15 +28,14 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Radio, RadioGroup } from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
+import { fetchItemStatus, getUnitInfo } from 'monitor-api/modules/strategies';
+import { asyncDebounceDecorator } from 'monitor-common/utils/debounce-decorator';
+import { Debounce, deepClone, random, typeTools } from 'monitor-common/utils/utils';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from '../../../../../monitor-api/modules/grafana';
-import { fetchItemStatus, getUnitInfo } from '../../../../../monitor-api/modules/strategies';
-import { asyncDebounceDecorator } from '../../../../../monitor-common/utils/debounce-decorator';
-import { Debounce, deepClone, random, typeTools } from '../../../../../monitor-common/utils/utils';
-import Viewer from '../../../../../monitor-ui/markdown-editor/viewer';
-import MonitorEcharts from '../../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import MonitorDivider from '../../../../components/divider/divider.vue';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
@@ -124,11 +123,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.toolRef.timeRange = value;
-    this.tools.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.toolRef.timeRange = value;
+      this.tools.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -316,7 +317,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.isMultivariateAnomalyDetection) {
       return false;
     }
-    return this.metricQueryData.length > 0;
+    return this.metricQueryData.length > 0 || this.metricQueryData;
   }
 
   deactivated() {
@@ -951,9 +952,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   // 查看近20条数据
                   !!this.needNearRadio && (
                     <div class='radio-count-options'>
-                      <RadioGroup v-model={this.shortcutsType}>
+                      <bk-radio-group v-model={this.shortcutsType}>
                         {this.shortcutsList.map(sh => (
-                          <Radio value={sh.id}>
+                          <bk-radio value={sh.id}>
                             {sh.id === 'NEAR' ? (
                               <i18n
                                 path='查看{0}条数据'
@@ -967,9 +968,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                             ) : (
                               <span>{sh.name}</span>
                             )}
-                          </Radio>
+                          </bk-radio>
                         ))}
-                      </RadioGroup>
+                      </bk-radio-group>
                     </div>
                   ),
                   // <monitor-divider></monitor-divider>,
@@ -1020,7 +1021,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 </div>
               )}
             </div>,
-
             this.needDescContent && (
               <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
                 {this.isEventMetric && <div class='desc-title'>{this.$t('系统事件说明')}</div>}

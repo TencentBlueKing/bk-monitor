@@ -29,18 +29,18 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
-
-import { CancelToken } from '../../../../monitor-api/index';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
+import { CancelToken } from 'monitor-api/index';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
   downCsvFile,
   IUnifyQuerySeriesItem,
   transformSrcData,
   transformTableDataToCsvStr
-} from '../../../../monitor-pc/pages/view-detail/utils';
-import { handleTimeRange } from '../../../../monitor-pc/utils';
+} from 'monitor-pc/pages/view-detail/utils';
+import { handleTimeRange } from 'monitor-pc/utils';
+
 import { getValueFormat, ValueFormatter } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
@@ -454,7 +454,7 @@ export class LineChart
             };
           })
         }));
-        this.seriesList = seriesList;
+        this.seriesList = Object.freeze(seriesList) as any;
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
         // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
         // 所以此处折中设置 在有孤立点情况下进行开启animation 连续的情况不开启
@@ -488,10 +488,11 @@ export class LineChart
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         ) as EChartOption<EChartOption.Series>;
+        const isBar = this.panel.options?.time_series?.type === 'bar';
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
-            color: this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST,
+            color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
@@ -509,7 +510,12 @@ export class LineChart
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
               max: v => Math.max(v.max, +maxThreshold),
-              min: v => Math.min(v.min, +minThreshold)
+              min: v => {
+                let min = Math.min(v.min, +minThreshold);
+                // 柱状图y轴不能以最小值作为起始点
+                if (isBar) min = min <= 10 ? 0 : min - 10;
+                return min;
+              }
             },
             xAxis: {
               axisLabel: {
@@ -844,7 +850,12 @@ export class LineChart
 
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
-
+      // 获取y轴上可设置的最小的精确度
+      const precision = this.handleGetMinPrecision(
+        item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
+        unitFormatter,
+        item.unit
+      );
       if (item.name) {
         Object.keys(legendItem).forEach(key => {
           if (['min', 'max', 'avg', 'total'].includes(key)) {
@@ -856,12 +867,6 @@ export class LineChart
         });
         legendData.push(legendItem);
       }
-      // 获取y轴上可设置的最小的精确度
-      const precision = this.handleGetMinPrecision(
-        item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-        unitFormatter,
-        item.unit
-      );
       return {
         ...item,
         color,

@@ -26,7 +26,6 @@
 
 import { Component, Emit, Model } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Dialog } from 'bk-magic-vue';
 
 interface IProps {
   value?: boolean;
@@ -48,7 +47,7 @@ export default class DebuggerDialog extends tsc<IProps> {
 
   render() {
     return (
-      <Dialog
+      <bk-dialog
         value={this.value}
         title={this.$t('调试')}
         header-position='left'
@@ -57,7 +56,7 @@ export default class DebuggerDialog extends tsc<IProps> {
         onValueChange={this.handleShowChange}
         confirm-fn={this.handleConfirm}
         onCancel={this.handleCancel}
-      ></Dialog>
+      ></bk-dialog>
     );
   }
 }

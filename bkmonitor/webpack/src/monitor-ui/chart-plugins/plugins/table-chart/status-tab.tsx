@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { ITableFilterItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
+import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './status-tab.scss';
 
@@ -83,7 +82,8 @@ export default class StatusTab extends tsc<IProps, IEvents> {
               placements: ['top'],
               boundary: 'window',
               disabled: !item.tips,
-              delay: 200
+              delay: 200,
+              allowHTML: false
             }}
             onClick={() => this.handleClickItem(item)}
           >

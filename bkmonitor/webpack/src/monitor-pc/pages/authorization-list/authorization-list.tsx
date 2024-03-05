@@ -25,9 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tag } from 'bk-magic-vue';
 import dayjs from 'dayjs';
-
 import {
   createOrUpdateAuthorizer,
   deleteExternalPermission,
@@ -36,8 +34,9 @@ import {
   getAuthorizerList,
   getByAction,
   getExternalPermissionList
-} from '../../../monitor-api/modules/iam';
-import { Debounce } from '../../../monitor-common/utils';
+} from 'monitor-api/modules/iam';
+import { Debounce } from 'monitor-common/utils';
+
 import BizSelect from '../../components/biz-select/biz-select';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
@@ -563,7 +562,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map(item => <Tag>{item}</Tag>)}
+                {row.authorized_users?.map(item => <bk-tag>{item}</bk-tag>)}
               </div>
             )
           }}

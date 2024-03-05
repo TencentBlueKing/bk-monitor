@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { deepClone } from '../../../../monitor-common/utils';
+import { deepClone } from 'monitor-common/utils';
 
 import MoreConfig from './components/more-config';
 import { validatePort } from './utils';

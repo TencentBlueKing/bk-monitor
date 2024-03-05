@@ -15,8 +15,11 @@ from bisect import bisect_left
 
 from django.core.cache import cache
 from elasticsearch_dsl import Q
+
+from constants.aiops import SceneSet
+from core.drf_resource import resource
+from core.errors.api import BKAPIError
 from fta_web.alert.handlers.alert import AlertQueryHandler
-from monitor_web.aiops.ai_setting.constant import SceneSet
 from monitor_web.aiops.host_monitor.constant import NoAccessException
 from monitor_web.commons.robot.constant import (
     DISPLAY_TIME_LEVEL,
@@ -24,9 +27,6 @@ from monitor_web.commons.robot.constant import (
     ROBOT_AI_SETTING_KEY,
     RobotLevel,
 )
-
-from core.drf_resource import resource
-from core.errors.api import BKAPIError
 
 
 def time_range_regular(time_range):

@@ -1,8 +1,0 @@
-plugin_info:
-    method: POST
-    description: 获取业务下bkmonitorbeat插件信息
-    dependencies: []
-    args:
-        bk_biz_id: 2
-        name: bkmonitorbeat
-

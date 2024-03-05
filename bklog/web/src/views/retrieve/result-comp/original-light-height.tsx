@@ -21,71 +21,75 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import { Component, Prop } from 'vue-property-decorator';
-import { getFlatObjValues, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { Component, Prop, Emit } from 'vue-property-decorator';
+import { getFlatObjValues } from '@/common/util';
+import TextSegmentation from './text-segmentation.vue';
 import './original-light-height.scss';
 
 interface IProps {
-  originJson: Object;
+  originJson: object;
+  visibleFields: Array<any>;
+  isWrap: boolean;
 }
 @Component
 export default class QueryStatement extends tsc<IProps> {
   /** 原始日志 */
   @Prop({ type: Object, required: true }) originJson;
+  @Prop({ type: Array<any>, required: true }) visibleFields;
+  @Prop({ type: Boolean, required: true }) isWrap;
 
   segmentReg = /<mark>(.*?)<\/mark>/g;
 
-  // 扁平化对象所有数据
-  get fieldMapData() {
-    const { newObject } = getFlatObjValues(this.originJson || {});
-    const sortObject = Object.keys(newObject).sort((a, b) => {
-      const sortA = a.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
-      const sortB = b.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
-      return sortA.localeCompare(sortB);
-    })
-      .reduce((pre, cur) => {
-        pre[cur] = newObject[cur];
-        return pre;
-      }, {});
-    return Object.entries(sortObject);
+  get visibleFieldsNameList() {
+    return this.visibleFields.map(item => item.field_name);
   }
 
-  /** 检索的高亮列表 */
-  markItem(str: any) {
-    let splitList = str
-      .toString()
-      .split(this.segmentReg)
-      .filter(Boolean)
-      .map(item => ({
-        str: item,
-        isMark: false,
-      }));
-    // 过滤切割的数组 判断所有的值filter(Boolean)清空所有空字符串后 若为空数组 则补一个空字符串展示位
-    if (!splitList.length) splitList = ['""'];
-    let markVal = str.toString().match(this.segmentReg);
-    if (markVal?.length) {
-      splitList.forEach((el) => {
-        markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
-        markVal.includes(el.str) && (el.isMark = true); // 给匹配到的数据 mark高亮设置为true
-      });
-    }
-    return splitList;
+  get strOriginJson() {
+    return JSON.stringify(this.fieldMapDataObj);
   }
+
+  // 扁平化对象所有数据
+  get fieldMapDataObj() {
+    const { newObject } = getFlatObjValues(this.originJson || {});
+    const visibleObject = {};
+    Object.keys(newObject).forEach((el) => {
+      if (this.visibleFieldsNameList.includes(el)) {
+        visibleObject[el] = newObject[el];
+      }
+    });
+    const sortObject = this.visibleFieldsNameList.reduce((pre, cur) => {
+      pre[cur] = visibleObject[cur] ?? '';
+      return pre;
+    }, {});
+    return sortObject;
+  }
+
+  @Emit('menuClick')
+  handleEmitMenuClick(type, content, key, isLink) {
+    const option = { fieldName: key, operation: type === 'not' ? 'is not' : type, value: content };
+    const newMenuObj = { option, isLink };
+    return newMenuObj;
+  }
+
+  getFieldType(fieldName: string) {
+    return this.visibleFields.find(item => item.field_name === fieldName)?.field_type;
+  }
+
 
   render() {
-    const valueStr = (val) => {
-      return this.markItem(val).map((item) => {
-        if (item.isMark) return <mark>{item.str}</mark>;
-        return item.str || '""';
-      });
-    };
     return (
-      <span class="origin-content">
-        {this.fieldMapData.map(([key, value]) => {
+      <span class="origin-content" title={this.isWrap ? '' : this.strOriginJson}>
+        {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>
               <span class="black-mark">&nbsp;{key}:&nbsp;</span>
-              <span class="origin-value">{valueStr(value)}</span>
+              <span class="origin-value">
+                <TextSegmentation
+                  content={value}
+                  field-type={this.getFieldType(key)}
+                  menu-click={(type, content, isLink) => this.handleEmitMenuClick(type, content, key, isLink)}
+                />
+              </span>
             </span>
           );
         })}

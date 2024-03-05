@@ -27,8 +27,8 @@ import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
+import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 
-import { destroyDutyRule, listDutyRule, switchDutyRule } from '../../../monitor-api/modules/model';
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';

@@ -25,30 +25,30 @@
  * IN THE SOFTWARE.
  */
 import { computed, ComputedRef, defineComponent, inject, PropType, reactive, Ref, ref, watch } from 'vue';
-import { TranslateResult } from 'vue-i18n';
+import { TranslateResult, useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
-
 // 原先绑定 Vue 原型的 $api
-import api from '../../../../monitor-api/api';
+import api from 'monitor-api/api';
 // TODO：需要重新实现
-// import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
+// import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 // TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
 // import { CommonSimpleChart } from '../../common-simple-chart';
-import { debounce } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import { ITableColumn } from '../../../../monitor-pc/pages/monitor-k8s/typings';
+import { debounce } from 'monitor-common/utils/utils';
+import { type ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 // import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { MONITOR_BAR_OPTIONS } from '../../../../monitor-ui/chart-plugins/constants';
+import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 // 原有类型
 // import { PanelModel } from '../../typings';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 // src/monitor-ui/chart-plugins/utils/index.ts
-import { downFile } from '../../../../monitor-ui/chart-plugins/utils';
+import { downFile } from 'monitor-ui/chart-plugins/utils';
+
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 // import { VariablesService } from '../../utils/variable';
 import { VariablesService } from '../../../utils';
 // import BaseEchart from '../monitor-base-echart';
@@ -98,13 +98,14 @@ export default defineComponent({
   },
   emits: ['loading', 'errorMsg'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     // 标签引用
     const baseChart = ref<HTMLDivElement>();
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const RelatedLogChartRef = ref<HTMLDivElement>();
 
     const empty = ref(true);
-    const emptyText = ref(window.i18n.tc('加载中...'));
+    const emptyText = ref(t('加载中...'));
     const emptyChart = ref(false);
     /** 关联是否为蓝鲸日志平台 */
     const isBkLog = ref(true);
@@ -269,7 +270,7 @@ export default defineComponent({
     const getPanelData = debounce(async (start_time?: string, end_time?: string) => {
       unregisterOberver();
       handleLoadingChange(true);
-      emptyText.value = window.i18n.tc('加载中...');
+      emptyText.value = t('加载中...');
       keyword.value = props.panel.options?.related_log_chart?.defaultKeyword ?? keyword.value;
       // 先用 log_predicate 接口判断日志类型 蓝鲸日志平台 or 第三方其他日志
       const predicateLogTarget = props.panel.targets.find(item => item.dataType === 'log_predicate');
@@ -312,7 +313,7 @@ export default defineComponent({
           .catch(error => {
             empty.value = true;
             handleErrorMsgChange(error.msg || error.message);
-            emptyText.value = window.i18n.tc('出错了');
+            emptyText.value = t('出错了');
             handleLoadingChange(false);
           });
       }
@@ -326,9 +327,9 @@ export default defineComponent({
         relatedBkBizId.value = related_bk_biz_id;
         updateBarChartData(start_time, end_time);
         updateTableData(start_time, end_time);
-        alertText.value = window.i18n.t('如果需要查看完整日志，可跳转日志检索进行查看');
+        alertText.value = t('如果需要查看完整日志，可跳转日志检索进行查看');
       } else {
-        alertText.value = window.i18n.t('关联了非蓝鲸日志平台的日志，只能进行日志的跳转');
+        alertText.value = t('关联了非蓝鲸日志平台的日志，只能进行日志的跳转');
         thirdPartyLog.value = indexSetId;
       }
     };
@@ -490,7 +491,7 @@ export default defineComponent({
     function handleSavePng() {
       toPng(baseChart.value)
         .then(url => {
-          downFile(url, `${window.i18n.t('总趋势')}.png`);
+          downFile(url, `${t('总趋势')}.png`);
         })
         .catch(err => {
           console.log(err);
@@ -622,7 +623,7 @@ export default defineComponent({
                           class='link'
                           onClick={() => this.goLink()}
                         >
-                          {window.i18n.t('route-日志检索')}
+                          {this.$t('route-日志检索')}
                           <i class='icon-monitor icon-fenxiang'></i>
                         </span>
                       ) : (
@@ -644,10 +645,10 @@ export default defineComponent({
                 <div class='log-chart-collapse'>
                   <div class='collapse-header'>
                     <span class='collapse-title'>
-                      <span class='title'>{window.i18n.t('总趋势')}</span>
+                      <span class='title'>{this.$t('总趋势')}</span>
                       {!this.emptyChart && (
                         <div class='title-tool'>
-                          <span class='interval-label'>{window.i18n.t('汇聚周期')}</span>
+                          <span class='interval-label'>{this.$t('汇聚周期')}</span>
 
                           <Select
                             class='interval-select'
@@ -672,7 +673,7 @@ export default defineComponent({
                     {!this.emptyChart && (
                       <Popover
                         placement='top'
-                        content={window.i18n.t('截图到本地')}
+                        content={this.$t('截图到本地')}
                       >
                         <i
                           class='icon-monitor icon-mc-camera'
@@ -698,33 +699,27 @@ export default defineComponent({
                           />
                         </div>
                       ) : (
-                        <div class='empty-chart'>{window.i18n.t('查无数据')}</div>
+                        <div class='empty-chart'>{this.$t('查无数据')}</div>
                       )}
                     </div>
                   </div>
                 </div>
                 <div class='query-tool'>
-                  <Popover
-                    theme='light'
-                    v-slots={{
-                      content: () => <div>{this.selectedOptionAlias}</div>
-                    }}
+                  <Select
+                    class='table-search-select'
+                    v-model={this.relatedIndexSetId}
+                    clearable={false}
+                    onChange={v => this.handleSelectIndexSet(v)}
+                    style='flex-shrink: 0;'
                   >
-                    <Select
-                      class='table-search-select'
-                      v-model={this.relatedIndexSetId}
-                      clearable={false}
-                      onChange={v => this.handleSelectIndexSet(v)}
-                    >
-                      {this.relatedIndexSetList.map(option => (
-                        <Select.Option
-                          key={option.index_set_id}
-                          value={option.index_set_id}
-                          label={option.index_set_name}
-                        ></Select.Option>
-                      ))}
-                    </Select>
-                  </Popover>
+                    {this.relatedIndexSetList.map(option => (
+                      <Select.Option
+                        key={option.index_set_id}
+                        id={option.index_set_id}
+                        name={option.index_set_name}
+                      ></Select.Option>
+                    ))}
+                  </Select>
                   <Input
                     class='table-search-input'
                     v-model={this.keyword}
@@ -767,14 +762,14 @@ export default defineComponent({
               this.emptyText
             ) : (
               <Exception type='building'>
-                <span>{window.i18n.t('暂无关联日志')}</span>
+                <span>{this.$t('暂无关联日志')}</span>
                 <div class='text-wrap'>
-                  <span class='text-row'>{window.i18n.t('可前往配置页去配置相关日志')}</span>
+                  <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
                   <Button
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
-                    {window.i18n.t('关联日志')}
+                    {this.$t('关联日志')}
                   </Button>
                 </div>
               </Exception>

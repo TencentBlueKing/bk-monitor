@@ -39,7 +39,7 @@
         </div>
 
         <finger-operate
-          v-if="active === 'dataFingerprint'"
+          v-if="isFingerNav"
           :total-fields="totalFields"
           :finger-operate-data="fingerOperateData"
           :request-data="requestData"
@@ -47,7 +47,7 @@
       </div>
 
       <bk-alert
-        v-if="active === 'dataFingerprint' && signatureSwitch && !exhibitAll"
+        v-if="isFingerNav && signatureSwitch && !exhibitAll"
         :title="$t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')"
         closable
         type="info">
@@ -69,7 +69,7 @@
             :clustering-field="clusteringField"
             :active="active" />
           <data-fingerprint
-            v-if="active === 'dataFingerprint'"
+            v-if="isFingerNav"
             v-bind="$attrs"
             v-on="$listeners"
             ref="fingerTableRef"
@@ -81,7 +81,7 @@
             :all-finger-list="allFingerList"
             :loader-width-list="smallLoaderWidthList"
             @paginationOptions="paginationOptions"
-            @updateRequest="updateRequest"
+            @updateRequest="requestFinger"
             @handleScrollIsShow="handleScrollIsShow" />
         </div>
       </div>
@@ -122,7 +122,7 @@
 import DataFingerprint from './data-fingerprint';
 import IgnoreTable from './ignore-table';
 import ClusteringLoader from '@/skeleton/clustering-loader';
-import fingerOperate from './components/finger-operate';
+import FingerOperate from './components/finger-operate';
 import { mapGetters } from 'vuex';
 import EmptyStatus from '@/components/empty-status';
 
@@ -131,7 +131,7 @@ export default {
     DataFingerprint,
     IgnoreTable,
     ClusteringLoader,
-    fingerOperate,
+    FingerOperate,
     EmptyStatus,
   },
   props: {
@@ -167,17 +167,21 @@ export default {
       type: Boolean,
       default: false,
     },
+    isThollteField: {
+      type: Boolean,
+      required: true,
+    },
+    fingerSearchState: {
+      type: Boolean,
+      required: true,
+    }
   },
   data() {
     return {
       active: 'ignoreNumbers',
-      clusterSwitch: false, // 日志聚类开关
-      exhibitAll: false, // 是否显示nav
       isClickFingerNav: false, // 是否点击过数据指纹nav
-      globalLoading: false, // 日志聚类大loading
       tableLoading: false, // 详情loading
       isShowCustomize: true, // 是否显示自定义
-      indexId: -1,
       clusterNavList: [{
         id: 'ignoreNumbers',
         name: this.$t('忽略数字'),
@@ -226,9 +230,7 @@ export default {
       globalsData: 'globals/globalsData',
     }),
     smallLoaderWidthList() {
-      if (this.active !== 'dataFingerprint') {
-        return this.loadingWidthList.ignore;
-      }
+      if (!this.isFingerNav) return this.loadingWidthList.ignore;
       return this.requestData.year_on_year_hour > 0
         ? this.loadingWidthList.compared
         : this.loadingWidthList.notCompared;
@@ -262,29 +264,39 @@ export default {
     configID() {
       return this.cleanConfig.extra?.collector_config_id;
     },
+    /** 日志聚类开关 */
+    clusterSwitch() {
+      return this.configData?.is_active;
+    },
+    isFingerNav() {
+      return this.active === 'dataFingerprint';
+    },
+    exhibitAll() {
+      /**
+       *  无字段提取或者聚类开关没开时直接不显示聚类nav和table
+       *  来源如果是数据平台并且日志聚类大开关有打开则进入text判断
+       *  有text则提示去开启日志聚类 无则显示跳转计算平台
+       */
+      return this.totalFields.some(el => el.field_type === 'text');
+    },
+    globalLoading() {
+      // 判断是否可以字段提取的全局loading
+      return this.isThollteField;
+    },
   },
   watch: {
     configData: {
       deep: true,
       immediate: true,
-      handler(val) {
-        this.globalLoading = true;
-        // 日志聚类开关赋值
-        this.clusterSwitch = val.is_active;
+      handler() {
+        this.isClickFingerNav = false;
         // 数据指纹开关赋值
         this.fingerOperateData.signatureSwitch = this.signatureSwitch;
-        this.isClickFingerNav = false;
         // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
-        if (this.active === 'dataFingerprint' && this.signatureSwitch) {
-          this.isClickFingerNav = true;
-        } else {
+        if (this.isFingerNav) {
           this.fingerList = [];
           this.allFingerList = [];
         };
-        // 判断是否可以字段提取的全局loading
-        setTimeout(() => {
-          this.globalLoading = false;
-        }, 700);
       },
     },
     totalFields: {
@@ -300,31 +312,14 @@ export default {
           // 初始化分组下拉列表
           this.filterGroupList();
           this.initTable();
-          // 判断是否有text字段 无则提示当前不支持采集项清洗
-          this.exhibitAll = newList.some(el => el.field_type === 'text');
         }
       },
     },
-    originTableList: {
-      deep: true,
-      handler(newList) {
-        if (newList.length) {
-          // 过滤条件变化及当前活跃为数据指纹并且数据指纹打开时才发送请求
-          if (this.indexId === this.$route.params.indexId && this.signatureSwitch) {
-            this.requestFinger();
-          } else {
-            this.indexId = this.$route.params.indexId;
-          }
-        }
-      },
-    },
-    requestData: {
-      deep: true,
+    fingerSearchState: {
+      immediate: true,
       handler() {
-        if (this.signatureSwitch) {
-          this.requestFinger();
-        }
-      },
+        if (this.exhibitAll) this.requestFinger();
+      }
     },
     isChangeTableNav(val) {
       // 若数据指纹开启则自动显示数据指纹
@@ -342,11 +337,9 @@ export default {
         ...this.clusterRouteParams,
         activeNav: this.active,
       });
-      if (!this.isClickFingerNav) {
-        if (this.signatureSwitch && id === 'dataFingerprint') {
-          this.isClickFingerNav = true;
-          this.requestFinger();
-        }
+      if (!this.isClickFingerNav && id === 'dataFingerprint') {
+        this.isClickFingerNav = true;
+        this.requestFinger();
       }
     },
     initTable() {
@@ -365,8 +358,9 @@ export default {
       };
       const patternList = clusterLevel.sort((a, b) => Number(b) - Number(a));
       const queryRequestData = { pattern_level: clusterLevel[patternLevel - 1] };
+      const hasNoRouteValue = JSON.stringify(this.clusterRouteParams) === '{}';
       // 通过路由返回的值 初始化数据指纹的操作参数
-      if (this.isInitPage && JSON.stringify(this.clusterRouteParams) !== '{}') {
+      if (this.isInitPage && !hasNoRouteValue) {
         this.active = this.clusterRouteParams.activeNav;
         const paramData = this.clusterRouteParams.requestData;
         const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
@@ -382,15 +376,15 @@ export default {
         comparedList: yearOnYearList,
       });
       Object.assign(this.requestData, queryRequestData);
-      this.$nextTick(() => {
-        if (this.isInitPage && this.signatureSwitch && JSON.stringify(this.clusterRouteParams) === '{}') {
-          this.active = 'dataFingerprint';
-        };
+      if (this.isInitPage) {
         // 初始化nav如果是数据指纹 且打开数据指纹 则初始化时请求一次数据指纹
-        if (this.active === 'dataFingerprint' && this.signatureSwitch) {
-          this.requestFinger();
-        };
-        this.isInitPage = false;
+        if (this.signatureSwitch && hasNoRouteValue) {
+          this.active = 'dataFingerprint';
+          this.isClickFingerNav = true;
+        }
+      }
+      this.isInitPage = false;
+      this.$nextTick(() => {
         this.scrollEl = document.querySelector('.result-scroll-container');
       });
     },
@@ -399,7 +393,7 @@ export default {
      * @param { String } operateType 操作类型
      * @param { Any } val 具体值
      */
-    handleFingerOperate(operateType, val) {
+    handleFingerOperate(operateType, val, isQuery = false) {
       switch (operateType) {
         case 'compared': // 同比操作
           this.requestData.year_on_year_hour = val;
@@ -416,8 +410,12 @@ export default {
         case 'customize': // 是否展示自定义
           this.fingerOperateData.isShowCustomize = val;
           break;
-        case 'group': // 分组操作
-          this.requestData.group_by = val;
+        case 'group': {
+          // 分组操作
+          const groupIdsStr = this.requestData.group_by.join(',');
+          const operateIDs = val.join(',');
+          if (operateIDs !== groupIdsStr) this.requestData.group_by = val;
+        }
           break;
         case 'getNewStrategy': // 获取新类告警状态
           this.fingerOperateData.alarmObj = val;
@@ -437,6 +435,7 @@ export default {
           requestData: this.requestData,
         });
       }
+      if (isQuery) this.requestFinger();
     },
     handleLeaveCurrent() {
       // 不显示字段提取时跳转计算平台
@@ -486,7 +485,7 @@ export default {
      * @desc: 数据指纹请求
      */
     requestFinger() {
-      if (this.throttle) return;
+      if (this.throttle || !this.signatureSwitch) return;
 
       this.throttle = true;
       this.tableLoading = true;
@@ -509,6 +508,7 @@ export default {
         })
         .finally(() => {
           this.tableLoading = false;
+          this.isClickFingerNav = true;
         });
 
       setTimeout(() => {
@@ -549,9 +549,6 @@ export default {
     },
     handleScrollIsShow() {
       this.showScrollTop = this.scrollEl.scrollTop > 550;
-    },
-    updateRequest() {
-      this.requestFinger();
     },
   },
 };

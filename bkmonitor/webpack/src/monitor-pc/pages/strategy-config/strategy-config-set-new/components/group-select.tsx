@@ -25,9 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Exception, Input } from 'bk-magic-vue';
-
-import debounceDecorator from '../../../../../monitor-common/utils/debounce-decorator';
+import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 
 import './group-select.scss';
 
@@ -69,8 +67,8 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
 
   get filterList() {
     if (!this.keyword) return this.list;
-    return this.list.filter(item =>
-      item?.children?.some(child => child.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
+    return this.list.filter(
+      item => item?.children?.some(child => child.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
     );
   }
   get activeList() {
@@ -199,14 +197,14 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
             class='group-select-panel'
             ref='group-select-panel'
           >
-            <Input
+            <bk-input
               class='panel-search'
               leftIcon='bk-icon icon-search'
               behavior='simplicity'
               placeholder={this.$t('输入关键字')}
               value={this.keyword}
               on-change={this.handleKeywordChange}
-            ></Input>
+            ></bk-input>
             {this.filterList.length > 0 ? (
               <div class='panel-list'>
                 {this.filterList.length > 0 && (
@@ -258,13 +256,13 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
             ) : (
               <div class='panel-list'>
                 <div style='width: 100%;'>
-                  <Exception
+                  <bk-exception
                     class='exception-wrap-item exception-part'
                     type='empty'
                     scene='part'
                   >
                     {' '}
-                  </Exception>
+                  </bk-exception>
                 </div>
               </div>
             )}

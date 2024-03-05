@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { Debounce } from '../../../../../monitor-common/utils/utils';
 import { resize } from '../../../../components/ip-selector/common/observer-directive';
 import { DASHBOARD_PANEL_COLUMN_KEY } from '../../typings';
 import { COMPARE_LIST, PANEL_LAYOUT_LIST, PanelToolsType } from '../../typings/panel-tools';
@@ -129,7 +129,8 @@ export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsTy
                     content: this.currentLayout.name,
                     delay: 200,
                     disabled: !!this.showLayoutName,
-                    appendTo: 'parent'
+                    appendTo: 'parent',
+                    allowHTML: false
                   }}
                 ></i>
                 {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}

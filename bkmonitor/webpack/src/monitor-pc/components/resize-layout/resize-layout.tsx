@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { ResizeLayout } from 'bk-magic-vue';
 
 import './resize-layout.scss';
 /** 侧栏默认高度 */
@@ -180,7 +179,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
 
   render() {
     return (
-      <ResizeLayout
+      <bk-resize-layout
         ref='bkResizeLayoutRef'
         class={[
           'resize-layout-wrapper',
@@ -227,7 +226,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
         >
           {this.$slots.aside}
         </div>
-      </ResizeLayout>
+      </bk-resize-layout>
     );
   }
 }

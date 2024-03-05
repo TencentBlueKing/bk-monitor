@@ -26,8 +26,7 @@
 
 import { defineComponent, PropType } from 'vue';
 import { Button, Exception } from 'bkui-vue';
-
-import { ITableItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
+import { type ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './exception-guide.scss';
 
@@ -66,6 +65,7 @@ export default defineComponent({
                     <img
                       class='custom-icon'
                       src={guideInfo.icon}
+                      alt=''
                     />
                   )
                 }

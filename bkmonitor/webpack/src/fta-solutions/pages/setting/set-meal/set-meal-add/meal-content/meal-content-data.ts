@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { random } from '../../../../../../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
+
 import { INoticeWayValue, robot } from '../components/notice-mode';
 
 export const mealType = {

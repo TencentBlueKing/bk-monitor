@@ -1,15 +1,14 @@
 .alarm-dispatch-action {
-  padding: 4px 0;
   display: flex;
   flex-direction: column;
+  padding: 4px 0;
 
   .action-row {
-    height: 30px;
-    line-height: 30px;
+    line-height: 20px;
   }
   
   .package {
-    cursor: pointer;
     color: rgb(58, 132, 255);
+    cursor: pointer;
   }
 }

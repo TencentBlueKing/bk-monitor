@@ -18,8 +18,15 @@ from typing import Dict, List, Optional
 import arrow
 from django.http import Http404
 from django.utils.translation import ugettext as _
-from monitor_web.aiops.ai_setting.constant import SceneSet
-from monitor_web.aiops.ai_setting.utils import AiSetting
+from rest_framework import serializers
+
+from bkmonitor.aiops.utils import AiSetting
+from bkmonitor.data_source import UnifyQuery, load_data_source
+from bkmonitor.models import MetricListCache
+from bkmonitor.share.api_auth_resource import ApiAuthResource
+from constants.aiops import SceneSet
+from constants.data_source import GRAPH_MAX_SLIMIT, DataSourceLabel
+from core.drf_resource import Resource, api, resource
 from monitor_web.models.scene_view import (
     SceneModel,
     SceneViewModel,
@@ -35,13 +42,6 @@ from monitor_web.scene_view.builtin import (
     list_processors_view,
     post_handle_view_list_config,
 )
-from rest_framework import serializers
-
-from bkmonitor.data_source import UnifyQuery, load_data_source
-from bkmonitor.models import MetricListCache
-from bkmonitor.share.api_auth_resource import ApiAuthResource
-from constants.data_source import GRAPH_MAX_SLIMIT, DataSourceLabel
-from core.drf_resource import Resource, api, resource
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,6 @@ class GetSceneViewListResource(ApiAuthResource):
 
         result = []
         if scene_id != "kubernetes":
-
             specific_views = views
             # 优先从processor处获取视图列表
             custom_view_list = list_processors_view(scene_id, views, params)
@@ -175,7 +174,6 @@ class GetSceneViewListResource(ApiAuthResource):
         return result
 
     def perform_request(self, params):
-
         scene_id = params.get("scene_id")
         if scene_id != "kubernetes" and "type" not in params:
             params["type"] = "detail"
@@ -322,7 +320,6 @@ class GetSceneViewResource(ApiAuthResource):
             return self.process_split(view_config, params["split_variables"])
 
         if scene_id == SceneSet.HOST:
-
             ai_setting = AiSetting(bk_biz_id=bk_biz_id)
 
             pop_ai_panel_flag = False

@@ -109,7 +109,8 @@
               :total-fields="totalFields"
               :config-data="configData"
               :clean-config="cleanConfig"
-              :statistical-fields-data="statisticalFieldsData"
+              :date-picker-value="datePickerValue"
+              :retrieve-params="retrieveParams"
               @resetPage="resetPage"
               @updateLogFields="updateLogFields"
               @debugRequestChange="debugRequestChange" />
@@ -156,9 +157,13 @@ export default {
       type: Object,
       require: true,
     },
-    statisticalFieldsData: { // 过滤条件字段可选值关系表
-      type: Object,
+    datePickerValue: {
+      type: Array,
       required: true,
+    },
+    retrieveParams: {
+      type: Object,
+      default: () => ({}),
     },
   },
   data() {

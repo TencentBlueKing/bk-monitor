@@ -107,7 +107,7 @@
         margin-right: 4px;
         white-space: nowrap;
         background: #fafbfd;
-        border: 1px solid rgba(151,155,165,.30);
+        border: 1px solid rgba(151, 155, 165, .3);
         border-radius: 2px;
       }
 
@@ -224,7 +224,7 @@
         .column-header-sort {
           .icon-up {
             /* stylelint-disable-next-line declaration-no-important */
-            color: #3a84ff!important;
+            color: #3a84ff !important;
           }
         }
       }
@@ -233,7 +233,7 @@
         .column-header-sort {
           .icon-down {
             /* stylelint-disable-next-line declaration-no-important */
-            color: #3a84ff!important;
+            color: #3a84ff !important;
           }
         }
       }
@@ -355,7 +355,7 @@
 
     &-count {
       margin: 0 4px;
-      font-weight: bold;  
+      font-weight: bold;
     }
 
     &-clear {
@@ -376,7 +376,7 @@
   .bk-table-body-wrapper {
     .bk-table-expanded-cell {
       /* stylelint-disable-next-line declaration-no-important */
-      background-color: #fafbfd!important;
+      background-color: #fafbfd !important;
     }
 
     .json-viewer-wrap {

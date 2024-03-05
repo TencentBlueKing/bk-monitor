@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { type RouteConfig } from 'vue-router';
+import { spaceIntroduce } from 'monitor-api/modules/commons';
 
-import { spaceIntroduce } from '../../monitor-api/modules/commons';
 import { ISPaceIntroduceData } from '../types';
 
 export enum IntroduceRouteKey {

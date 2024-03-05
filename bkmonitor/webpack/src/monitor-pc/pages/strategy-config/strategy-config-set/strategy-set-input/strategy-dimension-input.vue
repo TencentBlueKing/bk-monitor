@@ -61,7 +61,8 @@
   </div>
 </template>
 <script>
-import { deepClone, getCookie, random } from '../../../../../monitor-common/utils/utils';
+import { deepClone, getCookie, random } from 'monitor-common/utils/utils';
+
 import documentLinkMixin from '../../../../mixins//documentLinkMixin';
 
 import SetAdd from './set-add';
@@ -252,39 +253,46 @@ export default {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  color: #63656e;
-  font-size: 12px;
   width: 100%;
+  font-size: 12px;
+  color: #63656e;
+
   .input-blank {
     box-sizing: border-box;
-    height: 32px;
     flex: 1;
-    border: 1px solid #f0f1f5;
-    background: #fafbfd;
-    border-radius: 2px;
-    margin-right: 2px;
+    height: 32px;
     margin-top: 2px;
+    margin-right: 2px;
+    background: #fafbfd;
+    border: 1px solid #f0f1f5;
+    border-radius: 2px;
   }
+
   .icon-mc-help-fill {
     font-size: 16px;
     color: #c4c6cc;
+
     &:hover {
       color: #3a84ff;
     }
   }
 }
+
 .help-tips {
   margin-left: 10px;
 }
+
 .help-text {
   display: flex;
   align-items: center;
+
   .help-icon {
     display: flex;
     align-items: center;
     line-height: 16px;
     color: #3a84ff;
     cursor: pointer;
+
     .icon-mc-wailian {
       font-size: 24px;
     }

@@ -2,7 +2,7 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/member-ordering */
 
-import { deepClone } from '../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
 /*
  * Tencent is pleased to support the open source community by making

@@ -123,5 +123,8 @@ drf-yasg==1.15.1
 # bk crypto
 bk-crypto-python-sdk==1.1.1
 
+# bk notice
+bk-notice-sdk==1.2.0
+
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到
 -r requirements_env.txt

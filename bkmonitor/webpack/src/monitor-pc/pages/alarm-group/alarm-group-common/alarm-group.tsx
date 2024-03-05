@@ -26,11 +26,10 @@
 import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { SearchSelect } from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
 import { debounce } from 'throttle-debounce';
 
-import { destroyUserGroup, listDutyRule, listUserGroup } from '../../../../monitor-api/modules/model';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';
@@ -73,7 +72,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   emptyType: EmptyStatusType = 'empty';
   // 表格列数据
   tableColumnsList = [
-    { label: 'ID', prop: 'id', minWidth: null, width: 90, props: {}, formatter: row => `#${row.id}`, show: true },
+    { label: 'ID', prop: 'id', minWidth: null, width: 90, props: {}, formatter: row => `#${row.id}` },
     {
       label: i18n.t('名称'),
       prop: 'name',
@@ -82,26 +81,25 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 100,
       width: null,
       props: { 'show-overflow-tooltip': true },
-      formatter: () => {},
-      show: true
+      formatter: () => {}
     },
     {
-      label: i18n.t('应用告警分派规则数'),
+      label: i18n.t('分派规则数'),
       prop: 'rules_count',
       minWidth: null,
-      width: 200,
+      checked: true,
+      width: 120,
       props: {},
-      formatter: () => {},
-      show: true
+      formatter: () => {}
     },
     {
       label: i18n.t('应用策略数'),
       prop: 'strategy_count',
       minWidth: null,
-      width: 200,
+      checked: true,
+      width: 120,
       props: {},
-      formatter: () => {},
-      show: true
+      formatter: () => {}
     },
     {
       label: i18n.t('轮值规则'),
@@ -111,7 +109,6 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 200,
       width: null,
       props: {},
-      // formatter: row => row.dutyRuleNames.map(item => item.name).join(',') || '--'
       formatter: row => this.dutyRulesRender(row.dutyRuleNames)
     },
     {
@@ -122,31 +119,25 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 180,
       width: null,
       props: { 'show-overflow-tooltip': true },
-      formatter: row => row.desc || '--',
-      show: true
+      formatter: row => row.desc || '--'
     },
-    // { label: i18n.t('更新记录'), prop: 'update', minWidth: 150, width: 150,  props: {},formatter: () => {} },
     {
       label: i18n.t('最近更新人'),
       prop: 'update_user',
       disabled: false,
       checked: true,
-      minWidth: 120,
       width: 120,
       props: {},
-      formatter: row => row.update_user || '--',
-      show: true
+      formatter: row => row.update_user || '--'
     },
     {
       label: i18n.t('最近更新时间'),
       prop: 'update_time',
       disabled: false,
       checked: true,
-      minWidth: 220,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
-      show: true
+      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--')
     },
     {
       label: i18n.t('配置来源'),
@@ -156,8 +147,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 70,
       width: 170,
       props: {},
-      formatter: row => row.config_source || '--',
-      show: false
+      formatter: row => row.config_source || '--'
     },
     {
       label: i18n.t('配置分组'),
@@ -167,8 +157,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 70,
       width: 170,
       props: {},
-      formatter: row => row.app || '--',
-      show: true
+      formatter: row => row.app || '--'
     },
     {
       label: i18n.t('操作'),
@@ -177,9 +166,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       minWidth: null,
       width: 130,
-      props: {},
-      formatter: () => {},
-      show: true
+      props: {
+        fixed: 'right'
+      },
+      formatter: () => {}
     }
   ];
 
@@ -189,10 +179,6 @@ export default class AlarmGroup extends tsc<IGroupList> {
   searchCondition = [];
 
   handleSearch: Function = () => {};
-
-  get showTableColumnsList() {
-    return this.tableColumnsList.filter(item => item.show);
-  }
 
   get isMonitor(): boolean {
     return this.type === 'monitor';
@@ -536,8 +522,9 @@ export default class AlarmGroup extends tsc<IGroupList> {
           v-bk-tooltips={{
             placements: ['top-start'],
             boundary: 'window',
-            content: () => rules.map(item => item.name).join('、'),
-            delay: 200
+            content: rules.map(item => item.name).join('、'),
+            delay: 200,
+            allowHTML: false
           }}
         >
           {rules.map(item => (
@@ -576,7 +563,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
               </bk-button>
-              <SearchSelect
+              <bk-search-select
                 class='tool-search'
                 values={this.searchCondition}
                 placeholder={this.$t('ID / 告警组名称')}
@@ -597,7 +584,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 strink={false}
                 show-condition={false}
                 onChange={this.handleSearchCondition}
-              ></SearchSelect>
+              ></bk-search-select>
               {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}

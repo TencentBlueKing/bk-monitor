@@ -25,13 +25,12 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Form, FormItem, Icon } from 'bk-magic-vue';
+import { checkDuplicateName, getDataEncoding } from 'monitor-api/modules/apm_meta';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
+import { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
+import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 
-import { checkDuplicateName, getDataEncoding } from '../../../../monitor-api/modules/apm_meta';
-import { Debounce, deepClone } from '../../../../monitor-common/utils/utils';
-import { IIpV6Value, INodeType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
-import { transformValueToMonitor } from '../../../../monitor-pc/components/monitor-ip-selector/utils';
-import StrategyIpv6 from '../../../../monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 import { ICreateAppFormData } from '../../home/app-list';
 
 import { IDescData, ThemeType } from './select-card-item';
@@ -458,7 +457,7 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
           ></bk-exception>
         )} */}
 
-        <Form
+        <bk-form
           class='app-add-form'
           {...{
             props: {
@@ -469,7 +468,7 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
           label-width={104}
           ref='addForm'
         >
-          <FormItem label={this.$t('支持插件')}>
+          <bk-form-item label={this.$t('支持插件')}>
             {this.pluginList.map(item => (
               <div
                 class={{
@@ -483,12 +482,15 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
                   }
                 }}
               >
-                <img src={item.img} />
+                <img
+                  src={item.img}
+                  alt={item.name}
+                />
                 <span>{item.name}</span>
               </div>
             ))}
-          </FormItem>
-          <FormItem
+          </bk-form-item>
+          <bk-form-item
             label={this.$t('应用名')}
             required
             property='name'
@@ -500,8 +502,8 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
               placeholder={this.$t('输入1-50个字符，且仅支持小写字母、数字、_- 中任意一条件即可')}
               onBlur={() => this.handleCheckDuplicateName()}
             />
-          </FormItem>
-          <FormItem
+          </bk-form-item>
+          <bk-form-item
             label={this.$t('应用别名')}
             required
             property='enName'
@@ -512,9 +514,9 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
               maxlength={50}
               placeholder={this.$t('输入1-50个字符')}
             />
-          </FormItem>
+          </bk-form-item>
           {this.isShowLog2TracesFormItem && (
-            <FormItem
+            <bk-form-item
               label={this.$t('采集目标')}
               required
               property='plugin_config.target_nodes'
@@ -538,10 +540,10 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
                   </i18n>
                 )}
               </div>
-            </FormItem>
+            </bk-form-item>
           )}
           {this.isShowLog2TracesFormItem && (
-            <FormItem
+            <bk-form-item
               label={this.$t('日志路径')}
               required
               property='plugin_config.paths'
@@ -560,12 +562,12 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
                       v-model={this.formData.plugin_config.paths[index]}
                       placeholder={this.$t('请输入')}
                     />
-                    <Icon
+                    <bk-icon
                       class='log-path-icon log-path-icon-plus'
                       type='plus-circle-shape'
                       onClick={() => this.formData.plugin_config.paths.push('')}
                     />
-                    <Icon
+                    <bk-icon
                       class={{
                         'log-path-icon': true,
                         'log-path-icon-minus': true,
@@ -581,10 +583,10 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
                   {index === 0 && <div class='log-path-hint'>{this.$t('日志文件为绝对路径，可使用通配符')}</div>}
                 </div>
               ))}
-            </FormItem>
+            </bk-form-item>
           )}
           {this.isShowLog2TracesFormItem && (
-            <FormItem
+            <bk-form-item
               label={this.$t('日志字符集')}
               required
               property='plugin_config.data_encoding'
@@ -602,15 +604,15 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
                   ></bk-option>
                 ))}
               </bk-select>
-            </FormItem>
+            </bk-form-item>
           )}
-          <FormItem label={this.$t('描述')}>
+          <bk-form-item label={this.$t('描述')}>
             <bk-input
               type='textarea'
               v-model={this.formData.desc}
             ></bk-input>
-          </FormItem>
-          <FormItem>
+          </bk-form-item>
+          <bk-form-item>
             <bk-button
               class='btn mr10'
               theme='primary'
@@ -625,8 +627,8 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
             >
               {this.$t('取消')}
             </bk-button>
-          </FormItem>
-        </Form>
+          </bk-form-item>
+        </bk-form>
 
         <StrategyIpv6
           showDialog={this.selectorDialog.isShow}

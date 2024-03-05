@@ -67,8 +67,14 @@ from alarm_backends.service.fta_action.webhook.processor import (
 from alarm_backends.tests.service.access.data.config import STRATEGY_CONFIG_V3
 from api.cmdb.define import Business, Host
 from bkmonitor.action.serializers import DutyArrange
+from bkmonitor.aiops.alert.utils import (
+    DimensionDrillLightManager,
+    RecommendMetricManager,
+)
+from bkmonitor.aiops.utils import ReadOnlyAiSetting
 from bkmonitor.documents import AlertLog, EventDocument
 from bkmonitor.models import ActionPlugin, CacheRouter, DutyPlan, UserGroup
+from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.models.fta.action import (
     ActionConfig,
     ActionInstance,
@@ -83,6 +89,7 @@ from bkmonitor.utils.template import (
     NoticeRowRenderer,
 )
 from bkmonitor.utils.text import cut_line_str_by_max_bytes
+from constants import alert as alert_constants
 from constants.action import (
     ALL_CONVERGE_DIMENSION,
     ActionPluginType,
@@ -94,7 +101,9 @@ from constants.action import (
     NoticeChannel,
     NoticeWay,
     NotifyStep,
+    UserGroupType,
 )
+from constants.aiops import DIMENSION_DRILL
 from constants.alert import EventSeverity, EventStatus
 from constants.data_source import KubernetesResultTableLabel
 from core.errors.alarm_backends import EmptyAssigneeError
@@ -650,6 +659,7 @@ class TestActionProcessor(TransactionTestCase):
         DutyPlan.objects.all().delete()
         UserGroup.objects.all().delete()
         DutyArrange.objects.all().delete()
+        AIFeatureSettings.objects.all().delete()
         register_builtin_plugins()
         settings.ENABLE_MESSAGE_QUEUE = False
         settings.MESSAGE_QUEUE_DSN = ""
@@ -715,7 +725,7 @@ class TestActionProcessor(TransactionTestCase):
             MagicMock(return_value={"info": {"recommended_metric_count": 0}, "recommended_metrics": []}),
         )
         self.get_anomaly_dimensions = patch(
-            "bkmonitor.aiops.alert.utils.DimensionDrillManager.fetch_aiops_result",
+            "bkmonitor.aiops.alert.utils.DimensionDrillLightManager.fetch_aiops_result",
             MagicMock(
                 return_value={
                     "info": {"anomaly_dimension_count": 2, "anomaly_dimension_value_count": 2},
@@ -1097,13 +1107,12 @@ class TestActionProcessor(TransactionTestCase):
             DutyPlan.objects.create(**duty)
         event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})
         appointee = ["lisa1", "lisa2"]
-        alert = AlertDocument(**{"event": event, "severity": 1, "appointee": ["lisa1", "lisa2"]})
+        alert = AlertDocument(**{"event": event, "severity": 1, "appointee": appointee})
         notice_info = AlertAssignee(alert, [group.id]).get_notice_receivers()
         users = ["admin", "andy", "lisa"]
-        notifiers = users + appointee
-        self.assertEqual(notice_info["mail"], notifiers)
-        self.assertEqual(notice_info["weixin"], notifiers)
-        self.assertEqual(notice_info["voice"], [users, appointee])
+        self.assertEqual(notice_info["mail"], users)
+        self.assertEqual(notice_info["weixin"], users)
+        self.assertEqual(notice_info["voice"], [users])
 
     def test_create_ack_action(self):
         """
@@ -2078,6 +2087,65 @@ class TestActionProcessor(TransactionTestCase):
             in render_content
         )
 
+    def _test_user_content_with_custom_title(self, use_custom_title: bool):
+        alert = AlertDocument(**self.alert_info)
+        ac_data = copy.deepcopy(self.ac_data)
+
+        for template in ac_data["execute_config"]["template_detail"]["template"]:
+            template["title_tmpl"] = (
+                alert_constants.DEFAULT_TITLE_TEMPLATE,
+                "custom" + alert_constants.DEFAULT_TITLE_TEMPLATE,
+            )[use_custom_title]
+
+        action = ActionInstance.objects.create(
+            alerts=[alert.id],
+            signal="abnormal",
+            strategy_id=0,
+            alert_level=alert.severity,
+            status=ActionStatus.SUCCESS,
+            bk_biz_id=2,
+            inputs={},
+            action_config=ac_data,
+            action_config_id=0,
+            action_plugin={
+                "plugin_type": ActionPluginType.NOTICE,
+                "name": "通知",
+                "plugin_key": ActionPluginType.NOTICE,
+            },
+        )
+
+        for notice_way in [NoticeWay.WX_BOT, NoticeWay.MAIL, "rtx"]:
+            alert_context = ActionContext(action=action, alerts=[alert], use_alert_snap=True, notice_way=notice_way)
+            context = alert_context.get_dictionary()
+
+            # 没有使用自定义标题的，内容模板不加标题模板
+            if not use_custom_title:
+                self.assertEqual(
+                    context["content_template"],
+                    ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                )
+                continue
+
+            if notice_way not in [NoticeWay.MAIL, "rtx"]:
+                self.assertEqual(
+                    context["content_template"],
+                    "\n".join(
+                        [
+                            ac_data["execute_config"]["template_detail"]["template"][0]["title_tmpl"],
+                            ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                        ]
+                    ),
+                )
+            else:
+                self.assertEqual(
+                    context["content_template"],
+                    ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                )
+
+    def test_user_content_with_custom_title(self):
+        self._test_user_content_with_custom_title(use_custom_title=False)
+        self._test_user_content_with_custom_title(use_custom_title=True)
+
     def test_en_sender(self):
         language = "zh-cn"
         mail_content_path = Sender.get_language_template_path("notice/abnormal/action/mail_content.jinja", language)
@@ -2158,7 +2226,6 @@ class TestActionProcessor(TransactionTestCase):
         context_dict = context.get_dictionary()
         context_dict["alarm"].log_related_info = related_info
         user_content = NoticeRowRenderer.render(Jinja2Renderer.render(context.DEFAULT_TEMPLATE, context_dict), {})
-        print(user_content)
         expected_content = (
             "**首次异常: **{current_time}\n"
             "**最近异常: **{current_time}\n"
@@ -2166,7 +2233,9 @@ class TestActionProcessor(TransactionTestCase):
             "**所属空间: **[2]蓝鲸 (业务)\n"
             "**目标: **[127.0.0.1]({host}route/?bizId=2&route_path={route_path})\n"
             "**维度: **\\n> 云区域ID=2\\n> 主机IP=127.0.0.1\\n> backend=1\\n\n"
-            "**关联信息: **集群() 模块()\\n> {related_info}\\n"
+            "**关联信息: **集群() 模块()\\n> {related_info}\\n\n"
+            "**关联指标: **0 个指标,0 个维度\n"
+            "**维度下钻: **异常维度 2，异常维度值 2"
         ).format(
             host=settings.BK_MONITOR_HOST,
             route_path=base64.b64encode(b"#/performance/detail/127.0.0.1-0").decode("utf8"),
@@ -2198,6 +2267,24 @@ class TestActionProcessor(TransactionTestCase):
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx").get_dictionary()
         content = Jinja2Renderer.render("{{content.recommended_metrics}}", context)
         self.assertEqual(content, "关联指标: 0 个指标,0 个维度")
+
+    def test_ai_setting__config_exist(self):
+        alert = AlertDocument(**self.alert_info)
+        DimensionDrillLightManager(alert)
+        action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx")
+        ai_setting_config = action_context.alarm.ai_setting_config
+        ai_setting_config[DIMENSION_DRILL]["is_enabled"] = True
+
+        manager = DimensionDrillLightManager(alert, ReadOnlyAiSetting(alert.event["bk_biz_id"], ai_setting_config))
+        assert manager.is_enable() is True
+
+    def test_ai_setting__config_not_exist(self):
+        alert = AlertDocument(**self.alert_info)
+        action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx")
+        assert action_context.alarm.ai_setting_config is None
+
+        manager = RecommendMetricManager(alert, ReadOnlyAiSetting(alert.event["bk_biz_id"], None))
+        assert manager.is_enable() is False
 
     def test_render_content_length(self):
         alert = AlertDocument(**self.alert_info)
@@ -2455,9 +2542,9 @@ class TestActionProcessor(TransactionTestCase):
 
         self.converge_actions(ActionInstance.objects.all())
 
-        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.SKIPPED).count(), 5)
-        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.EXECUTED).count(), 5)
-        self.assertEqual(ConvergeRelation.objects.filter(is_primary=True).count(), 5)
+        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.SKIPPED).count(), 4)
+        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.EXECUTED).count(), 4)
+        self.assertEqual(ConvergeRelation.objects.filter(is_primary=True).count(), 4)
 
         converged_condition_display = []
 
@@ -2479,9 +2566,176 @@ class TestActionProcessor(TransactionTestCase):
         ac = ActionContext(ActionInstance.objects.get(id=primary_relation.related_id))
         self.assertEqual(description, ac.action_instance.converged_description)
 
-        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED).count(), 5)
+        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED).count(), 4)
 
-        self.assertEqual(ActionInstance.objects.filter(signal=ActionSignal.COLLECT).count(), 5)
+        self.assertEqual(ActionInstance.objects.filter(signal=ActionSignal.COLLECT).count(), 4)
+
+        ActionInstance.objects.filter(is_parent_action=True).update(status=ActionStatus.FAILURE)
+
+        collect_action = [
+            ai
+            for ai in ActionInstance.objects.filter(signal=ActionSignal.COLLECT)
+            if ai.inputs["notice_way"][0] == NoticeWay.WX_BOT
+        ][0]
+        ac = ActionContext(action=collect_action).get_dictionary()
+        user_set = {"admin", "lisa"}
+
+        self.assertEqual(
+            {chatid: set(users) for chatid, users in ac["mentioned_users"].items()},
+            {"hihihihihh": user_set, "hihihiashihi": user_set},
+        )
+
+        ap = CollectActionProcessor(ActionInstance.objects.filter(signal=ActionSignal.COLLECT).first().id)
+        ap.collect()
+
+        self.assertEqual(
+            ActionInstance.objects.filter(signal=ActionSignal.COLLECT, status__in=ActionStatus.END_STATUS).count(), 1
+        )
+
+        related_action_status = {r_a.real_status for r_a in ap.related_actions}
+        self.assertEqual(related_action_status, {ap.action.status})
+
+        mget_alert_patch.stop()
+        get_alert_patch.stop()
+        action_config_patch.stop()
+        self.send_wxwork_bot_patcher.stop()
+
+    def test_follow_notice_collect(self):
+        """
+        测试关注人通知汇总
+        :return:
+        """
+        self.send_wxwork_bot_patcher.start()
+        duty_arranges = [
+            {
+                "users": [{"id": "lisa", "display_name": "管理员", "logo": "", "type": "user"}],
+            },
+        ]
+        group = UserGroup.objects.create(**self.user_group_data)
+        group.need_duty = False
+        group.save()
+        for duty in duty_arranges:
+            duty.update({"user_group_id": group.id})
+            DutyArrange.objects.create(**duty)
+
+        notice_action_config = {
+            "execute_config": {
+                "template_detail": {
+                    "interval_notify_mode": "standard",  # 间隔模式
+                    "notify_interval": 7200,  # 通知间隔
+                    "template": notice_template(),
+                }
+            },
+            "id": 55555,
+            "plugin_id": 1,
+            "plugin_type": "notice",
+            "is_enabled": True,
+            "bk_biz_id": 2,
+            "name": "test_notice",
+        }
+        strategy_dict = {
+            "id": 1,
+            "type": "monitor",
+            "bk_biz_id": 2,
+            "scenario": "os",
+            "name": "测试新策略",
+            "labels": [],
+            "is_enabled": True,
+            "items": [],
+            "detects": [],
+            "notice": {  # 通知设置
+                "id": 1,
+                "config_id": 55555,  # 套餐ID，如果不选套餐请置为0
+                "user_groups": [group.id],  # 告警组ID
+                "user_type": UserGroupType.FOLLOWER,
+                "signal": ["abnormal", "recovered"],
+                # 触发信号，abnormal-异常，recovered-恢复，closed-关闭，execute-执行动作时, execute_success-执行成功, execute_failed-执行失败
+                "options": {
+                    "converge_config": {
+                        "is_enabled": True,
+                        "converge_func": "collect",
+                        "timedelta": 60,
+                        "count": 1,
+                        "condition": [
+                            {"dimension": "strategy_id", "value": ["self"]},
+                            {"dimension": "dimensions", "value": ["self"]},
+                            {"dimension": "alert_level", "value": ["self"]},
+                            {"dimension": "signal", "value": ["self"]},
+                            {"dimension": "bk_biz_id", "value": ["self"]},
+                            {"dimension": "notice_receiver", "value": ["self"]},
+                            {"dimension": "notice_way", "value": ["self"]},
+                            {"dimension": "notice_info", "value": ["self"]},
+                        ],
+                        "need_biz_converge": True,
+                        "sub_converge_config": {
+                            "timedelta": 60,
+                            "count": 2,
+                            "condition": [
+                                {"dimension": "bk_biz_id", "value": ["self"]},
+                                {"dimension": "notice_receiver", "value": ["self"]},
+                                {"dimension": "notice_way", "value": ["self"]},
+                                {"dimension": "alert_level", "value": ["self"]},
+                                {"dimension": "signal", "value": ["self"]},
+                            ],
+                            "converge_func": "collect_alarm",
+                        },
+                    },
+                    "start_time": "00:00:00",
+                    "end_time": "23:59:59",
+                },
+                "config": notice_action_config["execute_config"]["template_detail"],
+            },
+            "actions": [],
+        }
+        self.alert_info["extra_info"].update(strategy=strategy_dict)
+        alert = AlertDocument(**self.alert_info)
+        mget_alert_patch = patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert]))
+        get_alert_patch = patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert))
+
+        action_config_patch = patch(
+            "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id",
+            MagicMock(return_value=notice_action_config),
+        )
+        mget_alert_patch.start()
+        get_alert_patch.start()
+        action_config_patch.start()
+
+        actions0 = create_actions(1, "abnormal", alerts=[alert])
+        self.assertEqual(len(actions0), 6)
+        time.sleep(2)
+        actions1 = create_actions(1, "abnormal", alerts=[alert])
+        self.assertEqual(len(actions1), 6)
+        actions0.extend(actions1)
+
+        self.converge_actions(ActionInstance.objects.all())
+
+        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.SKIPPED).count(), 4)
+        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.EXECUTED).count(), 4)
+        self.assertEqual(ConvergeRelation.objects.filter(is_primary=True).count(), 4)
+
+        converged_condition_display = []
+
+        primary_relation = ConvergeRelation.objects.filter(is_primary=True).first()
+        converge_inst = ConvergeInstance.objects.get(id=primary_relation.converge_id)
+        for converged_condition_key in converge_inst.converge_config["converged_condition"]:
+            if converged_condition_key == "action_id":
+                continue
+            converged_condition_display.append(
+                str(ALL_CONVERGE_DIMENSION.get(converged_condition_key, converged_condition_key))
+            )
+
+        description = "在{}分钟内，当具有相同{}的告警超过{}条以上，在执行相同的处理套餐时，进行告警防御".format(
+            converge_inst.converge_config["timedelta"] // 60,
+            ",".join(converged_condition_display),
+            converge_inst.converge_config["count"],
+        )
+        self.assertEqual(description, converge_inst.description)
+        ac = ActionContext(ActionInstance.objects.get(id=primary_relation.related_id))
+        self.assertEqual(description, ac.action_instance.converged_description)
+
+        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED).count(), 4)
+
+        self.assertEqual(ActionInstance.objects.filter(signal=ActionSignal.COLLECT).count(), 4)
 
         ActionInstance.objects.filter(is_parent_action=True).update(status=ActionStatus.FAILURE)
 
@@ -4088,12 +4342,18 @@ class TestActionProcessor(TransactionTestCase):
 
 
 class TestNoiseReduce(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     def setUp(self):
         redis = fakeredis.FakeRedis(decode_responses=True)
         redis.flushall()
+
         NOISE_REDUCE_ABNORMAL_KEY.client.flushall()
         self.create_alert_patch = patch("bkmonitor.documents.AlertDocument.bulk_create", MagicMock(return_value=True))
         self.create_alert_patch.start()
+        self.create_alert_log_patch = patch("bkmonitor.documents.AlertLog.bulk_create", MagicMock(return_value=True))
+        self.create_alert_log_patch.start()
         ActionInstance.objects.all().delete()
         register_builtin_plugins()
         self.alert_info = {
@@ -4151,6 +4411,7 @@ class TestNoiseReduce(TestCase):
     def tearDown(self) -> None:
         ActionInstance.objects.all().delete()
         self.create_alert_patch.stop()
+        self.create_alert_log_patch.stop()
 
     def test_noise_reduce_init_true(self):
         strategy_dict = copy.deepcopy(STRATEGY_CONFIG_V3)
@@ -4297,11 +4558,13 @@ class TestNoiseReduce(TestCase):
 
         converge_actions(ActionInstance.objects.filter(is_parent_action=False))
 
+        # 两个语音通知不参与收敛流程，直接设置状态为CONVERGED
+
         self.assertEqual(
-            ActionInstance.objects.filter(status=ActionStatus.CONVERGED, is_parent_action=False).count(), 3
+            ActionInstance.objects.filter(status=ActionStatus.CONVERGED, is_parent_action=False).count(), 4
         )
 
-        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED, is_parent_action=False).count(), 3)
+        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED, is_parent_action=False).count(), 2)
         # 收敛的处理，默认执行次数会+1
         self.assertEqual(
             ActionInstance.objects.filter(status=ActionStatus.SKIPPED, is_parent_action=False).first().execute_times, 1

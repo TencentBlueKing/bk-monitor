@@ -815,7 +815,7 @@ class StrategyCacheManager(CacheManager):
         for query_md5 in old_groups:
             if query_md5 not in strategy_groups:
                 if not refresh_all:
-                    logger.info(f"[smart_strategy_cache]: refresh_strategy delete old groups: {old_groups}")
+                    logger.info(f"[smart_strategy_cache]: refresh_strategy delete old group: {query_md5}")
                 pipeline.hdel(cls.STRATEGY_GROUP_CACHE_KEY, query_md5)
         for query_md5 in strategy_groups:
             pipeline.hset(cls.STRATEGY_GROUP_CACHE_KEY, query_md5, json.dumps(strategy_groups[query_md5]))

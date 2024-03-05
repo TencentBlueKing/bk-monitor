@@ -84,6 +84,18 @@ const setRemark = {
   method: 'post',
 };
 
+// 设置备注
+const updateRemark = {
+  url: '/pattern/:index_set_id/update_remark/ ',
+  method: 'put',
+};
+
+// 设置备注
+const deleteRemark = {
+  url: '/pattern/:index_set_id/delete_remark/ ',
+  method: 'delete',
+};
+
 // 设置负责人
 const setOwner = {
   url: '/pattern/:index_set_id/owner/',
@@ -104,4 +116,6 @@ export {
   checkRegexp,
   setRemark,
   setOwner,
+  updateRemark,
+  deleteRemark,
 };

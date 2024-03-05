@@ -81,8 +81,8 @@
 <script lang="ts">
 import { CreateElement } from 'vue';
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../../monitor-common/utils/utils';
 import SelectionColumn from '../components/selection-column.vue';
 import { CheckType, CheckValue, IPagination, ITableConfig } from '../types/selector-type';
 

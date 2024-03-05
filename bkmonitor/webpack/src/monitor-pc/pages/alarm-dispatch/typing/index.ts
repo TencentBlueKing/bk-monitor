@@ -25,8 +25,7 @@
  */
 
 import { TranslateResult } from 'vue-i18n';
-
-import { random } from '../../../../monitor-common/utils';
+import { random } from 'monitor-common/utils';
 
 import {
   conditionFindReplace,
@@ -154,6 +153,7 @@ export class RuleGroupData {
   priority = 0;
   ruleData = [];
   settings = {};
+  editAllowed = false;
   constructor(data: IRuleGroup) {
     const TEMP_THIS = JSON.parse(JSON.stringify(this));
     Object.keys(TEMP_THIS).forEach(key => {

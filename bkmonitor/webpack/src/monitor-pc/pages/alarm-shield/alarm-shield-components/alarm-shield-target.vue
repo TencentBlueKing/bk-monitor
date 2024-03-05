@@ -80,8 +80,8 @@
 <script lang="ts">
 import { TranslateResult } from 'vue-i18n/types/index';
 import { Component, Prop, Vue } from 'vue-property-decorator';
+import { deepClone } from 'monitor-common/utils';
 
-import { deepClone } from '../../../../monitor-common/utils';
 import { transformMonitorToValue, transformValueToMonitor } from '../../../components/monitor-ip-selector/utils';
 import AlarmShieldIpv6, {
   Ipv6FieldMap,

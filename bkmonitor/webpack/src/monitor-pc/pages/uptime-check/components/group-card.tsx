@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Progress } from 'bk-magic-vue';
 
 import { IDragStatus, processColor } from '../uptime-check-data';
 
@@ -223,12 +222,12 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
                   </span>
                   <span class='desc-percent'>{item.available !== null ? `${item.available}%` : '--'}</span>
                 </div>
-                <Progress
+                <bk-progress
                   class='progress-item'
                   percent={+(item.available * 0.01).toFixed(2) || 0}
                   showText={false}
                   color={processColor(item.available)}
-                ></Progress>
+                ></bk-progress>
               </div>
             ))}
           </div>

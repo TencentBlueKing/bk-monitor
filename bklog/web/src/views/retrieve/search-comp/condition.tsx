@@ -54,6 +54,7 @@ export default class Condition extends tsc<IProps> {
   @Prop({ type: String, required: true }) conditionType: string; // 条件类型
   @Prop({ type: Object, required: true }) catchIpChooser: object; // ip 选择器的值
   @Prop({ type: Array, required: true }) valueList; // 输入框的可选数据
+  @Prop({ type: Boolean, default: true }) isClearCatchInputStr: boolean; // 输入框的可选数据
   @Ref('tagInput') tagInputRef: TagInput;
 
   labelHoverStatus = false;
@@ -67,6 +68,7 @@ export default class Condition extends tsc<IProps> {
   tagInputValueList = []; // taginput值列表
   matchSwitch = false; // 模糊匹配开关
   catchValue = []; // 切换exists时缓存的值
+  catchTagInputStr = '';
   valueScopeMap = { // number类型最大值
     long: {
       max: LONG_MAX_NUMBER,
@@ -155,6 +157,13 @@ export default class Condition extends tsc<IProps> {
     }));
   }
 
+  @Debounce(100)
+  @Watch('isClearCatchInputStr')
+  watchClearCatchInputStr() {
+    /** 检索时，清空输入框内缓存的字符串 */
+    this.catchTagInputStr = '';
+  }
+
   @Emit('delete')
   handleDelete(type: string) {
     return type;
@@ -167,6 +176,12 @@ export default class Condition extends tsc<IProps> {
 
   @Emit('filedChange')
   emitFiledChange(v) {
+    return v;
+  }
+
+  @Debounce(100)
+  @Emit('inputChange')
+  emitInputChange(v: string) {
     return v;
   }
 
@@ -250,6 +265,8 @@ export default class Condition extends tsc<IProps> {
   // 当有对比的操作时 值改变
   handleValueBlur(val: string) {
     if (val !== '' && this.isHaveCompared) this.localValue = [val];
+    this.emitInputChange(this.catchTagInputStr);
+    this.catchTagInputStr = '';
     // if (this.localValue.length) {
     //   this.handleAdditionChange({ value: this.localValue });
     // }
@@ -429,7 +446,7 @@ export default class Condition extends tsc<IProps> {
             v-model={this.localValue}
             data-test-id="addConditions_input_valueFilter"
             allow-create
-            // allow-auto-match
+            allow-auto-match
             tpl={this.tpl}
             placeholder={this.inputPlaceholder}
             list={this.tagInputValueList}
@@ -437,6 +454,7 @@ export default class Condition extends tsc<IProps> {
             onChange={this.handleValueChange}
             onBlur={this.handleValueBlur}
             onRemoveAll={this.handleValueRemoveAll}
+            onInputchange={v => this.catchTagInputStr = v}
             trigger="focus">
           </TagInput>
         }

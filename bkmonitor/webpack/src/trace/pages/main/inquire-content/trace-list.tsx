@@ -37,13 +37,14 @@ import {
   toRefs,
   watch
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
+import { CancelToken } from 'monitor-api/index';
+import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
+import { random } from 'monitor-common/utils/utils';
 
-import { CancelToken } from '../../../../monitor-api/index';
-import { listOptionValues, spanDetail, traceDetail } from '../../../../monitor-api/modules/apm_trace';
-import { random } from '../../../../monitor-common/utils/utils';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import transformTraceTree from '../../../components/trace-view/model/transform-trace-data';
@@ -150,9 +151,10 @@ export default defineComponent({
     const route = useRoute();
     const store = useTraceStore();
     const searchStore = useSearchStore();
+    const { t } = useI18n();
     const statusList = [
-      { id: 'have_root_span', name: 'root span', tips: window.i18n.t('包含根span的trace') },
-      { id: 'have_service_span', name: 'entry span', tips: window.i18n.t('包含至少一个服务的trace') }
+      { id: 'have_root_span', name: 'root span', tips: t('包含根span的trace') },
+      { id: 'have_service_span', name: 'entry span', tips: t('包含至少一个服务的trace') }
     ];
     const state = reactive({
       total: 24,
@@ -181,19 +183,19 @@ export default defineComponent({
     const interfaceTypeListInInterfaceStatistics = ref([
       {
         label: '同步',
-        value: window.i18n.t('同步')
+        value: t('同步')
       },
       {
         label: '异步',
-        value: window.i18n.t('异步')
+        value: t('异步')
       },
       {
         label: '内部调用',
-        value: window.i18n.t('内部调用')
+        value: t('内部调用')
       },
       {
         label: '未知',
-        value: window.i18n.t('未知')
+        value: t('未知')
       }
     ]);
     const selectedSourceTypeInInterfaceStatistics = ref([]);
@@ -212,19 +214,19 @@ export default defineComponent({
     const selectedInterfaceTypeInServiceStatistics = ref([]);
     const interfaceTypeListInServiceStatistics = ref([
       {
-        label: window.i18n.t('同步'),
+        label: t('同步'),
         value: 'sync'
       },
       {
-        label: window.i18n.t('异步'),
+        label: t('异步'),
         value: 'async'
       },
       {
-        label: window.i18n.t('内部调用'),
+        label: t('内部调用'),
         value: 'internal'
       },
       {
-        label: window.i18n.t('未知'),
+        label: t('未知'),
         value: 'unknown'
       }
     ]);
@@ -306,7 +308,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('开始时间')}</span>
+            <span class='th-label'>{t('开始时间')}</span>
           </Popover>
         ),
         width: 160,
@@ -322,11 +324,11 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('整个Trace的第一个Span')}
+            content={t('整个Trace的第一个Span')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('根Span')}</span>
+            <span class='th-label'>{t('根Span')}</span>
           </Popover>
         ),
         field: 'root_span_name',
@@ -334,7 +336,7 @@ export default defineComponent({
           ? {
               list: traceListFilter.root_span_name,
               filterFn: () => true as any
-              // btnSave: !!traceListFilter.root_span_name.length ? window.i18n.t('确定') : false
+              // btnSave: !!traceListFilter.root_span_name.length ? t('确定') : false
             }
           : false,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -354,20 +356,20 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('服务端进程的第一个Service')}
+            content={t('服务端进程的第一个Service')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('入口服务')}</span>
+            <span class='th-label'>{t('入口服务')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('入口服务')}`,
+        settingsLabel: `${t('入口服务')}`,
         field: 'entryService',
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_service,
               filterFn: () => true as any
-              // btnSave: !!traceListFilter.root_service.length ? window.i18n.t('确定') : false
+              // btnSave: !!traceListFilter.root_service.length ? t('确定') : false
             }
           : false,
         render: ({ cell, data }: { cell: string; data: ITraceListItem }) => [
@@ -391,20 +393,20 @@ export default defineComponent({
         label: () => (
           <Popover
             popoverDelay={[500, 0]}
-            content={window.i18n.t('入口服务的第一个接口')}
+            content={t('入口服务的第一个接口')}
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('入口接口')}</span>
+            <span class='th-label'>{t('入口接口')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('入口接口')}`,
+        settingsLabel: `${t('入口接口')}`,
         field: 'root_service_span_name',
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_service_span_name,
               filterFn: () => true as any
-              // btnSave: !!traceListFilter.root_service_span_name.length ? window.i18n.t('确定') : false
+              // btnSave: !!traceListFilter.root_service_span_name.length ? t('确定') : false
             }
           : false,
         render: ({ cell, data }: { cell: string; data: ITraceListItem }) => [
@@ -431,10 +433,10 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('调用类型')}</span>
+            <span class='th-label'>{t('调用类型')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('调用类型')}`,
+        settingsLabel: `${t('调用类型')}`,
         field: 'root_service_category',
         width: 120,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -445,7 +447,7 @@ export default defineComponent({
           ? {
               list: traceListFilter.root_service_category,
               filterFn: () => true as any
-              // btnSave: !!traceListFilter.root_service_category.length ? window.i18n.t('确定') : false
+              // btnSave: !!traceListFilter.root_service_category.length ? t('确定') : false
             }
           : false
       },
@@ -457,16 +459,16 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('状态码')}</span>
+            <span class='th-label'>{t('状态码')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('状态码')}`,
+        settingsLabel: `${t('状态码')}`,
         width: 120,
         field: 'statusCode',
         filter: {
           list: traceListFilter.root_service_status_code,
           filterFn: () => true as any
-          // btnSave: !!traceListFilter.root_service_status_code.length ? window.i18n.t('确定') : false
+          // btnSave: !!traceListFilter.root_service_status_code.length ? t('确定') : false
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ITraceListItem }) => (
@@ -483,7 +485,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('耗时')}</span>
+            <span class='th-label'>{t('耗时')}</span>
           </Popover>
         ),
         width: 120,
@@ -492,7 +494,7 @@ export default defineComponent({
               sortFn: () => false
             }
           : false,
-        settingsLabel: `${window.i18n.t('耗时')}`,
+        settingsLabel: `${t('耗时')}`,
         field: 'trace_duration',
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ITraceListItem }) => (
@@ -509,12 +511,12 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('同步Span数量')}</span>
+            <span class='th-label'>{t('同步Span数量')}</span>
           </Popover>
         ),
         // minWidth 的作用是强行撑开整个 label ，不然由于组件 bug 的存在，会导致全部字段在展示时会把这类字段内容给遮挡
         minWidth: 120,
-        settingsLabel: `${window.i18n.t('同步Span数量')}`,
+        settingsLabel: `${t('同步Span数量')}`,
         field: 'kind_statistics.sync',
         sort: isPreCalculationMode.value
           ? {
@@ -530,11 +532,11 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('异步Span数量')}</span>
+            <span class='th-label'>{t('异步Span数量')}</span>
           </Popover>
         ),
         minWidth: 120,
-        settingsLabel: `${window.i18n.t('异步Span数量')}`,
+        settingsLabel: `${t('异步Span数量')}`,
         field: 'kind_statistics.async',
         sort: isPreCalculationMode.value
           ? {
@@ -550,11 +552,11 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('内部Span数量')}</span>
+            <span class='th-label'>{t('内部Span数量')}</span>
           </Popover>
         ),
         minWidth: 120,
-        settingsLabel: `${window.i18n.t('内部Span数量')}`,
+        settingsLabel: `${t('内部Span数量')}`,
         field: 'kind_statistics.interval',
         sort: isPreCalculationMode.value
           ? {
@@ -570,11 +572,11 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('未知Span数量')}</span>
+            <span class='th-label'>{t('未知Span数量')}</span>
           </Popover>
         ),
         minWidth: 120,
-        settingsLabel: `${window.i18n.t('未知Span数量')}`,
+        settingsLabel: `${t('未知Span数量')}`,
         field: 'kind_statistics.unspecified',
         sort: isPreCalculationMode.value
           ? {
@@ -590,10 +592,10 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('DB 数量')}</span>
+            <span class='th-label'>{t('DB 数量')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('DB 数量')}`,
+        settingsLabel: `${t('DB 数量')}`,
         field: 'category_statistics.db',
         width: 120,
         sort: isPreCalculationMode.value
@@ -610,11 +612,11 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('Messaging 数量')}</span>
+            <span class='th-label'>{t('Messaging 数量')}</span>
           </Popover>
         ),
         minWidth: 120,
-        settingsLabel: `${window.i18n.t('Messaging 数量')}`,
+        settingsLabel: `${t('Messaging 数量')}`,
         field: 'category_statistics.messaging',
         sort: isPreCalculationMode.value
           ? {
@@ -630,10 +632,10 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('HTTP 数量')}</span>
+            <span class='th-label'>{t('HTTP 数量')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('HTTP 数量')}`,
+        settingsLabel: `${t('HTTP 数量')}`,
         field: 'category_statistics.http',
         width: 120,
         sort: isPreCalculationMode.value
@@ -650,10 +652,10 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('RPC 数量')}</span>
+            <span class='th-label'>{t('RPC 数量')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('RPC 数量')}`,
+        settingsLabel: `${t('RPC 数量')}`,
         field: 'category_statistics.rpc',
         width: 120,
         sort: isPreCalculationMode.value
@@ -670,11 +672,11 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('Async 数量')}</span>
+            <span class='th-label'>{t('Async 数量')}</span>
           </Popover>
         ),
         minWidth: 120,
-        settingsLabel: `${window.i18n.t('Async 数量')}`,
+        settingsLabel: `${t('Async 数量')}`,
         field: 'category_statistics.async_backend',
         width: 120,
         sort: isPreCalculationMode.value
@@ -691,10 +693,10 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('Other 数量')}</span>
+            <span class='th-label'>{t('Other 数量')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('Other 数量')}`,
+        settingsLabel: `${t('Other 数量')}`,
         field: 'category_statistics.other',
         width: 120,
         sort: isPreCalculationMode.value
@@ -711,10 +713,10 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('Span 数量')}</span>
+            <span class='th-label'>{t('Span 数量')}</span>
           </Popover>
         ),
-        settingsLabel: `${window.i18n.t('Span 数量')}`,
+        settingsLabel: `${t('Span 数量')}`,
         field: 'span_count',
         width: 120,
         sort: isPreCalculationMode.value
@@ -731,11 +733,11 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('Span 层数')}</span>
+            <span class='th-label'>{t('Span 层数')}</span>
           </Popover>
         ),
         width: 120,
-        settingsLabel: `${window.i18n.t('Span 层数')}`,
+        settingsLabel: `${t('Span 层数')}`,
         field: 'hierarchy_count',
         sort: isPreCalculationMode.value
           ? {
@@ -751,11 +753,11 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('服务数量')}</span>
+            <span class='th-label'>{t('服务数量')}</span>
           </Popover>
         ),
         width: 120,
-        settingsLabel: `${window.i18n.t('服务数量')}`,
+        settingsLabel: `${t('服务数量')}`,
         field: 'service_count',
         sort: isPreCalculationMode.value
           ? {
@@ -1117,7 +1119,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('接口名称')}</span>
+            <span class='th-label'>{t('接口名称')}</span>
           </Popover>
         ),
         field: 'span_name',
@@ -1140,7 +1142,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('开始时间')}</span>
+            <span class='th-label'>{t('开始时间')}</span>
           </Popover>
         ),
         field: 'start_time',
@@ -1162,7 +1164,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('结束时间')}</span>
+            <span class='th-label'>{t('结束时间')}</span>
           </Popover>
         ),
         field: 'end_time',
@@ -1184,7 +1186,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('耗时')}</span>
+            <span class='th-label'>{t('耗时')}</span>
           </Popover>
         ),
         field: 'elapsed_time',
@@ -1207,7 +1209,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('状态')}</span>
+            <span class='th-label'>{t('状态')}</span>
           </Popover>
         ),
         field: 'status_code',
@@ -1233,7 +1235,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('类型')}</span>
+            <span class='th-label'>{t('类型')}</span>
           </Popover>
         ),
         field: 'kind',
@@ -1257,7 +1259,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('所属服务')}</span>
+            <span class='th-label'>{t('所属服务')}</span>
           </Popover>
         ),
         field: 'resource.service.name',
@@ -1285,7 +1287,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('实例 ID')}</span>
+            <span class='th-label'>{t('实例 ID')}</span>
           </Popover>
         ),
         field: 'resource.bk.instance.id',
@@ -1310,7 +1312,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('SDK 名称')}</span>
+            <span class='th-label'>{t('SDK 名称')}</span>
           </Popover>
         ),
         field: 'resource.telemetry.sdk.name',
@@ -1330,7 +1332,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('SDK 版本')}</span>
+            <span class='th-label'>{t('SDK 版本')}</span>
           </Popover>
         ),
         field: 'resource.telemetry.sdk.version',
@@ -1355,7 +1357,7 @@ export default defineComponent({
             theme='light'
             placement='right'
           >
-            <span class='th-label'>{window.i18n.t('所属Trace')}</span>
+            <span class='th-label'>{t('所属Trace')}</span>
           </Popover>
         ),
         field: 'trace_id',

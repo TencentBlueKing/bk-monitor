@@ -19,7 +19,6 @@ from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import host_key, ignored
-from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 from core.errors.dataapi import SqlQueryException
@@ -240,14 +239,11 @@ class TSDataBase(object):
         group_statement = ",".join(group_by_fields)
         # 组成 count 语句
         count_statement = ""
-        # 将 table_id : xxx.__default__ 改成 xxx:__default__
-        table_name, table_suffix = table.table_name.split(".", -1)
-        table_statement = f"{table_name}:{table_suffix}"
         # 只取前五个
         # TODO 汇聚周期注意不要写死 1m
         for field in table.fields[0:5]:
             base_statement = (
-                f"count_over_time(bkmonitor:{table_statement}:{field['field_name']}"
+                f"count_over_time(bkmonitor:{self.db_name}:{field['field_name']}"
                 f"{{bk_collect_config_id=\'{filter_dict['bk_collect_config_id']}\'}}[1m])"
             )
             if count_statement:
@@ -280,40 +276,11 @@ class TSDataBase(object):
                 target_result[row_key] = True
         return target_result
 
-    def concurrent_check_if_no_data(self, target_result, group_by_fields, filter_dict):
-        """
-        并发请求指标数据，判断机器是否无数据上报
-        :param target_result: 目标机器数据
-        :param group_by_fields: 聚合字段
-        :param filter_dict: 过滤字典
-        :return: 填充字段后的目标机器数据
-        """
-
-        pool = ThreadPool(NO_DATA_CONCURRENT_NUMBER)
-        futures = []
-
-        for table in self.tables:
-            futures.append(
-                pool.apply_async(self.get_data, args=(table.table_name, ["count(*)"], group_by_fields, filter_dict))
-            )
-
-        pool.close()
-        pool.join()
-
-        # 取值
-        for future in futures:
-            for row in future.get():
-                row_key = tuple(str(row[field]) for field in group_by_fields)
-                if row_key in target_result:
-                    target_result[row_key] = True
-        return target_result
-
-    def no_data_test(self, test_target_list, filter_dict=None, is_split_measurement=None):
+    def no_data_test(self, test_target_list, filter_dict=None):
         """
         无数据检测
         :param test_target_list: 检测目标
         :param filter_dict: 检测范围
-        :param is_split_measurement: 是否单指标单表
         :return: [{
             "bk_target_ip": "x.x.x.x",
             "bk_target_cloud_id": 0,
@@ -331,10 +298,7 @@ class TSDataBase(object):
         for target in test_target_list:
             target_key = tuple([str(target[field]) for field in group_by_fields])
             target_result[target_key] = False
-        if is_split_measurement:
-            target_result = self.concurrent_check_if_no_data_by_unify_query(target_result, group_by_fields, filter_dict)
-        else:
-            target_result = self.concurrent_check_if_no_data(target_result, group_by_fields, filter_dict)
+        target_result = self.concurrent_check_if_no_data_by_unify_query(target_result, group_by_fields, filter_dict)
         result_target_list = []
         for target_key, ok in target_result.items():
             target_info = dict(zip(group_by_fields, target_key))

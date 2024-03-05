@@ -19,6 +19,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Host, Module, Set, TopoTree
 from bkmonitor.action.utils import get_strategy_user_group_dict
+from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import Functions, UnifyQuery, load_data_source
 from bkmonitor.dataflow.constant import (
@@ -51,22 +52,15 @@ from bkmonitor.strategy.new_strategy import (
 )
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
-from bkmonitor.utils.user import get_global_user
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
-from constants.strategy import (
-    SPLIT_DIMENSIONS,
-    AdvanceConditionMethod,
-    DataTarget,
-    TargetFieldType,
-)
+from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from monitor.models import ApplicationConfig
-from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 from monitor_web.models import (
     CollectorPluginMeta,
@@ -1754,74 +1748,6 @@ class SaveStrategyV2Resource(Resource):
     RequestSerializer = Strategy.Serializer
 
     @classmethod
-    def access_aiops(cls, strategy: Strategy):
-        """
-        智能监控接入
-        (目前仅支持监控时序、计算平台时序数据)
-
-        - 监控时序数据(以监控管理员身份配置)
-            1. 走kafka接入，配置好清洗规则，接入到计算平台
-            2. 走dataflow，进行downsample操作，得到一张结果表，保存到metadata的bkdatastorage表中
-            3. 走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
-        - 计算平台数据(根据用户身份配置)
-            1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
-        """
-        from bkmonitor.models import AlgorithmModel
-
-        # 未开启计算平台接入，则直接返回
-        if not settings.IS_ACCESS_BK_DATA:
-            return
-
-        has_intelligent_algorithm = False
-        for algorithm in chain(*(item.algorithms for item in strategy.items)):
-            if algorithm.type in AlgorithmModel.AIOPS_ALGORITHMS:
-                has_intelligent_algorithm = True
-                break
-
-        if not has_intelligent_algorithm:
-            return
-
-        # 判断数据来源
-        for query_config in chain(*(item.query_configs for item in strategy.items)):
-            if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
-                continue
-
-            from monitor_web.tasks import access_aiops_by_strategy_id
-
-            need_access = False
-
-            if query_config.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR:
-                # 如果查询条件中存在特殊的方法，查询条件置为空
-                for condition in query_config.agg_condition:
-                    if condition["method"] in AdvanceConditionMethod:
-                        raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
-                need_access = True
-
-            elif query_config.data_source_label == DataSourceLabel.BK_DATA:
-                # 1. 先授权给监控项目(以创建或更新策略的用户来请求一次授权)
-                from bkmonitor.dataflow import auth
-
-                auth.ensure_has_permission_with_rt_id(
-                    bk_username=get_global_user() or settings.BK_DATA_PROJECT_MAINTAINER,
-                    rt_id=query_config.result_table_id,
-                    project_id=settings.BK_DATA_PROJECT_ID,
-                )
-                # 2. 然后再创建异常检测的dataflow
-                need_access = True
-
-            if need_access:
-                intelligent_detect = getattr(query_config, "intelligent_detect", {})
-                intelligent_detect["status"] = AccessStatus.PENDING
-                intelligent_detect["retries"] = 0
-                intelligent_detect["message"] = ""
-                query_config.intelligent_detect = intelligent_detect
-                query_config.save()
-
-                if settings.ROLE == "web":
-                    # 只有 web 运行模式下，才允许触发 celery 异步接入任务
-                    access_aiops_by_strategy_id.delay(strategy.id)
-
-    @classmethod
     def validate_cmdb_level(cls, strategy: Strategy):
         """
         校验cmdb节点聚合配置是否合法
@@ -1884,9 +1810,6 @@ class SaveStrategyV2Resource(Resource):
 
         # 编辑后需要重置AsCode相关配置
         StrategyModel.objects.filter(id=strategy.id).update(hash="", snippet="")
-
-        # 计算平台接入
-        self.access_aiops(strategy)
         return strategy.to_dict()
 
 

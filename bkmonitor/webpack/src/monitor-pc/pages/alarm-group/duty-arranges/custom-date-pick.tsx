@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { DatePicker, Input, TimePicker } from 'bk-magic-vue';
 
 import './custom-date-pick.scss';
 
@@ -107,7 +106,7 @@ export default class CustomDatePick extends tsc<IProps, IEvents> {
   render() {
     return (
       <div class='custom-date-pick-component'>
-        <DatePicker
+        <bk-date-picker
           v-model={this.curDate}
           transfer={true}
           type={'date'}
@@ -125,30 +124,30 @@ export default class CustomDatePick extends tsc<IProps, IEvents> {
             onMousedown={(e: Event) => e.stopPropagation()}
           >
             <div class='left'>
-              <Input
+              <bk-input
                 v-model={this.curDateValue}
                 onChange={this.handleInputChange}
-              ></Input>
+              ></bk-input>
             </div>
             <div class='center'></div>
             <div class='right'>
               {this.readonlyTime ? (
-                <Input
+                <bk-input
                   readonly={true}
                   v-model={this.curTime}
-                ></Input>
+                ></bk-input>
               ) : (
-                <TimePicker
+                <bk-time-picker
                   v-model={this.curTime}
                   format={'HH:mm'}
                   transfer={false}
                   placement={'bottom-end'}
                   onChange={this.handleTimeChange}
-                ></TimePicker>
+                ></bk-time-picker>
               )}
             </div>
           </div>
-        </DatePicker>
+        </bk-date-picker>
       </div>
     );
   }

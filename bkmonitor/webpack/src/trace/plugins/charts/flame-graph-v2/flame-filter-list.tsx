@@ -26,8 +26,7 @@
 import { computed, defineComponent, ref } from 'vue';
 import { Select, Table } from 'bkui-vue';
 import random from 'lodash/random';
-
-import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import './flame-filter-list.scss';
 
@@ -212,7 +211,7 @@ export default defineComponent({
     return (
       <div>
         <Table
-          rowKey={() => random(10).toString()}
+          rowKey={random(10).toString()}
           showOverflowTooltip={true}
           class='flame-filter-list'
           columns={columns}

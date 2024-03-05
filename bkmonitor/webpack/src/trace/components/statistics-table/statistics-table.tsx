@@ -26,14 +26,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { computed, defineComponent, inject, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Loading, Message, Popover, Table } from 'bkui-vue';
 import { AngleDownFill, AngleUpFill } from 'bkui-vue/lib/icon';
+import { traceDiagram, traceStatistics } from 'monitor-api/modules/apm_trace';
+import { deepClone, random } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram, traceStatistics } from '../../../monitor-api/modules/apm_trace';
-import { deepClone, random } from '../../../monitor-common/utils';
 import { statisticDiffTableSetting, statisticTableSetting } from '../../pages/main/inquire-content/table-settings';
 import { useTraceStore } from '../../store/modules/trace';
 import { updateTemporaryCompareTrace } from '../../utils/compare';
@@ -105,6 +105,7 @@ export default defineComponent({
   props: IProps,
   emits: ['updateCompare', 'update:loading'],
   setup(props, { emit, expose }) {
+    const { t } = useI18n();
     const isFullscreen = inject<boolean>('isFullscreen', false);
     const store = useTraceStore();
     let filter: IFilterItem | null = null;
@@ -133,7 +134,7 @@ export default defineComponent({
     const tempTableColumns = [
       {
         isUseShow: true,
-        label: window.i18n.t('接口'),
+        label: t('接口'),
         field: 'span_name',
         filter: {
           list: endpointNameFilterList,
@@ -160,7 +161,7 @@ export default defineComponent({
       },
       {
         isUseShow: true,
-        label: window.i18n.t('服务'),
+        label: t('服务'),
         field: 'resource.service.name',
         filter: {
           list: serviceNameFilterList,
@@ -175,7 +176,10 @@ export default defineComponent({
             key={random(6)}
             onClick={() => handleToService(row?.['resource.service.name']?.value)}
           >
-            <img src={row?.['resource.service.name']?.icon} />
+            <img
+              src={row?.['resource.service.name']?.icon}
+              alt=''
+            />
             <Popover
               content={row?.['resource.service.name']?.value}
               popoverDelay={[200, 0]}
@@ -188,7 +192,7 @@ export default defineComponent({
       },
       {
         isUseShow: true,
-        label: window.i18n.t('数据来源'),
+        label: t('数据来源'),
         field: 'resource.sdk.name',
         filter: {
           list: sourceList
@@ -196,7 +200,7 @@ export default defineComponent({
       },
       {
         isUseShow: true,
-        label: window.i18n.t('Span类型'),
+        label: t('Span类型'),
         field: 'kind',
         filter: {
           list: categoryList,
@@ -207,25 +211,28 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div class='classify-column'>
-            <img src={row.kind?.icon} />
+            <img
+              src={row.kind?.icon}
+              alt=''
+            />
             <span class='link-text'>{row.kind?.text}</span>
           </div>
         )
       },
       {
-        label: `${window.i18n.t('最大时间')}（μs）`,
+        label: `${t('最大时间')}（μs）`,
         field: 'max_duration',
         sort: true,
         width: 140
       },
       {
-        label: `${window.i18n.t('最小时间')}（μs）`,
+        label: `${t('最小时间')}（μs）`,
         field: 'min_duration',
         sort: true,
         width: 140
       },
       {
-        label: `${window.i18n.t('总时间')}（μs）`,
+        label: `${t('总时间')}（μs）`,
         field: 'sum_duration',
         sort: true,
         width: 140
@@ -237,13 +244,13 @@ export default defineComponent({
         width: 140
       },
       {
-        label: window.i18n.t('数量'),
+        label: t('数量'),
         field: 'count',
         sort: true,
         width: 90
       },
       {
-        label: window.i18n.t('操作'),
+        label: t('操作'),
         width: 160,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
@@ -256,16 +263,16 @@ export default defineComponent({
             >
               <span
                 class='link-text'
-                title={window.i18n.t('Span检索')}
+                title={t('Span检索')}
               >
-                {window.i18n.t('Span检索')}
+                {t('Span检索')}
               </span>
               <i class='icon-monitor icon-fenxiang'></i>
             </div>
 
             {/* TODO: 这里需要带什么参数去跳转页面 */}
             <Popover
-              content={window.i18n.t('该数据是internal类型，没有对应的观测场景。')}
+              content={t('该数据是internal类型，没有对应的观测场景。')}
               popoverDelay={[200, 0]}
               disabled={!row.is_interval}
             >
@@ -285,7 +292,7 @@ export default defineComponent({
                     cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
                   }}
                 >
-                  {window.i18n.t('观测')}
+                  {t('观测')}
                 </span>
                 <i class='icon-monitor icon-fenxiang'></i>
               </div>
@@ -298,7 +305,7 @@ export default defineComponent({
     const tempDiffTableColumns = [
       {
         isUseShow: true,
-        label: window.i18n.t('接口'),
+        label: t('接口'),
         field: 'span_name',
         filter: {
           list: endpointNameFilterList,
@@ -325,7 +332,7 @@ export default defineComponent({
       },
       {
         isUseShow: true,
-        label: window.i18n.t('服务'),
+        label: t('服务'),
         field: 'resource.service.name',
         filter: {
           list: serviceNameFilterList,
@@ -340,7 +347,10 @@ export default defineComponent({
             key={random(6)}
             onClick={() => handleToService(row?.['resource.service.name']?.value)}
           >
-            <img src={row?.['resource.service.name']?.icon} />
+            <img
+              src={row?.['resource.service.name']?.icon}
+              alt=''
+            />
             <Popover
               content={row?.['resource.service.name']?.value}
               popoverDelay={[200, 0]}
@@ -353,7 +363,7 @@ export default defineComponent({
       },
       {
         isUseShow: true,
-        label: window.i18n.t('数据来源'),
+        label: t('数据来源'),
         field: 'resource.sdk.name',
         filter: {
           list: sourceList
@@ -361,7 +371,7 @@ export default defineComponent({
       },
       {
         isUseShow: true,
-        label: window.i18n.t('Span类型'),
+        label: t('Span类型'),
         field: 'kind',
         filter: {
           list: categoryList,
@@ -372,7 +382,10 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div class='classify-column'>
-            <img src={row.kind?.icon} />
+            <img
+              src={row.kind?.icon}
+              alt=''
+            />
             <span class='link-text'>{row.kind?.text}</span>
           </div>
         )
@@ -380,14 +393,14 @@ export default defineComponent({
       {
         label: () => (
           <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${window.i18n.t('最大时间')}（μs）`}</div>
+            <div class='custom-header-row-top'>{`${t('最大时间')}（μs）`}</div>
             <div class='custom-header-row-bottom'>
               <div class='custom-header-row-bottom-child'>
                 <span
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('max_duration', 'current')}
                 >
-                  {`${window.i18n.t('当前')}`}
+                  {`${t('当前')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -417,7 +430,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('max_duration', 'refer')}
                 >
-                  {`${window.i18n.t('参照')}`}
+                  {`${t('参照')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -447,7 +460,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('max_duration', 'difference')}
                 >
-                  {`${window.i18n.t('差异值')}`}
+                  {`${t('差异值')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -491,14 +504,14 @@ export default defineComponent({
       {
         label: () => (
           <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${window.i18n.t('最小时间')}（μs）`}</div>
+            <div class='custom-header-row-top'>{`${t('最小时间')}（μs）`}</div>
             <div class='custom-header-row-bottom'>
               <div class='custom-header-row-bottom-child'>
                 <span
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('min_duration', 'current')}
                 >
-                  {`${window.i18n.t('当前')}`}
+                  {`${t('当前')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -528,7 +541,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('min_duration', 'refer')}
                 >
-                  {`${window.i18n.t('参照')}`}
+                  {`${t('参照')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -558,7 +571,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('min_duration', 'difference')}
                 >
-                  {`${window.i18n.t('差异值')}`}
+                  {`${t('差异值')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -602,14 +615,14 @@ export default defineComponent({
       {
         label: () => (
           <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${window.i18n.t('总时间')}（ms）`}</div>
+            <div class='custom-header-row-top'>{`${t('总时间')}（ms）`}</div>
             <div class='custom-header-row-bottom'>
               <div class='custom-header-row-bottom-child'>
                 <span
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('sum_duration', 'current')}
                 >
-                  {`${window.i18n.t('当前')}`}
+                  {`${t('当前')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -639,7 +652,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('sum_duration', 'refer')}
                 >
-                  {`${window.i18n.t('参照')}`}
+                  {`${t('参照')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -669,7 +682,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('sum_duration', 'difference')}
                 >
-                  {`${window.i18n.t('差异值')}`}
+                  {`${t('差异值')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -713,14 +726,14 @@ export default defineComponent({
       {
         label: () => (
           <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${window.i18n.t('CP95')}（ms）`}</div>
+            <div class='custom-header-row-top'>{`${t('CP95')}（ms）`}</div>
             <div class='custom-header-row-bottom'>
               <div class='custom-header-row-bottom-child'>
                 <span
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('P95', 'current')}
                 >
-                  {`${window.i18n.t('当前')}`}
+                  {`${t('当前')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -750,7 +763,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('P95', 'refer')}
                 >
-                  {`${window.i18n.t('参照')}`}
+                  {`${t('参照')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -780,7 +793,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('P95', 'difference')}
                 >
-                  {`${window.i18n.t('差异值')}`}
+                  {`${t('差异值')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -824,14 +837,14 @@ export default defineComponent({
       {
         label: () => (
           <div style='width: 100%;'>
-            <div class='custom-header-row-top'>{`${window.i18n.t('总数')}（ms）`}</div>
+            <div class='custom-header-row-top'>{`${t('总数')}（ms）`}</div>
             <div class='custom-header-row-bottom'>
               <div class='custom-header-row-bottom-child'>
                 <span
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('count', 'current')}
                 >
-                  {`${window.i18n.t('当前')}`}
+                  {`${t('当前')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -861,7 +874,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('count', 'refer')}
                 >
-                  {`${window.i18n.t('参照')}`}
+                  {`${t('参照')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -891,7 +904,7 @@ export default defineComponent({
                   class='custom-label-text'
                   onClick={() => handleCustomHeaderSort('count', 'difference')}
                 >
-                  {`${window.i18n.t('差异值')}`}
+                  {`${t('差异值')}`}
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
@@ -933,7 +946,7 @@ export default defineComponent({
         )
       },
       {
-        label: window.i18n.t('操作'),
+        label: t('操作'),
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div style='display: flex;'>
@@ -945,16 +958,16 @@ export default defineComponent({
             >
               <span
                 class='link-text'
-                title={window.i18n.t('Span检索')}
+                title={t('Span检索')}
               >
-                {window.i18n.t('Span检索')}
+                {t('Span检索')}
               </span>
               <i class='icon-monitor icon-fenxiang'></i>
             </div>
 
             {/* TODO: 这里需要带什么参数去跳转页面 */}
             <Popover
-              content={window.i18n.t('该数据是internal类型，没有对应的观测场景。')}
+              content={t('该数据是internal类型，没有对应的观测场景。')}
               popoverDelay={[200, 0]}
               disabled={!row.is_interval}
             >
@@ -974,7 +987,7 @@ export default defineComponent({
                     cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
                   }}
                 >
-                  {window.i18n.t('观测')}
+                  {t('观测')}
                 </span>
                 <i class='icon-monitor icon-fenxiang'></i>
               </div>
@@ -1113,7 +1126,7 @@ export default defineComponent({
       if (group_fields.length === 0) {
         Message({
           theme: 'error',
-          message: `${window.i18n.t('请至少选择一项分组')}`,
+          message: `${t('请至少选择一项分组')}`,
           getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : ''
         });
         return;
@@ -1240,7 +1253,7 @@ export default defineComponent({
         if (group_fields.length === 0) {
           Message({
             theme: 'error',
-            message: `${window.i18n.t('请至少选择一项分组')}`,
+            message: `${t('请至少选择一项分组')}`,
             getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : ''
           });
           return;

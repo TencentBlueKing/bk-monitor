@@ -26,8 +26,8 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { Debounce } from '../../../monitor-common/utils/utils';
 import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
 import authorityStore from '../../store/modules/authority';
 import { ISpaceItem } from '../../types';

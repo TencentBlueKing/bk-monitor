@@ -208,3 +208,7 @@ UnifyQueryDataSources = [
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
 ]
+# 灰度统一查询模块数据源
+GrayUnifyQueryDataSources = [
+    (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+]

@@ -192,10 +192,10 @@
 </template>
 <script lang="ts">
 import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import { getMetricList } from 'monitor-api/modules/strategies';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce, throttle } from 'throttle-debounce';
 
-import { getMetricList } from '../../../../../monitor-api/modules/strategies';
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 import documentLinkMixin from '../../../../mixins/documentLinkMixin';
 import MonitorVue from '../../../../types/index';
 import {

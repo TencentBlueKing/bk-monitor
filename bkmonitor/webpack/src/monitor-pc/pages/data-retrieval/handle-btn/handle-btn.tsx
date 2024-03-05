@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Popover } from 'bk-magic-vue';
 
 import { HandleBtnType, IDataRetrievalView } from '../typings';
 
@@ -78,6 +77,7 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
                 <img
                   src={require('../../../static/images/svg/spinner.svg')}
                   class='status-loading'
+                  alt=''
                 ></img>
               );
             }
@@ -124,7 +124,7 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
           </bk-button>
         )}
 
-        <Popover content={this.$t('清空')}>
+        <bk-popover content={this.$t('清空')}>
           <div
             class='clear-params-btn'
             onClick={this.handleClearAll}
@@ -132,7 +132,7 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
             <i class='icon-monitor icon-mc-clear-query'></i>
             <bk-button theme='default'></bk-button>
           </div>
-        </Popover>
+        </bk-popover>
       </div>
     );
   }

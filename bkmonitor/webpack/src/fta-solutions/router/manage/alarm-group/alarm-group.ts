@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { RouteConfig } from 'vue-router';
-
-import * as AlarmGroupAuth from '../../../../monitor-pc/pages/alarm-group/authority-map';
+import * as AlarmGroupAuth from 'monitor-pc/pages/alarm-group/authority-map';
 
 const AlarmGroup = () => import(/* webpackChunkName: "AlarmGroup" */ '../../../pages/alarm-group/alarm-group');
 const AlarmGroupAdd = () =>

@@ -12,15 +12,16 @@ specific language governing permissions and limitations under the License.
 """
 
 from __future__ import unicode_literals
-import time
+
 import json
 import logging
 import os
+import time
 
-from cachetools import cached, TTLCache
+from cachetools import TTLCache, cached
 from requests.models import PreparedRequest
 
-from .http import http_get, http_post, http_put, http_delete
+from .http import http_delete, http_get, http_post, http_put
 
 logger = logging.getLogger("iam")
 
@@ -88,14 +89,17 @@ class Client(object):
 
     def _call_esb_api(self, http_func, path, data, bk_token, bk_username, timeout=None):
         headers = {
-            # "BK-APP-CODE": self._app_code,
-            # "BK-APP-SECRET": self._app_secret,
+            "X-Bkapi-Authorization": json.dumps(
+                {
+                    "bk_app_code": self._app_code,
+                    "bk_app_secret": self._app_secret,
+                    "bk_token": bk_token,
+                    "bk_username": bk_username,
+                }
+            ),
         }
         data.update(
             {
-                "bk_app_code": self._app_code,
-                "bk_app_secret": self._app_secret,
-                "bk_token": bk_token,
                 "bk_username": bk_username,
             }
         )

@@ -63,7 +63,8 @@ def deactivate(biz_id):
 
 
 def maintainer(biz_id):
-    return redis_cli.hget(ACTIVE_BIZ_LAST_VISITOR, biz_id)
+    result = redis_cli.hget(ACTIVE_BIZ_LAST_VISITOR, biz_id)
+    return result.decode("utf-8") if result else ""
 
 
 def get_all_business():

@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { computed, ComputedRef, defineComponent, PropType, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Popover } from 'bkui-vue';
+import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import { fetchItemStatus } from '../../../monitor-api/modules/strategies';
 import { createMetricTitleTooltips } from '../../utils';
 import {
   ChartTitleMenuType,
@@ -78,19 +79,20 @@ export default defineComponent({
     const popoverInstance = ref(null);
     const alarmStatus = ref<ITitleAlarm>({ status: 0, alert_number: 0, strategy_number: 0 });
     const isShowChildren = ref(false);
+    const { t } = useI18n();
     const alarmTips = computed(() => {
       const { status, alert_number, strategy_number } = alarmStatus.value;
       let content = '';
       switch (status) {
         case 1:
-          content = window.i18n.t('已设置 {0} 个策略', [strategy_number]).toString();
+          content = t('已设置 {0} 个策略', [strategy_number]).toString();
           break;
         case 2:
-          content = window.i18n.t('告警中，告警数量：{0}', [alert_number]).toString();
+          content = t('告警中，告警数量：{0}', [alert_number]).toString();
           break;
         default:
         case 0:
-          content = window.i18n.t('未配置策略').toString();
+          content = t('未配置策略').toString();
           break;
       }
       return {

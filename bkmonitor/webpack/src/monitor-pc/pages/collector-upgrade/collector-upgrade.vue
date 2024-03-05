@@ -107,7 +107,8 @@
                 v-bk-tooltips="{
                   content: props.row.errorMsg,
                   showOnInit: false,
-                  placements: ['top']
+                  placements: ['top'],
+                  allowHTML: false
                 }"
               />
             </template>
@@ -183,7 +184,8 @@
                 v-bk-tooltips="{
                   content: props.row.errorMsg,
                   showOnInit: false,
-                  placements: ['top']
+                  placements: ['top'],
+                  allowHTML: false
                 }"
               />
             </template>

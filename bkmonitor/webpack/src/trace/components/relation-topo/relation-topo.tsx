@@ -37,12 +37,13 @@ import {
   toRefs,
   watch
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 import G6, { Graph, IEdge, INode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { traceDiagram } from 'monitor-api/modules/apm_trace';
 
-import { traceDiagram } from '../../../monitor-api/modules/apm_trace';
 import { formatDuration } from '../../components/trace-view/utils/date';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
@@ -91,7 +92,7 @@ export default defineComponent({
   emits: ['showSpanDetail', 'spanListChange', 'compareSpanListChange', 'update:loading'],
   setup(props, { emit, expose }) {
     let graph: any = null;
-
+    const { t } = useI18n();
     const store = useTraceStore();
 
     const state = reactive<IState>({
@@ -755,10 +756,10 @@ export default defineComponent({
         <div>Span: ${operationName}</div>
         <table class="tips-table">
           <thead>
-            <th>${window.i18n.t('耗时对比')}</th>
-            <th>${window.i18n.t('当前')}</th>
-            <th>${window.i18n.t('参照')}</th>
-            <th>${window.i18n.t('差异')}</th>
+            <th>${t('耗时对比')}</th>
+            <th>${t('当前')}</th>
+            <th>${t('参照')}</th>
+            <th>${t('差异')}</th>
           </thead>
           <tbody>
             ${listHtml}
@@ -1020,7 +1021,7 @@ export default defineComponent({
               emit('compareSpanListChange', compareSpans);
               store.updateCompareTraceOriginalData(compareOriginalSpans);
             } else {
-              showCompareErrorMessage(window.i18n.t('差异过大不对比'));
+              showCompareErrorMessage(t('差异过大不对比'));
             }
           })
           .catch(err => {
