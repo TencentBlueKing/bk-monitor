@@ -51,5 +51,5 @@ class ProfileUploadRecord(models.Model):
     meta_info = models.JSONField("数据元信息", default=dict)
 
     content = models.TextField("运行信息", null=True)
-    query_start_time = models.IntegerField("查询此文件的 profile 数据时的开始时间")
-    query_end_time = models.IntegerField("查询此文件的 profile 数据时的结束时间")
+    query_start_time = models.IntegerField("查询此文件的 profile 数据时的开始时间", null=True)
+    query_end_time = models.IntegerField("查询此文件的 profile 数据时的结束时间", null=True)
