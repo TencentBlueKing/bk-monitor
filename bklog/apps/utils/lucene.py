@@ -1036,7 +1036,9 @@ class LuceneQuotesChecker(LuceneCheckerBase):
         if (
                 (left_single_quote and right_single_quote)
                 or (left_double_quote and right_double_quote)
-                or (not left_single_quote and not left_double_quote and not right_single_quote and not right_double_quote)
+                or (
+                not left_single_quote and not left_double_quote and not right_single_quote and not right_double_quote
+        )
         ):
             return True
         else:
