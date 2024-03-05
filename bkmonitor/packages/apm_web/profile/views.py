@@ -205,10 +205,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         )
 
         r = q.execute()
-        if r is None or not r.get("list"):
+        if r is None:
             raise ValueError(_("未查询到有效数据"))
 
-        if not converted:
+        if not converted or not r.get("list"):
             return r
 
         c = DorisConverter()
@@ -395,9 +395,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         return Response(
             data={
-                "label_values": {
+                "label_values": [
                     json.loads(i["labels"]).get(validated_data["label_key"]) for i in results["list"] if i.get("labels")
-                }
+                ]
             }
         )
 
