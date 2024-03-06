@@ -187,7 +187,7 @@ class StatisticsQuery(EsQueryBuilderMixin):
 
     def _query_metric_data(self, query, group_key, offset, limit, params_md5, after_key_params):
         query = query.extra(size=0)
-        query.update_from_dict(
+        query = query.update_from_dict(
             {
                 "aggs": {
                     "group": {
