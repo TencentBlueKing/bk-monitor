@@ -38,3 +38,28 @@ class GetDocLinkResource(Resource):
             md_path = "/".join([DOCS_USER_GUIDE_ROOT, DEFAULT_DOC, md_path])
         doc_url = f"{settings.BK_DOCS_SITE_URL.rstrip('/')}/markdown/{md_path.lstrip('/')}"
         return doc_url
+
+
+class GetLinkMappingResource(Resource):
+    """
+    获取文档链接(新)
+    返回数据格式:
+    {
+        "traceDoc": {
+            "type": "splice" / "link",
+            "value": "path/to/doc.md" / "{FULL_LINK}"
+        }
+    }
+    Key 为链接名称
+    Value 为链接配置
+        Type: 可选值为 splice 、 link
+        Value:
+            Type = splice: 为文档拼接中心拼接路径
+            Type = link: 为完成 http 链接
+    新增链接时，需要与前端约定 Key 值。
+    根据 Key 跳转链接时，前端先获取接口返回的 LinkMap 中是否有此Key，不存在的话再取前端存储的 LinkMap 进行处理。
+    """
+
+    def perform_request(self, validated_request_data):
+        valid_types = ["splice", "link"]
+        return {key: config for key, config in settings.DOC_LINK_MAPPING.items() if config.get("type") in valid_types}

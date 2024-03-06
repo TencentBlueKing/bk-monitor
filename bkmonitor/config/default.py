@@ -1313,3 +1313,6 @@ ENABLE_BCS_CC_PROJECT_API = False
 
 # 独立的vm集群的空间列表
 SINGLE_VM_SPACE_ID_LIST = []
+
+# 文档链接配置 格式: {"key1": {"type": "splice/link", "value": ""}}
+DOC_LINK_MAPPING = {}

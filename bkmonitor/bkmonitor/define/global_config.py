@@ -420,6 +420,8 @@ STANDARD_CONFIGS = OrderedDict(
         # 接入计算平台配置
         ("DEFAULT_BKDATA_BIZ_ID", slz.IntegerField(label="接入计算平台使用的业务 ID", default=0)),
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
+        # 文档链接配置
+        ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
     ]
 )
 
