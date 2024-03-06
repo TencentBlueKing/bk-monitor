@@ -31,6 +31,7 @@
     "minimist": "^1.2.8",
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",
+    "monitor-static": "workspace:*",
     "monitor-ui": "workspace:*",
     "sortablejs": "^1.15.2",
     "throttle-debounce": "^3.0.1",

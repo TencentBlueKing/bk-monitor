@@ -1310,3 +1310,6 @@ ES_SERIAL_CLUSTER_LIST = []
 
 # 是否启用 BCS CC 的项目接口
 ENABLE_BCS_CC_PROJECT_API = False
+
+# 独立的vm集群的空间列表
+SINGLE_VM_SPACE_ID_LIST = []
