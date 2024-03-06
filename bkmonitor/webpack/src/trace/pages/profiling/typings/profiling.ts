@@ -85,6 +85,10 @@ export interface FileDetail {
   status: string;
   /** 数据类型 */
   data_types: DataTypeItem[];
+  /** 查询开始时间 */
+  query_start_time: number;
+  /** 查询结束时间 */
+  query_end_time: number;
 }
 
 export enum DetailType {
