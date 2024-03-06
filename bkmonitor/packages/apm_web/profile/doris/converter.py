@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass
 from typing import Optional
 
-from apm_web.profile.constants import DESCRIBING_SAMPLE_UNIT, InputType
+from apm_web.profile.constants import CPU_DESCRIBING_SAMPLE_TYPE, InputType
 from apm_web.profile.converter import Converter, register_converter
 from apm_web.profile.models import (
     Function,
@@ -47,7 +47,7 @@ class DorisConverter(Converter):
             # with unit `count`."
             # samples_info contains lots of samples, including `sample/counts` and target values
             # `sample/counts` mainly for `describing`, ignoring it and adding after all samples added
-            if sample_info["sample_type"].split("/")[1] == DESCRIBING_SAMPLE_UNIT:
+            if sample_info["sample_type"] == CPU_DESCRIBING_SAMPLE_TYPE:
                 continue
 
             if not default_sample_type:

@@ -134,7 +134,7 @@ class ListApplicationServicesResource(Resource):
                         "description": application.description,
                         "app_name": application.app_name,
                         "app_alias": application.app_alias,
-                        "services": [{"id": i["id"], "name": i["name"], "has_data": True} for i in services],
+                        "services": list({i["name"]: i for i in services}.values()),
                     }
                 )
             else:

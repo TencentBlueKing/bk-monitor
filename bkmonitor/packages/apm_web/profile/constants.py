@@ -22,6 +22,7 @@ EXPORT_FORMAT_MAP = {"pprof": "pprof"}
 # may fetch from apm API in the future
 BUILTIN_APP_NAME = "builtin_profile_app"
 
+CPU_DESCRIBING_SAMPLE_TYPE = "samples/count"
 DESCRIBING_SAMPLE_UNIT = "count"
 
 
