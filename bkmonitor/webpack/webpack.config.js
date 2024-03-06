@@ -58,6 +58,7 @@ module.exports = async (baseConfig, { production, app }) => {
     config.devServer = {
       port,
       host: devConfig.host,
+      allowedHosts: "all",
       proxy: [{
         ...devConfig.proxy,
         proxyTimeout: 5 * 60 * 1000,
