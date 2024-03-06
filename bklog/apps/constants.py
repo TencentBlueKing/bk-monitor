@@ -155,7 +155,7 @@ MAX_RESOLVE_TIMES = 10
 # Lucene数值类字段操作符
 LUCENE_NUMERIC_OPERATORS = ["<", "<=", ">", ">=", "="]
 # Lucene数值类类型列表
-LUCENE_NUMERIC_TYPES = ["long", "integer", "short", "byte", "double", "float"]
+LUCENE_NUMERIC_TYPES = ["long", "integer", "short", "double", "float"]
 
 
 class LuceneReservedLogicOperatorEnum(ChoicesEnum):
