@@ -55,6 +55,9 @@ export interface RetrievalFormData {
   where: IConditionItem[];
   /** 对比项条件 */
   comparisonWhere: IConditionItem[];
+  /** 上传 profiling 用于上传文件查询的开始和结束时间 */
+  startTime?: number;
+  endTime?: number;
 }
 
 export interface DataTypeItem {

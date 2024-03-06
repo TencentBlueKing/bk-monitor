@@ -245,6 +245,7 @@ export default defineComponent({
                           {this.statusRender(item.status)}
                           <div class='divider'></div>
                           <div class='name'>{item.file_name || '--'}</div>
+                          <div class='origin-name'>{`（${item.origin_file_name}）`}</div>
                         </div>
                         <i
                           class='icon-monitor icon-mc-detail'
@@ -279,6 +280,7 @@ export default defineComponent({
                         {this.statusRender(item.status)}
                         <div class='divider'></div>
                         <div class='name'>{item.file_name}</div>
+                        <div class='origin-name'>{`（${item.origin_file_name}）`}</div>
                       </div>
                       <i class='icon-monitor icon-mc-detail'></i>
                     </div>

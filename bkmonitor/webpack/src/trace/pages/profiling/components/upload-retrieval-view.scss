@@ -4,6 +4,7 @@
   .status {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
     width: 68px;
 
     .loading {
@@ -179,18 +180,29 @@
     .left {
       display: flex;
       align-items: center;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
 
       @include fileStatus();
 
       .divider {
-        width: 1px;
+        min-width: 1px;
         height: 12px;
         margin-right: 12px;
         background-color: #979ba5;
       }
 
       .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
         color: #63656e;
+      }
+
+      .origin-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #979ba5;
       }
     }
 

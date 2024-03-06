@@ -41,7 +41,7 @@ import {
   VIEWOPTIONS_KEY
 } from '../../../plugins/hooks';
 import { PanelModel } from '../../../plugins/typings';
-import { ToolsFormData } from '../typings';
+import { SearchType, ToolsFormData } from '../typings';
 
 import './trend-chart.scss';
 import 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';
@@ -72,6 +72,7 @@ export default defineComponent({
   },
   setup(props) {
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
+    const searchType = inject<Ref<SearchType>>('profilingSearchType');
 
     const timezone = ref<string>(getDefautTimezone());
     const refleshImmediate = ref<number | string>('');
@@ -101,24 +102,23 @@ export default defineComponent({
     watch(
       () => [props.queryParams, chartType.value],
       () => {
-        let type;
-        let targetApi;
-        let targetData;
         const alias = (props.queryParams as IQueryParams).is_compared ? '' : 'Sample 数';
-        if (chartType.value === 'all') {
-          type = 'line';
-          targetApi = 'apm_profile.query';
-          targetData = {
-            ...props.queryParams,
-            diagram_types: ['tendency']
-          };
-        } else {
-          type = 'bar';
-          targetApi = 'apm_profile.queryProfileBarGraph';
-          targetData = {
-            ...props.queryParams
-          };
-        }
+        const { start, end, ...rest } = props.queryParams as IQueryParams;
+        const allTrend = chartType.value === 'all'; // 根据类型构造图表配置
+        const type = allTrend ? 'line' : 'bar';
+        const targetApi = allTrend ? 'apm_profile.query' : 'apm_profile.queryProfileBarGraph';
+        const targetData = {
+          ...rest,
+          ...(allTrend ? { diagram_types: ['tendency'] } : {}),
+          /** 上传文件查询 时间参数通过选中文件信息的时间范围查询 */
+          /** 文件信息的时间单位为 μs（微秒），图表插件需要统一单位为 s（秒），故在此做转换 */
+          ...(searchType.value === SearchType.Upload
+            ? {
+                start_time: parseInt(String(start / Math.pow(10, 6)), 10),
+                end_time: parseInt(String(end / Math.pow(10, 6)), 10)
+              }
+            : {})
+        };
 
         panel.value = new PanelModel({
           ...DEFAULT_PANEL_CONFIG,

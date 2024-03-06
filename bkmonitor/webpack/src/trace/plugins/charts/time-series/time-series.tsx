@@ -490,6 +490,7 @@ export default defineComponent({
           const list =
             props.panel?.targets?.map?.(item => {
               const newPrarams = {
+                ...params,
                 ...variablesService.transformVariables(item.data, {
                   ...viewOptions?.value.filters,
                   ...(viewOptions?.value.filters?.current_target || {}),
@@ -498,7 +499,6 @@ export default defineComponent({
                   time_shift,
                   interval
                 }),
-                ...params,
                 down_sample_range: downSampleRangeComputed(
                   downSampleRange,
                   [params.start_time, params.end_time],
