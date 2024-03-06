@@ -31,6 +31,7 @@ import { Debounce } from 'monitor-common/utils';
 import { ISpaceItem } from '../../types';
 import { getEventPaths } from '../../utils';
 import { ETagsType } from '../biz-select/list';
+import { pinyinSearch } from '../biz-select/utils';
 
 import { SPACE_TYPE_MAP } from './utils';
 
@@ -447,9 +448,11 @@ export default class SpaceSelect extends tsc<
         }
         return true;
       })();
+      const spaceName = item.space_name.toLocaleLowerCase();
       const searchShow =
-        item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
+        spaceName.indexOf(keyword) > -1 ||
         item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
+        pinyinSearch(keyword, spaceName, this.$bkToPinyin) ||
         `${item.id}`.includes(keyword) ||
         `${item.space_id}`.toLocaleLowerCase().includes(keyword) ||
         item.tags?.some(t => !!keyword && t.name.indexOf(keyword) > -1);
