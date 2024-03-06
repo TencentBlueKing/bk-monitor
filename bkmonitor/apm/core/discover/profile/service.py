@@ -48,6 +48,7 @@ class ServiceDiscover(Discover):
                 logger.warning(f"[ProfileServiceDiscover] could not found types of service: {svr}")
                 continue
 
+            logger.info(f"[ProfileServiceDiscover] found {len(types)} types: {types}")
             for col_type in types:
                 col_type = col_type.get("type")
                 if not col_type:

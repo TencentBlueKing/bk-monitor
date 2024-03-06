@@ -47,8 +47,9 @@ class ApiParam:
         r = {
             "biz_id": self.biz_id,
             "app": self.app,
-            "type": self.type,
         }
+        if self.type:
+            r["type"] = self.type
         if self.label_filter:
             r["label_filter"] = self.label_filter
         if self.service_name:
