@@ -135,12 +135,12 @@ class StatisticsQuery(EsQueryBuilderMixin):
 
     def _query_data(self, group_key, query_params, start_time, end_time, offset, limit, params_md5, logic_filters):
         es_query = self.span_query.search
-        es_query.update_from_dict(query_params)
+        es_query = es_query.update_from_dict(query_params)
 
         # 获取分页游标
         after_key_params = self.get_after_key_param(offset, params_md5)
 
-        # 不包含根span、服务入口span，查询统计视角 --> service
+        # 不包含 根span、服务入口span 或者 查询统计视角等于service 时, 直接分组获取指标数据
         if not logic_filters or group_key == QueryStatisticsMode.SERVICE:
             return self._query_metric_data(es_query, group_key, offset, limit, params_md5, after_key_params)
 
@@ -148,7 +148,7 @@ class StatisticsQuery(EsQueryBuilderMixin):
         group_key_mapping = self._query_group_info(es_query, group_key, limit, after_key_params)
         # step2 获取specific_span_ids
         specific_span_ids = self._batch_query_specific_span_ids(start_time, end_time, group_key_mapping, logic_filters)
-        # step3 从 span 中中获取数据
+        # step3 从 span 中获取数据
         if not specific_span_ids:
             return []
 
@@ -237,8 +237,8 @@ class StatisticsQuery(EsQueryBuilderMixin):
 
     def _build_specific_query(self, query_params, specific_span_ids):
         es_query = self.span_query.search
-        es_query.update_from_dict(query_params)
-        es_query.update_from_dict({"size": 0})
+        es_query = es_query.update_from_dict(query_params)
+        es_query = es_query.update_from_dict({"size": 0})
         specific_q = es_query.query("bool", filter=[Q("terms", span_id=specific_span_ids)])
         return specific_q
 
@@ -249,7 +249,10 @@ class StatisticsQuery(EsQueryBuilderMixin):
             cache_key = f"{params_md5}:{offset}"
             if not redis_cli.exists(cache_key):
                 raise ValueError(_("参数丢失 需要重新从第一页获取"))
-            after_key = json.loads(redis_cli.get(cache_key))
+            cache_value = redis_cli.get(cache_key)
+            if cache_value:
+                after_key = json.loads(cache_value)
+
         return {"after": after_key} if after_key else {}
 
     def get_metric_aggs(self, group_key):
