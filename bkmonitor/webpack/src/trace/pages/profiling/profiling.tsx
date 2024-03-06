@@ -81,6 +81,10 @@ export default defineComponent({
         comparisonWhere: []
       }
     });
+
+    const searchType = computed(() => searchState.formData.type);
+    provide<Ref<SearchType>>('profilingSearchType', searchType);
+
     const canQuery = computed(() => {
       if (searchState.loading || !dataType.value) return false;
       if (searchState.formData.type === SearchType.Profiling) {
@@ -115,7 +119,7 @@ export default defineComponent({
      */
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
-      handleQuery();
+      // handleQuery();
     }
 
     /** 是否全屏 */
@@ -204,9 +208,14 @@ export default defineComponent({
     }
     /** 获取接口请求参数 */
     function getParams() {
-      const { server, isComparison, where, comparisonWhere, type } = searchState.formData;
+      const { server, isComparison, where, comparisonWhere, type, startTime, endTime } = searchState.formData;
       const profilingParams = { ...server, global_query: false };
-      const uploadParams = { profile_id: curFileInfo?.value?.profile_id, global_query: true };
+      const uploadParams = {
+        profile_id: curFileInfo?.value?.profile_id,
+        global_query: true,
+        start: startTime,
+        end: endTime
+      };
       return {
         is_compared: isComparison,
         filter_labels: where.reduce((pre, cur) => {
@@ -249,6 +258,9 @@ export default defineComponent({
      * @param fileInfo
      */
     function handleSelectFile(fileInfo: FileDetail) {
+      const { query_start_time: startTime, query_end_time: endTime } = fileInfo;
+      searchState.formData.startTime = startTime;
+      searchState.formData.endTime = endTime;
       curFileInfo.value = fileInfo;
       getDataTypeList(fileInfo);
       handleQuery();
@@ -368,6 +380,7 @@ export default defineComponent({
             onChange={this.handleToolFormDataChange}
             onRefreshIntervalChange={this.startAutoQueryTimer}
             onMenuSelect={this.handleMenuSelect}
+            onImmediateRefresh={this.handleQuery}
           ></PageHeader>
         </div>
         <div class='page-content'>

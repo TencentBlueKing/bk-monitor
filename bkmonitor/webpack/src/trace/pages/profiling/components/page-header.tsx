@@ -50,7 +50,7 @@ export default defineComponent({
       default: null
     }
   },
-  emits: ['change', 'showTypeChange', 'refreshIntervalChange', 'menuSelect'],
+  emits: ['change', 'showTypeChange', 'refreshIntervalChange', 'menuSelect', 'immediateRefresh'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const menuList = [{ name: t('查看大图'), id: MenuEnum.FullScreen }];
@@ -82,7 +82,7 @@ export default defineComponent({
       handleEmitData();
     }
     function handleImmediateRefresh() {
-      handleEmitData();
+      emit('immediateRefresh');
     }
 
     function handleShowTypeChange(showType: PanelType, status: boolean) {

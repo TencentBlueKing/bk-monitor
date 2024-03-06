@@ -32,7 +32,7 @@ import { BaseDataType, ProfilingTableItem, ViewModeType } from 'monitor-ui/chart
 import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { ToolsFormData } from '../../../pages/profiling/typings';
+import { SearchType, ToolsFormData } from '../../../pages/profiling/typings';
 import { DirectionType, IQueryParams } from '../../../typings';
 
 import ChartTitle from './chart-title/chart-title';
@@ -59,6 +59,7 @@ export default defineComponent({
     let refleshIntervalInstance = null; // 自动刷新定时任务
 
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
+    const searchType = inject<Ref<SearchType>>('profilingSearchType');
 
     const frameGraphRef = ref(FrameGraph);
     const empty = ref(true);
@@ -78,16 +79,24 @@ export default defineComponent({
     const topoSrc = ref('');
 
     const flameFilterKeywords = computed(() => (filterKeyword.value?.trim?.().length ? [filterKeyword.value] : []));
-
     const isCompared = computed(() => (props.queryParams as IQueryParams)?.is_compared ?? false);
 
     watch(
-      [() => props.queryParams, toolsFormData.value.timeRange],
+      () => props.queryParams,
       debounce(16, async () => handleQuery()),
       {
         immediate: true,
         deep: true
       }
+    );
+    watch(
+      () => toolsFormData.value.timeRange,
+      () => {
+        if (searchType.value === SearchType.Profiling) {
+          handleQuery();
+        }
+      },
+      { deep: true }
     );
     watch(
       () => toolsFormData.value.refreshInterval,
@@ -108,8 +117,12 @@ export default defineComponent({
       return {
         ...args,
         ...queryParams,
-        start: start * Math.pow(10, 6),
-        end: end * Math.pow(10, 6)
+        ...(searchType.value === SearchType.Profiling
+          ? {
+              start: start * Math.pow(10, 6),
+              end: end * Math.pow(10, 6)
+            }
+          : {})
       };
     };
     const handleQuery = async () => {
