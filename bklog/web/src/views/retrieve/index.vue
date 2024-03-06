@@ -1191,12 +1191,19 @@ export default {
           clustering_config: clusteringConfig,
           apm_relation: apmRelation,
         } = localConfig;
+        // 字段设置的参数传到实时日志和上下文
+        const indexSetValue = {
+          scenarioID: this.indexSetItem.scenario_id,
+          sortFields: this.indexSetItem.sort_fields ?? [],
+          targetFields: this.indexSetItem.target_fields ?? [],
+        };
 
         this.operatorConfig = { // 操作按钮配置信息
           bkmonitor,
           bcsWebConsole,
           contextAndRealtime,
           timeField,
+          indexSetValue,
         };
         // 初始化操作按钮消息
         this.operatorConfig.toolMessage = this.initToolTipsMessage(this.operatorConfig);
