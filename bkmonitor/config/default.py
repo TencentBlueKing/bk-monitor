@@ -1307,3 +1307,6 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+
+# 是否启用 BCS CC 的项目接口
+ENABLE_BCS_CC_PROJECT_API = False

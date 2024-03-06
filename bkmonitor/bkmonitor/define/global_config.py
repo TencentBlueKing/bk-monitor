@@ -271,6 +271,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
         ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
         ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
+        ("ENABLE_BCS_CC_PROJECT_API", slz.BooleanField(label="是否启用BCS-CC的项目相关接口", default=False)),
     ]
 )
 
