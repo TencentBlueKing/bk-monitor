@@ -324,6 +324,7 @@ export class MetricDetail {
   }
   // 是否可设置函数
   get canSetFunction() {
+    if (this.metricMetaId === 'bk_data|time_series') return true; // 数据平台指标支持function
     return this.canSetMulitpeMetric && this.data_type_label !== 'alert';
   }
   // 是否可设置多指标计算

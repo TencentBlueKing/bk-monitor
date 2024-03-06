@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@antv/g6": "^4.8.24",
-    "@blueking/date-picker": "^0.0.72",
+    "@blueking/date-picker": "^0.0.73",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
     "apm": "workspace:*",
@@ -37,6 +37,7 @@
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",
     "monitor-pc": "workspace:*",
+    "monitor-static": "workspace:*",
     "monitor-ui": "workspace:*",
     "pinia": "2.0.13",
     "reselect": "^4.1.8",

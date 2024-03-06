@@ -12,6 +12,7 @@
   "dependencies": {
     "axios": "^0.26.1",
     "qs": "^6.11.2",
+    "monitor-common":"workspace:*",
     "vue": "2.7.14"
   },
   "devDependencies": {

@@ -30,7 +30,7 @@ class BcsProjectBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     base_url = urljoin(
         f"{settings.BCS_API_GATEWAY_SCHEMA}://{settings.BCS_API_GATEWAY_HOST}:{settings.BCS_API_GATEWAY_PORT}",
-        f"/bcsapi/v4/bcsproject/v1",
+        "/bcsapi/v4/bcsproject/v1",
     )
     module_name = "bcs-project"
 
@@ -82,7 +82,7 @@ class GetProjectsResource(BcsProjectBaseResource):
     class RequestSerializer(serializers.Serializer):
         limit = serializers.IntegerField(required=False, default=1000)
         offset = serializers.IntegerField(required=False, default=0)
-        kind = serializers.CharField(required=False, default="k8s")
+        kind = serializers.CharField(required=False, allow_blank=True)
         is_detail = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_request_data):
@@ -94,9 +94,8 @@ class GetProjectsResource(BcsProjectBaseResource):
             max_offset = count // self.default_limit
             start_offset = 1
             while start_offset <= max_offset:
-                resp_data = super(GetProjectsResource, self).perform_request(
-                    {"limit": self.default_limit, "offset": start_offset, "kind": "k8s"}
-                )
+                validated_request_data.update({"limit": self.default_limit, "offset": start_offset})
+                resp_data = super(GetProjectsResource, self).perform_request(validated_request_data)
                 project_list.extend(resp_data.get("results") or [])
                 start_offset += 1
         # 因为返回数据内容太多，抽取必要的字段
