@@ -101,6 +101,9 @@ importers:
       monitor-pc:
         specifier: workspace:*
         version: link:../monitor-pc
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui
@@ -219,6 +222,9 @@ importers:
       monitor-pc:
         specifier: workspace:*
         version: link:../monitor-pc
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui
@@ -316,6 +322,9 @@ importers:
       axios:
         specifier: ^0.26.1
         version: 0.26.1
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
       qs:
         specifier: ^6.11.2
         version: 6.11.2
@@ -408,6 +417,12 @@ importers:
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -565,6 +580,9 @@ importers:
       monitor-common:
         specifier: workspace:*
         version: link:../monitor-common
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui
@@ -964,6 +982,9 @@ importers:
       monitor-pc:
         specifier: workspace:*
         version: link:../monitor-pc
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui
