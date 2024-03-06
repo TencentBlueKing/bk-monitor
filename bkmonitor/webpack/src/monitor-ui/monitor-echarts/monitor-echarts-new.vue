@@ -1230,8 +1230,8 @@ export default class MonitorEcharts extends Vue {
         }
       });
 
-      const options = { ...this.chart.getOption(), ...this.handleTransformSeries(showSeries) };
-      this.chart.setOption(options, {
+      const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(showSeries), {});
+      this.chart.setOption(deepMerge(optionData.options, this.defaultOptions), {
         notMerge: true,
         lazyUpdate: false,
         silent: false

@@ -152,7 +152,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   // promqlError = false
   // 指标标示名称
   get metricNameLabel() {
-    const [{ metricMetaId, data_source_label: dataSourceLabel, data_type_label }] = this.metricData || [];
+    if (!this.metricData?.length) return this.$t('指标');
+    const [{ metricMetaId, data_source_label: dataSourceLabel, data_type_label }] = this.metricData;
     if (metricMetaId === 'bk_monitor|log') {
       return this.$t('关键字');
     }

@@ -502,6 +502,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
             onShow: this.handleSetListWidth,
             onHide: () => {
               this.showBizList = false;
+              this.handleBizSearch('');
               return true;
             }
           }}

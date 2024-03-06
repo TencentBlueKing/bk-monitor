@@ -43,6 +43,7 @@ from constants.alert import (
     EventTargetType,
 )
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
+from core.errors.alert import AIOpsFunctionAccessedError
 
 from ...service.converge.shield.shielder import AlertShieldConfigShielder
 from . import BaseContextObject
@@ -816,6 +817,9 @@ class Alarm(BaseContextObject):
             result = DimensionDrillLightManager(
                 self.parent.alert, ReadOnlyAiSetting(self.parent.alert.event["bk_biz_id"], self.ai_setting_config)
             ).fetch_aiops_result()
+        except AIOpsFunctionAccessedError:
+            # 功能未开启通过指标暴露，不额外打日志
+            raise
         except Exception as e:
             logger.exception(
                 f"alert({self.parent.alert.id})-action("
@@ -836,6 +840,9 @@ class Alarm(BaseContextObject):
             result = RecommendMetricManager(
                 self.parent.alert, ReadOnlyAiSetting(self.parent.alert.event["bk_biz_id"], self.ai_setting_config)
             ).fetch_aiops_result()
+        except AIOpsFunctionAccessedError:
+            # 功能未开启通过指标暴露，不额外打日志
+            raise
         except Exception as e:
             logger.exception(
                 f"alert({self.parent.alert.id})-action("
