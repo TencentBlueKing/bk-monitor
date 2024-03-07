@@ -36,7 +36,8 @@ export interface ISpaceItem {
   is_demo: boolean;
   text: string;
   bk_biz_id: number;
-  py_text?: string;
+  py_text?: string; // 拼音全拼
+  pyf_text?: string; // 拼音首字母
   is_hidden_tag?: boolean;
 }
 // 业务

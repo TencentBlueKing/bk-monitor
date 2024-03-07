@@ -206,6 +206,7 @@ export default class SpaceSelect extends tsc<
       isCheck: false,
       show: true,
       py_text: '',
+      pyf_text: '',
       space_id: ''
     };
     if (this.needAlarmOption) {
@@ -449,7 +450,8 @@ export default class SpaceSelect extends tsc<
       })();
       const searchShow =
         item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-        item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
+        item.py_text.indexOf(keyword) > -1 ||
+        item.pyf_text.indexOf(keyword) > -1 ||
         `${item.id}`.includes(keyword) ||
         `${item.space_id}`.toLocaleLowerCase().includes(keyword) ||
         item.tags?.some(t => !!keyword && t.name.indexOf(keyword) > -1);
