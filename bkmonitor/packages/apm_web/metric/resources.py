@@ -240,7 +240,9 @@ class ServiceListResource(PageListResource):
                 filterable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
-            StatusTableFormat(id="status", name=_lazy("状态"), checked=True, status_map_cls=DataStatus, filterable=True),
+            StatusTableFormat(
+                id="status", name=_lazy("Tracing 状态"), checked=True, status_map_cls=DataStatus, filterable=True
+            ),
             NumberTableFormat(id="request_count", name=_lazy("调用次数"), checked=True, sortable=True, asyncable=True),
             ProgressTableFormat(id="error_rate", name=_lazy("错误率"), sortable=True, asyncable=True),
             NumberTableFormat(
@@ -270,7 +272,7 @@ class ServiceListResource(PageListResource):
             ),
             StatusTableFormat(
                 id="profiling_data_status",
-                name=_lazy("Profiling状态"),
+                name=_lazy("Profiling 状态"),
                 checked=True,
                 status_map_cls=DataStatus,
                 filterable=True,

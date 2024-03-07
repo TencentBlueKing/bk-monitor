@@ -135,8 +135,9 @@ class ServiceHandler:
         """合并 TraceService 和 ProfileService"""
         res = copy.deepcopy(trace_services)
         trace_names_mapping = group_by(res, operator.itemgetter("topo_key"))
+        visited = []
         for profile_svr in profile_services:
-            if profile_svr["name"] not in trace_names_mapping:
+            if profile_svr["name"] not in trace_names_mapping and profile_svr["name"] not in visited:
                 # 如果没有 Trace 数据 则单独开一个服务
                 res.append(
                     {
@@ -150,6 +151,7 @@ class ServiceHandler:
                         },
                     }
                 )
+                visited.append(profile_svr["name"])
 
         return res
 
