@@ -35,6 +35,7 @@ import { IStatusData } from '../../../collector-config/collector-view-detail/sta
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
@@ -254,7 +255,7 @@ export default class HostList extends tsc<IProps, IEvents> {
         })
         .then(data => {
           const list = typeTools.isObject(data) ? data.data : data;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           return list;
         })
@@ -472,7 +473,7 @@ export default class HostList extends tsc<IProps, IEvents> {
                 placeholder={this.$t('搜索')}
                 value={this.searchCondition}
                 show-condition={false}
-                uniqueSelect={true}
+                clearable={false}
                 data={this.currentConditionList}
                 onChange={this.handleSearch}
               />

@@ -34,6 +34,7 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { IQueryData, IQueryDataSearch, ITableFilterItem } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
@@ -198,7 +199,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           return list?.map?.(set => {
             const id = item.handleCreateItemId(set) || set.id;
@@ -304,10 +305,10 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
             {this.conditionList.length ? (
               <SearchSelect
                 placeholder={this.$t('搜索')}
-                uniqueSelect={true}
                 data={this.currentConditionList}
                 value={this.searchCondition}
                 show-condition={false}
+                clearable={false}
                 on-change={this.handleSearch}
               ></SearchSelect>
             ) : (

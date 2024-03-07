@@ -329,10 +329,10 @@
                 <div class="search-select-wrap">
                   <search-select
                     :value="metricSearchValue"
-                    @change="handleMetricSearchValue"
                     :show-condition="false"
-                    unique-select
+                    :clearable="false"
                     :data="metricSearchData"
+                    @change="handleMetricSearchValue"
                   />
                 </div>
                 <!-- <group-select
@@ -781,8 +781,8 @@
             </div>
             <div class="content-row">
               <pre class="content-example">
-http://${PROXY_IP}:4318
-</pre>
+                http://${PROXY_IP}:4318
+              </pre>
             </div>
             <div class="content-row mt10">
               <div class="content-title content-interval">
@@ -1057,7 +1057,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     {
       name: window.i18n.t('匹配方式'),
       id: 'type',
-      multiable: false,
+      multiple: false,
       children: [
         { id: 'auto', name: window.i18n.t('自动') },
         { id: 'manual', name: window.i18n.t('手动') }
@@ -1066,7 +1066,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     {
       name: window.i18n.t('组名'),
       id: 'name',
-      multiable: false,
+      multiple: false,
       children: []
     }
   ];

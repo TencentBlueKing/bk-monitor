@@ -299,8 +299,8 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                             ref='searchSelect'
                             data={this.searchData}
                             value={this.searchValue}
-                            uniqueSelect={true}
                             show-condition={false}
+                            clearable={false}
                             on-change={this.handleSearchChange}
                           ></SearchSelect>
                         </div>

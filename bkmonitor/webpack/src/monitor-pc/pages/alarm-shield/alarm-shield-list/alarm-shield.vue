@@ -59,6 +59,7 @@
             :value="searchValues"
             :data="searchData"
             :show-condition="false"
+            :clearable="false"
             :placeholder="$t('输入屏蔽内容、ID')"
             @change="handleSearchCondition"
           />
@@ -102,7 +103,9 @@
             <span
               class="shield-id"
               @click="handleToDetail(scope.row.id)"
-            >#{{ scope.row.id }}</span>
+            >
+              #{{ scope.row.id }}
+            </span>
           </bk-table-column>
           <bk-table-column
             width="150"
@@ -206,7 +209,9 @@
             <span
               class="shield-id"
               @click="handleToDetail(scope.row.id)"
-            >#{{ scope.row.id }}</span>
+            >
+              #{{ scope.row.id }}
+            </span>
           </bk-table-column>
           <bk-table-column
             width="150"
@@ -784,7 +789,7 @@ export default {
         res.push({
           name,
           id,
-          multiable: true,
+          multiple: true,
           children: list ? list : []
         });
       });
@@ -842,7 +847,7 @@ export default {
             if (ids.includes(item.key)) {
               if (item.value?.length) searchValues.push({
                 id: item.key,
-                multiable: true,
+                multiple: true,
                 name: this.backDisplayMap[item.key].name,
                 values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value]
               });

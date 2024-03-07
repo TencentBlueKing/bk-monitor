@@ -54,6 +54,7 @@
           :data="searchObj.data"
           :value="searchObj.keyWord"
           :placeholder="$t('搜索')"
+          :clearable="false"
           @change="handleSearch"
         />
       </div>
@@ -75,7 +76,9 @@
               <span
                 class="left-item-num"
                 :class="{ 'num-active': item.source_type === left.active }"
-              >{{ item.count }}</span>
+              >
+                {{ item.count }}
+              </span>
             </li>
           </template>
         </ul>

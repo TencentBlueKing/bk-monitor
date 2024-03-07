@@ -854,8 +854,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
                 value={this.searchObj.keyWord}
                 data={this.searchObj.data}
                 placeholder={this.$t('关键字搜索')}
-                on-change={this.handleSearch}
+                clearable={false}
                 show-condition={false}
+                on-change={this.handleSearch}
               />
             </div>
             <bk-button

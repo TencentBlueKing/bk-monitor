@@ -468,6 +468,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
                   data={this.searchKeyList}
                   placeholder={this.$t('关键字搜索')}
                   show-condition={false}
+                  clearable={false}
                   onChange={this.handleSearch}
                 ></SearchSelect>
               </div>

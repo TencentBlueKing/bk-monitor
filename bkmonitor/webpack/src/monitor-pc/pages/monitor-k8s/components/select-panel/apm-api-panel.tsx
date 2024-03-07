@@ -36,6 +36,7 @@ import { handleTransformToTimestamp } from '../../../../components/time-range/ut
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
@@ -206,7 +207,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           this.statusList = data.filter || [];
           this.tabList = data.sort || [];
@@ -313,8 +314,8 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
               placeholder={this.$t('搜索')}
               value={this.searchCondition}
               show-condition={false}
-              uniqueSelect={true}
               data={this.currentConditionList}
+              clearable={false}
               onChange={this.handleSearch}
             />
           ) : (

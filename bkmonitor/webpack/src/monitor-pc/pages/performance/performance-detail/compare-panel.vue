@@ -49,7 +49,9 @@
           <span
             class="tag"
             :title="curHost.ip"
-          >{{ curHost.ip }}</span>
+          >
+            {{ curHost.ip }}
+          </span>
         </div>
         <slot
           name="content"
@@ -85,7 +87,9 @@
                 <span
                   class="clear-btn"
                   @click="deleteSelected"
-                >{{ $t('清空') }}</span>
+                >
+                  {{ $t('清空') }}
+                </span>
               </div>
             </bk-select>
           </div>
@@ -115,7 +119,9 @@
                 <span
                   v-if="!custom.show"
                   class="custom-text"
-                >{{ $t('自定义') }}</span>
+                >
+                  {{ $t('自定义') }}
+                </span>
                 <bk-input
                   v-else
                   v-model.trim="custom.value"
@@ -160,7 +166,6 @@
                   :placeholder="$t('搜索')"
                   :data="searchSelectList"
                   :show-condition="false"
-                  :clearable="true"
                   @change="handleSearchSelectChange"
                 >
                   <i

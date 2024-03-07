@@ -38,6 +38,7 @@ import { handleTransformToTimestamp } from '../../../../components/time-range/ut
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
@@ -306,7 +307,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
           this.columns = data.columns || [];
           this.overviewData = this.hasOverviewPanels ? data.overview_data : null;
           this.pagination.count = data.total || 0;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           this.statusList = data.filter || [];
           this.sortFields = data.sort || [];
@@ -549,7 +550,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
                 placeholder={this.$t('搜索')}
                 value={this.searchCondition}
                 show-condition={false}
-                uniqueSelect={true}
+                clearable={false}
                 data={this.currentConditionList}
                 onChange={this.handleSearch}
               />

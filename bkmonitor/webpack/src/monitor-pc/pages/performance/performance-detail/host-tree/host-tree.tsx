@@ -38,6 +38,7 @@ import { EmptyStatusOperationType, EmptyStatusType } from '../../../../component
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
@@ -370,7 +371,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
       .then(data => {
         this.emptyStatusType = 'empty';
         const treeData = (typeTools.isObject(data) ? data.data : data) as TreeNodeItem[];
-        this.conditionList = data.condition_list || [];
+        this.conditionList = transformConditionSearchList(data.condition_list || []);
         this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
         this.hostTreeData = treeData;
         this.traverseTree(treeData);
@@ -805,8 +806,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
                   placeholder={this.$t('搜索')}
                   value={this.searchCondition}
                   show-condition={false}
-                  uniqueSelect={true}
                   data={this.currentConditionList}
+                  clearable={false}
                   onChange={this.handleSearch}
                 />
               ) : (

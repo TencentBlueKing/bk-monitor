@@ -42,6 +42,7 @@ import {
 } from 'monitor-pc/pages/monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
@@ -246,7 +247,7 @@ export class TableChart extends CommonSimpleChart {
               this.filterList = filter ?? [];
               this.tableData = data || [];
               this.columns = columns || [];
-              this.conditionOptions = condition_list || [];
+              this.conditionOptions = transformConditionSearchList(condition_list || []);
               this.conditionList = updateBkSearchSelectName(this.conditionOptions, this.conditionList, true, true);
               this.overviewData = overview_data;
               // this.pagination.limit = 10;
@@ -498,8 +499,6 @@ export class TableChart extends CommonSimpleChart {
                     <SearchSelect
                       value={this.conditionList}
                       show-condition={false}
-                      uniqueSelect={true}
-                      clearable
                       data={this.conditionOptions}
                       onChange={this.handleConditionChange}
                     />

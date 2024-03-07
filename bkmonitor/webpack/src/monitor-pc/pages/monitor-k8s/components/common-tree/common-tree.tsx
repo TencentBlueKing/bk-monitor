@@ -32,7 +32,11 @@ import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import { ITableFilterItem } from '../../typings';
-import { filterSelectorPanelSearchList, transformConditionValueParams } from '../../utils';
+import {
+  filterSelectorPanelSearchList,
+  transformConditionSearchList,
+  transformConditionValueParams
+} from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
 import '@blueking/search-select/dist/vue2-full.css';
@@ -190,7 +194,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       })
       .then(data => {
         const treeData = typeTools.isObject(data) ? data.data : data;
-        this.conditionList = data.condition_list || [];
+        this.conditionList = transformConditionSearchList(data.condition_list || []);
         this.treeData = treeData;
         this.traverseTree(treeData);
         this.$emit('listChange', this.treeData.slice());
@@ -311,8 +315,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               placeholder={this.$t('搜索')}
               value={this.searchCondition}
               show-condition={false}
-              uniqueSelect={true}
               data={this.currentConditionList}
+              clearable={false}
               onChange={this.handleSearch}
             />
           ) : (

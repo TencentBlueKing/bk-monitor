@@ -608,6 +608,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
                   placeholder={this.$t('关键字搜索')}
                   on-change={this.handleSearch}
                   show-condition={false}
+                  clearable={false}
                 ></SearchSelect>
               </div>
 

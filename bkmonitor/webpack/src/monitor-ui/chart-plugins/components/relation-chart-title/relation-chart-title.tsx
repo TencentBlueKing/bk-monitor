@@ -139,7 +139,7 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
                 <SearchSelect
                   value={this.conditionList}
                   show-condition={false}
-                  uniqueSelect={true}
+                  clearable={false}
                   data={this.conditionOptions}
                   onChange={this.handleConditionChange}
                 />
