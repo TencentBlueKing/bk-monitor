@@ -103,13 +103,6 @@ class ClusteringPreviewSerializer(serializers.Serializer):
     is_case_sensitive = serializers.IntegerField()
 
 
-class SetLabelSerializer(serializers.Serializer):
-    signature = serializers.CharField()
-    label = serializers.CharField(allow_blank=True)
-    origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
-    groups = serializers.DictField(default=dict)
-
-
 class SetRemarkSerializer(serializers.Serializer):
     signature = serializers.CharField()
     remark = serializers.CharField()

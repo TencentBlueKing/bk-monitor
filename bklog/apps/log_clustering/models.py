@@ -19,6 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import hashlib
+import json
+
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
@@ -78,12 +81,19 @@ class ClusteringRemark(SoftDeleteModel):
     origin_pattern = models.TextField(_("原始pattern"), default="")
     groups = models.JSONField(_("分组信息 kv格式"), default=dict, null=True, blank=True)
     group_hash = models.CharField(_("分组hash"), max_length=256)
-    label = models.TextField(_("标签"), default="")
     remark = models.JSONField(_("备注信息"), default=[], null=True, blank=True)
     owners = models.JSONField(_("负责人"), default=[], null=True, blank=True)
 
     class Meta:
-        index_together = ["signature"]
+        index_together = ["signature", "group_hash"]
+
+    @classmethod
+    def convert_groups_to_groups_hash(cls, groups: dict) -> str:
+        """
+        对 groups 字段进行 hash
+        """
+        sorted_groups = sorted(groups.items(), key=lambda x: x[0])
+        return hashlib.md5(json.dumps(sorted_groups).encode("utf-8")).hexdigest()
 
 
 class ClusteringConfig(SoftDeleteModel):

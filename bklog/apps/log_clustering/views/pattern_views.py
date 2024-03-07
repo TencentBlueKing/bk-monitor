@@ -29,7 +29,6 @@ from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.serializers import (
     DeleteRemarkSerializer,
     PatternSearchSerlaizer,
-    SetLabelSerializer,
     SetOwnerSerializer,
     SetRemarkSerializer,
     UpdateGroupFieldsSerializer,
@@ -123,19 +122,6 @@ class PatternViewSet(APIViewSet):
         """
         query_data = self.params_valid(PatternSearchSerlaizer)
         return Response(PatternHandler(index_set_id, query_data).pattern_search())
-
-    @detail_route(methods=["POST"], url_path="label")
-    def set_label(self, request, index_set_id):
-        """
-        @api {post} /pattern/$index_set_id/label/ 日志聚类-设置标签
-        @apiName set_label
-        @apiGroup log_clustering
-        @apiParam {String} signature 数据指纹
-        @apiParam {String} label 标签内容
-        @apiSuccessExample {json} 成功返回: null
-        """
-        params = self.params_valid(SetLabelSerializer)
-        return Response(PatternHandler(index_set_id, {}).set_signature_config(params=params))
 
     @detail_route(methods=["POST"], url_path="remark")
     def set_remark(self, request, index_set_id):

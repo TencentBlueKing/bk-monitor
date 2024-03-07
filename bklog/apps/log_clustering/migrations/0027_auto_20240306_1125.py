@@ -7,35 +7,49 @@ from django.db import migrations, models
 from django.db.models import Q
 
 
-def insert_data_to_clusteringremark(apps, schema_editor):
-    signature_and_pattern = apps.get_model('log_clustering', 'AiopsSignatureAndPattern')
-    clustering_remark = apps.get_model('log_clustering', 'ClusteringRemark')
-    clustering_config = apps.get_model('log_clustering', 'ClusteringConfig')
+def convert_groups_to_groups_hash(groups: dict) -> str:
+    """
+    对 groups 字段进行 hash
+    """
+    sorted_groups = sorted(groups.items(), key=lambda x: x[0])
+    return hashlib.md5(json.dumps(sorted_groups).encode("utf-8")).hexdigest()
 
+
+def insert_data_to_clusteringremark(apps, schema_editor):
+    AiopsSignatureAndPattern = apps.get_model('log_clustering', 'AiopsSignatureAndPattern')
+    ClusteringRemark = apps.get_model('log_clustering', 'ClusteringRemark')
+    ClusteringConfig = apps.get_model('log_clustering', 'ClusteringConfig')
+
+    groups = {}
+    group_hash = convert_groups_to_groups_hash(groups)
+
+    clustering_remarks = {}
     # 所有的signature_and_pattern都需要插入到clustering_remark中
-    for s in signature_and_pattern.objects.all():
-        bk_biz_id = (
-            clustering_config.objects.filter(Q(model_id=s.model_id) | Q(model_output_rt=s.model_id)).first().bk_biz_id
-        )
-        clustering_remark.objects.create(
-            bk_biz_id=bk_biz_id,
-            signature=s.signature,
-            origin_pattern=s.origin_pattern,
-            groups={},
-            group_hash=hashlib.md5(json.dumps({}).encode()).hexdigest(),
-            label=s.label,
-            remark=s.remark,
-            owners=s.owners,
-        )
-    # 创建的所有clustering_remark中signature或者origin_pattern相同的数据，需要把remark合并到一起
-    for s in clustering_remark.objects.all():
-        same_data = clustering_remark.objects.filter(
-            (Q(signature=s.signature) | Q(origin_pattern=s.origin_pattern)) & ~Q(id=s.id)
-        )
-        print(same_data)
-        for data in same_data:
-            s.remark += data.remark
-        s.save()
+    for pattern in AiopsSignatureAndPattern.objects.exclude(remark=[], owners=[]).all():
+        clustering_config = ClusteringConfig.objects.filter(
+            Q(model_id=pattern.model_id) | Q(model_output_rt=pattern.model_id)
+        ).first()
+        if not clustering_config:
+            continue
+
+        if pattern.signature not in clustering_remarks:
+            clustering_remarks[pattern.signature] = ClusteringRemark(
+                bk_biz_id=clustering_config.bk_biz_id,
+                signature=pattern.signature,
+                origin_pattern="",
+                groups=groups,
+                group_hash=group_hash,
+                remark=pattern.remark,
+                owners=pattern.owners,
+            )
+        else:
+            # 如果有多个签名相同的记录，合并之
+            clustering_remarks[pattern.signature].remark += list(
+                set(clustering_remarks[pattern.signature].remark + pattern.remark)
+            )
+            clustering_remarks[pattern.signature].owners += pattern.owners
+
+    ClusteringRemark.objects.bulk_create(list(clustering_remarks.values()))
 
 
 class Migration(migrations.Migration):
@@ -70,12 +84,11 @@ class Migration(migrations.Migration):
                 ('origin_pattern', models.TextField(default='', verbose_name='原始pattern')),
                 ('groups', models.JSONField(blank=True, default=dict, null=True, verbose_name='分组信息 kv格式')),
                 ('group_hash', models.CharField(max_length=256, verbose_name='分组hash')),
-                ('label', models.TextField(default='', verbose_name='标签')),
                 ('remark', models.JSONField(blank=True, default=[], null=True, verbose_name='备注信息')),
                 ('owners', models.JSONField(blank=True, default=[], null=True, verbose_name='负责人')),
             ],
             options={
-                'index_together': {('signature',)},
+                'index_together': {('signature', 'group_hash')},
             },
         ),
         migrations.RunPython(insert_data_to_clusteringremark),

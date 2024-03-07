@@ -20,8 +20,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-import hashlib
-import json
 from typing import List
 
 import arrow
@@ -49,7 +47,6 @@ from apps.log_clustering.models import (
     AiopsSignatureAndPattern,
     ClusteringConfig,
     ClusteringRemark,
-    SignatureStrategySettings,
 )
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.models import model_to_dict
@@ -118,18 +115,16 @@ class PatternHandler:
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs])
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
-        clustering_remarks = ClusteringRemark.objects.filter(
-            group_hash=self._convert_groups_to_groups_hash(self._clustering_config.group_fields),
-        ).values_list("signature", "origin_pattern", "remark", "owners")
-        clustering_remark_list = []
-        clustering_remark_dict = {}
-        for clustering_remark in clustering_remarks:
-            signature, origin_pattern, remark, owners = clustering_remark
-            clustering_remark_dict["signature"] = signature
-            clustering_remark_dict["origin_pattern"] = origin_pattern
-            clustering_remark_dict["remark"] = remark
-            clustering_remark_dict["owners"] = owners
-            clustering_remark_list.append(clustering_remark_dict)
+        clustering_remarks = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values_list(
+            "signature", "origin_pattern", "group_hash", "remark", "owners"
+        )
+
+        signature_map_remark = {}
+        origin_pattern_map_remark = {}
+        for remark in clustering_remarks:
+            signature_map_remark[(remark["signature"], remark["group_hash"])] = remark
+            if remark["origin_pattern"]:
+                origin_pattern_map_remark[(remark["origin_pattern"], remark["group_hash"])] = remark
 
         result = []
         for pattern in pattern_aggs:
@@ -139,17 +134,21 @@ class PatternHandler:
             signature_origin_pattern = signature_map_origin_pattern.get(signature, "")
             group_key = f"{signature}|{pattern.get('group', '')}"
             year_on_year_compare = year_on_year_result.get(group_key, MIN_COUNT)
-            remark = []
-            owners = []
-            for clustering_remark in clustering_remark_list:
-                # signature或origin_pattern匹配的，找到一条就行，如果没有就为[]
-                if (
-                    signature == clustering_remark["signature"]
-                    or signature_origin_pattern == clustering_remark["origin_pattern"]
-                ):
-                    remark = clustering_remark["remark"]
-                    owners = clustering_remark["owners"]
-                    break
+
+            group = str(pattern.get("group", "")).split("|") if pattern.get("group") else []
+
+            group_hash = ClusteringRemark.convert_groups_to_groups_hash(dict(zip(self._group_by, group)))
+
+            if (signature, group_hash) in signature_map_remark:
+                remark = signature_map_remark[(signature, group_hash)]["remark"]
+                owners = signature_map_remark[(signature, group_hash)]["owners"]
+            elif signature_origin_pattern and (signature_origin_pattern, group_hash) in origin_pattern_map_remark:
+                remark = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["remark"]
+                owners = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["owners"]
+            else:
+                remark = []
+                owners = []
+
             result.append(
                 {
                     "pattern": signature_pattern,
@@ -163,10 +162,7 @@ class PatternHandler:
                     "is_new_class": signature in new_class,
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
-                    "group": str(pattern.get("group", "")).split("|") if pattern.get("group") else [],
-                    "monitor": SignatureStrategySettings.get_monitor_config(
-                        signature=signature, index_set_id=self._index_set_id, pattern_level=self._pattern_level
-                    ),
+                    "group": group,
                 }
             )
         if self._show_new_pattern:
@@ -312,16 +308,11 @@ class PatternHandler:
         qs_objs = ClusteringRemark.objects.filter(
             Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
         )
-        current_qs_obj = qs_objs.filter(group_hash=self._convert_groups_to_groups_hash(params["groups"])).first()
+        current_qs_obj = qs_objs.filter(
+            group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"])
+        ).first()
         if not current_qs_obj:
             return
-        if params.get("label", ""):
-            current_qs_obj.label = params["label"]
-            current_qs_obj.save()
-            if qs_objs.exclude(id=current_qs_obj.id):
-                for q in qs_objs.exclude(id=current_qs_obj.id):
-                    q.label = params.get("label", "")
-                    q.save()
         if params.get("owners", []):
             if current_qs_obj.owners:
                 for o in params.get("owners", []):
@@ -349,13 +340,6 @@ class PatternHandler:
         self._clustering_config.save()
         return model_to_dict(self._clustering_config)
 
-    def _convert_groups_to_groups_hash(self, groups: dict) -> str:
-        """
-        对 groups 字段进行 hash
-        """
-        groups = dict(sorted(groups.items(), key=lambda x: x[1]))
-        return hashlib.md5(json.dumps(groups).encode()).hexdigest()
-
     @atomic
     def set_clustering_remark(self, params: dict, method: str = "create"):
         """
@@ -364,7 +348,9 @@ class PatternHandler:
         qs_objs = ClusteringRemark.objects.filter(
             Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
         )
-        current_qs_obj = qs_objs.filter(group_hash=self._convert_groups_to_groups_hash(params["groups"])).first()
+        current_qs_obj = qs_objs.filter(
+            group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"])
+        ).first()
         now = int(arrow.now().timestamp * 1000)
         # 如果不存在则新建  同时同步其它signature或origin_pattern相同的ClusteringRemark
         if method == "create":
@@ -375,7 +361,7 @@ class PatternHandler:
                     signature=params["signature"],
                     origin_pattern=params["origin_pattern"],
                     groups=params["groups"],
-                    group_hash=self._convert_groups_to_groups_hash(params["groups"]),
+                    group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
                     remark=[remark_info],
                 )
                 # signature 或者origin_pattern 相同的需要同步 新增
@@ -466,53 +452,6 @@ class PatternHandler:
             return
         return model_to_dict(current_qs_obj)
 
-        #
-        #
-        #
-        # # 如果不存在
-        # if not qs_obj:
-        #     return
-        # now = int(arrow.now().timestamp * 1000)
-        # result = []
-        # for q in qs_obj:
-        #     if method == "create":
-        #         current_remark = {
-        #             "username": get_request_username(),
-        #             "create_time": now,
-        #             "remark": params["remark"],
-        #         }
-        #         if q.remark:
-        #             q.remark.append(current_remark)
-        #         else:
-        #             q.remark = [current_remark]
-        #     elif method == "update":
-        #         for remark in q.remark:
-        #             # 完全匹配才能修改成功
-        #             if (
-        #                 remark["create_time"] == params["create_time"]
-        #                 and remark["username"] == get_request_username()
-        #                 and remark["remark"] == params["old_remark"]
-        #             ):
-        #                 remark["remark"] = params["new_remark"]
-        #                 remark["create_time"] = now
-        #                 break
-        #     elif method == "delete":
-        #         for remark in q.remark:
-        #             # 完全匹配才能删除成功
-        #             if (
-        #                 remark["create_time"] == params["create_time"]
-        #                 and remark["username"] == get_request_username()
-        #                 and remark["remark"] == params["remark"]
-        #             ):
-        #                 q.remark.remove(remark)
-        #                 break
-        #     else:
-        #         return
-        #     q.bk_biz_id = self._clustering_config.bk_biz_id
-        #     q.save()
-        #     result.append(model_to_dict(q))
-        # return result
-
     @classmethod
     def _generate_strategy_result(cls, strategy_result):
         default_labels_set = set(DEFAULT_LABEL)
@@ -524,11 +463,9 @@ class PatternHandler:
 
     def get_signature_owners(self) -> list:
         # 获取 AiopsSignatureAndPattern 表中的 signature 和 origin_pattern 字段的值
-        signature_values = AiopsSignatureAndPattern.objects.values_list('signature', 'origin_pattern')
-        query = Q()
-        for signature, origin_pattern in signature_values:
-            query |= Q(signature=signature) | Q(origin_pattern=origin_pattern)
-        owners = ClusteringRemark.objects.values_list('owners', flat=True).distinct()
+        owners = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values_list(
+            'owners', flat=True
+        )
         result = set()
         for owner in owners:
             result.update(owner)
