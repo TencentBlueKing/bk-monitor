@@ -115,7 +115,7 @@ class PatternHandler:
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs])
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
-        clustering_remarks = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values_list(
+        clustering_remarks = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values(
             "signature", "origin_pattern", "group_hash", "remark", "owners"
         )
 
