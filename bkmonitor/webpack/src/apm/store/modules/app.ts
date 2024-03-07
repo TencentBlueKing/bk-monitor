@@ -33,7 +33,7 @@ import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators'
 import store from '@store/store';
 import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
 
-import { ISpaceItem } from '../../typings';
+import { IDocLinkData, ISpaceItem } from '../../typings';
 
 export interface IAppState {
   navId: string;
@@ -45,6 +45,7 @@ export interface IAppState {
   bkUrl: string;
   lang: string;
   navRouteList: INavRouteListItem[];
+  extraDocLinkMap: Record<string, IDocLinkData>;
 }
 
 interface INavRouteListItem {
@@ -64,6 +65,7 @@ class AppStore extends VuexModule implements IAppState {
   public navRouteList = [];
   public bkUrl = '';
   public lang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn';
+  public extraDocLinkMap = {};
   @Mutation
   SET_APP_STATE(data: IAppState) {
     Object.keys(data).forEach(key => {
@@ -116,6 +118,15 @@ class AppStore extends VuexModule implements IAppState {
     } else {
       handleReload();
     }
+  }
+
+  /**
+   * @description: 更新文档链接
+   * @param {Object} data
+   */
+  @Mutation
+  updateExtraDocLinkMap(data: Record<string, IDocLinkData>) {
+    this.extraDocLinkMap = data;
   }
 }
 

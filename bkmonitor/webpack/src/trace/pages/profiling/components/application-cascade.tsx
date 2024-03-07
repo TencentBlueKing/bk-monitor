@@ -28,6 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 
+import { useDocumentLink } from '../../../hooks';
 import { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
 
 import './application-cascade.scss';
@@ -47,6 +48,7 @@ export default defineComponent({
   emits: ['change'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const { handleGotoLink } = useDocumentLink();
     const token = ref('');
     const tokenLoading = ref(false);
     /** 筛选 */
@@ -171,7 +173,8 @@ export default defineComponent({
       handleServiceClick,
       handlePopoverShowChange,
       handleViewApp,
-      jumpToApp
+      jumpToApp,
+      handleGotoLink
     };
   },
   render() {
@@ -282,7 +285,7 @@ export default defineComponent({
                               <a
                                 class='link'
                                 target='_blank'
-                                href='https://doc.weixin.qq.com/doc/w3_AFMARgbdAFwV8Lqpcb7TdKbZ5lu8p?scode=AJEAIQdfAAoBLVgXR0AfYAcQbPAFM'
+                                onClick={() => this.handleGotoLink('profiling_docs')}
                               >
                                 {this.t('Profile 接入指引')}
                               </a>

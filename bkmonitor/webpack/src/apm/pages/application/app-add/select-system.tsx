@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { checkDuplicateName, getDataEncoding } from 'monitor-api/modules/apm_meta';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
 import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 
+import documentLinkMixin from '../../../mixins/documentLinkMixin';
 import { ICreateAppFormData } from '../../home/app-list';
 
 import { IDescData, ThemeType } from './select-card-item';
@@ -66,9 +66,9 @@ interface IEvents {
   onChange: ICreateAppFormData;
 }
 @Component
-export default class SelectSystem extends tsc<IProps, IEvents> {
-  @Prop({ type: Boolean }) loading: false;
-  @Prop({ type: Array, default: () => [] }) listData: IListDataItem[];
+export default class SelectSystem extends Mixins(documentLinkMixin) {
+  @Prop({ type: Boolean }) loading: IProps['loading'];
+  @Prop({ type: Array, default: () => [] }) listData: IProps['listData'];
 
   @Ref() addForm: any;
 
@@ -284,7 +284,7 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
 
   @Emit('nextStep')
   @Emit('change')
-  handleNext() {
+  handleNext(): IEvents['onChange'] {
     return deepClone(this.formData);
   }
 
@@ -514,7 +514,10 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
                 path='如何开启持续 Profiling ，请查看 {0}'
                 class='flex-center'
               >
-                <span class='link-text'>
+                <span
+                  class='link-text'
+                  onClick={() => this.handleGotoLink('profiling_docs')}
+                >
                   {this.$t('使用文档')}
                   <i class='icon-monitor icon-fenxiang'></i>
                 </span>
