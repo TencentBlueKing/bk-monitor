@@ -76,7 +76,8 @@
 import {
   collectTargetStatus,
   isTaskReady,
-  rollbackDeploymentConfig } from '../../../../../monitor-api/modules/collecting';
+  rollbackDeploymentConfig } from 'monitor-api/modules/collecting';
+
 import { TARGET_TABEL_EXPAND_MAX } from '../../../../constant/constant';
 import TaskReady from '../../collector-add/config-delivery/task-ready';
 import ConfigDeploy from '../../config-deploy/config-deploy';

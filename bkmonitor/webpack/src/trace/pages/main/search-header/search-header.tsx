@@ -26,11 +26,11 @@
 
 import { defineComponent, PropType } from 'vue';
 
-import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
 import { TimeRangeType } from '../../../components/time-range/utils';
+import { getDefautTimezone } from '../../../i18n/dayjs';
 import { IFavoriteItem } from '../../../typings';
 import FavoritesList from '../favorites-list/favorites-list';
 

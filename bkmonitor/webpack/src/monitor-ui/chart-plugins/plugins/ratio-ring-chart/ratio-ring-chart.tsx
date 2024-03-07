@@ -29,10 +29,10 @@ import Big from 'big.js';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
+import bus from 'monitor-common/utils/event-bus';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import RatioLegend from '../../components/chart-legend/ratio-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_PIE_OPTIONS } from '../../constants';

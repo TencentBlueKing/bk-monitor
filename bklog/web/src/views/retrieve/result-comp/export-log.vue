@@ -44,6 +44,7 @@
     </div>
 
     <export-history
+      :index-set-list="indexSetList"
       :show-history-export="showHistoryExport"
       @handleCloseDialog="handleCloseDialog" />
 
@@ -121,6 +122,8 @@
 <script>
 import { mapGetters } from 'vuex';
 import exportHistory from './export-history';
+import { axiosInstance } from '@/api';
+import { blobDownload } from '@/common/util';
 
 export default {
   components: {
@@ -158,6 +161,10 @@ export default {
     datePickerValue: {
       type: Array,
       require: true,
+    },
+    indexSetList: {
+      type: Array,
+      required: true,
     },
   },
   data() {
@@ -210,6 +217,9 @@ export default {
     getDialogWidth() {
       return this.$store.getters.isEnLanguage ? '470' : '440';
     },
+    routerIndexSet() {
+      return this.$route.params.indexId;
+    },
   },
   beforeDestroy() {
     this.popoverInstance = null;
@@ -253,18 +263,31 @@ export default {
     openDownloadUrl() {
       const { timezone, ...rest } = this.retrieveParams;
       const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-      const exportParams = encodeURIComponent(JSON.stringify({
+      const data = {
         ...params,
         size: this.totalCount,
         time_range: 'customized',
         export_fields: this.submitSelectFiledList,
         is_desensitize: this.desensitizeRadioType === 'desensitize',
-      }));
-      // eslint-disable-next-line max-len
-      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?space_uid=${this.spaceUid}&export_dict=${exportParams}`;
-      this.selectFiledList = [];
-      this.isShowExportDialog = false;
-      window.open(targetUrl);
+      };
+      axiosInstance.post(`/search/index_set/${this.routerIndexSet}/export/`, data)
+        .then((res) => {
+          if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            this.$bkMessage({
+              theme: 'error',
+              message: this.$t('导出失败'),
+            });
+            return;
+          };
+          const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
+          const downloadName = lightName ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt` : 'bk_log_search.txt';
+          blobDownload(res, downloadName);
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.isShowExportDialog = false;
+          this.selectFiledList = [];
+        });
     },
     downloadAsync() {
       const { timezone, ...rest } = this.retrieveParams;
@@ -277,7 +300,7 @@ export default {
       this.exportLoading = true;
       this.$http.request('retrieve/exportAsync', {
         params: {
-          index_set_id: this.$route.params.indexId,
+          index_set_id: this.routerIndexSet,
         },
         data,
       }).then((res) => {

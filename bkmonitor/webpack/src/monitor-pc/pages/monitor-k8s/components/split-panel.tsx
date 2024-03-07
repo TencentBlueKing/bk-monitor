@@ -26,15 +26,15 @@
  */
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
+import { queryCustomEventGroup } from 'monitor-api/modules/custom_report';
+import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import bus from 'monitor-common/utils/event-bus';
+import { docCookies, random } from 'monitor-common/utils/utils';
+import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants';
+import { BookMarkModel, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
-import { queryCustomEventGroup } from '../../../../monitor-api/modules/custom_report';
-import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
-import { LANGUAGE_COOKIE_KEY } from '../../../../monitor-common/utils';
-import bus from '../../../../monitor-common/utils/event-bus';
-import { docCookies, random } from '../../../../monitor-common/utils/utils';
-import { DEFAULT_METHOD } from '../../../../monitor-ui/chart-plugins/constants';
-import { BookMarkModel, IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import { IntervalType } from '../../../components/cycle-input/typings';
 import FilterVarSelectGroup from '../../monitor-k8s/components/filter-var-select/filter-var-select-group';
 import GroupSelect from '../../monitor-k8s/components/group-select/group-select';
@@ -71,8 +71,8 @@ interface ISplitPanelEvent {
 type IDashbordMode = 'list' | 'chart';
 @Component({
   components: {
-    Event: () => import('../../../../fta-solutions/pages/event/event'),
-    DashboardPanel: () => import('../../../../monitor-ui/chart-plugins/components/dashboard-panel')
+    Event: () => import('fta-solutions/pages/event/event'),
+    DashboardPanel: () => import('monitor-ui/chart-plugins/components/dashboard-panel')
   }
 })
 export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> {

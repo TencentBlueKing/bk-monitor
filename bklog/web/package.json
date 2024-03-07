@@ -18,7 +18,7 @@
     "@blueking/bkmonitor-cli": "1.0.0-beta.21",
     "@blueking/date-picker": "^0.0.71",
     "@blueking/ip-selector": "^0.0.1-beta.134",
-    "@blueking/notice-component-vue2": "^2.0.0",
+    "@blueking/notice-component-vue2": "^2.0.3",
     "@blueking/paas-login": "0.0.11",
     "@blueking/user-selector": "^1.0.9",
     "@opentelemetry/api": "^1.0.2",

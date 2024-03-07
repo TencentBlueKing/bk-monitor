@@ -8,25 +8,28 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import time
 import json
-from unittest.mock import patch, MagicMock
-
-from django.test import TestCase, Client, override_settings
+import time
 from unittest import skip
+from unittest.mock import MagicMock, patch
 
-from bkmonitor.documents import EventDocument, AlertDocument
-from bkmonitor.models.fta import ActionInstance, ConvergeRelation
-from bkmonitor.documents.action import ActionInstanceDocument
+from django.test import Client, TestCase, override_settings
+
 from bkmonitor.action.serializers import ActionConfigDetailSlz
+from bkmonitor.documents import AlertDocument, EventDocument
+from bkmonitor.documents.action import ActionInstanceDocument
+from bkmonitor.models.fta import ActionInstance, ConvergeRelation
 from constants.action import ActionSignal, ActionStatus
+from fta_web.action.resources.backend_resources import (
+    BatchCreateActionResource,
+    GetActionParamsByConfigResource,
+)
 from fta_web.action.resources.frontend_resources import (
+    AssignAlertResource,
     BatchCreateResource,
     GetActionConfigByAlerts,
     GetActionParamsResource,
-    AssignAlertResource,
 )
-from fta_web.action.resources.backend_resources import BatchCreateActionResource, GetActionParamsByConfigResource
 from fta_web.action.utils import compile_assign_action_config
 
 patch("fta_web.action.tasks.notify_to_appointee.delay", MagicMock(return_value=True)).start()
@@ -35,6 +38,8 @@ patch("bkmonitor.documents.AlertLog.bulk_create", MagicMock(return_value=True)).
 
 
 class TestBatchCreateResource(TestCase):
+    databases = {"monitor_api", "default"}
+
     def setUp(self):
         ActionInstance.objects.all().delete()
         ConvergeRelation.objects.all().delete()
@@ -287,6 +292,7 @@ class TestBatchCreateResource(TestCase):
 
         r = GetActionParamsByConfigResource()
         params = r.perform_request(request_data)
+        print(params)
         for item in params["action_configs"]:
             template_detail = item["execute_config"]["template_detail"]
             notice_way = item["execute_config"]["context_inputs"]["notice_way"]
@@ -349,7 +355,7 @@ class TestBatchCreateResource(TestCase):
             ],
             "creator": "admin",
         }
-        resp = BatchCreateActionResource().request(**create_data)
+        BatchCreateActionResource().request(**create_data)
         # sync_actions_sharding_task(resp["actions"])
         time.sleep(1)
         request_data = {"bk_biz_id": 2, "alert_ids": self.alert_ids}

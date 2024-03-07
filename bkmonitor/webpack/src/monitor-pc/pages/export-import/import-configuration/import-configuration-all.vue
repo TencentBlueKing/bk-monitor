@@ -217,11 +217,9 @@
 </template>
 <script>
 import { mapActions } from 'vuex';
-
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { transformDataKey } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
-
-import { transformDataKey } from '../../../../monitor-common/utils/utils';
 
 export default {
   name: 'ImportConfiguration',

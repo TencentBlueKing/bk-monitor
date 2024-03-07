@@ -154,10 +154,16 @@ class UnifyQuery:
         if self.data_sources[0].id not in UnifyQueryDataSources + GrayUnifyQueryDataSources:
             return False
 
+        # 灰度切换unify-query判定， 不灰度就全量放开
         if self.data_sources[0].id in GrayUnifyQueryDataSources:
-            # 灰度数据源基于业务进行灰度
-            if self.bk_biz_id not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST:
-                return False
+            # 灰度状态： 灰度业务列表不包含0业务
+            grayscale = 0 not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
+
+            if grayscale:
+                # 灰度数据源基于业务进行灰度
+                return self.bk_biz_id in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
+            # 非灰度状态下，使用unify-query
+            return True
 
         # 如果是多指标，必然会走统一查询模块
         if len(self.data_sources) > 1:

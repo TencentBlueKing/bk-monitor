@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getUnitInfo } from 'monitor-api/modules/strategies';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { getUnitInfo } from '../../../../../monitor-api/modules/strategies';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import MonitorSelect from '../../../../components/monitor-select/monitor-select.vue';
 import { THRESHOLD_METHOD_LIST } from '../../../../constant/constant';
 import AbnormalCluster from '../../../../static/images/svg/abnormal-cluster.svg';

@@ -28,7 +28,7 @@
 import Vue from 'vue';
 import VueRouter, { Route, RouteConfig } from 'vue-router';
 
-import { getUrlParam, random } from '../../monitor-common/utils/utils';
+import { getUrlParam, random } from 'monitor-common/utils/utils';
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';

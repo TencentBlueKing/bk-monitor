@@ -24,6 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-export * from '../../monitor-common/typings';
 export * from './inquire';
 export * from './trace';
+export * from 'monitor-common/typings';

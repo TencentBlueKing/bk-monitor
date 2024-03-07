@@ -32,10 +32,10 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { copyText, transformDataKey } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
-import { copyText, transformDataKey } from '../../../../../monitor-common/utils/utils';
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
-import PromqlEditor from '../../../../../monitor-ui/promql-editor/promql-editor';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
@@ -152,7 +152,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   // promqlError = false
   // 指标标示名称
   get metricNameLabel() {
-    const [{ metricMetaId, data_source_label: dataSourceLabel, data_type_label }] = this.metricData || [];
+    if (!this.metricData?.length) return this.$t('指标');
+    const [{ metricMetaId, data_source_label: dataSourceLabel, data_type_label }] = this.metricData;
     if (metricMetaId === 'bk_monitor|log') {
       return this.$t('关键字');
     }
@@ -343,7 +344,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     nodeCount = 0,
     instance_count = 0
   ) {
-    const [{ objectType }] = this.metricData;
+    const objectType = this.metricData?.[0]?.objectType || this.defaultCheckedTarget?.instance_type || '';
     const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
     this.target.desc.message = result.message;
     this.target.desc.subMessage = result.subMessage;

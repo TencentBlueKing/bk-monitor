@@ -26,11 +26,10 @@
 import Vue from 'vue';
 import VueI18n from 'vue-i18n';
 import { lang, locale } from 'bk-magic-vue';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
 
 import './dayjs';
-
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils/constant';
-import { docCookies } from '../../monitor-common/utils/utils';
 
 import { mergeI18nJson } from './commmon';
 // 获取语言偏好设置

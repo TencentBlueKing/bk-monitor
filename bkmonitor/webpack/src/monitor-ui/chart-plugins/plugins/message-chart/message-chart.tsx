@@ -25,9 +25,9 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import { ITablePagination } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 // import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';

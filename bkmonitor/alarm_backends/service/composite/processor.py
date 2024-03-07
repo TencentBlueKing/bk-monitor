@@ -202,9 +202,9 @@ class CompositeProcessor:
                 if is_qos:
                     # 被QOS的，按照策略维度发送一份
                     # 被QOS的情况下，需要删除首次处理记录
-                    first_handle_key = ALERT_FIRST_HANDLE_RECORD.get_key(strategy_id=self.alert.strategy_id or 0,
-                                                                         alert_id=self.alert.id,
-                                                                         signal=action["signal"])
+                    first_handle_key = ALERT_FIRST_HANDLE_RECORD.get_key(
+                        strategy_id=self.alert.strategy_id or 0, alert_id=self.alert.id, signal=action["signal"]
+                    )
                     ALERT_FIRST_HANDLE_RECORD.client.delete(first_handle_key)
 
                     metrics.COMPOSITE_PUSH_ACTION_COUNT.labels(
@@ -637,9 +637,10 @@ class CompositeProcessor:
                     # 如果当前缓存已经存在，但是并没有处理过的情况下， 需要重新发送执行信号
                     check_signal = ActionSignal.NO_DATA if self.alert.is_no_data() else ActionSignal.ABNORMAL
                     is_send_handle_signal = ALERT_FIRST_HANDLE_RECORD.client.get(
-                        ALERT_FIRST_HANDLE_RECORD.get_key(strategy_id=strategy_id,
-                                                          alert_id=self.alert.id,
-                                                          signal=check_signal))
+                        ALERT_FIRST_HANDLE_RECORD.get_key(
+                            strategy_id=strategy_id, alert_id=self.alert.id, signal=check_signal
+                        )
+                    )
                     if not (self.alert.is_handled or is_send_handle_signal):
                         # 如果没有处理过或者已经发送了处理信号，直接忽略
                         if int(time.time()) - self.alert.create_time >= settings.QOS_DROP_ACTION_WINDOW:
@@ -658,12 +659,12 @@ class CompositeProcessor:
                             self.alert.top_event.get("plugin_id", ""),
                         )
                     else:
-                        first_handle_key = ALERT_FIRST_HANDLE_RECORD.get_key(strategy_id=self.alert.strategy_id or 0,
-                                                                             alert_id=self.alert.id,
-                                                                             signal=signal)
-                        result = ALERT_FIRST_HANDLE_RECORD.client.set(first_handle_key, 1,
-                                                                      nx=True,
-                                                                      ex=ALERT_FIRST_HANDLE_RECORD.ttl)
+                        first_handle_key = ALERT_FIRST_HANDLE_RECORD.get_key(
+                            strategy_id=self.alert.strategy_id or 0, alert_id=self.alert.id, signal=signal
+                        )
+                        result = ALERT_FIRST_HANDLE_RECORD.client.set(
+                            first_handle_key, 1, nx=True, ex=ALERT_FIRST_HANDLE_RECORD.ttl
+                        )
                         if result:
                             # 只有第一次设置成功，才可以进行消息推送
                             self.add_action(

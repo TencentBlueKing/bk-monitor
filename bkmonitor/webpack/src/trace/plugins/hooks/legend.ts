@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Ref } from 'vue';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../monitor-common/utils/utils';
 import BaseEchart from '../base-echart';
 import { ILegendItem, LegendActionType } from '../typings';
 

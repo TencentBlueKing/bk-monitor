@@ -26,10 +26,10 @@
 
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { fetchRobotInfo } from 'monitor-api/modules/commons';
+import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
-import { fetchRobotInfo } from '../../../monitor-api/modules/commons';
-import { copyText } from '../../../monitor-common/utils/utils';
 import { getEventPaths } from '../../utils';
 
 import './ai-whale.scss';

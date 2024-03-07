@@ -134,8 +134,8 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Inject, Prop, Vue } from 'vue-property-decorator';
+import { copyText, Debounce, typeTools } from 'monitor-common/utils/utils.js';
 
-import { copyText, Debounce, typeTools } from '../../../../monitor-common/utils/utils.js';
 import MonitorVue from '../../../types/index';
 import { CheckType, IFieldConfig, ITableRow } from '../performance-type';
 import TableStore from '../table-store';

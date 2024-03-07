@@ -25,17 +25,17 @@
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
-// import LeftPanel from './left-panel.vue';
-import { debounce } from 'throttle-debounce';
-
 import {
   customTimeSeriesList,
   deleteCustomEventGroup,
   deleteCustomTimeSeries,
   queryCustomEventGroup
-} from '../../../monitor-api/modules/custom_report';
-import { checkAllowedByActionIds, getAuthorityDetail } from '../../../monitor-api/modules/iam';
-import { deepClone } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/custom_report';
+import { checkAllowedByActionIds, getAuthorityDetail } from 'monitor-api/modules/iam';
+import { deepClone } from 'monitor-common/utils/utils';
+// import LeftPanel from './left-panel.vue';
+import { debounce } from 'throttle-debounce';
+
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import PageTips from '../../components/pageTips/pageTips.vue';

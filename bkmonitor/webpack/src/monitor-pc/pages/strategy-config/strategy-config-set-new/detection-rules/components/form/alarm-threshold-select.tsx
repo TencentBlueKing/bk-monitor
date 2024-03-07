@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getCookie } from 'monitor-common/utils';
 
-import { getCookie } from '../../../../../../../monitor-common/utils';
 import SelectMenu from '../../../components/select-menu';
 
 import './alarm-threshold-select.scss';

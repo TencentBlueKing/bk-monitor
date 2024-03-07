@@ -27,9 +27,9 @@ import { computed, defineComponent, ref } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import { ConfigProvider, Navigation } from 'bkui-vue';
 import { en, zhCn } from 'bkui-vue/lib/locale';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { docCookies, getUrlParam } from 'monitor-common/utils/utils';
 
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
-import { docCookies, getUrlParam } from '../../monitor-common/utils/utils';
 import AuthorityModal from '../components/authority-modal/authority-modal';
 import { createRouteConfig } from '../router/router-config';
 import { useAppStore } from '../store/modules/app';

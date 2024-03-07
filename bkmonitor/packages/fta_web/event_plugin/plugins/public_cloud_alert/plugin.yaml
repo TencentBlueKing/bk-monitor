@@ -1,8 +1,8 @@
-plugin_id: multi_cloud_test_alert
-version: 1.0.0
-plugin_display_name: 公有云告警测试推送
+plugin_id: public_cloud_alert
+version: 0.1.0
+plugin_display_name: 公有云告警接收
 plugin_type: http_push
-summary: 推送公有云监控告警
+summary: 接收公有云告警，目前支持腾讯云和谷歌云
 author: 蓝鲸智云
 
 tags:
@@ -16,11 +16,13 @@ ingest_config:
   alert_sources:
     - code: TENCENT
       name: 腾讯云
+    - code: GOOGLE
+      name: 谷歌云
   is_external: true
   collect_type: bk_collector
 
 # 清洗配置
-normalization_config: {}
+normalization_config: []
 clean_configs:
   # 谷歌云的清洗配置
   - rules:
@@ -50,7 +52,7 @@ clean_configs:
       - field: bk_biz_id
         expr: "'{{plugin_inst_biz_id}}'"
       - field: dimensions
-        expr: "merge(incident.resource.labels, incident.metric.labels, {resource_type: incident.resource.type, metric_type: incident.metric.type})"
+        expr: "merge(incident.resource.labels, incident.metric.labels, {resource_type: incident.resource.type, metric_type: incident.metric.type, source: 'GOOGLE_CLOUD'})"
       - field: tags
         expr: |
           {
@@ -96,7 +98,8 @@ clean_configs:
             {
               region: alarmObjInfo.region,
               namespace: alarmObjInfo.namespace,
-              policyId: alarmPolicyInfo.policyId
+              policyId: alarmPolicyInfo.policyId,
+              source: 'TENCENT_CLOUD'
             }
           ) ||
           alarmObjInfo."tapm.instance.key" &&
@@ -105,14 +108,16 @@ clean_configs:
             "service.name": alarmObjInfo."service.name",
             "span.kind": alarmObjInfo."span.kind",
             operation: alarmObjInfo.operation,
-            policyId: alarmPolicyInfo.policyId
+            policyId: alarmPolicyInfo.policyId,
+            source: 'TENCENT_CLOUD'
           } || 
           alarmObjInfo.level &&
           {
             level: alarmObjInfo.level,
             id: alarmObjInfo.id,
             instanceId: alarmObjInfo.instanceId,
-            policyId: alarmPolicyInfo.policyId
+            policyId: alarmPolicyInfo.policyId,
+            source: 'TENCENT_CLOUD'
           }
       - field: tags
         expr: |
@@ -140,7 +145,7 @@ clean_configs:
       - field: event_id
         expr: "['tencent_cloud_alert_{{plugin_inst_biz_id}}', sessionId] | join('.', @)"
       - field: description
-        expr: join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName]
+        expr: "join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName])"
       - field: metric
         expr: alarmPolicyInfo.conditions.metricName
       - field: status
@@ -156,7 +161,8 @@ clean_configs:
             {
               region: alarmObjInfo.region,
               namespace: alarmObjInfo.namespace,
-              policyId: alarmPolicyInfo.policyId
+              policyId: alarmPolicyInfo.policyId,
+              source: 'TENCENT_CLOUD'
             }
           )
       - field: tags
@@ -201,7 +207,8 @@ clean_configs:
           merge(
             alarmObjInfo.tags,
             {
-              policyId: alarmPolicyInfo.policyId
+              policyId: alarmPolicyInfo.policyId,
+              source: 'TENCENT_CLOUD'
             }
           )
       - field: tags

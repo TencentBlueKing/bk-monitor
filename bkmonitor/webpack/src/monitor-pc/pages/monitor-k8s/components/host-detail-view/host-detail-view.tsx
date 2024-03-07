@@ -26,8 +26,8 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { copyText, random } from 'monitor-common/utils/utils';
 
-import { copyText, random } from '../../../../../monitor-common/utils/utils';
 import Collapse from '../../../../components/collapse/collapse';
 import { ITableItem } from '../../typings';
 import { IDetailItem, IDetailValItem } from '../../typings/common-detail';

@@ -27,9 +27,9 @@ import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
 import { debounce } from 'throttle-debounce';
 
-import { destroyUserGroup, listDutyRule, listUserGroup } from '../../../../monitor-api/modules/model';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';

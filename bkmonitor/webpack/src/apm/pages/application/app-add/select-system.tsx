@@ -25,12 +25,12 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { checkDuplicateName, getDataEncoding } from 'monitor-api/modules/apm_meta';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
+import { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
+import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 
-import { checkDuplicateName, getDataEncoding } from '../../../../monitor-api/modules/apm_meta';
-import { Debounce, deepClone } from '../../../../monitor-common/utils/utils';
-import { IIpV6Value, INodeType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
-import { transformValueToMonitor } from '../../../../monitor-pc/components/monitor-ip-selector/utils';
-import StrategyIpv6 from '../../../../monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 import { ICreateAppFormData } from '../../home/app-list';
 
 import { IDescData, ThemeType } from './select-card-item';
@@ -111,14 +111,13 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
     ],
     'plugin_config.target_nodes': [
       {
-        required: true,
+        validator: (val: []) => val?.length,
         message: window.i18n.tc('必填项'),
         trigger: 'change'
       }
     ],
     'plugin_config.paths': [
       {
-        required: true,
         validator: (val: []) => val.every(item => !!item),
         message: window.i18n.tc('必填项'),
         trigger: 'blur'

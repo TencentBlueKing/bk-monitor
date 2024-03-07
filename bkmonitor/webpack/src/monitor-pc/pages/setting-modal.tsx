@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import MonitorDialog from '../../monitor-ui/monitor-dialog';
 import NoPermission from '../components/no-permission/no-permission';
 import authorityMixinCreate from '../mixins/authorityMixin';
 import { IMenuItem } from '../types';

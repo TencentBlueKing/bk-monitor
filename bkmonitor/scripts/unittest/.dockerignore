@@ -1,0 +1,15 @@
+.*
+Aptfile
+support-files/sql/
+support-files/templates/
+conf/*/ieod.py
+conf/*/*/ieod.py
+bkmonitor/utils/rsa/bk.key
+version/
+# scripts/
+tests/
+#*/tests/
+#*/*/tests/
+Dockerfile
+local/
+local_settings.py

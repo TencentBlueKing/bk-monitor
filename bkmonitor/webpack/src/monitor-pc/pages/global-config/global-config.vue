@@ -49,7 +49,7 @@
               <img
                 class="item-img"
                 :src="item.icon"
-                alt=''
+                alt=""
               >
               <span class="item-name">{{ item.name }}</span>
             </li>
@@ -134,12 +134,13 @@
   </div>
 </template>
 <script>
-import { listGlobalConfig, setGlobalConfig } from '../../../monitor-api/modules/config';
-import { getNoticeWay } from '../../../monitor-api/modules/notice_group';
+import { listGlobalConfig, setGlobalConfig } from 'monitor-api/modules/config';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
 // import * as globalAuth from './authority-map';
 // import authorityMixinCreate from '../../mixins/authorityMixin';
-import { strategyLabelList } from '../../../monitor-api/modules/strategies';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+import { strategyLabelList } from 'monitor-api/modules/strategies';
+import { transformDataKey } from 'monitor-common/utils/utils';
+
 import MultiLabelSelect from '../../components/multi-label-select/multi-label-select.tsx';
 import { labelListToTreeData } from '../../components/multi-label-select/utils';
 import documentLinkMixin from '../../mixins/documentLinkMixin';
