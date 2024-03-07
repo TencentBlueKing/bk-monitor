@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import time
 
+from apm_web.ebpf_handler import CustomTimeSeriesInstall
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.models import Application
@@ -119,3 +120,13 @@ def refresh_apm_application_metric():
     ServiceHandler.refresh_application_cache_data(applications)
 
     logger.info("[refresh_apm_application_metric] task finished")
+
+
+@periodic_task(run_every=crontab(minute="*/30"))
+def create_default_custom_time_series():
+    # 30分钟刷新一次
+    from apm_ebpf.models import DeepflowWorkload
+    # 内置自定义指标
+    bk_biz_ids = list(DeepflowWorkload.objects.all().values_list("bk_biz_id", flat=True).distinct())
+    for bk_biz_id in bk_biz_ids:
+        CustomTimeSeriesInstall(bk_biz_id).create_default_custom_time_series()
