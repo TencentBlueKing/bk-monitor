@@ -42,10 +42,10 @@ def insert_data_to_clusteringremark(apps, schema_editor):
             )
         else:
             # 如果有多个签名相同的记录，合并之
-            clustering_remarks[pattern.signature].remark += list(
-                set(clustering_remarks[pattern.signature].remark + pattern.remark)
+            clustering_remarks[pattern.signature].owners += list(
+                set(clustering_remarks[pattern.signature].owners + pattern.owners)
             )
-            clustering_remarks[pattern.signature].owners += pattern.owners
+            clustering_remarks[pattern.signature].remark += pattern.remark
 
     ClusteringRemark.objects.bulk_create(list(clustering_remarks.values()))
 
