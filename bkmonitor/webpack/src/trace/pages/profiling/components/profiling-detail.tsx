@@ -27,6 +27,7 @@ import { defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Form, Loading, Sideslider } from 'bkui-vue';
 
+import { useDocumentLink } from '../../../hooks';
 import { transformByte } from '../../../utils';
 import { DetailType, FileDetail, ServicesDetail } from '../typings';
 
@@ -74,6 +75,8 @@ export default defineComponent({
       }
     };
 
+    const { handleGotoLink } = useDocumentLink();
+
     function handleShowChange(val: boolean) {
       emit('showChange', val);
     }
@@ -88,7 +91,8 @@ export default defineComponent({
       t,
       statusMap,
       handleShowChange,
-      handleViewAppDetail
+      handleViewAppDetail,
+      handleGotoLink
     };
   },
   render() {
@@ -156,7 +160,7 @@ export default defineComponent({
                   <a
                     class='link'
                     target='_blank'
-                    href='https://doc.weixin.qq.com/doc/w3_AFMARgbdAFwV8Lqpcb7TdKbZ5lu8p?scode=AJEAIQdfAAoBLVgXR0AfYAcQbPAFM'
+                    onClick={() => this.handleGotoLink('profiling_docs')}
                   >
                     {this.t('Profile 接入指引')}
                   </a>
