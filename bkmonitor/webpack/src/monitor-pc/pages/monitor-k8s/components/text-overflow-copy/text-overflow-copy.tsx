@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { copyText } from 'monitor-common/utils/utils';
 
-import { copyText } from '../../../../../monitor-common/utils/utils';
 import { ITableItem } from '../../typings';
 
 import './text-overflow-copy.scss';

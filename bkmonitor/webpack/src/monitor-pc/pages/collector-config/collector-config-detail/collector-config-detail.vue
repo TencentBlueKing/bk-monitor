@@ -479,8 +479,9 @@
   </bk-sideslider>
 </template>
 <script>
-import { frontendCollectConfigDetail, renameCollectConfig } from '../../../../monitor-api/modules/collecting';
-import { copyText } from '../../../../monitor-common/utils/utils.js';
+import { frontendCollectConfigDetail, renameCollectConfig } from 'monitor-api/modules/collecting';
+import { copyText } from 'monitor-common/utils/utils.js';
+
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import RightPanel from '../../../components/ip-select/right-panel';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';

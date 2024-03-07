@@ -25,8 +25,8 @@
  */
 import { Component } from 'vue-property-decorator';
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ChartTitle from '../../components/chart-title/chart-title';
 import { reviewInterval } from '../../utils';

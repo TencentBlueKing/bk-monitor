@@ -26,11 +26,11 @@
 import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { isShadowEqual, reviewInterval } from 'monitor-ui/chart-plugins/utils';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
+import { FormattedValue, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
-import { isShadowEqual, reviewInterval } from '../../../../../monitor-ui/chart-plugins/utils';
-import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
-import { FormattedValue, getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryOption } from '../../../performance/performance-type';

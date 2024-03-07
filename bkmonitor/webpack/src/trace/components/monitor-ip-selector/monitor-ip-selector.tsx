@@ -25,7 +25,6 @@
  */
 
 import { defineComponent, reactive } from 'vue';
-
 import {
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
@@ -44,7 +43,8 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig
-} from '../../../monitor-api/modules/model';
+} from 'monitor-api/modules/model';
+
 import { useAppStore } from '../../store/modules/app';
 
 import {

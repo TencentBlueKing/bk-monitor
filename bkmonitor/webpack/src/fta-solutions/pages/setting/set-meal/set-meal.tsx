@@ -26,17 +26,13 @@
 /* eslint-disable camelcase */
 import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
+import { isZh } from 'monitor-pc/common/constant';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
-import {
-  destroyActionConfig,
-  listActionConfig,
-  partialUpdateActionConfig
-} from '../../../../monitor-api/modules/model';
-import { isZh } from '../../../../monitor-pc/common/constant';
-import EmptyStatus from '../../../../monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../../monitor-pc/components/empty-status/types';
-import DeleteSubtitle from '../../../../monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
-import authorityMixinCreate from '../../../../monitor-ui/mixins/authorityMixin';
 import debounce from '../../../common/debounce-decorator';
 import setMealAddModule from '../../../store/modules/set-meal-add';
 import OperateOptions from '../components/operate-options';

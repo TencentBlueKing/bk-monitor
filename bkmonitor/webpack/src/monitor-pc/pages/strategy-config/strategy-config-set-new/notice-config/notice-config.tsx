@@ -25,17 +25,17 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import ResizeContainer from '../../../../../fta-solutions/components/resize-container/resize-container';
-import AutoInput from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
-import CustomTab from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import ResizeContainer from 'fta-solutions/components/resize-container/resize-container';
+import AutoInput from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
+import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import {
   intervalModeTips,
   templateSignalName
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealDeail from '../../../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
-import SetMealAddStore from '../../../../../fta-solutions/store/modules/set-meal-add';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import TemplateInput from '../../strategy-config-set/strategy-template-input/strategy-template-input';
 import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview';
 import StrategyVariateList from '../../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';

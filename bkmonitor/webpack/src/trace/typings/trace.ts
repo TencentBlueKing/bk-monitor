@@ -87,7 +87,7 @@ export interface ITopoNode {
   collapsed: boolean;
   spans: string[];
   bgColor: string;
-  diff_info?: Record<string, IDiffInfo>
+  diff_info?: Record<string, IDiffInfo>;
 }
 
 export interface IDiffInfo {

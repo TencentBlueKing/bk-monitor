@@ -25,10 +25,9 @@
  */
 import { VNode } from 'vue';
 import { Component, Mixins, Provide } from 'vue-property-decorator';
-
-import AlarmGroupList from '../../../monitor-pc/pages/alarm-group/alarm-group-common/alarm-group';
-import * as authorityMap from '../../../monitor-pc/pages/alarm-group/authority-map';
-import authorityMixinCreate from '../../../monitor-ui/mixins/authorityMixin';
+import AlarmGroupList from 'monitor-pc/pages/alarm-group/alarm-group-common/alarm-group';
+import * as authorityMap from 'monitor-pc/pages/alarm-group/authority-map';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 @Component({
   name: 'AlarmGroupListFta'

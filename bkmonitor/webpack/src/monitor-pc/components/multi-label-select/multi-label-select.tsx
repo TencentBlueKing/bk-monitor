@@ -32,10 +32,9 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { strategyLabelList } from 'monitor-api/modules/strategies';
+import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
-
-import { strategyLabelList } from '../../../monitor-api/modules/strategies';
-import { deepClone, transformDataKey } from '../../../monitor-common/utils/utils';
 
 import LabelTree from './label-tree/label-tree';
 import { IAddWrapSize, ITreeItem, TBehavior, TMode } from './types';

@@ -27,14 +27,13 @@
 /* eslint-disable max-len  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import {
   checkClusterHealth,
   listDataPipeline,
   listDataSourceByDataPipeline,
   updateDataPipeline
-} from '../../../monitor-api/modules/commons';
-import { random } from '../../../monitor-common/utils';
+} from 'monitor-api/modules/commons';
+import { random } from 'monitor-common/utils';
 
 import DataPipelineConfig from './data-pipeline-config';
 

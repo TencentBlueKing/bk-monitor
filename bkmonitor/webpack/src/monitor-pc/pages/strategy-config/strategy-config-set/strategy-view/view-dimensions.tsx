@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Debounce } from '../../../../../monitor-common/utils';
+import { Debounce } from 'monitor-common/utils';
 
 import './view-dimensions.scss';
 

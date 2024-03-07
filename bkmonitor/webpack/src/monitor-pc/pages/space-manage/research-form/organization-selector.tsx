@@ -25,8 +25,7 @@
  */
 import { Component, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getUserDepartments, listDepartments } from '../../../../monitor-api/modules/commons';
+import { getUserDepartments, listDepartments } from 'monitor-api/modules/commons';
 
 import './organization-selector.scss';
 

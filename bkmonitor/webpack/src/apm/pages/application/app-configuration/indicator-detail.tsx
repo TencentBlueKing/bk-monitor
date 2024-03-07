@@ -26,8 +26,8 @@
 
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { dimensionData, modifyMetric } from 'monitor-api/modules/apm_meta';
 
-import { dimensionData, modifyMetric } from '../../../../monitor-api/modules/apm_meta';
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import * as authorityMap from '../../home/authority-map';
 

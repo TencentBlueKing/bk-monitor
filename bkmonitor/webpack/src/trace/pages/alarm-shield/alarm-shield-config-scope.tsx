@@ -26,8 +26,8 @@
 import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Popover, Radio, Table } from 'bkui-vue';
+import { random } from 'monitor-common/utils';
 
-import { random } from '../../../monitor-common/utils';
 import CommonTip from '../../components/common-tip/common-tip';
 
 import AlarmShieldIpv6 from './components/alarm-shield-ipv6';

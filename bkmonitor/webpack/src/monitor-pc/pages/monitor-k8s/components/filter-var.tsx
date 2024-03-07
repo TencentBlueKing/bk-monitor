@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getVariableValue } from 'monitor-api/modules/grafana';
 
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
 import CustomSelect from '../../../components/custom-select/custom-select';
 import { IOption, IWhere } from '../typings';
 import { IFilterVarList } from '../typings/filters';

@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
-
-import { createUserConfig, listUserConfig, partialUpdateUserConfig } from '../../monitor-api/modules/model';
+import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
 
 @Component
 // 设置全局通用的Loading

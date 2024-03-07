@@ -27,12 +27,12 @@
 import { Component, Emit } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import { IUnifyQuerySeriesItem } from '../../../../monitor-pc/pages/view-detail/utils';
 import ChartTitle from '../../components/chart-title/chart-title';
-// import { handleTimeRange } from '../../../../monitor-pc/utils/index';
+// import { handleTimeRange } from 'monitor-pc/utils/index';
 import { ILegendItem, IPanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';

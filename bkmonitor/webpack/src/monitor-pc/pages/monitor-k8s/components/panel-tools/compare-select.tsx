@@ -26,9 +26,9 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { deepClone } from 'monitor-common/utils/utils';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { deepClone } from '../../../../../monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
 import { IOption } from '../../typings';
 import { COMPARE_KEY, COMPARE_LIST, COMPARE_TIME_OPTIONS, PanelToolsType } from '../../typings/panel-tools';
 

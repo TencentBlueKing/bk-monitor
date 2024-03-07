@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Debounce } from '../../../../../monitor-common/utils/utils';
-import { resize } from '../../../../../monitor-pc/components/ip-selector/common/observer-directive';
+import { Debounce } from 'monitor-common/utils/utils';
+import { resize } from 'monitor-pc/components/ip-selector/common/observer-directive';
 
 import { IInfo } from './types';
 

@@ -102,7 +102,7 @@
             class="mc-btn-add"
             style="margin-right: 8px"
           >
-            <span class="icon-monitor icon-plus-line mr-6"></span>
+            <span class="icon-monitor icon-plus-line mr-6" />
             {{ $t('新建') }}
           </bk-button>
           <!-- <bk-button theme="default" @click="handleToLogCollection"> {{ $t('日志采集') }} </bk-button> -->
@@ -177,7 +177,7 @@
                       src="../../static/images/svg/spinner.svg"
                       v-if="scope.row.doingStatus"
                       class="status-loading"
-                      alt=''
+                      alt=""
                     >
                     <div
                       v-if="['FAILED', 'WARNING', 'SUCCESS', 'STOPPED'].includes(scope.row.taskStatus)"
@@ -390,15 +390,15 @@
 <script>
 import { createNamespacedHelpers } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-// import { isCancel } from 'axios'
-import { debounce } from 'throttle-debounce';
-
 import {
   collectConfigList,
   deleteCollectConfig,
   // cloneCollectConfig,
   fetchCollectConfigStat
-} from '../../../monitor-api/modules/collecting';
+} from 'monitor-api/modules/collecting';
+// import { isCancel } from 'axios'
+import { debounce } from 'throttle-debounce';
+
 import introduce from '../../common/introduce';
 import { commonPageSizeMixin } from '../../common/mixins';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';

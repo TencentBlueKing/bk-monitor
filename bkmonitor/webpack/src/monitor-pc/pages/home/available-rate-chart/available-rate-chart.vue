@@ -106,7 +106,8 @@
 </template>
 
 <script>
-import MonitorEchart from '../../../../monitor-ui/monitor-echarts/monitor-echarts';
+import MonitorEchart from 'monitor-ui/monitor-echarts/monitor-echarts';
+
 import PanelCard from '../components/panel-card/panel-card';
 
 export default {
@@ -238,76 +239,90 @@ export default {
   .title {
     &-setting {
       float: right;
+      width: 250px;
       font-size: $fontSmSize;
       color: #3a84ff;
-      width: 250px;
       text-align: right;
+
       .chart-dropdown {
         display: flex;
         align-items: center;
         justify-content: flex-end;
       }
+
       .icon-setting {
-        vertical-align: middle;
         width: 16px;
         height: 16px;
-        color: #3a84ff;
         margin-right: 5px;
+        color: #3a84ff;
+        vertical-align: middle;
       }
+
       .tag-setting {
         @include hover();
       }
+
       &-dropdown {
-        text-align: left;
-        max-height: 250px;
         max-width: 250px;
+        max-height: 250px;
         overflow: auto;
+        text-align: left;
+
         li {
           padding: 0px 10px;
-          text-overflow: ellipsis;
           overflow: hidden;
+          text-overflow: ellipsis;
           white-space: nowrap;
+
           .check-label-item {
-            margin: 5px;
             min-width: 100%;
+            margin: 5px;
 
             @include hover();
+
             .bk-checkbox-text {
               font-style: normal;
             }
           }
+
           .bk-checkbox {
             cursor: pointer;
           }
+
           &:hover {
-            background: #eaf3ff;
             cursor: pointer;
+            background: #eaf3ff;
           }
         }
       }
+
       &-footer {
         display: flex;
-        justify-content: space-around;
         align-items: center;
+        justify-content: space-around;
         border-top: 1px solid $defaultBorderColor;
+
         :nth-child(2) {
-          border-left: 1px solid $defaultBorderColor;
           background: #fafbfd;
+          border-left: 1px solid $defaultBorderColor;
         }
+
         span {
           flex: 1;
-          text-align: center;
           height: 30px;
           line-height: 30px;
+          text-align: center;
 
           @include hover();
         }
       }
     }
+
     &-disable {
       color: #979ba5;
 
       @include hover(not-allowed);
+
       .tag-setting {
         @include hover(not-allowed);
       }

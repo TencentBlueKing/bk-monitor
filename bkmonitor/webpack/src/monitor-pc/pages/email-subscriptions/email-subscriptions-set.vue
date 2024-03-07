@@ -307,19 +307,18 @@
 <script lang="ts">
 import VueI18n, { TranslateResult } from 'vue-i18n';
 import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
-
-import Sortable from 'sortablejs';
-
-import { getDashboardList } from '../../../monitor-api/modules/grafana';
-import { getNoticeWay } from '../../../monitor-api/modules/notice_group';
+import { getDashboardList } from 'monitor-api/modules/grafana';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import {
   groupList,
   reportContent,
   reportCreateOrUpdate,
   reportTest
-} from '../../../monitor-api/modules/report';
-import { deepClone, transformDataKey } from '../../../monitor-common/utils/utils';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+} from 'monitor-api/modules/report';
+import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+import Sortable from 'sortablejs';
+
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
 import memberSelector from '../alarm-group/alarm-group-add/member-selector.vue';
 

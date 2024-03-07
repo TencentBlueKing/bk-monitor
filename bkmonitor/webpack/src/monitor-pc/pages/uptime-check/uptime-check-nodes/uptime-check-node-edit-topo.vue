@@ -130,8 +130,9 @@
   </bk-dialog>
 </template>
 <script>
-import { getTopoTree } from '../../../../monitor-api/modules/commons';
-import { transformDataKey } from '../../../../monitor-common/utils/utils';
+import { getTopoTree } from 'monitor-api/modules/commons';
+import { transformDataKey } from 'monitor-common/utils/utils';
+
 import IpSelector from '../../../components/ip-select/ip-select';
 import StaticRadioTopo from '../../../components/ip-select/static-radio-topo';
 

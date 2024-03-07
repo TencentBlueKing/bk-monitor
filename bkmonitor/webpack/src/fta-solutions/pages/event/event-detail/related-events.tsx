@@ -26,12 +26,12 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { eventTopN, searchEvent } from 'monitor-api/modules/alert';
+import { xssFilter } from 'monitor-common/utils/xss';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import { getEventPaths } from 'monitor-pc/utils/index';
 
-import { eventTopN, searchEvent } from '../../../../monitor-api/modules/alert';
-import { xssFilter } from '../../../../monitor-common/utils/xss';
-import EmptyStatus from '../../../../monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../../monitor-pc/components/empty-status/types';
-import { getEventPaths } from '../../../../monitor-pc/utils/index';
 import { commonAlertFieldMap } from '../event';
 import FilterInput from '../filter-input';
 import { FilterInputStatus, SearchType } from '../typings/event';

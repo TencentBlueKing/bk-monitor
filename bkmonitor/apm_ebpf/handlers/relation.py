@@ -29,7 +29,9 @@ class RelationHandler:
         """
         BCS集群发现
         """
-        projects = api.bcs_project.get_projects()
+        projects = (
+            api.bcs_cc.batch_get_projects() if settings.ENABLE_BCS_CC_PROJECT_API else api.bcs.get_projects(kind="k8s")
+        )
         project_id_mapping = cls.group_by(projects, operator.itemgetter("project_id"))
 
         clusters = api.bcs_cluster_manager.get_project_k8s_non_shared_clusters()

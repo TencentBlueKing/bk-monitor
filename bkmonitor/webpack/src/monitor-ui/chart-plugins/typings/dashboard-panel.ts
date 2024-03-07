@@ -25,8 +25,7 @@
  * IN THE SOFTWARE.
  */
 import type { EChartOption } from 'echarts';
-
-import { isObject, random, typeTools } from '../../../monitor-common/utils/utils';
+import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
 import { TimeSeriesType } from './time-series';
 
@@ -432,6 +431,12 @@ export interface IPanelModel {
   dimensions?: string[];
   // 匹配显示字段
   matchDisplay?: Record<string, any>;
+  // 是否勾选图表
+  checked?: boolean;
+}
+
+export interface ObservablePanelField {
+  [key: string | number]: Pick<IPanelModel, 'show' | 'collapsed' | 'checked'>;
 }
 
 export class PanelModel implements IPanelModel {

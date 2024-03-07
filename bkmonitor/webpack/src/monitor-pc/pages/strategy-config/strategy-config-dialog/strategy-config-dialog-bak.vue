@@ -319,8 +319,9 @@
   </bk-dialog>
 </template>
 <script>
-import { listUserGroup } from '../../../../monitor-api/modules/model';
-import { noticeVariableList } from '../../../../monitor-api/modules/strategies';
+import { listUserGroup } from 'monitor-api/modules/model';
+import { noticeVariableList } from 'monitor-api/modules/strategies';
+
 import MultiLabelSelect from '../../../components/multi-label-select/multi-label-select';
 import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input';
 import AlarmHandling from '../strategy-config-set-new/alarm-handling-bak/alarm-handling.tsx';

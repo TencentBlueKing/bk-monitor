@@ -50,8 +50,8 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 import StrategyConfigTarget from '../../strategy-config-target/strategy-config-target.vue';
 
 @Component({
@@ -67,35 +67,35 @@ export default class StrategySetTarget extends Vue {
     type: Boolean,
     default: false
   })
-  dialogShow: boolean;
+    dialogShow: boolean;
 
   // 业务id
   @Prop()
-  bizId: number | string;
+    bizId: number | string;
 
   // 监控对象类型
   @Prop()
-  objectType: string;
+    objectType: string;
 
   // 默认选择的目标
   @Prop()
-  targetList: Array<any>;
+    targetList: Array<any>;
 
   // 目标类型
   @Prop()
-  targetType: string;
+    targetType: string;
 
   // 策略id
   @Prop()
-  strategyId: string | number;
+    strategyId: string | number;
 
   // tab的disabled状态控制, 0: 静态disabled; 1: 动态disabled; -1: 都不disabled
   @Prop({ default: null, type: [Number, null] })
-  tabDisabled: 0 | 1 | -1 | null;
+    tabDisabled: 0 | 1 | -1 | null;
 
   // 是否允许保存空的目标
   @Prop({ default: false, type: Boolean })
-  canSaveEmpty: {
+    canSaveEmpty: {
     type: Boolean;
     default: false;
   };

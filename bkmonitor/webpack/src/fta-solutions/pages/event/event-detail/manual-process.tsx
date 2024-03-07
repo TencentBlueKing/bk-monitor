@@ -25,12 +25,12 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { batchCreate, getActionParams, getPluginTemplates } from 'monitor-api/modules/action';
+import { listActionConfig } from 'monitor-api/modules/model';
+import { random, transformDataKey } from 'monitor-common/utils/utils';
+import { actionConfigGroupList } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/alarm-handling/alarm-handling';
+import GroupSelect from 'monitor-pc/pages/strategy-config/strategy-config-set-new/components/group-select';
 
-import { batchCreate, getActionParams, getPluginTemplates } from '../../../../monitor-api/modules/action';
-import { listActionConfig } from '../../../../monitor-api/modules/model';
-import { random, transformDataKey } from '../../../../monitor-common/utils/utils';
-import { actionConfigGroupList } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/alarm-handling/alarm-handling';
-import GroupSelect from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/components/group-select';
 import Container from '../../setting/set-meal/set-meal-add/components/container';
 import DynamicForm from '../../setting/set-meal/set-meal-add/components/dynamic-form/dynamic-form';
 import HttpCallBack from '../../setting/set-meal/set-meal-add/meal-content/http-callback';

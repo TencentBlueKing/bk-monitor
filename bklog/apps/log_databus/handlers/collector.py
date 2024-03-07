@@ -2972,7 +2972,11 @@ class CollectorHandler(object):
         result = []
         for rule_id, collector in rule_dict.items():
             collector_config_name_en = collector["path_collector_config"].collector_config_name_en
-            if collector_config_name_en.startswith("bcs_k8s_"):
+            collector_config_name = collector["path_collector_config"].collector_config_name
+            if not collector_config_name_en:
+                collector_config_name_en = collector["std_collector_config"].collector_config_name_en
+                collector_config_name = collector["std_collector_config"].collector_config_name
+            elif collector_config_name_en.startswith("bcs_k8s_"):
                 # 模式: bcs_k8s_12345_your_name_std
                 collector_config_name_en = collector_config_name_en.rsplit("_", 1)[0].split("_", 3)[3]
             else:
@@ -2981,9 +2985,9 @@ class CollectorHandler(object):
 
             rule = {
                 "rule_id": rule_id,
-                "collector_config_name": collector["path_collector_config"]
-                .collector_config_name.rsplit("_", 1)[0]
-                .split("_", 1)[1],
+                "collector_config_name": collector_config_name.rsplit("_", 1)[0].split("_", 1)[1]
+                if collector_config_name
+                else "",
                 "bk_biz_id": collector["path_collector_config"].bk_biz_id,
                 "description": collector["path_collector_config"].description,
                 "collector_config_name_en": collector_config_name_en,
@@ -2995,6 +2999,8 @@ class CollectorHandler(object):
                 "rule_std_index_set_id": collector["std_collector_config"].index_set_id,
                 "file_index_set_id": bcs_path_index_set.index_set_id if bcs_path_index_set else None,
                 "std_index_set_id": bcs_std_index_set.index_set_id if bcs_std_index_set else None,
+                "is_std_deleted": False if collector["std_collector_config"].index_set_id else True,
+                "is_file_deleted": False if collector["path_collector_config"].index_set_id else True,
                 "container_config": [],
             }
 
@@ -3527,8 +3533,6 @@ class CollectorHandler(object):
             return {"rule_id": rule_id}
 
         collectors = CollectorConfig.objects.filter(rule_id=bcs_rule.id)
-        if len(collectors) != DEFAULT_COLLECTOR_LENGTH:
-            raise RuleCollectorException(RuleCollectorException.MESSAGE.format(rule_id=rule_id))
         for collector in collectors:
             self.deal_self_call(
                 collector_config_id=collector.collector_config_id, collector=collector, func=self.destroy

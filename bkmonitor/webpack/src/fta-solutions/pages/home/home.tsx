@@ -27,10 +27,9 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import Big from 'big.js';
 import dayjs from 'dayjs';
+import { fetchBusinessInfo } from 'monitor-api/modules/commons';
+import { statistics } from 'monitor-api/modules/home';
 import { throttle } from 'throttle-debounce';
-
-import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
-import { statistics } from '../../../monitor-api/modules/home';
 
 import BusinessItem, { IData } from './business-item';
 

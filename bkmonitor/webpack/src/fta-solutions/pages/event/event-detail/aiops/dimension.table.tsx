@@ -25,10 +25,9 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Debounce } from '../../../../../monitor-common/utils/utils';
-import { xssFilter } from '../../../../../monitor-common/utils/xss';
-import DimensionLine from '../../../../../monitor-ui/chart-plugins/plugins/aiops-dimension-point/aiops-dimension-point';
+import { Debounce } from 'monitor-common/utils/utils';
+import { xssFilter } from 'monitor-common/utils/xss';
+import DimensionLine from 'monitor-ui/chart-plugins/plugins/aiops-dimension-point/aiops-dimension-point';
 
 import { EventReportType, IAnomalyDimensions } from './types';
 
