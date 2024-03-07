@@ -25,12 +25,14 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import SearchSelect from '@blueking/search-select';
 import { Debounce, random } from 'monitor-common/utils/utils';
 // import ListMenu from './list-menu';
 import { throttle } from 'throttle-debounce';
 
 import { BookMarkMode, COMMON_TAB_LIST, CommonTabType, IMenuItem, ISearchItem, ITabItem, SearchType } from '../typings';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './page-title.scss';
 
 const SMALL_SCREEN = 1440;
@@ -159,24 +161,6 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
   handleTabListChange() {
     this.isRefreshRandomKey = random(6);
   }
-  /**
-   * @description: 搜索框失去焦点后检查是否缩进搜索框
-   * @param {*}
-   * @return {*}
-   */
-  handleSearchBlur() {
-    setTimeout(() => {
-      this.searchActive =
-        this.searchValue.length > 0 ||
-        (this.$refs.searchSelect as any)?.input.value.length > 0 ||
-        (this.$refs.searchSelect as any)?.input.focus;
-      try {
-        !this.searchSelect?.input.focus && this.searchSelect.handleKeyEnter({ preventDefault: () => {} });
-      } catch (error) {
-        console.log(error);
-      }
-    }, 100);
-  }
   handleSearchToggle() {
     setTimeout(() => {
       this.searchActive = this.searchValue.length > 0 || (this.listSearchSelect as any).focus;
@@ -205,7 +189,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
     setTimeout(() => {
       if (this.bookMarkMode === 'auto') {
         if (this.isKeyValueSearch) {
-          this.searchSelect?.$refs?.input?.click?.();
+          this.searchSelect?.$el.querySelector('.div-input')?.click();
         } else {
           const popEl = this.listSearchSelect?.$refs?.selectDropdown.$el;
           const triggerEl = popEl.querySelector('.bk-tooltip-ref');
@@ -310,15 +294,16 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                 (this.bookMarkMode === 'auto'
                   ? [
                       this.isKeyValueSearch ? (
-                        <bk-search-select
-                          ref='searchSelect'
-                          class='filter-search'
-                          data={this.searchData}
-                          values={this.searchValue}
-                          show-condition={false}
-                          on-input-click-outside={this.handleSearchBlur}
-                          on-change={this.handleSearchChange}
-                        />
+                        <div class='filter-search'>
+                          <SearchSelect
+                            ref='searchSelect'
+                            data={this.searchData}
+                            value={this.searchValue}
+                            uniqueSelect={true}
+                            show-condition={false}
+                            on-change={this.handleSearchChange}
+                          ></SearchSelect>
+                        </div>
                       ) : (
                         <span
                           onMouseenter={() => (this.insideSearchSelect = true)}

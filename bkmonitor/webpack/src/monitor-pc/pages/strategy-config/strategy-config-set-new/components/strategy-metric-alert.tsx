@@ -26,6 +26,7 @@
 /* eslint-disable camelcase */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import SearchSelect from '@blueking/search-select';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -33,6 +34,7 @@ import { debounce, throttle } from 'throttle-debounce';
 
 import { MetricDetail } from '../typings/index';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './strategy-metric-alert.scss';
 
 interface IStrategyMetricAlertProps {
@@ -311,7 +313,8 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
    * @param {*}
    * @return {*}
    */
-  handleSearchChange() {
+  handleSearchChange(v) {
+    this.searchObj.keyWord = v;
     this.dataInit(false, false);
     const cacheKey = `${this.sourceType}_${this.scenarioType}`;
     this.cache[cacheKey].page = 1;
@@ -598,17 +601,16 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         <div v-bkloading={{ isLoading: this.isLoading }}>
           <div class='metric-wrap-common'>
             <div class='metric-handle-row'>
-              <bk-search-select
-                class='search-select'
-                ref='searchSelect'
-                v-model={this.searchObj.keyWord}
-                showPopoverTagChange={false}
-                popoverZindex={2600}
-                data={this.searchObj.data}
-                placeholder={this.$t('关键字搜索')}
-                on-change={this.handleSearch}
-                show-condition={false}
-              ></bk-search-select>
+              <div class='search-select'>
+                <SearchSelect
+                  value={this.searchObj.keyWord}
+                  data={this.searchObj.data}
+                  placeholder={this.$t('关键字搜索')}
+                  on-change={this.handleSearch}
+                  show-condition={false}
+                ></SearchSelect>
+              </div>
+
               <bk-button
                 class='btn-refresh'
                 icon='icon-refresh'

@@ -26,6 +26,7 @@
 
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import SearchSelect from '@blueking/search-select';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -45,6 +46,7 @@ import { type ShowModeType } from '../common-page-new';
 import CommonTable from '../common-table';
 import SortTool from '../sort-tool/sort-tool';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './common-select-table.scss';
 
 // 表格是否显示表头宽度临界值 侧栏宽度：280，内边距：32 （280 - 32 = 248）;
@@ -390,7 +392,8 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.resizeObserver?.observe(this.selectTablePanel);
   }
   /** conditionList 搜索 */
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.handleResetTable();
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
@@ -542,12 +545,12 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         <div class={['list-header', { 'flex-header': this.width > 1000 }]}>
           <div class='search-bar'>
             {this.conditionList.length ? (
-              <bk-search-select
+              <SearchSelect
                 placeholder={this.$t('搜索')}
-                vModel={this.searchCondition}
+                value={this.searchCondition}
                 show-condition={false}
+                uniqueSelect={true}
                 data={this.currentConditionList}
-                show-popover-tag-change={false}
                 onChange={this.handleSearch}
               />
             ) : (

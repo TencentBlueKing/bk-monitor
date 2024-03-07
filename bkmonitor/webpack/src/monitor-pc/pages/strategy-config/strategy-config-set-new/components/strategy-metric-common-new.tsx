@@ -26,6 +26,7 @@
 
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import SearchSelect from '@blueking/search-select';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -45,6 +46,7 @@ import { IScenarioItem, MetricDetail } from '../typings/index';
 
 import HorizontalScrollContainer from './horizontal-scroll-container';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './strategy-metric-common.scss';
 
 interface IStrategyMetricCommon {
@@ -718,7 +720,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   }
 
   //  搜索事件
-  filterMetric() {
+  filterMetric(v) {
+    this.searchObj.keyWord = v;
     this.tapChangeInit();
     const cacheKey = `${this.sourceType}_${this.scenarioType}`;
     this.cache[cacheKey].page = 1;
@@ -846,17 +849,15 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
           v-bkloading={{ isLoading: this.loading }}
         >
           <div class='head'>
-            <bk-search-select
-              ref='searchSelect'
-              class='metric-search'
-              v-model={this.searchObj.keyWord}
-              showPopoverTagChange={false}
-              popoverZindex={2600}
-              data={this.searchObj.data}
-              placeholder={this.$t('关键字搜索')}
-              on-change={this.handleSearch}
-              show-condition={false}
-            ></bk-search-select>
+            <div class='metric-search'>
+              <SearchSelect
+                value={this.searchObj.keyWord}
+                data={this.searchObj.data}
+                placeholder={this.$t('关键字搜索')}
+                on-change={this.handleSearch}
+                show-condition={false}
+              />
+            </div>
             <bk-button
               class='metric-refresh'
               icon='icon-refresh'

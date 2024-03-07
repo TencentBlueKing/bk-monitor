@@ -720,6 +720,9 @@ importers:
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
+      '@blueking/search-select':
+        specifier: 0.0.1-beta.12
+        version: 0.0.1-beta.12(vue@2.7.14)
       '@codemirror/autocomplete':
         specifier: ^0.19.15
         version: 0.19.15

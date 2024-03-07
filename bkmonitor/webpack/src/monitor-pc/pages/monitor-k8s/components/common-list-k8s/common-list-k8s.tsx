@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+import SearchSelect from '@blueking/search-select';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -39,6 +40,7 @@ import {
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './common-list-k8s.scss';
 
 interface ICommonListProps {
@@ -222,7 +224,8 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
     this.loading = false;
   }
 
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.getPanelData();
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
@@ -299,14 +302,14 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
         <div class='list-k8s-container'>
           <div class='list-header'>
             {this.conditionList.length ? (
-              <bk-search-select
+              <SearchSelect
                 placeholder={this.$t('搜索')}
-                vModel={this.searchCondition}
-                show-condition={false}
+                uniqueSelect={true}
                 data={this.currentConditionList}
-                show-popover-tag-change={false}
-                onChange={this.handleSearch}
-              />
+                value={this.searchCondition}
+                show-condition={false}
+                on-change={this.handleSearch}
+              ></SearchSelect>
             ) : (
               <bk-input
                 v-model={this.keyword}
