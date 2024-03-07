@@ -95,7 +95,19 @@ const mutations = {
   [SET_APP_STATE](state, data) {
     Object.keys(data).forEach(key => {
       if (key === 'bizList') {
-        state[key] = data[key].map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
+        state[key] = data[key].map(item => {
+          const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
+          const pyText = pinyinStr.replace(/,/g, '');
+          const pyfText = pinyinStr
+            .split(',')
+            .map(str => str.charAt(0))
+            .join('');
+          return {
+            ...item,
+            py_text: pyText,
+            pyf_text: pyfText
+          };
+        });
         return;
       }
       state[key] = data[key];

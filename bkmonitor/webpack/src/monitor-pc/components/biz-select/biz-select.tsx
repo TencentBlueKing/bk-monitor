@@ -34,7 +34,6 @@ import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
 
 import List, { ETagsType, IListItem } from './list';
-import { pinyinSearch } from './utils';
 
 import './biz-select.scss';
 /** 业务组件常用的业务缓存key */
@@ -234,11 +233,10 @@ export default class BizSelect extends tsc<IProps, IEvents> {
             : item.space_type_id === this.searchTypeId;
       }
       if ((show && keyword) || (!this.searchTypeId && !show)) {
-        const spaceName = item.space_name.toLocaleLowerCase();
         show =
-          spaceName.indexOf(keyword) > -1 ||
-          item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          pinyinSearch(keyword, spaceName, this.$bkToPinyin) ||
+          item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
+          item.py_text.indexOf(keyword) > -1 ||
+          item.pyf_text.indexOf(keyword) > -1 ||
           `${item.id}`.includes(keyword) ||
           `${item.space_id}`.toLocaleLowerCase().includes(keyword);
       }
