@@ -32,7 +32,7 @@ import i18n from './i18n/i18n';
 
 import './common/import-magicbox-ui';
 import 'monitor-ui/directive/index';
-import '../monitor-static/svg-icons';
+import 'monitor-static/svg-icons';
 
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
@@ -44,7 +44,7 @@ import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
 
-import '../monitor-static/icons/monitor-icons.css';
+import 'monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
 
 Vue.config.devtools = process.env.NODE_ENV === 'development';

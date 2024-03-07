@@ -968,7 +968,9 @@ def get_metadata_cluster_list() -> List:
 
 def get_valid_bcs_projects() -> List:
     """获取可用的 BKCI(BCS) 项目空间"""
-    projects = api.bcs_cc.batch_get_projects()
+    projects = (
+        api.bcs_cc.batch_get_projects() if settings.ENABLE_BCS_CC_PROJECT_API else api.bcs.get_projects(kind="k8s")
+    )
     # 排除业务ID为 0 的记录，或者绑定的 BKCC 业务 ID 不存在的信息
     bk_biz_id_list = [b.bk_biz_id for b in api.cmdb.get_business()]
     # 返回有效的项目记录
@@ -1056,7 +1058,11 @@ def get_bkci_projects() -> List:
     """获取 bkci 的项目信息"""
     try:
         # 查询项目信息
-        return api.bcs_cc.batch_get_projects(filter_k8s_kind=False)
+        return (
+            api.bcs_cc.batch_get_projects(filter_k8s_kind=False)
+            if settings.ENABLE_BCS_CC_PROJECT_API
+            else api.bcs.get_projects()
+        )
     except Exception as e:
         logger.error("query project error, %s", e)
         return []

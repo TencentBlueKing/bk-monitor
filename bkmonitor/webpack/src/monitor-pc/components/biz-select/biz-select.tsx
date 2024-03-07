@@ -235,7 +235,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       if ((show && keyword) || (!this.searchTypeId && !show)) {
         show =
           item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
+          item.py_text.indexOf(keyword) > -1 ||
+          item.pyf_text.indexOf(keyword) > -1 ||
           `${item.id}`.includes(keyword) ||
           `${item.space_id}`.toLocaleLowerCase().includes(keyword);
       }
