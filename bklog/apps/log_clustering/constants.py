@@ -125,9 +125,7 @@ DEFAULT_PATTERN_MONITOR_MSG = """{{content.level}}
 {{content.biz}}
 {{content.target}}
 {{content.dimension}}
-内容: 智能模型检测到异常, 异常类型: {{alarm.bkm_info.alert_msg}}, 近 {{strategy.item.agg_interval / 60}} 分钟出现次数 ({{alarm.current_value}})
-负责人: {{ json.loads(alarm.related_info)["owners"] or 无}}
-备注: {{ json.loads(alarm.related_info)["remark_text"]}} ( {{ json.loads(alarm.related_info)["remark_time"]}} - {{ json.loads(alarm.related_info)["remark_user"]}} )
+{{content.detail}}
 日志示例: {{ json.loads(alarm.related_info)["__clustering_field__"] }}
 更多日志: {{ json.loads(alarm.related_info)["bklog_link"] }}
 """
@@ -143,9 +141,7 @@ DEFAULT_PATTERN_RECOVER_MSG = """{{content.level}}
 {{content.biz}}
 {{content.target}}
 {{content.dimension}}
-内容: 智能模型检测到异常, 异常类型: {{alarm.bkm_info.alert_msg}}, 近 {{strategy.item.agg_interval / 60}} 分钟出现次数 ({{alarm.current_value}})
-负责人: {{ json.loads(alarm.related_info)["owners"] or 无}}
-备注: {{ json.loads(alarm.related_info)["remark_text"]}} ( {{ json.loads(alarm.related_info)["remark_time"]}} - {{ json.loads(alarm.related_info)["remark_user"]}} )
+{{content.detail}}
 日志示例: {{ json.loads(alarm.related_info)["__clustering_field__"] }}
 更多日志: {{ json.loads(alarm.related_info)["bklog_link"] }}
 """
