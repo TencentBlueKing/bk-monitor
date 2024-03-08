@@ -27,6 +27,7 @@ import { inject, onBeforeUnmount, provide, Ref, watch, WatchStopHandle } from 'v
 import { type PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { TimeRangeType } from '../../components/time-range/utils';
+import { SearchType } from '../../pages/profiling/typings';
 import { isShadowEqual } from '../../utils';
 import { IViewOptions } from '../typings';
 
@@ -78,7 +79,12 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
   // 数据时间间隔
   const timeRange = useTimeRanceInject();
   let unWatchTimeRange: WatchStopHandle | null = null;
-  if (timeRange) {
+
+  /** 用于 profiling 趋势图注入的查询类型 */
+  /** 当前如果是上传 profiling 则不需要监听时间选择器变化 */
+  const uploadProfilingSearch = inject<Ref<SearchType>>('profilingSearchType')?.value === SearchType.Upload;
+
+  if (timeRange && !uploadProfilingSearch) {
     unWatchTimeRange = watch(timeRange, () => getPanelData());
   }
   // 时区

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -430,8 +431,9 @@ export default class BasicInfo extends tsc<IProps> {
   /**
    * @desc 开关前置校验
    * @param { boolean } val 当前开关状态
+   * @param { string } val 事件类型
    */
-  handleEnablePreCheck(val: boolean) {
+  handleEnablePreCheck(val: boolean, eventType: string) {
     if (!this.authority.MANAGE_AUTH) {
       this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
       return Promise.reject();
@@ -445,7 +447,7 @@ export default class BasicInfo extends tsc<IProps> {
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         confirmFn: async () => {
           const api = val ? stop : start;
-          const isPass = await api({ application_id: applicationId })
+          const isPass = await api({ application_id: applicationId, type: eventType })
             .then(() => {
               this.handleBaseInfoChange();
               return true;
@@ -464,13 +466,16 @@ export default class BasicInfo extends tsc<IProps> {
     this.showInstanceSelector = !show;
     if (show) {
       if (!this.logAsciiList.length && this.isShowLog2TracesFormItem) this.fetchEncodingList();
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       const { app_alias: appAlias, description, plugin_config, application_sampler_config } = this.appInfo;
       const apdexConfig = this.appInfo.application_apdex_config || {};
       const samplerConfig = Object.assign({}, application_sampler_config, {
         sampler_percentage: application_sampler_config.sampler_percentage || 0
       });
-      Object.assign(this.formData, apdexConfig, samplerConfig, { app_alias: appAlias, description, plugin_config });
+      Object.assign(this.formData, apdexConfig, samplerConfig, {
+        app_alias: appAlias,
+        description,
+        plugin_config
+      });
     }
     if (!isSubmit) {
       this.localInstanceList = [...this.appInfo.application_instance_name_config?.instance_name_composition];
@@ -582,7 +587,6 @@ export default class BasicInfo extends tsc<IProps> {
     if (params.application_sampler_config.sampler_type === 'random') {
       params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
     } else if (params.application_sampler_config.sampler_type === 'tail') {
-      params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
       params.application_sampler_config.tail_conditions = this.samplingRules
         .map(item => {
           // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -959,280 +963,333 @@ export default class BasicInfo extends tsc<IProps> {
     return (
       <div class='conf-content base-info-wrap'>
         <PanelItem title={this.$t('基础信息')}>
-          <div
-            slot='titleExtend'
-            style='display: flex;align-items: center;'
-          >
-            {/* <EditableFormItem
-              label={this.$t('启/停')}
-              value={this.appInfo.is_enabled}
-              formType='switch'
-              authority={this.authority.MANAGE_AUTH}
-              preCheckSwitcher={val => this.handleEnablePreCheck(val)}
-            /> */}
-            <bk-switcher
-              v-model={this.appInfo.is_enabled}
-              v-authority={{ active: !this.authority.MANAGE_AUTH }}
-              class='switcher-self'
-              theme='primary'
-              size='small'
-              pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled)}
-            />
-            <span class='switcher-text'>{this.$t('启/停')}</span>
-          </div>
           <div class='form-content'>
-            <div class='item-row'>
-              <EditableFormItem
-                label={this.$t('应用名')}
-                value={this.appInfo.app_name}
-                formType='input'
-                showEditable={false}
-              />
-              {!this.isEditing && (
-                <EditableFormItem
-                  label={this.$t('应用别名')}
-                  value={this.appInfo.app_alias}
-                  formType='input'
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
-                  showEditable={false}
-                />
-              )}
-              {this.isEditing && (
-                <EditableFormItem
-                  label={this.$t('所有者')}
-                  value={this.appInfo.create_user}
-                  formType='input'
-                  showEditable={false}
-                />
-              )}
-            </div>
-            <div class='item-row'>
-              <EditableFormItem
-                label={this.$t('支持插件')}
-                value={this.pluginIdMapping[this.appInfo.plugin_id]}
-                formType='input'
-                authority={this.authority.MANAGE_AUTH}
-                authorityName={authorityMap.MANAGE_AUTH}
-                showEditable={false}
-              />
-              {!this.isEditing && this.isShowLog2TracesFormItem && (
-                <EditableFormItem
-                  label={this.$t('采集目标')}
-                  value={this.$t(this.selectedTargetTips[this.appInfo?.plugin_config?.target_node_type], [
-                    this.appInfo?.plugin_config?.target_nodes?.length || 0
-                  ])}
-                  formType='input'
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
-                  showEditable={false}
-                />
-              )}
-              {this.isEditing && (
-                <EditableFormItem
-                  label='Token'
-                  value={this.secureKey}
-                  formType='password'
-                  showEditable={false}
-                  authority={this.authority.MANAGE_AUTH}
-                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                  updateValue={() => this.handleUpdateValue()}
-                />
-              )}
-            </div>
-            {!this.isEditing && (
-              <div>
-                {this.isShowLog2TracesFormItem && (
+            {this.isEditing
+              ? [
                   <div class='item-row'>
-                    {/* <EditableFormItem
-                    label={this.$t('日志路径')}
-                    value={'todo'}
-                    formType='input'
-                    authority={this.authority.MANAGE_AUTH}
-                    authorityName={authorityMap.MANAGE_AUTH}
-                    showEditable={false}
-                  /> */}
-                    <div class='log-path-item-row'>
-                      <div class='label'>{this.$t('日志路径')}</div>
-                      <div class='value-container'>
-                        {this.appInfo.plugin_config.paths.map(path => (
-                          <div class='value'>{path}</div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div class='item-row'>
-                  {this.isShowLog2TracesFormItem && (
                     <EditableFormItem
-                      label={this.$t('日志字符集')}
-                      value={this.appInfo.plugin_config.data_encoding}
+                      label={this.$t('应用名')}
+                      value={this.appInfo.app_name}
+                      formType='input'
+                      showEditable={false}
+                    />
+                    <EditableFormItem
+                      label='Token'
+                      value={this.secureKey}
+                      formType='password'
+                      showEditable={false}
+                      authority={this.authority.MANAGE_AUTH}
+                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                      updateValue={() => this.handleUpdateValue()}
+                    />
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('所有者')}
+                      value={this.appInfo.create_user}
+                      formType='input'
+                      showEditable={false}
+                    />
+                  </div>,
+                  <bk-form
+                    class='edit-config-form'
+                    {...{
+                      props: {
+                        model: this.formData,
+                        rules: this.rules
+                      }
+                    }}
+                    label-width={116}
+                    ref='editInfoForm'
+                  >
+                    <bk-form-item
+                      label={this.$t('应用别名')}
+                      required
+                      property='app_alias'
+                      error-display-type='normal'
+                    >
+                      <bk-input
+                        v-model={this.formData.app_alias}
+                        class='alias-name-input'
+                      />
+                    </bk-form-item>
+                    <bk-form-item
+                      label={this.$t('描述')}
+                      property='description'
+                    >
+                      <bk-input
+                        v-model={this.formData.description}
+                        type='textarea'
+                        class='description-input'
+                        show-word-limit
+                        maxlength='100'
+                      />
+                    </bk-form-item>
+                    <div
+                      class='item-row'
+                      style='margin: 12px 0;'
+                    >
+                      <bk-form-item label={`Tracing ${this.$t('启/停')}`}>
+                        <bk-switcher
+                          v-model={this.appInfo.is_enabled}
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                          theme='primary'
+                          size='small'
+                          pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled, 'tracing')}
+                        />
+                      </bk-form-item>
+                      <bk-form-item
+                        label={`Profiling ${this.$t('启/停')}`}
+                        class='form-flex-item'
+                      >
+                        <bk-switcher
+                          v-model={this.appInfo.is_enabled_profiling}
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                          theme='primary'
+                          size='small'
+                          pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled_profiling, 'profiling')}
+                        />
+                      </bk-form-item>
+                    </div>
+                    <div class='item-row'>
+                      <bk-form-item label={this.$t('Tracing 的插件')}>
+                        <bk-checkbox
+                          value={true}
+                          disabled
+                        >
+                          <div
+                            class='underline-text'
+                            v-bk-tooltips='说明文案'
+                          >
+                            {this.pluginIdMapping[this.appInfo.plugin_id]}
+                          </div>
+                        </bk-checkbox>
+                      </bk-form-item>
+                    </div>
+                  </bk-form>
+                ]
+              : [
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('应用名')}
+                      value={this.appInfo.app_name}
+                      formType='input'
+                      showEditable={false}
+                    />
+                    <EditableFormItem
+                      label={this.$t('应用别名')}
+                      value={this.appInfo.app_alias}
                       formType='input'
                       authority={this.authority.MANAGE_AUTH}
                       authorityName={authorityMap.MANAGE_AUTH}
                       showEditable={false}
                     />
-                  )}
-                  <EditableFormItem
-                    label={this.$t('描述')}
-                    value={this.appInfo.description}
-                    formType='input'
-                    authority={this.authority.MANAGE_AUTH}
-                    authorityName={authorityMap.MANAGE_AUTH}
-                    showEditable={false}
-                  />
-                </div>
-                <div class='item-row'>
-                  <EditableFormItem
-                    label={this.$t('所有者')}
-                    value={this.appInfo.create_user}
-                    formType='input'
-                    showEditable={false}
-                  />
-                  <EditableFormItem
-                    label='Token'
-                    value={this.secureKey}
-                    formType='password'
-                    showEditable={false}
-                    authority={this.authority.MANAGE_AUTH}
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                    updateValue={() => this.handleUpdateValue()}
-                  />
-                </div>
-              </div>
-            )}
-            {this.isEditing && (
-              <bk-form
-                class='edit-config-form'
-                {...{
-                  props: {
-                    model: this.formData,
-                    rules: this.rules
-                  }
-                }}
-                label-width={116}
-                ref='editInfoForm'
-              >
-                <bk-form-item
-                  label={this.$t('应用别名')}
-                  required
-                  property='app_alias'
-                  error-display-type='normal'
-                >
-                  <bk-input
-                    v-model={this.formData.app_alias}
-                    class='alias-name-input'
-                  />
-                </bk-form-item>
-                {this.isShowLog2TracesFormItem && (
-                  <bk-form-item
-                    label={this.$t('采集目标')}
-                    required
-                    property='plugin_config.target_nodes'
-                    error-display-type='normal'
-                  >
-                    <div style='display: flex;align-items: center;'>
-                      <bk-button
-                        theme='default'
-                        icon='plus'
-                        class='btn-target-collect'
-                        onClick={() => (this.selectorDialog.isShow = true)}
-                      >
-                        {this.$t('选择目标')}
-                      </bk-button>
-                      {this.formData.plugin_config.target_nodes.length > 0 && (
-                        <i18n
-                          path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
-                          style='margin-left: 8px;'
-                        >
-                          <span style='color: #4e99ff;'>{this.formData.plugin_config.target_nodes.length}</span>
-                        </i18n>
-                      )}
-                    </div>
-                  </bk-form-item>
-                )}
-                {this.isShowLog2TracesFormItem && (
-                  <bk-form-item
-                    label={this.$t('日志路径')}
-                    required
-                    property='plugin_config.paths'
-                    error-display-type='normal'
-                  >
-                    {this.formData.plugin_config.paths.map((path, index) => (
-                      <div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            marginBottom: index > 0 && index < this.formData.plugin_config.paths.length - 1 && '20px'
-                          }}
-                        >
-                          <bk-input
-                            v-model={this.formData.plugin_config.paths[index]}
-                            placeholder={this.$t('请输入')}
-                            style='width: 490px;'
-                          />
-                          <bk-icon
-                            class='log-path-icon log-path-icon-plus'
-                            type='plus-circle-shape'
-                            onClick={() => this.formData.plugin_config.paths.push('')}
-                          />
-                          <bk-icon
-                            class={{
-                              'log-path-icon': true,
-                              'log-path-icon-minus': true,
-                              disabled: this.formData.plugin_config.paths.length <= 1
-                            }}
-                            type='minus-circle-shape'
-                            onClick={() =>
-                              this.formData.plugin_config.paths.length > 1 &&
-                              this.formData.plugin_config.paths.splice(index, 1)
-                            }
-                          />
-                        </div>
-                        {index === 0 && <div class='log-path-hint'>{this.$t('日志文件为绝对路径，可使用通配符')}</div>}
-                      </div>
-                    ))}
-                  </bk-form-item>
-                )}
-                {this.isShowLog2TracesFormItem && (
-                  <bk-form-item
-                    label={this.$t('日志字符集')}
-                    required
-                    property='plugin_config.data_encoding'
-                    error-display-type='normal'
-                  >
-                    <bk-select
-                      v-model={this.formData.plugin_config.data_encoding}
-                      disabled={this.isFetchingEncodingList}
-                      style='width: 490px;'
-                    >
-                      {this.logAsciiList.map(item => (
-                        <bk-option
-                          key={item.id}
-                          id={item.id}
-                          name={item.name}
-                        ></bk-option>
-                      ))}
-                    </bk-select>
-                  </bk-form-item>
-                )}
-                <bk-form-item
-                  label={this.$t('描述')}
-                  property='description'
-                >
-                  <bk-input
-                    v-model={this.formData.description}
-                    type='textarea'
-                    class='description-input'
-                    show-word-limit
-                    maxlength='100'
-                  />
-                </bk-form-item>
-              </bk-form>
-            )}
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('所有者')}
+                      value={this.appInfo.create_user}
+                      formType='input'
+                      showEditable={false}
+                    />
+                    <EditableFormItem
+                      label='Token'
+                      value={this.secureKey}
+                      formType='password'
+                      showEditable={false}
+                      authority={this.authority.MANAGE_AUTH}
+                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                      updateValue={() => this.handleUpdateValue()}
+                    />
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('描述')}
+                      value={this.appInfo.description}
+                      formType='input'
+                      authority={this.authority.MANAGE_AUTH}
+                      authorityName={authorityMap.MANAGE_AUTH}
+                      showEditable={false}
+                    />
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label='Tracing'
+                      value={this.appInfo.is_enabled ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      tagTheme={this.appInfo.is_enabled ? 'success' : ''}
+                      formType='tag'
+                      showEditable={false}
+                    />
+                    <EditableFormItem
+                      label='Profiling'
+                      value={this.appInfo.is_enabled_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      tagTheme={this.appInfo.is_enabled_profiling ? 'success' : ''}
+                      formType='tag'
+                      showEditable={false}
+                    />
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('Tracing 的插件')}
+                      value={this.pluginIdMapping[this.appInfo.plugin_id]}
+                      formType='input'
+                      authority={this.authority.MANAGE_AUTH}
+                      authorityName={authorityMap.MANAGE_AUTH}
+                      showEditable={false}
+                    />
+                  </div>
+                ]}
           </div>
         </PanelItem>
+        {this.isShowLog2TracesFormItem && (
+          <PanelItem
+            title='Logs to Traces'
+            flexDirection='column'
+          >
+            <div class='form-content'>
+              {this.isEditing
+                ? [
+                    <bk-form
+                      class='edit-config-form'
+                      {...{
+                        props: {
+                          model: this.formData,
+                          rules: this.rules
+                        }
+                      }}
+                      label-width={116}
+                      ref='editInfoForm'
+                    >
+                      <bk-form-item
+                        label={this.$t('采集目标')}
+                        required
+                        property='plugin_config.target_nodes'
+                        error-display-type='normal'
+                      >
+                        <div style='display: flex;align-items: center;'>
+                          <bk-button
+                            theme='default'
+                            icon='plus'
+                            class='btn-target-collect'
+                            onClick={() => (this.selectorDialog.isShow = true)}
+                          >
+                            {this.$t('选择目标')}
+                          </bk-button>
+                          {this.formData.plugin_config.target_nodes.length > 0 && (
+                            <i18n
+                              path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
+                              style='margin-left: 8px;'
+                            >
+                              <span style='color: #4e99ff;'>{this.formData.plugin_config.target_nodes.length}</span>
+                            </i18n>
+                          )}
+                        </div>
+                      </bk-form-item>
+                      <bk-form-item
+                        label={this.$t('日志路径')}
+                        required
+                        property='plugin_config.paths'
+                        error-display-type='normal'
+                      >
+                        {this.formData.plugin_config.paths.map((path, index) => (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                marginBottom:
+                                  index > 0 && index < this.formData.plugin_config.paths.length - 1 && '20px'
+                              }}
+                            >
+                              <bk-input
+                                v-model={this.formData.plugin_config.paths[index]}
+                                placeholder={this.$t('请输入')}
+                                style='width: 490px;'
+                              />
+                              <bk-icon
+                                class='log-path-icon log-path-icon-plus'
+                                type='plus-circle-shape'
+                                onClick={() => this.formData.plugin_config.paths.push('')}
+                              />
+                              <bk-icon
+                                class={{
+                                  'log-path-icon': true,
+                                  'log-path-icon-minus': true,
+                                  disabled: this.formData.plugin_config.paths.length <= 1
+                                }}
+                                type='minus-circle-shape'
+                                onClick={() =>
+                                  this.formData.plugin_config.paths.length > 1 &&
+                                  this.formData.plugin_config.paths.splice(index, 1)
+                                }
+                              />
+                            </div>
+                            {index === 0 && (
+                              <div class='log-path-hint'>{this.$t('日志文件为绝对路径，可使用通配符')}</div>
+                            )}
+                          </div>
+                        ))}
+                      </bk-form-item>
+                      <bk-form-item
+                        label={this.$t('日志字符集')}
+                        required
+                        property='plugin_config.data_encoding'
+                        error-display-type='normal'
+                      >
+                        <bk-select
+                          v-model={this.formData.plugin_config.data_encoding}
+                          disabled={this.isFetchingEncodingList}
+                          style='width: 490px;'
+                        >
+                          {this.logAsciiList.map(item => (
+                            <bk-option
+                              key={item.id}
+                              id={item.id}
+                              name={item.name}
+                            ></bk-option>
+                          ))}
+                        </bk-select>
+                      </bk-form-item>
+                    </bk-form>
+                  ]
+                : [
+                    <div class='item-row'>
+                      <EditableFormItem
+                        label={this.$t('采集目标')}
+                        value={this.$t(this.selectedTargetTips[this.appInfo?.plugin_config?.target_node_type], [
+                          this.appInfo?.plugin_config?.target_nodes?.length || 0
+                        ])}
+                        formType='input'
+                        authority={this.authority.MANAGE_AUTH}
+                        authorityName={authorityMap.MANAGE_AUTH}
+                        showEditable={false}
+                      />
+                    </div>,
+                    <div class='item-row'>
+                      <div class='log-path-item-row'>
+                        <div class='label'>{this.$t('日志路径')}</div>
+                        <div class='value-container'>
+                          {this.appInfo.plugin_config.paths.map(path => (
+                            <div class='value'>{path}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>,
+                    <div class='item-row'>
+                      <EditableFormItem
+                        label={this.$t('日志字符集')}
+                        value={this.appInfo.plugin_config.data_encoding}
+                        formType='input'
+                        authority={this.authority.MANAGE_AUTH}
+                        authorityName={authorityMap.MANAGE_AUTH}
+                        showEditable={false}
+                      />
+                    </div>
+                  ]}
+              <div class='item-row'></div>
+            </div>
+          </PanelItem>
+        )}
         <PanelItem
           title={this.$t('Apdex设置')}
           flexDirection='column'

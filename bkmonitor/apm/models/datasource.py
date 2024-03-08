@@ -897,6 +897,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
 
+    retention = models.IntegerField("过期时间", null=True)
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
 
@@ -916,6 +917,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
+        obj.retention = essentials["retention"]
         obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
         return
 

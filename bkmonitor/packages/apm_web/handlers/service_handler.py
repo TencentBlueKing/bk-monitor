@@ -13,21 +13,22 @@ import logging
 import operator
 from collections import defaultdict
 
+from django.conf import settings
+from django.core.cache import cache
+from django.utils.translation import ugettext_lazy as _
+
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     APM_APPLICATION_METRIC,
     APM_APPLICATION_METRIC_DEFAULT_EXPIRED_TIME,
     ApdexCategoryMapping,
+    CategoryEnum,
     CustomServiceMatchType,
     TopoNodeKind,
 )
 from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, ApplicationCustomService
 from apm_web.utils import group_by
-from django.conf import settings
-from django.core.cache import cache
-from django.utils.translation import ugettext_lazy as _
-
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import api
 
@@ -36,23 +37,13 @@ logger = logging.getLogger(__name__)
 
 class ServiceHandler:
     @classmethod
-    def list_services_by_applications(cls, applications):
-        res = {}
-        for app in applications:
-            res[str(app["application_id"])] = len(cls.list_services(app))
-
-        return res
-
-    @classmethod
     def build_cache_key(cls, application):
-
         return APM_APPLICATION_METRIC.format(
             settings.PLATFORM, settings.ENVIRONMENT, application.get("bk_biz_id"), application.get("application_id")
         )
 
     @classmethod
     def refresh_application_cache_data(cls, applications):
-
         service_count_mapping = cls.batch_query_service_count(applications)
         metric_data = APPLICATION_LIST(applications)
 
@@ -86,7 +77,11 @@ class ServiceHandler:
     @classmethod
     def list_services(cls, application):
         """
-        获取应用的服务列表 = 已发现的服务(service, remote_service) + 未发现的自定义服务 + 服务下的组件(component)
+        获取应用的服务列表 =
+            已发现的服务(service, remote_service)
+            + 未发现的自定义服务
+            + 服务下的组件(component)
+            + 无 Trace 上报的 Profiling 服务
         """
         if isinstance(application, dict):
             bk_biz_id = application["bk_biz_id"]
@@ -98,11 +93,11 @@ class ServiceHandler:
         resp = api.apm_api.query_topo_node({"bk_biz_id": bk_biz_id, "app_name": app_name})
 
         # step1: 获取已发现的服务
-        res = [item for item in resp if item["extra_data"]["kind"] in ["service", "remote_service"]]
-        for r in res:
+        trace_services = [item for item in resp if item["extra_data"]["kind"] in ["service", "remote_service"]]
+        for r in trace_services:
             r["from_service"] = r["topo_key"]
 
-        found_service_names = [i["topo_key"] for i in res if i["extra_data"]["kind"] == "remote_service"]
+        found_service_names = [i["topo_key"] for i in trace_services if i["extra_data"]["kind"] == "remote_service"]
         # step2: 额外补充手动配置的自定义服务
         custom_services = ApplicationCustomService.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, match_type=CustomServiceMatchType.MANUAL
@@ -112,7 +107,7 @@ class ServiceHandler:
             if topo_key in found_service_names:
                 continue
 
-            res.append(
+            trace_services.append(
                 {
                     "topo_key": topo_key,
                     "extra_data": {
@@ -127,7 +122,37 @@ class ServiceHandler:
             )
 
         # step3: 计算服务下组件
-        res += cls.list_service_components(bk_biz_id, app_name, resp)
+        trace_services += cls.list_service_components(bk_biz_id, app_name, resp)
+
+        # step4: 获取 Profile 服务
+        profile_services = api.apm_api.query_profile_services_detail(**{"bk_biz_id": bk_biz_id, "app_name": app_name})
+
+        # step5: 将 Profile 服务和 Trace 服务重名的结合
+        return cls._combine_profile_trace_service(trace_services, profile_services)
+
+    @classmethod
+    def _combine_profile_trace_service(cls, trace_services, profile_services):
+        """合并 TraceService 和 ProfileService"""
+        res = copy.deepcopy(trace_services)
+        trace_names_mapping = group_by(res, operator.itemgetter("topo_key"))
+        visited = []
+        for profile_svr in profile_services:
+            if profile_svr["name"] not in trace_names_mapping and profile_svr["name"] not in visited:
+                # 如果没有 Trace 数据 则单独开一个服务
+                res.append(
+                    {
+                        "topo_key": profile_svr["name"],
+                        "extra_data": {
+                            "category": CategoryEnum.PROFILING,
+                            "kind": "profiling",
+                            "predicate_value": None,
+                            "service_language": None,
+                            "instance": {},
+                        },
+                    }
+                )
+                visited.append(profile_svr["name"])
+
         return res
 
     @classmethod

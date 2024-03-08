@@ -16,6 +16,10 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-profiling:before {
+  content: '\e7a5';
+}
+
 .icon-dingwei1:before {
   content: '\e7a4';
 }

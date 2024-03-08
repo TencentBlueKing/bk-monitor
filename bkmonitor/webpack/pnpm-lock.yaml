@@ -783,6 +783,36 @@ importers:
       codemirror-promql:
         specifier: ^0.19.0
         version: 0.19.0(@codemirror/autocomplete@0.19.15)(@codemirror/highlight@0.19.8)(@codemirror/language@0.19.10)(@codemirror/lint@0.19.6)(@codemirror/state@0.19.9)(@codemirror/view@0.19.48)(@lezer/common@0.15.12)
+      d3-array:
+        specifier: ^3.1.1
+        version: 3.2.4
+      d3-dispatch:
+        specifier: ^3.0.1
+        version: 3.0.1
+      d3-ease:
+        specifier: ^3.0.1
+        version: 3.0.1
+      d3-format:
+        specifier: ^3.0.1
+        version: 3.1.0
+      d3-hierarchy:
+        specifier: ^3.0.1
+        version: 3.1.2
+      d3-path:
+        specifier: ^3.1.0
+        version: 3.1.0
+      d3-scale:
+        specifier: ^4.0.2
+        version: 4.0.2
+      d3-selection:
+        specifier: ^3.0.0
+        version: 3.0.0
+      d3-shape:
+        specifier: ^3.2.0
+        version: 3.2.0
+      d3-transition:
+        specifier: ^3.0.1
+        version: 3.0.1(d3-selection@3.0.0)
       dayjs:
         specifier: ^1.11.10
         version: 1.11.10
@@ -829,6 +859,9 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0(typescript@4.9.5)(vue@2.7.14)
     devDependencies:
+      '@types/d3':
+        specifier: ^7.4.0
+        version: 7.4.3
       '@types/echarts':
         specifier: ^4.9.22
         version: 4.9.22

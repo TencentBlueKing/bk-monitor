@@ -8,13 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from celery import task
 from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.trace import SpanAttributes
-from celery import task
 
 from apm_web.constants import (
     APM_IS_SLOW_ATTR_KEY,
@@ -167,8 +167,10 @@ class Application(AbstractRecordModel):
     trace_result_table_id = models.CharField("Trace结果表", max_length=255, default="")
     time_series_group_id = models.IntegerField("时序分组ID", default=0)
     data_status = models.CharField("数据状态", default=DataStatus.NO_DATA, max_length=50)
+    profiling_data_status = models.CharField("Profiling 数据状态", default=DataStatus.NO_DATA, max_length=50)
     source = models.CharField("来源系统", default=get_source_app_code, max_length=32)
     plugin_config = JsonField("log-trace 插件配置", null=True, blank=True)
+    is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
 
     class Meta:
         ordering = ["-update_time", "-application_id"]
@@ -280,6 +282,9 @@ class Application(AbstractRecordModel):
     def set_data_status(self):
         start_time, end_time = get_datetime_range("minute", self.no_data_period)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+        # NOTICE: data_status / profile_data_status 目前暂无接口用到只在指标中使用考虑指标处换成实时查询
+
+        # Step1: 查询 Trace 数据状态
         count = RequestCountInstance(self, start_time, end_time).query_instance()
         if count:
             logger.info(
@@ -288,10 +293,28 @@ class Application(AbstractRecordModel):
             )
 
             self.data_status = DataStatus.NORMAL
-            self.save()
-            return
+        else:
+            self.data_status = DataStatus.NO_DATA
 
-        self.data_status = DataStatus.NO_DATA
+        # Step2: 查询 profile 数据状态
+        from apm_web.profile.doris.querier import QueryTemplate
+
+        try:
+            profile_has_data = QueryTemplate(self.bk_biz_id, self.app_name).exist_data(
+                start_time * 1000, end_time * 1000
+            )
+            if profile_has_data:
+                logger.info(
+                    f"[Application] set_profile_data_status ->  "
+                    f"bk_biz_id: {self.bk_biz_id} app: {self.app_name} have data in {self.no_data_period} period"
+                )
+                self.profiling_data_status = DataStatus.NORMAL
+            else:
+                self.profiling_data_status = DataStatus.NO_DATA
+        except ValueError as e:
+            logger.warning(f"[Application] set profiling data_status failed: {e}")
+            self.profiling_data_status = DataStatus.NO_DATA
+
         self.save()
 
     @property
@@ -350,6 +373,7 @@ class Application(AbstractRecordModel):
         deployment_ids,
         language_ids,
         datasource_option,
+        enabled_profiling: bool = False,
         plugin_config=None,
     ):
         create_params = {
@@ -360,9 +384,7 @@ class Application(AbstractRecordModel):
             "es_storage_config": datasource_option,
         }
 
-        white_list = settings.APM_PROFILING_ENABLED_APPS
-        # int value would be transformed to str when saved in settings
-        if str(bk_biz_id) in white_list and app_name in white_list[str(bk_biz_id)]:
+        if enabled_profiling:
             create_params["enabled_profiling"] = True
         application_info = api.apm_api.create_application(create_params)
 
@@ -462,6 +484,8 @@ class Application(AbstractRecordModel):
         self.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
         self.metric_result_table_id = datasource_info["metric_config"]["result_table_id"]
         self.time_series_group_id = datasource_info["metric_config"]["time_series_group_id"]
+        # 应用创建时根据是否创建了 profiling 作为开启/关闭状态
+        self.is_enabled_profiling = True if "profile_config" in datasource_info else False
         self.save()
         ApmMetaConfig.application_config_setup(
             self.application_id, self.APPLICATION_DATASOURCE_CONFIG_KEY, datasource_option
@@ -515,9 +539,7 @@ class Application(AbstractRecordModel):
         permission = Permission()
         for user in list(maintainers):
             permission.grant_creator_action(
-                ResourceEnum.APM_APPLICATION.create_simple_instance(
-                    app_id, {"bk_biz_id": application.bk_biz_id}
-                ),
+                ResourceEnum.APM_APPLICATION.create_simple_instance(app_id, {"bk_biz_id": application.bk_biz_id}),
                 creator=user,
             )
 

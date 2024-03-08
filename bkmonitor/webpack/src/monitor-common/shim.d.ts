@@ -32,5 +32,6 @@ declare global {
     bk_biz_id: number;
     __BK_WEWEB_DATA__?: any;
     space_uid: string;
+    bk_docs_site_url: string;
   }
 }

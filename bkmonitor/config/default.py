@@ -365,6 +365,7 @@ ACTIVE_VIEWS = {
         "apm_service": "apm_web.service.views",
         "apm_log": "apm_web.log.views",
         "apm_db": "apm_web.db.views",
+        "apm_profile": "apm_web.profile.views",
     },
 }
 

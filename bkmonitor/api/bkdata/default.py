@@ -130,18 +130,25 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         sql = serializers.CharField(required=True, label="查询SQL语句")
+        prefer_storage = serializers.CharField(required=False, label="查询引擎")
+        _user_request = serializers.BooleanField(required=False, label="是否指定使用 user 鉴权请求接口", default=False)
 
     def perform_request(self, params):
-        if settings.BKDATA_DATA_TOKEN:
-            params["bkdata_authentication_method"] = "token"
-            params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-        else:
+        if params.get("_user_request", False):
             params["bkdata_authentication_method"] = "user"
             self.bk_username = settings.COMMON_USERNAME
-            try:
-                params["_origin_user"] = get_request().user.username
-            except Exception:
-                pass
+            params.pop("_user_request", None)
+        else:
+            if settings.BKDATA_DATA_TOKEN:
+                params["bkdata_authentication_method"] = "token"
+                params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+            else:
+                params["bkdata_authentication_method"] = "user"
+                self.bk_username = settings.COMMON_USERNAME
+                try:
+                    params["_origin_user"] = get_request().user.username
+                except Exception:
+                    pass
         return super(QueryDataResource, self).perform_request(params)
 
 
