@@ -122,7 +122,6 @@ def check_event_update():
     logger.info("check_event_update:finished, cost:%s s", time.time() - s_time)
 
 
-@share_lock()
 def refresh_custom_report_2_node_man(bk_biz_id=None):
     try:
         # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
@@ -141,6 +140,10 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
         models.CustomReportSubscription.refresh_collector_custom_conf(None, "bkmonitorproxy")
     except Exception as e:  # noqa
         logger.exception("refresh custom report config to colletor error: %s" % e)
+
+
+# 用于定时任务的包装函数，加锁防止任务重叠
+refresh_all_custom_report_2_node_man = share_lock()(refresh_custom_report_2_node_man)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshTimeSeriesMetrics")
