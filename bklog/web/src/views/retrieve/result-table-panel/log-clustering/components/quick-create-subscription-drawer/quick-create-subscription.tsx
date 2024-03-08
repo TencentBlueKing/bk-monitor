@@ -136,7 +136,17 @@ class QuickCreateSubscription extends tsc<IProps> {
               >
                 {this.$t('保存')}
               </bk-button>
-              <bk-dropdown-menu
+              <bk-button
+                theme='primary'
+                outline
+                loading={this.isSending}
+                style="width: 88px; margin-right: 8px;"
+                onClick={() => this.testSending('self')}
+              >
+                {this.$t('测试发送')}
+              </bk-button>
+              {/* 20240305 若默认测试发送只给自己，那么没必要再出一次气泡窗选择了 */}
+              {false && <bk-dropdown-menu
                 trigger='click'
                 placement='top-start'
               >
@@ -172,7 +182,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     </a>
                   </li> */}
                 </ul>
-              </bk-dropdown-menu>
+              </bk-dropdown-menu>}
               <bk-button
                 style="width: 88px;"
                 onClick={() => this.$emit('change', false)}

@@ -139,9 +139,9 @@ export default {
   发送成功: 'Send Success',
   发送部分失败: 'Send Partially Failed',
   发送失败: 'Send Failed',
-  有效时间范围: 'Effective Time Range',
   发送结果: 'Send Result',
   通知渠道: 'Notification Channel',
   接收人: 'Recipient',
-  变量说明: 'Variable Description'
+  变量说明: 'Variable Description',
+  任务有效期: 'Task validity period'
 };

@@ -39,7 +39,7 @@ import './create-subscription.scss';
 
 export default defineComponent({
   name: 'CreateSubscription',
-  setup() {
+  setup(prop, { emit }) {
     const { t } = useI18n();
     const router = useRouter();
     // 测试发送 按钮 loading
@@ -92,9 +92,7 @@ export default defineComponent({
               theme: 'success',
               message: t('保存成功')
             });
-            router.replace({
-              name: 'report'
-            });
+            emit('saveSuccess');
           })
           .finally(() => {
             isSaving.value = false;
@@ -127,7 +125,8 @@ export default defineComponent({
       refOfCreateSubscriptionForm,
       isShowTestSendResult,
       isShowDropdownMenu,
-      handleGoToReportListPage
+      handleGoToReportListPage,
+      emit
     };
   },
   render() {
@@ -183,9 +182,7 @@ export default defineComponent({
           <Button
             style='width: 88px;'
             onClick={() => {
-              this.router.replace({
-                name: 'report'
-              });
+              this.emit('closeCreateSubscriptionSlider');
             }}
           >
             {this.t('取消')}

@@ -112,7 +112,7 @@ export default defineComponent({
           />
 
           <DetailRow
-            label={this.t('敏感度')}
+            label='Pattern'
             value={this.detailInfo.scenario_config.pattern_level}
           />
 
@@ -212,7 +212,7 @@ export default defineComponent({
                       return (
                         <span
                           class='email'
-                          style='display: inline-flex;margin-bottom: 7px;'
+                          style='display: inline-flex;height: 16px;align-items: center;margin-bottom: 7px;'
                         >
                           {item.id}
                         </span>
@@ -235,7 +235,7 @@ export default defineComponent({
                       return (
                         <span
                           class='group-id'
-                          style='display: inline-flex;margin-bottom: 7px;'
+                          style='display: inline-flex;height: 16px;align-items: center;margin-bottom: 7px;'
                         >
                           {item.id}
                         </span>
@@ -267,7 +267,7 @@ export default defineComponent({
 
           {this.detailInfo.frequency.type !== FrequencyType.onlyOnce && (
             <DetailRow
-              label={this.t('有效时间范围')}
+              label={this.t('任务有效期')}
               value={this.getTimeRange}
             />
           )}
