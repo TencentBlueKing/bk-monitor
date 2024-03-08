@@ -324,7 +324,7 @@ class PatternHandler:
                 origin_pattern=params["origin_pattern"],
                 groups=params["groups"],
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
-                remark=owners,
+                owners=owners,
             )
         else:
             remark_obj.owners = owners
