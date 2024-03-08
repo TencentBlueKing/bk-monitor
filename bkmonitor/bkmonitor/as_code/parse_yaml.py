@@ -13,6 +13,7 @@ import datetime
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
+import re
 
 from rest_framework.exceptions import ValidationError
 
@@ -616,7 +617,7 @@ class StrategyConfigParser(BaseConfigParser):
 
         code_config["notice"] = notice
 
-    def unparse(self, config: Dict) -> Dict:
+    def unparse(self, config: Dict, is_replace_table_id: bool = False) -> Dict:
         # config --> yaml
         code_config = {"name": config["name"], "version": MaxVersion.STRATEGY}
 
@@ -640,6 +641,16 @@ class StrategyConfigParser(BaseConfigParser):
         query = {"data_source": data_source, "data_type": data_type, "query_configs": []}
         for query_config in query_configs:
             code_query_config = {"metric": get_metric_id(data_source, data_type, query_config)}
+            # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID部分替换为 data_label
+            data_label = query_config.get("data_label", None)
+            if is_replace_table_id and data_label and \
+                    (query_config.get("data_source_label", None) in
+                     [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]):
+                code_query_config["metric"] = re.sub(
+                    rf"\b{query_config['result_table_id']}\b",
+                    data_label,
+                    code_query_config["metric"]
+                )
             field_mapping = {
                 "query_string": "query_string",
                 "agg_method": "method",
