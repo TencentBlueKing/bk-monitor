@@ -80,7 +80,7 @@ def sync(model_id=None, model_output_rt=None):
     patterns = get_pattern(content)
     objects_to_create, objects_to_update = make_signature_objects(patterns=patterns, model_id=model_id)
     AiopsSignatureAndPattern.objects.bulk_create(objects_to_create)
-    AiopsSignatureAndPattern.objects.bulk_update(objects_to_update, fields=["pattern"])
+    AiopsSignatureAndPattern.objects.bulk_update(objects_to_update, fields=["pattern", "origin_pattern"])
 
 
 def get_pattern(content) -> list:
