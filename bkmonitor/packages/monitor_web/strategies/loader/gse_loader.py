@@ -11,7 +11,10 @@ specific language governing permissions and limitations under the License.
 
 from typing import List, Optional
 
-from django.conf import settings
+from bkmonitor.models import StrategyModel
+from constants.action import ActionSignal
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
+from core.drf_resource import resource
 from monitor_web.strategies.constant import (
     DEFAULT_ALARM_STRATEGY_ATTR_NAME_GSE,
     DEFAULT_ALARM_STRATEGY_LOADER_TYPE_GSE,
@@ -22,10 +25,6 @@ from monitor_web.strategies.user_groups import (
     create_default_notice_group,
     get_or_create_plugin_manager_group,
 )
-
-from bkmonitor.models import StrategyModel
-from constants.action import ActionSignal
-from core.drf_resource import resource
 
 __all__ = ["GseDefaultAlarmStrategyLoader"]
 
@@ -99,7 +98,7 @@ class GseDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
                 "config": {
                     "interval_notify_mode": "standard",
                     "notify_interval": 2 * 60 * 60,
-                    "template": settings.DEFAULT_NOTICE_MESSAGE_TEMPLATE,
+                    "template": DEFAULT_NOTICE_MESSAGE_TEMPLATE,
                 },
             }
             detects = [
