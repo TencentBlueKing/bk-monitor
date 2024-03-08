@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from apps.log_databus.constants import PluginParamOpEnum
 
 
 def deal_collector_scenario_param(params):
@@ -28,7 +29,16 @@ def deal_collector_scenario_param(params):
         condition = params["conditions"].get("separator_filters", [])
         filter_bucket = []
         for index, item in enumerate(condition):
-            item["op"] = item["op"] if item["op"] in ["eq", "neq", "include", "exclude", "regex", "nregex"] else "eq"
+            item["op"] = item["op"]
+            if item["op"] not in [
+                PluginParamOpEnum.OP_EQ,
+                PluginParamOpEnum.OP_NEQ,
+                PluginParamOpEnum.OP_INCLUDE,
+                PluginParamOpEnum.OP_EXCLUDE,
+                PluginParamOpEnum.OP_REGEX,
+                PluginParamOpEnum.OP_NREGEX,
+            ]:
+                item["op"] = "eq"
             if index == 0 or item.get("logic_op", "and") == "and":
                 if item.get("word"):
                     filter_bucket.append({"index": item["fieldindex"], "key": item["word"], "op": item["op"]})

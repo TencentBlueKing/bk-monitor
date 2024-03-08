@@ -39,6 +39,9 @@ from apps.log_databus.constants import (
     EsSourceType,
     EtlConfig,
     LabelSelectorOperator,
+    PluginParamOpEnum,
+    SyslogFilterFieldEnum,
+    SyslogProtocolEnum,
     TopoType,
     VisibleEnum,
 )
@@ -51,7 +54,6 @@ from apps.log_search.constants import (
     EncodingsEnum,
     EtlConfigEnum,
     FieldBuiltInEnum,
-    SyslogProtocolEnum,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
@@ -153,6 +155,16 @@ class PluginConditionSerializer(serializers.Serializer):
         return attrs
 
 
+class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
+    syslog_content = serializers.CharField(label=_("匹配值"), max_length=255)
+    syslog_op = serializers.ChoiceField(
+        label=_("操作符"), choices=PluginParamOpEnum.get_choices(), required=False, default=PluginParamOpEnum.OP_INCLUDE
+    )
+    syslog_field = serializers.ChoiceField(
+        label=_("匹配字段"), choices=SyslogFilterFieldEnum.get_choices(), required=False, default=""
+    )
+
+
 class PluginParamSerializer(serializers.Serializer):
     """
     插件参数序列化
@@ -193,6 +205,13 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("windows事件内容"), child=serializers.CharField(max_length=255), required=False
     )
 
+    winlog_match_op = serializers.ChoiceField(
+        label=_("windows事件内容匹配操作符"),
+        choices=PluginParamOpEnum.get_choices(),
+        required=False,
+        default=PluginParamOpEnum.OP_INCLUDE,
+    )
+
     # Redis慢日志相关参数
     redis_hosts = serializers.ListField(
         label=_("redis目标"), child=serializers.CharField(max_length=255), required=False, default=[]
@@ -208,6 +227,9 @@ class PluginParamSerializer(serializers.Serializer):
     syslog_protocol = serializers.ChoiceField(label=_("协议"), choices=SyslogProtocolEnum.get_choices(), required=False)
     syslog_port = serializers.IntegerField(label=_("端口"), required=False)
     syslog_monitor_host = serializers.CharField(label=_("syslog监听服务器IP"), required=False, allow_blank=True)
+    syslog_conditions = serializers.ListSerializer(
+        label=_("syslog过滤条件"), required=False, default=[], child=SyslogPluginConditionFiltersSerializer()
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

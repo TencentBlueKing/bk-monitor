@@ -36,9 +36,36 @@ class SysLogScenario(CollectorScenario):
         syslog_monitor_host = params.get("syslog_monitor_host") or "{{ cmdb_instance.host.bk_host_innerip }}"
         syslog_port = str(params["syslog_port"])
 
+        # syslog 过滤规则
+        syslog_conditions = params.get("syslog_conditions", [])
+
+        filters_conditions = list()
+        for condition in syslog_conditions:
+            # 多个条件之间默认为 and 关系
+            if type(condition) is not dict:
+                continue
+
+            field = condition.get("syslog_field", "")
+            key = condition.get("syslog_content", "")
+            op = condition.get("syslog_op", "include")
+
+            if not key:
+                continue
+
+            temp_condition = {"index": "-1", "key": key, "op": op}
+            if field:
+                # syslog 字段值匹配 当下发配置中定义了field字段 插件会按照field指定的字段值进行过滤 默认是按日志内容过滤
+                temp_condition["field"] = field
+
+            filters_conditions.append(temp_condition)
+
+        filters = [{"conditions": filters_conditions}] if filters_conditions else []
+
         local_params = {
             "protocol": params.get("syslog_protocol", "").lower(),
             "host": f"{syslog_monitor_host}:{syslog_port}",
+            "filters": filters,
+            "delimiter": "|",  # 字符串过滤 delimiter 统一传 |
         }
         local_params = self._deal_edge_transport_params(local_params, data_link_id)
         local_params = self._handle_collector_config_overlay(local_params, params)
@@ -63,9 +90,26 @@ class SysLogScenario(CollectorScenario):
         if local:
             host_list = local["host"].split(":")
             syslog_port = host_list[1] if host_list else 0
-            return {"syslog_protocol": local["protocol"], "syslog_port": syslog_port}
+            filters = local.get("filters", [])
+            syslog_conditions = list()
+
+            if filters:
+                for condition in filters[0]["conditions"]:
+                    syslog_conditions.append(
+                        {
+                            "syslog_content": condition.get("key", ""),
+                            "syslog_op": condition.get("op", "include"),
+                            "syslog_field": condition.get("field", ""),
+                        }
+                    )
+
+            return {
+                "syslog_protocol": local["protocol"],
+                "syslog_port": syslog_port,
+                "syslog_conditions": syslog_conditions,
+            }
         else:
-            return {"syslog_protocol": "", "syslog_port": 0}
+            return {"syslog_protocol": "", "syslog_port": 0, "syslog_conditions": []}
 
     @classmethod
     def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT):
