@@ -300,37 +300,36 @@ class PatternHandler:
             )
         return {new_class["signature"] for new_class in new_classes}
 
-    def set_signature_config(self, params: dict):
+    def set_clustering_owner(self, params: dict):
         """
         日志聚类-数据指纹 页面展示信息修改
         """
-
-        qs_objs = ClusteringRemark.objects.filter(
-            Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
+        remark_obj = (
+            ClusteringRemark.objects.filter(
+                Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
+            )
+            .filter(
+                bk_biz_id=self._clustering_config.bk_biz_id,
+                group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
+            )
+            .first()
         )
-        current_qs_obj = qs_objs.filter(
-            group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"])
-        ).first()
-        if not current_qs_obj:
-            return
-        if params.get("owners", []):
-            if current_qs_obj.owners:
-                for o in params.get("owners", []):
-                    if o not in current_qs_obj.owners:
-                        current_qs_obj.owners.append(o)
-            else:
-                current_qs_obj.owners = params["owners"]
-            current_qs_obj.save()
-            if qs_objs.exclude(id=current_qs_obj.id):
-                for q in qs_objs.exclude(id=current_qs_obj.id):
-                    if q.owners:
-                        for o in params.get("owners", []):
-                            if o not in q.owners:
-                                q.owners.append(o)
-                    else:
-                        q.owners = params.get("owners", [])
-                    q.save()
-        return model_to_dict(current_qs_obj)
+
+        owners = list(set(params.get("owners", [])))
+
+        if not remark_obj:
+            remark_obj = ClusteringRemark(
+                bk_biz_id=self._clustering_config.bk_biz_id,
+                signature=params["signature"],
+                origin_pattern=params["origin_pattern"],
+                groups=params["groups"],
+                group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
+                remark=owners,
+            )
+        else:
+            remark_obj.owners = owners
+        remark_obj.save()
+        return model_to_dict(remark_obj)
 
     def update_group_fields(self, params: dict):
         """
@@ -345,18 +344,22 @@ class PatternHandler:
         """
         日志聚类-数据指纹 页面展示信息修改
         """
-        qs_objs = ClusteringRemark.objects.filter(
-            Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
+        remark_obj = (
+            ClusteringRemark.objects.filter(
+                Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
+            )
+            .filter(
+                bk_biz_id=self._clustering_config.bk_biz_id,
+                group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
+            )
+            .first()
         )
-        current_qs_obj = qs_objs.filter(
-            group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"])
-        ).first()
         now = int(arrow.now().timestamp * 1000)
         # 如果不存在则新建  同时同步其它signature或origin_pattern相同的ClusteringRemark
         if method == "create":
             remark_info = {"username": get_request_username(), "create_time": now, "remark": params["remark"]}
-            if not current_qs_obj:
-                new_qs_obj = ClusteringRemark.objects.create(
+            if not remark_obj:
+                remark_obj = ClusteringRemark.objects.create(
                     bk_biz_id=self._clustering_config.bk_biz_id,
                     signature=params["signature"],
                     origin_pattern=params["origin_pattern"],
@@ -364,93 +367,41 @@ class PatternHandler:
                     group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
                     remark=[remark_info],
                 )
-                # signature 或者origin_pattern 相同的需要同步 新增
-                if qs_objs.exclude(id=new_qs_obj.id):
-                    for q in qs_objs.exclude(id=new_qs_obj.id):
-                        if q.remark:
-                            q.remark.append(remark_info)
-                        else:
-                            q.remark = [remark_info]
-                        q.save()
-                return model_to_dict(new_qs_obj)
             else:
-                if current_qs_obj.remark:
-                    current_qs_obj.remark.append(remark_info)
+                if remark_obj.remark:
+                    remark_obj.remark.append(remark_info)
                 else:
-                    current_qs_obj.remark = [remark_info]
-                current_qs_obj.save()
-                # signature 或者origin_pattern 相同的需要同步 新增
-                if qs_objs.exclude(id=current_qs_obj.id):
-                    for q in qs_objs.exclude(id=current_qs_obj.id):
-                        if q.remark:
-                            q.remark.append(remark_info)
-                        else:
-                            q.remark = [remark_info]
-                        q.save()
+                    remark_obj.remark = [remark_info]
+                remark_obj.save()
         elif method == "update":
-            if current_qs_obj:
-                # 当前备注信息修改
-                for remark in current_qs_obj.remark:
-                    if (
-                        remark["create_time"] == params["create_time"]
-                        and remark["username"] == get_request_username()
-                        and remark["remark"] == params["old_remark"]
-                    ):
-                        remark["remark"] = params["new_remark"]
-                        remark["create_time"] = now
-                        break
-                current_qs_obj.save()
-                # signature 或者origin_pattern 相同的需要同步 修改
-                if qs_objs.exclude(id=current_qs_obj.id):
-                    for q in qs_objs.exclude(id=current_qs_obj.id):
-                        # 如果有备注
-                        if q.remark:
-                            for remark in q.remark:
-                                if (
-                                    remark["create_time"] == params["create_time"]
-                                    and remark["username"] == get_request_username()
-                                    and remark["remark"] == params["old_remark"]
-                                ):
-                                    remark["remark"] = params["new_remark"]
-                                    remark["create_time"] = now
-                        # 如果没有备注则需要添加一条
-                        else:
-                            q.remark = [
-                                {"username": get_request_username(), "create_time": now, "remark": params["new_remark"]}
-                            ]
-                        q.save()
-            else:
+            if not remark_obj:
                 return
+            # 当前备注信息修改
+            for remark in remark_obj.remark:
+                if (
+                    remark["create_time"] == params["create_time"]
+                    and remark["username"] == get_request_username()
+                    and remark["remark"] == params["old_remark"]
+                ):
+                    remark["remark"] = params["new_remark"]
+                    remark["create_time"] = now
+                    break
+            remark_obj.save()
         elif method == "delete":
-            if current_qs_obj:
-                for remark in current_qs_obj.remark:
-                    if (
-                        remark["create_time"] == params["create_time"]
-                        and remark["username"] == get_request_username()
-                        and remark["remark"] == params["remark"]
-                    ):
-                        current_qs_obj.remark.remove(remark)
-                        break
-                current_qs_obj.save()
-                if qs_objs.exclude(id=current_qs_obj.id):
-                    for q in qs_objs.exclude(id=current_qs_obj.id):
-                        if q.remark:
-                            for remark in q.remark:
-                                if (
-                                    remark["create_time"] == params["create_time"]
-                                    and remark["username"] == get_request_username()
-                                    and remark["remark"] == params["remark"]
-                                ):
-                                    q.remark.remove(remark)
-                                    break
-                        else:
-                            continue
-                        q.save()
-            else:
+            if not remark_obj:
                 return
+            for remark in remark_obj.remark:
+                if (
+                    remark["create_time"] == params["create_time"]
+                    and remark["username"] == get_request_username()
+                    and remark["remark"] == params["remark"]
+                ):
+                    remark_obj.remark.remove(remark)
+                    break
+            remark_obj.save()
         else:
             return
-        return model_to_dict(current_qs_obj)
+        return model_to_dict(remark_obj)
 
     @classmethod
     def _generate_strategy_result(cls, strategy_result):

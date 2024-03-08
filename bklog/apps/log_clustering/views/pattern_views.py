@@ -322,7 +322,7 @@ class PatternViewSet(APIViewSet):
         }
         """
         params = self.params_valid(SetOwnerSerializer)
-        return Response(PatternHandler(index_set_id, {}).set_signature_config(params=params))
+        return Response(PatternHandler(index_set_id, {}).set_clustering_owner(params=params))
 
     @detail_route(methods=["GET"], url_path="get_owner")
     def get_owners(self, request, index_set_id):
