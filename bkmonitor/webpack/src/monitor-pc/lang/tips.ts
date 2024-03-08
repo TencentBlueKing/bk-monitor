@@ -221,5 +221,9 @@ export default {
   企业微信群不可为空: 'Enterprise WeChat group cannot be empty',
   '是否发送给自己?': 'Send to yourself?',
   更新人: 'Updater',
-  更新时间: 'Update time'
+  更新时间: 'Update time',
+  '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm',
+  '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。':
+    'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.',
+  当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals.'
 };

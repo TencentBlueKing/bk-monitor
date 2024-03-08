@@ -291,7 +291,7 @@ class MySubscription extends tsc<{}> {
                       class='label'
                       style='margin-left: 55px;'
                     >
-                      {this.$t('有效时间范围')}:
+                      {this.$t('任务有效期')}:
                     </div>
                     <div class='value'>
                       {this.formatTimeRange(this.detailInfo.start_time, this.detailInfo.end_time)}

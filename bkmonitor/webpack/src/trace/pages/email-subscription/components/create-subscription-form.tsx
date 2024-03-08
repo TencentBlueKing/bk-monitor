@@ -26,6 +26,7 @@
 import { defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
+  Alert,
   Button,
   Checkbox,
   DatePicker,
@@ -54,7 +55,7 @@ import ExistedReportAlert from './existed-report-alert';
 
 import './create-subscription-form.scss';
 
-/** 敏感度 枚举。这里做成枚举是方便反向映射。即：通过 value 转成 key 。 */
+/** Pattern 枚举。这里做成枚举是方便反向映射。即：通过 value 转成 key 。 */
 enum PatternLevelEnum {
   '01' = 100,
   '03' = 75,
@@ -90,6 +91,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const formData = reactive(getDefaultReportData());
+    const emailRegex =
+      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     /** 表单验证规则 */
     const formDataRules = {
       frequency: [
@@ -139,9 +142,7 @@ export default defineComponent({
                     // 校验邮箱格式
                     const result = String(subscriber.id || '')
                       .toLowerCase()
-                      .match(
-                        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-                      );
+                      .match(emailRegex);
                     if (!result) {
                       isInvalid = true;
                       errorTips[item.channel_name].isShow = true;
@@ -182,10 +183,10 @@ export default defineComponent({
         isShow: false
       }
     });
-    /** 敏感度 选择器 */
+    /** Pattern 选择器 */
     const pattenLevelSlider = ref(0);
-    /** 有效时间范围 相关 */
-    const dataRange = ref('none');
+    /** 任务有效期 相关 */
+    const dataRange = ref('5minutes');
     /** 订阅人 项相关变量。这里会监听该变量变化动态修改 formData 中 channels 。 */
     const subscriberInput = reactive({
       user: [],
@@ -225,7 +226,8 @@ export default defineComponent({
     ];
     /** 时间范围选项 */
     const timeRangeOption = [
-      { id: 'none', name: t('按发送频率') },
+      // 20240308 该选项暂时不需要。
+      // { id: 'none', name: t('按发送频率') },
       ...[5, 15, 30].map(n => ({ id: `${n}minutes`, name: t('近{n}分钟', { n }) })),
       ...[1, 3, 6, 12, 24].map(n => ({ id: `${n}hours`, name: t('近{n}小时', { n }) })),
       ...[2, 7, 30].map(n => ({ id: `${n}days`, name: t('近 {n} 天', { n }) }))
@@ -244,6 +246,7 @@ export default defineComponent({
       columns: {
         fields: [
           {
+            width: '160px',
             label: `${t('订阅名称')}`,
             render: ({ data }) => {
               return (
@@ -263,10 +266,12 @@ export default defineComponent({
             }
           },
           {
+            width: '100px',
             label: `${t('变量说明')}`,
             field: 'description'
           },
           {
+            width: '160px',
             label: `${t('示例')}`,
             field: 'example'
           }
@@ -276,6 +281,8 @@ export default defineComponent({
     /** 当选择已创建过订阅的索引集时，显示该警告 */
     const isShowExistSubscriptionTips = ref(false);
     const existedReportList = ref([]);
+    const customHourInput = ref('');
+    const refOfFrequencyHour = ref(null);
     /** 当选择 发送频率 为 仅一次 要保留当前所生成或选择的时间。否则就看起来是 bug 。 */
     let isNotChooseOnlyOnce = true;
     function handleSliderChange() {
@@ -368,27 +375,69 @@ export default defineComponent({
         refOfContentForm.value?.validate?.(),
         refOfEmailSubscription.value?.validate?.(),
         refOfSendingConfigurationForm.value?.validate?.()
-      ]).then(() => {
-        const clonedFormData = deepClone(formData);
-        const deletedKeyFormData =
-          props.mode === 'create'
-            ? switchReportDataForCreate(clonedFormData)
-            : switchReportDataForUpdate(clonedFormData);
-        /* eslint-disable */
-        // const {
-        //   timerange,
-        //   ...deletedKeyFormData
-        // } = clonedFormData;
-        /* eslint-enable */
-        return deletedKeyFormData;
-      });
+      ])
+        .then(() => {
+          const clonedFormData = deepClone(formData);
+          const deletedKeyFormData =
+            props.mode === 'create'
+              ? switchReportDataForCreate(clonedFormData)
+              : switchReportDataForUpdate(clonedFormData);
+          /* eslint-disable */
+          // const {
+          //   timerange,
+          //   ...deletedKeyFormData
+          // } = clonedFormData;
+          /* eslint-enable */
+          return deletedKeyFormData;
+        })
+        .catch(error => {
+          // 表单验证失败后，聚焦到对应的元素。
+          const targetFormItemEle = document.querySelector('.bk-form-item.is-error');
+          if (targetFormItemEle.attributes?.['data-property']?.value === 'channels') {
+            // 订阅人栏需要特殊处理，如果有选中特定类型的发送人。就要再检查一次对应的输入框
+            const targetChannel = formData.channels.find(
+              item =>
+                item.is_enabled &&
+                (item.channel_name !== 'email'
+                  ? !item.subscribers.length
+                  : // 检查订阅邮箱格式是否正确。
+                    !item.subscribers.every(email => String(email.id).toLowerCase().match(emailRegex)) ||
+                    !item.subscribers.length)
+            )?.channel_name;
+            if (targetChannel) targetFormItemEle.querySelector(`#${targetChannel}-input`)?.focus();
+            else {
+              // 如果订阅人未选择任何类型，应该把焦点定位在 订阅人 一栏
+              document.querySelector('#subscriptor-item')?.focus?.();
+            }
+          } else {
+            // 这里去匹配除 订阅人 栏之外的输入框。并使之自动聚焦
+            targetFormItemEle.querySelector('input.bk-input--text,.bk-date-picker-editor')?.focus();
+          }
+          return Promise.reject(error);
+        });
     }
     /**
      * @desc 拷贝操作
      * @param { * } val
      */
     function handleCopy(text) {
-      copyText(`{{${text}}}`, msg => {
+      let switchedText = '';
+      switch (text) {
+        case 'time':
+          switchedText = dayjs(new Date()).format('YYYY-MM-DD HH:mm');
+          break;
+        case 'index_set_name':
+          switchedText =
+            indexSetIDList.value.find(item => item.id === formData.scenario_config.index_set_id)?.name || '';
+          break;
+        case 'business_name':
+          switchedText = window.space_list.find(item => item.bk_biz_id === window.bk_biz_id)?.name || '';
+          break;
+        default:
+          switchedText = `{{${text}}}`;
+          break;
+      }
+      copyText(switchedText, msg => {
         Message({
           message: msg,
           theme: 'error'
@@ -423,7 +472,7 @@ export default defineComponent({
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { data_range } = formData.frequency;
       dataRange.value = data_range ? ((data_range.number + data_range.time_level) as string) : 'none';
-      // 敏感度
+      // Pattern
       // TODO: 为什么要这么写？
       nextTick(() => {
         pattenLevelSlider.value = PatternLevelEnum[formData.scenario_config.pattern_level] || 0;
@@ -443,6 +492,13 @@ export default defineComponent({
       // 处理 发送频率 的数据
       switch (formData.frequency.type) {
         case FrequencyType.hourly:
+          // 由于 hourOption 可以自定义输入添加，这里需要判断一次是否有其它未被收录的选项，如果没有则增加一个选项，以免无法显示。
+          if (hourOption.every(item => Number(item.id) !== formData.frequency.hour)) {
+            hourOption.push({
+              id: Number(formData.frequency.hour),
+              name: t('{0}小时', [Number(formData.frequency.hour)])
+            });
+          }
           frequency.hour = formData.frequency.hour;
           break;
         case FrequencyType.dayly:
@@ -661,7 +717,9 @@ export default defineComponent({
       errorTips,
       existedReportList,
       handleExistedReportNameClick,
-      setFormData
+      setFormData,
+      customHourInput,
+      refOfFrequencyHour
     };
   },
   render() {
@@ -700,7 +758,7 @@ export default defineComponent({
                   })}
                 </Select>
                 {this.isShowExistSubscriptionTips && (
-                  <div style='margin-top: 8px;width: 800px;'>
+                  <div style='margin-top: 8px;width: 100%;'>
                     <ExistedReportAlert
                       existedReportList={this.existedReportList}
                       style='width: 465px;'
@@ -777,10 +835,11 @@ export default defineComponent({
                   })}
                 </Select>
                 {this.isShowExistSubscriptionTips && (
-                  <div style='margin-top: 8px;width: 800px;'>
+                  <div style='margin-top: 8px;width: 100%;'>
                     <ExistedReportAlert
                       existedReportList={this.existedReportList}
                       onReportNameClick={this.handleExistedReportNameClick}
+                      style='width: 465px;'
                     />
                   </div>
                 )}
@@ -806,6 +865,18 @@ export default defineComponent({
                     );
                   })}
                 </Select>
+
+                <div style='margin-top: 8px;width: 100%;'>
+                  <Alert
+                    theme='warning'
+                    style='width: 465px;'
+                    v-slots={{
+                      title: () => {
+                        return this.t('当前日志查询时间范围不支持静态区间');
+                      }
+                    }}
+                  ></Alert>
+                </div>
               </Form.FormItem>
             )}
 
@@ -848,12 +919,23 @@ export default defineComponent({
                           );
                         })}
                       </Select>
+                      <div style='margin-top: 8px;width: 100%;'>
+                        <Alert
+                          theme='warning'
+                          style='width: 465px;'
+                          v-slots={{
+                            title: () => {
+                              return this.t('当前日志查询时间范围不支持静态区间');
+                            }
+                          }}
+                        ></Alert>
+                      </div>
                     </Form.FormItem>
                   </div>
                 )}
 
                 <Form.FormItem
-                  label={this.t('敏感度')}
+                  label='Pattern'
                   property='scenario_config.pattern_level'
                   required
                 >
@@ -1032,9 +1114,12 @@ export default defineComponent({
 
             {/* 需要自定义校验规则 */}
             <Form.FormItem
+              id='subscriptor-item'
+              tabindex='1'
               label={this.t('订阅人')}
               property='channels'
               required
+              data-property='channels'
             >
               {this.subscribeFor === 'self' && (
                 <div>
@@ -1043,6 +1128,8 @@ export default defineComponent({
                   {/* 该自定义属性是用来避免正确的输入框显示警告颜色 */}
                   <div data-is-show-error-msg={this.errorTips.user.isShow}>
                     <MemberSelect
+                      id='user-input'
+                      tabindex='1'
                       v-model={this.subscriberInput.user}
                       style='width: 465px;'
                       onChange={() => {
@@ -1070,6 +1157,7 @@ export default defineComponent({
                       content={this.t('多个邮箱使用逗号隔开')}
                     >
                       <Input
+                        id='email-input'
                         v-model={this.subscriberInput.email}
                         prefix={this.t('邮件列表')}
                         disabled={!this.formData.channels[1].is_enabled}
@@ -1118,6 +1206,7 @@ export default defineComponent({
                       }}
                     >
                       <Input
+                        id='wxbot-input'
                         v-model={this.subscriberInput.wxbot}
                         prefix={this.t('群ID')}
                         disabled={!this.formData.channels[2].is_enabled}
@@ -1146,9 +1235,51 @@ export default defineComponent({
 
               {this.formData.frequency.type === FrequencyType.hourly && (
                 <Select
+                  ref='refOfFrequencyHour'
                   v-model={this.frequency.hour}
                   clearable={false}
                   style='width: 240px;'
+                  v-slots={{
+                    extension: () => {
+                      return (
+                        <div style='width: 100%;padding: 10px 16px;'>
+                          <Input
+                            v-model={this.customHourInput}
+                            type='text'
+                            size='small'
+                            placeholder={this.t('输入自定义小时，按 Enter 确认')}
+                            onEnter={() => {
+                              // 添加自定义 发送频率 ，如果输入有重复要直接选中。
+                              let inputNumber = Number(this.customHourInput);
+                              if (!inputNumber) {
+                                return Message({
+                                  theme: 'warning',
+                                  message: this.t('请输入有效数值')
+                                });
+                              }
+                              const minNum = 0.5;
+                              const maxNum = 24;
+                              if (inputNumber > maxNum) {
+                                inputNumber = maxNum;
+                                this.customHourInput = inputNumber;
+                              }
+                              if (inputNumber < minNum) {
+                                inputNumber = minNum;
+                                this.customHourInput = inputNumber;
+                              }
+                              const isHasDuplicatedNum = this.hourOption.find(item => item.id === inputNumber);
+                              if (!isHasDuplicatedNum) {
+                                this.hourOption.push({ id: inputNumber, name: this.t('{0}小时', [inputNumber]) });
+                              }
+                              this.frequency.hour = inputNumber;
+                              this.customHourInput = '';
+                              this.refOfFrequencyHour.hidePopover();
+                            }}
+                          ></Input>
+                        </div>
+                      );
+                    }
+                  }}
                 >
                   {this.hourOption.map(item => {
                     return (
@@ -1158,6 +1289,12 @@ export default defineComponent({
                       ></Select.Option>
                     );
                   })}
+                  {/* {this.hourOption.find(item => Number(item.id) !== this.frequency.hour) && (
+                    <Select.Option
+                      id={Number(this.frequency.hour)}
+                      name={this.t('{0}小时', [Number(this.frequency.hour)])}
+                    />
+                  )} */}
                 </Select>
               )}
 
@@ -1237,9 +1374,10 @@ export default defineComponent({
 
             {this.formData.frequency.type !== FrequencyType.onlyOnce && (
               <Form.FormItem
-                label={this.t('有效时间范围')}
+                label={this.t('任务有效期')}
                 property='timerange'
                 required
+                description={this.t('有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。')}
               >
                 <DatePicker
                   modelValue={this.formData.timerange}

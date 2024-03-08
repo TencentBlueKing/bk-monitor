@@ -597,6 +597,7 @@ export default {
   邮件标题: 'Mail title',
   订阅人: 'Subscriber',
   发送频率: 'Send frequency',
-  有效时间范围: 'Valid time range',
-  只展示新类: 'Only show new classes'
+  只展示新类: 'Only show new classes',
+  任务有效期: 'Task validity period',
+  '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。': 'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.'
 };

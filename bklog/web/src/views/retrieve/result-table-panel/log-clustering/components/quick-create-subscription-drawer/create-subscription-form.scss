@@ -40,6 +40,18 @@
     font-size: 12px;
   }
 
+  .bk-label-text {
+    font-size: 12px;
+  }
+
+  .bk-radio-button-text {
+    font-size: 12px;
+  }
+
+  .bk-checkbox-text {
+    font-size: 12px;
+  }
+
   .bk-form-item.is-error {
     [data-is-show-error-msg='true'] {
       .user-selector-container {
@@ -58,6 +70,17 @@
         /* stylelint-disable-next-line declaration-no-important */
         border-color: #3a84ff !important;
       }
+    }
+  }
+
+  // 这里处理组件库的显示 bug ，不然 DatePicker 无法正常显示。
+  .no-relative {
+    &.bk-form-item {
+      position: static;
+    }
+
+    .bk-form-content {
+      position: static;
     }
   }
 }

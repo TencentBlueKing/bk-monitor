@@ -24,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, reactive, ref } from 'vue';
+import { defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -55,10 +55,12 @@ import {
 } from '../../../monitor-api/modules/new_report';
 import { deepClone, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
 import { docCookies } from '../../../monitor-common/utils/utils';
+import NavBar from '../../components/nav-bar/nav-bar';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
+import CreateSubscription from './create-subscription';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
 import { FrequencyType, TestSendingTarget } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
@@ -97,11 +99,19 @@ export default defineComponent({
     const toggleMap = reactive<TooltipsToggleMapping>({});
     // 显示 发送记录 的 dialog
     const isShowSendRecord = ref(false);
+    const isShowCreateSubscription = ref(false);
+    const navList = ref([
+      {
+        id: 'report',
+        name: t('邮件订阅')
+      }
+    ]);
     const table = reactive({
       data: [],
       columns: {
         fields: [
           {
+            width: '20%',
             label: `${t('订阅名称')}`,
             field: 'name',
             render: ({ data }) => {
@@ -292,6 +302,7 @@ export default defineComponent({
             }
           },
           {
+            width: '50px',
             label: `${t('启/停')}`,
             field: 'is_enabled',
             render: ({ data, index }) => {
@@ -300,6 +311,7 @@ export default defineComponent({
                   <Switcher
                     v-model={data.is_enabled}
                     theme='primary'
+                    size='small'
                     onChange={() => handleSetEnable(index)}
                   ></Switcher>
                 </div>
@@ -939,6 +951,10 @@ export default defineComponent({
       }
     }
 
+    watch(route, () => {
+      checkNeedShowEditSlider();
+    });
+
     onMounted(() => {
       checkNeedShowEditSlider();
       fetchSubscriptionList();
@@ -977,7 +993,9 @@ export default defineComponent({
       handleReportDetailChange,
       isFetchReport,
       isShowCreateReportFormComponent,
-      isOnCloneMode
+      isOnCloneMode,
+      navList,
+      isShowCreateSubscription
     };
   },
   render() {
@@ -987,14 +1005,17 @@ export default defineComponent({
           <div class='left-container'>
             <Button
               theme='primary'
-              onClick={this.handleGoToCreateConfigPage}
+              // onClick={this.handleGoToCreateConfigPage}
+              onClick={() => {
+                this.isShowCreateSubscription = true;
+              }}
             >
               <i class='icon-monitor icon-mc-add'></i>
               <span>{this.t('新建')}</span>
             </Button>
             <Radio.Group
               v-model={this.createType}
-              style='margin-left: 16px;'
+              style='margin-left: 16px;background-color: white;'
               onChange={() => {
                 this.resetAndGetSubscriptionList();
               }}
@@ -1056,342 +1077,367 @@ export default defineComponent({
       );
     };
     return (
-      <div class='email-subscription-config-container'>
-        {/* 头部搜索 部分 */}
-        {headerTmpl()}
-        <Loading loading={this.table.isLoading}>
-          <Table
-            data={this.table.data}
-            columns={this.table.columns.fields as Column[]}
-            border={['outer']}
-            settings={this.table.settings}
-            style='margin-top: 16px;background-color: white;'
-            remote-pagination
-            pagination={{
-              current: this.page,
-              limit: this.pageSize,
-              count: this.totalReportSize,
-              onChange: (pageNum: number) => {
-                this.page = pageNum;
-                this.fetchSubscriptionList();
-              },
-              onLimitChange: (limit: number) => {
-                this.page = 1;
-                this.pageSize = limit;
-                this.fetchSubscriptionList();
-              }
-            }}
-            onColumnFilter={({ checked, column }) => {
-              let currentIndex = -1;
-              const result = this.conditions.filter((item, index) => {
-                if (item.key === column.field) {
-                  currentIndex = index;
-                  return item;
+      <div>
+        <NavBar
+          routeList={this.navList}
+          class='report-nav'
+        ></NavBar>
+        <div class='email-subscription-config-container'>
+          {/* 头部搜索 部分 */}
+          {headerTmpl()}
+          <Loading loading={this.table.isLoading}>
+            <Table
+              data={this.table.data}
+              columns={this.table.columns.fields as Column[]}
+              border={['outer']}
+              settings={this.table.settings}
+              style='margin-top: 16px;background-color: white;'
+              remote-pagination
+              pagination={{
+                current: this.page,
+                limit: this.pageSize,
+                count: this.totalReportSize,
+                onChange: (pageNum: number) => {
+                  this.page = pageNum;
+                  this.fetchSubscriptionList();
+                },
+                onLimitChange: (limit: number) => {
+                  this.page = 1;
+                  this.pageSize = limit;
+                  this.fetchSubscriptionList();
                 }
-                return false;
-              });
-              if (result.length) {
-                if (checked.length) {
-                  this.conditions[currentIndex].value = checked;
+              }}
+              onColumnFilter={({ checked, column }) => {
+                let currentIndex = -1;
+                const result = this.conditions.filter((item, index) => {
+                  if (item.key === column.field) {
+                    currentIndex = index;
+                    return item;
+                  }
+                  return false;
+                });
+                if (result.length) {
+                  if (checked.length) {
+                    this.conditions[currentIndex].value = checked;
+                  } else {
+                    this.conditions.splice(currentIndex, 1);
+                  }
                 } else {
-                  this.conditions.splice(currentIndex, 1);
+                  if (checked.length) {
+                    this.conditions.push({
+                      key: column.field,
+                      value: checked
+                    });
+                  }
                 }
-              } else {
-                if (checked.length) {
-                  this.conditions.push({
-                    key: column.field,
-                    value: checked
-                  });
+                this.page = 1;
+                this.fetchSubscriptionList();
+              }}
+              onColumnSort={({ column, type }) => {
+                if (type !== 'null') {
+                  this.order = `${type === 'asc' ? '' : '-'}${column.field}`;
+                } else {
+                  this.order = '';
                 }
-              }
-              this.page = 1;
-              this.fetchSubscriptionList();
+                this.fetchSubscriptionList();
+              }}
+              onSettingChange={({ checked }) => {
+                window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
+              }}
+            ></Table>
+          </Loading>
+          <Dialog
+            is-show={this.isShowSendRecord}
+            title={this.t('发送记录')}
+            dialog-type='show'
+            width='960'
+            onClosed={() => {
+              this.isShowSendRecord = false;
+              Object.keys(this.toggleMapForSendRecord).forEach(key => {
+                this.toggleMapForSendRecord[key] = false;
+              });
             }}
-            onColumnSort={({ column, type }) => {
-              if (type !== 'null') {
-                this.order = `${type === 'asc' ? '' : '-'}${column.field}`;
-              } else {
-                this.order = '';
-              }
-              this.fetchSubscriptionList();
-            }}
-            onSettingChange={({ checked }) => {
-              window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
-            }}
-          ></Table>
-        </Loading>
-        <Dialog
-          is-show={this.isShowSendRecord}
-          title={this.t('发送记录')}
-          dialog-type='show'
-          width='960'
-          onClosed={() => {
-            this.isShowSendRecord = false;
-            Object.keys(this.toggleMapForSendRecord).forEach(key => {
-              this.toggleMapForSendRecord[key] = false;
-            });
-          }}
-        >
-          <div>
-            <div class='dialog-header-info-container'>
-              <div style='display: flex;'>
-                <div class='label-container'>
-                  <div class='label'>{this.t('发送频率')}:</div>
-                  <div
-                    class='value'
-                    style='max-width: 200px;white-space: normal;word-break: break-all;'
-                  >
-                    {this.getSendFrequencyText(this.subscriptionDetail)}
+          >
+            <div>
+              <div class='dialog-header-info-container'>
+                <div style='display: flex;'>
+                  <div class='label-container'>
+                    <div class='label'>{this.t('发送频率')}:</div>
+                    <div
+                      class='value'
+                      style='max-width: 200px;white-space: normal;word-break: break-all;'
+                    >
+                      {this.getSendFrequencyText(this.subscriptionDetail)}
+                    </div>
+                    {this.subscriptionDetail.frequency.type === FrequencyType.onlyOnce && (
+                      <div class='value'>
+                        {dayjs(this.subscriptionDetail.frequency.run_time).format('YYYY-MM-DD HH:mm')}
+                      </div>
+                    )}
                   </div>
-                  {this.subscriptionDetail.frequency.type === FrequencyType.onlyOnce && (
-                    <div class='value'>
-                      {dayjs(this.subscriptionDetail.frequency.run_time).format('YYYY-MM-DD HH:mm')}
+                  {this.subscriptionDetail.frequency.type !== FrequencyType.onlyOnce && (
+                    <div class='label-container'>
+                      <div
+                        class='label'
+                        style='margin-left: 55px;'
+                      >
+                        {this.t('任务有效期')}:
+                      </div>
+                      <div class='value'>
+                        {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
+                      </div>
                     </div>
                   )}
                 </div>
-                {this.subscriptionDetail.frequency.type !== FrequencyType.onlyOnce && (
-                  <div class='label-container'>
-                    <div
-                      class='label'
-                      style='margin-left: 55px;'
-                    >
-                      {this.t('有效时间范围')}:
-                    </div>
-                    <div class='value'>
-                      {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <Button
+                    text
+                    theme='primary'
+                    disabled={this.sendRecordTable.isLoading}
+                    onClick={this.getSendingRecordList}
+                    style='font-size: 12px;'
+                  >
+                    {this.t('刷新')}
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Button
-                  text
-                  theme='primary'
-                  disabled={this.sendRecordTable.isLoading}
-                  onClick={this.getSendingRecordList}
-                  style='font-size: 12px;'
-                >
-                  {this.t('刷新')}
-                </Button>
-              </div>
+
+              <Loading loading={this.sendRecordTable.isLoading}>
+                <Table
+                  data={this.sendRecordTable.data}
+                  columns={this.sendRecordTable.columns.fields as Column[]}
+                  height={400}
+                  virtual-enabled
+                  style='margin-top: 16px;'
+                />
+              </Loading>
             </div>
+          </Dialog>
 
-            <Loading loading={this.sendRecordTable.isLoading}>
-              <Table
-                data={this.sendRecordTable.data}
-                columns={this.sendRecordTable.columns.fields as Column[]}
-                height={400}
-                virtual-enabled
-                style='margin-top: 16px;'
-              />
-            </Loading>
-          </div>
-        </Dialog>
+          <Sideslider
+            v-model={[this.isShowCreateSubscription, 'isShow']}
+            title={this.t('新建订阅')}
+            width={960}
+            ext-cls='edit-subscription-sideslider-container'
+            transfer
+          >
+            <CreateSubscription
+              onCloseCreateSubscriptionSlider={() => {
+                this.isShowCreateSubscription = false;
+              }}
+              onSaveSuccess={() => {
+                this.fetchSubscriptionList();
+                this.isShowCreateSubscription = false;
+              }}
+            ></CreateSubscription>
+          </Sideslider>
 
-        <Sideslider
-          v-model={[this.isShowSubscriptionDetailSideslider, 'isShow']}
-          // 根据显示内容要动态调整。
-          width={640}
-          ext-cls='detail-subscription-sideslider-container'
-          transfer
-          v-slots={{
-            header: () => {
-              return (
-                <div class='slider-header-container'>
-                  <div class='title-container'>
-                    <span class='title'>{this.t('订阅详情')}</span>
-                    <Popover
-                      maxWidth='300'
-                      placement='bottom'
-                      v-slots={{
-                        content: () => {
-                          return <span>{this.subscriptionDetail.name}</span>;
-                        }
-                      }}
-                    >
-                      <span
-                        class='sub-title'
-                        style={{
-                          maxWidth: currentLang === 'en' ? '180px' : '250px'
+          <Sideslider
+            v-model={[this.isShowSubscriptionDetailSideslider, 'isShow']}
+            // 根据显示内容要动态调整。
+            width={640}
+            ext-cls='detail-subscription-sideslider-container'
+            transfer
+            v-slots={{
+              header: () => {
+                return (
+                  <div class='slider-header-container'>
+                    <div class='title-container'>
+                      <span class='title'>{this.t('订阅详情')}</span>
+                      <Popover
+                        maxWidth='300'
+                        placement='bottom'
+                        v-slots={{
+                          content: () => {
+                            return <span>{this.subscriptionDetail.name}</span>;
+                          }
                         }}
                       >
-                        -&nbsp;{this.subscriptionDetail.name}
-                      </span>
-                    </Popover>
-                  </div>
+                        <span
+                          class='sub-title'
+                          style={{
+                            maxWidth: currentLang === 'en' ? '180px' : '250px'
+                          }}
+                        >
+                          -&nbsp;{this.subscriptionDetail.name}
+                        </span>
+                      </Popover>
+                    </div>
 
-                  <div class='operation-container'>
-                    <Button
-                      style='margin-right: 8px;'
-                      onClick={() => {
-                        InfoBox({
-                          extCls: 'report-tips-dialog',
-                          infoType: 'warning',
-                          title: this.t('是否发送给自己?'),
-                          showMask: true,
-                          onConfirm: () => {
-                            return this.handleSendMyself()
-                              .then(() => {
-                                return true;
-                              })
-                              .catch(() => {
-                                return false;
-                              });
-                          }
-                        });
-                      }}
-                    >
-                      {this.t('发送给自己')}
-                    </Button>
-                    <Button
-                      outline
-                      theme='primary'
-                      style='margin-right: 8px;'
-                      onClick={() => {
-                        this.isShowEditSideslider = true;
-                      }}
-                    >
-                      {this.t('编辑')}
-                    </Button>
-
-                    <Popover
-                      placement='bottom-end'
-                      v-slots={{
-                        content: () => {
-                          return (
-                            <div>
-                              <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
-                              <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
-                                'YYYY-MM-DD HH:mm:ss'
-                              )}`}</div>
-                              <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
-                              <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
-                                'YYYY-MM-DD HH:mm:ss'
-                              )}`}</div>
-                            </div>
-                          );
-                        }
-                      }}
-                    >
-                      <Button style='margin-right: 24px;'>
-                        <i class='icon-monitor icon-lishi'></i>
+                    <div class='operation-container'>
+                      <Button
+                        style='margin-right: 8px;'
+                        onClick={() => {
+                          InfoBox({
+                            extCls: 'report-tips-dialog',
+                            infoType: 'warning',
+                            title: this.t('是否发送给自己?'),
+                            showMask: true,
+                            onConfirm: () => {
+                              return this.handleSendMyself()
+                                .then(() => {
+                                  return true;
+                                })
+                                .catch(() => {
+                                  return false;
+                                });
+                            }
+                          });
+                        }}
+                      >
+                        {this.t('发送给自己')}
                       </Button>
-                    </Popover>
+                      <Button
+                        outline
+                        theme='primary'
+                        style='margin-right: 8px;'
+                        onClick={() => {
+                          this.isShowEditSideslider = true;
+                        }}
+                      >
+                        {this.t('编辑')}
+                      </Button>
+
+                      <Popover
+                        placement='bottom-end'
+                        v-slots={{
+                          content: () => {
+                            return (
+                              <div>
+                                <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
+                                <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
+                                  'YYYY-MM-DD HH:mm:ss'
+                                )}`}</div>
+                                <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
+                                <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
+                                  'YYYY-MM-DD HH:mm:ss'
+                                )}`}</div>
+                              </div>
+                            );
+                          }
+                        }}
+                      >
+                        <Button style='margin-right: 24px;'>
+                          <i class='icon-monitor icon-lishi'></i>
+                        </Button>
+                      </Popover>
+                    </div>
                   </div>
-                </div>
-              );
-            },
-            default: () => {
-              return (
-                <div>
-                  <SubscriptionDetail
-                    detailInfo={this.subscriptionDetail}
-                    style='padding: 20px 40px;'
-                  ></SubscriptionDetail>
-                </div>
-              );
-            }
-          }}
-        ></Sideslider>
+                );
+              },
+              default: () => {
+                return (
+                  <div>
+                    <SubscriptionDetail
+                      detailInfo={this.subscriptionDetail}
+                      style='padding: 20px 40px;'
+                    ></SubscriptionDetail>
+                  </div>
+                );
+              }
+            }}
+          ></Sideslider>
 
-        <Sideslider
-          v-model={[this.isShowEditSideslider, 'isShow']}
-          title={this.t('编辑')}
-          width={960}
-          ext-cls='edit-subscription-sideslider-container'
-          transfer
-          onHidden={() => {
-            this.isShowDropdownMenu = false;
-            isOnCloneMode = false;
-          }}
-          onShown={() => {
-            this.isShowSubscriptionDetailSideslider = false;
-          }}
-        >
-          <Loading
-            class='loading-edit-slider'
-            loading={this.isFetchReport}
+          <Sideslider
+            v-model={[this.isShowEditSideslider, 'isShow']}
+            title={this.t('编辑')}
+            width={960}
+            ext-cls='edit-subscription-sideslider-container'
+            transfer
+            onHidden={() => {
+              this.isShowDropdownMenu = false;
+              isOnCloneMode = false;
+            }}
+            onShown={() => {
+              this.isShowSubscriptionDetailSideslider = false;
+              this.isShowCreateSubscription = false;
+            }}
           >
-            <div>
-              <div class='create-subscription-container'>
-                {this.isShowCreateReportFormComponent && (
-                  <CreateSubscriptionForm
-                    ref='refOfCreateSubscriptionForm'
-                    mode='edit'
-                    detailInfo={this.subscriptionDetail}
-                    onSelectExistedReport={this.handleReportDetailChange}
-                  ></CreateSubscriptionForm>
-                )}
-              </div>
+            <Loading
+              class='loading-edit-slider'
+              loading={this.isFetchReport}
+            >
+              <div>
+                <div class='create-subscription-container'>
+                  {this.isShowCreateReportFormComponent && (
+                    <CreateSubscriptionForm
+                      ref='refOfCreateSubscriptionForm'
+                      mode='edit'
+                      detailInfo={this.subscriptionDetail}
+                      onSelectExistedReport={this.handleReportDetailChange}
+                    ></CreateSubscriptionForm>
+                  )}
+                </div>
 
-              <div class='footer-bar'>
-                <Button
-                  theme='primary'
-                  style='width: 88px;margin-right: 8px;'
-                  onClick={() => {
-                    this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
-                      if (isOnCloneMode) {
-                        // 由于表单会返回 id 的默认值，这里特殊处理删掉。
-                        delete response.id;
-                      }
-                      createOrUpdateReport(response).then(() => {
-                        Message({
-                          theme: 'success',
-                          message: this.t('保存成功')
-                        });
-                        this.fetchSubscriptionList();
-                        this.isShowEditSideslider = false;
-                      });
-                    });
-                  }}
-                >
-                  {this.t('保存')}
-                </Button>
-                <Dropdown
-                  isShow={this.isShowDropdownMenu}
-                  trigger='manual'
-                  placement='top-start'
-                  v-slots={{
-                    content: () => {
-                      return (
-                        <Dropdown.DropdownMenu>
-                          <Dropdown.DropdownItem onClick={() => this.testSending('self')}>
-                            {this.t('给自己')}
-                          </Dropdown.DropdownItem>
-                          <Dropdown.DropdownItem onClick={() => this.testSending('all')}>
-                            {this.t('给全员')}
-                          </Dropdown.DropdownItem>
-                        </Dropdown.DropdownMenu>
-                      );
-                    }
-                  }}
-                >
+                <div class='footer-bar'>
                   <Button
                     theme='primary'
-                    outline
-                    loading={this.isSending}
                     style='width: 88px;margin-right: 8px;'
                     onClick={() => {
-                      this.isShowDropdownMenu = !this.isShowDropdownMenu;
+                      this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
+                        if (isOnCloneMode) {
+                          // 由于表单会返回 id 的默认值，这里特殊处理删掉。
+                          delete response.id;
+                        }
+                        createOrUpdateReport(response).then(() => {
+                          Message({
+                            theme: 'success',
+                            message: this.t('保存成功')
+                          });
+                          this.fetchSubscriptionList();
+                          this.isShowEditSideslider = false;
+                        });
+                      });
                     }}
                   >
-                    {this.t('测试发送')}
+                    {this.t('保存')}
                   </Button>
-                </Dropdown>
-                <Button
-                  style='width: 88px;'
-                  onClick={() => {
-                    this.isShowEditSideslider = false;
-                  }}
-                >
-                  {this.t('取消')}
-                </Button>
+                  <Dropdown
+                    isShow={this.isShowDropdownMenu}
+                    trigger='manual'
+                    placement='top-start'
+                    v-slots={{
+                      content: () => {
+                        return (
+                          <Dropdown.DropdownMenu>
+                            <Dropdown.DropdownItem onClick={() => this.testSending('self')}>
+                              {this.t('给自己')}
+                            </Dropdown.DropdownItem>
+                            <Dropdown.DropdownItem onClick={() => this.testSending('all')}>
+                              {this.t('给全员')}
+                            </Dropdown.DropdownItem>
+                          </Dropdown.DropdownMenu>
+                        );
+                      }
+                    }}
+                  >
+                    <Button
+                      theme='primary'
+                      outline
+                      loading={this.isSending}
+                      style='width: 88px;margin-right: 8px;'
+                      onClick={() => {
+                        this.isShowDropdownMenu = !this.isShowDropdownMenu;
+                      }}
+                    >
+                      {this.t('测试发送')}
+                    </Button>
+                  </Dropdown>
+                  <Button
+                    style='width: 88px;'
+                    onClick={() => {
+                      this.isShowEditSideslider = false;
+                    }}
+                  >
+                    {this.t('取消')}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Loading>
-        </Sideslider>
+            </Loading>
+          </Sideslider>
 
-        <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
+          <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
+        </div>
       </div>
     );
   }
