@@ -14,4 +14,38 @@ class Migration(migrations.Migration):
             name='app_name',
             field=models.CharField(max_length=50, null=True, verbose_name='应用名称'),
         ),
+        migrations.AddField(
+            model_name="profileuploadrecord",
+            name="file_name",
+            field=models.CharField(default="", max_length=50, verbose_name="新文件名称"),
+        ),
+        migrations.AddField(
+            model_name="profileuploadrecord",
+            name="file_size",
+            field=models.BigIntegerField(default=0, verbose_name="文件大小"),
+        ),
+        migrations.AddField(
+            model_name="profileuploadrecord",
+            name="origin_file_name",
+            field=models.CharField(default="", max_length=255, verbose_name="上传文件名称"),
+        ),
+        migrations.AddField(
+            model_name="profileuploadrecord",
+            name="service_name",
+            field=models.CharField(default="default", max_length=50, verbose_name="服务名称"),
+        ),
+        migrations.AddField(
+            model_name="profileuploadrecord",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("uploaded", "已上传"),
+                    ("parsing_failed", "解析失败"),
+                    ("parsing_succeed", "解析成功"),
+                ],
+                default="unknown",
+                max_length=36,
+                verbose_name="状态",
+            ),
+        ),
     ]

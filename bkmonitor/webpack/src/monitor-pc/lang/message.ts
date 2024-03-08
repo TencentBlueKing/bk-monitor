@@ -44,6 +44,7 @@ export default {
   克隆屏蔽成功: 'Clone mute successful',
   删除插件成功: 'Delete plugin successful',
   文件上传成功: 'File upload successful',
+  上传成功: 'Upload Successful',
   样例复制成功: 'Example copied successful',
   解散任务组成功: 'Dissolve task group successful',
   创建拨测任务成功: 'Create probe task successful',
@@ -216,6 +217,7 @@ export default {
   '升级过程中，请勿关闭页面。': 'Please do not close the page during the upgrade process.',
   '采集任务正在停用中…': 'Collection Task is Being Disabled...',
   已加载全部数据: 'All data loaded',
+  文件解析中: 'Parsing file...',
 
   // - Empty Text：空数据文本，用于描述数据为空的情况，例如“暂无数据”等。
   无告警事件: 'No alarms',

@@ -15,9 +15,11 @@ from typing import List
 
 import betterproto
 
+from .patch import Message
+
 
 @dataclass
-class Profile(betterproto.Message):
+class Profile(Message):
     # A description of the samples associated with each Sample.value. For a cpu
     # profile this might be:   [["cpu","nanoseconds"]] or [["wall","seconds"]] or
     # [["syscall","count"]] For a heap profile, this might be:

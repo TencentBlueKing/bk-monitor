@@ -649,7 +649,10 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         raw_data = record.value
         raw_data = json.loads(raw_data[:-1] if raw_data[-1] == "\x00" or raw_data[-1] == "\n" else raw_data)
 
-        data_bk_biz_id = int(raw_data["dimensions"].get("bk_biz_id", 0))
+        data_bk_biz_id = int(raw_data["dimensions"].get("bk_biz_id") or 0)
+        if data_bk_biz_id == 0:
+            return []
+
         strategy_ids = self.topics[f"{bootstrap_servers}|{record.topic}"]["strategy_ids"]
         dimensions = self.topics[f"{bootstrap_servers}|{record.topic}"]["dimensions"]
         strategies = [self.get_strategy(strategy_id) for strategy_id in strategy_ids]

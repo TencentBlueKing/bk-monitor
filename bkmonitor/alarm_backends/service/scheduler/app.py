@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import os
+import random
 
 import django
 import six.moves.urllib.error
@@ -189,6 +190,8 @@ def rabbitmq_conf():
                 "socket_timeout": 10,
                 "retry_period": 60,
             }
+            # 随机打乱顺序，避免每次都是同一个节点
+            random.shuffle(REDBEAT_REDIS_OPTIONS["sentinels"])
 
             if getattr(settings, "REDIS_SENTINEL_PASS", ""):
                 REDBEAT_REDIS_OPTIONS["sentinel_kwargs"] = {"password": settings.REDIS_SENTINEL_PASS}

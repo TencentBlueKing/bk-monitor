@@ -61,10 +61,10 @@
   .single-chart-content {
     height: 100%;
     padding: 16px;
+    overflow: hidden;
 
     .single-chart-main {
       height: 100%;
-      overflow: hidden;
       background-color: #fff;
       border-radius: 2px;
       box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);

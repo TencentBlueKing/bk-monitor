@@ -273,7 +273,7 @@ export class DataQuery implements IDataQuery {
 }
 
 export interface IRatioRingChartOption {
-  hideLabel: boolean; // 是否隐藏圆环中间label
+  hideLabel?: boolean; // 是否隐藏圆环中间label
 }
 
 // eslint-disable-next-line max-len

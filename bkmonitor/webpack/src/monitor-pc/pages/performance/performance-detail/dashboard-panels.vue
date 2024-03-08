@@ -945,7 +945,7 @@ export default class DashboardPanels extends Vue {
         display: none;
         border-color: #dcdee5 #dcdee5 transparent transparent;
         border-style: solid;
-        border-width: 16px;
+        border-width: 12px;
         border-radius: 2px;
 
         &::after {

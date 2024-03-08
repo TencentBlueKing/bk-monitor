@@ -86,9 +86,9 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+import { transfromNum } from 'monitor-common/utils/utils';
 import { Col, DropdownItem, DropdownMenu, Picker, Popup, Row } from 'vant';
 
-import { transfromNum } from '../../../monitor-common/utils/utils';
 import BkSelect from '../../components/select/select.vue';
 import { ICompare, IConfig, IContent, IDropdownMenu, IOptions } from '../../types/tendency-chart';
 

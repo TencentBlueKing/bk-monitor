@@ -748,7 +748,11 @@ class TimeSeriesDataSource(DataSource):
         # 聚合方法参数
         query_list = []
         for metric in self.metrics:
-            table = self.table.lower()
+            if self.data_source_label == DataSourceLabel.BK_DATA:
+                # 计算平台表名大小写敏感
+                table = self.table
+            else:
+                table = self.table.lower()
 
             # 如果接入了数据平台，且是cmdb level表的查询，则需要去除后缀
             if settings.IS_ACCESS_BK_DATA and self.is_cmdb_level_query(

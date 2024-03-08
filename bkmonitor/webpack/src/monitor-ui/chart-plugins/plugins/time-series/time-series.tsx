@@ -302,6 +302,10 @@ export class LineChart
       ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
       : val.replace('current', window.i18n.tc('当前'));
   }
+  // 图表tooltip 可用于继承组件重写该方法
+  handleSetTooltip() {
+    return {};
+  }
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -384,7 +388,7 @@ export class LineChart
             })
             .then(res => {
               this.$emit('seriesData', res);
-              metrics.push(...res.metrics);
+              res.metrics && metrics.push(...res.metrics);
               series.push(
                 ...res.series.map(set => ({
                   ...set,
@@ -434,7 +438,8 @@ export class LineChart
             markPoint: this.createMarkPointData(item, series),
             markLine: this.createMarkLine(index),
             markArea: this.createMarkArea(item, index),
-            z: 1
+            z: 1,
+            traceData: item.trace_data ?? ''
           })) as any
         );
         const boundarySeries = seriesResult.map(item => this.handleBoundaryList(item, series)).flat(Infinity);
@@ -524,7 +529,8 @@ export class LineChart
               splitNumber: Math.ceil(this.width / 80),
               min: 'dataMin'
             },
-            series: seriesList
+            series: seriesList,
+            tooltip: this.handleSetTooltip()
           })
         );
         this.metrics = metrics || [];
@@ -585,7 +591,7 @@ export class LineChart
 
   /** 处理图表上下边界的数据 */
   handleBoundaryList(item, series) {
-    const currentDimensions = item.dimensions;
+    const currentDimensions = item.dimensions || [];
     const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
     const currentDimStr = getDimStr(currentDimensions);
     const lowerBound = series.find(ser => ser.alias === 'lower_bound' && getDimStr(ser.dimensions) === currentDimStr);
@@ -677,7 +683,7 @@ export class LineChart
     /** 获取is_anomaly的告警点数据 */
     const currentDataPoints = item.datapoints;
     const currentDataPointsMap = new Map();
-    const currentDimensions = item.dimensions;
+    const currentDimensions = item.dimensions || [];
     const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
     const currentDimStr = getDimStr(currentDimensions);
     const currentIsAanomalyData = series.find(
@@ -834,6 +840,8 @@ export class LineChart
           if (hasNoBrother) {
             showSymbol = true;
           }
+          // profiling 趋势图 其中 Trace 数据需包含span列表
+          const traceData = item.traceData ? item.traceData[seriesItem[0]] : undefined;
           return {
             symbolSize: hasNoBrother ? 10 : 6,
             value: [seriesItem[0], seriesItem[1]],
@@ -842,7 +850,8 @@ export class LineChart
               enabled: true,
               shadowBlur: 0,
               opacity: 1
-            }
+            },
+            traceData
           } as any;
         }
         return seriesItem;
