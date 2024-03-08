@@ -475,9 +475,15 @@ class ServiceListResource(PageListResource):
                 COMPONENT_DATA_STATUS,
             ),
         }
-        profiling_request_info = QueryTemplate(
-            validate_data["bk_biz_id"], validate_data["app_name"]
-        ).list_services_request_info(validate_data["start_time"] * 1000, validate_data["end_time"] * 1000)
+        # 获取 profile 服务指标
+        application_info = api.apm_api.detail_application({"application_id": app.application_id})
+        if "profiling_config" in application_info:
+            profiling_request_info = QueryTemplate(
+                validate_data["bk_biz_id"], validate_data["app_name"]
+            ).list_services_request_info(validate_data["start_time"] * 1000, validate_data["end_time"] * 1000)
+        else:
+            profiling_request_info = {}
+
         # 处理响应数据
         raw_data = self.combine_data(
             services,
