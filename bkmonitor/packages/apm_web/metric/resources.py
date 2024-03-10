@@ -533,9 +533,12 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             validated_data["start_time"],
             validated_data["end_time"],
         )
-        profiling_metric_info = QueryTemplate(
-            validated_data["bk_biz_id"], validated_data["app_name"]
-        ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
+        if app.is_enabled_profiling:
+            profiling_metric_info = QueryTemplate(
+                validated_data["bk_biz_id"], validated_data["app_name"]
+            ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
+        else:
+            profiling_metric_info = {}
 
         services = ServiceHandler.list_services(app)
         column = validated_data["column"]
