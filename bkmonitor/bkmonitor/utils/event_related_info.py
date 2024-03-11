@@ -133,11 +133,7 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
     start_time = alert.begin_time
     end_time = max(alert.begin_time + interval, alert.latest_time)
     group_by = query_config.get("agg_dimension", [])
-
-    # 查出这段时间新增的数据签名
-    signatures = data_source.query_dimensions(
-        dimension_field="signature", start_time=start_time * 1000, end_time=end_time * 1000
-    )
+    signatures = []
 
     try:
         dimensions = alert.origin_alarm["data"]["dimensions"]
@@ -149,6 +145,11 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
         logger.exception("[get_alert_info_for_log_clustering_new_class] get dimension error: %s", e)
         sensitivity = "__dist_09"
         dimensions = {}
+
+    if not signatures:
+        signatures = data_source.query_dimensions(
+            dimension_field="signature", start_time=start_time * 1000, end_time=end_time * 1000
+        )
     return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures, group_by, dimensions)
 
 
