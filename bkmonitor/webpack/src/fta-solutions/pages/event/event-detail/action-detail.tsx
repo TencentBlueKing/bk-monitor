@@ -103,7 +103,7 @@ interface IDetailInfo {
 })
 export default class ActiveDetail extends tsc<IActiveDetail> {
   @Prop({ type: String, default: '' }) id: string;
-  @Prop({ type: Number, default: +window.bk_biz_id }) bizId: number;
+  @Prop({ type: [Number, String], default: +window.bk_biz_id }) bizId: number;
 
   detailInfo: IDetailInfo = {};
   tableData: { trigger: ITableData[]; defense: ITableData[] } = {
