@@ -132,7 +132,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
       show_aggs: false,
       show_overview: false,
       start_time: this.detailInfo.create_time - oneDay,
-      bk_biz_ids: [this.bizId]
+      bk_biz_ids: [Number(this.bizId) || this.bizId]
     };
     const triggerData = await searchAlert({
       ...params,
