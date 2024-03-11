@@ -108,9 +108,9 @@
                 <div class="edit-wrap">
                   <promql-editor
                     :value="queryConfigItem.promql"
+                    :min-height="80"
                     @change="handlePromqlDataCodeChange"
                     @blur="handlePromqlDataCodeBlur"
-                    class="promql-editor"
                   />
                 </div>
                 <div class="step-wrap">
@@ -616,23 +616,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   .promql-content {
     .edit-wrap {
       position: relative;
-      min-height: 80px;
       margin: 0 24px;
-      overflow-y: auto;
-      background-color: #fff;
-      border: 1px solid #dcdee5;
-
-      .promql-editor {
-        height: 100%;
-        min-height: 80px;
-        border: 0;
-        resize: vertical;
-        overflow: auto;
-
-        .cm-content {
-          padding: 8px 20px 8px 18px;
-        }
-      }
     }
 
     .step-wrap {

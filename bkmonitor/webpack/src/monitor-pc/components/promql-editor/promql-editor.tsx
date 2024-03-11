@@ -336,6 +336,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       <div
         class={['promql-editor-component', { 'is-error': this.isError }]}
         style={{
+          minHeight: `${this.minHeight}px`,
           height: `${this.wrapHeight <= 0 ? this.minHeight : this.wrapHeight}px`
         }}
       >
