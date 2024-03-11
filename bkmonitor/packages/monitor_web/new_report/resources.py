@@ -537,23 +537,33 @@ class GetSendRecordsResource(Resource):
 
 class GetApplyRecordsResource(Resource):
     """
-    根据用户获取订阅申请记录
+    获取订阅申请记录
     """
 
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=False)
+
     def perform_request(self, validated_request_data):
-        username = get_request().user.username
-        qs = ReportApplyRecord.objects.filter(create_user=username).order_by("-create_time")
+        qs = ReportApplyRecord.objects.all()
+        if not validated_request_data.get("bk_biz_id"):
+            # 根据用户获取
+            username = get_request().user.username
+            qs = qs.filter(create_user=username)
+        else:
+            # 根据业务获取
+            qs = qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        qs = qs.order_by("-create_time")
         report_ids = qs.values_list("report_id", flat=True)
         apply_records = list(qs.values())
-        report_infos = Report.origin_objects.filter(id__in=report_ids).values("id", "name")
-        report_id_to_name = {}
+        report_infos = list(Report.origin_objects.filter(id__in=report_ids).values())
+        id_to_report = {}
         for report_info in report_infos:
-            report_id_to_name[report_info["id"]] = report_info["name"]
+            id_to_report[report_info["id"]] = report_info
         for apply_record in apply_records:
             status_info = api.itsm.get_ticket_status(sn=apply_record["approval_sn"])
             if status_info["current_steps"]:
                 apply_record["approval_step"] = status_info["current_steps"]
-            apply_record["content_title"] = report_id_to_name[apply_record["report_id"]]
+            apply_record["content_title"] = id_to_report[apply_record["report_id"]]["name"]
         return apply_records
 
 
