@@ -29,6 +29,7 @@
  * @Description:
  */
 /* eslint-disable new-cap */
+import Vue from 'vue';
 import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
@@ -62,6 +63,22 @@ export default class App extends VuexModule implements IAppState {
   @Mutation
   SET_APP_STATE(data: IAppState) {
     Object.keys(data).forEach(key => {
+      if (key === 'bizList') {
+        this[key] = data[key].map(item => {
+          const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
+          const pyText = pinyinStr.replace(/,/g, '');
+          const pyfText = pinyinStr
+            .split(',')
+            .map(str => str.charAt(0))
+            .join('');
+          return {
+            ...item,
+            py_text: pyText,
+            pyf_text: pyfText
+          };
+        });
+        return;
+      }
       this[key] = data[key];
     });
   }

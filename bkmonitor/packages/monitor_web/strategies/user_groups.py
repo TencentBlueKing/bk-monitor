@@ -18,7 +18,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.models import UserGroup
-from constants.alert import DEFAULT_NOTICE_GROUPS
+from constants.alert import DEFAULT_NOTICE_GROUPS, PUBLIC_NOTICE_CONFIG
 from core.drf_resource import api
 
 
@@ -135,7 +135,7 @@ def add_member_to_collecting_notice_group(bk_biz_id: int, user_id: str) -> int:
         user_group = {
             "name": collecting_group_name,
             "notice_receiver": [{"id": user_id, "type": "user"}],
-            **settings.PUBLIC_NOTICE_CONFIG,
+            **PUBLIC_NOTICE_CONFIG,
         }
         user_group_serializer = UserGroupDetailSlz(
             data={

@@ -166,7 +166,7 @@ export default class Service extends tsc<{}> {
     const data = await applicationStore.getAppInfo(params);
 
     /** 当前应用无数据跳转应用无数据页面展示 */
-    if (data && data.data_status === 'no_data') {
+    if (data && data.data_status === 'no_data' && data.profiling_data_status === 'no_data') {
       this.$router.push({
         name: 'application',
         query: {

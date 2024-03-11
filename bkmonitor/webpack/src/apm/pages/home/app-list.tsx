@@ -67,6 +67,8 @@ export interface ICreateAppFormData {
   enName: string;
   desc: string;
   pluginId: string;
+  enableProfiling: boolean;
+  enableTracing: boolean;
   plugin_config?: {
     target_node_type: INodeType;
     target_object_type: TargetObjectType;

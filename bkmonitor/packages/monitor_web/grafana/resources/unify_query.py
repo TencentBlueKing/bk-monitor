@@ -54,7 +54,7 @@ from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
-from monitor_web.grafana.utils import get_cookies_filter
+from monitor_web.grafana.utils import get_cookies_filter, remove_all_conditions
 from monitor_web.statistics.v2.query import unify_query_count
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 
@@ -714,6 +714,8 @@ class UnifyQueryRawResource(ApiAuthResource):
 
             if query_config["interval"] == "auto":
                 query_config["interval"] = get_auto_interval(60, params["start_time"], params["end_time"])
+            # 删除全选条件
+            query_config["where"] = remove_all_conditions(query_config["where"])
 
         # 查询目标实例
         if not self.get_target_instance(params):
@@ -1060,6 +1062,9 @@ class GraphPromqlQueryResource(Resource):
     通过PromQL查询图表数据
     """
 
+    ALL_REPLACE_PATTERN = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*\s*(=|=~)\s*['\"]__ALL__['\"]\s*,?")
+    SURPLUS_COMMA_PATTERN = re.compile(r",\s*}$")
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         promql = serializers.CharField(label="PromQL", allow_blank=True)
@@ -1096,6 +1101,16 @@ class GraphPromqlQueryResource(Resource):
             result.append(series)
         return result
 
+    @classmethod
+    def remove_all_conditions(cls, promql: str) -> str:
+        """
+        去除promql中的全选条件
+        """
+        promql = promql.strip()
+        promql = cls.ALL_REPLACE_PATTERN.sub("", promql)
+        promql = cls.SURPLUS_COMMA_PATTERN.sub("}", promql)
+        return promql
+
     def perform_request(self, params):
         # cookies filter
         cookies_filter = PrometheusTimeSeriesDataSource.filter_dict_to_promql_match(get_cookies_filter())
@@ -1106,26 +1121,26 @@ class GraphPromqlQueryResource(Resource):
             params["start_time"] = params["end_time"] - 5 * interval
 
         if not params["promql"]:
-            series = []
-        else:
-            start_time = time_interval_align(params["start_time"], interval)
-            end_time = time_interval_align(params["end_time"], interval)
+            return {"metrics": [], "series": []}
 
-            request_params = dict(
-                promql=params["promql"],
-                match=cookies_filter,
-                start=start_time,
-                end=end_time,
-                step=params["step"],
-                bk_biz_ids=[params["bk_biz_id"]],
-                timezone=timezone.get_current_timezone_name(),
-            )
+        params["promql"] = self.remove_all_conditions(params["promql"])
+        start_time = time_interval_align(params["start_time"], interval)
+        end_time = time_interval_align(params["end_time"], interval)
+        request_params = dict(
+            promql=params["promql"],
+            match=cookies_filter,
+            start=start_time,
+            end=end_time,
+            step=params["step"],
+            bk_biz_ids=[params["bk_biz_id"]],
+            timezone=timezone.get_current_timezone_name(),
+        )
 
-            result = api.unify_query.query_data_by_promql(**request_params)["series"] or []
-            series = self.format_data(result)
-            series = HeatMapProcessor.process_formatted_data(params, series)
-            series = QueryTypeProcessor.process_formatted_data(params, series)
-            series = AddNullDataProcessor.process_formatted_data(params, series)
+        result = api.unify_query.query_data_by_promql(**request_params)["series"] or []
+        series = self.format_data(result)
+        series = HeatMapProcessor.process_formatted_data(params, series)
+        series = QueryTypeProcessor.process_formatted_data(params, series)
+        series = AddNullDataProcessor.process_formatted_data(params, series)
         return {"metrics": [], "series": series}
 
 

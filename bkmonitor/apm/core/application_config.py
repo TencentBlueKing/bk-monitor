@@ -73,7 +73,7 @@ class ApplicationConfig(BkCollectorConfig):
         }
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
-        sampler_config = self.get_sampler_config(ApdexConfig.APP_LEVEL)
+        sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
         # dimensions_config = self.get_dimensions_config()
 
         custom_service_config = self.get_custom_service_config()
@@ -85,6 +85,8 @@ class ApplicationConfig(BkCollectorConfig):
         db_slow_command_config = self.get_config(
             ConfigTypes.DB_SLOW_COMMAND_CONFIG, DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG
         )
+        profiles_drop_sampler_config = self.get_profiles_drop_sampler_config()
+        traces_drop_sampler_config = self.get_traces_drop_sampler_config()
 
         if apdex_config:
             config["apdex_config"] = apdex_config.get(self._application.app_name)
@@ -98,6 +100,10 @@ class ApplicationConfig(BkCollectorConfig):
             config["qps_config"] = qps_config
         if license_config:
             config["license_config"] = license_config
+        if profiles_drop_sampler_config:
+            config["profiles_drop_sampler_config"] = profiles_drop_sampler_config
+        if traces_drop_sampler_config:
+            config["traces_drop_sampler_config"] = traces_drop_sampler_config
         if queue_config:
             config["queue_config"] = queue_config
 
@@ -128,7 +134,6 @@ class ApplicationConfig(BkCollectorConfig):
         return {"name": "rate_limiter/token_bucket", "type": "token_bucket", "qps": qps}
 
     def get_queue_config(self):
-
         params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
 
         log_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_LOGS_BATCH_SIZE)
@@ -240,7 +245,7 @@ class ApplicationConfig(BkCollectorConfig):
 
     def get_sub_configs(self, unique_key: str, config_level):
         apdex_configs = self.get_apdex_config(config_level)
-        sampler_configs = self.get_sampler_config(config_level)
+        sampler_configs = self.get_random_sampler_config(config_level)
         keys = set(sampler_configs.keys()) | set(apdex_configs.keys())
         configs = []
         for key in keys:
@@ -262,12 +267,26 @@ class ApplicationConfig(BkCollectorConfig):
             apdex_config[config.config_key]["rules"].append(config.to_config_json())
         return apdex_config
 
-    def get_sampler_config(self, config_level):
+    def get_random_sampler_config(self, config_level):
         configs = SamplerConfig.configs(self._application.bk_biz_id, self._application.app_name, config_level)
         sampler_config = {}
         for config in configs:
             sampler_config[config.config_key] = config.to_config_json()
         return sampler_config
+
+    def get_profiles_drop_sampler_config(self):
+        return {
+            "name": "sampler/drop_profiles",
+            "type": "drop",
+            "enabled": not self._application.is_enabled_profiling,
+        }
+
+    def get_traces_drop_sampler_config(self):
+        return {
+            "name": "sampler/drop_traces",
+            "type": "drop",
+            "enabled": not self._application.is_enabled,
+        }
 
     def get_license_config(self):
         license_config = LicenseConfig.get_application_license_config(

@@ -19,9 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import math
 import functools
 import re
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, Dict, List
 
 from django.conf import settings
@@ -83,7 +85,7 @@ TRACE_SCOPE = ["trace", "trace_detail", "trace_detail_log"]
 
 class MappingHandlers(object):
     def __init__(
-        self, indices, index_set_id, scenario_id, storage_cluster_id, time_field="", start_time="", end_time=""
+            self, indices, index_set_id, scenario_id, storage_cluster_id, time_field="", start_time="", end_time=""
     ):
         self.indices = indices
         self.index_set_id = index_set_id
@@ -293,7 +295,7 @@ class MappingHandlers(object):
         # 判断是否有gseindex和_iteration_idx字段
         final_fields_list = [i["field_name"] for i in final_fields_list]
         if ("gseindex" in final_fields_list and "_iteration_idx" in final_fields_list) or (
-            "gseIndex" in final_fields_list and "iterationIndex" in final_fields_list
+                "gseIndex" in final_fields_list and "iterationIndex" in final_fields_list
         ):
             default_sort_tag = True
         sort_list = self.get_default_sort_list(
@@ -315,11 +317,11 @@ class MappingHandlers(object):
 
     @classmethod
     def get_default_sort_list(
-        cls,
-        index_set_id: int = None,
-        scenario_id: str = None,
-        scope: str = SearchScopeEnum.DEFAULT.value,
-        default_sort_tag: bool = False,
+            cls,
+            index_set_id: int = None,
+            scenario_id: str = None,
+            scope: str = SearchScopeEnum.DEFAULT.value,
+            default_sort_tag: bool = False,
     ):
         """默认字段排序规则"""
         time_field = cls.get_time_field(index_set_id)
@@ -398,11 +400,23 @@ class MappingHandlers(object):
         return type_keyword_fields[:2]
 
     def _get_mapping(self):
-        return self._get_latest_mapping(index_set_id=self.index_set_id)
+        # 当没有指定时间范围时，默认获取最近一天的mapping
+        if not self.start_time and not self.end_time:
+            start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+            start_time = start_time.timestamp
+            end_time = end_time.timestamp
+        else:
+            start_time = int(self.start_time)
+            end_time = int(self.end_time)
+        # 时间戳取整, 开始时间上取整, 结束时间下取整
+        start_time = start_time // 3600 * 3600
+        end_time = ((end_time // 3600) + 1) * 3600
+        return self._get_latest_mapping(index_set_id=self.index_set_id, start_time=start_time, end_time=end_time)
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}")
-    def _get_latest_mapping(self, *, index_set_id):  # noqa
-        start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
+    def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
+        start_time = datetime.fromtimestamp(start_time)
+        end_time = datetime.fromtimestamp(end_time)
         latest_mapping = BkLogApi.mapping(
             {
                 "indices": self.indices,

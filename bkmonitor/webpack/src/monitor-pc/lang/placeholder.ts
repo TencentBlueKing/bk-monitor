@@ -201,6 +201,8 @@ export default {
   '输入群ID,多个ID以分号隔开': 'Enter the group ID, separate multiple IDs with semicolons',
   '输入 Trace ID 可精准查询': 'Entering TraceID allows for precise search',
   '输入告警模板，使用’{{‘触发变量提示': "Enter the alarm template, use '{{' to trigger variable prompts",
+  '输入5-50字符的字母开头、数字、下划线': 'Enter 5-50 characters starting with a letter, number, or underscore',
+  '仅支持小写字母、数字、_- 中任意一条件即可': 'Ocd we  nly support any one of lowercase letters, numbers, and _-',
   '输入1-50个字符': 'Enter 1-50 characters',
   '输入1-50个字符，且仅支持小写字母、数字、_- 中任意一条件即可':
     'Enter 1-50 characters, and only support any one of lowercase letters, numbers, and _-',
@@ -282,5 +284,8 @@ export default {
   请选择维度: 'Please select a dimension',
   基于策略选择: 'Policy-based selection',
   '可输入规则名称，标签搜索': 'Enter Rule name, label search',
+  请输入搜索或筛选: 'Please enter search or filter',
+
+  '选择应用/服务': 'Select Application/Service',
   请输入关键字或标签: 'Please enter keywords or tags'
 };

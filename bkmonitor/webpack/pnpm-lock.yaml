@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@blueking/date-picker': ^0.0.72
+  '@blueking/date-picker': ^1.0.0
   '@blueking/stylelint-config': 0.0.3
   '@blueking/user-selector>vue': 2.7.14
   '@typescript-eslint/eslint-plugin': ^5.62.0
@@ -101,6 +101,9 @@ importers:
       monitor-pc:
         specifier: workspace:*
         version: link:../monitor-pc
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui
@@ -149,7 +152,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-config-tencent:
         specifier: ^1.0.4
-        version: 1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
+        version: 1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
       eslint-plugin-codecc:
         specifier: ^0.3.0
         version: 0.3.0(eslint@8.57.0)
@@ -219,6 +222,9 @@ importers:
       monitor-pc:
         specifier: workspace:*
         version: link:../monitor-pc
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui
@@ -261,7 +267,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-config-tencent:
         specifier: ^1.0.4
-        version: 1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
+        version: 1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
       eslint-plugin-codecc:
         specifier: ^0.3.0
         version: 0.3.0(eslint@8.57.0)
@@ -316,6 +322,9 @@ importers:
       axios:
         specifier: ^0.26.1
         version: 0.26.1
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
       qs:
         specifier: ^6.11.2
         version: 6.11.2
@@ -337,7 +346,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-config-tencent:
         specifier: ^1.0.4
-        version: 1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
+        version: 1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
       eslint-plugin-codecc:
         specifier: ^0.3.0
         version: 0.3.0(eslint@8.57.0)
@@ -377,7 +386,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-config-tencent:
         specifier: ^1.0.4
-        version: 1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
+        version: 1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
       eslint-plugin-codecc:
         specifier: ^0.3.0
         version: 0.3.0(eslint@8.57.0)
@@ -408,6 +417,12 @@ importers:
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
+      monitor-common:
+        specifier: workspace:*
+        version: link:../monitor-common
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -450,7 +465,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-config-tencent:
         specifier: ^1.0.4
-        version: 1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
+        version: 1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
       eslint-plugin-codecc:
         specifier: ^0.3.0
         version: 0.3.0(eslint@8.57.0)
@@ -509,8 +524,8 @@ importers:
         specifier: 0.0.25.beta.11
         version: 0.0.2-5.beta.11
       '@blueking/date-picker':
-        specifier: ^0.0.72
-        version: 0.0.72(bkui-vue@0.0.2-beta.126)(dayjs@1.11.10)(vue@2.7.14)
+        specifier: ^1.0.0
+        version: 1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@2.7.14)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -565,6 +580,9 @@ importers:
       monitor-common:
         specifier: workspace:*
         version: link:../monitor-common
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui
@@ -625,7 +643,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-config-tencent:
         specifier: ^1.0.4
-        version: 1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
+        version: 1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
       eslint-plugin-codecc:
         specifier: ^0.3.0
         version: 0.3.0(eslint@8.57.0)
@@ -765,6 +783,36 @@ importers:
       codemirror-promql:
         specifier: ^0.19.0
         version: 0.19.0(@codemirror/autocomplete@0.19.15)(@codemirror/highlight@0.19.8)(@codemirror/language@0.19.10)(@codemirror/lint@0.19.6)(@codemirror/state@0.19.9)(@codemirror/view@0.19.48)(@lezer/common@0.15.12)
+      d3-array:
+        specifier: ^3.1.1
+        version: 3.2.4
+      d3-dispatch:
+        specifier: ^3.0.1
+        version: 3.0.1
+      d3-ease:
+        specifier: ^3.0.1
+        version: 3.0.1
+      d3-format:
+        specifier: ^3.0.1
+        version: 3.1.0
+      d3-hierarchy:
+        specifier: ^3.0.1
+        version: 3.1.2
+      d3-path:
+        specifier: ^3.1.0
+        version: 3.1.0
+      d3-scale:
+        specifier: ^4.0.2
+        version: 4.0.2
+      d3-selection:
+        specifier: ^3.0.0
+        version: 3.0.0
+      d3-shape:
+        specifier: ^3.2.0
+        version: 3.2.0
+      d3-transition:
+        specifier: ^3.0.1
+        version: 3.0.1(d3-selection@3.0.0)
       dayjs:
         specifier: ^1.11.10
         version: 1.11.10
@@ -811,6 +859,9 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0(typescript@4.9.5)(vue@2.7.14)
     devDependencies:
+      '@types/d3':
+        specifier: ^7.4.0
+        version: 7.4.3
       '@types/echarts':
         specifier: ^4.9.22
         version: 4.9.22
@@ -831,7 +882,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-config-tencent:
         specifier: ^1.0.4
-        version: 1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
+        version: 1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
       eslint-plugin-codecc:
         specifier: ^0.3.0
         version: 0.3.0(eslint@8.57.0)
@@ -887,8 +938,8 @@ importers:
         specifier: ^4.8.24
         version: 4.8.24
       '@blueking/date-picker':
-        specifier: ^0.0.72
-        version: 0.0.72(bkui-vue@0.0.2-beta.126)(dayjs@1.11.10)(vue@3.4.20)
+        specifier: ^1.0.0
+        version: 1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@3.4.20)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -899,8 +950,8 @@ importers:
         specifier: workspace:*
         version: link:../apm
       bkui-vue:
-        specifier: 0.0.2-beta.126
-        version: 0.0.2-beta.126(highlight.js@11.5.1)(vue@3.4.20)
+        specifier: 1.0.0
+        version: 1.0.0(highlight.js@11.5.1)(vue@3.4.20)
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -964,6 +1015,9 @@ importers:
       monitor-pc:
         specifier: workspace:*
         version: link:../monitor-pc
+      monitor-static:
+        specifier: workspace:*
+        version: link:../monitor-static
       monitor-ui:
         specifier: workspace:*
         version: link:../monitor-ui
@@ -1018,7 +1072,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-config-tencent:
         specifier: ^1.0.4
-        version: 1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
+        version: 1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5)
       eslint-plugin-codecc:
         specifier: ^0.3.0
         version: 0.3.0(eslint@8.57.0)
@@ -1330,29 +1384,6 @@ packages:
     resolution: {integrity: sha512-uU27kfDRlhfKl+w1U6vp16IuvSLtjAxdArVXPa9BvLkrr7CYIsxH5adpHObeAGY/41+syctUWOZ140a2Rvkgjw==}
     engines: {node: '>=6.9.0'}
 
-  /@babel/core@7.23.6:
-    resolution: {integrity: sha512-FxpRyGjrMJXh7X3wGLGhNDCRiwpWEF74sKjTLDJSG5Kyvow3QZaG0Adbqzi9ZrVjTWpsX+2cxWXD71NMg93kdw==}
-    engines: {node: '>=6.9.0'}
-    dependencies:
-      '@ampproject/remapping': 2.2.1
-      '@babel/code-frame': 7.23.5
-      '@babel/generator': 7.23.6
-      '@babel/helper-compilation-targets': 7.23.6
-      '@babel/helper-module-transforms': 7.23.3(@babel/core@7.23.6)
-      '@babel/helpers': 7.23.6
-      '@babel/parser': 7.23.9
-      '@babel/template': 7.22.15
-      '@babel/traverse': 7.23.6
-      '@babel/types': 7.23.6
-      convert-source-map: 2.0.0
-      debug: 4.3.4(supports-color@5.5.0)
-      gensync: 1.0.0-beta.2
-      json5: 2.2.3
-      semver: 6.3.1
-    transitivePeerDependencies:
-      - supports-color
-    dev: true
-
   /@babel/core@7.23.9:
     resolution: {integrity: sha512-5q0175NOjddqpvvzU+kDiSOAk4PfdO6FvwCWoQ6RO7rTzEe8vlo+4HVfcnAREhD4npMs0e9uZypjTwzZPCf/cw==}
     engines: {node: '>=6.9.0'}
@@ -1374,16 +1405,15 @@ packages:
       semver: 6.3.1
     transitivePeerDependencies:
       - supports-color
-    dev: false
 
-  /@babel/eslint-parser@7.22.15(@babel/core@7.23.6)(eslint@8.57.0):
+  /@babel/eslint-parser@7.22.15(@babel/core@7.23.9)(eslint@8.57.0):
     resolution: {integrity: sha512-yc8OOBIQk1EcRrpizuARSQS0TWAcOMpEJ1aafhNznaeYkeL+OhqnDObGFylB8ka8VFF/sZc+S4RzHyO+3LjQxg==}
     engines: {node: ^10.13.0 || ^12.13.0 || >=14.0.0}
     peerDependencies:
       '@babel/core': ^7.11.0
       eslint: ^8.57.0
     dependencies:
-      '@babel/core': 7.23.6
+      '@babel/core': 7.23.9
       '@nicolo-ribaudo/eslint-scope-5-internals': 5.1.1-v1
       eslint: 8.57.0
       eslint-visitor-keys: 2.1.0
@@ -1505,20 +1535,6 @@ packages:
     dependencies:
       '@babel/types': 7.23.6
 
-  /@babel/helper-module-transforms@7.23.3(@babel/core@7.23.6):
-    resolution: {integrity: sha512-7bBs4ED9OmswdfDzpz4MpWgSrV7FXlc3zIagvLFjS5H+Mk7Snr21vQ6QwrsoCGMfNC4e4LQPdoULEt4ykz0SRQ==}
-    engines: {node: '>=6.9.0'}
-    peerDependencies:
-      '@babel/core': ^7.0.0
-    dependencies:
-      '@babel/core': 7.23.6
-      '@babel/helper-environment-visitor': 7.22.20
-      '@babel/helper-module-imports': 7.22.15
-      '@babel/helper-simple-access': 7.22.5
-      '@babel/helper-split-export-declaration': 7.22.6
-      '@babel/helper-validator-identifier': 7.22.20
-    dev: true
-
   /@babel/helper-module-transforms@7.23.3(@babel/core@7.23.9):
     resolution: {integrity: sha512-7bBs4ED9OmswdfDzpz4MpWgSrV7FXlc3zIagvLFjS5H+Mk7Snr21vQ6QwrsoCGMfNC4e4LQPdoULEt4ykz0SRQ==}
     engines: {node: '>=6.9.0'}
@@ -1531,7 +1547,6 @@ packages:
       '@babel/helper-simple-access': 7.22.5
       '@babel/helper-split-export-declaration': 7.22.6
       '@babel/helper-validator-identifier': 7.22.20
-    dev: false
 
   /@babel/helper-optimise-call-expression@7.22.5:
     resolution: {integrity: sha512-HBwaojN0xFRx4yIvpwGqxiV2tUfl7401jlok564NgB9EHS1y6QT17FmKWm4ztqjeVdXLuC4fSvHc5ePpQjoTbw==}
@@ -1613,17 +1628,6 @@ packages:
       '@babel/types': 7.23.6
     dev: false
 
-  /@babel/helpers@7.23.6:
-    resolution: {integrity: sha512-wCfsbN4nBidDRhpDhvcKlzHWCTlgJYUUdSJfzXb2NuBssDSIjc3xcb+znA7l+zYsFljAcGM0aFkN40cR3lXiGA==}
-    engines: {node: '>=6.9.0'}
-    dependencies:
-      '@babel/template': 7.22.15
-      '@babel/traverse': 7.23.6
-      '@babel/types': 7.23.6
-    transitivePeerDependencies:
-      - supports-color
-    dev: true
-
   /@babel/helpers@7.23.9:
     resolution: {integrity: sha512-87ICKgU5t5SzOT7sBMfCOZQ2rHjRU+Pcb9BoILMYz600W6DkVRLFBPwQ18gwUVvggqXivaUakpnxWQGbpywbBQ==}
     engines: {node: '>=6.9.0'}
@@ -1633,7 +1637,6 @@ packages:
       '@babel/types': 7.23.9
     transitivePeerDependencies:
       - supports-color
-    dev: false
 
   /@babel/highlight@7.23.4:
     resolution: {integrity: sha512-acGdbYSfp2WheJoJm/EBBBLh/ID8KDc64ISZ9DYtBmC8/Q204PZJLHyzeB5qMzJ5trcOkybd78M4x2KWsUq++A==}
@@ -2594,6 +2597,7 @@ packages:
       '@babel/code-frame': 7.23.5
       '@babel/parser': 7.23.9
       '@babel/types': 7.23.6
+    dev: false
 
   /@babel/template@7.23.9:
     resolution: {integrity: sha512-+xrD2BWLpvHKNmX2QbpdpsBaWnRxahMwJjO+KZk2JOElj5nSmKezyS1B4u+QbHMTX69t4ukm6hh9lsYQ7GHCKA==}
@@ -2602,24 +2606,6 @@ packages:
       '@babel/code-frame': 7.23.5
       '@babel/parser': 7.23.9
       '@babel/types': 7.23.9
-
-  /@babel/traverse@7.23.6:
-    resolution: {integrity: sha512-czastdK1e8YByZqezMPFiZ8ahwVMh/ESl9vPgvgdB9AmFMGP5jfpFax74AQgl5zj4XHzqeYAg2l8PuUeRS1MgQ==}
-    engines: {node: '>=6.9.0'}
-    dependencies:
-      '@babel/code-frame': 7.23.5
-      '@babel/generator': 7.23.6
-      '@babel/helper-environment-visitor': 7.22.20
-      '@babel/helper-function-name': 7.23.0
-      '@babel/helper-hoist-variables': 7.22.5
-      '@babel/helper-split-export-declaration': 7.22.6
-      '@babel/parser': 7.23.9
-      '@babel/types': 7.23.6
-      debug: 4.3.4(supports-color@5.5.0)
-      globals: 11.12.0
-    transitivePeerDependencies:
-      - supports-color
-    dev: true
 
   /@babel/traverse@7.23.9:
     resolution: {integrity: sha512-I/4UJ9vs90OkBtY6iiiTORVMyIhJ4kAVmsKo9KFc8UOxMeUfi2hvtIBsET5u9GizXE6/GFSuKCTNfgCswuEjRg==}
@@ -2637,7 +2623,6 @@ packages:
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
-    dev: false
 
   /@babel/types@7.0.0-beta.35:
     resolution: {integrity: sha512-y9XT11CozHDgjWcTdxmhSj13rJVXpa5ZXwjjOiTedjaM0ba5ItqdS02t31EhPl7HtOWxsZkYCCUNrSfrOisA6w==}
@@ -2823,28 +2808,28 @@ packages:
       - whiskers
     dev: false
 
-  /@blueking/date-picker@0.0.72(bkui-vue@0.0.2-beta.126)(dayjs@1.11.10)(vue@2.7.14):
-    resolution: {integrity: sha512-Mmoau1xUK/HU8uSR8DJAuauFOeCAvtMGpMGtXAkmGJlE5PiMjjU4u971LfCxXb17nO5Xl70KuHw5yt+JxoKXog==}
+  /@blueking/date-picker@1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@2.7.14):
+    resolution: {integrity: sha512-E42AB4Qt3mCD5Q1S6z925LFmLZQmRw3+iRa9nKAgJZIzYC3rcwOKpFlwkXaSYDNOKko3C2HTOvGQcxmyuPcSYg==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
-      bkui-vue: ^0.0.2-beta.109
+      bkui-vue: ^1.0.0
       dayjs: ^1.11.10
       vue: ^3.2.0
     dependencies:
-      bkui-vue: 0.0.2-beta.126(highlight.js@11.5.1)(vue@2.7.14)
+      bkui-vue: 1.0.0(highlight.js@11.5.1)(vue@2.7.14)
       dayjs: 1.11.10
       vue: 2.7.14
     dev: false
 
-  /@blueking/date-picker@0.0.72(bkui-vue@0.0.2-beta.126)(dayjs@1.11.10)(vue@3.4.20):
-    resolution: {integrity: sha512-Mmoau1xUK/HU8uSR8DJAuauFOeCAvtMGpMGtXAkmGJlE5PiMjjU4u971LfCxXb17nO5Xl70KuHw5yt+JxoKXog==}
+  /@blueking/date-picker@1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@3.4.20):
+    resolution: {integrity: sha512-E42AB4Qt3mCD5Q1S6z925LFmLZQmRw3+iRa9nKAgJZIzYC3rcwOKpFlwkXaSYDNOKko3C2HTOvGQcxmyuPcSYg==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
-      bkui-vue: ^0.0.2-beta.109
+      bkui-vue: ^1.0.0
       dayjs: ^1.11.10
       vue: ^3.2.0
     dependencies:
-      bkui-vue: 0.0.2-beta.126(highlight.js@11.5.1)(vue@3.4.20)
+      bkui-vue: 1.0.0(highlight.js@11.5.1)(vue@3.4.20)
       dayjs: 1.11.10
       vue: 3.4.20(typescript@4.9.5)
     dev: false
@@ -3936,20 +3921,20 @@ packages:
   /@probe.gl/env@3.6.0:
     resolution: {integrity: sha512-4tTZYUg/8BICC3Yyb9rOeoKeijKbZHRXBEKObrfPmX4sQmYB15ZOUpoVBhAyJkOYVAM8EkPci6Uw5dLCwx2BEQ==}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
     dev: false
 
   /@probe.gl/log@3.6.0:
     resolution: {integrity: sha512-hjpyenpEvOdowgZ1qMeCJxfRD4JkKdlXz0RC14m42Un62NtOT+GpWyKA4LssT0+xyLULCByRAtG2fzZorpIAcA==}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
       '@probe.gl/env': 3.6.0
     dev: false
 
   /@probe.gl/stats@3.6.0:
     resolution: {integrity: sha512-JdALQXB44OP4kUBN/UrQgzbJe4qokbVF4Y8lkIA8iVCFnjVowWIgkD/z/0QO65yELT54tTrtepw1jScjKB+rhQ==}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
     dev: false
 
   /@sinclair/typebox@0.27.8:
@@ -5483,12 +5468,12 @@ packages:
       tinycolor2: 1.6.0
       vue: 2.7.14
 
-  /bkui-vue@0.0.2-beta.126(highlight.js@11.5.1)(vue@2.7.14):
-    resolution: {integrity: sha512-r4aFK4USKzx7tnTKQesDudtzLH0J3u+kr/EwU/VoBM0CzZg613cF0D9/tCD1jaG41bkbVrEfByJaBssuY/I0ig==}
+  /bkui-vue@1.0.0(highlight.js@11.5.1)(vue@2.7.14):
+    resolution: {integrity: sha512-PRH9U+DAesEUdrgdj+uQrISWFeaFZZazjSrpyNteFMPwmPQMynq1ZWrdm/XfowqHXoWx2XlrjEtlgm7YMd0aig==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
-      vue: ^3.2.0
+      vue: ^3.3.0
     dependencies:
       '@floating-ui/dom': 1.5.3
       '@popperjs/core': 2.11.8
@@ -5502,12 +5487,12 @@ packages:
       vue-types: 4.1.1(vue@2.7.14)
     dev: false
 
-  /bkui-vue@0.0.2-beta.126(highlight.js@11.5.1)(vue@3.4.20):
-    resolution: {integrity: sha512-r4aFK4USKzx7tnTKQesDudtzLH0J3u+kr/EwU/VoBM0CzZg613cF0D9/tCD1jaG41bkbVrEfByJaBssuY/I0ig==}
+  /bkui-vue@1.0.0(highlight.js@11.5.1)(vue@3.4.20):
+    resolution: {integrity: sha512-PRH9U+DAesEUdrgdj+uQrISWFeaFZZazjSrpyNteFMPwmPQMynq1ZWrdm/XfowqHXoWx2XlrjEtlgm7YMd0aig==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
-      vue: ^3.2.0
+      vue: ^3.3.0
     dependencies:
       '@floating-ui/dom': 1.5.3
       '@popperjs/core': 2.11.8
@@ -6904,7 +6889,7 @@ packages:
     resolution: {integrity: sha512-fnULvOpxnC5/Vg3NCiWelDsLiUc9bRwAPs/+LfTLNvetFCtCTN+yQz15C/fs4AwX1R9K5GLtLfn8QW+dWisaAw==}
     engines: {node: '>=0.11'}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
     dev: false
 
   /dayjs@1.11.10:
@@ -7451,7 +7436,7 @@ packages:
       eslint: 8.57.0
     dev: true
 
-  /eslint-config-tencent@1.0.4(@babel/core@7.23.6)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5):
+  /eslint-config-tencent@1.0.4(@babel/core@7.23.9)(@typescript-eslint/eslint-plugin@5.62.0)(@typescript-eslint/parser@5.62.0)(eslint-plugin-prettier@5.1.3)(eslint@8.57.0)(prettier@3.2.5):
     resolution: {integrity: sha512-h8r5f4iUdF5RyfIhOA+KXVAokltyUs4sGnYrzbY6bSZvUzYS282C2s4z3AYA8DCBfDaKPtUsDBOF+tEy38wTyA==}
     peerDependencies:
       '@babel/core': ^7.14.6
@@ -7461,8 +7446,8 @@ packages:
       eslint-plugin-prettier: ^5.1.3
       prettier: ^3.2.5
     dependencies:
-      '@babel/core': 7.23.6
-      '@babel/eslint-parser': 7.22.15(@babel/core@7.23.6)(eslint@8.57.0)
+      '@babel/core': 7.23.9
+      '@babel/eslint-parser': 7.22.15(@babel/core@7.23.9)(eslint@8.57.0)
       '@typescript-eslint/eslint-plugin': 5.62.0(@typescript-eslint/parser@5.62.0)(eslint@8.57.0)(typescript@4.9.5)
       '@typescript-eslint/parser': 5.62.0(eslint@8.57.0)(typescript@4.9.5)
       eslint: 8.57.0
@@ -11432,7 +11417,7 @@ packages:
   /probe.gl@3.6.0:
     resolution: {integrity: sha512-19JydJWI7+DtR4feV+pu4Mn1I5TAc0xojuxVgZdXIyfmTLfUaFnk4OloWK1bKbPtkgGKLr2lnbnCXmpZEcEp9g==}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
       '@probe.gl/env': 3.6.0
       '@probe.gl/log': 3.6.0
       '@probe.gl/stats': 3.6.0

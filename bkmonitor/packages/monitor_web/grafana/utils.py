@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from copy import deepcopy
 from functools import lru_cache
 from typing import Dict, Optional
 
@@ -157,3 +158,38 @@ def get_cookies_filter() -> Optional[Dict]:
     # 提取cookies中的字段作为过滤条件
     filter_dict = {field: request.COOKIES[field] for field in cookies if request.COOKIES.get(field)}
     return filter_dict
+
+
+def remove_all_conditions(where_list: list) -> list:
+    """删除全选条件"""
+    # 全选标签
+    select_all_tag = "__ALL__"
+
+    if not where_list:
+        return []
+
+    where_list = deepcopy(where_list)
+    index = 0
+    while index < len(where_list):
+        where = where_list[index]
+        # 如果条件中包含全选标签,且方法为肯定的方法,则删除该条件
+        if select_all_tag not in where["value"] or where["method"] not in ["eq", "include", "regex"]:
+            index += 1
+            continue
+        where_list.pop(index)
+
+        # 由于删除了一个条件，所以index不变
+        next_where = where_list[index] if index < len(where_list) else None
+
+        if where.get("condition") == "or" or index == 0:
+            if not next_where or next_where.get("condition") == "or":
+                # 如果当前条件为or,且下一个条件为or,则整个表达式恒为True,返回空列表
+                return []
+            else:
+                # 如果当前条件为or,且下一个条件为and,则将下一个条件改为or
+                next_where["condition"] = "or"
+
+    if where_list:
+        where_list[0].pop("condition", None)
+
+    return where_list

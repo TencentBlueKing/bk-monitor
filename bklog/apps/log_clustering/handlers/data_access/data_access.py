@@ -118,7 +118,7 @@ class DataAccessHandler(BaseAiopsHandler):
             return settings.DEFAULT_KAFKA_HOST
         return broker
 
-    def validate_bk_biz_id(bk_biz_id: int) -> int:
+    def validate_bk_biz_id(self, bk_biz_id: int) -> int:
         """
         采集项业务id校验
         :return:
