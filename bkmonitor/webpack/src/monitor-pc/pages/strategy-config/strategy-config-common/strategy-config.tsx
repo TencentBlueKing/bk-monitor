@@ -2516,7 +2516,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     return (
       <div
         class='strategy-config'
-        v-monitor-loading={{ isLoading: this.loading }}
+        // v-monitor-loading={{ isLoading: this.loading }}
       >
         <div class='content'>
           <div
@@ -2532,6 +2532,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               data={this.filterPanelData}
               checkedData={this.header.keywordObj}
               on-change={this.handleSearchSelectChange}
+              showSkeleton={this.loading}
             ></FilterPanel>
             <div
               class={['content-left-drag', { displaynone: !this.showFilterPanel }]}

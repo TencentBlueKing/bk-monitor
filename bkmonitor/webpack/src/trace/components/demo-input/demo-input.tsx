@@ -23,13 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { defineComponent } from 'vue';
 
-import './navigation-slider.scss';
-@Component
-export default class FtaNavigationSlider extends tsc<{}> {
-  render() {
-    return <div class='fta-navigation-slider'></div>;
-  }
-}
+export default (<T extends string | number>() =>
+  defineComponent(
+    (props: { msg: T }, { emit }) => {
+      const handleClick = () => {
+        emit('click', props.msg);
+      };
+      return () => {
+        // 渲染函数或 JSX
+        return (<div onClick={handleClick}>{props.msg}</div>) as any;
+      };
+    },
+    {
+      props: ['msg'],
+      emits: {
+        click: (msg: T) => msg
+      }
+    }
+  ))();
+
+// export default Comp as typeof Comp & typeof CompGeneric; // override to generic `$props`

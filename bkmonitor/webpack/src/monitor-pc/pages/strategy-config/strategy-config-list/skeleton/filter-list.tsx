@@ -23,13 +23,44 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './navigation-slider.scss';
+import './filter-list.scss';
+
+interface FilterSkeletonProps {
+  titleCount?: number; // 可配置的标题数量
+  bodyCountPerGroup?: number; // 每个组体中条目的数量
+  groupCount?: number; // 总共的组体数量
+}
 @Component
-export default class FtaNavigationSlider extends tsc<{}> {
+export default class FilterSkeleton extends tsc<FilterSkeletonProps> {
+  @Prop({ default: 4 }) readonly titleCount!: number;
+  @Prop({ default: 5 }) readonly bodyCountPerGroup!: number;
+  @Prop({ default: 4 }) readonly groupCount!: number;
+
+  createTitle() {
+    return <span class='skeleton-element item-title' />;
+  }
+
+  createBody() {
+    return <span class='skeleton-element item-content' />;
+  }
+
+  createGroup(bodyCount: number) {
+    return (
+      <div class='item-group'>
+        {this.createTitle()}
+        {[...Array(bodyCount)].map(() => this.createBody())}
+      </div>
+    );
+  }
+
   render() {
-    return <div class='fta-navigation-slider'></div>;
+    return (
+      <div class='filter-panel-skeleton'>
+        {[...Array(this.groupCount)].map(() => this.createGroup(this.bodyCountPerGroup))}
+      </div>
+    );
   }
 }

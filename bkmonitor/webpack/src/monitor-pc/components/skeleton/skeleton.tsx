@@ -49,7 +49,7 @@ export interface ISkeletonProps {
   secondaryOpacity?: number;
   animate?: boolean;
   skeletons?: ISkeleton[];
-  options: ISkeleton;
+  options?: ISkeleton;
 }
 const SkeletonContanier = {
   name: 'SkeletonContanier',
@@ -72,7 +72,7 @@ const SkeletonContanier = {
     },
     backgroundColor: {
       type: String,
-      default: '#F5F6FA'
+      default: '#f2f2f2'
     },
     secondaryColor: {
       type: String,
@@ -120,6 +120,7 @@ const SkeletonContanier = {
         {...data}
         viewBox={`0 0 ${options?.width || props.width} ${options?.height || props.height}`}
         version='1.1'
+        xmlns='http://www.w3.org/2000/svg'
       >
         <rect
           style={{ fill: `url(#${idGradient})` }}
