@@ -203,6 +203,10 @@ export class MetricDetail {
     this.agg_method =
       metricDetail.agg_method ||
       (this.onlyCountMethod ? 'COUNT' : metricDetail?.method_list?.length ? metricDetail.method_list[0] : 'AVG');
+    if (this.agg_method.match(/_TIME$/)) {
+      // 兼容老版本数据
+      this.agg_method = this.agg_method.toLocaleLowerCase();
+    }
     if (this.canSetDimension) {
       this.agg_dimension = metricDetail.agg_dimension || metricDetail.default_dimensions || [];
     }
