@@ -120,7 +120,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
 
   async created() {
     this.loading = true;
-    this.detailInfo = await actionDetail({ id: this.id }).catch(() => ({}));
+    this.detailInfo = await actionDetail({ id: this.id, bk_biz_id: this.bizId }).catch(() => ({}));
     const oneDay = 60 * 24 * 60;
     const params = {
       conditions: [],
