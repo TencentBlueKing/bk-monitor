@@ -1826,5 +1826,6 @@ export default {
   解析状态: 'Parsing status',
   文件md5: 'File md5',
   上传人: 'Uploader',
-  上传时间: 'Upload time'
+  上传时间: 'Upload time',
+  错误信息: 'Error message'
 };

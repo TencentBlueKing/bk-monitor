@@ -89,6 +89,8 @@ export interface FileDetail {
   query_start_time: number;
   /** 查询结束时间 */
   query_end_time: number;
+  /** 错误信息 */
+  content: string;
 }
 
 export enum DetailType {
