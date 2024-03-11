@@ -75,6 +75,7 @@ interface ITableData {
 }
 interface IActiveDetail {
   id?: string;
+  bizId?: number;
 }
 interface IDetailInfo {
   id?: string;
@@ -102,6 +103,7 @@ interface IDetailInfo {
 })
 export default class ActiveDetail extends tsc<IActiveDetail> {
   @Prop({ type: String, default: '' }) id: string;
+  @Prop({ type: Number, default: +window.bk_biz_id }) bizId: number;
 
   detailInfo: IDetailInfo = {};
   tableData: { trigger: ITableData[]; defense: ITableData[] } = {
@@ -129,7 +131,8 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
       record_history: false,
       show_aggs: false,
       show_overview: false,
-      start_time: this.detailInfo.create_time - oneDay
+      start_time: this.detailInfo.create_time - oneDay,
+      bk_biz_ids: [this.bizId]
     };
     const triggerData = await searchAlert({
       ...params,
