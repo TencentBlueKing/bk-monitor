@@ -52,10 +52,8 @@ class SysLogScenario(CollectorScenario):
             if not key:
                 continue
 
-            temp_condition = {"index": "-1", "key": key, "op": op}
-            if field:
-                # syslog 字段值匹配 当下发配置中定义了field字段 插件会按照field指定的字段值进行过滤 默认是按日志内容过滤
-                temp_condition["field"] = field
+            # syslog 字段值匹配->当下发配置中定义field字段且field字段值不为空 插件会按照field的字段值进行过滤 默认是按日志内容过滤
+            temp_condition = {"index": "-1", "key": key, "op": op, "field": field}
 
             filters_conditions.append(temp_condition)
 
