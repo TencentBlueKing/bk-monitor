@@ -83,4 +83,10 @@
       position: static;
     }
   }
+
+  .effective-end {
+    ::placeholder {
+      color: #63656e;
+    }
+  }
 }
