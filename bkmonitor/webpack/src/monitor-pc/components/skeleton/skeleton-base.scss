@@ -1,0 +1,12 @@
+.skeleton-base-comp {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+
+  .skeleton-row {
+    display: flex;
+  }
+}
