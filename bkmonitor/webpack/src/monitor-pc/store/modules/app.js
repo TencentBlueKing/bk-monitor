@@ -76,7 +76,8 @@ const state = {
   bizBgColor: '', // 业务颜色
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
-  bizIdChangePedding: '' // 业务id是否切换
+  bizIdChangePedding: '', // 业务id是否切换
+  extraDocLinkMap: {}
 };
 
 const mutations = {
@@ -185,6 +186,13 @@ const mutations = {
     } else {
       handleReload();
     }
+  },
+  /**
+   * @description: 更新文档链接
+   * @param {Object} data
+   */
+  updateExtraDocLinkMap(state, data) {
+    state.extraDocLinkMap = data;
   }
 };
 

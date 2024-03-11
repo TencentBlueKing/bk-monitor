@@ -55,7 +55,6 @@ class ApplyDatasourceResource(ApmAPIGWResource):
 
 
 class DetailApplicationResource(ApmAPIGWResource):
-    cache_type = CacheType.APM(60 * 60 * 24)
     action = "/detail_apm_application/"
     method = "GET"
 
@@ -364,7 +363,7 @@ class QueryDiscoverRules(ApmAPIGWResource):
 
 class QueryBuiltinProfileDatasourceResource(ApmAPIGWResource):
     cache_type = CacheType.APM(60 * 60 * 24)
-    action = "/builtin_profile_datasource/"
+    action = "/apm/profiling/builtin_profile_datasource/"
     method = "GET"
 
 
@@ -393,3 +392,12 @@ class OperateApmDataId(ApmAPIGWResource):
 
     action = "/apm/operate_apm_dataid/"
     method = "POST"
+
+
+class QueryProfileServicesDetail(ApmAPIGWResource):
+    """
+    查询Profile服务详情
+    """
+
+    action = "/apm/profiling/services_detail/"
+    method = "GET"
