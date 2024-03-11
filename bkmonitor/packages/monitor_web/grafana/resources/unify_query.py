@@ -1064,6 +1064,9 @@ class GraphPromqlQueryResource(Resource):
 
     SELECT_ALL_TAG = "__ALL__"
 
+    ALL_REPLACE_PATTERN = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*\s*(=|=~)\s*['\"]__ALL__['\"]\s*,?")
+    SURPLUS_COMMA_PATTERN = re.compile(r",\s*}$")
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         promql = serializers.CharField(label="PromQL", allow_blank=True)
@@ -1106,8 +1109,8 @@ class GraphPromqlQueryResource(Resource):
         去除promql中的全选条件
         """
         promql = promql.strip()
-        promql = re.sub(rf"[a-zA-Z_][a-zA-Z0-9_]*\s*(=|=~)\s*['\"]{cls.SELECT_ALL_TAG}['\"]\s*,?", "", promql)
-        promql = re.sub(r",\s*}$", r"}", promql)
+        promql = cls.ALL_REPLACE_PATTERN.sub("", promql)
+        promql = cls.SURPLUS_COMMA_PATTERN.sub("}", promql)
         return promql
 
     def perform_request(self, params):
