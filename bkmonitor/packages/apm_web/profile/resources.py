@@ -38,6 +38,15 @@ class QueryServicesDetailResource(Resource):
         view_mode = serializers.ChoiceField(label="数据模式", default="default", choices=view_mode_choices, required=False)
 
     def perform_request(self, validated_data):
+        app = Application.objects.filter(
+            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
+        ).first()
+        if not app:
+            raise ValueError(_("应用{}不存在").format(validated_data['app_name']))
+
+        if not app.is_enabled_profiling:
+            raise ValueError(_(f"应用：{app.app_name} 未开启 Profile 功能，需先前往应用配置中开启"))
+
         services = api.apm_api.query_profile_services_detail(
             **{
                 "bk_biz_id": validated_data["bk_biz_id"],
@@ -47,7 +56,7 @@ class QueryServicesDetailResource(Resource):
         )
 
         if not services:
-            raise ValueError(f"服务: {validated_data['service_name']} 不存在")
+            raise ValueError(f"Profile 服务: {validated_data['service_name']} 不存在，请确认数据是否上报或稍后再试")
 
         # 实时查询最近上报时间等信息
         data_type_info_mapping = QueryTemplate(validated_data["bk_biz_id"], validated_data["app_name"]).get_sample_info(
