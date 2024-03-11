@@ -13,8 +13,10 @@ import logging
 import time
 from urllib.parse import urlencode
 
+import arrow
 from django.conf import settings
 
+from alarm_backends.core.i18n import i18n
 from bkmonitor.data_source import load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import Event, QueryConfigModel
@@ -107,6 +109,7 @@ def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: 
     interval = query_config.get("agg_interval", 60)
     start_time = alert.begin_time - 60 * 60
     end_time = max(alert.begin_time + interval, alert.latest_time) + 60 * 60
+    group_by = query_config.get("agg_dimension", [])
 
     try:
         dimensions = alert.origin_alarm["data"]["dimensions"]
@@ -116,7 +119,7 @@ def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: 
         logger.exception("[get_alert_info_for_log_clustering_count] get dimension error: %s", e)
         return ""
 
-    return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures)
+    return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures, group_by, dimensions)
 
 
 def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_id: str):
@@ -129,6 +132,7 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
     interval = query_config.get("agg_interval", 60)
     start_time = alert.begin_time
     end_time = max(alert.begin_time + interval, alert.latest_time)
+    group_by = query_config.get("agg_dimension", [])
 
     # 查出这段时间新增的数据签名
     signatures = data_source.query_dimensions(
@@ -142,10 +146,13 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
     except Exception as e:
         logger.exception("[get_alert_info_for_log_clustering_new_class] get dimension error: %s", e)
         sensitivity = "__dist_09"
-    return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures)
+        dimensions = {}
+    return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures, group_by, dimensions)
 
 
-def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_time, sensitivity, signatures):
+def get_clustering_log(
+    alert: AlertDocument, index_set_id: str, start_time, end_time, sensitivity, signatures, group_by, dimensions
+):
     start_time_str = time_tools.utc2biz_str(start_time)
     end_time_str = time_tools.utc2biz_str(end_time)
     params = {
@@ -177,7 +184,7 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
                 if key.startswith("__dist_"):
                     # 获取pattern
                     if key == sensitivity:
-                        log_signature = record.pop(key)
+                        log_signature = record[key]
                     # 去掉数据签名相关字段，精简显示内容
                     record.pop(key)
 
@@ -188,15 +195,31 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
 
     if log_signature:
         try:
+            addition = [{"field": sensitivity, "operator": "=", "value": log_signature}]
+            # 增加聚类分组告警维度值作为查询条件
+            if dimensions:
+                addition.extend(
+                    [
+                        {"field": dimension_field, "operator": "=", "value": dimension_value}
+                        for dimension_field, dimension_value in dimensions.items()
+                        if dimension_field not in ["sensitivity", "signature"]
+                    ]
+                )
             pattern_params = {
                 "bizId": alert.event.bk_biz_id,
-                "addition": json.dumps([{"field": sensitivity, "operator": "=", "value": log_signature}]),
+                "addition": addition,
                 "start_time": start_time_str,
                 "end_time": end_time_str,
                 "index_set_id": index_set_id,
                 "pattern_level": sensitivity.lstrip("__dist_"),
                 "show_new_pattern": False,
             }
+            # 增加聚类分组参数
+            group_by = [group for group in group_by if group not in ["sensitivity", "signature"]]
+            if group_by:
+                pattern_params["group_by"] = group_by
+                record["group_by"] = group_by
+
             patterns = api.log_search.search_pattern(pattern_params)
             log_pattern = patterns[0]
             record["owners"] = ",".join(log_pattern["owners"])
@@ -204,7 +227,9 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
                 remark = log_pattern["remark"][-1]
                 record["remark_text"] = remark["remark"]
                 record["remark_user"] = remark["username"]
-                record["remark_time"] = remark["create_time"]
+                # 激活当前业务时区，获取备注创建时间字符串
+                i18n.set_biz(alert.event.bk_biz_id)
+                record["remark_time"] = arrow.get(remark["create_time"] / 1000).to('local').format('YYYY-MM-DD HH:mm')
         except Exception as e:
             logger.exception(f"get alert[{alert.id}] signature[{log_signature}] log clustering new pattern error: {e}")
 
