@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import gzip
 from dataclasses import dataclass
 from typing import Optional
 
@@ -22,7 +23,10 @@ class PprofConverter(Converter):
     def convert(self, raw: bytes) -> Optional[Profile]:
         """Convert binary to Profile object"""
         self.init_profile()
-        self.profile.parse(raw)
+        try:
+            self.profile.parse(gzip.decompress(raw))
+        except Exception:  # pylint: disable=broad-except
+            self.profile.parse(raw)
 
         if not self.preset_profile_id:
             return self.profile
@@ -34,6 +38,13 @@ class PprofConverter(Converter):
                     str=self.add_string(self.preset_profile_id),
                 )
             )
+            for k, v in self.inject_labels.items():
+                s.label.append(
+                    Label(
+                        key=self.add_string(k),
+                        str=self.add_string(v),
+                    )
+                )
 
         return self.profile
 

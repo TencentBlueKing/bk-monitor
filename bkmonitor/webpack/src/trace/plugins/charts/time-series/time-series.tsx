@@ -32,6 +32,7 @@ import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import { getValueFormat, ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
+import { debounce } from 'throttle-debounce';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { isShadowEqual, reviewInterval, VariablesService } from '../../../utils';
@@ -95,6 +96,11 @@ const TimeSeriesProps = {
   isUseAlone: {
     type: Boolean,
     default: false
+  },
+  // 使用自定义tooltips
+  customTooltip: {
+    type: Object as PropType<Record<string, any>>,
+    required: false
   }
 };
 export default defineComponent({
@@ -116,7 +122,7 @@ export default defineComponent({
     const height = ref<number>(100);
     const minBase = ref<number>(0);
     const inited = ref<boolean>(false);
-    const empty = ref<boolean>(false);
+    const empty = ref<boolean>(true);
     const emptyText = ref<string>('');
     const errorMsg = ref<string>('');
     const metrics = ref<IExtendMetricData[]>([]);
@@ -265,6 +271,8 @@ export default defineComponent({
             if (hasNoBrother) {
               showSymbol = true;
             }
+            // profiling 趋势图 其中 Trace 数据需包含span列表
+            const traceData = item.traceData ? item.traceData[seriesItem[0]] : undefined;
             return {
               symbolSize: hasNoBrother ? 10 : 6,
               value: [seriesItem[0], seriesItem[1]],
@@ -273,7 +281,8 @@ export default defineComponent({
                 enabled: true,
                 shadowBlur: 0,
                 opacity: 1
-              }
+              },
+              traceData
             } as any;
           }
           return seriesItem;
@@ -436,15 +445,16 @@ export default defineComponent({
           window.open(
             location.href.replace(
               location.hash,
-              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${timeRange
-                ?.value[0]}&to=${timeRange?.value[1]}`
+              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${
+                timeRange?.value[0]
+              }&to=${timeRange?.value[1]}`
             )
           );
           break;
       }
     }
     // 获取图表数据
-    const getPanelData = async (start_time?: string, end_time?: string) => {
+    const getPanelData = debounce(300, async (start_time?: string, end_time?: string) => {
       cancelTokens.forEach(cb => cb?.());
       cancelTokens = [];
       if (!isInViewPort()) {
@@ -455,7 +465,6 @@ export default defineComponent({
         return;
       }
       emit('loading', true);
-      empty.value = true;
       emptyText.value = t('加载中...');
       try {
         unregisterOberver();
@@ -481,6 +490,7 @@ export default defineComponent({
           const list =
             props.panel?.targets?.map?.(item => {
               const newPrarams = {
+                ...params,
                 ...variablesService.transformVariables(item.data, {
                   ...viewOptions?.value.filters,
                   ...(viewOptions?.value.filters?.current_target || {}),
@@ -489,7 +499,6 @@ export default defineComponent({
                   time_shift,
                   interval
                 }),
-                ...params,
                 down_sample_range: downSampleRangeComputed(
                   downSampleRange,
                   [params.start_time, params.end_time],
@@ -504,7 +513,7 @@ export default defineComponent({
                   needMessage: false
                 })
                 .then((res: { metrics: any; series: any[] }) => {
-                  res.metrics.forEach((metric: { metric_id: string }) => {
+                  res.metrics?.forEach((metric: { metric_id: string }) => {
                     if (!metricList.some(set => set.metric_id === metric.metric_id)) {
                       metricList.push(metric);
                     }
@@ -547,7 +556,8 @@ export default defineComponent({
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
               unit: item.unit,
-              z: 1
+              z: 1,
+              traceData: item.trace_data ?? ''
             })) as any
           );
           seriesList = seriesList.map((item: any) => ({
@@ -627,7 +637,8 @@ export default defineComponent({
                 splitNumber: Math.ceil(width.value / 80),
                 min: 'dataMin'
               },
-              series: seriesList
+              series: seriesList,
+              tooltip: props.customTooltip ?? {}
             })
           );
           metrics.value = metricList || [];
@@ -650,7 +661,7 @@ export default defineComponent({
       emit('loading', false);
       // this.cancelTokens = [];
       // this.handleLoadingChange(false);
-    };
+    });
     // 监听panel
     const unWathPanel = watch(
       () => props.panel,

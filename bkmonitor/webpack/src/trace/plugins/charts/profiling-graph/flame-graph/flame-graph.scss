@@ -1,0 +1,58 @@
+@import '../../../../theme/mixin.scss';
+
+$rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a4a6 #e88c8d #e77474;
+
+.profiling-flame-graph {
+  &.has-diff-legend {
+    height: calc(100% - 20px);
+  }
+
+  .flame-graph {
+    padding: 8px 16px;
+  }
+}
+
+.profiling-compare-legend {
+  display: flex;
+  padding: 8px 16px 0;
+
+  .tag {
+    width: 66px;
+    height: 22px;
+    font-size: 12px;
+    color: #fff;
+    border-radius: 2px;
+
+    @include flex-center;
+
+    &-new {
+      background-color: #46a28c;
+    }
+
+    &-removed {
+      background-color: #d74747;
+    }
+  }
+
+  .percent-queue {
+    margin: 0 4px;
+    border-radius: 2px;
+
+    @include flex-center;
+
+    .percent-tag {
+      width: 40px;
+      height: 22px;
+      font-size: 12px;
+      color: #000;
+
+      @include flex-center;
+
+      @for $i from 1 through 11 {
+        &.tag-#{$i} {
+          background-color: nth($rateColor, $i);
+        }
+      }
+    }
+  }
+}

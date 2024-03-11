@@ -19,6 +19,7 @@
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",
     "monitor-pc": "workspace:*",
+    "monitor-static": "workspace:*",
     "monitor-ui": "workspace:*",
     "throttle-debounce": "^3.0.1",
     "vue": "2.7.14",

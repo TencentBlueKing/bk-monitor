@@ -33,6 +33,7 @@ from apm.resources import (
     QueryHostInstanceResource,
     QueryLogRelationByIndexSetIdResource,
     QueryMetricDimensionsResource,
+    QueryProfileServiceDetailResource,
     QueryRemoteServiceRelationResource,
     QueryRootEndpointResource,
     QueryServiceStatisticsListResource,
@@ -100,7 +101,6 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", QueryLogRelationByIndexSetIdResource, endpoint="query_log_relation_by_index_set_id"),
         ResourceRoute("GET", QueryMetricDimensionsResource, endpoint="query_metric_dimensions"),
         ResourceRoute("POST", QueryDiscoverRulesResource, endpoint="query_discover_rules"),
-        ResourceRoute("GET", QueryBuiltinProfileDatasourceResource, endpoint="builtin_profile_datasource"),
         ResourceRoute("GET", GetBkDataFlowDetailResource, endpoint="get_bkdata_flow"),
         ResourceRoute("POST", CreateOrUpdateBkdataFlowResource, endpoint="create_or_update_bkdata_flow"),
         ResourceRoute("POST", OperateApmDataIdResource, endpoint="operate_apm_dataid"),
@@ -113,4 +113,11 @@ class TopoViewSet(ResourceViewSet):
         ResourceRoute("POST", QueryRemoteServiceRelationResource, endpoint="query_remote_service_relation"),
         ResourceRoute("POST", QueryTopoRelationResource, endpoint="query_topo_relation"),
         ResourceRoute("GET", QueryTopoNodeResource, endpoint="query_topo_node"),
+    ]
+
+
+class ProfilingViewSet(ResourceViewSet):
+    resource_routes = [
+        ResourceRoute("GET", QueryBuiltinProfileDatasourceResource, endpoint="builtin_profile_datasource"),
+        ResourceRoute("GET", QueryProfileServiceDetailResource, endpoint="services_detail"),
     ]

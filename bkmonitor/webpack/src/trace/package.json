@@ -37,6 +37,7 @@
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",
     "monitor-pc": "workspace:*",
+    "monitor-static": "workspace:*",
     "monitor-ui": "workspace:*",
     "pinia": "2.0.13",
     "reselect": "^4.1.8",
