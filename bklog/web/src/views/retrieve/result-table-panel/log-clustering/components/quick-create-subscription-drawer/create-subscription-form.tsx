@@ -228,6 +228,12 @@ class QuickCreateSubscription extends tsc<IProps> {
 
   customHourInput = '';
 
+  /** 任务有效期，视图绑定用。 */
+  timerange = {
+    start: '',
+    end: ''
+  };
+
   /** 表单验证规则，因为这里需要大量引用 this 指向本组件，所以要使用函数去返回配置对象 */
   formDataRules() {
     return {
@@ -328,11 +334,22 @@ class QuickCreateSubscription extends tsc<IProps> {
       timerange: [
         {
           validator: () => {
-            return this.formData.timerange.length >= 2 && this.formData.timerange.every(item => item);
+            return this.formData.timerange.length === 2 && !!this.formData.timerange[0];
           },
-          message: this.$t('必填项'),
-          trigger: 'change',
+          message: this.$t('生效起始时间必填'),
+          trigger: 'change'
         },
+        {
+          validator: () => {
+            const [start, end] = this.formData.timerange;
+            // end 为空串时说明是无期限。不需要再做后续计算。
+            if (!end) return true;
+            const result = dayjs(start).diff(end);
+            return result < 0;
+          },
+          message: this.$t('生效结束时间不能小于生效起始时间'),
+          trigger: 'change'
+        }
       ],
       name: [
         {
@@ -414,13 +431,10 @@ class QuickCreateSubscription extends tsc<IProps> {
 
   /** 任务有效期 调整时间格式 */
   handleTimeRangeChange(v) {
-    if (v.filter(item => !!item).length < 2) {
-      this.formData.timerange = [];
-      return;
-    }
     this.formData.timerange = deepClone(v);
     const result = v.map(date => {
-      return dayjs(date).unix();
+      // 结束时间可能是空串（代表 无期限），然后接口需要number类型，这里用 0 先代替。
+      return date ? dayjs(date).unix() : 0;
     });
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const [start_time, end_time] = result;
@@ -583,6 +597,16 @@ class QuickCreateSubscription extends tsc<IProps> {
       .then(response => {
         this.variableTable.data = response.data;
       })
+  }
+
+  /** 取消按钮文本设置为永久 */
+  handleDatePickerOpen(state: boolean) {
+    if (state) {
+      // @ts-ignore
+      const ele = this.$refs['effectiveEndRef'].$el.querySelector('.bk-picker-confirm a:nth-child(2)');
+      ele.innerText = this.$t('永久');
+      ele.setAttribute('class', 'confirm');
+    }
   }
 
   @Watch('dataRange', { immediate: true})
@@ -1257,13 +1281,37 @@ class QuickCreateSubscription extends tsc<IProps> {
                 class='no-relative'
                 desc={this.$t('有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。')}
               >
-                <bk-date-picker
+                {/* <bk-date-picker
                   v-model={this.formData.timerange}
                   type='datetimerange'
                   format={'yyyy-MM-dd HH:mm:ss'}
                   clearable={false}
                   style='width: 465px;'
                   onChange={this.handleTimeRangeChange}
+                ></bk-date-picker> */}
+                <bk-date-picker
+                  v-model={this.timerange.start}
+                  type='datetime'
+                  placeholder={`${this.$t('如')}: 2019-01-30 12:12:21`}
+                  clearable={false}
+                  style='width: 220px;'
+                  onChange={v => {
+                    this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
+                  }}
+                ></bk-date-picker>
+                <span style='padding: 0 10px;'>-</span>
+                <bk-date-picker
+                  v-model={this.timerange.end}
+                  ref='effectiveEndRef'
+                  class='effective-end'
+                  clearable
+                  type='datetime'
+                  placeholder={this.$t('永久')}
+                  style='width: 220px;'
+                  onChange={v => {
+                    this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
+                  }}
+                  onOpen-change={this.handleDatePickerOpen}
                 ></bk-date-picker>
               </bk-form-item>
             )}

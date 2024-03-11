@@ -163,6 +163,26 @@ export default defineComponent({
           message: ' ',
           trigger: 'blur'
         }
+      ],
+      timerange: [
+        {
+          validator: () => {
+            return formData.timerange.length === 2 && !!formData.timerange[0];
+          },
+          message: t('生效起始时间必填'),
+          trigger: 'change'
+        },
+        {
+          validator: () => {
+            const [start, end] = formData.timerange;
+            // end 为空串时说明是无期限。不需要再做后续计算。
+            if (!end) return true;
+            const result = dayjs(start).diff(end);
+            return result < 0;
+          },
+          message: t('生效结束时间不能小于生效起始时间'),
+          trigger: 'change'
+        }
       ]
     };
     /** 针对 订阅人 一项进行特殊的校验异常提醒。因为该项内容有三个输入框要分别处理。 */
@@ -283,6 +303,12 @@ export default defineComponent({
     const existedReportList = ref([]);
     const customHourInput = ref('');
     const refOfFrequencyHour = ref(null);
+    // 任务有效期，视图绑定用。
+    const timerange = reactive({
+      start: '',
+      end: ''
+    });
+    const effectiveEndRef = ref();
     /** 当选择 发送频率 为 仅一次 要保留当前所生成或选择的时间。否则就看起来是 bug 。 */
     let isNotChooseOnlyOnce = true;
     function handleSliderChange() {
@@ -354,14 +380,11 @@ export default defineComponent({
     }
 
     /** 有效时间范围切换一次就要对 formData */
-    function handleTimeRangeChange(v) {
-      if (v.filter(item => !!item).length < 2) {
-        formData.timerange = [];
-        return;
-      }
+    function handleTimeRangeChange(v: string[]) {
       formData.timerange = deepClone(v);
       const result = v.map(date => {
-        return dayjs(date).unix();
+        // 结束时间可能是空串（代表 无期限），然后接口需要number类型，这里用 0 先代替。
+        return date ? dayjs(date).unix() : 0;
       });
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const [start_time, end_time] = result;
@@ -404,13 +427,16 @@ export default defineComponent({
                     !item.subscribers.every(email => String(email.id).toLowerCase().match(emailRegex)) ||
                     !item.subscribers.length)
             )?.channel_name;
+            // @ts-ignore
             if (targetChannel) targetFormItemEle.querySelector(`#${targetChannel}-input`)?.focus();
             else {
               // 如果订阅人未选择任何类型，应该把焦点定位在 订阅人 一栏
+              // @ts-ignore
               document.querySelector('#subscriptor-item')?.focus?.();
             }
           } else {
             // 这里去匹配除 订阅人 栏之外的输入框。并使之自动聚焦
+            // @ts-ignore
             targetFormItemEle.querySelector('input.bk-input--text,.bk-date-picker-editor')?.focus();
           }
           return Promise.reject(error);
@@ -431,6 +457,7 @@ export default defineComponent({
             indexSetIDList.value.find(item => item.id === formData.scenario_config.index_set_id)?.name || '';
           break;
         case 'business_name':
+          // @ts-ignore
           switchedText = window.space_list.find(item => item.bk_biz_id === window.bk_biz_id)?.name || '';
           break;
         default:
@@ -525,6 +552,10 @@ export default defineComponent({
           dayjs.unix(formData.start_time).format('YYYY-MM-DD HH:mm:ss'),
           dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss')
         ];
+        // 给 任务有效期 添加数据
+        const [start, end] = formData.timerange;
+        timerange.start = start;
+        timerange.end = end;
       }
       // 展示同比 的 switcher 开关。
       isShowYOY.value = Boolean(formData.scenario_config.year_on_year_hour);
@@ -590,6 +621,15 @@ export default defineComponent({
     function handleExistedReportNameClick(reportId: number) {
       // TODO: 类型补上
       emit('SelectExistedReport', reportId);
+    }
+
+    /** 取消按钮文本设置为永久 */
+    function handleDatePickerOpen(state: boolean) {
+      if (state) {
+        const ele = effectiveEndRef.value.$el.querySelector('.bk-picker-confirm-action a');
+        ele.innerText = t('永久');
+        ele.setAttribute('class', 'confirm');
+      }
     }
 
     watch(
@@ -719,7 +759,10 @@ export default defineComponent({
       handleExistedReportNameClick,
       setFormData,
       customHourInput,
-      refOfFrequencyHour
+      refOfFrequencyHour,
+      timerange,
+      handleDatePickerOpen,
+      effectiveEndRef
     };
   },
   render() {
@@ -1380,11 +1423,30 @@ export default defineComponent({
                 description={this.t('有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。')}
               >
                 <DatePicker
-                  modelValue={this.formData.timerange}
-                  type='datetimerange'
+                  modelValue={this.timerange.start}
+                  type='datetime'
+                  placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
                   clearable={false}
-                  onChange={this.handleTimeRangeChange}
-                  style='width: 465px;'
+                  style='width: 220px;'
+                  onChange={v => {
+                    this.timerange.start = v;
+                    this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
+                  }}
+                ></DatePicker>
+                <span style='padding: 0 10px;'>-</span>
+                <DatePicker
+                  modelValue={this.timerange.end}
+                  ref='effectiveEndRef'
+                  class='effective-end'
+                  clearable
+                  type='datetime'
+                  placeholder={this.t('永久')}
+                  style='width: 220px;'
+                  onChange={v => {
+                    this.timerange.end = v;
+                    this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
+                  }}
+                  onOpen-change={this.handleDatePickerOpen}
                 ></DatePicker>
               </Form.FormItem>
             )}

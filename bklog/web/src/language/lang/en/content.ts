@@ -623,5 +623,8 @@ export default {
   选择时间范围: 'Select Time Range',
   '{0}-日志聚类统计报表-{1}': '{0}-Log clustering statistics report-{1}',
   请至少选择一种订阅方式: 'Please select at least one subscription method',
-  我申请的: 'My Application'
+  我申请的: 'My Application',
+  生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time',
+  生效起始时间必填: 'Effective start time is required',
+  如: 'Example'
 };
