@@ -141,6 +141,8 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
 
     try:
         dimensions = alert.origin_alarm["data"]["dimensions"]
+        if dimensions.get("signature"):
+            signatures = [dimensions["signature"]]
         # 新类敏感度默认取最低档，即最少告警
         sensitivity = dimensions.get("sensitivity", "__dist_09")
     except Exception as e:
@@ -155,9 +157,17 @@ def get_clustering_log(
 ):
     start_time_str = time_tools.utc2biz_str(start_time)
     end_time_str = time_tools.utc2biz_str(end_time)
+    addition = [{"field": sensitivity, "operator": "=", "value": ",".join(signatures)}]
+    addition.extend(
+        [
+            {"field": dimension_field, "operator": "=", "value": dimension_value}
+            for dimension_field, dimension_value in dimensions.items()
+            if dimension_field not in ["sensitivity", "signature"]
+        ]
+    )
     params = {
         "bizId": alert.event.bk_biz_id,
-        "addition": json.dumps([{"field": sensitivity, "operator": "=", "value": ",".join(signatures)}]),
+        "addition": json.dumps(addition),
         "start_time": start_time_str,
         "end_time": end_time_str,
     }
@@ -197,14 +207,13 @@ def get_clustering_log(
         try:
             addition = [{"field": sensitivity, "operator": "=", "value": log_signature}]
             # 增加聚类分组告警维度值作为查询条件
-            if dimensions:
-                addition.extend(
-                    [
-                        {"field": dimension_field, "operator": "=", "value": dimension_value}
-                        for dimension_field, dimension_value in dimensions.items()
-                        if dimension_field not in ["sensitivity", "signature"]
-                    ]
-                )
+            addition.extend(
+                [
+                    {"field": dimension_field, "operator": "=", "value": dimension_value}
+                    for dimension_field, dimension_value in dimensions.items()
+                    if dimension_field not in ["sensitivity", "signature"]
+                ]
+            )
             pattern_params = {
                 "bizId": alert.event.bk_biz_id,
                 "addition": addition,
