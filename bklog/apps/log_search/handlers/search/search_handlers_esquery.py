@@ -2349,9 +2349,10 @@ class UnionSearchHandler(object):
             union_display_fields.extend(display_fields)
 
         # 处理公共的默认显示字段
-        union_display_fields = list(
-            {display_field for display_field in union_display_fields if union_display_fields.count(display_field) > 1}
-        )
+        union_display_fields_all = list()
+        for display_field in union_display_fields:
+            if display_field not in union_display_fields_all:
+                union_display_fields_all.append(display_field)
 
         # 处理时间字段
         for index_set_obj in index_set_objs:
@@ -2371,8 +2372,8 @@ class UnionSearchHandler(object):
             time_field_type = list(union_time_fields_type)[0]
             time_field_unit = list(union_time_fields_unit)[0]
 
-        if not union_display_fields:
-            union_display_fields.append(time_field)
+        if not union_display_fields_all:
+            union_display_fields_all.append(time_field)
 
         index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
 
@@ -2399,14 +2400,14 @@ class UnionSearchHandler(object):
                 obj = IndexSetFieldsConfig.objects.get(pk=user_index_set_config_obj.config_id)
             except IndexSetFieldsConfig.DoesNotExist:
                 obj = self.get_or_create_default_config(
-                    index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=default_sort_list
+                    index_set_ids=index_set_ids, display_fields=union_display_fields_all, sort_list=default_sort_list
                 )
                 user_index_set_config_obj.config_id = obj.id
                 user_index_set_config_obj.save()
 
         else:
             obj = self.get_or_create_default_config(
-                index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=default_sort_list
+                index_set_ids=index_set_ids, display_fields=union_display_fields_all, sort_list=default_sort_list
             )
 
         ret = {
