@@ -27,6 +27,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { promLanguageDefinition } from 'monaco-promql';
+import { throttle } from 'throttle-debounce';
 
 import { noop } from './utils';
 
@@ -86,7 +87,8 @@ const defalutOptions = {
   renderLineHighlightOnlyWhenFocus: true,
   overviewRulerBorder: false,
   automaticLayout: true,
-  wordWrap: 'on'
+  wordWrap: 'on',
+  scrollBeyondLastLine: false
 };
 export interface IPromqlMonacoEditorProps {
   width?: string;
@@ -133,6 +135,11 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   preventTriggerChangeEvent = false;
 
   wrapHeight = 0;
+  throttleUpdateLayout = () => {};
+
+  created() {
+    this.throttleUpdateLayout = throttle(300, true, this.updateLayout);
+  }
 
   mounted() {
     this.initMonaco();
@@ -151,13 +158,16 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
    */
   handleEditorDidMount() {
     this.editorDidMount?.(this.editor, monaco);
+    setTimeout(() => {
+      this.throttleUpdateLayout();
+    }, 300);
     const placeholderWidget = new PlaceholderWidget(this.editor);
     this.subscription = this.editor.onDidChangeModelContent(_event => {
       if (!this.preventTriggerChangeEvent) {
         this.onChange(this.editor.getValue());
       }
       placeholderWidget.update();
-      this.updateLayout();
+      this.throttleUpdateLayout();
     });
     this.editor.onDidBlurEditorText(() => {
       this.$emit('blur', this.editor.getValue(), this.getLinterStatus());
@@ -189,14 +199,16 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   }
 
   updateLayout() {
-    const viewLinesEl = this.$el?.querySelector('.view-lines');
-    const height = viewLinesEl.clientHeight;
-    console.log(height);
-    // this.wrapHeight = height;
-    // this.editor.layout({
-    //   height: height > this.minHeight ? height : this.minHeight,
-    //   width: this.$el.parentElement.clientWidth
-    // })
+    const rowLen = this.editor.getModel().getLineCount();
+    let height = 0;
+    // 遍历每一行，计算其高度
+    for (let lineNumber = 0; lineNumber < rowLen; lineNumber++) {
+      const lineTop = this.editor.getTopForLineNumber(lineNumber + 1);
+      const nextLineTop = this.editor.getTopForLineNumber(lineNumber + 2);
+      const lineHeight = nextLineTop - lineTop;
+      height += lineHeight;
+    }
+    this.wrapHeight = height + 30;
   }
 
   checkLuaSyntax(_code) {
