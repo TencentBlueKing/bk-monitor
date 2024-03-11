@@ -601,22 +601,22 @@ class SyslogProtocolEnum(ChoicesEnum):
 class SyslogFilterFieldEnum(ChoicesEnum):
     ADDRESS = "address"
     PORT = "port"
-    FACILITY_LABEL = "facility_label"
     PRIORITY = "priority"
-    SEVERITY_LABEL = "severity_label"
     FACILITY = "facility"
+    FACILITY_LABEL = "facility_label"
     SEVERITY = "severity"
+    SEVERITY_LABEL = "severity_label"
     PROGRAM = "program"
     PID = "pid"
 
     _choices_labels = (
         (ADDRESS, _("地址")),
         (PORT, _("端口")),
-        (FACILITY_LABEL, _("设备标签")),
         (PRIORITY, _("优先级")),
-        (SEVERITY_LABEL, _("严重级别")),
         (FACILITY, _("设备")),
+        (FACILITY_LABEL, _("设备标签")),
         (SEVERITY, _("严重性")),
+        (SEVERITY_LABEL, _("严重级别")),
         (PROGRAM, _("进程")),
-        (PID, _("pid")),
+        (PID, _("进程标识符")),
     )
