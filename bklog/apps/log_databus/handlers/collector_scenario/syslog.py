@@ -52,7 +52,7 @@ class SysLogScenario(CollectorScenario):
             if not key:
                 continue
 
-            # syslog 字段值匹配->当下发配置中定义field字段且field字段值不为空 插件过滤会以field的字段值作为key 从获取原始日志中对应的value进行过滤 默认是按日志内容过滤
+            # syslog 字段值匹配->当下发配置中定义field字段且field字段值不为空 插件过滤会以field的字段值作为key 从原始日志中获取对应的value进行过滤 默认是按日志内容过滤
             temp_condition = {"index": "-1", "key": key, "op": op, "field": field}
 
             filters_conditions.append(temp_condition)
