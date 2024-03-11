@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { promLanguageDefinition } from 'monaco-promql';
 
-import { noop, processSize } from './utils';
+import { noop } from './utils';
 
 import './promql-editor.scss';
 
@@ -85,12 +85,7 @@ const defalutOptions = {
   fontSize: 12,
   renderLineHighlightOnlyWhenFocus: true,
   overviewRulerBorder: false,
-  extraEditorClassName: 'promql-monaco-editor-component',
   automaticLayout: true,
-  padding: {
-    top: 8,
-    bottom: 8
-  },
   wordWrap: 'on'
 };
 export interface IPromqlMonacoEditorProps {
@@ -110,14 +105,16 @@ export interface IPromqlMonacoEditorProps {
   className?: string | null;
   uri?: Function;
   readonly?: boolean;
+  minHeight?: number;
+  isError?: boolean;
   onBlur?: (value: string, hasErr: boolean) => void;
   onFocus?: () => void;
 }
 @Component
 export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Ref('containerElement') readonly containerElement?: HTMLDivElement;
-  @Prop({ default: '100%' }) readonly width: string;
-  @Prop({ default: '100%' }) readonly height: string;
+  @Prop({ default: 68 }) readonly minHeight: number;
+  @Prop({ default: false }) readonly isError: boolean;
   @Prop({ default: null }) readonly value: string | null;
   @Prop({ default: '' }) readonly defaultValue?: string;
   @Prop({ default: 'promql' }) readonly language?: string;
@@ -135,12 +132,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   subscription: monaco.IDisposable | null = null;
   preventTriggerChangeEvent = false;
 
-  get style() {
-    return {
-      width: processSize(this.width),
-      height: processSize(this.height)
-    };
-  }
+  wrapHeight = 0;
 
   mounted() {
     this.initMonaco();
@@ -165,6 +157,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         this.onChange(this.editor.getValue());
       }
       placeholderWidget.update();
+      this.updateLayout();
     });
     this.editor.onDidBlurEditorText(() => {
       this.$emit('blur', this.editor.getValue(), this.getLinterStatus());
@@ -193,6 +186,17 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         monaco.editor.setModelMarkers(model, this.language, markers);
       }
     });
+  }
+
+  updateLayout() {
+    const viewLinesEl = this.$el?.querySelector('.view-lines');
+    const height = viewLinesEl.clientHeight;
+    console.log(height);
+    // this.wrapHeight = height;
+    // this.editor.layout({
+    //   height: height > this.minHeight ? height : this.minHeight,
+    //   width: this.$el.parentElement.clientWidth
+    // })
   }
 
   checkLuaSyntax(_code) {
@@ -316,14 +320,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     }
   }
 
-  @Watch('width')
-  onWidthChanged() {
-    this.editor?.layout();
-  }
-  @Watch('height')
-  onHeightChanged() {
-    this.editor?.layout();
-  }
   @Watch('theme')
   onThemeChanged() {
     if (this.editor) {
@@ -338,9 +334,16 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   render() {
     return (
       <div
-        ref='containerElement'
-        style={this.style}
-      />
+        class={['promql-editor-component', { 'is-error': this.isError }]}
+        style={{
+          height: `${this.wrapHeight <= 0 ? this.minHeight : this.wrapHeight}px`
+        }}
+      >
+        <div
+          class='promql-editor'
+          ref='containerElement'
+        />
+      </div>
     );
   }
 }

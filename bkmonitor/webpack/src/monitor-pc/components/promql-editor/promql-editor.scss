@@ -1,12 +1,40 @@
 /* stylelint-disable declaration-no-important */
-.promql-monaco-editor-component {
+.promql-editor-component {
+  display: flex;
+  width: 100%;
+  min-height: 68px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 20px;
+  color: #63656e;
+  resize: vertical;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  &.is-error {
+    border-color: #ff5656;
+  }
+
+  .promql-editor {
+    width: 100%;
+    height: 100%;
+    min-height: 68px;
+    margin: 10px 0;
+    border: 0;
+  }
+
+  .scroll-decoration {
+    box-shadow: none;
+  }
+
   .monaco-scrollable-element {
     left: 10px !important;
     width: calc(100% - 10px) !important;
   }
 
   .placeholder-widget {
-    top: 8px !important;
+    top: 0 !important;
     left: 12px !important;
     color: #888;
     pointer-events: none;
