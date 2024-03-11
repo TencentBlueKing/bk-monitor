@@ -331,11 +331,11 @@ class PatternHandler:
         remark_obj.save()
         return model_to_dict(remark_obj)
 
-    def update_group_fields(self, params: dict):
+    def update_group_fields(self, group_fields: list):
         """
         更新分组字段
         """
-        self._clustering_config.group_fields = params["group_fields"]
+        self._clustering_config.group_fields = group_fields
         self._clustering_config.save()
         return model_to_dict(self._clustering_config)
 

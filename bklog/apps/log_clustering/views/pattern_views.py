@@ -324,7 +324,7 @@ class PatternViewSet(APIViewSet):
         params = self.params_valid(SetOwnerSerializer)
         return Response(PatternHandler(index_set_id, {}).set_clustering_owner(params=params))
 
-    @detail_route(methods=["GET"], url_path="get_owner")
+    @detail_route(methods=["GET"], url_path="owner")
     def get_owners(self, request, index_set_id):
         """
         @api {get} /pattern/$index_set_id/owner/ 日志聚类-获取当前维度下的负责人列表
@@ -360,4 +360,4 @@ class PatternViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UpdateGroupFieldsSerializer)
-        return Response(PatternHandler(index_set_id, {}).update_group_fields(params=params))
+        return Response(PatternHandler(index_set_id, {}).update_group_fields(group_fields=params["group_fields"]))

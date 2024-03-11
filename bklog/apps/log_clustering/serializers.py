@@ -135,7 +135,7 @@ class SetOwnerSerializer(serializers.Serializer):
 
 
 class UpdateGroupFieldsSerializer(serializers.Serializer):
-    group_fields = serializers.DictField(default=dict)
+    group_fields = serializers.ListField(child=serializers.CharField(), allow_empty=True, default=list)
 
 
 class UpdateStrategyAction(serializers.Serializer):
