@@ -179,8 +179,14 @@ export default {
       if (['realTimeLog', 'contextLog'].includes(event)) {
         const contextFields = config.contextAndRealtime.extra?.context_fields;
         const dialogNewParams = {};
-        // 传参配置指定字段
-        if (Array.isArray(contextFields) && contextFields.length) {
+        const { targetFields, sortFields } = config.indexSetValue;
+        const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
+        // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
+        if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
+          fieldParamsKey.forEach((field) => {
+            dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
+          });
+        } else if (Array.isArray(contextFields) && contextFields.length) { // 传参配置指定字段
           contextFields.push(config.timeField);
           contextFields.forEach((field) => {
             if (field === 'bk_host_id') {

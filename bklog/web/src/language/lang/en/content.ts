@@ -558,4 +558,8 @@ export default {
   显示全部字段: 'Currently showing all fields',
   新开标签页: 'New tab',
   '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。': 'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
+  '未匹配到对应字段，请手动指定字段后提交': 'The corresponding field was not matched, please specify the field manually before submitting.',
+  用于标识日志文件来源及唯一性: 'Used to identify the source and uniqueness of log files.',
+  用于控制日志排序的字段: 'Fields used to control log sorting.',
+  匹配到的索引: 'matched index'
 };

@@ -589,4 +589,7 @@ export default {
   责任人: 'Responsible',
   索引字段: 'Index Set Fields',
   'label-内置字段': 'Built-in Fields',
+  字段设置: 'Field Settings',
+  目标字段: 'Target Field',
+  排序字段: 'Sort Field',
 };
