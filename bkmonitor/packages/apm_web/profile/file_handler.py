@@ -86,7 +86,7 @@ class ProfilingFileHandler:
         try:
             CollectorHandler.send_to_builtin_datasource(profile_data)
         except Exception as e:  # pylint: disable=broad-except
-            content = f"save profiling data to doris failed, error: {e}"
+            content = f"save profiling data to doris failed, error: {e}, stack: {traceback.format_exc()}"
             logger.exception(content)
             queryset.update(status=UploadedFileStatus.STORE_FAILED, content=content)
             return
