@@ -104,7 +104,7 @@ const setOwner = {
 
 // 获取当前pattern所有负责人列表
 const getOwnerList = {
-  url: '/pattern/:index_set_id/owner/',
+  url: '/pattern/:index_set_id/list_owners/',
   method: 'get',
 };
 

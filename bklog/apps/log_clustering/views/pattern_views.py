@@ -324,7 +324,7 @@ class PatternViewSet(APIViewSet):
         params = self.params_valid(SetOwnerSerializer)
         return Response(PatternHandler(index_set_id, {}).set_clustering_owner(params=params))
 
-    @detail_route(methods=["GET"], url_path="owner")
+    @detail_route(methods=["GET"], url_path="list_owners")
     def get_owners(self, request, index_set_id):
         """
         @api {get} /pattern/$index_set_id/owner/ 日志聚类-获取当前维度下的负责人列表
