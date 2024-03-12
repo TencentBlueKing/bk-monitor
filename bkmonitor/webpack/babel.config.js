@@ -70,13 +70,13 @@ module.exports = function (api) {
       'vant'
     ] : undefined,
     process.env.APP === 'trace' ? '@vue/babel-plugin-jsx' : undefined,
-    process.env.APP === 'trace' ? [
-      'import-bkui-vue',
-      {
-        libraryName: 'bkui-vue',
-        style: true
-      }
-    ] : undefined
+    // process.env.APP === 'trace' ? [
+    //   'import-bkui-vue',
+    //   {
+    //     libraryName: 'bkui-vue',
+    //     style: true
+    //   }
+    // ] : undefined
   ].filter(Boolean);
   return {
     presets,

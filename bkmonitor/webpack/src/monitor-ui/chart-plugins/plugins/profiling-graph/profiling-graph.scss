@@ -1,0 +1,75 @@
+.profiling-retrieval-chart {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% + 34px);
+  height: calc(100% + 34px);
+  margin-left: -16px;
+  margin-top: -16px;
+  padding: 16px;
+  background-color: #f4f6f9;
+
+  .profiling-retrieval-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 50px;
+    margin-bottom: 4px;
+    padding: 16px 8px;
+
+    .data-type {
+      display: flex;
+      align-items: center;
+  
+      &-list {
+        margin-left: 16px;
+      }
+    }
+
+    .link-tips {
+
+      .icon-monitor {
+        color: #979ba5;
+        font-size: 14px;
+        margin-right: 4px;
+      }
+
+      .link-text {
+        color: #3A84FF;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .profiling-graph {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    flex-direction: column;
+    background-color: white;
+    position: relative;
+    overflow: hidden;
+  
+    &-content {
+      display: flex;
+      margin: 0 16px;
+      flex: 1;
+      overflow: auto;
+      background-color: #f5f7fa;
+  
+      .bk-resize-layout-border {
+        flex: 1;
+        border: 0;
+        overflow-x: hidden;
+      }
+    }
+  }
+  
+  .empty-chart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex: 1;
+  }
+}

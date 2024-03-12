@@ -30,7 +30,7 @@ import BkPaasLogin from '@blueking/paas-login';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
-import { getFooter, listStickySpaces } from 'monitor-api/modules/commons';
+import { getFooter, listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
@@ -218,6 +218,12 @@ export default class App extends tsc<{}> {
         content: this.$tc('全站搜索，可以跨业务直接搜索任意资源')
       }
     ];
+    this.getDocsLinkMapping();
+  }
+  /** 获取文档链接 */
+  async getDocsLinkMapping() {
+    const data = await getLinkMapping().catch(() => {});
+    this.$store.commit('app/updateExtraDocLinkMap', data);
   }
   async handleGetNewUserGuide() {
     if (this.readonly || /^#\/share\//.test(location.hash)) return;

@@ -76,7 +76,8 @@ const state = {
   bizBgColor: '', // 业务颜色
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
-  bizIdChangePedding: '' // 业务id是否切换
+  bizIdChangePedding: '', // 业务id是否切换
+  extraDocLinkMap: {}
 };
 
 const mutations = {
@@ -95,7 +96,19 @@ const mutations = {
   [SET_APP_STATE](state, data) {
     Object.keys(data).forEach(key => {
       if (key === 'bizList') {
-        state[key] = data[key].map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
+        state[key] = data[key].map(item => {
+          const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
+          const pyText = pinyinStr.replace(/,/g, '');
+          const pyfText = pinyinStr
+            .split(',')
+            .map(str => str.charAt(0))
+            .join('');
+          return {
+            ...item,
+            py_text: pyText,
+            pyf_text: pyfText
+          };
+        });
         return;
       }
       state[key] = data[key];
@@ -173,6 +186,13 @@ const mutations = {
     } else {
       handleReload();
     }
+  },
+  /**
+   * @description: 更新文档链接
+   * @param {Object} data
+   */
+  updateExtraDocLinkMap(state, data) {
+    state.extraDocLinkMap = data;
   }
 };
 

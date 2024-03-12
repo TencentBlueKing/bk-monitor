@@ -40,6 +40,8 @@ import MonitorResizeLayout, {
   ASIDE_DEFAULT_HEIGHT,
   IUpdateHeight
 } from '../../../components/resize-layout/resize-layout';
+import { TimeRangeType } from '../../../components/time-range/time-range';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils/index';
 import IndexList, { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 import { ITableItem } from '../typings';
@@ -157,6 +159,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 是否只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @ProvideReactive('width') width = DEFAULT_WIDTH;
 
   data: IDetailItem[] = [];
@@ -291,10 +294,13 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     if (this.panel?.targets?.[0]) {
       this.loading = true;
       const [item] = this.panel.targets;
+      const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.viewOptions.filters,
-        ...this.viewOptions.variables
+        ...this.viewOptions.variables,
+        start_time,
+        end_time
       });
       const params: any = variablesService.transformVariables(item.data);
       // magic code

@@ -19,35 +19,57 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import arrow
+from typing import Dict, Any, List
 
+import arrow
 from django.conf import settings
 
 from apps.bk_log_admin.constants import (
     BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
     OPERATION_PIE_CHOICE_MAP,
-    MINUTE_GROUP_BY,
+    BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
+    DATE_HISTOGRAM_INTERVAL,
 )
-from apps.bk_log_admin.exceptions import InitDataSourceErrorException
 from apps.log_search.models import UserIndexSetSearchHistory
-from apps.utils.drf import DataPageNumberPagination
 from apps.models import model_to_dict
-from apps.utils.lucene import generate_query_string
+from apps.utils.drf import DataPageNumberPagination
 from apps.utils.local import get_local_param
-from bk_monitor.exceptions import GetTsDataException
-from bk_monitor.handler.monitor import BKMonitor
+from apps.utils.log import logger
+from apps.utils.lucene import generate_query_string
+from bk_monitor.api.client import Client
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
 
 class IndexSetHandler(object):
     def __init__(self):
-        self._client = BKMonitor(
-            app_id=settings.APP_CODE,
-            app_token=settings.SECRET_KEY,
+        self._client = Client(
+            bk_app_code=settings.APP_CODE,
+            bk_app_secret=settings.SECRET_KEY,
             monitor_host=MONITOR_APIGATEWAY_ROOT,
             report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
             bk_username="admin",
+        )
+
+    @property
+    def data_label(self):
+        data_label = "{bk_biz_id}_{app_code}_{table}".format(
             bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
+            app_code=settings.APP_CODE.replace("-", "_"),
+            table=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY
+        )
+        return data_label
+
+    @property
+    def table(self):
+        return f"{self.data_label}.base"
+
+    @property
+    def prometheus_table(self):
+        return "custom:{bk_biz_id}_{app_code}_{table}:{field}".format(
+            bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
+            app_code=settings.APP_CODE.replace("-", "_"),
+            table=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
+            field=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD
         )
 
     def get_date_histogram(self, index_set_id, user_search_history_operation_time):
@@ -60,21 +82,38 @@ class IndexSetHandler(object):
         start_time, end_time = self._get_start_end_time(
             user_search_history_operation_time=user_search_history_operation_time
         )
-        try:
-            daily_data = self._client.custom_metric().query(
-                data_name=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
-                fields=["count(search_history_duration) as _count"],
-                where_conditions=[f"index_set_id = '{index_set_id}'", f"time >= {start_time}", f"time < {end_time}"],
-                group_by_conditions=[MINUTE_GROUP_BY],
-            )
-        except GetTsDataException:
-            raise InitDataSourceErrorException()
+        metrics = [
+            {
+                "field": BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
+                "method": "COUNT",
+                "alias": "a"
+            }
+        ]
+        where = [
+            {
+                "key": "index_set_id",
+                "method": "eq",
+                "value": [
+                    str(index_set_id)
+                ]
+            }
+        ]
+        unify_query_data = self.call_unify_query(
+            start_time=start_time,
+            end_time=end_time,
+            metrics=metrics,
+            where=where,
+            interval=DATE_HISTOGRAM_INTERVAL
+        )
+        if not unify_query_data["series"]:
+            return {"labels": [], "values": []}
 
         daily_label_list = []
         daily_data_list = []
-        for data in daily_data["list"]:
-            daily_label_list.append(arrow.get(data["time"] / 1000).format())
-            daily_data_list.append(data["_count"])
+        # 只有一个series
+        for data in unify_query_data["series"][0]["datapoints"]:
+            daily_label_list.append(arrow.get(data[1] / 1000).format())
+            daily_data_list.append(data[0] if data[0] else 0)
 
         return {"labels": daily_label_list, "values": daily_data_list}
 
@@ -88,21 +127,37 @@ class IndexSetHandler(object):
         start_time, end_time = self._get_start_end_time(
             user_search_history_operation_time=user_search_history_operation_time
         )
-        try:
-            created_by_data = self._client.custom_metric().query(
-                data_name=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
-                fields=["count(search_history_duration) as _count"],
-                where_conditions=[f"index_set_id = '{index_set_id}'", f"time >= {start_time}", f"time < {end_time}"],
-                group_by_conditions=["created_by"],
-            )
-        except GetTsDataException:
-            raise InitDataSourceErrorException()
-
+        metrics = [
+            {
+                "field": BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
+                "method": "COUNT",
+                "alias": "a"
+            }
+        ]
+        where = [
+            {
+                "key": "index_set_id",
+                "method": "eq",
+                "value": [
+                    str(index_set_id)
+                ]
+            }
+        ]
+        group_by = ["created_by"]
+        unify_query_data = self.call_unify_query(
+            start_time=start_time,
+            end_time=end_time,
+            metrics=metrics,
+            where=where,
+            group_by=group_by
+        )
+        if not unify_query_data["series"]:
+            return {"labels": [], "values": []}
         created_by_label_list = []
         created_by_data_list = []
-        for data in created_by_data["list"]:
-            created_by_label_list.append(data["created_by"])
-            created_by_data_list.append(data["_count"])
+        for data in unify_query_data["series"]:
+            created_by_label_list.append(data["dimensions"]["created_by"])
+            created_by_data_list.append(sum([i[0] for i in data["datapoints"] if i[0]]))
 
         return {"labels": created_by_label_list, "values": created_by_data_list}
 
@@ -116,28 +171,29 @@ class IndexSetHandler(object):
         start_time, end_time = self._get_start_end_time(
             user_search_history_operation_time=user_search_history_operation_time
         )
-
         pie_label_list = []
         pie_data_list = []
-        try:
-            for pie_choice in OPERATION_PIE_CHOICE_MAP:
-                pie_label_list.append(pie_choice["label"])
-                where_conditions = [f"index_set_id = '{index_set_id}'", f"time >= {start_time}", f"time < {end_time}"]
-                if "min" in pie_choice:
-                    where_conditions.append(f"search_history_duration >= {pie_choice['min']}")
-                if "max" in pie_choice:
-                    where_conditions.append(f"search_history_duration < {pie_choice['max']}")
-                pie_data = self._client.custom_metric().query(
-                    data_name=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
-                    fields=["count(search_history_duration) as _count"],
-                    where_conditions=where_conditions,
+        for pie_choice in OPERATION_PIE_CHOICE_MAP:
+            pie_label_list.append(pie_choice["label"])
+            if "min" in pie_choice and "max" in pie_choice:
+                promql = (
+                    f"count({self.prometheus_table}{{index_set_id=\"{index_set_id}\"}} >= {pie_choice['min']} and "
+                    f"{self.prometheus_table}{{index_set_id=\"{index_set_id}\"}} < {pie_choice['max']})"
                 )
-                if pie_data["list"]:
-                    pie_data_list.append(pie_data["list"][0]["_count"])
-                    continue
+            elif "min" in pie_choice:
+                promql = f"count({self.prometheus_table}{{index_set_id=\"{index_set_id}\"}} >= {pie_choice['min']})"
+            # "max" in pie_choice
+            else:
+                promql = f"count({self.prometheus_table}{{index_set_id=\"{index_set_id}\"}} < {pie_choice['max']})"
+            unify_query_data = self.call_unify_query_by_promql(
+                start_time=start_time,
+                end_time=end_time,
+                promql=promql
+            )
+            if not unify_query_data["series"]:
                 pie_data_list.append(0)
-        except GetTsDataException:
-            raise InitDataSourceErrorException()
+                continue
+            pie_data_list.append(sum([i[0] for i in unify_query_data["series"][0]["datapoints"] if i[0]]))
 
         return {"labels": pie_label_list, "values": pie_data_list}
 
@@ -173,11 +229,109 @@ class IndexSetHandler(object):
 
     @staticmethod
     def _get_start_end_time(user_search_history_operation_time):
-        time_zone = get_local_param("time_zone")
-        start_time = int(
-            arrow.get(user_search_history_operation_time["start_time"]).replace(tzinfo=time_zone).float_timestamp * 1000
-        )
-        end_time = int(
-            arrow.get(user_search_history_operation_time["end_time"]).replace(tzinfo=time_zone).float_timestamp * 1000
-        )
+        start_time = int(user_search_history_operation_time["start_time"])
+        end_time = int(user_search_history_operation_time["end_time"])
         return start_time, end_time
+
+    def call_unify_query(
+            self,
+            start_time: int,
+            end_time: int,
+            metrics: List[Dict[str, Any]] = None,
+            where: List[Dict[str, Any]] = None,
+            group_by: List = None,
+            interval: int = None
+    ):
+        """
+        以通用的形式查询unify_query
+        """
+        if not metrics:
+            metrics = []
+        if not where:
+            where = []
+        if not group_by:
+            group_by = []
+        if not interval:
+            interval = "auto"
+        params = {
+            "down_sample_range": "15m",
+            "step": interval,
+            "format": "time_series",
+            "type": "range",
+            "start_time": start_time,
+            "end_time": end_time,
+            "expression": "a",
+            "display": True,
+            "query_configs": [
+                {
+                    "data_label": self.data_label,
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "metrics": metrics,
+                    "table": self.table,
+                    "group_by": group_by,
+                    "display": True,
+                    "where": where,
+                    "interval": interval,
+                    "interval_unit": "s",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "functions": []
+                }
+            ],
+            "target": [],
+            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID)
+        }
+        try:
+            return self._client.unify_query(params)
+        except Exception as e:
+            logger.error(f"unify_query error, params: {params}, error: {e}")
+        return {
+            "metrics": [],
+            "series": [],
+        }
+
+    def call_unify_query_by_promql(
+            self,
+            start_time: int,
+            end_time: int,
+            promql: str,
+            interval: int = None
+    ):
+        """
+        以promql的形式查询unify_query
+        """
+        if not interval:
+            interval = "auto"
+        params = {
+            "down_sample_range": "15m",
+            "step": interval,
+            "format": "time_series",
+            "type": "range",
+            "start_time": start_time,
+            "end_time": end_time,
+            "expression": "a",
+            "display": True,
+            "query_configs": [
+                {
+                    "data_label": self.data_label,
+                    "data_source_label": "prometheus",
+                    "data_type_label": "time_series",
+                    "display": True,
+                    "interval": interval,
+                    "interval_unit": "s",
+                    "time_field": "time",
+                    "promql": promql
+                }
+            ],
+            "target": [],
+            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID)
+        }
+        try:
+            return self._client.unify_query(params)
+        except Exception as e:
+            logger.error(f"unify_query_by_promql error, params: {params}, error: {e}")
+        return {
+            "metrics": [],
+            "series": [],
+        }

@@ -9,9 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 import json
 from dataclasses import dataclass
-from typing import ClassVar, Optional
+from typing import Optional
 
-from apm_web.profile.constants import InputType
+from apm_web.profile.constants import CPU_DESCRIBING_SAMPLE_TYPE, InputType
 from apm_web.profile.converter import Converter, register_converter
 from apm_web.profile.models import (
     Function,
@@ -28,13 +28,12 @@ from apm_web.profile.models import (
 class DorisConverter(Converter):
     """Convert data in doris(pprof json) to Profile object"""
 
-    DESCRIBING_SAMPLE_UNIT: ClassVar[str] = "count"
-
     def convert(self, raw: dict) -> Optional[Profile]:
         """parse single raw json data to Profile object"""
         samples_info = raw["list"]
         if not samples_info:
             return
+        self.raw_data = samples_info
 
         first_sample = samples_info[0]
         period_type, period_unit = first_sample["period_type"].split("/")
@@ -48,7 +47,7 @@ class DorisConverter(Converter):
             # with unit `count`."
             # samples_info contains lots of samples, including `sample/counts` and target values
             # `sample/counts` mainly for `describing`, ignoring it and adding after all samples added
-            if sample_info["sample_type"].split("/")[1] == self.DESCRIBING_SAMPLE_UNIT:
+            if sample_info["sample_type"] == CPU_DESCRIBING_SAMPLE_TYPE:
                 continue
 
             if not default_sample_type:

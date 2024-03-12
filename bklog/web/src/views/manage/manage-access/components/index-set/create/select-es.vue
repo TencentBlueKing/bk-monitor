@@ -202,6 +202,7 @@ export default {
     openDialog() {
       this.showDialog = true;
       this.$refs.formRef.clearError();
+      this.emptyType = 'empty';
       Object.assign(this, {
         tableLoading: false,
         searchLoading: false,
@@ -277,18 +278,22 @@ export default {
         return [];
       }
     },
-    async fetchInfo() {
+    async fetchInfo(foreignParams) {
       try {
-        const res = await this.$http.request('/resultTables/info', {
-          params: {
-            result_table_id: this.formData.resultTableId,
-          },
-          query: {
-            scenario_id: this.scenarioId,
-            bk_biz_id: this.bkBizId,
-            storage_cluster_id: this.parentData.storage_cluster_id,
-          },
-        });
+        const res = await this.$http.request('/resultTables/info',
+          !!foreignParams
+            ? foreignParams
+            : {
+              params: {
+                result_table_id: this.formData.resultTableId,
+              },
+              query: {
+                scenario_id: this.scenarioId,
+                bk_biz_id: this.bkBizId,
+                storage_cluster_id: this.parentData.storage_cluster_id,
+              },
+            });
+        if (foreignParams) return res;
         const timeFields = res.data.fields.filter(item => item.field_type === 'date' || item.field_type === 'long');
         // 如果已经添加了索引，回填三个字段（禁止更改字段名）
         if (this.timeIndex) {

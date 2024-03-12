@@ -497,8 +497,8 @@ export default class DataRetrieval extends tsc<{}> {
           vm.handleRouteQueryDataOfEvent(targetsList, type);
         } else if (targets && from.name !== 'view-detail') {
           // 跳转数据检索
-          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-            item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+            item?.data?.query_configs?.find?.(set => !!set.metrics)
           )
             ? 'performance-detail'
             : 'grafana';
@@ -561,8 +561,8 @@ export default class DataRetrieval extends tsc<{}> {
         this.handleRouteQueryDataOfEvent(targetsList, type);
       } else if (targets && from.name !== 'view-detail') {
         // 跳转数据检索
-        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-          item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+          item?.data?.query_configs?.find?.(set => !!set.metrics)
         )
           ? 'performance-detail'
           : 'grafana';
@@ -1945,20 +1945,25 @@ export default class DataRetrieval extends tsc<{}> {
                 bk_biz_id: this.bizId,
                 page: 1,
                 page_size: 1,
-                conditions: metricFields.map((field, index) => {
-                  const res = {
-                    key: field,
-                    value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
-                  };
-                  if (field === 'metrics[0].field') {
-                    res.key = 'metric_field';
-                    res.value = query.metrics[0].field;
-                  }
-                  if (field === 'table') {
-                    res.key = 'result_table_id';
-                  }
-                  return res;
-                }),
+                conditions: metricFields
+                  .map((field, index) => {
+                    const res = {
+                      key: field,
+                      value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
+                    };
+                    if (field === 'data_label' && !res.value) {
+                      return undefined;
+                    }
+                    if (field === 'metrics[0].field') {
+                      res.key = 'metric_field';
+                      res.value = query.metrics[0].field;
+                    }
+                    if (field === 'table') {
+                      res.key = 'result_table_id';
+                    }
+                    return res;
+                  })
+                  .filter(Boolean),
                 search_value: '',
                 tag: ''
               })

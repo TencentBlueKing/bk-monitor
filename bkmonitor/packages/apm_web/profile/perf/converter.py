@@ -70,7 +70,7 @@ class PerfScriptConverter(Converter):
         """get sample timestamp"""
         index = self.profile.string_table.index("timestamp")
         for lab in s.label:
-            if lab.key == self.get_string(index):
+            if lab.key == index:
                 return lab.num
 
     def _parse_lines(self, lines: List[str]):
