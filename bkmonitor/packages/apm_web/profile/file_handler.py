@@ -47,6 +47,9 @@ class ProfilingFileHandler:
         errors = []
         profile_data = None
         valid_converter = None
+        # 从 bkrepo 中获取文件数据
+        data = self.get_file_data(key)
+
         for file_type, c in list_converter().items():
             try:
                 converter = c(
@@ -58,8 +61,6 @@ class ProfilingFileHandler:
                     inject_labels={"service_name": service_name},
                     init_first_empty_str=False,
                 )
-                # 从 bkrepo 中获取文件数据
-                data = self.get_file_data(key)
                 profile_data = converter.convert(data)
                 if profile_data:
                     valid_converter = converter
