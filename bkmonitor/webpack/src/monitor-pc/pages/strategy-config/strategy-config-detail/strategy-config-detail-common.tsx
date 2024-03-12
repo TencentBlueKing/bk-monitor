@@ -1067,7 +1067,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                           <div class='promql-content'>
                             <div class='edit-wrap'>
                               <PromqlMonacoEditor
-                                class='promql-editor'
+                                minHeight={160}
                                 value={this.sourceData.sourceCode}
                                 readonly={true}
                               ></PromqlMonacoEditor>

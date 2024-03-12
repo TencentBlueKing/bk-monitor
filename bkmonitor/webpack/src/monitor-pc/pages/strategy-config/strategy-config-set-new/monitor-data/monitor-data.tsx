@@ -664,6 +664,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 <PromqlMonacoEditor
                   class='mt-16'
                   ref='promql-editor'
+                  minHeight={80}
                   value={this.source}
                   isError={this.promqlError}
                   onFocus={this.handlePromqlFocus}

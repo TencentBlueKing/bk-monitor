@@ -88,7 +88,8 @@ const defalutOptions = {
   overviewRulerBorder: false,
   automaticLayout: true,
   wordWrap: 'on',
-  scrollBeyondLastLine: false
+  scrollBeyondLastLine: false,
+  renderLineHighlight: 'none'
 };
 export interface IPromqlMonacoEditorProps {
   width?: string;
@@ -208,7 +209,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       const lineHeight = nextLineTop - lineTop;
       height += lineHeight;
     }
-    this.wrapHeight = height + 30;
+    this.wrapHeight = height + 40;
   }
 
   checkLuaSyntax(_code) {
@@ -343,6 +344,25 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     this.subscription?.dispose?.();
   }
 
+  initResize(e: Event) {
+    e.preventDefault();
+    window.addEventListener('mousemove', this.resizeElement);
+    window.addEventListener('mouseup', this.stopResize);
+  }
+  resizeElement(e: MouseEvent) {
+    const start = this.$el.getBoundingClientRect().top;
+    const mouseY = e.clientY;
+    const newHeight = mouseY - start + 5;
+    if (newHeight < this.minHeight) {
+      this.wrapHeight = this.minHeight;
+    } else {
+      this.wrapHeight = newHeight;
+    }
+  }
+  stopResize() {
+    window.removeEventListener('mousemove', this.resizeElement);
+  }
+
   render() {
     return (
       <div
@@ -356,6 +376,15 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           class='promql-editor'
           ref='containerElement'
         />
+        <div
+          class='resize-vertical-drop'
+          onMousedown={this.initResize}
+        >
+          <div class='lines'>
+            <div class='line-1'></div>
+            <div class='line-2'></div>
+          </div>
+        </div>
       </div>
     );
   }
