@@ -41,7 +41,7 @@ import i18n from '@/language/i18n';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
 // axios 实例
-const axiosInstance = axios.create({
+export const axiosInstance = axios.create({
   headers: { 'X-Requested-With': 'XMLHttpRequest' },
   xsrfCookieName: 'bklog_csrftoken',
   xsrfHeaderName: 'X-CSRFToken',

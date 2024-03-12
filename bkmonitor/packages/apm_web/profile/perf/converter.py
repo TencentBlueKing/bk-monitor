@@ -32,6 +32,7 @@ class PerfScriptConverter(Converter):
     def convert(self, raw: bytes) -> Optional[Profile]:
         """parse single raw perf script data to Profile object"""
         self.profile.default_sample_type = [ValueType(self.add_string("samples"), self.add_string("count"))]
+        self.profile.sample_type = [ValueType(self.add_string("samples"), self.add_string("count"))]
         self.profile.period_type = ValueType(self.add_string("cpu"), self.add_string("nanoseconds"))
         self.profile.period = 1000000
 
@@ -70,7 +71,7 @@ class PerfScriptConverter(Converter):
         """get sample timestamp"""
         index = self.profile.string_table.index("timestamp")
         for lab in s.label:
-            if lab.key == self.get_string(index):
+            if lab.key == index:
                 return lab.num
 
     def _parse_lines(self, lines: List[str]):

@@ -35,7 +35,7 @@ import i18n from './i18n/i18n';
 import './common/import-magicbox-ui';
 import 'monitor-ui/directive/index';
 import './common/global';
-import '../monitor-static/svg-icons';
+import 'monitor-static/svg-icons';
 
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
@@ -47,7 +47,7 @@ import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
-import '../monitor-static/icons/monitor-icons.css';
+import 'monitor-static/icons/monitor-icons.css';
 import './static/css/reset.scss';
 import './static/css/global.scss';
 // todo: 子应用externals

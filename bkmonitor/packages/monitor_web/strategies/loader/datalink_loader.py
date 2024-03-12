@@ -12,7 +12,6 @@ import copy
 import json
 from typing import Dict, List, Optional, Tuple
 
-from django.conf import settings
 from rest_framework.utils import encoders
 from typing_extensions import TypedDict
 
@@ -20,6 +19,7 @@ from bkmonitor.action.serializers.assign import AssignRuleSlz
 from bkmonitor.models import StrategyLabel
 from bkmonitor.models.fta.assign import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils.common_utils import logger
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 from core.drf_resource import resource
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.strategies.default_settings.datalink.v1 import (
@@ -120,7 +120,7 @@ class DatalinkDefaultAlarmStrategyLoader:
         # 组装通知信息
         notice = strategy["notice"]
         notice["user_groups"] = []
-        notice["config"]["template"] = settings.DEFAULT_NOTICE_MESSAGE_TEMPLATE
+        notice["config"]["template"] = DEFAULT_NOTICE_MESSAGE_TEMPLATE
 
         # 组装最终结构
         strategy_config = {

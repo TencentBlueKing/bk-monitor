@@ -31,6 +31,7 @@
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+import { CancelToken } from 'monitor-api/index';
 import { getMainlineObjectTopo } from 'monitor-api/modules/commons';
 import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -305,6 +306,7 @@ export default class DataRetrieval extends tsc<{}> {
   eventSelectTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
+  cancelFn = null; // 取消查询接口
 
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
@@ -497,8 +499,8 @@ export default class DataRetrieval extends tsc<{}> {
           vm.handleRouteQueryDataOfEvent(targetsList, type);
         } else if (targets && from.name !== 'view-detail') {
           // 跳转数据检索
-          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-            item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+            item?.data?.query_configs?.find?.(set => !!set.metrics)
           )
             ? 'performance-detail'
             : 'grafana';
@@ -561,8 +563,8 @@ export default class DataRetrieval extends tsc<{}> {
         this.handleRouteQueryDataOfEvent(targetsList, type);
       } else if (targets && from.name !== 'view-detail') {
         // 跳转数据检索
-        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-          item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+          item?.data?.query_configs?.find?.(set => !!set.metrics)
         )
           ? 'performance-detail'
           : 'grafana';
@@ -1635,7 +1637,8 @@ export default class DataRetrieval extends tsc<{}> {
         }
       };
     }
-    getGraphQueryConfig(params)
+    this.cancelFn?.();
+    getGraphQueryConfig(params, { cancelToken: new CancelToken(c => (this.cancelFn = c)) })
       .then(data => {
         this.queryTimeRange = +new Date() - queryStartTime;
         this.queryResult = data.panels;
@@ -1944,20 +1947,25 @@ export default class DataRetrieval extends tsc<{}> {
                 bk_biz_id: this.bizId,
                 page: 1,
                 page_size: 1,
-                conditions: metricFields.map((field, index) => {
-                  const res = {
-                    key: field,
-                    value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
-                  };
-                  if (field === 'metrics[0].field') {
-                    res.key = 'metric_field';
-                    res.value = query.metrics[0].field;
-                  }
-                  if (field === 'table') {
-                    res.key = 'result_table_id';
-                  }
-                  return res;
-                }),
+                conditions: metricFields
+                  .map((field, index) => {
+                    const res = {
+                      key: field,
+                      value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
+                    };
+                    if (field === 'data_label' && !res.value) {
+                      return undefined;
+                    }
+                    if (field === 'metrics[0].field') {
+                      res.key = 'metric_field';
+                      res.value = query.metrics[0].field;
+                    }
+                    if (field === 'table') {
+                      res.key = 'result_table_id';
+                    }
+                    return res;
+                  })
+                  .filter(Boolean),
                 search_value: '',
                 tag: ''
               })

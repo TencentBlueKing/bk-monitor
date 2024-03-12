@@ -15,6 +15,7 @@ import traceback
 
 import pytz
 from django.conf import settings
+from django.db import models as db_models
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -51,6 +52,7 @@ from apm.models import (
     TopoRelation,
     TraceDataSource,
 )
+from apm.models.profile import ProfileService
 from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
@@ -208,28 +210,54 @@ class ApplyDatasourceResource(Resource):
         )
 
 
+class OperateApplicationSerializer(serializers.Serializer):
+    class OperateType(db_models.TextChoices):
+        TRACING = "tracing", _("tracing")
+        PROFILING = "profiling", _("profiling")
+
+    application_id = serializers.IntegerField(label="应用id")
+    type = serializers.ChoiceField(
+        label="开启/暂停类型",
+        choices=OperateType.choices,
+        required=False,
+        default=OperateType.TRACING.value,
+    )
+
+
 class StartApplicationResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id")
+    RequestSerializer = OperateApplicationSerializer
 
     def perform_request(self, validated_request_data):
         try:
             application = ApmApplication.objects.get(id=validated_request_data["application_id"])
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
-        return application.start()
+
+        if validated_request_data["type"] == "tracing":
+            return application.start()
+
+        if validated_request_data["type"] == "profiling":
+            return application.start_profiling()
+
+        raise ValueError(_(f"操作类型不支持: {validated_request_data['type']}"))
 
 
 class StopApplicationResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id")
+    RequestSerializer = OperateApplicationSerializer
 
     def perform_request(self, validated_request_data):
         try:
             application = ApmApplication.objects.get(id=validated_request_data["application_id"])
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
-        return application.stop()
+
+        if validated_request_data["type"] == "tracing":
+            return application.stop()
+
+        if validated_request_data["type"] == "profiling":
+            return application.stop_profiling()
+
+        raise ValueError(_(f"操作类型不支持: {validated_request_data['type']}"))
 
 
 class ListApplicationResources(Resource):
@@ -1545,3 +1573,36 @@ class OperateApmDataIdResource(Resource):
         ds.save()
         ds.refresh_consul_config()
         return data_id
+
+
+class QueryProfileServiceDetailResource(Resource):
+    """查询Profile服务详情信息"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField()
+        app_name = serializers.CharField()
+        service_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        data_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    class ResponseSerializer(serializers.ModelSerializer):
+        last_check_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+        created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+        updated_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+
+        class Meta:
+            model = ProfileService
+            fields = "__all__"
+
+    many_response_data = True
+
+    def perform_request(self, validated_data):
+        params = {
+            "bk_biz_id": validated_data["bk_biz_id"],
+            "app_name": validated_data["app_name"],
+        }
+        if validated_data.get("service_name"):
+            params["name"] = validated_data["service_name"]
+        if validated_data.get("data_type"):
+            params["data_type"] = validated_data["data_type"]
+
+        return ProfileService.objects.filter(**params).order_by("created_at")

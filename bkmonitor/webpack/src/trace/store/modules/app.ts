@@ -25,7 +25,7 @@
  */
 import { defineStore } from 'pinia';
 
-import { ISpaceItem } from '../../typings';
+import { IDocLinkData, ISpaceItem } from '../../typings';
 
 export interface IAppState {
   userName: string;
@@ -35,6 +35,7 @@ export interface IAppState {
   siteUrl: string;
   navId: string;
   bkUrl: string;
+  extraDocLinkMap: Record<string, IDocLinkData>;
 }
 
 export const useAppStore = defineStore('app', {
@@ -45,6 +46,16 @@ export const useAppStore = defineStore('app', {
     bizList: window.space_list,
     csrfCookieName: window.csrf_cookie_name || '',
     siteUrl: window.site_url,
-    bkUrl: window.bk_url
-  })
+    bkUrl: window.bk_url,
+    extraDocLinkMap: {}
+  }),
+  actions: {
+    /**
+     * @description: 更新文档链接
+     * @param {Object} data
+     */
+    updateExtraDocLinkMap(data: Record<string, IDocLinkData>) {
+      this.extraDocLinkMap = data;
+    }
+  }
 });

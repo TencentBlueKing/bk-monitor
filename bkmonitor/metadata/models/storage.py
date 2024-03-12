@@ -2820,7 +2820,7 @@ class ESStorage(models.Model, StorageResultTable):
                 return False
 
             # 判断具体的内容是否一致，只要判断具体的四个内容
-            for field_config in ["type", "include_in_all", "doc_values", "format"]:
+            for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer"]:
                 database_value = database_config.get(field_config, None)
                 current_value = current_config.get(field_config, None)
 
