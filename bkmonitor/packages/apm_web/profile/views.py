@@ -114,7 +114,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             app_name=app_name,
             file_key=key,
             file_md5=md5,
-            file_type=validated_data["file_type"],
             profile_id=profile_id,
             operator=request.user.username,
             origin_file_name=uploaded.name,
@@ -127,7 +126,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         # 异步任务：文件解析及存储
         profile_file_upload_and_parse.delay(
             key,
-            validated_data["file_type"],
             profile_id,
             validated_data["bk_biz_id"],
             service_name,
