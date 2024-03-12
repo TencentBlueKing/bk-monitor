@@ -57,9 +57,12 @@ export default defineComponent({
     }
 
     const getTimeRange = computed(() => {
-      if (!props.detailInfo.start_time || !props.detailInfo.end_time) return '';
-      const startTime = dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm');
-      const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm');
+      const startTime = props.detailInfo.start_time
+        ? dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm')
+        : '';
+      const endTime = props.detailInfo.end_time
+        ? dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm')
+        : t('永久');
       return `${startTime} ~ ${endTime}`;
     });
 

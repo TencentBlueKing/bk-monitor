@@ -547,16 +547,15 @@ export default defineComponent({
         default:
           break;
       }
-      if (formData.start_time && formData.end_time) {
-        formData.timerange = [
-          dayjs.unix(formData.start_time).format('YYYY-MM-DD HH:mm:ss'),
-          dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss')
-        ];
-        // 给 任务有效期 添加数据
-        const [start, end] = formData.timerange;
-        timerange.start = start;
-        timerange.end = end;
-      }
+      formData.timerange = [
+        formData.start_time ? dayjs.unix(formData.start_time).format('YYYY-MM-DD HH:mm:ss') : null,
+        // 服务端返回 null 时代表永久，前端用 空串 或 null 可以代表永久。
+        formData.end_time ? dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss') : null
+      ];
+      // 给 任务有效期 添加数据
+      const [start, end] = formData.timerange;
+      timerange.start = start;
+      timerange.end = end;
       // 展示同比 的 switcher 开关。
       isShowYOY.value = Boolean(formData.scenario_config.year_on_year_hour);
     }
