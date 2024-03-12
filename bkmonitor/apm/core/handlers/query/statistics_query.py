@@ -111,7 +111,186 @@ class StatisticsQuery(EsQueryBuilderMixin):
         self.span_query = span_query
 
     def query_statistics(self, query_mode, start_time, end_time, limit, offset, filters=None, es_dsl=None):
-        return self._query_statistics_by_group(query_mode, start_time, end_time, limit, offset, filters, es_dsl)
+        return self._new_query_statistics_by_group(query_mode, start_time, end_time, limit, offset, filters, es_dsl)
+
+    def _new_query_statistics_by_group(self, group_key, start_time, end_time, limit, offset, filters=None, es_dsl=None):
+        query = self.span_query.search
+
+        if es_dsl:
+            query = query.update_from_dict(es_dsl)
+
+        query = self.add_time(query, start_time, end_time)
+        logic_filters, es_filters = self._parse_filters(filters)
+        if es_filters:
+            # 使用span_query进行添加
+            query = self.span_query.add_filter_params(query, es_filters)
+        query = self.add_sort(query)
+
+        k = f"{group_key}:{start_time}{end_time}{limit}{filters}{es_dsl}"
+        param_md5 = str(hashlib.md5(k.encode()).hexdigest())
+
+        return self._query_data(
+            group_key, query.to_dict(), start_time, end_time, offset, limit, param_md5, logic_filters
+        )
+
+    def _query_data(self, group_key, query_params, start_time, end_time, offset, limit, params_md5, logic_filters):
+        es_query = self.span_query.search
+        es_query = es_query.update_from_dict(query_params)
+
+        # 获取分页游标
+        after_key_params = self.get_after_key_param(offset, params_md5)
+
+        # 不包含 根span、服务入口span 或者 查询统计视角等于service 时, 直接分组获取指标数据
+        if not logic_filters or group_key == QueryStatisticsMode.SERVICE:
+            return self._query_metric_data(es_query, group_key, offset, limit, params_md5, after_key_params)
+
+        # step1 获取分组信息
+        group_key_mapping = self._query_group_info(es_query, group_key, limit, after_key_params)
+        # step2 获取specific_span_ids
+        specific_span_ids = self._batch_query_specific_span_ids(start_time, end_time, group_key_mapping, logic_filters)
+        # step3 从 span 中获取数据
+        if not specific_span_ids:
+            return []
+
+        specific_q = self._build_specific_query(query_params, specific_span_ids)
+        return self._query_metric_data(specific_q, group_key, offset, limit, params_md5, after_key_params)
+
+    def _query_group_info(self, query, group_key, limit, after_key_params):
+        query = query.extra(size=0)
+        query = query.update_from_dict(
+            {
+                "aggs": {
+                    "group": {
+                        "composite": {
+                            **after_key_params,
+                            "size": limit,
+                            "sources": [
+                                {i["display_key"]: {"terms": {"field": i["group_key"]}}}
+                                for i in self.GROUP_KEY_CONFIG[group_key]
+                            ],
+                        }
+                    }
+                }
+            }
+        )
+        response = query.execute()
+        results = response.to_dict()
+        # 分组信息
+        buckets = results["aggregations"]["group"]["buckets"]
+        group_key_mapping = {item["display_key"]: set() for item in self.GROUP_KEY_CONFIG[group_key]}
+        for bucket in buckets:
+            for i in self.GROUP_KEY_CONFIG[group_key]:
+                display_key = i["display_key"]
+                group_key_mapping[display_key].add(bucket["key"][display_key])
+
+        return group_key_mapping
+
+    def _query_metric_data(self, query, group_key, offset, limit, params_md5, after_key_params):
+        query = query.extra(size=0)
+        query = query.update_from_dict(
+            {
+                "aggs": {
+                    "group": {
+                        "composite": {
+                            **after_key_params,
+                            "size": limit,
+                            "sources": [
+                                {i["display_key"]: {"terms": {"field": i["group_key"]}}}
+                                for i in self.GROUP_KEY_CONFIG[group_key]
+                            ],
+                        },
+                        "aggs": self.get_metric_aggs(group_key),
+                    }
+                }
+            }
+        )
+
+        response = query.execute()
+        results = response.to_dict()
+
+        after_key = results["aggregations"]["group"].get("after_key")
+        if after_key:
+            redis_cli.set(f"{params_md5}:{offset + limit}", json.dumps(after_key), AFTER_CACHE_KEY_EXPIRE)
+
+        buckets = response.aggregations.group.buckets
+        results = []
+        for bucket in buckets:
+            total_count = bucket.total_count.value
+            error_count = bucket.error_count.count.value
+            error_rate = round(error_count / total_count, 2)
+            avg_duration = round(bucket.avg_duration.value, 2)
+            p50_duration = round(bucket.p50_duration.values["50.0"], 2)
+            p90_duration = round(bucket.p90_duration.values["90.0"], 2)
+            results.append(
+                {
+                    **bucket.key.to_dict(),
+                    "span_count": total_count,
+                    "error_count": error_count,
+                    "error_rate": error_rate,
+                    "avg_duration": avg_duration,
+                    "p50_duration": p50_duration,
+                    "p90_duration": p90_duration,
+                    "source": "opentelemetry",
+                }
+            )
+        return results
+
+    def _build_specific_query(self, query_params, specific_span_ids):
+        es_query = self.span_query.search
+        es_query = es_query.update_from_dict(query_params)
+        es_query = es_query.update_from_dict({"size": 0})
+        specific_q = es_query.query("bool", filter=[Q("terms", span_id=specific_span_ids)])
+        return specific_q
+
+    @classmethod
+    def get_after_key_param(cls, offset, params_md5):
+        after_key = None
+        if offset != 0:
+            cache_key = f"{params_md5}:{offset}"
+            if not redis_cli.exists(cache_key):
+                raise ValueError(_("参数丢失 需要重新从第一页获取"))
+            cache_value = redis_cli.get(cache_key)
+            if cache_value:
+                after_key = json.loads(cache_value)
+
+        return {"after": after_key} if after_key else {}
+
+    def get_metric_aggs(self, group_key):
+        metric_aggs = {
+            "total_count": {"value_count": {"field": self.GROUP_MODE_KEY_MAPPING[group_key]}},
+            "error_count": {
+                "filter": {"bool": {"must_not": [{"term": {OtlpKey.STATUS_CODE: 0}}]}},
+                "aggs": {"count": {"value_count": {"field": OtlpKey.STATUS_CODE}}},
+            },
+            "avg_duration": {"avg": {"field": OtlpKey.ELAPSED_TIME}},
+            "p50_duration": {"percentiles": {"field": OtlpKey.ELAPSED_TIME, "percents": [50]}},
+            "p90_duration": {"percentiles": {"field": OtlpKey.ELAPSED_TIME, "percents": [90]}},
+        }
+        return metric_aggs
+
+    def _get_specific_span_ids(self, start_time, end_time, logic_name, filter_map):
+        t_q = self.trace_query.search
+        t_q = self.add_time(t_q, start_time, end_time, time_field=self.trace_query.DEFAULT_SORT_FIELD)
+        t_q = self.trace_query.add_app_filter(t_q)
+
+        field_span_id = self.LOGIC_FILTER_KEY_ID_MAPPING[logic_name]
+        logic_span_map = self.LOGIC_FILTER_KEY_MAPPING[logic_name]
+        filter_param = {logic_span_map.get(k): v for k, v in filter_map.items() if logic_span_map.get(k)}
+
+        t_q = t_q.query("bool", filter=[Q("terms", **{k: list(v)}) for k, v in filter_param.items()])
+        t_q = t_q.update_from_dict({"_source": [field_span_id], "size": DISCOVER_BATCH_SIZE})
+
+        t_q_response = t_q.execute()
+        specific_span_ids = [i.to_dict()[field_span_id] for i in t_q_response.hits]
+
+        return specific_span_ids
+
+    def _batch_query_specific_span_ids(self, start_time, end_time, group_key_mapping, logic_filters):
+        pool = ThreadPool()
+        params = [(start_time, end_time, logic_name, group_key_mapping) for logic_name in logic_filters]
+        results = pool.map_ignore_exception(self._get_specific_span_ids, params)
+        specific_span_ids = {span_id for result in results if result for span_id in result}
+        return list(specific_span_ids)
 
     def _query_statistics_by_group(self, group_key, start_time, end_time, limit, offset, filters=None, es_dsl=None):
         query = self.span_query.search

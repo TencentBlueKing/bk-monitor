@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 
+import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
 import {
   ColumnSort,
@@ -55,6 +56,7 @@ const HEADER_PRE_ICON_NAME = 'header_pre_icon';
 export interface ICommonTableProps {
   // 表格loading
   loading?: boolean;
+  scrollLoading?: boolean;
   // 设置表头字段 存储到本地localstorage key值 默认不设置
   storeKey?: string;
   // 是否可选择行
@@ -87,6 +89,8 @@ export interface ICommonTableProps {
   stripe?: boolean;
   // 表格高度 默认为自动高度  height为Number类型，单位px height为String类型，则高度会设置为 Table 的 style.height
   height?: string | number;
+  // 表格最大高度
+  maxHeight?: string | number;
   // 是否显示表头
   showHeader?: boolean;
   // 是否高亮当前行
@@ -126,6 +130,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Ref('table') tableRef: any;
   // table loading
   @Prop({ default: false }) loading: boolean;
+  // scroll Loading
+  @Prop({ default: false }) scrollLoading: boolean;
   // 是否显示表格列设置
   @Prop({ default: true }) hasColnumSetting: boolean;
   // 设置的表格固定列保存在localstorage的key值
@@ -166,6 +172,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Prop({ type: Boolean, default: false }) stripe: boolean;
   // 表格高度
   @Prop({ type: [String, Number] }) height: string | number;
+  // 表格最大高度
+  @Prop({ type: [String, Number] }) maxHeight: string | number;
   // 是否显示表头
   @Prop({ type: Boolean, default: true }) showHeader: boolean;
   // 是否高亮当前行
@@ -442,7 +450,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (item.syncTime) {
       urlStr += urlStr.indexOf('?') === -1 ? '?' : '&';
       const { from, to } = this.$route.query;
-      urlStr += `from=${from}&to${to}`;
+      urlStr += `from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     }
 
     if (item.target === 'self') {
@@ -766,11 +774,19 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           pagination={{ ...this.pagination }}
           ref='table'
           height={this.height}
+          max-height={this.maxHeight}
           showHeader={this.showHeader}
           highlightCurrentRow={this.highlightCurrentRow}
           header-cell-class-name={headerCellname}
           cell-class-name={cellName}
           v-bkloading={{ isLoading: this.loading, zIndex: 1000 }}
+          scroll-loading={{
+            isLoading: this.scrollLoading,
+            size: 'mini',
+            theme: 'info',
+            icon: 'circle-2-1',
+            placement: 'right'
+          }}
           on-sort-change={this.handleSortChange}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}

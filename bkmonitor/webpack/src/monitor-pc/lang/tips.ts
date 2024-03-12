@@ -194,5 +194,12 @@ export default {
   '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
     'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
   存在关联的告警组: 'There is an associated alarm group',
+  '10分钟内无数据': 'No data within 10 minutes',
+  '直接进行 精准查询，定位到 Trace 详情': 'Directly perform precise queries and locate Trace details',
+  '可以切换到 范围查询，根据条件筛选 Trace': 'You can switch to range query, filter Trace according to conditions',
+  点击上传或将文件拖到此处: 'Click to upload or drag the file here',
+  '文件解析可能耗费较长时间，可先选择已解析文件查看':
+    'File parsing may take a long time, you can select the parsed file first to view',
+  请上传文件后查看: 'Please upload the file and view it after that',
   已选: 'selected'
 };

@@ -166,6 +166,8 @@ DEFAULT_CRONTAB = [
     ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/30 * * * *", "global"),
     # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发
     ("apm_ebpf.task.tasks.cluster_discover_cron", "*/10 * * * *", "global"),
+    # apm_profile 定时发现profile服务 每十分钟触发
+    ("apm.task.tasks.profile_discover_cron", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:

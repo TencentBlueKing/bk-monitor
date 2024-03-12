@@ -1,0 +1,82 @@
+.condition-item-component {
+  font-size: 12px;
+
+  .header-label {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+    line-height: 20px;
+
+    .label-wrap {
+      position: relative;
+      height: 20px;
+    }
+
+    .label {
+      display: inline-block;
+      padding: 0 2px;
+      margin-right: 3px;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 20px;
+      color: #63656e;
+      text-overflow: ellipsis;
+      letter-spacing: 0;
+      white-space: nowrap;
+      cursor: pointer;
+      border-radius: 2px;
+
+      &.placeholder {
+        color: #c4c6cc;
+      }
+
+      &.hover {
+        background: #f0f1f5;
+      }
+
+      &.active {
+        color: #3a84ff;
+        background: #d8e6ff;
+      }
+    }
+
+    .label-select {
+      position: absolute;
+      top: -12px;
+      left: 0;
+      width: 100%;
+      opacity: 0;
+
+      input {
+        padding: 0;
+      }
+
+      .angle-up {
+        cursor: pointer;
+      }
+    }
+
+    .method {
+      margin-left: 8px;
+
+      &.eq {
+        color: #ff9c01;
+      }
+    }
+
+    .icon-mc-delete-line {
+      position: absolute;
+      top: 50%;
+      right: 5px;
+      font-size: 13px;
+      color: #494b50;
+      cursor: pointer;
+      transform: translateY(-50%);
+
+      &:hover {
+        color: #cb2427;
+      }
+    }
+  }
+}

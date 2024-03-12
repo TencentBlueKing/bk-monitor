@@ -183,5 +183,7 @@ export default {
   瞬间值: 'Last',
   '来源：{0}': 'Source: {0}',
   内部通知人: 'Internal Notifier',
-  通知人员类型: 'Notification person type'
+  '支持{0}等文件格式': 'File formats such as {0} are supported',
+  通知人员类型: 'Notification person type',
+  到底了: 'In the end'
 };

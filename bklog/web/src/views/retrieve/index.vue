@@ -1642,6 +1642,8 @@ export default {
     // 表格tab切换或聚类参数回填
     backFillClusterRouteParams(activeTableTab = 'origin', clusterParams) {
       this.activeTableTab = activeTableTab;
+      // 如果初始化时是日志聚类，切换回原始日志时候需要重新计算表格宽度，不重新分配宽度会导致操作列表宽度太长，挡住kv列表里的交互
+      if (activeTableTab === 'origin') this.setDefaultTableColumn();
       const { query, params } = this.$route;
       const newQuery = { ...query };
       newQuery.activeTableTab = activeTableTab;

@@ -23,63 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export enum EFileStatus {
+  uploaded = 'uploaded',
+  parsingFailed = 'parsing_failed',
+  parsingSucceed = 'parsing_succeed',
+  storeSucceed = 'store_succeed',
+  storeFailed = '"store_failed'
+}
 
-/**
- * 查找父节点
- */
-export const findRegionById = (tree, id, parents = []) => {
-  // eslint-disable-next-line @typescript-eslint/prefer-for-of
-  for (let i = 0; i < tree.length; i++) {
-    const region = tree[i];
-    if (region.id === id) {
-      parents.push(region.id);
-      return parents.reverse();
-    }
-    if (region.children) {
-      const found = findRegionById(region.children, id, parents);
-      if (found) {
-        parents.push(region.id);
-        return found;
-      }
-    }
+export const fileStatusMap = {
+  [EFileStatus.uploaded]: {
+    name: window.i18n.t('已上传')
+  },
+  [EFileStatus.parsingFailed]: {
+    name: window.i18n.t('解析失败')
+  },
+  [EFileStatus.parsingSucceed]: {
+    name: window.i18n.t('已解析')
+  },
+  [EFileStatus.storeSucceed]: {
+    name: window.i18n.t('已存储')
+  },
+  [EFileStatus.storeFailed]: {
+    name: window.i18n.t('存储失败')
   }
-  return null;
 };
 
-/**
- * 查找子节点
- */
-export const findChildById = (treeList, id) => {
-  const temp = [];
-  const searchFn = function (treeList) {
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
-    for (let i = 0; i < treeList.length; i++) {
-      const item = treeList[i];
-      if (item.id !== id) {
-        temp.push(item.id);
-      }
-      if (item.children) {
-        searchFn(item.children);
-      }
-    }
-  };
-  searchFn(treeList);
-  return temp;
-};
-
-/**
- * @desc 字符串生成 hash 值
- */
-export const getHashVal = string => {
-  let hash = 0;
-  let i;
-  let chr;
-  if (string.length === 0) return hash;
-  for (i = 0; i < string.length; i++) {
-    chr = string.charCodeAt(i);
-    hash = (hash << 5) - hash + chr;
-    hash |= 0;
-  }
-
-  return Math.abs(hash);
-};
+// export const FILES_TYPE = ['json', 'perf_script', 'prof'];
+export const FILES_TYPE_NAME = ['perf_script', 'pprof'].join(',');
