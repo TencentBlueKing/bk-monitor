@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import tempfile
+import traceback
 from datetime import datetime, timedelta
 
 from bkstorages.backends.bkrepo import BKRepoStorage
@@ -17,7 +18,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from apm_web.models import ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.collector import CollectorHandler
-from apm_web.profile.converter import get_converter_by_input_type
+from apm_web.profile.converter import list_converter
 
 logger = logging.getLogger("apm_web")
 
@@ -33,42 +34,48 @@ class ProfilingFileHandler:
             data = fp.read()
         return data
 
-    def parse_file(self, key, file_type: str, profile_id: str, bk_biz_id: int, service_name: str):
+    def parse_file(self, key, profile_id: str, bk_biz_id: int, service_name: str):
         """
         :param key : 文件完整路径
-        :param str file_type: 上传文件类型
         :param str profile_id: profile_id
         :param int bk_biz_id: 业务id
         :param str service_name: 服务名
         """
-        param = {"file_type": file_type, "profile_id": profile_id, "bk_biz_id": bk_biz_id}
+        param = {"profile_id": profile_id, "bk_biz_id": bk_biz_id}
         queryset = ProfileUploadRecord.objects.filter(**param)
 
-        try:
-            converter = get_converter_by_input_type(file_type)(
-                preset_profile_id=profile_id,
-                # Q: why we need to pass service_name manually?
-                # A: because the data will be sent to collector with bk_data_token
-                # which only contains bk_biz_id & app_name, service_name is required for cleaning in bk_base,
-                # so add it into labels
-                inject_labels={"service_name": service_name},
-                init_first_empty_str=False,
-            )
-            # 从 bkrepo 中获取文件数据
-            data = self.get_file_data(key)
-            p = converter.convert(data)
-        except Exception as e:  # noqa
-            content = f"convert profiling data failed, error: {e}"
-            logger.exception(content)
-            queryset.update(content=content)
-            p = None
+        errors = []
+        profile_data = None
+        valid_converter = None
+        # 从 bkrepo 中获取文件数据
+        data = self.get_file_data(key)
 
-        if p is None:
-            queryset.update(status=UploadedFileStatus.PARSING_FAILED)
+        for file_type, c in list_converter().items():
+            try:
+                converter = c(
+                    preset_profile_id=profile_id,
+                    # Q: why we need to pass service_name manually?
+                    # A: because the data will be sent to collector with bk_data_token
+                    # which only contains bk_biz_id & app_name, service_name is required for cleaning in bk_base,
+                    # so add it into labels
+                    inject_labels={"service_name": service_name},
+                    init_first_empty_str=False,
+                )
+                profile_data = converter.convert(data)
+                if profile_data:
+                    valid_converter = converter
+                    break
+            except Exception as e:  # noqa
+                content = f"[{c.__name__}] convert profiling data failed, error: {e}, stack: {traceback.format_exc()}"
+                errors.append(content)
+                logger.exception(content)
+
+        if profile_data is None or valid_converter is None:
+            queryset.update(status=UploadedFileStatus.PARSING_FAILED, content=",".join(errors))
             logger.error(_("无法转换 profiling 数据"))
             return
 
-        sample_type = converter.get_sample_type()
+        sample_type = valid_converter.get_sample_type()
 
         meta_info = {
             "data_types": [{"key": sample_type["type"], "name": str(sample_type["type"]).upper()}],
@@ -77,7 +84,7 @@ class ProfilingFileHandler:
         queryset.update(status=UploadedFileStatus.PARSING_SUCCEED, meta_info=meta_info)
 
         try:
-            CollectorHandler.send_to_builtin_datasource(p)
+            CollectorHandler.send_to_builtin_datasource(profile_data)
         except Exception as e:  # pylint: disable=broad-except
             content = f"save profiling data to doris failed, error: {e}"
             logger.exception(content)

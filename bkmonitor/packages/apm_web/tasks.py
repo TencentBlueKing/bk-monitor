@@ -116,10 +116,9 @@ def refresh_apm_application_metric():
 
 
 @task(ignore_result=True)
-def profile_file_upload_and_parse(key: str, file_type: str, profile_id: str, bk_biz_id: int, service_name: str):
+def profile_file_upload_and_parse(key: str, profile_id: str, bk_biz_id: int, service_name: str):
     """
     :param key : 文件完整路径
-    :param str file_type: 上传文件类型
     :param str profile_id: profile_id
     :param int bk_biz_id: 业务id
     :param str service_name: 服务名称
@@ -128,7 +127,6 @@ def profile_file_upload_and_parse(key: str, file_type: str, profile_id: str, bk_
 
     ProfilingFileHandler().parse_file(
         key=key,
-        file_type=file_type,
         profile_id=profile_id,
         bk_biz_id=bk_biz_id,
         service_name=service_name,
