@@ -39,6 +39,7 @@ from apps.log_databus.constants import (
     EsSourceType,
     EtlConfig,
     LabelSelectorOperator,
+    PluginParamLogicOpEnum,
     PluginParamOpEnum,
     SyslogFilterFieldEnum,
     SyslogProtocolEnum,
@@ -156,15 +157,21 @@ class PluginConditionSerializer(serializers.Serializer):
 
 
 class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
-    syslog_content = serializers.CharField(label=_("匹配值"), max_length=255)
+    syslog_field = serializers.ChoiceField(
+        label=_("匹配字段"), choices=SyslogFilterFieldEnum.get_choices(), required=False, default=""
+    )
+    syslog_content = serializers.CharField(label=_("匹配内容"), max_length=255, required=True)
     syslog_op = serializers.ChoiceField(
         label=_("操作符"),
         choices=PluginParamOpEnum.get_choices(),
         required=False,
         default=PluginParamOpEnum.OP_INCLUDE.value,
     )
-    syslog_field = serializers.ChoiceField(
-        label=_("匹配字段"), choices=SyslogFilterFieldEnum.get_choices(), required=False, default=""
+    syslog_logic_op = serializers.ChoiceField(
+        label=_("逻辑操作符"),
+        choices=PluginParamLogicOpEnum.get_choices(),
+        required=False,
+        default=PluginParamLogicOpEnum.AND.value,
     )
 
 

@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 from django.utils.translation import ugettext as _
 
-from apps.log_databus.constants import EtlConfig, LogPluginInfo
+from apps.log_databus.constants import EtlConfig, LogPluginInfo, PluginParamLogicOpEnum
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
 
@@ -39,31 +39,38 @@ class SysLogScenario(CollectorScenario):
         # syslog 过滤规则
         syslog_conditions = params.get("syslog_conditions", [])
 
-        filters_conditions = list()
+        filters = []
+        filter_bucket = list()
         for condition in syslog_conditions:
-            # 多个条件之间默认为 and 关系
             if type(condition) is not dict:
                 continue
 
-            field = condition.get("syslog_field", "")
-            key = condition.get("syslog_content", "")
+            key = condition.get("syslog_field", "")
+            value = condition.get("syslog_content", "")
             op = condition.get("syslog_op", "include")
+            logic_op = condition.get("syslog_logic_op", PluginParamLogicOpEnum.AND.value)
 
-            if not key:
+            if not value:
                 continue
 
-            # syslog 字段值匹配->当下发配置中定义field字段且field字段值不为空 插件过滤会以field的字段值作为key 从原始日志中获取对应的value进行过滤 默认是按日志内容过滤
-            temp_condition = {"index": "-1", "key": key, "op": op, "field": field}
+            # syslog 字段值匹配->当下发配置中定义key字段且key字段值不为空 插件过滤会以key的字段值作为键值 从原始日志中获取对应的value进行过滤 默认是按日志内容过滤
+            if logic_op == PluginParamLogicOpEnum.AND.value:
+                filter_bucket.append({"key": key, "op": op, "value": value})
+            else:
+                if len(filter_bucket) > 0:
+                    filters.append({"conditions": filter_bucket})
+                    filter_bucket = []
 
-            filters_conditions.append(temp_condition)
+                filter_bucket.append({"key": key, "op": op, "value": value})
 
-        filters = [{"conditions": filters_conditions}] if filters_conditions else []
+        if len(filter_bucket) > 0:
+            filters.append({"conditions": filter_bucket})
 
         local_params = {
             "protocol": params.get("syslog_protocol", "").lower(),
             "host": f"{syslog_monitor_host}:{syslog_port}",
             "filters": filters,
-            "delimiter": "|",  # 字符串过滤 delimiter 统一传 |
+            "delimiter": "|" if filters else "",  # 字符串过滤 delimiter 统一传 |, 为空则不过滤
         }
         local_params = self._deal_edge_transport_params(local_params, data_link_id)
         local_params = self._handle_collector_config_overlay(local_params, params)
@@ -92,14 +99,26 @@ class SysLogScenario(CollectorScenario):
             syslog_conditions = list()
 
             if filters:
-                for condition in filters[0]["conditions"]:
-                    syslog_conditions.append(
-                        {
-                            "syslog_content": condition.get("key", ""),
-                            "syslog_op": condition.get("op", "include"),
-                            "syslog_field": condition.get("field", ""),
-                        }
-                    )
+                for filter_item in filters:
+                    i = 0
+                    for condition_item in filter_item["conditions"]:
+                        n = 0
+                        if i == 0:
+                            logic_op = PluginParamLogicOpEnum.AND.value
+                        elif n == 0:
+                            logic_op = PluginParamLogicOpEnum.OR.value
+                        else:
+                            logic_op = PluginParamLogicOpEnum.AND.value
+                        syslog_conditions.append(
+                            {
+                                "syslog_content": condition_item.get("value", ""),
+                                "syslog_op": condition_item.get("op", "include"),
+                                "syslog_field": condition_item.get("key", ""),
+                                "syslog_logic_op": logic_op,
+                            }
+                        )
+                        n += 1
+                    i += 1
 
             return {
                 "syslog_protocol": local["protocol"],

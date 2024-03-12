@@ -570,6 +570,16 @@ BK_LOG_COLLECTOR_MAIN_CONFIG_NAME = "bkunifylogbeat.conf"
 BK_LOG_COLLECTOR_SUB_CONFIG_PATH = "bkunifylogbeat"
 
 
+class PluginParamLogicOpEnum(ChoicesEnum):
+    AND = "and"
+    OR = "or"
+
+    _choices_labels = (
+        (AND, _("and")),
+        (OR, _("or")),
+    )
+
+
 class PluginParamOpEnum(ChoicesEnum):
     OP_EQ = "eq"
     OP_NEQ = "neq"
