@@ -577,11 +577,11 @@ export default {
       this.showScrollTop = this.scrollEl.scrollTop > 550;
     },
     handleCloseGroupTag() {
-      Object.assign(this.fingerOperateData, {  selectGroupList: [] });
+      Object.assign(this.fingerOperateData, { selectGroupList: [] });
       this.handleFingerOperate('requestData', { group_by: this.fingerOperateData.dimensionList }, true);
     },
     handleCloseYearTag() {
-      Object.assign(this.fingerOperateData, {  yearSwitch: false });
+      Object.assign(this.fingerOperateData, { yearSwitch: false });
       this.handleFingerOperate('requestData', { year_on_year_hour: 0 }, true);
     },
   },
