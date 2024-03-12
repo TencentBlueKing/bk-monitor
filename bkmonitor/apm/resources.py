@@ -12,6 +12,7 @@ import datetime
 import json
 import logging
 import traceback
+from typing import Union
 
 import pytz
 from django.conf import settings
@@ -650,8 +651,30 @@ class QueryTopoInstanceResource(PageListResource):
         page = serializers.IntegerField(required=False, label="页码", min_value=1)
         page_size = serializers.IntegerField(required=False, label="每页条数", min_value=1)
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
+        fields = serializers.ListField(label="系列化字段", required=False, default=[])
 
     class TopoInstanceSerializer(serializers.ModelSerializer):
+        default_serializer_fields = ("topo_node_key", "instance_id")
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            context = kwargs.get("context", {})
+            fields = context.get("fields", [])
+            use_default_serializer_fields = context.get("use_default_serializer_fields", False)
+
+            if fields and use_default_serializer_fields:
+                # 合并 fields 和默认字段
+                fields = set(fields) | set(self.default_serializer_fields)
+            elif use_default_serializer_fields:
+                fields = self.default_serializer_fields
+
+            if fields:
+                self.fields = self.get_serializer_fields(fields)
+
+        def get_serializer_fields(self, fields: Union[tuple, set, list] = None):
+            return {field_name: self.fields[field_name] for field_name in fields}
+
         class Meta:
             model = TopoInstance
             fields = "__all__"
@@ -747,10 +770,19 @@ class QueryTopoInstanceResource(PageListResource):
         if validated_request_data.get("page") and validated_request_data.get("page_size"):
             # 分页
             page_data = self.handle_pagination(data=data, params=validated_request_data)
-            res = self.TopoInstanceSerializer(page_data, many=True).data
+            res = self.TopoInstanceSerializer(
+                page_data, many=True, context={"fields": validated_request_data.get("fields")}
+            ).data
             return {"total": total, "data": res}
 
-        return {"total": total, "data": self.TopoInstanceSerializer(data, many=True).data}
+        return {
+            "total": total,
+            "data": self.TopoInstanceSerializer(
+                data,
+                many=True,
+                context={"use_default_serializer_fields": True, "fields": validated_request_data.get("fields")},
+            ).data,
+        }
 
 
 class QueryRootEndpointResource(Resource):
