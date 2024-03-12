@@ -433,7 +433,7 @@ class QuickCreateSubscription extends tsc<IProps> {
   handleTimeRangeChange(v) {
     this.formData.timerange = deepClone(v);
     const result = v.map(date => {
-      // 结束时间可能是空串（代表 无期限），然后接口需要number类型，这里用 0 先代替。
+      // 结束时间可能是空串（代表 无期限），这里用 undefined 代替，即不需要提交。
       return date ? dayjs(date).unix() : undefined;
     });
     // eslint-disable-next-line @typescript-eslint/naming-convention
