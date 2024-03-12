@@ -99,13 +99,21 @@ class WinEventLogScenario(CollectorScenario):
             local, *_ = config["local"]
             event_logs = local["event_logs"]
             first_event, *_ = event_logs
+
+            winlog_content = list()
+            winlog_match_op = list()
+            if local["filters"]:
+                winlog_content = [local["filters"][0]["conditions"][0]["key"]]
+                op = local["filters"][0]["conditions"][0]["op"]
+                winlog_match_op = [op] if op != "=" else ["include"]
+
             return {
                 "winlog_name": [event_log["name"] for event_log in event_logs],
                 "winlog_level": first_event["level"].split(",") if first_event["level"] else [],
                 "winlog_event_id": first_event["event_id"].split(",") if first_event["event_id"] else [],
                 "winlog_source": local["provider_name"],
-                "winlog_content": [local["filters"][0]["conditions"][0]["key"]] if local["filters"] else [],
-                "winlog_match_op": [local["filters"][0]["conditions"][0]["op"]] if local["filters"] else "include",
+                "winlog_content": winlog_content,
+                "winlog_match_op": winlog_match_op,
             }
         except (IndexError, KeyError, ValueError) as e:
             logger.exception(f"parse step config failed config => {steps}，error => {e}")
