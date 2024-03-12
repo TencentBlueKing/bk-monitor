@@ -856,7 +856,7 @@ export default class BasicInfo extends tsc<IProps> {
   async handleAddCondition(gIndex) {
     const key = this.samplingRulesGroup[gIndex][this.samplingRulesGroup[gIndex].length - 1]?.key;
     const keyIndex = this.samplingRules.findIndex(item => item.key === key);
-    this.samplingRules.splice(keyIndex + 1, 0, this.handleGetDefaultCondition());
+    this.samplingRules.splice(keyIndex + 1, 0, this.handleGetDefaultCondition('and'));
 
     this.handleConditionChange();
     setTimeout(() => {
@@ -870,7 +870,7 @@ export default class BasicInfo extends tsc<IProps> {
   }
 
   /** 添加默认规则 */
-  handleGetDefaultCondition(needCondition = true) {
+  handleGetDefaultCondition(condition = '') {
     return Object.assign(
       {},
       {
@@ -880,7 +880,7 @@ export default class BasicInfo extends tsc<IProps> {
         key_alias: '',
         type: ''
       },
-      needCondition ? { condition: 'and' } : {}
+      condition ? { condition } : {}
     );
   }
 
@@ -890,9 +890,9 @@ export default class BasicInfo extends tsc<IProps> {
     const groupItem = groups[gIndex];
     const deleteList = groupItem.splice(index, 1);
 
-    if (!gIndex && !groupItem.length && groups.length === 1) {
-      groups.push([this.handleGetDefaultCondition(false)]);
-    }
+    // if (!gIndex && !groupItem.length && groups.length === 1) {
+    //   groups.push([this.handleGetDefaultCondition(false)]);
+    // }
 
     if (groupItem[index]) {
       if (gIndex === 0) {
@@ -902,7 +902,7 @@ export default class BasicInfo extends tsc<IProps> {
       }
     }
 
-    if (!!deleteList?.[0]?.key) {
+    if (!!deleteList?.[0]) {
       const list = groups.reduce((prev, cur) => prev.concat(cur), []);
       if (list[0]?.condition === 'or') {
         delete list[0].condition;
@@ -948,11 +948,18 @@ export default class BasicInfo extends tsc<IProps> {
   handleSamplerTypeChange() {
     if (this.formData.sampler_type === 'tail') {
       this.samplingRules = this.formData.tail_conditions || [];
-      if (!this.samplingRules.length) {
-        this.samplingRules.push(this.handleGetDefaultCondition(false));
-        this.handleConditionChange();
-      }
+      // if (!this.samplingRules.length) {
+      //   this.samplingRules.push(this.handleGetDefaultCondition(false));
+      //   this.handleConditionChange();
+      // }
     }
+  }
+
+  /** 添加新的一行采样规则 */
+  handleNewRowCondition() {
+    const condition = this.samplingRules.length ? 'or' : '';
+    this.samplingRules.push(this.handleGetDefaultCondition(condition));
+    this.handleConditionChange();
   }
 
   render() {
@@ -1379,106 +1386,118 @@ export default class BasicInfo extends tsc<IProps> {
                     property='sampler_rules'
                     class='sampling-rule-form-item'
                   >
-                    {this.samplingRulesGroup.length > 1 ? (
-                      <div class='sampling-rule-brackets'>
-                        <div class='or-condition'>OR</div>
-                      </div>
-                    ) : (
-                      ''
-                    )}
-                    {this.samplingRulesGroup.map((group, gIndex) => (
-                      <div class='sampling-rule-item'>
-                        {group.map((item, index) => [
-                          item.condition && item.key && index > 0 ? (
-                            <input
-                              style={{ display: item.condition ? 'block' : 'none' }}
-                              key={`condition-${index}-${item.key}`}
-                              class='condition-item-condition'
-                              readonly
-                              value={item.condition.toLocaleUpperCase()}
-                              on-click={e => this.handleToggleCondition(e, { gIndex, index, prop: 'condition' })}
-                            />
-                          ) : undefined,
-                          <SimpleSelectInput
-                            ref={`selectInput-${gIndex}-${index}`}
-                            placeholder={window.i18n.t('请输入') as string}
-                            value={item.key_alias}
-                            list={this.samplingRuleOptions}
-                            v-bk-tooltips={{
-                              content: item.key,
-                              trigger: 'mouseenter',
-                              zIndex: 9999,
-                              disabled: !item.key,
-                              boundary: document.body,
-                              allowHTML: false
-                            }}
-                            onChange={v => this.handleRuleKeyChange(item, v, gIndex, index)}
-                          >
-                            <div
-                              slot='extension'
-                              class='extension'
-                              on-click={() => this.handleDeleteKey(gIndex, index)}
+                    <div style='position:relative;'>
+                      {this.samplingRulesGroup.length > 1 ? (
+                        <div class='sampling-rule-brackets'>
+                          <div class='or-condition'>OR</div>
+                        </div>
+                      ) : (
+                        ''
+                      )}
+                      {this.samplingRulesGroup.map((group, gIndex) => (
+                        <div class='sampling-rule-item'>
+                          {group.map((item, index) => [
+                            item.condition && item.key && index > 0 ? (
+                              <input
+                                style={{ display: item.condition ? 'block' : 'none' }}
+                                key={`condition-${index}-${item.key}`}
+                                class='condition-item-condition'
+                                readonly
+                                value={item.condition.toLocaleUpperCase()}
+                              />
+                            ) : undefined,
+                            <SimpleSelectInput
+                              ref={`selectInput-${gIndex}-${index}`}
+                              placeholder={window.i18n.t('请输入') as string}
+                              value={item.key_alias}
+                              list={this.samplingRuleOptions}
+                              v-bk-tooltips={{
+                                content: item.key,
+                                trigger: 'mouseenter',
+                                zIndex: 9999,
+                                disabled: !item.key,
+                                boundary: document.body,
+                                allowHTML: false
+                              }}
+                              onChange={v => this.handleRuleKeyChange(item, v, gIndex, index)}
                             >
-                              <i class='icon-monitor icon-chahao'></i>
-                              <span>{this.$t('删除')}</span>
-                            </div>
-                          </SimpleSelectInput>,
-                          item.key_alias
-                            ? [
-                                <span
-                                  class='condition-item-method'
-                                  key={`method-${index}-${item.key}`}
-                                  on-click={e => this.handleToggleMethod(e, { gIndex, index, prop: 'method' })}
-                                >
-                                  {this.handleGetMethodNameById(item.method)}
-                                </span>,
-                                item.type === 'time' ? (
-                                  // <CycleInput
-                                  //   class='form-interval'
-                                  //   v-model={item.value}
-                                  //   needAuto={false}
-                                  //   options={this.cycleInputOptions}
-                                  //   defaultUnit={'ms'}
-                                  //   onUnitChange={(v: string) => this.handleSamplingRuleValueUnitChange(item, v)}
-                                  //   onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
-                                  // />
-                                  <CycleInput
-                                    class='form-interval'
-                                    v-model={item.value}
-                                    needAuto={false}
-                                    minSec={1}
-                                    onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
-                                  />
-                                ) : (
-                                  <bk-tag-input
-                                    key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
-                                      this.samplingRuleValueMap[item.key] || []
-                                    )}`}
-                                    class='condition-item-value'
-                                    list={
-                                      this.samplingRuleValueMap[item.key] ? this.samplingRuleValueMap[item.key] : []
-                                    }
-                                    trigger='focus'
-                                    has-delete-icon
-                                    allow-create
-                                    allow-auto-match
-                                    value={item.value}
-                                    // paste-fn={v => this.handlePaste(v, item)}
-                                    on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
-                                  ></bk-tag-input>
-                                )
-                              ]
-                            : undefined
-                        ])}
-                        <span
-                          class='condition-add'
-                          style={{ display: this.showRuleAdd(gIndex) ? 'flex' : 'none' }}
-                          on-click={() => this.handleAddCondition(gIndex)}
-                        >
-                          <i class='bk-icon icon-plus'></i>
-                        </span>
-                      </div>
-                    ))}
+                              <div
+                                slot='extension'
+                                class='extension'
+                                on-click={() => this.handleDeleteKey(gIndex, index)}
+                              >
+                                <i class='icon-monitor icon-chahao'></i>
+                                <span>{this.$t('删除')}</span>
+                              </div>
+                            </SimpleSelectInput>,
+                            item.key_alias
+                              ? [
+                                  <span
+                                    class='condition-item-method'
+                                    key={`method-${index}-${item.key}`}
+                                    on-click={e => this.handleToggleMethod(e, { gIndex, index, prop: 'method' })}
+                                  >
+                                    {this.handleGetMethodNameById(item.method)}
+                                  </span>,
+                                  item.type === 'time' ? (
+                                    // <CycleInput
+                                    //   class='form-interval'
+                                    //   v-model={item.value}
+                                    //   needAuto={false}
+                                    //   options={this.cycleInputOptions}
+                                    //   defaultUnit={'ms'}
+                                    //   onUnitChange={(v: string) => this.handleSamplingRuleValueUnitChange(item, v)}
+                                    //   onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
+                                    // />
+                                    <CycleInput
+                                      class='form-interval'
+                                      v-model={item.value}
+                                      needAuto={false}
+                                      minSec={1}
+                                      onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
+                                    />
+                                  ) : (
+                                    <bk-tag-input
+                                      key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
+                                        this.samplingRuleValueMap[item.key] || []
+                                      )}`}
+                                      class='condition-item-value'
+                                      list={
+                                        this.samplingRuleValueMap[item.key] ? this.samplingRuleValueMap[item.key] : []
+                                      }
+                                      trigger='focus'
+                                      has-delete-icon
+                                      allow-create
+                                      allow-auto-match
+                                      value={item.value}
+                                      // paste-fn={v => this.handlePaste(v, item)}
+                                      on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
+                                    ></bk-tag-input>
+                                  )
+                                ]
+                              : undefined
+                          ])}
+                          <span
+                            class='condition-add'
+                            style={{ display: this.showRuleAdd(gIndex) ? 'flex' : 'none' }}
+                            on-click={() => this.handleAddCondition(gIndex)}
+                          >
+                            <i class='bk-icon icon-plus'></i>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <bk-button
+                      theme='primary'
+                      icon='plus'
+                      class='add-rule-btn'
+                      size='small'
+                      outline
+                      text
+                      on-click={() => this.handleNewRowCondition()}
+                    >
+                      {this.$t('添加规则')}
+                    </bk-button>
                   </bk-form-item>
                 ) : (
                   ''
