@@ -38,6 +38,7 @@ from apm_web.models import (
     LogServiceRelation,
 )
 from apm_web.utils import group_by
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, SpanKind
 from core.drf_resource import api
 
@@ -251,37 +252,72 @@ class TopoHandler:
         self.application = application
         self.start_time = start_time
         self.end_time = end_time
-        self.original_nodes = api.apm_api.query_topo_node(
-            {"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
+
+        query_instance_param = {
+            "bk_biz_id": application.bk_biz_id,
+            "app_name": application.app_name,
+            "filters": {
+                "instance_topo_kind": TopoNodeKind.SERVICE,
+            },
+        }
+
+        service_components_metric_param = {
+            "app": self.application,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "metric_clz": TOPO_COMPONENT_METRIC,
+        }
+
+        topo_remote_service_metric_param = topo_service_metric_param = {
+            "application": self.application,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+        }
+
+        custom_services_param = {
+            "app_name": self.application.app_name,
+            "bk_biz_id": self.application.bk_biz_id,
+            "match_type": CustomServiceMatchType.MANUAL,
+        }
+
+        pool = ThreadPool()
+        original_nodes_res = pool.apply_async(
+            api.apm_api.query_topo_node, kwds={"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
         )
-        self.original_nodes_mapping = group_by(self.original_nodes, operator.itemgetter("topo_key"))
-        self.original_relations = api.apm_api.query_topo_relation(
-            {"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
+        original_relations_res = pool.apply_async(
+            api.apm_api.query_topo_relation, kwds={"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
         )
-        self.original_instances = api.apm_api.query_instance(
-            {
-                "bk_biz_id": application.bk_biz_id,
-                "app_name": application.app_name,
-                "filters": {
-                    "instance_topo_kind": TopoNodeKind.SERVICE,
-                },
-            }
-        ).get("data", [])
-        self.custom_services = ApplicationCustomService.objects.filter(
-            app_name=self.application.app_name,
-            bk_biz_id=self.application.bk_biz_id,
-            match_type=CustomServiceMatchType.MANUAL,
+        original_instances_res = pool.apply_async(api.apm_api.query_instance, kwds=query_instance_param)
+        service_components_metric_res = pool.apply_async(
+            ComponentHandler.get_service_component_metrics, kwds=service_components_metric_param
         )
+        topo_service_metric_res = pool.apply_async(TOPO_SERVICE_METRIC, kwds=topo_service_metric_param)
+        topo_remote_service_metric_res = pool.apply_async(
+            TOPO_REMOTE_SERVICE_METRIC, kwds=topo_remote_service_metric_param
+        )
+        custom_services_res = pool.apply_async(ApplicationCustomService.objects.filter, kwds=custom_services_param)
+        pool.close()
+        pool.join()
+
+        # 获取数据
+        self.original_nodes = original_nodes_res.get()
+        self.original_relations = original_relations_res.get()
+        self.original_instances = original_instances_res.get()
+        if isinstance(self.original_instances, dict):
+            self.original_instances = self.original_instances.get("data", [])
+        else:
+            self.original_instances = []
 
         # 获取服务指标
         self.service_metric = {
-            **TOPO_SERVICE_METRIC(self.application, start_time=self.start_time, end_time=self.end_time),
-            **TOPO_REMOTE_SERVICE_METRIC(self.application, start_time=self.start_time, end_time=self.end_time),
+            **topo_service_metric_res.get(),
+            **topo_remote_service_metric_res.get(),
         }
         # 获取服务下组件指标
-        self.service_components_metric = ComponentHandler.get_service_component_metrics(
-            self.application, self.start_time, self.end_time, metric_clz=TOPO_COMPONENT_METRIC
-        )
+        self.service_components_metric = service_components_metric_res.get()
+        self.original_nodes_mapping = group_by(self.original_nodes, operator.itemgetter("topo_key"))
+
+        self.custom_services = custom_services_res.get()
 
     def get_topo_view(
         self,

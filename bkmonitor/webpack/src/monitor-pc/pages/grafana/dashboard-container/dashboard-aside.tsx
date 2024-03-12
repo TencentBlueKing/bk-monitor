@@ -129,7 +129,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   ].filter(Boolean);
 
   /** 我的收藏列表 */
-  favList = [];
+  favList: IFavListItem[] = [];
   /** 仪表盘列表 */
   grafanaList: ITreeMenuItem[] = [];
   /** 置顶的空间列表 */
@@ -640,7 +640,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               onChange={this.handleBizChange}
             />
           </div>
-          {!!this.favList.length && (
+          {/* 如果没有收藏仪表盘，就不显示空列表。 */}
+          {!!this.favList?.[0]?.children?.length && (
             <div class='grafana-fav'>
               <FavList
                 checked={this.checked}

@@ -455,6 +455,14 @@ class ActionContext(object):
             if not template:
                 template = self.DEFAULT_TEMPLATE
 
+        # 除了「邮件」「企业微信」其他均不支持发送标题，如果通知配置自定义了标题（非默认模板），将 title 加入 content
+        # 忽略首尾的空白符进行比较
+        if (
+            self.notice_way not in [NoticeWay.MAIL, "rtx"]
+            and self.title_template.strip() != self.DEFAULT_TITLE_TEMPLATE.strip()
+        ):
+            template = "\n".join([self.title_template, template])
+
         return template
 
     @cached_property

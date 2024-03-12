@@ -27,7 +27,7 @@
 import { VueConstructor } from 'vue';
 import { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
 
-import { random } from '../../monitor-common/utils/utils';
+import { random } from '../utils/utils';
 
 let insertedEl: IDragHtmlElement = null;
 

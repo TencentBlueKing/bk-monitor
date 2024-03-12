@@ -19,6 +19,7 @@ urlpatterns = [
     url(r"^$", apm_home),
     url(r"meta/", include("apm_web.meta.urls")),
     url(r"^trace_api/", include("apm_web.trace.urls")),
+    url(r"^profile_api/", include("apm_web.profile.urls")),
     url(r"^metric/", include("apm_web.metric.urls")),
     url(r"^topo/", include("apm_web.topo.urls")),
     url(r"^service/", include("apm_web.service.urls")),

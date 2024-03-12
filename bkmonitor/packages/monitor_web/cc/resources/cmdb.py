@@ -20,7 +20,6 @@ from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
-from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.host import Host as OldHost
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
@@ -77,8 +76,9 @@ def agent_status(cc_biz_id, host_list, ip_info_list=None):
     return result
 
 
-@using_cache(CacheType.CC)
 def topo_tree(bk_biz_id):
+    # api.cmdb.get_topo_tree 已开启 API 缓存并由 alarm_backends.core.api_cache.library.cmdb_api_list 每分钟刷新
+    # 此处无需再设置「用户」级别的缓存 - using_cache(CacheType.CC)，两级缓存容易落后
     result = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
     return to_dict(result)
 
@@ -575,6 +575,8 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
                 set_template_id.append(node["bk_inst_id"])
             elif node["bk_obj_id"].upper() == "BIZ":
                 return []
+            else:
+                topo_nodes[node["bk_obj_id"]].append(node["bk_inst_id"])
         elif ("bk_target_service_instance_id" in node or "service_instance_id" in node) and is_service_instance:
             service_instance_id = str(node.get("service_instance_id") or node["bk_target_service_instance_id"])
             if "bk_target_service_instance_id" in dimensions:
