@@ -1287,9 +1287,13 @@ export default defineComponent({
                         <div style='width: 100%;padding: 10px 16px;'>
                           <Input
                             v-model={this.customHourInput}
-                            type='text'
+                            type='number'
                             size='small'
                             placeholder={this.t('输入自定义小时，按 Enter 确认')}
+                            min={1}
+                            max={24}
+                            // @ts-ignore 只允许输入正整数
+                            oninput="value=value.replace(/^(0+)|[^\d]+/g,'')"
                             onEnter={() => {
                               // 添加自定义 发送频率 ，如果输入有重复要直接选中。
                               let inputNumber = Number(this.customHourInput);
@@ -1303,11 +1307,11 @@ export default defineComponent({
                               const maxNum = 24;
                               if (inputNumber > maxNum) {
                                 inputNumber = maxNum;
-                                this.customHourInput = inputNumber;
+                                this.customHourInput = String(inputNumber);
                               }
                               if (inputNumber < minNum) {
                                 inputNumber = minNum;
-                                this.customHourInput = inputNumber;
+                                this.customHourInput = String(inputNumber);
                               }
                               const isHasDuplicatedNum = this.hourOption.find(item => item.id === inputNumber);
                               if (!isHasDuplicatedNum) {

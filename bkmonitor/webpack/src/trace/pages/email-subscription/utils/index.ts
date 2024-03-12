@@ -29,13 +29,6 @@ import { FrequencyType, Report } from '../types';
 
 export function getSendFrequencyText(data: Report) {
   const { t } = useI18n();
-  const hourTextMap = {
-    0.5: t('每个小时整点,半点发送'),
-    1: t('每个小时整点发送'),
-    2: t('从0点开始,每隔2小时整点发送'),
-    6: t('从0点开始,每隔6小时整点发送'),
-    12: t('每天9:00,21:00发送')
-  };
   const weekMap = [t('周一'), t('周二'), t('周三'), t('周四'), t('周五'), t('周六'), t('周日')];
   let str = '';
   if (!data?.frequency?.type) return '';
@@ -47,7 +40,7 @@ export function getSendFrequencyText(data: Report) {
     case FrequencyType.dayly: {
       const includeWeekend = [1, 2, 3, 4, 5, 6, 7];
       const isIncludeWeekend = includeWeekend.every(item => data.frequency.week_list.includes(item));
-      str = `${t('每天')}${isIncludeWeekend ? `(${i18n.t('包含周末')})` : ''} ${data.frequency.run_time}`;
+      str = `${t('每天')}${isIncludeWeekend ? `(${t('包含周末')})` : ''} ${data.frequency.run_time}`;
       break;
     }
     case FrequencyType.weekly: {
@@ -63,7 +56,7 @@ export function getSendFrequencyText(data: Report) {
       break;
     }
     case FrequencyType.hourly: {
-      str = hourTextMap[data.frequency.hour];
+      str = t('每{0}小时发送一次', [data.frequency.hour]);
       break;
     }
     default:
