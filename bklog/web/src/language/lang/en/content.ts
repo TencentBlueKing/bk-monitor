@@ -558,4 +558,8 @@ export default {
   显示全部字段: 'Currently showing all fields',
   新开标签页: 'New tab',
   '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。': 'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
+  '输入自定义同比，按 Enter 确认': 'Enter custom year-on-year and press enter to confirm',
+  将分组作为列展示: 'Display groups as columns',
+  '如需根据某些维度拆分聚类结果，可将字段设置为维度。': 'Divide results according to dimensions and set fields to dimension results.',
+  '修改字段会影响当前聚类结果，请勿随意修改': 'Modifying fields will affect the current results, feel free to modify them.'
 };
