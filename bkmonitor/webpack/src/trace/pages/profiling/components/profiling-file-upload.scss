@@ -1,0 +1,119 @@
+.profiling-file-upload-component {
+  .upload-file-wrap {
+    min-height: 258px;
+    margin-bottom: 24px;
+
+    .bk-upload-trigger--draggable {
+      height: 280px;
+    }
+
+    .upload-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 592px;
+      height: 100%;
+
+      .upload-icon {
+        margin-bottom: 15px;
+        font-size: 36px;
+      }
+
+      .title {
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 22px;
+        color: #63656e;
+      }
+
+      .desc {
+        margin-bottom: 20px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+      }
+
+      .upload-btn {
+        width: 72px;
+        height: 26px;
+        font-size: 12px;
+      }
+    }
+
+    .upload-type-group {
+      width: 100%;
+      margin-bottom: 16px;
+
+      .bk-button {
+        width: 50%;
+      }
+    }
+  }
+
+  .upload-running-wrap {
+    .file-list {
+      display: flex;
+      flex-direction: column;
+
+      .file-list-item {
+        display: flex;
+        align-items: center;
+        height: 60px;
+        padding: 0 12px 0 17px;
+        margin-bottom: 16px;
+        background: #fff;
+        border: 1px solid #eaebf0;
+        border-radius: 2px;
+
+        .file-logo {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: 17px;
+        }
+
+        .file-status {
+          width: 100%;
+
+          .file-name {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #63656e;
+
+            .cancel-btn {
+              &.running {
+                color: #3a84ff;
+                cursor: pointer;
+              }
+
+              &.success {
+                color: #3a84ff;
+              }
+
+              &.failure {
+                color: #ea3636;
+              }
+            }
+          }
+
+          .status-progress {
+            position: relative;
+            width: 100%;
+            height: 2px;
+            background: #dcdee5;
+
+            .progress-line {
+              height: 2px;
+              background: #3a84ff;
+            }
+          }
+        }
+      }
+    }
+  }
+}

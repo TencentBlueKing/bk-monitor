@@ -190,5 +190,6 @@ export const lightenDarkenColor = (color: string, amt: number): string => {
   return (color.startsWith('#') ? '#' : '') + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 };
 export * from './constant';
+export * from './docs-link';
 export * from './utils';
 export * from './xss';

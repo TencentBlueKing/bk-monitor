@@ -46,3 +46,14 @@ export interface IBizItem {
   id: string;
   is_demo: boolean;
 }
+
+export enum DocLinkType {
+  Splice = 'splice',
+  Link = 'link'
+}
+
+// 文档链接
+export interface IDocLinkData {
+  type: DocLinkType;
+  value: string;
+}

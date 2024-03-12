@@ -563,3 +563,32 @@ class DataSamplingLogTypeChoices:
             (cls.TRACE, cls.TRACE),
             (cls.METRIC, cls.METRIC),
         ]
+
+
+class ApmMetrics:
+    """
+    APM内置指标
+    格式: (指标名，描述，单位)
+    """
+
+    BK_APM_DURATION = "bk_apm_duration", _("trace请求耗时"), "ns"
+    BK_APM_COUNT = "bk_apm_count", _("trace分钟请求数"), ""
+    BK_APM_TOTAL = "bk_apm_total", _("trace总请求数"), ""
+    BK_APM_DURATION_MAX = "bk_apm_duration_max", _("trace分钟请求最大耗时"), "ns"
+    BK_APM_DURATION_MIN = "bk_apm_duration_min", _("trace分钟请求最小耗时"), "ns"
+    BK_APM_DURATION_SUM = "bk_apm_duration_sum", _("trace总请求耗时"), "ns"
+    BK_APM_DURATION_DELTA = "bk_apm_duration_delta", _("trace分钟总请求耗时"), "ns"
+    BK_APM_DURATION_BUCKET = "bk_apm_duration_bucket", _("trace总请求耗时bucket"), "ns"
+
+    @classmethod
+    def all(cls):
+        return [
+            cls.BK_APM_DURATION,
+            cls.BK_APM_COUNT,
+            cls.BK_APM_TOTAL,
+            cls.BK_APM_DURATION_MAX,
+            cls.BK_APM_DURATION_MIN,
+            cls.BK_APM_DURATION_SUM,
+            cls.BK_APM_DURATION_DELTA,
+            cls.BK_APM_DURATION_BUCKET,
+        ]

@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@blueking/date-picker': ^0.0.73
+  '@blueking/date-picker': ^1.0.0
   '@blueking/stylelint-config': 0.0.3
   '@blueking/user-selector>vue': 2.7.14
   '@typescript-eslint/eslint-plugin': ^5.62.0
@@ -524,8 +524,8 @@ importers:
         specifier: 0.0.25.beta.11
         version: 0.0.2-5.beta.11
       '@blueking/date-picker':
-        specifier: ^0.0.73
-        version: 0.0.73(dayjs@1.11.10)(vue@2.7.14)
+        specifier: ^1.0.0
+        version: 1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@2.7.14)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -783,6 +783,36 @@ importers:
       codemirror-promql:
         specifier: ^0.19.0
         version: 0.19.0(@codemirror/autocomplete@0.19.15)(@codemirror/highlight@0.19.8)(@codemirror/language@0.19.10)(@codemirror/lint@0.19.6)(@codemirror/state@0.19.9)(@codemirror/view@0.19.48)(@lezer/common@0.15.12)
+      d3-array:
+        specifier: ^3.1.1
+        version: 3.2.4
+      d3-dispatch:
+        specifier: ^3.0.1
+        version: 3.0.1
+      d3-ease:
+        specifier: ^3.0.1
+        version: 3.0.1
+      d3-format:
+        specifier: ^3.0.1
+        version: 3.1.0
+      d3-hierarchy:
+        specifier: ^3.0.1
+        version: 3.1.2
+      d3-path:
+        specifier: ^3.1.0
+        version: 3.1.0
+      d3-scale:
+        specifier: ^4.0.2
+        version: 4.0.2
+      d3-selection:
+        specifier: ^3.0.0
+        version: 3.0.0
+      d3-shape:
+        specifier: ^3.2.0
+        version: 3.2.0
+      d3-transition:
+        specifier: ^3.0.1
+        version: 3.0.1(d3-selection@3.0.0)
       dayjs:
         specifier: ^1.11.10
         version: 1.11.10
@@ -829,6 +859,9 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0(typescript@4.9.5)(vue@2.7.14)
     devDependencies:
+      '@types/d3':
+        specifier: ^7.4.0
+        version: 7.4.3
       '@types/echarts':
         specifier: ^4.9.22
         version: 4.9.22
@@ -905,8 +938,8 @@ importers:
         specifier: ^4.8.24
         version: 4.8.24
       '@blueking/date-picker':
-        specifier: ^0.0.73
-        version: 0.0.73(bkui-vue@0.0.2-beta.126)(dayjs@1.11.10)(vue@3.4.20)
+        specifier: ^1.0.0
+        version: 1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@3.4.20)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -917,8 +950,8 @@ importers:
         specifier: workspace:*
         version: link:../apm
       bkui-vue:
-        specifier: 0.0.2-beta.126
-        version: 0.0.2-beta.126(highlight.js@11.5.1)(vue@3.4.20)
+        specifier: 1.0.0
+        version: 1.0.0(highlight.js@11.5.1)(vue@3.4.20)
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -2775,29 +2808,30 @@ packages:
       - whiskers
     dev: false
 
-  /@blueking/date-picker@0.0.73(bkui-vue@0.0.2-beta.126)(dayjs@1.11.10)(vue@3.4.20):
-    resolution: {integrity: sha512-+fYIE3PgKwH0t0307g8s9+NKmrbDeFwjtzfI8rHA7+CbD1Ix9imsjiXoHWRWkmhpQo2qtKMZsncslQLkEyK1hA==}
+  /@blueking/date-picker@1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@2.7.14):
+    resolution: {integrity: sha512-E42AB4Qt3mCD5Q1S6z925LFmLZQmRw3+iRa9nKAgJZIzYC3rcwOKpFlwkXaSYDNOKko3C2HTOvGQcxmyuPcSYg==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
-      bkui-vue: latest
+      bkui-vue: ^1.0.0
       dayjs: ^1.11.10
       vue: ^3.2.0
     dependencies:
-      bkui-vue: 0.0.2-beta.126(highlight.js@11.5.1)(vue@3.4.20)
-      dayjs: 1.11.10
-      vue: 3.4.20(typescript@4.9.5)
-    dev: false
-
-  /@blueking/date-picker@0.0.73(dayjs@1.11.10)(vue@2.7.14):
-    resolution: {integrity: sha512-+fYIE3PgKwH0t0307g8s9+NKmrbDeFwjtzfI8rHA7+CbD1Ix9imsjiXoHWRWkmhpQo2qtKMZsncslQLkEyK1hA==}
-    engines: {node: '>=18.16.0'}
-    peerDependencies:
-      bkui-vue: latest
-      dayjs: ^1.11.10
-      vue: ^3.2.0
-    dependencies:
+      bkui-vue: 1.0.0(highlight.js@11.5.1)(vue@2.7.14)
       dayjs: 1.11.10
       vue: 2.7.14
+    dev: false
+
+  /@blueking/date-picker@1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@3.4.20):
+    resolution: {integrity: sha512-E42AB4Qt3mCD5Q1S6z925LFmLZQmRw3+iRa9nKAgJZIzYC3rcwOKpFlwkXaSYDNOKko3C2HTOvGQcxmyuPcSYg==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      bkui-vue: ^1.0.0
+      dayjs: ^1.11.10
+      vue: ^3.2.0
+    dependencies:
+      bkui-vue: 1.0.0(highlight.js@11.5.1)(vue@3.4.20)
+      dayjs: 1.11.10
+      vue: 3.4.20(typescript@4.9.5)
     dev: false
 
   /@blueking/fork-resize-detector@0.0.2:
@@ -3887,20 +3921,20 @@ packages:
   /@probe.gl/env@3.6.0:
     resolution: {integrity: sha512-4tTZYUg/8BICC3Yyb9rOeoKeijKbZHRXBEKObrfPmX4sQmYB15ZOUpoVBhAyJkOYVAM8EkPci6Uw5dLCwx2BEQ==}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
     dev: false
 
   /@probe.gl/log@3.6.0:
     resolution: {integrity: sha512-hjpyenpEvOdowgZ1qMeCJxfRD4JkKdlXz0RC14m42Un62NtOT+GpWyKA4LssT0+xyLULCByRAtG2fzZorpIAcA==}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
       '@probe.gl/env': 3.6.0
     dev: false
 
   /@probe.gl/stats@3.6.0:
     resolution: {integrity: sha512-JdALQXB44OP4kUBN/UrQgzbJe4qokbVF4Y8lkIA8iVCFnjVowWIgkD/z/0QO65yELT54tTrtepw1jScjKB+rhQ==}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
     dev: false
 
   /@sinclair/typebox@0.27.8:
@@ -5434,12 +5468,31 @@ packages:
       tinycolor2: 1.6.0
       vue: 2.7.14
 
-  /bkui-vue@0.0.2-beta.126(highlight.js@11.5.1)(vue@3.4.20):
-    resolution: {integrity: sha512-r4aFK4USKzx7tnTKQesDudtzLH0J3u+kr/EwU/VoBM0CzZg613cF0D9/tCD1jaG41bkbVrEfByJaBssuY/I0ig==}
+  /bkui-vue@1.0.0(highlight.js@11.5.1)(vue@2.7.14):
+    resolution: {integrity: sha512-PRH9U+DAesEUdrgdj+uQrISWFeaFZZazjSrpyNteFMPwmPQMynq1ZWrdm/XfowqHXoWx2XlrjEtlgm7YMd0aig==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
-      vue: ^3.2.0
+      vue: ^3.3.0
+    dependencies:
+      '@floating-ui/dom': 1.5.3
+      '@popperjs/core': 2.11.8
+      date-fns: 2.30.0
+      highlight.js: 11.5.1
+      js-calendar: 1.2.3
+      json-formatter-js: 2.3.4
+      lodash: 4.17.21
+      tinycolor2: 1.6.0
+      vue: 2.7.14
+      vue-types: 4.1.1(vue@2.7.14)
+    dev: false
+
+  /bkui-vue@1.0.0(highlight.js@11.5.1)(vue@3.4.20):
+    resolution: {integrity: sha512-PRH9U+DAesEUdrgdj+uQrISWFeaFZZazjSrpyNteFMPwmPQMynq1ZWrdm/XfowqHXoWx2XlrjEtlgm7YMd0aig==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      highlight.js: ~11.5.0
+      vue: ^3.3.0
     dependencies:
       '@floating-ui/dom': 1.5.3
       '@popperjs/core': 2.11.8
@@ -6836,7 +6889,7 @@ packages:
     resolution: {integrity: sha512-fnULvOpxnC5/Vg3NCiWelDsLiUc9bRwAPs/+LfTLNvetFCtCTN+yQz15C/fs4AwX1R9K5GLtLfn8QW+dWisaAw==}
     engines: {node: '>=0.11'}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
     dev: false
 
   /dayjs@1.11.10:
@@ -11364,7 +11417,7 @@ packages:
   /probe.gl@3.6.0:
     resolution: {integrity: sha512-19JydJWI7+DtR4feV+pu4Mn1I5TAc0xojuxVgZdXIyfmTLfUaFnk4OloWK1bKbPtkgGKLr2lnbnCXmpZEcEp9g==}
     dependencies:
-      '@babel/runtime': 7.23.6
+      '@babel/runtime': 7.23.9
       '@probe.gl/env': 3.6.0
       '@probe.gl/log': 3.6.0
       '@probe.gl/stats': 3.6.0
@@ -13524,6 +13577,16 @@ packages:
     dependencies:
       typescript: 4.9.5
       vue: 2.7.14
+
+  /vue-types@4.1.1(vue@2.7.14):
+    resolution: {integrity: sha512-Jq2GZ/w6rExJbLA/h7nHBFLciu+YNekgox0DB64wN1snZ4IIJMq+qnqp1/vE4fc7vEjZcP5KGhLzkkSjIHLRzw==}
+    engines: {node: '>=12.16.0'}
+    peerDependencies:
+      vue: ^2.0.0 || ^3.0.0
+    dependencies:
+      is-plain-object: 5.0.0
+      vue: 2.7.14
+    dev: false
 
   /vue-types@4.1.1(vue@3.4.20):
     resolution: {integrity: sha512-Jq2GZ/w6rExJbLA/h7nHBFLciu+YNekgox0DB64wN1snZ4IIJMq+qnqp1/vE4fc7vEjZcP5KGhLzkkSjIHLRzw==}

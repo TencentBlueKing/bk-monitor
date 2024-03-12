@@ -59,6 +59,7 @@ from apm_web.metrics import (
     SERVICE_LIST,
 )
 from apm_web.models import ApmMetaConfig, Application
+from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.resources import (
     AsyncColumnsListResource,
     ServiceAndComponentCompatibleResource,
@@ -71,7 +72,7 @@ from apm_web.serializers import (
 from apm_web.utils import Calculator, group_by, handle_filter_fields
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request
-from constants.apm import OtlpKey, SpanKind
+from constants.apm import ApmMetrics, OtlpKey, SpanKind
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.scene_view.resources.base import PageListResource
@@ -192,6 +193,8 @@ class DynamicUnifyQueryResource(Resource):
 
 
 class ServiceListResource(PageListResource):
+    """服务列表接口"""
+
     def get_columns(self, column_type=None):
         return [
             CollectTableFormat(
@@ -223,9 +226,23 @@ class ServiceListResource(PageListResource):
                 sortable=True,
                 disabled=True,
             ),
-            StringTableFormat(id="type", name=_lazy("类型"), checked=False, filterable=True),
-            StringTableFormat(id="language", name=_lazy("语言"), checked=False, filterable=True),
-            StatusTableFormat(id="status", name=_lazy("状态"), checked=True, status_map_cls=DataStatus, filterable=True),
+            StringTableFormat(
+                id="type",
+                name=_lazy("类型"),
+                checked=False,
+                filterable=True,
+                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
+            ),
+            StringTableFormat(
+                id="language",
+                name=_lazy("语言"),
+                checked=False,
+                filterable=True,
+                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
+            ),
+            StatusTableFormat(
+                id="status", name=_lazy("Tracing 状态"), checked=True, status_map_cls=DataStatus, filterable=True
+            ),
             NumberTableFormat(id="request_count", name=_lazy("调用次数"), checked=True, sortable=True, asyncable=True),
             ProgressTableFormat(id="error_rate", name=_lazy("错误率"), sortable=True, asyncable=True),
             NumberTableFormat(
@@ -237,9 +254,36 @@ class ServiceListResource(PageListResource):
                 sortable=True,
                 asyncable=True,
             ),
-            NumberTableFormat(id="strategy_count", name=_lazy("策略数"), checked=True, decimal=0, sortable=True),
+            NumberTableFormat(
+                id="strategy_count",
+                name=_lazy("策略数"),
+                checked=True,
+                decimal=0,
+                sortable=True,
+                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
+            ),
             StatusTableFormat(
-                id="alert_status", name=_lazy("告警状态"), checked=True, status_map_cls=ServiceStatus, filterable=True
+                id="alert_status",
+                name=_lazy("告警状态"),
+                checked=True,
+                status_map_cls=ServiceStatus,
+                filterable=True,
+                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
+            ),
+            StatusTableFormat(
+                id="profiling_data_status",
+                name=_lazy("Profiling 状态"),
+                checked=True,
+                status_map_cls=DataStatus,
+                filterable=True,
+            ),
+            NumberTableFormat(
+                id="profiling_data_count",
+                name=_lazy("数据量"),
+                checked=True,
+                decimal=0,
+                sortable=True,
+                asyncable=True,
             ),
             LinkListTableFormat(
                 id="operation",
@@ -253,11 +297,21 @@ class ServiceListResource(PageListResource):
                     ),
                 ],
                 disabled=True,
-                link_handler=lambda i: i.get("kind") != TopoNodeKind.COMPONENT,
+                link_handler=lambda i: i.get("kind") in [TopoNodeKind.SERVICE, TopoNodeKind.REMOTE_SERVICE],
+                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
         ]
 
     class RequestSerializer(serializers.Serializer):
+        # 服务列表有两种观察模式 一种是首页 另一个是服务列表 两个返回的 columns 不一致 所以加以区分
+        VIEW_MODE_HOME = "page_home"
+        VIEW_MODE_SERVICES = "page_services"
+
+        VIEW_MODE_CHOICES = (
+            (VIEW_MODE_HOME, "首页"),
+            (VIEW_MODE_SERVICES, "服务列表页"),
+        )
+
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
         keyword = serializers.CharField(required=False, label="查询关键词", allow_blank=True)
@@ -268,6 +322,12 @@ class ServiceListResource(PageListResource):
         sort = serializers.CharField(required=False, label="排序方式", allow_blank=True)
         filter = serializers.CharField(required=False, label="筛选条件", allow_blank=True)
         filter_dict = serializers.DictField(required=False, label="筛选条件", default={})
+        view_mode = serializers.ChoiceField(
+            required=False,
+            label="展示模式",
+            choices=VIEW_MODE_CHOICES,
+            default=VIEW_MODE_SERVICES,
+        )
 
         def validate_filter(self, value):
             if value == CategoryEnum.ALL:
@@ -288,6 +348,7 @@ class ServiceListResource(PageListResource):
         strategy_service_map: dict,
         strategy_alert_map: dict,
         request_count_info: dict,
+        profiling_count_info: dict,
     ):
         return [
             {
@@ -307,6 +368,9 @@ class ServiceListResource(PageListResource):
                 "predicate_value": service["extra_data"]["predicate_value"],
                 "status": DataStatus.NORMAL
                 if request_count_info.get(service["topo_key"], {}).get("request_count")
+                else DataStatus.NO_DATA,
+                "profiling_data_status": DataStatus.NORMAL
+                if profiling_count_info.get(service["topo_key"], {}).get("profiling_data_count")
                 else DataStatus.NO_DATA,
             }
             for service in services
@@ -338,7 +402,7 @@ class ServiceListResource(PageListResource):
             "conditions": [
                 {
                     "key": "metric_id",
-                    "value": [f"custom.{app.metric_result_table_id}.bk_apm_duration"],
+                    "value": [f"custom.{app.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
                 }
             ],
             "page": 0,
@@ -351,7 +415,7 @@ class ServiceListResource(PageListResource):
             "conditions": [
                 {
                     "key": "metric_id",
-                    "value": [f"custom.{app.metric_result_table_id}.bk_apm_duration"],
+                    "value": [f"custom.{app.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
                 }
             ],
             "start_time": start_time,
@@ -411,9 +475,23 @@ class ServiceListResource(PageListResource):
                 COMPONENT_DATA_STATUS,
             ),
         }
+        # 获取 profile 服务指标
+        if app.is_enabled_profiling:
+            profiling_request_info = QueryTemplate(
+                validate_data["bk_biz_id"], validate_data["app_name"]
+            ).list_services_request_info(validate_data["start_time"] * 1000, validate_data["end_time"] * 1000)
+        else:
+            profiling_request_info = {}
+
         # 处理响应数据
         raw_data = self.combine_data(
-            services, config, validate_data["app_name"], strategy_service_map, strategy_alert_map, request_count_info
+            services,
+            config,
+            validate_data["app_name"],
+            strategy_service_map,
+            strategy_alert_map,
+            request_count_info,
+            profiling_request_info,
         )
 
         filtered_data = self.keyword_filter(raw_data, validate_data["keyword"], validate_data["filter"])
@@ -455,6 +533,12 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             validated_data["start_time"],
             validated_data["end_time"],
         )
+        if app.is_enabled_profiling:
+            profiling_metric_info = QueryTemplate(
+                validated_data["bk_biz_id"], validated_data["app_name"]
+            ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
+        else:
+            profiling_metric_info = {}
 
         services = ServiceHandler.list_services(app)
         column = validated_data["column"]
@@ -473,15 +557,11 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
                     service["extra_data"]["predicate_value"], {}
                 )
 
-            if column == "status":
-                res.append(
-                    {
-                        "service_name": service_name,
-                        "status": DataStatus.NORMAL if metric_info.get("request_count") else DataStatus.NO_DATA,
-                    }
-                )
-            elif column in metric_info:
-                res.append({"service_name": service_name, **self.get_async_column_item(metric_info, column)})
+            if service["topo_key"] in profiling_metric_info:
+                # 补充 profiling 数据
+                metric_info.update(profiling_metric_info[service["topo_key"]])
+
+            res.append({"service_name": service_name, **self.get_async_column_item(metric_info, column)})
 
         return self.get_async_data(res, validated_data["column"])
 
