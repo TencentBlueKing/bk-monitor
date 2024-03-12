@@ -1156,6 +1156,12 @@ class QuickCreateSubscription extends tsc<IProps> {
                   v-model={this.frequency.hour}
                   clearable={false}
                   style="width: 240px;"
+                  onToggle={() => {
+                    // 强行将 input 的type设置为number（组件库不允许直接设置）将操作逻辑改成和监控一样。
+                    const targetEle = document.querySelector('#customHourInput input');
+                    console.log(targetEle);
+                    targetEle.attributes['type'].value = 'number';
+                  }}
                 >
                   {hourOption.map(item => {
                     return (
@@ -1167,14 +1173,23 @@ class QuickCreateSubscription extends tsc<IProps> {
                   })}
                   <div slot='extension' style='padding: 10px 0;'>
                     <bk-input
+                      id='customHourInput'
                       v-model={this.customHourInput}
-                      type='text'
+                      type='number'
                       size='small'
                       placeholder={this.$t('输入自定义小时，按 Enter 确认')}
+                      min={1}
+                      max={24}
+                      precision={0}
+                      // @ts-ignore 只允许输入正整数
+                      oninput={() => {
+                        this.customHourInput = this.customHourInput.replace(/^(0+)|[^\d]+/g,'');
+                      }}
                       onEnter={() => {
                         // 添加自定义 发送频率 ，如果输入有重复要直接选中。
                         let inputNumber = Number(this.customHourInput);
                         if (!inputNumber) {
+                          // @ts-ignore
                           return this.$bkMessage({
                             theme: 'warning',
                             message: this.$t('请输入有效数值')
@@ -1184,11 +1199,11 @@ class QuickCreateSubscription extends tsc<IProps> {
                         const maxNum = 24;
                         if (inputNumber > maxNum) {
                           inputNumber = maxNum;
-                          this.customHourInput = inputNumber;
+                          this.customHourInput = String(inputNumber);
                         }
                         if (inputNumber < minNum) {
                           inputNumber = minNum;
-                          this.customHourInput = inputNumber;
+                          this.customHourInput = String(inputNumber);
                         }
                         const isHasDuplicatedNum = hourOption.find(item => item.id === inputNumber);
                         if (!isHasDuplicatedNum) {
@@ -1196,6 +1211,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                         }
                         this.frequency.hour = inputNumber;
                         this.customHourInput = '';
+                        // @ts-ignore
                         this.$refs['refOfFrequencyHour']?.close?.();
                       }}
                     ></bk-input>
