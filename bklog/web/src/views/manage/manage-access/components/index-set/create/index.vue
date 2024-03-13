@@ -113,11 +113,9 @@
               <template v-for="(item, index) in formData.indexes">
                 <bk-tag
                   closable
-                  :class="{
-                    active: getIndexActive(item.result_table_id),
-                    'selected-tag': scenarioId === 'es',
-                  }"
+                  :class="{ 'selected-tag': scenarioId === 'es' }"
                   :key="item.result_table_id"
+                  :theme="getIndexActive(item.result_table_id)"
                   @click="handleClickTag(item.result_table_id)"
                   @close="removeCollection(index, item.result_table_id)">
                   <span
@@ -614,8 +612,9 @@ export default {
       });
     },
     getIndexActive(resultTableId) {
-      if (this.scenarioId !== 'es') return false;
-      return resultTableId === this.currentActiveShowID;
+      if (this.scenarioId !== 'es') return '';
+      if (resultTableId === this.currentActiveShowID) return 'info';
+      return '';
     },
     handleCloseSortFiled(item) {
       const splitIndex = this.formData.sort_fields.findIndex(fItem => fItem === item);
@@ -846,17 +845,19 @@ export default {
           align-items: center;
           height: 32px;
           line-height: 32px;
-          background-color: #f0f1f5;
+          background: #f0f1f5;
           padding: 0 4px 0 10px;
           margin: 0 10px 10px 0;
 
           .bk-tag-close {
+            color: #63656e;
             font-size: 18px;
           }
-        }
 
-        .active {
-          border: 1px solid #3a84ff;
+          &.bk-tag-info {
+            /* stylelint-disable-next-line declaration-no-important */
+            background: #ebf2ff !important;
+          }
         }
 
         .selected-tag {
