@@ -149,6 +149,16 @@ class ReportQueryTypeEnum(ChoicesEnum):
     )
 
 
+class ApplyRecordQueryTypeEnum(ChoicesEnum):
+    USER = "user"
+    BIZ = "biz"
+
+    _choices_labels = (
+        (USER, _lazy("用户")),
+        (BIZ, _lazy("业务")),
+    )
+
+
 CLUSTERING_VARIABLES = [
     {"name": "time", "description": "系统时间", "example": "2023-12-12 22:00"},
     {"name": "index_set_name", "description": "索引集名称", "example": "apm_demo_app_1111"},

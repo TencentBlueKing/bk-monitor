@@ -36,6 +36,7 @@ from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.user import get_local_username
 from constants.new_report import (
     SUBSCRIPTION_VARIABLES_MAP,
+    ApplyRecordQueryTypeEnum,
     ChannelEnum,
     ReportCreateTypeEnum,
     ReportQueryTypeEnum,
@@ -541,29 +542,48 @@ class GetApplyRecordsResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=False)
+        bk_biz_id = serializers.IntegerField(required=True)
+        query_type = serializers.CharField(required=False, label="查询类型", default=ApplyRecordQueryTypeEnum.USER.value)
+        status = serializers.ChoiceField(required=False, label="审批状态", choices=ApprovalStatusEnum.get_choices())
 
     def perform_request(self, validated_request_data):
         qs = ReportApplyRecord.objects.all()
-        if not validated_request_data.get("bk_biz_id"):
+        if not validated_request_data["query_type"] == ApplyRecordQueryTypeEnum.USER:
             # 根据用户获取
             username = get_request().user.username
             qs = qs.filter(create_user=username)
         else:
             # 根据业务获取
             qs = qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+
+        if validated_request_data.get("status"):
+            qs = qs.filter(status=validated_request_data["status"])
         qs = qs.order_by("-create_time")
         report_ids = qs.values_list("report_id", flat=True)
         apply_records = list(qs.values())
         report_infos = list(Report.origin_objects.filter(id__in=report_ids).values())
+
+        # 获取订阅渠道列表
+        report_channels_map = defaultdict(list)
+        for channel in list(ReportChannel.objects.filter(report_id__in=report_ids).values()):
+            channel.pop("id")
+            report_id = channel.pop("report_id")
+            report_channels_map[report_id].append(channel)
+
         id_to_report = {}
         for report_info in report_infos:
             id_to_report[report_info["id"]] = report_info
         for apply_record in apply_records:
+            report_id = apply_record["report_id"]
+            report_info = id_to_report[report_id]
             status_info = api.itsm.get_ticket_status(sn=apply_record["approval_sn"])
             if status_info["current_steps"]:
                 apply_record["approval_step"] = status_info["current_steps"]
-            apply_record["content_title"] = id_to_report[apply_record["report_id"]]["name"]
+            apply_record["content_title"] = report_info["name"]
+            apply_record["channels"] = report_channels_map.get(report_id, [])
+            apply_record["scenario"] = report_info["scenario"]
+            apply_record["frequency"] = report_info["frequency"]
+            apply_record["send_mode"] = report_info["send_mode"]
         return apply_records
 
 
