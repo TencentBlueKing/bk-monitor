@@ -33,6 +33,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import { handleGotoLink } from '../../../common/constant';
 import { EmptyStatusType } from '../../../components/empty-status/types';
+import SkeletonBase from '../../../components/skeleton/skeleton-base';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FieldFiltering from '../event-retrieval/field-filtering';
 import HandleBtn from '../handle-btn/handle-btn';
@@ -521,14 +522,21 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
             onClear={this.handleClearQuery}
           />
         </div>
-        <FieldFiltering
-          v-bkloading={{ isLoading: this.gourpByLoading }}
-          class='field-filtering'
-          value={this.groupByList}
-          total={this.total}
-          onChange={list => (this.groupByList = list)}
-          onAddCondition={this.handleAddFilterCondition}
-        />
+        {this.gourpByLoading ? (
+          <SkeletonBase
+            class='skeleton-box'
+            children={{ row: 12, height: '20px' }}
+          />
+        ) : (
+          <FieldFiltering
+            class='field-filtering'
+            value={this.groupByList}
+            total={this.total}
+            onChange={list => (this.groupByList = list)}
+            onAddCondition={this.handleAddFilterCondition}
+          />
+        )}
+
         {tipsContentTpl()}
       </div>
     );

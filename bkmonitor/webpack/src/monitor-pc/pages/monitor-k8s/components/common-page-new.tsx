@@ -41,6 +41,7 @@ import introduce from '../../../common/introduce';
 import Collapse from '../../../components/collapse/collapse';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
+import SkeletonBase from '../../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
@@ -1156,8 +1157,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         selectortTarget.compareFieldsSort
       );
       // eslint-disable-next-line max-len
-      compareTargets = targets?.map(
-        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+      compareTargets = targets?.map(item =>
+        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {
@@ -1562,10 +1563,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   render() {
     return (
-      <div
-        class='common-page'
-        v-monitor-loading={{ isLoading: this.loading }}
-      >
+      <div class='common-page'>
         {this.showK8sGuidePage && (
           <GuidePage
             guideData={introduce.data.k8s.introduce}
@@ -1837,6 +1835,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                 />
               )}
             </keep-alive>
+            {this.loading && (
+              <div class='skeleton-base-box'>
+                <SkeletonBase
+                  title={[{ widths: ['79%', '19%'], height: '32px' }]}
+                  children={{ row: 12, height: '20px' }}
+                />
+              </div>
+            )}
           </div>,
           !this.readonly ? (
             <SettingModal

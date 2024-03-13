@@ -32,6 +32,7 @@ import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
@@ -537,7 +538,6 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       <div
         ref='selectTablePanel'
         class='common-select-table'
-        v-bkloading={{ isLoading: this.loading }}
       >
         <div class={['list-header', { 'flex-header': this.width > 1000 }]}>
           <div class='search-bar'>
@@ -624,6 +624,13 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
           ></CommonTable>
         </div>
         {this.showScrollLoadBar && <div class='scroll-load-bar'>{handleLoadBarText()}</div>}
+
+        {this.loading && (
+          <SkeletonBase
+            class='select-table-skeleton-box'
+            children={{ row: 30, height: '20px' }}
+          />
+        )}
       </div>
     );
   }

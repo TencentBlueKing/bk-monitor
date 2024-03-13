@@ -32,6 +32,7 @@ import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import BackTop from '../../../components/back-top/back-top';
+import SkeletonBase from '../../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { CHART_INTERVAL } from '../../../constant/constant';
@@ -522,33 +523,41 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
               </div>
             </div>
           </div>
-          <bk-table
-            data={this.tableColumnList.length ? this.tableData : []}
-            v-bkloading={{ isLoading: this.tableLoading }}
-          >
-            <bk-table-column
-              type='expand'
-              scopedSlots={{
-                default: expandScopedSlots
-              }}
-            />
-            <div slot='empty'>
-              <RetrievalEmptyShow
-                showType={'event'}
-                queryLoading={this.isFirstSearch || this.tableLoading || this.loading}
-                eventMetricParams={this.eventMetricParams}
-                onClickEventBtn={this.handleClickEmptyBtn}
-                emptyStatus={this.emptyStatus}
-              />
-            </div>
-            {this.tableColumnList.map(column => (
+          {this.tableLoading ? (
+            <SkeletonBase
+              class='skeleton-box'
+              children={{ row: 10, height: '20px' }}
+            ></SkeletonBase>
+          ) : (
+            <bk-table
+              data={this.tableColumnList.length ? this.tableData : []}
+              v-bkloading={{ isLoading: this.tableLoading }}
+            >
               <bk-table-column
-                {...{
-                  props: column
+                type='expand'
+                scopedSlots={{
+                  default: expandScopedSlots
                 }}
               />
-            ))}
-          </bk-table>
+              <div slot='empty'>
+                <RetrievalEmptyShow
+                  showType={'event'}
+                  queryLoading={this.isFirstSearch || this.tableLoading || this.loading}
+                  eventMetricParams={this.eventMetricParams}
+                  onClickEventBtn={this.handleClickEmptyBtn}
+                  emptyStatus={this.emptyStatus}
+                />
+              </div>
+              {this.tableColumnList.map(column => (
+                <bk-table-column
+                  {...{
+                    props: column
+                  }}
+                />
+              ))}
+            </bk-table>
+          )}
+
           <div
             class='table-loading-wrap'
             v-bkloading={{ isLoading: this.loading }}
