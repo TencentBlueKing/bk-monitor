@@ -69,8 +69,7 @@ class SysLogScenario(CollectorScenario):
         local_params = {
             "protocol": params.get("syslog_protocol", "").lower(),
             "host": f"{syslog_monitor_host}:{syslog_port}",
-            "filters": filters,
-            "delimiter": "|" if filters else "",  # 字符串过滤 delimiter 统一传 |, 为空则不过滤
+            "syslog_filters": filters,
         }
         local_params = self._deal_edge_transport_params(local_params, data_link_id)
         local_params = self._handle_collector_config_overlay(local_params, params)
@@ -99,13 +98,11 @@ class SysLogScenario(CollectorScenario):
             syslog_conditions = list()
 
             if filters:
-                for filter_item in filters:
-                    i = 0
-                    for condition_item in filter_item["conditions"]:
-                        n = 0
-                        if i == 0:
+                for filter_index, filter_item in enumerate(filters):
+                    for condition_index, condition_item in enumerate(filter_item["conditions"]):
+                        if filter_index == 0:
                             logic_op = PluginParamLogicOpEnum.AND.value
-                        elif n == 0:
+                        elif condition_index == 0:
                             logic_op = PluginParamLogicOpEnum.OR.value
                         else:
                             logic_op = PluginParamLogicOpEnum.AND.value
@@ -117,8 +114,6 @@ class SysLogScenario(CollectorScenario):
                                 "syslog_logic_op": logic_op,
                             }
                         )
-                        n += 1
-                    i += 1
 
             return {
                 "syslog_protocol": local["protocol"],
