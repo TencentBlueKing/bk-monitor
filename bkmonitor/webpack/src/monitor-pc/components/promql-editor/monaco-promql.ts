@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export function processSize(size: number | string) {
-  return !/^\d+$/.test(size as string) ? size : `${size}px`;
-}
-
-export function noop() {}
+export const promLanguageDefinition = {
+  id: 'promql',
+  extensions: ['.promql'],
+  aliases: ['Prometheus', 'prometheus', 'prom', 'Prom', 'promql', 'Promql', 'promQL', 'PromQL'],
+  mimetypes: []
+};

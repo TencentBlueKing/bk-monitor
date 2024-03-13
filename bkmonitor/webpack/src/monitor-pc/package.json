@@ -30,7 +30,6 @@
     "html-to-image": "^1.11.11",
     "minimist": "^1.2.8",
     "monaco-editor": "^0.45.0",
-    "monaco-promql": "^1.7.4",
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",
     "monitor-static": "workspace:*",

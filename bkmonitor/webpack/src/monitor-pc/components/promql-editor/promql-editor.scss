@@ -28,22 +28,11 @@
     box-shadow: none;
   }
 
-  .monaco-scrollable-element {
-    left: 10px !important;
-    width: calc(100% - 10px) !important;
-  }
-
   .placeholder-widget {
     top: 0 !important;
     left: 12px !important;
     color: #888;
     pointer-events: none;
-  }
-
-  .suggest-widget {
-    position: absolute !important;
-    z-index: 9999 !important;
-    overflow: visible !important;
   }
 
   .resize-vertical-drop {

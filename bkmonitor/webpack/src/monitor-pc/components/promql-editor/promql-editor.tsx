@@ -27,10 +27,10 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { parser } from '@prometheus-io/lezer-promql';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import { promLanguageDefinition } from 'monaco-promql';
 import { throttle } from 'throttle-debounce';
 
-import { noop } from './utils';
+import { promLanguageDefinition } from './monaco-promql';
+import { completionItemProvider, language, languageConfiguration } from './promql';
 import { validateQuery } from './validation';
 
 import './promql-editor.scss';
@@ -39,15 +39,12 @@ function editorWillMount(monaco) {
   const languageId = promLanguageDefinition.id;
   monaco.languages.register(promLanguageDefinition);
   monaco.languages.onLanguage(languageId, () => {
-    promLanguageDefinition.loader().then(mod => {
-      monaco.languages.setMonarchTokensProvider(languageId, mod.language);
-      monaco.languages.setLanguageConfiguration(languageId, mod.languageConfiguration);
-      monaco.languages.registerCompletionItemProvider(languageId, mod.completionItemProvider);
-    });
+    monaco.languages.setMonarchTokensProvider(languageId, language);
+    monaco.languages.setLanguageConfiguration(languageId, languageConfiguration);
+    monaco.languages.registerCompletionItemProvider(languageId, completionItemProvider);
   });
   return {};
 }
-
 /**
  * @description placeholder
  */
@@ -82,23 +79,27 @@ class PlaceholderWidget {
 
 const defalutOptions = {
   lineNumbers: 'off',
+  lineDecorationsWidth: 10,
+  lineNumbersMinChars: 0,
+  glyphMargin: false,
+  folding: false,
   minimap: {
     enabled: false
   },
   fontSize: 12,
-  // fixedOverflowWidgets: true,
+  codeLens: false,
   contextmenu: false,
+  fixedOverflowWidgets: true,
   renderLineHighlightOnlyWhenFocus: true,
   overviewRulerBorder: false,
+  overviewRulerLanes: 0,
   automaticLayout: true,
   wordWrap: 'on',
   scrollBeyondLastLine: false,
   renderLineHighlight: 'none',
-  lineDecorationsWidth: 8,
-  lineNumbersMinChars: 4,
   scrollbar: {
     vertical: 'hidden',
-    verticalScrollbarSize: 8, // used as "padding-right"
+    verticalScrollbarSize: 10,
     horizontal: 'hidden',
     horizontalScrollbarSize: 0,
     alwaysConsumeMouseWheel: false
@@ -141,8 +142,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Prop({ default: null }) readonly theme?: string | null;
   @Prop({ default: () => defalutOptions }) readonly options: object;
   @Prop({ default: () => ({}) }) readonly overrideServices?: object;
-  @Prop({ default: noop }) readonly editorDidMount: Function;
-  @Prop({ default: noop }) readonly editorWillUnmount?: Function;
   @Prop({ default: null }) readonly className?: string | null;
   @Prop({ default: () => null }) readonly executeQuery: Function;
   @Prop() readonly uri?: Function;
@@ -156,7 +155,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   throttleUpdateLayout = () => {};
 
   created() {
-    this.throttleUpdateLayout = throttle(300, true, this.updateLayout);
+    this.throttleUpdateLayout = throttle(200, true, this.updateLayout);
   }
 
   mounted() {
@@ -175,7 +174,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
    * @description 编辑器事件
    */
   handleEditorDidMount() {
-    this.editorDidMount?.(this.editor, monaco);
     setTimeout(() => {
       this.throttleUpdateLayout();
     }, 300);
@@ -234,10 +232,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       height += lineHeight;
     }
     this.wrapHeight = height + 40;
-  }
-
-  handleEditorWillUnmount() {
-    this.editorWillUnmount(this.editor, monaco);
   }
 
   /**
