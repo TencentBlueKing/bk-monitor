@@ -1,0 +1,220 @@
+.application-cascade-component {
+  width: 100%;
+
+  .trigger-wrap {
+    .bk-input {
+      background-color: #fff;
+
+      input {
+        background-color: #fff;
+      }
+    }
+
+    .icon-arrow-down {
+      font-size: 20px;
+      line-height: 30px;
+    }
+  }
+}
+
+.bk-popover.bk-pop2-content.application-cascade-popover {
+  padding: 0;
+
+  .application-cascade-popover-content {
+    display: flex;
+    flex-direction: column;
+    height: 308px;
+
+    .search-wrap {
+      display: flex;
+      align-items: center;
+      margin: 4px 8px 0;
+      font-size: 12px;
+      color: #c4c6cc;
+      border-bottom: 1px solid #eaebf0;
+
+      .search-icon {
+        font-size: 16px;
+      }
+
+      .search-input {
+        border: none;
+        box-shadow: none;
+      }
+    }
+
+    .select-wrap {
+      display: flex;
+      flex: 1;
+      overflow-y: auto;
+
+      .panel {
+        height: 100%;
+        overflow-y: auto;
+
+        .group-title {
+          padding: 8px 12px 4px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #979ba5;
+        }
+
+        .group-item {
+          display: flex;
+          align-items: center;
+          height: 32px;
+          cursor: pointer;
+        }
+      }
+
+      .first {
+        width: 200px;
+        border-right: 1px solid #eaebf0;
+
+        .group-item {
+          justify-content: space-between;
+          padding: 0 8px 0 14px;
+          color: #c4c6cc;
+
+          &:hover {
+            background: #f5f7fa;
+          }
+
+          &.active {
+            background-color: #f5f7fa;
+
+            .icon-mc-menu-apm,
+            .name {
+              color: #3a84ff;
+            }
+          }
+
+          .name {
+            flex: 1;
+            overflow: hidden;
+            color: #63656e;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+
+            .desc {
+              margin-left: 5px;
+              color: #c4c6cc;
+            }
+          }
+
+          .icon-mc-menu-apm {
+            margin-right: 6px;
+          }
+
+          .icon-arrow-right {
+            font-size: 24px;
+          }
+        }
+      }
+
+      .second {
+        width: 282px;
+
+        .has-data-wrap {
+          padding-top: 4px;
+
+          .group-item {
+            padding-left: 12px;
+
+            &:hover {
+              background: #f5f7fa;
+            }
+
+            &.active {
+              background-color: #e1ecff;
+
+              .name,
+              .icon-mc-grafana-home {
+                color: #3a84ff;
+              }
+            }
+
+            .name {
+              color: #63656e;
+            }
+
+            .icon-mc-grafana-home {
+              margin-right: 5.5px;
+              color: #c4c6cc;
+            }
+          }
+        }
+
+        .no-data-wrap {
+          padding: 16px 16px 12px 0;
+
+          .bk-form-item {
+            margin-bottom: 12px;
+          }
+
+          .bk-form-label,
+          .bk-form-content {
+            font-size: 12px;
+            line-height: 20px;
+          }
+
+          .bk-form-label {
+            color: #979ba5;
+          }
+
+          .bk-form-content {
+            color: #313238;
+          }
+
+          .password {
+            margin-right: 8px;
+          }
+
+          .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 32px;
+            margin-left: 16px;
+            font-size: 12px;
+            color: #3a84ff;
+            cursor: pointer;
+            background-color: #f0f5ff;
+
+            & + .btn {
+              margin-top: 8px;
+            }
+
+            .link {
+              color: #3a84ff;
+            }
+
+            .icon-fenxiang {
+              margin-left: 6px;
+            }
+          }
+        }
+      }
+    }
+
+    .footer-wrap {
+      height: 40px;
+      background: #fafbfd;
+      border-top: 1px solid #dcdee5;
+      border-radius: 0 0 2px 2px;
+
+      .jump-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        cursor: pointer;
+
+        .icon-jia {
+          margin-right: 5px;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+}

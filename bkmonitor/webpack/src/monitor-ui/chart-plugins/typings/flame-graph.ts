@@ -25,8 +25,6 @@
  */
 import { HierarchyNode } from 'd3-hierarchy';
 
-import traceIcons from '../../utls/icons';
-
 export const ColorTypes = {
   http: '#aea2e0',
   db: '#f9ba8f',
@@ -48,11 +46,11 @@ export interface IOtherData {
 }
 export interface BaseRect {
   preDepth?: number;
-  clickId?: number | string;
   clickDepth?: number;
   startTime?: number;
   endTime?: number;
   highlightName?: string;
+  highlightId?: number;
   keywords?: string[];
   value?: number;
 }
@@ -71,8 +69,7 @@ export interface BaseDataType {
   v?: number;
   children: Iterable<BaseDataType>;
   c?: BaseDataType[];
-  icon_type?: keyof typeof traceIcons;
-  id: string;
+  id: string | number;
   hide?: boolean;
   start_time?: number;
   end_time?: number;
@@ -126,6 +123,11 @@ export interface IBaseTraceInfo {
   trace_duration: number; // trace 持续时间
 }
 export const CommonMenuList: ICommonMenuItem[] = [
+  // {
+  //   id: 'span',
+  //   name: window.i18n.tc('Span 详情'),
+  //   icon: 'icon-menu-view'
+  // },
   {
     id: 'reset',
     name: window.i18n.tc('重置图表'),
@@ -146,7 +148,7 @@ export interface ITipsDetail {
   duration?: string;
   diffDuration?: string;
   diffValue?: number | string;
-  id?: string;
+  id?: string | number;
   mark?: BaseDataType['diff_info']['mark'];
 }
 export interface IAxisRect {
@@ -159,7 +161,7 @@ export interface IAxisRect {
 export interface IContextMenuRect {
   left: number;
   top: number;
-  spanId: string;
+  spanId: string | number;
   spanName: string;
 }
 /**

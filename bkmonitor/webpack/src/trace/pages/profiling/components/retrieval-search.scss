@@ -1,0 +1,152 @@
+.retrieval-search-component {
+  height: 100%;
+
+  .title {
+    padding: 16px 24px;
+    font-size: 14px;
+    color: #313238;
+  }
+
+  .f22 {
+    font-size: 22px;
+  }
+
+  .search-form-wrap {
+    height: calc(100% - 52px);
+    padding: 0 24px;
+    overflow: auto;
+
+    .type-button-group {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      margin-bottom: 16px;
+
+      .button-item {
+        width: 50%;
+        font-size: 12px;
+      }
+    }
+
+    .form-wrap {
+      .form-item {
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+
+        & + .form-item {
+          margin-top: 24px;
+        }
+
+        .content {
+          margin-top: 6px;
+        }
+
+        &.service {
+          .content {
+            display: flex;
+            align-items: center;
+
+            .detail-btn {
+              width: 32px;
+              height: 32px;
+              margin-left: 4px;
+              line-height: 32px;
+              color: #3a84ff;
+              text-align: center;
+              cursor: pointer;
+              background: #f0f1f5;
+              border-radius: 2px;
+
+              &:hover {
+                background: #e1ecff;
+              }
+            }
+          }
+        }
+
+        &.comparison {
+          display: flex;
+          align-items: center;
+
+          .content {
+            margin-top: 0;
+            margin-left: 16px;
+          }
+        }
+      }
+
+      .search-panel {
+        width: 100%;
+        margin-top: 24px;
+
+        .search-title {
+          display: flex;
+          align-items: center;
+          height: 24px;
+          padding-left: 8px;
+          margin-bottom: 16px;
+          font-size: 14px;
+          color: #313238;
+          background: #f0f1f5;
+          border-radius: 2px;
+        }
+
+        .condition-item {
+          margin-bottom: 16px;
+        }
+      }
+
+      .add-condition {
+        width: 100%;
+        height: 32px;
+        font-size: 12px;
+        color: #3a84ff;
+        background: #f0f5ff;
+        border: none;
+      }
+    }
+
+    .retrieve-button-tools-group {
+      margin-top: 24px;
+
+      .handle-btn-group {
+        display: flex;
+        width: 100%;
+
+        .bk-button {
+          font-size: 12px;
+        }
+
+        & > :not(:last-child) {
+          margin-right: 8px;
+        }
+
+        .icon-mc-zidongsousuo,
+        .icon-mc-uncollect {
+          margin-right: 4px;
+          font-size: 14px;
+        }
+
+        .toggle-auto-button {
+          width: 32px;
+          margin-right: 2px;
+          font-size: 14px;
+
+          .status-loading {
+            width: 24px;
+            height: 24px;
+          }
+        }
+
+        .query-button {
+          padding: 0 15px;
+        }
+
+        .clear-button {
+          width: 32px;
+        }
+      }
+    }
+  }
+}

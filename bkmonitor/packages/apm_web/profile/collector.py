@@ -53,7 +53,7 @@ class CollectorHandler:
     """Collector handler for profile"""
 
     @classmethod
-    def send(cls, profile: Profile):
+    def send_to_builtin_datasource(cls, profile: Profile):
         """Send profile to collector"""
         builtin_profile_datasource = api.apm_api.query_builtin_profile_datasource()
 
@@ -62,7 +62,7 @@ class CollectorHandler:
 
         pprof = BytesIO()
         with gzip.GzipFile(fileobj=pprof, mode="wb") as gz:
-            gz.write(profile.SerializeToString())
+            gz.write(bytes(profile))
 
         data = {
             b"profile": pprof.getvalue(),
@@ -70,22 +70,27 @@ class CollectorHandler:
             # b"sample_type_config": {},
         }
         content_type, body = encode_multipart_form_data(data=data)
-        headers = {"Authorization": "Bearer " + data_token, "Content-Type": content_type}
+        headers = {"Authorization": f"Bearer {data_token}", "Content-Type": content_type}
 
         # bk-collector already integrated with ingestion of pyroscope
-        collector_http_host = os.getenv("BKAPP_OTLP_HTTP_HOST")
+        collector_http_host = os.getenv("BKAPP_PROFILING_COLLECTOR_HTTP_HOST")
         if collector_http_host is None:
-            raise Exception("collector_http_host is not set")
-        server_url = f"{collector_http_host}/pyroscope/"
+            # if no profiling host set, use otel collector host
+            otlp_host = os.getenv("BKAPP_OTLP_HTTP_HOST")
+            if otlp_host is None:
+                raise Exception("collector_http_host is not set")
+            collector_http_host = otlp_host.split("/v1/traces")[0]
+
+        server_url = f"{collector_http_host}/pyroscope/ingest"
 
         def _get_stamp_by_ns(time_ns: int) -> int:
             return int(datetime.datetime.utcfromtimestamp(time_ns / 1e9).timestamp())
 
         # simulating as pyroscope agent
         params = {
-            "name": f"{app_name}-profiling-upload",
+            "name": app_name,
             "from": _get_stamp_by_ns(profile.time_nanos),
-            "until": _get_stamp_by_ns(profile.time_nanos + profile.duration_nanos),
+            "until": _get_stamp_by_ns(int(profile.time_nanos) + int(profile.duration_nanos)),
             "spyName": "gospy",
             "sampleRate": 100,
             "units": profile.string_table[profile.sample_type[0].unit],
@@ -93,7 +98,7 @@ class CollectorHandler:
         }
 
         try:
-            result = requests.post(server_url, data=data, params=params, headers=headers)
+            result = requests.post(server_url, data=body, params=params, headers=headers)
         except Exception:
             logger.exception("send to collector failed")
             raise

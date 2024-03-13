@@ -401,3 +401,7 @@ class QueryResultTableStorageDetailViewSet(MetaViewSet):
 
 class CreateVmClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateVmCluster)]
+
+
+class QueryVmDatalinkViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryVmDatalink)]

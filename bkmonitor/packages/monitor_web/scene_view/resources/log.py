@@ -17,17 +17,17 @@ to the current version of the project delivered to anyone in the future.
 """
 
 from django.utils.translation import ugettext as _
-from monitor_web.scene_view.resources.base import PageListResource
-from monitor_web.scene_view.table_format import StringTableFormat, TimestampTableFormat
 from rest_framework import serializers
 
+from apm_web.utils import get_interval
 from core.drf_resource import Resource, api
+from monitor_web.scene_view.resources.base import PageListResource
+from monitor_web.scene_view.table_format import StringTableFormat, TimestampTableFormat
 
 
 class HostIndexQueryMixin:
     @classmethod
     def query_indexes(cls, validated_data):
-
         params = {"bk_biz_id": validated_data["bk_biz_id"]}
 
         if validated_data.get("bk_host_id"):
@@ -51,25 +51,9 @@ class IndexSetQueryMixin:
         index_set_info = api.log_search.search_index_fields(bk_biz_id=bk_biz_id, index_set_id=index_set_id)
         return index_set_info.get("time_field", "dtEventTimeStamp")
 
-    @staticmethod
-    def get_interval(start_time, end_time, interval):
-        if not interval or interval == "auto":
-            hour_interval = (end_time - start_time) // 3600
-            if hour_interval <= 1:
-                interval = "1m"
-            elif hour_interval <= 6:
-                interval = "5m"
-            elif hour_interval <= 72:
-                interval = "1h"
-            else:
-                interval = "1d"
-
-        return interval
-
 
 class GetIndexSetLogSeries(Resource, IndexSetQueryMixin):
     class RequestSerializer(serializers.Serializer):
-
         bk_biz_id = serializers.IntegerField(label="业务ID")
         index_set_id = serializers.IntegerField(label="索引集ID")
         start_time = serializers.IntegerField()
@@ -78,7 +62,6 @@ class GetIndexSetLogSeries(Resource, IndexSetQueryMixin):
         keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     def perform_request(self, validated_request_data):
-
         bk_biz_id = validated_request_data["bk_biz_id"]
         index_set_id = validated_request_data["index_set_id"]
         start_time = validated_request_data["start_time"]
@@ -86,7 +69,7 @@ class GetIndexSetLogSeries(Resource, IndexSetQueryMixin):
         interval = validated_request_data["interval"]
 
         time_field = self.get_index_time_field(bk_biz_id, index_set_id)
-        interval = self.get_interval(start_time, end_time, interval)
+        interval = get_interval(start_time, end_time, interval)
 
         params = {}
         if validated_request_data.get("keyword"):
@@ -139,7 +122,6 @@ class ListIndexSetLog(PageListResource, IndexSetQueryMixin):
         ]
 
     def perform_request(self, validated_request_data):
-
         bk_biz_id = validated_request_data["bk_biz_id"]
         index_set_id = validated_request_data["index_set_id"]
         start_time = validated_request_data["start_time"]

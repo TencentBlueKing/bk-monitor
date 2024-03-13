@@ -9,10 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from dataclasses import dataclass
+from typing import Optional
 
 from apm_web.profile.converter import Converter
-
-from .base import FunctionNode, FunctionTree
+from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
+from apm_web.profile.diagrams.diff import DiffNode, ProfileDiffer
 
 logger = logging.getLogger("apm")
 
@@ -22,7 +23,16 @@ def function_node_to_element(function_node: FunctionNode) -> dict:
         "id": function_node.id,
         "name": function_node.display_name,
         "value": function_node.value,
+        "self": function_node.self_time,
         "children": [function_node_to_element(child) for child in function_node.children],
+    }
+
+
+def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
+    return {
+        **diff_node.default.to_dict(),
+        "diff_info": diff_node.diff_info,
+        "children": [diff_node_to_element(child) for child in diff_node.children],
     }
 
 
@@ -31,8 +41,25 @@ class FlamegraphDiagrammer:
     def draw(self, c: Converter, **options) -> dict:
         tree = FunctionTree.load_from_profile(c)
 
-        root = {"name": "root", "value": tree.root.value, "children": [], "id": 0}
+        root = {"name": "total", "value": tree.root.value, "children": [], "id": 0}
         for r in tree.root.children:
             root["children"].append(function_node_to_element(r))
 
-        return {"flame_data": root, **c.get_sample_type()}
+        return {"flame_data": root}
+
+    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
+        diff_tree = ProfileDiffer.from_raw(base_doris_converter, diff_doris_converter).diff_tree()
+
+        flame_data = [
+            {
+                **root.default.to_dict(),
+                "diff_info": root.diff_info,
+                "children": [diff_node_to_element(child) for child in root.children],
+            }
+            for root in diff_tree.roots
+        ]
+
+        if not flame_data:
+            logger.info("flame graph no data")
+            return {"flame_data": {}}
+        return {"flame_data": flame_data[0]}

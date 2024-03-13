@@ -1,0 +1,56 @@
+{
+  "id": "profiling",
+  "type": "overview",
+  "mode": "custom",
+  "name": "Profiling",
+  "variables": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "profiling",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": []
+    }
+  ],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "profiling",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": []
+    }
+  ],
+  "order": [],
+  "options": {
+    "overview_detail_panel": {
+      "title": "workload",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "apm_profile.queryServicesDetail",
+          "data": {
+            "start_time": "$start_time",
+            "end_time": "$end_time",
+            "app_name": "$app_name",
+            "service_name": "$service_name",
+            "view_mode": "sidebar"
+          }
+        }
+      ]
+    }
+  }
+}

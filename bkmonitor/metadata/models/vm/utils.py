@@ -131,6 +131,45 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
 
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s access vm successfully", bk_biz_id, table_id, data_id)
 
+    # NOTE: 针对 bcs 添加合流流程
+    # 1. 当前环境允许合流操作
+    # 2. 合流的目的rt存在
+    # 3. 当出现异常时，记录对应日志
+    if (
+        settings.BCS_DATA_CONVERGENCE_CONFIG.get("is_enabled")
+        and settings.BCS_DATA_CONVERGENCE_CONFIG.get("k8s_metric_rt")
+        and settings.BCS_DATA_CONVERGENCE_CONFIG.get("custom_metric_rt")
+        and bcs_cluster_id
+    ):
+        try:
+            data_name_and_dp_id = get_bcs_convergence_data_name_and_dp_id(table_id)
+            clean_data = BkDataAccessor(
+                bk_table_id=data_name_and_dp_id["data_name"],
+                data_hub_name=data_name_and_dp_id["data_name"],
+                timestamp_len=timestamp_len,
+            ).clean
+            clean_data["result_table_id"] = (
+                settings.BCS_DATA_CONVERGENCE_CONFIG["k8s_metric_rt"]
+                if data_type == AccessVMRecord.BCS_CLUSTER_K8S
+                else settings.BCS_DATA_CONVERGENCE_CONFIG["custom_metric_rt"]
+            )
+            clean_data["processing_id"] = data_name_and_dp_id["dp_id"]
+            # 创建清洗
+            api.bkdata.databus_cleans(**clean_data)
+            # 启动
+            api.bkdata.start_databus_cleans(
+                result_table_id=clean_data["result_table_id"],
+                storages=["kafka"],
+                processing_id=data_name_and_dp_id["dp_id"],
+            )
+        except Exception as e:
+            logger.error(
+                "bcs convergence create or start data clean error, table_id: %s, params: %s, error: %s",
+                table_id,
+                json.dumps(clean_data),
+                e,
+            )
+
 
 def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, timestamp_len: int) -> Dict:
     """通过 kafka 配置接入 vm"""
@@ -283,6 +322,15 @@ def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
     vm_name = f"vm_{name}".replace('__', '_')
 
     return {"data_name": vm_name, "topic_name": f"{vm_name}{settings.DEFAULT_BKDATA_BIZ_ID}"}
+
+
+def get_bcs_convergence_data_name_and_dp_id(table_id: str) -> Dict:
+    """获取 bcs 合流对应的结果表及数据处理 ID"""
+    if table_id.endswith("__default__"):
+        table_id = table_id.split(".__default__")[0]
+    name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
+    # NOTE: 清洗结果表不能出现双下划线
+    return {"data_name": f"dp_{name}", "dp_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{name}_dp_metric_all"}
 
 
 def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] = None) -> int:

@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@blueking/bk-weweb": "0.0.25.beta.11",
-    "@blueking/date-picker": "^0.0.73",
+    "@blueking/date-picker": "^1.0.0",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
     "@blueking/notice-component-vue2": "^2.0.3",
