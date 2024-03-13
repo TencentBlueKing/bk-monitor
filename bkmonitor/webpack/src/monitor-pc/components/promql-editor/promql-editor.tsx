@@ -107,6 +107,7 @@ const defalutOptions = {
   suggest: () => ({
     showWords: false
   }),
+  lineHeight: 17,
   suggestFontSize: 12,
   cursorStyle: 'line-thin'
 };
