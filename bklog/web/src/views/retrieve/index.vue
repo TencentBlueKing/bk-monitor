@@ -399,7 +399,10 @@ export default {
       /** 是否还需要分页 */
       finishPolling: false,
       timezone: dayjs.tz.guess(),
+      /** 数据指纹是否请求布尔值 */
       fingerSearchState: false,
+      /** 批量添加条件的请求定时器timer */
+      addFilterTimer: null,
     };
   },
   computed: {
@@ -768,6 +771,7 @@ export default {
     },
     // 添加过滤条件
     addFilterCondition(field, operator, value, isLink = false) {
+      clearTimeout(this.addFilterTimer);
       let mappingKey = this.mappingKey;
       const textType = this.getFieldType(field);
       switch (textType) {
@@ -794,8 +798,10 @@ export default {
       if (!isLink) {
         this.retrieveParams.addition.splice(startIndex, 0, newAddition);
         this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
-        this.$refs.searchCompRef.setRouteParams();
-        this.retrieveLog();
+        this.addFilterTimer = setTimeout(() => {
+          this.$refs.searchCompRef.setRouteParams();
+          this.retrieveLog();
+        }, 200);
       } else {
         this.additionLinkOpen(newAddition);
       }

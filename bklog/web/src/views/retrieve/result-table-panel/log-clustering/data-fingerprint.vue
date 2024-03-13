@@ -488,6 +488,11 @@ export default {
       switch (option) {
         // pattern 下钻
         case 'show original':
+          if (this.requestData.group_by.length) {
+            this.requestData.group_by.forEach((el, index) => {
+              this.addFilterCondition(el, 'is', row.group[index]);
+            });
+          }
           this.addFilterCondition(`__dist_${this.requestData.pattern_level}`, 'is', row.signature.toString(), isLink);
           if (!isLink) this.$emit('showOriginLog');
           break;

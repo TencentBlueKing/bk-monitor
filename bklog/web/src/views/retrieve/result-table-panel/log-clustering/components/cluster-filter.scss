@@ -3,6 +3,10 @@
 .cluster-select-filter {
   border: none;
 
+  .filter-box {
+    color: #313238;
+  }
+
   .icon-funnel {
     font-size: 14px;
     cursor: pointer;
@@ -33,6 +37,10 @@
     height: 32px;
 
     @include flex-center();
+
+    .bk-checkbox-text {
+      font-size: 12px;
+    }
   }
 
   .bk-checkbox-text {
