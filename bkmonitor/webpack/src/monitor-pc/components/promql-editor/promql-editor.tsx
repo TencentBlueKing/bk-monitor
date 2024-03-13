@@ -25,11 +25,13 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { parser } from '@prometheus-io/lezer-promql';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { promLanguageDefinition } from 'monaco-promql';
 import { throttle } from 'throttle-debounce';
 
 import { noop } from './utils';
+import { validateQuery } from './validation';
 
 import './promql-editor.scss';
 
@@ -84,12 +86,27 @@ const defalutOptions = {
     enabled: false
   },
   fontSize: 12,
+  // fixedOverflowWidgets: true,
+  contextmenu: false,
   renderLineHighlightOnlyWhenFocus: true,
   overviewRulerBorder: false,
   automaticLayout: true,
   wordWrap: 'on',
   scrollBeyondLastLine: false,
-  renderLineHighlight: 'none'
+  renderLineHighlight: 'none',
+  lineDecorationsWidth: 8,
+  lineNumbersMinChars: 4,
+  scrollbar: {
+    vertical: 'hidden',
+    verticalScrollbarSize: 8, // used as "padding-right"
+    horizontal: 'hidden',
+    horizontalScrollbarSize: 0,
+    alwaysConsumeMouseWheel: false
+  },
+  suggest: () => ({
+    showWords: false
+  }),
+  suggestFontSize: 12
 };
 export interface IPromqlMonacoEditorProps {
   width?: string;
@@ -169,6 +186,20 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       }
       placeholderWidget.update();
       this.throttleUpdateLayout();
+      const model = this.editor.getModel();
+      if (!model) {
+        return;
+      }
+      const query = model.getValue();
+      const errors = validateQuery(query, query, model.getLinesContent(), parser) || [];
+      const markers = errors.map(({ error, ...boundary }) => ({
+        message: `${
+          error ? `Error parsing "${error}"` : 'Parse error'
+        }. The query appears to be incorrect and could fail to be executed.`,
+        severity: monaco.MarkerSeverity.Error,
+        ...boundary
+      }));
+      monaco.editor.setModelMarkers(model, this.language, markers);
     });
     this.editor.onDidBlurEditorText(() => {
       this.$emit('blur', this.editor.getValue(), this.getLinterStatus());
@@ -190,13 +221,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         }
       }
     });
-    this.editor.onDidChangeModelContent(() => {
-      const model = this.editor.getModel();
-      if (model) {
-        const markers = this.checkLuaSyntax(model.getValue());
-        monaco.editor.setModelMarkers(model, this.language, markers);
-      }
-    });
   }
 
   updateLayout() {
@@ -210,26 +234,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       height += lineHeight;
     }
     this.wrapHeight = height + 40;
-  }
-
-  checkLuaSyntax(_code) {
-    try {
-      // const { parse } = promqlUtils();
-      // parse(code, {});
-      return [];
-    } catch (error) {
-      console.log(error);
-      return [
-        {
-          severity: monaco.MarkerSeverity.Error,
-          message: error.message,
-          startLineNumber: error.location.start.line,
-          startColumn: error.location.start.column,
-          endLineNumber: error.location.end.line,
-          endColumn: error.location.end.column
-        }
-      ];
-    }
   }
 
   handleEditorWillUnmount() {

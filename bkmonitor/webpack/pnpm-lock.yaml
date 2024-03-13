@@ -541,6 +541,9 @@ importers:
       '@blueking/user-selector':
         specifier: ^1.0.11
         version: 1.0.11
+      '@prometheus-io/lezer-promql':
+        specifier: 0.51.0-rc.0
+        version: 0.51.0-rc.0(@lezer/highlight@1.2.0)(@lezer/lr@1.4.0)
       apm:
         specifier: workspace:*
         version: link:../apm
@@ -3667,6 +3670,22 @@ packages:
     resolution: {integrity: sha512-Hcv+nVC0kZnQ3tD9GVu5xSMR4VVYOteQIr/hwFPVEvPdlXqgGEuRjiheChHgdM+JyqdgNcmzZOX/tnl0JOiI7A==}
     dev: false
 
+  /@lezer/common@1.2.1:
+    resolution: {integrity: sha512-yemX0ZD2xS/73llMZIK6KplkjIjf2EvAHcinDi/TfJ9hS25G0388+ClHt6/3but0oOxinTcQHJLDXh6w1crzFQ==}
+    dev: false
+
+  /@lezer/highlight@1.2.0:
+    resolution: {integrity: sha512-WrS5Mw51sGrpqjlh3d4/fOwpEV2Hd3YOkp9DBt4k8XZQcoTHZFB7sx030A6OcahF4J1nDQAa3jXlTVVYH50IFA==}
+    dependencies:
+      '@lezer/common': 1.2.1
+    dev: false
+
+  /@lezer/lr@1.4.0:
+    resolution: {integrity: sha512-Wst46p51km8gH0ZUmeNrtpRYmdlRHUpN1DQd3GFAyKANi8WVz8c2jHYTf1CVScFaCjQw1iO3ZZdqGDxQPRErTg==}
+    dependencies:
+      '@lezer/common': 1.2.1
+    dev: false
+
   /@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1:
     resolution: {integrity: sha512-54/JRvkLIzzDWshCWfuhadfrfZVPiElY8Fcgmg1HroEly/EDSszzhBAsarCux+D/kOslTRquNzuyGSmUSTTHGg==}
     dependencies:
@@ -3728,6 +3747,16 @@ packages:
     resolution: {integrity: sha512-JdALQXB44OP4kUBN/UrQgzbJe4qokbVF4Y8lkIA8iVCFnjVowWIgkD/z/0QO65yELT54tTrtepw1jScjKB+rhQ==}
     dependencies:
       '@babel/runtime': 7.23.9
+    dev: false
+
+  /@prometheus-io/lezer-promql@0.51.0-rc.0(@lezer/highlight@1.2.0)(@lezer/lr@1.4.0):
+    resolution: {integrity: sha512-cOR/yb6SMPKhGeGGm7Qj8sMLXRx/2HunCKGodghirv7UctKQDvY4jgyGPMjZwGT+k39F6GAfB+XNdvzWq2yIiw==}
+    peerDependencies:
+      '@lezer/highlight': ^1.1.2
+      '@lezer/lr': ^1.2.3
+    dependencies:
+      '@lezer/highlight': 1.2.0
+      '@lezer/lr': 1.4.0
     dev: false
 
   /@sinclair/typebox@0.27.8:
