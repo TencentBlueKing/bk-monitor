@@ -184,7 +184,7 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("日志路径"), child=serializers.CharField(max_length=255, allow_blank=True), required=False
     )
     exclude_files = serializers.ListField(
-        label=_("日志路径排除"), child=serializers.CharField(max_length=255, allow_blank=True), required=False
+        label=_("日志路径排除"), child=serializers.CharField(max_length=255, allow_blank=True), required=False, default=[]
     )
     conditions = PluginConditionSerializer(required=False)
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True)
