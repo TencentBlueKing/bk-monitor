@@ -995,7 +995,7 @@ export default {
     overflow: hidden;
 
     /* stylelint-disable-next-line property-no-vendor-prefix */
-    display: box;
+    display: -webkit-box;
 
     /* stylelint-disable-next-line property-no-vendor-prefix */
     -webkit-box-orient: vertical;

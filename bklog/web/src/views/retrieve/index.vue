@@ -801,7 +801,7 @@ export default {
         this.addFilterTimer = setTimeout(() => {
           this.$refs.searchCompRef.setRouteParams();
           this.retrieveLog();
-        }, 500);
+        }, 200);
       } else {
         this.additionLinkOpen(newAddition);
       }
