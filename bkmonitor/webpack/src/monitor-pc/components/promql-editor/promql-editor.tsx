@@ -107,7 +107,8 @@ const defalutOptions = {
   suggest: () => ({
     showWords: false
   }),
-  suggestFontSize: 12
+  suggestFontSize: 12,
+  cursorStyle: 'line-thin'
 };
 export interface IPromqlMonacoEditorProps {
   width?: string;
