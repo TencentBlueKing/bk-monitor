@@ -1,6 +1,7 @@
 @import '../../../../theme/mixin.scss';
 
 .host-tree-wrap {
+  position: relative;
   height: 100%;
   overflow: hidden;
 
@@ -16,7 +17,7 @@
       overflow: hidden;
     }
 
-    &>* {
+    & > * {
       margin-bottom: 8px;
     }
   }
@@ -105,7 +106,7 @@
             display: block;
             min-width: 70px;
 
-            @include ellipsis
+            @include ellipsis;
           }
         }
 
@@ -239,5 +240,16 @@
         background-color: #ddd;
       }
     }
+  }
+
+  .host-tree-skeleton-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+    background-color: #fff;
   }
 }

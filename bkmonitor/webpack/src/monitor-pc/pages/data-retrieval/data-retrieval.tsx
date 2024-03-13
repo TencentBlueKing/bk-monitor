@@ -59,6 +59,7 @@ import MetricSelector from '../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
+import SkeletonBase from '../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import {
   DEFAULT_TIME_RANGE,
@@ -497,8 +498,8 @@ export default class DataRetrieval extends tsc<{}> {
           vm.handleRouteQueryDataOfEvent(targetsList, type);
         } else if (targets && from.name !== 'view-detail') {
           // 跳转数据检索
-          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-            item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+            item?.data?.query_configs?.find?.(set => !!set.metrics)
           )
             ? 'performance-detail'
             : 'grafana';
@@ -561,8 +562,8 @@ export default class DataRetrieval extends tsc<{}> {
         this.handleRouteQueryDataOfEvent(targetsList, type);
       } else if (targets && from.name !== 'view-detail') {
         // 跳转数据检索
-        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-          item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+          item?.data?.query_configs?.find?.(set => !!set.metrics)
         )
           ? 'performance-detail'
           : 'grafana';
@@ -3309,34 +3310,40 @@ export default class DataRetrieval extends tsc<{}> {
                   class='data-retrieval-right'
                   style={{ flex: 1, width: `calc(100% - ${this.allLeftWidth}px)` }}
                 >
-                  <DataRetrievalView
-                    v-bkloading={{ isLoading: this.delayLoading, zIndex: 500 }}
-                    leftShow={this.isShowLeft}
-                    refleshNumber={this.refleshNumber}
-                    compareValue={this.compareValue}
-                    queryResult={this.filterQueryResult}
-                    queryTimeRange={this.queryTimeRange}
-                    canAddStrategy={this.canAddStrategy}
-                    retrievalType={this.tabActive}
-                    eventMetricParams={this.eventMetricParams}
-                    eventCount={this.eventCount}
-                    eventChartTitle={this.eventChartTitle}
-                    indexList={this.indexLists}
-                    needCompare={this.editMode !== 'PromQL'}
-                    queryLoading={this.loading}
-                    onTimeRangeChangeEvent={this.handleTimeRangeChange}
-                    onShowLeft={this.handleLeftHiddenAndShow}
-                    onCompareChange={this.handleCompareChange}
-                    onTimeRangeChange={this.handleToolsTimeRangeChange}
-                    onCompareValueChange={this.handleCompareValueChange}
-                    onSplitChange={this.handleSplitChange}
-                    eventChartInterval={this.eventInterval}
-                    onEventIntervalChange={this.handleEventIntervalChange}
-                    onAddEventStrategy={this.handleAddEventStrategy}
-                    onAddStrategy={this.handleAddStrategy}
-                    onDrillKeywordsSearch={val => (this.drillKeywords = val)}
-                    emptyStatus={this.emptyStatus}
-                  />
+                  {this.delayLoading ? (
+                    <SkeletonBase
+                      class='skeleton-base-box'
+                      children={{ row: 18, height: '20px' }}
+                    ></SkeletonBase>
+                  ) : (
+                    <DataRetrievalView
+                      leftShow={this.isShowLeft}
+                      refleshNumber={this.refleshNumber}
+                      compareValue={this.compareValue}
+                      queryResult={this.filterQueryResult}
+                      queryTimeRange={this.queryTimeRange}
+                      canAddStrategy={this.canAddStrategy}
+                      retrievalType={this.tabActive}
+                      eventMetricParams={this.eventMetricParams}
+                      eventCount={this.eventCount}
+                      eventChartTitle={this.eventChartTitle}
+                      indexList={this.indexLists}
+                      needCompare={this.editMode !== 'PromQL'}
+                      queryLoading={this.loading}
+                      onTimeRangeChangeEvent={this.handleTimeRangeChange}
+                      onShowLeft={this.handleLeftHiddenAndShow}
+                      onCompareChange={this.handleCompareChange}
+                      onTimeRangeChange={this.handleToolsTimeRangeChange}
+                      onCompareValueChange={this.handleCompareValueChange}
+                      onSplitChange={this.handleSplitChange}
+                      eventChartInterval={this.eventInterval}
+                      onEventIntervalChange={this.handleEventIntervalChange}
+                      onAddEventStrategy={this.handleAddEventStrategy}
+                      onAddStrategy={this.handleAddStrategy}
+                      onDrillKeywordsSearch={val => (this.drillKeywords = val)}
+                      emptyStatus={this.emptyStatus}
+                    />
+                  )}
                 </div>
                 {/* 指标选择器 */}
                 <MetricSelector

@@ -30,6 +30,7 @@ import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import { IStatusData } from '../../../collector-config/collector-view-detail/status-tab-list';
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
@@ -458,10 +459,7 @@ export default class HostList extends tsc<IProps, IEvents> {
       }
     };
     return (
-      <div
-        class='host-list-wrap'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='host-list-wrap'>
         <div class='host-list-main'>
           <div class='host-list-tool'>
             {this.conditionList.length ? (
@@ -534,6 +532,13 @@ export default class HostList extends tsc<IProps, IEvents> {
             />
           )}
         </div>
+
+        {this.loading && (
+          <SkeletonBase
+            class='host-list-skeleton-box'
+            children={{ row: 30, height: '20px' }}
+          />
+        )}
       </div>
     );
   }

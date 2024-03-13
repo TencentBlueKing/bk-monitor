@@ -27,10 +27,15 @@
   <div
     class="monitor-echart-wrap"
     :style="{ 'background-image': backgroundUrl }"
-    v-bkloading="{ isLoading: loading, zIndex: 2000 }"
     @mouseenter="showTitleTool = true"
     @mouseleave="showTitleTool = false"
   >
+    <skeleton-base
+      v-if="loading"
+      :children="skeletonBaseConfig"
+      class="skeleton-base-wrap"
+    />
+
     <div
       class="echart-header"
       v-if="chartTitle || $slots.title"
@@ -185,7 +190,6 @@
       class="chart-resize-line"
       @mousedown="handleResize"
     />
-
     <div
       v-if="hasTable"
       class="chart-table-box"
@@ -242,6 +246,7 @@ import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
 import { traceListById } from 'monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
+import SkeletonBase from 'monitor-pc/components/skeleton/skeleton-base';
 import { downCsvFile, IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
 
@@ -293,7 +298,8 @@ interface IAlarmStatus {
     StatusChart,
     TextChart,
     ChartTitle,
-    TableChart
+    TableChart,
+    SkeletonBase
   }
 })
 export default class MonitorEcharts extends Vue {
@@ -436,6 +442,16 @@ export default class MonitorEcharts extends Vue {
     // 是否处于移动中
     moving: false
   };
+
+  get skeletonBaseConfig() {
+    const calcRow = Math.floor((this.chartWrapHeight + this.tableHeight) / 36);
+    return {
+      row: calcRow < 5 ? 5 : calcRow,
+      width: '100%',
+      height: '20px'
+    };
+  }
+
   // 监控图表默认配置
   get defaultOptions() {
     if (this.chartType === 'bar' || this.chartType === 'line') {
@@ -1476,6 +1492,16 @@ export default class MonitorEcharts extends Vue {
   background-repeat: repeat;
   background-position: center;
   border-radius: 2px;
+
+  .skeleton-base-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: 100%;
+    height: 100%;
+    background-color: #fff;
+  }
 
   .echart-header {
     display: flex;
