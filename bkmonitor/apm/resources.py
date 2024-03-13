@@ -643,6 +643,8 @@ class QueryTopoRelationResource(Resource):
 class QueryTopoInstanceResource(PageListResource):
     UNIQUE_UPDATED_AT = "updated_at"
 
+    BATCH_SIZE = 1000
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
@@ -654,7 +656,7 @@ class QueryTopoInstanceResource(PageListResource):
         fields = serializers.ListField(label="系列化字段", required=False, default=[])
 
     class TopoInstanceSerializer(serializers.ModelSerializer):
-        default_serializer_fields = ("topo_node_key", "instance_id")
+        default_serializer_fields = ("topo_node_key", )
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -743,6 +745,21 @@ class QueryTopoInstanceResource(PageListResource):
             merge_data.append(instance)
         return merge_data
 
+    def serialize_data(self, batch_data, fields: list = None):
+        return self.TopoInstanceSerializer(
+            batch_data,
+            many=True,
+            context={"use_default_serializer_fields": True, "fields": fields}  # 在这里使用默认字段
+        ).data
+
+    def batch_serialize_data(self, data, fields: list = None):
+
+        params = [(data[i:i + self.BATCH_SIZE], fields) for i in range(0, len(data), self.BATCH_SIZE)]
+        pool = ThreadPool()
+        results = pool.map_ignore_exception(self.serialize_data, params)
+        serialized_data = [i for result in results if result for i in result]
+        return serialized_data
+
     def perform_request(self, validated_request_data):
         filter_params = DiscoverHandler.get_retention_utc_filter_params(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
@@ -763,7 +780,9 @@ class QueryTopoInstanceResource(PageListResource):
 
         total = queryset.count()
 
-        merge_data = self.merge_data(list(queryset), validated_request_data)
+        data = [obj for obj in queryset.iterator()]
+
+        merge_data = self.merge_data(data, validated_request_data)
 
         data = self.post_process(unique_params, merge_data)
 
@@ -775,14 +794,7 @@ class QueryTopoInstanceResource(PageListResource):
             ).data
             return {"total": total, "data": res}
 
-        return {
-            "total": total,
-            "data": self.TopoInstanceSerializer(
-                data,
-                many=True,
-                context={"use_default_serializer_fields": True, "fields": validated_request_data.get("fields")},
-            ).data,
-        }
+        return {"total": total, "data": self.batch_serialize_data(data, validated_request_data.get("fields"))}
 
 
 class QueryRootEndpointResource(Resource):
