@@ -103,7 +103,7 @@ export default defineComponent({
     const navList = ref([
       {
         id: 'report',
-        name: t('邮件订阅')
+        name: t('订阅配置')
       }
     ]);
     const table = reactive({

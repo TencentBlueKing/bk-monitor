@@ -27,13 +27,6 @@ import i18n from '../../../i18n/i18n';
 import { FrequencyType, Report, ReportSendRecord } from '../types';
 
 export function getSendFrequencyText(data: Report) {
-  const hourTextMap = {
-    0.5: i18n.t('每个小时整点,半点发送'),
-    1: i18n.t('每个小时整点发送'),
-    2: i18n.t('从0点开始,每隔2小时整点发送'),
-    6: i18n.t('从0点开始,每隔6小时整点发送'),
-    12: i18n.t('每天9:00,21:00发送')
-  };
   const weekMap = [
     i18n.t('周一'),
     i18n.t('周二'),
@@ -69,7 +62,7 @@ export function getSendFrequencyText(data: Report) {
       break;
     }
     case FrequencyType.hourly: {
-      str = hourTextMap[data.frequency.hour];
+      str = i18n.t('每{0}小时发送一次', [data.frequency.hour]).toString();
       break;
     }
     default:

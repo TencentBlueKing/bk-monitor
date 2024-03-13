@@ -199,5 +199,6 @@ export default {
   '1.群聊列表右键添加群机器人: 蓝鲸监控上云': '1. Right-click on the group chat list to add a group robot: BK-Monitor',
   "2.手动 @蓝鲸监控上云 并输入关键字'会话ID'": "2. Manually @BK-Monitor and enter the keyword 'session ID'",
   '3.将获取到的会话ID粘贴到输入框,使用逗号分隔':
-    '3. Paste the obtained session ID into the input box, separated by commas'
+    '3. Paste the obtained session ID into the input box, separated by commas',
+  '每{0}小时发送一次': 'Sent every {0} hours'
 };
