@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { updateEventPluginInstance } from 'monitor-api/modules/event_plugin';
 
-import { updateEventPluginInstance } from '../../../../../monitor-api/modules/event_plugin';
 import DynamicForm from '../../../setting/set-meal/set-meal-add/components/dynamic-form/dynamic-form';
 
 import './pull-form.scss';

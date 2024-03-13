@@ -47,6 +47,7 @@
 <script lang="ts">
 import { Component, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 import * as monaco from 'monaco-editor';
+
 import { IMonacoEditorInstance } from '../../types/index';
 // @ts-ignore
 self.MonacoEnvironment = {

@@ -51,10 +51,10 @@
  */
 
 import { computed, defineComponent, inject, nextTick, PropType, ref } from 'vue';
+import * as authorityMap from 'apm/pages/home/authority-map';
 import _isEqual from 'lodash/isEqual';
+import { traceDetail } from 'monitor-api/modules/apm_trace';
 
-import * as authorityMap from '../../../../apm/pages/home/authority-map';
-import { traceDetail } from '../../../../monitor-api/modules/apm_trace';
 import SpanDetails from '../../../pages/main/span-details';
 import { useAuthorityStore } from '../../../store/modules/authority';
 import { useTraceStore } from '../../../store/modules/trace';

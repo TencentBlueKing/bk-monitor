@@ -26,9 +26,8 @@
 /* eslint-disable max-len  */
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getStorageClusterDetail, listClusters } from '../../../monitor-api/modules/commons';
-import { random } from '../../../monitor-common/utils';
+import { getStorageClusterDetail, listClusters } from 'monitor-api/modules/commons';
+import { random } from 'monitor-common/utils';
 
 import ClusterConfig from './cluster-config';
 // import InfluxdbChild from './influxdb-child';

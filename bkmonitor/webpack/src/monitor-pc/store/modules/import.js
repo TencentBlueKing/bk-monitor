@@ -29,8 +29,8 @@ import {
   historyDetail,
   historyList,
   importConfig
-} from '../../../monitor-api/modules/export_import';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/export_import';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
 export const SET_CURRENT_HIS_REQ = 'SET_CURRENT_HIS_REQ';
 const state = {

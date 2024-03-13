@@ -59,7 +59,8 @@
 </template>
 <script>
 // import ConfigDeploy from '../config-deploy/config-deploy'
-import { collectInstanceStatus } from '../../../../monitor-api/modules/collecting';
+import { collectInstanceStatus } from 'monitor-api/modules/collecting';
+
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as collectAuth from '../authority-map';
 import EmptyDetail from '../collector-add/config-delivery/empty-target';
@@ -213,9 +214,9 @@ export default {
 </script>
 <style lang="scss" scoped>
 .host-detail {
-  color: #63656e;
   min-height: calc(100vh - 120px);
   margin: 20px 24px 0;
+  color: #63656e;
 
   &-desc {
     display: flex;
@@ -223,10 +224,10 @@ export default {
     margin: -2px 0 18px;
 
     .icon-tips {
-      color: #979ba5;
-      font-size: 14px;
-      margin-right: 7px;
       height: 14px;
+      margin-right: 7px;
+      font-size: 14px;
+      color: #979ba5;
     }
 
     .desc-operate {

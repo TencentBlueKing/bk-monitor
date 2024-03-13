@@ -26,12 +26,12 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
+import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import ViewDetail from 'monitor-pc/pages/view-detail/index';
+import { isEnFn } from 'monitor-pc/utils';
 
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import CollectionDialog from '../../../../monitor-pc/pages/data-retrieval/components/collection-view-dialog';
-import { PanelToolsType } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import ViewDetail from '../../../../monitor-pc/pages/view-detail/index';
-import { isEnFn } from '../../../../monitor-pc/utils';
 import { IPanelModel, IViewOptions, ObservablePanelField, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';

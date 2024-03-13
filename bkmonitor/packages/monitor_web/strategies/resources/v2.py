@@ -1229,6 +1229,10 @@ class GetMetricListV2Resource(Resource):
             "related_name",
         ]
 
+        # 过滤为空的data_label条件
+        if "data_label" in filter_dict:
+            filter_dict["data_label"] = [label for label in filter_dict["data_label"] if label]
+
         # 直接过滤字段
         metrics = metrics.filter(
             **{f"{field}__in": filter_dict[field] for field in search_fields if filter_dict[field]}

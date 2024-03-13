@@ -271,6 +271,14 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
         ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
         ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
+        (
+            "BCS_DATA_CONVERGENCE_CONFIG",
+            slz.JSONField(
+                label="BCS 数据合流配置", default={"is_enabled": False, "k8s_metric_rt": "", "custom_metric_rt": ""}
+            ),
+        ),
+        ("ENABLE_BCS_CC_PROJECT_API", slz.BooleanField(label="是否启用BCS-CC的项目相关接口", default=False)),
+        ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
     ]
 )
 
@@ -418,6 +426,8 @@ STANDARD_CONFIGS = OrderedDict(
         # 接入计算平台配置
         ("DEFAULT_BKDATA_BIZ_ID", slz.IntegerField(label="接入计算平台使用的业务 ID", default=0)),
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
+        # 文档链接配置
+        ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
     ]
 )
 

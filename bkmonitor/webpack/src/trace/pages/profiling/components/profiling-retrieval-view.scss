@@ -1,0 +1,21 @@
+.profiling-retrieval-view-component {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+
+  .data-type {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+
+    &-list {
+      margin-left: 16px;
+    }
+  }
+
+  .profiling-graph-view-content {
+    flex: 1;
+    overflow: hidden;
+  }
+}

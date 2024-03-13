@@ -21,66 +21,6 @@
   -->
 <template>
   <div class="fingerprint-setting fl-sb">
-    <div class="fl-sb">
-      <span>{{$t('分组')}}</span>
-      <bk-select
-        multiple
-        display-tag
-        behavior="simplicity"
-        ext-cls="compared-select"
-        v-en-style="'min-width: 105px;'"
-        v-model="group"
-        :popover-min-width="180"
-        :disabled="!fingerOperateData.signatureSwitch"
-        @toggle="handleSelectGroup"
-        @tab-remove="handleSelectTag"
-        @clear="handleDeleteAll">
-        <bk-option
-          v-for="item in fingerOperateData.groupList"
-          :key="item.id"
-          :id="item.id"
-          :name="item.name">
-        </bk-option>
-      </bk-select>
-    </div>
-
-    <div class="fl-sb">
-      <span>{{$t('同比')}}</span>
-      <bk-select
-        behavior="simplicity"
-        ext-cls="compared-select"
-        ext-popover-cls="compared-select-option"
-        v-model="yearOnYearHour"
-        data-test-id="fingerTable_select_selectCustomSize"
-        :disabled="!fingerOperateData.signatureSwitch"
-        :clearable="false"
-        :popover-min-width="140"
-        @change="handleSelectCompared"
-        @toggle="changeCustomizeState(true)">
-        <bk-option
-          v-for="option in fingerOperateData.comparedList"
-          :key="option.id"
-          :id="option.id"
-          :name="option.name">
-        </bk-option>
-        <div slot="" class="compared-customize">
-          <div
-            class="customize-option"
-            v-if="fingerOperateData.isShowCustomize"
-            @click="changeCustomizeState(false)">
-            <span>{{$t('自定义')}}</span>
-          </div>
-          <div v-else>
-            <bk-input @enter="handleEnterCompared"></bk-input>
-            <div class="compared-select-icon">
-              <span v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')" class="top-end">
-                <i class="log-icon icon-help"></i>
-              </span>
-            </div>
-          </div>
-        </div>
-      </bk-select>
-    </div>
 
     <div class="is-near24">
       <bk-checkbox
@@ -152,6 +92,136 @@
       scenario="clustering"
       :index-set-id="$route.params.indexId"
     />
+
+    <bk-popover
+      ext-cls="popover-content"
+      placement="bottom-start"
+      width="400"
+      ref="groupPopover"
+      :disabled="!fingerOperateData.signatureSwitch"
+      :tippy-options="tippyOptions"
+      :on-show="handleShowMorePopover">
+      <div
+        v-bk-tooltips="$t('更多')"
+        :class="{ 'operation-icon': true, 'disabled-icon': !fingerOperateData.signatureSwitch }"
+        @click="handleClickGroupPopover">
+        <span class="bk-icon icon-more"></span>
+      </div>
+      <div
+        class="group-popover"
+        slot="content">
+        <div class="piece">
+          <span>
+            <span class="title">{{ $t('维度') }}</span>
+            <i class="notice log-icon icon-help" v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"></i>
+          </span>
+          <bk-select
+            v-model="dimension"
+            searchable
+            multiple
+            display-tag
+            ext-popover-cls="selected-ext"
+            :scroll-height="140">
+            <bk-option
+              v-for="option in dimensionList"
+              :key="option.id"
+              :id="option.id"
+              :name="option.name">
+              <bk-checkbox
+                ext-cls="ext-box"
+                :title="option.name"
+                :checked="dimension.includes(option.id)">
+                {{ option.name }}
+              </bk-checkbox>
+            </bk-option>
+          </bk-select>
+          <div class="group-alert">
+            <i class="bk-icon icon-info"></i>
+            <span>{{ $t('如需根据某些维度拆分聚类结果，可将字段设置为维度。') }}</span>
+          </div>
+        </div>
+        <div class="piece">
+          <span class="title">{{ $t('分组') }}</span>
+          <bk-select
+            v-model="group"
+            searchable
+            multiple
+            display-tag
+            ext-popover-cls="selected-ext"
+            :scroll-height="140">
+            <bk-option
+              v-for="option in groupList"
+              :key="option.id"
+              :id="option.id"
+              :name="option.name">
+              <bk-checkbox
+                ext-cls="ext-box"
+                :title="option.name"
+                :checked="group.includes(option.id)">
+                {{ option.name }}
+              </bk-checkbox>
+            </bk-option>
+          </bk-select>
+        </div>
+        <div class="piece">
+          <span class="title">{{ $t('同比') }}</span>
+          <div class="year-on-year">
+            <bk-switcher
+              theme="primary"
+              v-model="yearSwitch">
+            </bk-switcher>
+            <bk-select
+              v-model="yearOnYearHour"
+              ext-cls="compared-select"
+              ext-popover-cls="compared-select-option"
+              :clearable="false"
+              :disabled="!yearSwitch"
+              @toggle="toggleYearSelect">
+              <bk-option
+                v-for="option in fingerOperateData.comparedList"
+                :key="option.id"
+                :id="option.id"
+                :name="option.name">
+              </bk-option>
+              <div slot="" class="compared-customize">
+                <div
+                  v-if="fingerOperateData.isShowCustomize"
+                  class="customize-option"
+                  @click="changeCustomizeState(false)">
+                  <span>{{$t('自定义')}}</span>
+                </div>
+                <div style="margin-top: 8px;" v-else>
+                  <bk-input
+                    :placeholder="$t('输入自定义同比，按 Enter 确认')"
+                    @enter="handleEnterCompared">
+                  </bk-input>
+                  <div class="compared-select-icon">
+                    <span v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')" class="top-end">
+                      <i class="log-icon icon-help"></i>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </bk-select>
+          </div>
+        </div>
+        <div class="popover-button">
+          <bk-button
+            style="margin-right: 8px;"
+            theme="primary"
+            size="small"
+            @click="submitPopover">
+            {{$t('保存')}}
+          </bk-button>
+          <bk-button
+            theme="default"
+            size="small"
+            @click="cancelPopover">
+            {{$t('取消')}}
+          </bk-button>
+        </div>
+      </div>
+    </bk-popover>
   </div>
 </template>
 
@@ -180,14 +250,23 @@ export default {
     return {
       interactType: false, // false 为hover true 为click
       alarmSwitch: false,
-      group: [], // 当前选择分组的值
-      catchGroup: [],
+      dimension: [], // 当前维度字段的值
+      group: [], // 当前分组选中的值
       isToggle: false, // 当前是否显示分组下拉框
       patternSize: 0,
-      yearOnYearHour: 0,
+      yearOnYearHour: 1,
       isNear24: false,
       isRequestAlarm: false,
       popoverInstance: null,
+      isShowPopoverInstance: false,
+      yearSwitch: false,
+      tippyOptions: {
+        theme: 'light',
+        trigger: 'manual',
+        hideOnClick: false,
+        offset: '16',
+        interactive: true,
+      },
       isCurrentIndexSetIdCreateSubscription: false,
       isShowQuickCreateSubscriptionDrawer: false,
     };
@@ -195,6 +274,12 @@ export default {
   computed: {
     bkBizId() {
       return this.$store.state.bkBizId;
+    },
+    dimensionList() {
+      return this.fingerOperateData.groupList.filter(item => !this.group.includes(item.id));
+    },
+    groupList() {
+      return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
     },
   },
   watch: {
@@ -212,47 +297,55 @@ export default {
     this.checkReportIsExistedDebounce = debounce(1000, this.checkReportIsExisted);
   },
   mounted() {
+    this.handleShowMorePopover();
     this.checkReportIsExistedDebounce();
-    this.initCache();
     this.handlePopoverShow();
   },
   beforeDestroy() {
     this.popoverInstance = null;
   },
   methods: {
-    handleSelectCompared(newVal) {
-      this.$emit('handleFingerOperate', 'compared', newVal, true);
-    },
+    /**
+     * @desc: 同比自定义输入
+     * @param { String } val
+     */
     handleEnterCompared(val) {
-      this.$emit('handleFingerOperate', 'enterCustomize', val);
+      const matchVal = val.match(/^(\d+)h$/);
+      if (!matchVal) {
+        this.$bkMessage({
+          theme: 'warning',
+          message: this.$t('请按照提示输入'),
+        });
+        return;
+      }
+      this.changeCustomizeState(true);
+      const { comparedList: propComparedList } = this.fingerOperateData;
+      const isRepeat = propComparedList.some(el => el.id === Number(matchVal[1]));
+      if (isRepeat) {
+        this.yearOnYearHour = Number(matchVal[1]);
+        return;
+      }
+      propComparedList.push({
+        id: Number(matchVal[1]),
+        name: this.$t('{n} 小时前', { n: matchVal[1] }),
+      });
+      this.$emit('handleFingerOperate', 'fingerOperateData', {
+        comparedList: propComparedList,
+      });
+      this.yearOnYearHour = Number(matchVal[1]);
     },
     handleShowNearPattern(state) {
-      this.$emit('handleFingerOperate', 'isShowNear', state, true);
+      this.$emit('handleFingerOperate', 'requestData', { show_new_pattern: state }, true);
     },
     handleChangepatternSize(val) {
-      this.$emit('handleFingerOperate', 'patternSize', this.fingerOperateData.patternList[val], true);
+      this.$emit('handleFingerOperate', 'requestData', { pattern_level: this.fingerOperateData.patternList[val] }, true);
     },
     changeCustomizeState(val) {
-      this.$emit('handleFingerOperate', 'customize', val);
+      this.$emit('handleFingerOperate', 'fingerOperateData', { isShowCustomize: val });
     },
-    handleSelectGroup(state) {
-      this.isToggle = state;
-      if (state) {
-        this.catchGroup = this.group;
-      } else {
-        const catchStr = this.catchGroup.join(',');
-        const groupStr = this.group.join(',');
-        if (catchStr !== groupStr) {
-          this.$emit('handleFingerOperate', 'group', this.group, true);
-        }
-      }
-    },
-    handleSelectTag(option) {
-      const filterGroup = this.group.filter(item => item !== option.id);
-      this.$emit('handleFingerOperate', 'group', filterGroup, true);
-    },
-    handleDeleteAll() {
-      this.$emit('handleFingerOperate', 'group', [], true);
+    handleClickGroupPopover() {
+      !this.isShowPopoverInstance ? this.$refs.groupPopover.instance.show() : this.$refs.groupPopover.instance.hide();
+      this.isShowPopoverInstance = !this.isShowPopoverInstance;
     },
     handleEmitEditAlarm() {
       this.$emit('handleFingerOperate', 'editAlarm');
@@ -287,14 +380,6 @@ export default {
       });
       this.popoverInstance && this.popoverInstance.show();
     },
-    initCache() {
-      // 赋值缓存
-      this.patternSize = this.fingerOperateData.patternSize;
-      this.yearOnYearHour = this.requestData.year_on_year_hour;
-      this.isNear24 = this.requestData.show_new_pattern;
-      this.alarmSwitch = this.fingerOperateData.alarmObj?.is_active;
-      if (this.requestData.group_by?.length) this.group = this.requestData.group_by;
-    },
     /**
      * @desc: 查询新类告警
      */
@@ -304,7 +389,9 @@ export default {
           index_set_id: this.$route.params.indexId,
         },
       }).then((res) => {
-        this.$emit('handleFingerOperate', 'getNewStrategy', res.data);
+        this.$emit('handleFingerOperate', 'fingerOperateData', {
+          alarmObj: res.data,
+        });
         this.alarmSwitch = res.data.is_active;
       });
     },
@@ -330,9 +417,11 @@ export default {
       }).then((res) => {
         if (res.result) {
           this.popoverInstance.hide();
-          this.$emit('handleFingerOperate', 'getNewStrategy', {
-            strategy_id: res.data,
-            is_active: !this.alarmSwitch,
+          this.$emit('handleFingerOperate', 'fingerOperateData', {
+            alarmObj: {
+              strategy_id: res.data,
+              is_active: !this.alarmSwitch,
+            },
           });
           this.$bkMessage({
             theme: 'success',
@@ -347,6 +436,49 @@ export default {
         .finally(() => {
           this.isRequestAlarm = false;
         });
+    },
+    async submitPopover() {
+      await this.updateInitGroup();
+      this.$emit('handleFingerOperate', 'fingerOperateData', {
+        dimensionList: this.dimension,
+        selectGroupList: this.group,
+        yearSwitch: this.yearSwitch,
+      });
+      this.$emit('handleFingerOperate', 'requestData', {
+        group_by: [...this.group, ...this.dimension],
+        year_on_year_hour: this.yearSwitch ? this.yearOnYearHour : 0,
+      }, true);
+      this.cancelPopover();
+    },
+    /**
+     * @desc: 是否默认展示分组接口
+     */
+    async updateInitGroup() {
+      await this.$http.request('/logClustering/updateInitGroup', {
+        params: {
+          index_set_id: this.$route.params.indexId,
+        },
+        data: {
+          group_fields: this.dimension,
+        },
+      });
+    },
+    cancelPopover() {
+      this.isShowPopoverInstance = false;
+      this.$refs.groupPopover.instance.hide();
+    },
+    toggleYearSelect(val) {
+      !val && this.changeCustomizeState(true);
+    },
+    handleShowMorePopover() {
+      const finger = this.fingerOperateData;
+      this.isNear24 = this.requestData.show_new_pattern;
+      this.patternSize = finger.patternSize;
+      this.alarmSwitch = finger.alarmObj?.is_active;
+      this.dimension = finger.dimensionList;
+      this.group = finger.selectGroupList;
+      this.yearSwitch = finger.yearSwitch;
+      this.yearOnYearHour = finger.yearOnYearHour;
     },
     /**
      * 检查当前 索引集 是否创建过订阅。
@@ -380,11 +512,11 @@ export default {
   },
 };
 </script>
-<style lang="scss">
+<style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
 
 .fingerprint-setting {
-  height: 24px;
+  height: 32px;
   line-height: 24px;
   font-size: 12px;
   flex-shrink: 0;
@@ -404,23 +536,6 @@ export default {
     }
   }
 
-  .compared-select {
-    min-width: 87px;
-    margin-left: 6px;
-    position: relative;
-    top: -3px;
-
-    .bk-select-name {
-      height: 24px;
-    }
-
-    .bk-select-tag-container {
-      height: 24px;
-      min-height: 24px;
-      max-width: 170px;
-    }
-  }
-
   .pattern {
     width: 200px;
 
@@ -437,29 +552,19 @@ export default {
 .compared-select-option {
   .compared-customize {
     position: relative;
+    margin-bottom: 8px;
     top: -3px;
-
-    .bk-select-name {
-      height: 24px;
-    }
-  }
-}
-
-.compared-select-option {
-  .compared-customize {
-    position: relative;
-    margin-bottom: 6px;
   }
 
   .compared-select-icon {
     font-size: 14px;
     position: absolute;
-    right: 18px;
-    top: 2px;
+    top: 0;
+    right: 22px;
   }
 
   .customize-option {
-    padding: 0 18px;
+    padding: 0 16px;
     cursor: pointer;
 
     &:hover {
@@ -469,7 +574,7 @@ export default {
   }
 
   .bk-form-control {
-    width: 80%;
+    width: 90%;
     margin: 0 auto;
   }
 
@@ -492,6 +597,132 @@ export default {
       margin-right: 6px;
       color: #dcdee5;
     }
+  }
+}
+
+.selected-ext {
+  .bk-option.is-selected {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: none !important;
+  }
+
+  .bk-option:hover {
+    background: #f4f6fa;
+  }
+}
+
+.popover-content {
+  .group-popover {
+    padding-top: 8px;
+
+    .piece {
+      margin-bottom: 13px;
+    }
+
+    .title {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: #63656e;
+    }
+
+    .notice {
+      color: #979ba5;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .group-alert {
+      position: relative;
+      margin: 6px 0 14px 0;
+      padding: 6px 30px;
+      line-height: 20px;
+      color: #63656e;
+      background: #f0f1f5;
+      border-radius: 2px;
+
+      .icon-info {
+        color: #979ba5;
+        font-size: 16px;
+        position: absolute;
+        top: 8px;
+        left: 8px;
+      }
+    }
+
+    .year-on-year {
+      @include flex-center();
+    }
+
+    .compared-select {
+      margin-left: 20px;
+      flex: 1;
+    }
+
+    .popover-button {
+      padding: 12px 0;
+
+      @include flex-justify(end);
+    }
+  }
+}
+
+.ext-box {
+  height: 32px;
+
+  /* stylelint-disable-next-line declaration-no-important */
+  display: flex !important;
+
+  @include flex-center();
+
+  :deep(.bk-checkbox-text) {
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
+    width: calc(100% - 20px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.disabled-icon {
+  background-color: #fff;
+  border-color: #dcdee5;
+  cursor: not-allowed;
+
+  &:hover,
+  .log-icon {
+    border-color: #dcdee5;
+    color: #c4c6cc;
+  }
+}
+
+.operation-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 10px;
+  cursor: pointer;
+  border: 1px solid #c4c6cc;
+  transition: boder-color .2s;
+  border-radius: 2px;
+  outline: none;
+
+  &:hover {
+    border-color: #979ba5;
+    transition: boder-color .2s;
+  }
+
+  &:active {
+    border-color: #3a84ff;
+    transition: boder-color .2s;
+  }
+
+  .icon-more {
+    width: 16px;
+    font-size: 16px;
+    color: #979ba5;
   }
 }
 

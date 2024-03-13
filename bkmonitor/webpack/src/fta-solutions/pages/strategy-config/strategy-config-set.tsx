@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
-
-import { random } from '../../../monitor-common/utils/utils';
-import StrategyConfigSet from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/strategy-config-set';
-import authorityMixinCreate from '../../../monitor-ui/mixins/authorityMixin';
+import { random } from 'monitor-common/utils/utils';
+import StrategyConfigSet from 'monitor-pc/pages/strategy-config/strategy-config-set-new/strategy-config-set';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import { strategyType } from './typings/strategy';
 import * as ruleAuth from './authority-map';

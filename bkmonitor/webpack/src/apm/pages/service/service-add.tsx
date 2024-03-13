@@ -25,9 +25,9 @@
  */
 import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
+import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import CommonNavBar from '../../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import { INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import NoDataGuide from '../application/app-add/no-data-guide';
 

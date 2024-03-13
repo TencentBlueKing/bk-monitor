@@ -26,9 +26,9 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { transferCountSeries, transferLatestMsg } from 'monitor-api/modules/datalink';
+import { copyText } from 'monitor-common/utils/utils';
 
-import { transferCountSeries, transferLatestMsg } from '../../../../../monitor-api/modules/datalink';
-import { copyText } from '../../../../../monitor-common/utils/utils';
 import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
 import { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';

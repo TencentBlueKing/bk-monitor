@@ -162,7 +162,7 @@
                   class="col-status-img"
                   v-if="isRunning && (props.row.status === 'RUNNING' || props.row.status === 'PENDING')"
                   src="../../../static/images/svg/spinner.svg"
-                  alt=''
+                  alt=""
                 >
                 <div
                   class="col-status-radius"
@@ -319,8 +319,9 @@ import {
   batchRevokeTargetNodes,
   getCollectLogDetail,
   isTaskReady,  retryTargetNodes,
-  revokeTargetNodes } from '../../../../monitor-api/modules/collecting';
-import { copyText } from '../../../../monitor-common/utils/utils.js';
+  revokeTargetNodes } from 'monitor-api/modules/collecting';
+import { copyText } from 'monitor-common/utils/utils.js';
+
 import RightPanel from '../../../components/ip-select/right-panel';
 import { transformJobUrl } from '../../../utils/index';
 

@@ -27,7 +27,7 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/member-ordering */
 
-import { deepClone } from '../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
 export const variableRegex = /\$(\w+)|\[\[([\s\S]+?)(?::(\w+))?\]\]|\${(\w+)(?:\.([^:^}]+))?(?::([^}]+))?}/g;
 export type ScopedVars = Record<string, any>;

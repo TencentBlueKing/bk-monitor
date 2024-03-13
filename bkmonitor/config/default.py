@@ -311,68 +311,6 @@ CLOSE_EVNET_METRIC_IDS = [
 
 FAKE_EVENT_AGG_INTERVAL = 60
 
-PUBLIC_NOTICE_CONFIG = {
-    "alert_notice": [
-        {
-            "time_range": "00:00:00--23:59:59",
-            "notify_config": [
-                {"level": 1, "type": ["weixin", "mail"]},
-                {"level": 2, "type": ["weixin", "mail"]},
-                {"level": 3, "type": ["weixin", "mail"]},
-            ],
-        }
-    ],
-    "action_notice": [
-        {
-            "time_range": "00:00:00--23:59:59",
-            "notify_config": [
-                {"phase": 1, "type": ["mail"]},
-                {"phase": 2, "type": ["mail"]},
-                {"phase": 3, "type": ["mail"]},
-            ],
-        }
-    ],
-    "message": "",
-}
-DEFAULT_NOTICE_GROUPS = [
-    {
-        "name": _("主备负责人"),
-        "notice_receiver": [{"id": "operator", "type": "group"}, {"id": "bk_bak_operator", "type": "group"}],
-        **PUBLIC_NOTICE_CONFIG,
-    },
-    {"name": _("运维"), "notice_receiver": [{"id": "bk_biz_maintainer", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("开发"), "notice_receiver": [{"id": "bk_biz_developer", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("测试"), "notice_receiver": [{"id": "bk_biz_tester", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("产品"), "notice_receiver": [{"id": "bk_biz_productor", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-]
-
-DEFAULT_NOTICE_MESSAGE_TEMPLATE = [
-    {
-        "signal": "abnormal",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n"
-        "{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n"
-        "{{content.dimension}}\n{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-    {
-        "signal": "recovered",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}"
-        "\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n"
-        "{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-    {
-        "signal": "closed",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n"
-        "{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n"
-        "{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-]
-
 AES_X_KEY_FIELD = "SECRET_KEY"
 
 # 时序数据精度
@@ -428,6 +366,7 @@ ACTIVE_VIEWS = {
         "apm_service": "apm_web.service.views",
         "apm_log": "apm_web.log.views",
         "apm_db": "apm_web.db.views",
+        "apm_profile": "apm_web.profile.views",
     },
 }
 
@@ -1370,6 +1309,18 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+
+# BCS 数据合流配置， 默认为 不启用
+BCS_DATA_CONVERGENCE_CONFIG = {}
+
+# 是否启用 BCS CC 的项目接口
+ENABLE_BCS_CC_PROJECT_API = False
+
+# 独立的vm集群的空间列表
+SINGLE_VM_SPACE_ID_LIST = []
+
+# 文档链接配置 格式: {"key1": {"type": "splice/link", "value": ""}}
+DOC_LINK_MAPPING = {}
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))

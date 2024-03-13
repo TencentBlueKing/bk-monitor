@@ -639,7 +639,7 @@ class ILM:
 
             current_config = current_mapping[field_name]
             # 判断具体的内容是否一致，只要以下这些字段
-            for field_config in ["type", "include_in_all", "doc_values", "format", "properties", "fields", "analyzer"]:
+            for field_config in ["type", "include_in_all", "doc_values", "format", "properties", "fields"]:
                 database_value = database_config.get(field_config, None)
                 current_value = current_config.get(field_config, None)
 

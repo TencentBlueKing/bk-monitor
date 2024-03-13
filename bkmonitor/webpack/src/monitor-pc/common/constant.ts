@@ -23,7 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { rstrip } from '../utils';
+import { jumpToDocsLink } from 'monitor-common/utils';
+
+import store from '../store/modules/app';
 
 export const linkMap = {
   processMonitoring: '监控平台/产品白皮书/scene-process/process_monitor_overview.md', //  主机监控-主机详情 左下角 进程监控配置指引
@@ -60,12 +62,10 @@ export const linkMap = {
   accessRequest: '监控平台/产品白皮书/quickstart/perm.md' // 权限申请文档
 };
 export const handleGotoLink = id => {
-  const path = linkMap[id] || id;
-  if (path) {
-    const url = `${rstrip(window.bk_docs_site_url, '/')}/markdown/${path}`;
-    window.open(url, '_blank');
-  }
+  const extraLinkMap = store.state.extraDocLinkMap;
+  jumpToDocsLink(id, linkMap, extraLinkMap);
 };
+
 // 是否中文
 export const isZh = () => ['zh', 'zhCN', 'zh-cn'].includes(window.i18n.locale);
 

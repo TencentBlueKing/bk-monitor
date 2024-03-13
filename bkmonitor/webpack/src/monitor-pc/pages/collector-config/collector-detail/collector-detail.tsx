@@ -25,15 +25,15 @@
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import { Route } from 'vue-router';
-import { random } from '@common/utils';
-
 import {
   collectConfigList,
   // collectInstanceStatus,
   frontendCollectConfigDetail
-} from '../../../../monitor-api/modules/collecting';
-import { collectingTargetStatus, storageStatus } from '../../../../monitor-api/modules/datalink';
-import { listUserGroup } from '../../../../monitor-api/modules/model';
+} from 'monitor-api/modules/collecting';
+import { collectingTargetStatus, storageStatus } from 'monitor-api/modules/datalink';
+import { listUserGroup } from 'monitor-api/modules/model';
+import { random } from 'monitor-common/utils';
+
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as collectAuth from '../authority-map';

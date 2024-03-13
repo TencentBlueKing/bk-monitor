@@ -34,7 +34,7 @@ export default {
   'route-指标检索': 'Metrics',
   'route-日志检索': 'Logs',
   'route-事件检索': 'Events',
-  'route-Trace检索': 'Traces',
+  'route-Tracing 检索': 'Traces',
   'route-综合拨测': 'Synthetics',
   'route-APM': 'APM',
   'route-Kubernetes': 'Kubernetes',
@@ -136,6 +136,7 @@ export default {
   'route-链路管理': 'Link Management',
   'route-加载中...': 'Loading...',
   'route-数据源管理': 'DataSource Management',
+  'route-Profiling 检索': 'Profiling',
   'route-编辑轮值': 'Edit Rotation',
   'route-新增轮值': 'Add Rotation',
 

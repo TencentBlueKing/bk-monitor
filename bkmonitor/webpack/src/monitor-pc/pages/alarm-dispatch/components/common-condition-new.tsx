@@ -26,9 +26,9 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { listUsersUser } from 'monitor-api/modules/model';
+import { Debounce, deepClone, random } from 'monitor-common/utils';
 
-import { listUsersUser } from '../../../../monitor-api/modules/model';
-import { Debounce, deepClone, random } from '../../../../monitor-common/utils';
 import HorizontalScrollContainer from '../../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { getEventPaths } from '../../../utils';
 import { CONDITIONS, deepCompare, ICondtionItem, METHODS, TContionType, TMthodType } from '../typing';

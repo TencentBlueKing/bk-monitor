@@ -124,5 +124,9 @@ export default {
   集群状态: 'Cluster status',
   索引状态: 'Index status',
   '主机智能异常检测发现{0}个主机异常': 'Host intelligent exception detection found {0} host exceptions',
+  '上传 Profiling': 'Upload Profiling',
+  '持续 Profiling': 'Continuous profiling',
+  有数据应用: 'Has data applied',
+  无数据应用: 'No data applied',
   订阅详情: 'Subscription details'
 };

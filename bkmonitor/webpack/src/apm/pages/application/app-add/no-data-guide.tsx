@@ -25,17 +25,12 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { applicationInfoByAppName, metaConfigInfo, pushUrl, queryBkDataToken } from 'monitor-api/modules/apm_meta';
+import { copyText } from 'monitor-common/utils/utils';
+import Collapse from 'monitor-pc/components/collapse/collapse';
+import svgIcon from 'monitor-pc/components/svg-icon/svg-icon.vue';
+import MarkdowViewer from 'monitor-ui/markdown-editor/viewer';
 
-import {
-  applicationInfoByAppName,
-  metaConfigInfo,
-  pushUrl,
-  queryBkDataToken
-} from '../../../../monitor-api/modules/apm_meta';
-import { copyText } from '../../../../monitor-common/utils/utils';
-import Collapse from '../../../../monitor-pc/components/collapse/collapse';
-import svgIcon from '../../../../monitor-pc/components/svg-icon/svg-icon.vue';
-import MarkdowViewer from '../../../../monitor-ui/markdown-editor/viewer';
 import * as authorityMap from '../../home/authority-map';
 
 import SelectCardItem from './select-card-item';

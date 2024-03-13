@@ -25,11 +25,11 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import { useJSONP } from 'monitor-api/jsonp';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import bus from 'monitor-common/utils/event-bus';
+import { docCookies } from 'monitor-common/utils/utils';
 
-import { useJSONP } from '../../monitor-api/jsonp';
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils/constant';
-import bus from '../../monitor-common/utils/event-bus';
-import { docCookies } from '../../monitor-common/utils/utils';
 import LogVersion from '../components/log-version/intex';
 import LogVersionMixin from '../components/log-version/log-version-mixin';
 import DocumentLinkMixin from '../mixins/documentLinkMixin';

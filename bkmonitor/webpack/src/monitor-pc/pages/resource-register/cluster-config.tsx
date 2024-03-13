@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { checkClusterHealth, registerCluster, updateRegisteredCluster } from 'monitor-api/modules/commons';
+import { random } from 'monitor-common/utils';
 
-import { checkClusterHealth, registerCluster, updateRegisteredCluster } from '../../../monitor-api/modules/commons';
-import { random } from '../../../monitor-common/utils';
 import { SPACE_TYPE_MAP } from '../../common/constant';
 
 import ClusterMoreConfig from './cluster-config/cluster-more-config';

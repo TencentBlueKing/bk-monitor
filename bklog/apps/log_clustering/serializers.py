@@ -27,7 +27,9 @@ from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
     ActionEnum,
+    OwnerConfigEnum,
     PatternEnum,
+    RemarkConfigEnum,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
 
@@ -45,6 +47,10 @@ class PatternSearchSerlaizer(serializers.Serializer):
     year_on_year_hour = serializers.IntegerField(required=False, default=0, min_value=0)
     group_by = serializers.ListField(required=False, default=[])
     filter_not_clustering = serializers.BooleanField(required=False, default=True)
+
+    remark_config = serializers.ChoiceField(choices=RemarkConfigEnum.get_choices(), default=RemarkConfigEnum.ALL.value)
+    owner_config = serializers.ChoiceField(choices=OwnerConfigEnum.get_choices(), default=OwnerConfigEnum.ALL.value)
+    owners = serializers.ListField(child=serializers.CharField(), required=False, default=[])
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -97,14 +103,11 @@ class ClusteringPreviewSerializer(serializers.Serializer):
     is_case_sensitive = serializers.IntegerField()
 
 
-class SetLabelSerializer(serializers.Serializer):
-    signature = serializers.CharField()
-    label = serializers.CharField(allow_blank=True)
-
-
 class SetRemarkSerializer(serializers.Serializer):
     signature = serializers.CharField()
     remark = serializers.CharField()
+    origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
+    groups = serializers.DictField(default=dict)
 
 
 class UpdateRemarkSerializer(serializers.Serializer):
@@ -112,17 +115,27 @@ class UpdateRemarkSerializer(serializers.Serializer):
     old_remark = serializers.CharField()
     new_remark = serializers.CharField()
     create_time = serializers.IntegerField()
+    origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
+    groups = serializers.DictField(default=dict)
 
 
 class DeleteRemarkSerializer(serializers.Serializer):
     signature = serializers.CharField()
     remark = serializers.CharField()
     create_time = serializers.IntegerField()
+    origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
+    groups = serializers.DictField(default=dict)
 
 
 class SetOwnerSerializer(serializers.Serializer):
     signature = serializers.CharField()
     owners = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+    origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
+    groups = serializers.DictField(default=dict)
+
+
+class UpdateGroupFieldsSerializer(serializers.Serializer):
+    group_fields = serializers.ListField(child=serializers.CharField(), allow_empty=True, default=list)
 
 
 class UpdateStrategyAction(serializers.Serializer):

@@ -25,8 +25,7 @@
  * IN THE SOFTWARE.
  */
 import type { EChartOption } from 'echarts';
-
-import { isObject, random, typeTools } from '../../../monitor-common/utils/utils';
+import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
 import { TimeSeriesType } from './time-series';
 

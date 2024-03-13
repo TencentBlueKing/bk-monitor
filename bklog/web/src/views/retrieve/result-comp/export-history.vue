@@ -219,13 +219,19 @@
 </template>
 
 <script>
-import { formatDate } from '@/common/util';
+import { formatDate, blobDownload } from '@/common/util';
+import { axiosInstance } from '@/api';
+
 
 export default {
   props: {
     showHistoryExport: {
       type: Boolean,
       default: false,
+    },
+    indexSetList: {
+      type: Array,
+      required: true,
     },
   },
   data() {
@@ -305,13 +311,25 @@ export default {
      * @param { Object } params
      */
     openDownloadUrl(params) {
-      const exportParams = encodeURIComponent(JSON.stringify({ ...params }));
-      // eslint-disable-next-line max-len
-      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?export_dict=${exportParams}`;
-      const net = window.open(targetUrl, '_blank', '', false);
-      net.addEventListener('beforeunload', () => {
-        this.getTableList(true);
-      });
+      const data = { ...params };
+      const stringParamsIndexSetID = String(params.log_index_set_id);
+      axiosInstance.post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
+        .then((res) => {
+          if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            this.$bkMessage({
+              theme: 'error',
+              message: this.$t('导出失败'),
+            });
+            return;
+          };
+          const lightName = this.indexSetList.find(item => item.index_set_id === stringParamsIndexSetID)?.lightenName;
+          const downloadName = lightName ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt` : 'bk_log_search.txt';
+          blobDownload(res, downloadName);
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.getTableList(true);
+        });
     },
     /**
      * @desc: 异步下载

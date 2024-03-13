@@ -10,13 +10,17 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import OrderedDict
+from typing import Dict
 
+from django.conf import settings
 from django.db.models import Q
+from django.db.transaction import atomic
 from rest_framework import serializers
 
 from core.drf_resource import Resource
-from metadata import models
+from metadata import config, models
 from metadata.models.space.space_data_source import get_real_biz_id
+from metadata.service.vm_storage import query_vm_datalink
 
 
 class QueryBizByBkBase(Resource):
@@ -102,3 +106,41 @@ class QueryBizByBkBase(Resource):
             bk_base_data_id_biz_id[bk_base_data_id] = bk_biz_id
 
         return bk_base_data_id_biz_id
+
+
+class CreateVmCluster(Resource):
+    class RequestSerializer(serializers.Serializer):
+        cluster_name = serializers.CharField(required=True, label="集群名称")
+        domain_name = serializers.CharField(required=True, label="集群域名")
+        port = serializers.IntegerField(required=False, label="集群端口", default=80)
+        description = serializers.CharField(required=False, label="集群描述", default="vm 集群")
+        is_default_cluster = serializers.BooleanField(required=False, label="是否设置为默认集群", default=False)
+
+    def perform_request(self, data: OrderedDict) -> Dict:
+        # 如果不设置为默认集群，则直接创建记录即可
+        data["cluster_type"] = models.ClusterInfo.TYPE_VM
+        if not data["is_default_cluster"]:
+            obj = models.ClusterInfo.objects.create(**data)
+            return {"cluster_id": obj.cluster_id}
+
+        # 否则，需要先把已有的默认集群设置为False，并且在集群创建后刷新空间使用的默认集群信息
+        with atomic(config.DATABASE_CONNECTION_NAME):
+            models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True).update(
+                is_default_cluster=False
+            )
+            obj = models.ClusterInfo.objects.create(**data)
+            # 刷新空间使用的 vm 集群
+            # NOTE: 注意排除掉使用特定集群的空间
+            models.SpaceVMInfo.objects.exclude(space_id__in=settings.SINGLE_VM_SPACE_ID_LIST).update(
+                vm_cluster_id=obj.cluster_id
+            )
+
+        return {"cluster_id": obj.cluster_id}
+
+
+class QueryVmDatalink(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=True, label="数据源 ID")
+
+    def perform_request(self, data: OrderedDict) -> Dict:
+        return query_vm_datalink(data["bk_data_id"])

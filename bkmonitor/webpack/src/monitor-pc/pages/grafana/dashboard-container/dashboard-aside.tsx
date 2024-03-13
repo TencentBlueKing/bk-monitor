@@ -25,8 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { listStickySpaces } from '../../../../monitor-api/modules/commons';
+import { listStickySpaces } from 'monitor-api/modules/commons';
 import {
   createDashboardOrFolder,
   deleteDashboard,
@@ -36,9 +35,10 @@ import {
   renameFolder,
   starDashboard,
   unstarDashboard
-} from '../../../../monitor-api/modules/grafana';
-import bus from '../../../../monitor-common/utils/event-bus';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/grafana';
+import bus from 'monitor-common/utils/event-bus';
+import { deepClone, random } from 'monitor-common/utils/utils';
+
 import BizSelect from '../../../components/biz-select/biz-select';
 import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -129,7 +129,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   ].filter(Boolean);
 
   /** 我的收藏列表 */
-  favList = [];
+  favList: IFavListItem[] = [];
   /** 仪表盘列表 */
   grafanaList: ITreeMenuItem[] = [];
   /** 置顶的空间列表 */
@@ -640,7 +640,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               onChange={this.handleBizChange}
             />
           </div>
-          {!!this.favList.length && (
+          {/* 如果没有收藏仪表盘，就不显示空列表。 */}
+          {!!this.favList?.[0]?.children?.length && (
             <div class='grafana-fav'>
               <FavList
                 checked={this.checked}

@@ -30,8 +30,7 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import AlarmGroupDetail from '../../../../monitor-pc/pages/alarm-group/alarm-group-detail/alarm-group-detail';
+import AlarmGroupDetail from 'monitor-pc/pages/alarm-group/alarm-group-detail/alarm-group-detail';
 
 interface IAlarmGroupDeatail {
   id: number | string;

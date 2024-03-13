@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { fetchBusinessInfo, listSpaces } from 'monitor-api/modules/commons';
 
-import { fetchBusinessInfo, listSpaces } from '../../../../monitor-api/modules/commons';
 import { handleGotoLink } from '../../../common/constant';
 import ResearchForm from '../research-form/research-form';
 import SpaceAddItem from '../space-add-item/space-add-item';

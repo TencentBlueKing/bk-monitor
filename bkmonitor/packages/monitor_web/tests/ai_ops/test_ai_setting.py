@@ -13,8 +13,8 @@ from copy import deepcopy
 import mock
 from django.test import TestCase
 
+from bkmonitor.models import AIFeatureSettings
 from constants.aiops import AI_SETTING_APPLICATION_CONFIG_KEY
-from monitor.models import ApplicationConfig
 from monitor_web.aiops.ai_setting.resources import SaveAiSettingResource
 
 APPLICATION_CONFIG_INIT_DATA = {
@@ -48,7 +48,7 @@ APPLICATION_CONFIG_INIT_DATA = {
 }
 
 APPLICATION_CONFIG_INIT_CLOSE_DATA = {
-    "bk_biz_id": 1,
+    "bk_biz_id": 2,
     "config": {
         "kpi_anomaly_detection": {"is_enabled": False, "default_sensitivity": 5, "default_plan_id": 87},
         "multivariate_anomaly_detection": {
@@ -85,10 +85,13 @@ empty_template_ai_setting_data = {
 
 
 class TestAiSettingViewSet(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     def setUp(self):
-        ApplicationConfig.objects.filter(key=AI_SETTING_APPLICATION_CONFIG_KEY).delete()
-        ApplicationConfig.objects.create(**APPLICATION_CONFIG_INIT_DATA)
-        ApplicationConfig.objects.create(**APPLICATION_CONFIG_INIT_CLOSE_DATA)
+        AIFeatureSettings.objects.all().delete()
+        AIFeatureSettings.objects.create(**APPLICATION_CONFIG_INIT_DATA)
+        AIFeatureSettings.objects.create(**APPLICATION_CONFIG_INIT_CLOSE_DATA)
 
     @mock.patch("monitor_web.tasks.access_aiops_multivariate_anomaly_detection_by_bk_biz_id.delay")
     def test_save_ai_setting_existing(self, access_delay):
@@ -110,4 +113,4 @@ class TestAiSettingViewSet(TestCase):
         data["bk_biz_id"] = 3
         data["multivariate_anomaly_detection"]["host"]["is_enabled"] = False
         SaveAiSettingResource().request(data)
-        close_delay.assert_called_with([1])
+        close_delay.assert_called_with(3, ["host"])

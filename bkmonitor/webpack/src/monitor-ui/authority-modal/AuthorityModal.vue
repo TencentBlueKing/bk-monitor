@@ -115,10 +115,9 @@
 <script lang="ts">
 import { Component, Vue, Watch } from 'vue-property-decorator';
 // 20231205 代码还原，先保留原有部分
-// import { showAccessRequest } from '../../monitor-pc/components/access-request-dialog';
+// import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
 import authorityStore from '@store/modules/authority';
-
-import lockImg from '../../monitor-pc/static/images/svg/lock-radius.svg';
+import lockImg from 'monitor-pc/static/images/svg/lock-radius.svg';
 
 @Component
 export default class AuthorityModal extends Vue {
@@ -189,7 +188,7 @@ export default class AuthorityModal extends Vue {
 }
 </style>
 <style lang="scss" scoped>
-@import '../../monitor-pc/theme/mixin.scss';
+@import 'monitor-pc/theme/mixin.scss';
 
 .permission-modal {
   @include permission-fix;

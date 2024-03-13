@@ -86,30 +86,6 @@ class ESQuerySearchResource(LogSearchAPIGWResource):
         include_end_time = serializers.BooleanField(required=False, label="end_time__gt or gte", default=False)
 
 
-class SearchPatternResource(IndexSetResource):
-    """
-    聚类查询接口
-    """
-
-    action = "pattern/{index_set_id}/search/"
-    method = "POST"
-
-    class RequestSerializer(serializers.Serializer):
-        index_set_id = serializers.IntegerField(required=True, label="索引集ID")
-        host_scopes = serializers.DictField(default={}, required=False)
-        addition = serializers.ListField(allow_empty=True, required=False, default=[])
-        start_time = serializers.CharField(required=False)
-        end_time = serializers.CharField(required=False)
-        time_range = serializers.CharField(required=False, default="customized")
-        keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-        size = serializers.IntegerField(required=False, default=10000)
-        pattern_level = serializers.CharField(required=True)
-        show_new_pattern = serializers.BooleanField(required=True)
-        year_on_year_hour = serializers.IntegerField(required=False, default=0, min_value=0)
-        group_by = serializers.ListField(required=False, default=[])
-        filter_not_clustering = serializers.BooleanField(required=False, default=True)
-
-
 class GetClusteringConfigResource(IndexSetResource):
     action = "/clustering_config/{index_set_id}/config/"
     method = "GET"
@@ -318,6 +294,22 @@ class UpdateIndexSetResource(IndexSetResource):
 
     action = "/update_index_set/{index_set_id}/"
     method = "PUT"
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class SearchPatternResource(LogSearchAPIGWResource):
+    """
+    查询索引集模型
+    """
+
+    action = "/pattern/{index_set_id}/search/"
+    method = "POST"
 
     def get_request_url(self, validated_request_data):
         """

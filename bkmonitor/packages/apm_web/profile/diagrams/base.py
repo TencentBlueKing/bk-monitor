@@ -44,6 +44,20 @@ class FunctionNode:
 
         return self.name
 
+    @property
+    def unique_together(self) -> tuple:
+        return self.name, self.system_name, self.filename
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "value": self.value,
+            "self": self.self_time,
+            "name": self.display_name,
+            "system_name": self.system_name,
+            "filename": self.filename,
+        }
+
 
 @dataclass
 class FunctionTree:
@@ -105,3 +119,9 @@ class FunctionTree:
                 root.children.append(node)
 
         return tree
+
+    def find_similar_child(self, other_child: "FunctionNode") -> Optional["FunctionNode"]:
+        for node in self.nodes_map.values():
+            if node.unique_together == other_child.unique_together:
+                return node
+        return None

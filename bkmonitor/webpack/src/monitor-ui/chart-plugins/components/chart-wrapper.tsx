@@ -25,13 +25,13 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+// import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
+import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { PanelToolsType } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { IQueryOption } from '../../../monitor-pc/pages/performance/performance-type';
-import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-// import ViewDetail from '../../../monitor-pc/pages/view-detail/view-detail.vue';
-import ViewDetail from '../../../monitor-pc/pages/view-detail/view-detail-new';
 import watermarkMaker from '../../monitor-echarts/utils/watermarkMaker';
 import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
@@ -51,6 +51,7 @@ import PercentageBarChart from '../plugins/percentage-bar/percentage-bar';
 import PerformanceChart from '../plugins/performance-chart/performance-chart';
 import PieEcharts from '../plugins/pie-echart/pie-echart';
 import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
+import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
 import RelationGraph from '../plugins/relation-graph/relation-graph';
@@ -422,6 +423,15 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'api_message':
         return (
           <MessageChart
+            panel={this.panel}
+            onLoading={this.handleChangeLoading}
+            onErrorMsg={this.handleErrorMsgChange}
+            clearErrorMsg={this.handleClearErrorMsg}
+          />
+        );
+      case 'profiling':
+        return (
+          <ProfilinGraph
             panel={this.panel}
             onLoading={this.handleChangeLoading}
             onErrorMsg={this.handleErrorMsgChange}

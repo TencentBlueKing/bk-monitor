@@ -25,7 +25,6 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import create from '@blueking/ip-selector/dist/index.esm';
-
 import {
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
@@ -44,7 +43,7 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig
-} from '../../../monitor-api/modules/model';
+} from 'monitor-api/modules/model';
 
 import {
   CommomParams,

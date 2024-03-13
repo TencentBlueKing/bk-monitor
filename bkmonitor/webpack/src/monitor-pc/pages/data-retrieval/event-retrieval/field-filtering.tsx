@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
-import { Debounce, deepClone } from '../../../../monitor-common/utils/utils';
 import { FieldFilteringType, FieldListType, FieldValue, IFilterCondition, IOption } from '../typings';
 
 import FieldList from './field-list';
