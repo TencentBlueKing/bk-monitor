@@ -40,7 +40,6 @@
           v-bind="$attrs"
           v-on="$listeners"
           ref="logClusteringRef"
-          :is-change-table-nav.sync="isChangeTableNav"
           :active-table-tab="active"
           :config-data="configData"
           @showOriginLog="showOriginLog" />
@@ -74,7 +73,6 @@ export default {
   data() {
     return {
       active: 'origin',
-      isChangeTableNav: false,
       isReported: false,
     };
   },
@@ -120,6 +118,7 @@ export default {
       this.active = 'origin';
     },
     async handleChangeTab(name) {
+      this.$refs?.logClusteringRef?.$refs.fingerRef?.$refs.groupPopover.instance?.hide();
       await this.$nextTick();
       const clusterRef = this.$refs.logClusteringRef;
       const clusterParams = name === 'clustering' ? {
@@ -127,7 +126,6 @@ export default {
         requestData: clusterRef?.requestData,
       }  : null;
       this.$emit('backFillClusterRouteParams', name, clusterParams);
-      if (name === 'origin') this.isChangeTableNav = true;
     },
   },
 };

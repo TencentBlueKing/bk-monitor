@@ -589,4 +589,8 @@ export default {
   责任人: 'Responsible',
   索引字段: 'Index Set Fields',
   'label-内置字段': 'Built-in Fields',
+  维度: 'Dimension',
+  已备注: 'Already Noted',
+  未备注: 'No Remarks',
+  未指定责任人: 'No responsible person specified'
 };
