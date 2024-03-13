@@ -99,7 +99,7 @@ const defalutOptions = {
   renderLineHighlight: 'none',
   scrollbar: {
     vertical: 'hidden',
-    verticalScrollbarSize: 10,
+    verticalScrollbarSize: 0,
     horizontal: 'hidden',
     horizontalScrollbarSize: 0,
     alwaysConsumeMouseWheel: false
