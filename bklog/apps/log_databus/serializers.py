@@ -160,7 +160,7 @@ class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
     syslog_field = serializers.ChoiceField(
         label=_("匹配字段"), choices=SyslogFilterFieldEnum.get_choices(), required=False, default=""
     )
-    syslog_content = serializers.CharField(label=_("匹配内容"), max_length=255, required=True)
+    syslog_content = serializers.CharField(label=_("匹配内容"), max_length=255, required=False, default="")
     syslog_op = serializers.ChoiceField(
         label=_("操作符"),
         choices=PluginParamOpEnum.get_choices(),
