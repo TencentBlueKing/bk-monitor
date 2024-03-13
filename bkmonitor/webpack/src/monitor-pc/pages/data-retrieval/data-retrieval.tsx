@@ -2608,9 +2608,6 @@ export default class DataRetrieval extends tsc<{}> {
   }
   // 切换业务
   handleChangeBizId(v: number) {
-    window.cc_biz_id = v;
-    window.bk_biz_id = v;
-    window.space_uid = this.$store.getters.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
     this.$store.commit('app/SET_BIZ_ID', v);
     const { navId } = this.$route.meta;
     // 所有页面的子路由在切换业务的时候都统一返回到父级页面

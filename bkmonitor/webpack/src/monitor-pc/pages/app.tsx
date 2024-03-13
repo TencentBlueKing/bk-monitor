@@ -399,10 +399,6 @@ export default class App extends tsc<{}> {
   // 切换业务
   async handleBizChange(v: number) {
     this.handleHeaderSettingShowChange(false);
-    // 切换全局业务配置
-    window.cc_biz_id = +v;
-    window.bk_biz_id = +v;
-    window.space_uid = this.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
     this.showBizList = false;
     this.$store.commit('app/SET_BIZ_ID', +v);
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);

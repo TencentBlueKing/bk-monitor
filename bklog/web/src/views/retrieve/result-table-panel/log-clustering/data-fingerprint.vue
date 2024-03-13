@@ -184,15 +184,23 @@
         :label="$t('责任人')"
         :render-header="renderUserHeader">
         <template slot-scope="{ row, $index }">
-          <bk-user-selector
-            class="principal-input"
-            placeholder=" "
-            multiple
-            :value="row.owners"
-            :api="userApi"
-            :empty-text="$t('无匹配人员')"
-            @change="(val) => handleChangePrincipal(val, $index)">
-          </bk-user-selector>
+          <div 
+            v-bk-tooltips.top="{ 
+              content: row.owners.join(', '), 
+              delay: 300,
+              disabled: !row.owners.length
+            }">
+            <bk-user-selector
+              class="principal-input"
+              placeholder=" "
+              multiple
+              style="margin-top: 4px;"
+              :value="row.owners"
+              :api="userApi"
+              :empty-text="$t('无匹配人员')"
+              @change="(val) => handleChangePrincipal(val, $index)">
+            </bk-user-selector>
+          </div>
         </template>
       </bk-table-column>
 

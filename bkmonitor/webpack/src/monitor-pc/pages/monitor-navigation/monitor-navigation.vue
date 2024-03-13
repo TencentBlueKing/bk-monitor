@@ -433,9 +433,6 @@ export default {
       this.$store.commit('app/setNavToggle', v);
     },
     handleBizChange(v) {
-      window.cc_biz_id = +v;
-      window.bk_biz_id = +v;
-      localStorage.setItem(LOCAL_BIZ_STORE_KEY, +v);
       this.$store.commit('app/SET_BIZ_ID', +v);
       const { navId } = this.$route.meta;
       // 所有页面的子路由在切换业务的时候都统一返回到父级页面
