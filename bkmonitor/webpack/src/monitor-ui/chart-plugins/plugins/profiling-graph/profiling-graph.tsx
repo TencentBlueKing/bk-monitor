@@ -229,6 +229,7 @@ class ProfilingChart extends CommonSimpleChart {
 
     this.dataType = val;
     this.queryParams.data_type = val;
+    this.getPanelData();
   }
   getUrlParamsString(obj) {
     const str = Object.keys(obj)
