@@ -562,16 +562,6 @@ class CollectorScenarioEnum(ChoicesEnum):
         ]
 
 
-class SyslogProtocolEnum(ChoicesEnum):
-    TCP = "tcp"
-    UDP = "udp"
-
-    _choices_labels = (
-        (TCP, _("tcp协议")),
-        (UDP, _("udp协议")),
-    )
-
-
 class EtlConfigEnum(ChoicesEnum):
     BK_LOG_JSON = "bk_log_json"
     BK_LOG_DELIMITER = "bk_log_delimiter"

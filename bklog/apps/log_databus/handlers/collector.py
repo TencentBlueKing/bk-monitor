@@ -4433,7 +4433,7 @@ class CollectorHandler(object):
         filters, _ = deal_collector_scenario_param(container_config.params)
         raw_config = {
             "path": container_config.params["paths"],
-            "exclude_files": container_config.params["exclude_files"],
+            "exclude_files": container_config.params.get("exclude_files", []),
             "encoding": container_config.data_encoding,
             "logConfigType": container_config.collector_type,
             "allContainer": container_config.all_container,

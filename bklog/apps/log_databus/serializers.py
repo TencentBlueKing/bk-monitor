@@ -39,6 +39,10 @@ from apps.log_databus.constants import (
     EsSourceType,
     EtlConfig,
     LabelSelectorOperator,
+    PluginParamLogicOpEnum,
+    PluginParamOpEnum,
+    SyslogFilterFieldEnum,
+    SyslogProtocolEnum,
     TopoType,
     VisibleEnum,
 )
@@ -51,7 +55,6 @@ from apps.log_search.constants import (
     EncodingsEnum,
     EtlConfigEnum,
     FieldBuiltInEnum,
-    SyslogProtocolEnum,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
@@ -153,6 +156,25 @@ class PluginConditionSerializer(serializers.Serializer):
         return attrs
 
 
+class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
+    syslog_field = serializers.ChoiceField(
+        label=_("匹配字段"), choices=SyslogFilterFieldEnum.get_choices(), required=False, default=""
+    )
+    syslog_content = serializers.CharField(label=_("匹配内容"), max_length=255, required=False, default="")
+    syslog_op = serializers.ChoiceField(
+        label=_("操作符"),
+        choices=PluginParamOpEnum.get_choices(),
+        required=False,
+        default=PluginParamOpEnum.OP_INCLUDE.value,
+    )
+    syslog_logic_op = serializers.ChoiceField(
+        label=_("逻辑操作符"),
+        choices=PluginParamLogicOpEnum.get_choices(),
+        required=False,
+        default=PluginParamLogicOpEnum.AND.value,
+    )
+
+
 class PluginParamSerializer(serializers.Serializer):
     """
     插件参数序列化
@@ -162,7 +184,7 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("日志路径"), child=serializers.CharField(max_length=255, allow_blank=True), required=False
     )
     exclude_files = serializers.ListField(
-        label=_("日志路径排除"), child=serializers.CharField(max_length=255, allow_blank=True), required=False
+        label=_("日志路径排除"), child=serializers.CharField(max_length=255, allow_blank=True), required=False, default=[]
     )
     conditions = PluginConditionSerializer(required=False)
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True)
@@ -193,6 +215,13 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("windows事件内容"), child=serializers.CharField(max_length=255), required=False
     )
 
+    winlog_match_op = serializers.ChoiceField(
+        label=_("windows事件内容匹配操作符"),
+        choices=PluginParamOpEnum.get_choices(),
+        required=False,
+        default=PluginParamOpEnum.OP_INCLUDE.value,
+    )
+
     # Redis慢日志相关参数
     redis_hosts = serializers.ListField(
         label=_("redis目标"), child=serializers.CharField(max_length=255), required=False, default=[]
@@ -208,6 +237,9 @@ class PluginParamSerializer(serializers.Serializer):
     syslog_protocol = serializers.ChoiceField(label=_("协议"), choices=SyslogProtocolEnum.get_choices(), required=False)
     syslog_port = serializers.IntegerField(label=_("端口"), required=False)
     syslog_monitor_host = serializers.CharField(label=_("syslog监听服务器IP"), required=False, allow_blank=True)
+    syslog_conditions = serializers.ListSerializer(
+        label=_("syslog过滤条件"), required=False, default=[], child=SyslogPluginConditionFiltersSerializer()
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
