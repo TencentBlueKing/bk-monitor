@@ -1,12 +1,28 @@
 .skeleton-base-comp {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   width: 100%;
   height: 100%;
   overflow: auto;
 
   .skeleton-row {
     display: flex;
+
+    & + .skeleton-row {
+      margin-top: 22px;
+    }
+  }
+
+  .skeleton-title-wrap {
+    &.show-title {
+      margin-bottom: 26px;
+    }
+  }
+
+  .skeleton-body-wrap {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-between;
   }
 }

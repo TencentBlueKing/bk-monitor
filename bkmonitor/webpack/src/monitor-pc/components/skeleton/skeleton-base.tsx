@@ -33,7 +33,7 @@ export interface ISkeletonSimpleOption {
   /** 行数 */
   row: number;
   /** 每行宽度 */
-  width: number | string;
+  width?: number | string;
   /** 每行高度 */
   height?: number | string;
   /** 行内分布方式 */
@@ -43,11 +43,11 @@ export interface ISkeletonSimpleOption {
 /** 骨架屏每行配置 */
 export interface ISkeletonOption {
   /** 每行几列，每列宽度 */
-  widths: number | string | (number | string)[];
+  widths?: number | string | (number | string)[];
   /** 每行高度 */
-  height: number | string;
+  height?: number | string;
   /** 行内分布方式 */
-  justifyContent: string;
+  justifyContent?: string;
 }
 
 export interface ISkeletonBaseProps {
@@ -62,9 +62,7 @@ export interface ISkeletonBaseProps {
 }
 @Component
 export default class SkeletonBase extends tsc<ISkeletonBaseProps> {
-  @Prop({ default: () => ({ row: 1, width: '100%', height: '20px' }) }) readonly title:
-    | ISkeletonSimpleOption
-    | ISkeletonOption[];
+  @Prop({ default: undefined }) readonly title: ISkeletonSimpleOption | ISkeletonOption[];
   @Prop({ default: () => ({ row: 4, width: '100%', height: '32px' }) }) readonly children:
     | ISkeletonSimpleOption
     | ISkeletonOption[];
@@ -72,9 +70,10 @@ export default class SkeletonBase extends tsc<ISkeletonBaseProps> {
   @Prop({ default: 3 }) readonly groupNumber: number;
 
   createSimpleSkeleton(option: ISkeletonSimpleOption) {
-    const { row, width, height, justifyContent } = option;
+    if (!option) return;
+    const { row, width = '100%', height, justifyContent } = option;
     const style = {
-      width: typeof width === 'string' ? width : `${width || 0}px`,
+      width: typeof width === 'string' ? width : `${width}px`,
       height: typeof height === 'string' ? height : `${height || 24}px`
     };
     return new Array(row).fill('').map(() => (
@@ -93,10 +92,11 @@ export default class SkeletonBase extends tsc<ISkeletonBaseProps> {
   createSkeleton(option: ISkeletonOption[]) {
     return option.map(item => {
       const { widths, height, justifyContent } = item;
-      const cols = (Array.isArray(widths) ? widths : [widths]).map(width =>
-        typeof width === 'string' ? width : `${width || 0}px`
-      );
-      const heightStyle = typeof height === 'string' ? height : `${height}px`;
+      const cols = (Array.isArray(widths) ? widths : [widths]).map(width => {
+        if (width) return typeof width === 'string' ? width : `${width}px`;
+        return '100%';
+      });
+      const heightStyle = typeof height === 'string' ? height : `${height || 24}px`;
       return (
         <div
           class='skeleton-row'
@@ -116,12 +116,21 @@ export default class SkeletonBase extends tsc<ISkeletonBaseProps> {
   render() {
     return (
       <div class='skeleton-base-comp'>
-        {new Array(this.hasGroup ? this.groupNumber : 1)
-          .fill('')
-          .map(() => [
-            Array.isArray(this.title) ? this.createSkeleton(this.title) : this.createSimpleSkeleton(this.title),
-            Array.isArray(this.children) ? this.createSkeleton(this.children) : this.createSimpleSkeleton(this.children)
-          ])}
+        {new Array(this.hasGroup ? this.groupNumber : 1).fill('').map(() => [
+          <div
+            class={{
+              'skeleton-title-wrap': true,
+              'show-title': Array.isArray(this.title) ? !!this.title.length : !!this.title
+            }}
+          >
+            {Array.isArray(this.title) ? this.createSkeleton(this.title) : this.createSimpleSkeleton(this.title)}
+          </div>,
+          <div class='skeleton-body-wrap'>
+            {Array.isArray(this.children)
+              ? this.createSkeleton(this.children)
+              : this.createSimpleSkeleton(this.children)}
+          </div>
+        ])}
       </div>
     );
   }
