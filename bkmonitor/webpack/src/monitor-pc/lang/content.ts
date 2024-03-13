@@ -202,5 +202,10 @@ export default {
   "2.手动 @蓝鲸监控上云 并输入关键字'会话ID'": "2. Manually @BK-Monitor and enter the keyword 'session ID'",
   '3.将获取到的会话ID粘贴到输入框,使用逗号分隔':
     '3. Paste the obtained session ID into the input box, separated by commas',
-  '每{0}小时发送一次': 'Sent every {0} hours'
+  '每{0}小时发送一次': 'Sent every {0} hours',
+  订阅审批: 'Subscription approval',
+  审批状态: 'Approval Status',
+  已通过: 'Passed',
+  未通过: 'Not passed',
+  未审批: 'Not approved'
 };
