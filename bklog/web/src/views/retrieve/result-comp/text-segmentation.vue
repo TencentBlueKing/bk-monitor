@@ -351,7 +351,7 @@ export default {
 
   .null-item {
     min-width: 6px;
-    display: inline-block;
+    display: inline;
   }
 }
 </style>

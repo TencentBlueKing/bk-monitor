@@ -240,3 +240,27 @@ class FrequencyTypeEnum(ChoicesEnum):
     MINUTE = 1
     DAY = 2
     WEEK = 3
+
+
+class RemarkConfigEnum(ChoicesEnum):
+    ALL = "all"
+    NO_REMARK = "no_remark"
+    REMARKED = "remarked"
+
+    _choices_labels = (
+        (ALL, _("全部")),
+        (NO_REMARK, _("未备注")),
+        (REMARKED, _("已备注")),
+    )
+
+
+class OwnerConfigEnum(ChoicesEnum):
+    ALL = "all"
+    NO_OWNER = "no_owner"
+    OWNER = "owner"
+
+    _choices_labels = (
+        (ALL, _("全部")),
+        (NO_OWNER, _("未指定责任人")),
+        (OWNER, _("指定责任人")),
+    )

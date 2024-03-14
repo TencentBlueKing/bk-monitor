@@ -41,8 +41,6 @@ import App from './pages/app';
 import router from './router/router';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
-// 全量引入 bkui-vue 样式
-import 'bkui-vue/dist/style.css';
 import 'monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
 
