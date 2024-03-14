@@ -7,6 +7,7 @@
 
   .common-page-title {
     z-index: 10;
+
     .title-content {
       width: 100%;
     }
@@ -14,15 +15,23 @@
 
   &-container {
     display: flex;
-    overflow: auto;
     flex: 1;
+    overflow: auto;
+
+    .empty-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
 
     .selector-list-btn-wrap {
       display: flex;
+      align-items: center;
       font-size: 12px;
       color: #3a84ff;
       cursor: pointer;
-      align-items: center;
 
       .all-list-text {
         font-size: 12px;
@@ -47,8 +56,8 @@
 
     .dashboard-panel-wrap {
       display: flex;
-      flex-direction: column;
       flex: 1;
+      flex-direction: column;
       width: 100%;
       height: 100%;
       overflow: auto;
@@ -57,12 +66,12 @@
       .dashboard-panel-tools {
         .dashboard-panel-filter-wrap {
           background-color: #fff;
-          box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
+          box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, .05);
 
           .dashboard-panel-filter-content {
             padding: 12px 24px;
 
-            &>:not(:last-child) {
+            & > :not(:last-child) {
               margin-bottom: 22px;
             }
           }
@@ -79,11 +88,12 @@
           display: flex;
           align-items: center;
 
-          &>:not(:last-child) {
+          & > :not(:last-child) {
             margin-right: 40px;
           }
         }
       }
+
       .view-has-no-data-container {
         padding: 16px;
       }
@@ -91,13 +101,13 @@
 
     .table-wrapper {
       display: flex;
+      flex: 1;
       min-width: 500px;
       padding: 16px;
-      margin: 16px; 
+      margin: 16px;
       background-color: white;
       border-radius: 2px;
-      box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
-      flex: 1;
+      box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, .05);
     }
 
     .split-panel-wrapper {
@@ -108,10 +118,10 @@
 
   .empty-wrapper {
     display: flex;
-    width: 100%;
-    height: 100%;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    height: 100%;
   }
 
   .precise-filtering {
