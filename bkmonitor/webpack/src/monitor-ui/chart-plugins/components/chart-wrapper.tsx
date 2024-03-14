@@ -32,7 +32,6 @@ import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-conf
 // import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 
-import watermarkMaker from '../../monitor-echarts/utils/watermarkMaker';
 import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
@@ -153,11 +152,6 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
     return this.collapse === undefined ? this.panel.collapsed : this.collapse;
   }
 
-  mounted() {
-    if (window.graph_watermark) {
-      this.waterMaskImg = watermarkMaker(window.user_name || window.username);
-    }
-  }
   /**
    * @description: 供子组件更新loading的状态
    * @param {boolean} loading
@@ -550,10 +544,12 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             on-close-modal={this.handleCloseViewDetail}
           />
         )}
-        {!!this.waterMaskImg && (
+        {!window.graph_watermark && (
           <div
             class='wm'
-            style={{ backgroundImage: `url('${this.waterMaskImg}')` }}
+            v-watermark={{
+              text: window.user_name || window.username
+            }}
           ></div>
         )}
         {!!this.errorMsg && (

@@ -1,41 +1,48 @@
 .percentage-bar-chart-wrap {
+  z-index: 1;
   display: flex;
-  width: 100%;
-  height: 100%;
   flex: 1;
   flex-direction: column;
-  background-color: white;
+  width: 100%;
+  height: 100%;
   padding-right: 6px;
+
   .avr-chart-main {
     display: flex;
     flex-direction: column;
+    height: 100%;
     padding: 0 16px 16px;
     overflow: auto;
-    height: 100%;
+
     .avr-chart-table {
       flex: 1;
       width: 100%;
       text-align: center;
-      border-collapse: collapse;
       border-spacing: 0;
+      border-collapse: collapse;
+
       .avr-chart-tr {
         &:not(:last-child) {
           .avr-cell {
-            padding-bottom: 4px;
             min-height: 42px;
+            padding-bottom: 4px;
           }
         }
+
         .avr-cell {
           height: 38px;
           padding: 0;
         }
+
         .avr-cell-content {
           // height: 38px;
           height: 100%;
           background-color: #fafbfd;
         }
+
         .cell-label {
           width: 80px;
+
           .avr-cell-content {
             display: flex;
             align-items: center;
@@ -44,46 +51,55 @@
             font-size: 16px;
             color: #699df3;
             transition: font-size .2s;
+
             .num {
               font-weight: 700;
             }
+
             .unit {
-              font-size: 12px;
               margin-left: 3px;
+              font-size: 12px;
             }
           }
         }
+
         .cell-value {
           .avr-cell-content {
-            text-align: left;
             padding-right: 12px;
+            text-align: left;
           }
+
           .item-cell-bar {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
             justify-content: center;
             width: 100%;
+
             .content-label {
-              line-height: 20px;
-              margin-bottom: 4px;
               margin-top: 4px;
-              font-weight: 400;
-              color: #63656e;
+              margin-bottom: 4px;
               font-size: 12px;
+              font-weight: 400;
+              line-height: 20px;
+              color: #63656e;
               transition: font-size .2s;
             }
+
             .link-label {
               cursor: pointer;
+
               &:hover {
                 color: #3a84ff;
               }
             }
+
             .progress-bar {
-              min-height: 5px;
               width: 100%;
               height: 13%;
+              min-height: 5px;
               margin-bottom: 5px;
+
               .progress-inner {
                 height: 100%;
                 background-color: #699df3;
@@ -92,16 +108,19 @@
           }
         }
       }
+
       &.font-middle {
         .avr-chart-tr {
           .cell-label {
             .avr-cell-content {
               font-size: 20px;
+
               .unit {
                 font-size: 14px;
               }
             }
           }
+
           .cell-value {
             .item-cell-bar {
               .content-label {
@@ -112,16 +131,19 @@
           }
         }
       }
+
       &.font-large {
         .avr-chart-tr {
           .cell-label {
             .avr-cell-content {
               font-size: 24px;
+
               .unit {
                 font-size: 16px;
               }
             }
           }
+
           .cell-value {
             .item-cell-bar {
               .content-label {
@@ -133,9 +155,11 @@
         }
       }
     }
+
     .more-data-row {
-      text-align: center;
       padding-top: 8px;
+      text-align: center;
+
       .more-data-btn {
         line-height: 20px;
         color: #3a84ff;
@@ -143,11 +167,12 @@
       }
     }
   }
+
   .empty-chart {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
     height: 100%;
-    flex: 1;
   }
 }
