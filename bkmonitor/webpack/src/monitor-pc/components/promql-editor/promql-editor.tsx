@@ -37,7 +37,8 @@ import './promql-editor.scss';
 
 function editorWillMount(monaco) {
   const languageId = promLanguageDefinition.id;
-  monaco.languages.register(promLanguageDefinition);
+  const { aliases, extensions, mimetypes } = promLanguageDefinition;
+  monaco.languages.register({ id: languageId, aliases, extensions, mimetypes });
   monaco.languages.onLanguage(languageId, () => {
     monaco.languages.setMonarchTokensProvider(languageId, language);
     monaco.languages.setLanguageConfiguration(languageId, languageConfiguration);
@@ -86,7 +87,7 @@ const defalutOptions = {
   minimap: {
     enabled: false
   },
-  fontSize: 12,
+  fontSize: 14,
   codeLens: false,
   contextmenu: false,
   fixedOverflowWidgets: true,
@@ -107,8 +108,9 @@ const defalutOptions = {
   suggest: () => ({
     showWords: false
   }),
-  lineHeight: 17,
+  lineHeight: 19,
   suggestFontSize: 12,
+  suggestLineHeight: 19,
   cursorStyle: 'line-thin'
 };
 export interface IPromqlMonacoEditorProps {

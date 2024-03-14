@@ -34,9 +34,9 @@ export const languageConfiguration = {
     lineComment: '#'
   },
   brackets: [
-    ['{', '}'],
-    ['[', ']'],
-    ['(', ')']
+    // ['{', '}'],
+    // ['[', ']'],
+    // ['(', ')']
   ],
   autoClosingPairs: [
     { open: '{', close: '}' },
@@ -71,6 +71,7 @@ const aggregations = [
   'topk',
   'quantile'
 ];
+const duration = ['1m', '5m', '10m', '30m', '1h', '1d'];
 // PromQL functions
 const functions = [
   'abs',
@@ -166,7 +167,8 @@ const keywords = [
   ...functions.map(str => ({ keyword: str, type: 'functions' })),
   ...aggregationsOverTime.map(str => ({ keyword: str, type: 'aggregationsOverTime' })),
   ...vectorMatching.map(str => ({ keyword: str, type: 'vectorMatching' })),
-  ...offsetModifier.map(str => ({ keyword: str, type: 'offsetModifier' }))
+  ...offsetModifier.map(str => ({ keyword: str, type: 'offsetModifier' })),
+  ...duration.map(str => ({ keyword: str, type: 'duration' }))
 ];
 // const keywords = aggregations
 //   .concat(functions)
@@ -273,18 +275,25 @@ export const completionItemProvider = {
       return {
         label: item.keyword,
         kind: (() => {
-          if (item.type === 'functions') {
-            return languages.CompletionItemKind.Function;
+          if (item.type === 'functions' || item.type === 'aggregations' || item.type === 'aggregationsOverTime') {
+            return languages.CompletionItemKind.Variable;
           }
-          if (item.type === 'vectorMatching') {
-            return languages.CompletionItemKind.Keyword;
+          if (item.type === 'duration') {
+            return languages.CompletionItemKind.Unit;
           }
-          return languages.CompletionItemKind.Variable;
+          return languages.CompletionItemKind.Keyword;
+        })(),
+        commitCharacters: (() => {
+          if (item.type === 'duration') {
+            return ['['];
+          }
+          return ['{', ',', '(', '=', '~', ' ', '"'];
         })(),
         insertText: item.keyword,
         insertTextRules: languages.CompletionItemInsertTextRule.InsertAsSnippet
       };
     });
     return { suggestions };
-  }
+  },
+  triggerCharacters: ['{', ',', '[', '(', '=', '~', ' ', '"']
 };
