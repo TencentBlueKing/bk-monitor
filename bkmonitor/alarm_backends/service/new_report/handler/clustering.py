@@ -238,7 +238,7 @@ class ClusteringReportHandler(BaseReportHandler):
                 "filename": f"{context['title']}.csv",
                 "disposition": "attachment",
                 "type": "csv",
-                "content": base64.b64encode(clustering_content.encode()).decode(),
+                "content": base64.b64encode(clustering_content.encode('GBK')).decode(),
             }
         ]
         return attachments
