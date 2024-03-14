@@ -436,6 +436,7 @@ export default class SearchComp extends tsc<IProps> {
    * @param {String} conditionType 删除的条件交互类型
    */
   handleConditionDelete(index: number, conditionType: string) {
+    this.tagFocusInputObj = {}; // 光标如果还在输入框内 应该清空输入框的输入缓存 否则删完条件后又进行失焦回填获取不到输入框的内容而报错
     const condition = deepClone(this.conditionList[index]);
     this.conditionList.splice(index, 1);
     if (conditionType === 'ip-select') {

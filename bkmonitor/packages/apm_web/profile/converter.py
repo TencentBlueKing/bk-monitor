@@ -101,3 +101,7 @@ def get_converter_by_input_type(input_type: str):
         raise ValueError(f"Converter for {input_type} not found")
 
     return _converters[input_type]
+
+
+def list_converter() -> Dict[str, Type[Converter]]:
+    return _converters

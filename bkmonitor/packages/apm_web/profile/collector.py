@@ -90,7 +90,7 @@ class CollectorHandler:
         params = {
             "name": app_name,
             "from": _get_stamp_by_ns(profile.time_nanos),
-            "until": _get_stamp_by_ns(profile.time_nanos + profile.duration_nanos),
+            "until": _get_stamp_by_ns(int(profile.time_nanos) + int(profile.duration_nanos)),
             "spyName": "gospy",
             "sampleRate": 100,
             "units": profile.string_table[profile.sample_type[0].unit],

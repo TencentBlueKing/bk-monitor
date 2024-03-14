@@ -282,6 +282,7 @@ export default defineComponent({
                 }}
               >
                 <Upload
+                  size={50}
                   customRequest={this.handleUploadProgress as any}
                   // accept={FILES_TYPE.map(f => `.${f}`).join(',')}
                 >
