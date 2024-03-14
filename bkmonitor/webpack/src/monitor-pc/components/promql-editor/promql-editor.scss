@@ -1,4 +1,5 @@
 /* stylelint-disable declaration-no-important */
+
 .promql-editor-component {
   position: relative;
   display: flex;
@@ -13,6 +14,12 @@
 
   &.is-error {
     border-color: #ff5656;
+  }
+
+  .view-lines {
+    span {
+      font-family: Consolas, 'Courier New', monospace !important;
+    }
   }
 
   .promql-editor {
