@@ -21,11 +21,15 @@
   -->
 
 <template>
-  <div class="bk-charts-container" id="container">
+  <div
+    id="container"
+    class="bk-charts-container"
+  >
     <line-tooltips
       :data-list="dataList"
+      class="tool"
       @clickTooltips="clickTooltips"
-      class="tool" />
+    />
   </div>
 </template>
 
@@ -36,13 +40,13 @@ import LineTooltips from './line-tooltips.vue';
 
 export default {
   components: {
-    LineTooltips,
+    LineTooltips
   },
   extends: BaseSettings,
   props: {
-    series: { type: Array, default: () => ([]) },
-    labels: { type: Array, default: () => ([]) },
-    lineColor: { type: Array, default: () => ([]) },
+    series: { type: Array, default: () => [] },
+    labels: { type: Array, default: () => [] },
+    lineColor: { type: Array, default: () => [] }
   },
   data() {
     return {
@@ -57,7 +61,7 @@ export default {
         fill: false,
         pointRadius: 1,
         status: true,
-        tension: 0.4,
+        tension: 0.4
       },
       defaultTooltips: {
         mode: 'point',
@@ -67,11 +71,11 @@ export default {
         intersect: false,
         callbacks: {
           beforeTitle: (tooltipItem, data) => data.datasets[tooltipItem[0].datasetIndex].label,
-          label: tooltipItem => tooltipItem.value,
+          label: tooltipItem => tooltipItem.value
         },
-        backgroundColor: '#000000',
+        backgroundColor: '#000000'
       },
-      dataList: [],
+      dataList: []
     };
   },
   computed: {
@@ -81,7 +85,7 @@ export default {
     chartConfig() {
       return {
         labels: this.labels || [],
-        datasets: this.series.map(ds => Object.assign({}, this.defaultDataSet, ds)).slice(0, 10),
+        datasets: this.series.map(ds => Object.assign({}, this.defaultDataSet, ds)).slice(0, 10)
       };
     },
     titleConfig() {
@@ -92,13 +96,13 @@ export default {
     },
     tooltipsConfig() {
       return Object.assign({}, { animateScale: true, animateRotate: true }, this.defaultTooltips);
-    },
+    }
   },
   watch: {
     series: {
       handler: 'handleDataChanged',
-      immediate: true,
-    },
+      immediate: true
+    }
   },
   created() {
     this.series.forEach((item, index) => {
@@ -107,7 +111,7 @@ export default {
         fill: false,
         backgroundColor: this.lineColor[index % this.lineColor.length],
         borderColor: this.lineColor[index % this.lineColor.length],
-        tension: 0.4,
+        tension: 0.4
       });
     });
     this.dataList = JSON.parse(JSON.stringify(this.series));
@@ -131,8 +135,8 @@ export default {
         responsive: this.responsive,
         plugins: {
           legend: this.legendConfig,
-          title: this.titleConfig,
-        },
+          title: this.titleConfig
+        }
         // tooltips: this.tooltipsConfig
       });
     },
@@ -140,7 +144,7 @@ export default {
       this.instance = new BKChart(this.context, {
         type: this.type,
         data: chartConfig,
-        options: opts,
+        options: opts
       });
     },
     clickTooltips(item, ind, type) {
@@ -190,19 +194,19 @@ export default {
         this.lastNum = ind;
       }
       this.instance.update();
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  #container {
-    position: relative;
-    padding-bottom: 60px;
-  }
+#container {
+  position: relative;
+  padding-bottom: 60px;
+}
 
-  .tool {
-    position: absolute;
-    bottom: 0px;
-  }
+.tool {
+  position: absolute;
+  bottom: 0px;
+}
 </style>

@@ -22,16 +22,20 @@
 
 <template>
   <div id="tooltips">
-    <template v-for="(item, ind) in dataList">
+    <template>
       <span
+        v-for="(item, ind) in dataList"
         :key="ind"
         :class="['tooltips-item', { 'tooltips-disabled': !item.status }]"
-        @click="clickTooltips(item, ind)">
+        @click="clickTooltips(item, ind)"
+      >
         <i
           class="tooltips-tips"
           :style="`background: ${item.backgroundColor}`"
           @click.shift.stop="clickShiftTooltips(item, ind, 'shift')"
-        ></i><span @click.shift.stop="clickShiftTooltips(item, ind, 'shift')">{{item.label}}</span></span>
+        ></i
+        ><span @click.shift.stop="clickShiftTooltips(item, ind, 'shift')">{{ item.label }}</span></span
+      >
     </template>
   </div>
 </template>
@@ -43,7 +47,7 @@ export default {
   name: 'LineTooltips',
   extends: BaseSettings,
   props: {
-    dataList: { type: Array, default: () => ([]) },
+    dataList: { type: Array, default: () => [] }
   },
   methods: {
     clickTooltips(item, ind) {
@@ -51,45 +55,45 @@ export default {
     },
     clickShiftTooltips(item, ind, type) {
       this.$emit('clickTooltips', item, ind, type);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  #tooltips {
-    height: 60px;
-    margin-top: 20px;
-    overflow-y: auto;
-    padding: 0 30px;
+#tooltips {
+  height: 60px;
+  margin-top: 20px;
+  overflow-y: auto;
+  padding: 0 30px;
 
-    .tooltips-item {
+  .tooltips-item {
+    display: inline-block;
+    height: 20px;
+    line-height: 20px;
+    font-size: 12px;
+    margin-right: 32px;
+    padding-bottom: 10px;
+    cursor: pointer;
+    color: #6e7079;
+
+    .tooltips-tips {
       display: inline-block;
-      height: 20px;
-      line-height: 20px;
-      font-size: 12px;
-      margin-right: 32px;
-      padding-bottom: 10px;
-      cursor: pointer;
-      color: #6e7079;
-
-      .tooltips-tips {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-right: 5px;
-        margin-top: 1px;
-      }
-    }
-
-    .tooltips-disabled {
-      color: #dcdee5;
-
-      .tooltips-tips {
-        /* stylelint-disable-next-line declaration-no-important */
-        background: #dcdee5 !important;
-      }
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+      margin-top: 1px;
     }
   }
+
+  .tooltips-disabled {
+    color: #dcdee5;
+
+    .tooltips-tips {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: #dcdee5 !important;
+    }
+  }
+}
 </style>

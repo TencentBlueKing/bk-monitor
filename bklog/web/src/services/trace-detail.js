@@ -22,21 +22,17 @@
 
 const getTableField = {
   url: '/trace/index_set/:index_set_id/fields/',
-  method: 'get',
+  method: 'get'
 };
 
 const postTableField = {
   url: '/trace/index_set/:index_set_id/config/',
-  method: 'post',
+  method: 'post'
 };
 
 const getTableData = {
   url: '/trace/index_set/:index_set_id/search/trace_id/',
-  method: 'post',
+  method: 'post'
 };
 
-export {
-  getTableField,
-  postTableField,
-  getTableData,
-};
+export { getTableField, postTableField, getTableData };

@@ -25,17 +25,17 @@ export default {
   props: {
     width: String,
     height: String,
-    series: { type: Array, default: () => ([]) },
-    legend: { type: Array, default: () => ([]) },
+    series: { type: Array, default: () => [] },
+    legend: { type: Array, default: () => [] },
     animation: { type: Object, default: () => ({}) },
-    yAxis: { type: Array, default: () => ([]) },
-    labels: { type: Array, default: () => ([]) },
+    yAxis: { type: Array, default: () => [] },
+    labels: { type: Array, default: () => [] },
     title: { type: Object, default: () => ({}) },
     options: { type: Object, default: () => ({}) },
     responsive: {
       type: Boolean,
-      default: true,
-    },
+      default: true
+    }
   },
   data() {
     return {
@@ -46,7 +46,7 @@ export default {
         green: 'rgb(75, 192, 192)',
         blue: 'rgb(54, 162, 235)',
         purple: 'rgb(153, 102, 255)',
-        grey: 'rgb(201, 203, 207)',
+        grey: 'rgb(201, 203, 207)'
       },
       containerNode: null,
       container: null,
@@ -64,12 +64,12 @@ export default {
             rangeMin: {
               // Format of min pan range depends on scale type
               x: null,
-              y: null,
+              y: null
             },
             rangeMax: {
               // Format of max pan range depends on scale type
               x: null,
-              y: null,
+              y: null
             },
             speed: 20,
 
@@ -78,12 +78,12 @@ export default {
 
             // Function called while the user is panning
             onPan: () => {
-              console.log('I\'m panning!!!');
+              console.log("I'm panning!!!");
             },
             // Function called once panning is completed
             onPanComplete: () => {
               console.log('I was panned!!!');
-            },
+            }
           },
 
           // Container for zoom options
@@ -98,12 +98,12 @@ export default {
             rangeMin: {
               // Format of min zoom range depends on scale type
               x: null,
-              y: null,
+              y: null
             },
             rangeMax: {
               // Format of max zoom range depends on scale type
               x: null,
-              y: null,
+              y: null
             },
 
             // Speed of zoom via mouse wheel
@@ -115,15 +115,15 @@ export default {
 
             // Function called while the user is zooming
             onZoom: () => {
-              console.log('I\'m zooming!!!');
+              console.log("I'm zooming!!!");
             },
             // Function called once zooming is completed
             onZoomComplete: () => {
               console.log('I was zoomed!!!');
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     };
   },
   methods: {
@@ -149,6 +149,6 @@ export default {
       }
 
       this.context = this.container.getContext('2d');
-    },
-  },
+    }
+  }
 };

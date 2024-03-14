@@ -23,11 +23,19 @@
 <template>
   <div class="auth-page">
     <div class="auth-page-container">
-      <img src="../../images/lock-radius.svg" alt="lock" class="lock-icon" />
+      <img
+        src="../../images/lock-radius.svg"
+        alt="lock"
+        class="lock-icon"
+      />
       <div class="flex-jsb">
-        <div class="detail">{{ $t("您没有相应资源的访问权限") }}</div>
-        <bk-button class="king-button" theme="primary" @click="confirmPageApply">
-          {{ $t("去申请") }}
+        <div class="detail">{{ $t('您没有相应资源的访问权限') }}</div>
+        <bk-button
+          class="king-button"
+          theme="primary"
+          @click="confirmPageApply"
+        >
+          {{ $t('去申请') }}
         </bk-button>
       </div>
       <div class="permission-container">
@@ -43,20 +51,29 @@
           <table class="permission-table">
             <tbody>
               <template v-if="authorityDetail.actions && authorityDetail.actions.length > 0">
-                <tr v-for="(action, index) in authorityDetail.actions" :key="index">
+                <tr
+                  v-for="(action, index) in authorityDetail.actions"
+                  :key="index"
+                >
                   <td width="30%">{{ action.name }}</td>
                   <td width="50%">
                     <p
-                      class="resource-type-item"
                       v-for="(reItem, reIndex) in getResource(action.related_resource_types)"
-                      :key="reIndex">
+                      :key="reIndex"
+                      class="resource-type-item"
+                    >
                       {{ reItem }}
                     </p>
                   </td>
                 </tr>
               </template>
               <tr v-else>
-                <td class="no-data" colspan="3">{{ $t('无数据') }}</td>
+                <td
+                  class="no-data"
+                  colspan="3"
+                >
+                  {{ $t('无数据') }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -71,18 +88,18 @@ export default {
   props: {
     info: {
       type: Object,
-      default: () => ({}),
-    },
+      default: () => ({})
+    }
   },
   data() {
     return {
-      authNames: '',
+      authNames: ''
     };
   },
   computed: {
     authorityDetail() {
       return this.info.apply_data || {};
-    },
+    }
   },
   methods: {
     confirmPageApply() {
@@ -91,13 +108,16 @@ export default {
     getResource(related) {
       if (!Array.isArray(related)) return [];
       try {
-        return related[0].instances[0].reduce((pre, cur) => (pre.push(`${cur.type_name}: [${cur.id}] ${cur.name}`), pre), []);
+        return related[0].instances[0].reduce(
+          (pre, cur) => (pre.push(`${cur.type_name}: [${cur.id}] ${cur.name}`), pre),
+          []
+        );
       } catch (error) {
         console.warn(error);
         return [];
       }
-    },
-  },
+    }
+  }
 };
 </script>
 

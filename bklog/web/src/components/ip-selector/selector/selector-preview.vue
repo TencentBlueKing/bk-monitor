@@ -21,10 +21,11 @@
   -->
 
 <template>
-  <div 
+  <div
     class="selector-preview"
     :style="{ width: isNaN(preWidth) ? preWidth : `${preWidth}px` }"
-    v-show="isNaN(preWidth) || preWidth > 0">
+    v-show="isNaN(preWidth) || preWidth > 0"
+  >
     <div class="selector-preview-title">
       <slot name="title">{{ $t('结果预览') }}</slot>
     </div>
@@ -35,36 +36,53 @@
           :key="item.id"
           :name="item.id"
           hide-arrow
-          v-show="item.data && item.data.length">
+          v-show="item.data && item.data.length"
+        >
           <template #default>
             <div class="collapse-title">
               <span class="collapse-title-left">
                 <i :class="['bk-icon icon-angle-right', { expand: activeName.includes(item.id) }]"></i>
-                <slot name="collapse-title" v-bind="{ item }">
+                <slot
+                  name="collapse-title"
+                  v-bind="{ item }"
+                >
                   <i18n path="已选 {0} 个">
                     <span class="num">{{ item.data.length }}</span>
                   </i18n>
                 </slot>
               </span>
-              <span class="collapse-title-right" @click.stop="handleShowMenu($event, item)">
+              <span
+                class="collapse-title-right"
+                @click.stop="handleShowMenu($event, item)"
+              >
                 <i class="bk-icon icon-more"></i>
               </span>
             </div>
           </template>
           <template #content>
-            <slot name="collapse-content" v-bind="{ item }">
+            <slot
+              name="collapse-content"
+              v-bind="{ item }"
+            >
               <ul class="collapse-content">
-                <li v-for="(child, index) in item.data"
-                    :key="index"
-                    class="collapse-content-item"
-                    @mouseenter="hoverChild = child"
-                    @mouseleave="hoverChild = null">
-                  <span class="left" :title="child[item.dataNameKey] || child.name || '--'">
+                <li
+                  v-for="(child, index) in item.data"
+                  :key="index"
+                  class="collapse-content-item"
+                  @mouseenter="hoverChild = child"
+                  @mouseleave="hoverChild = null"
+                >
+                  <span
+                    class="left"
+                    :title="child[item.dataNameKey] || child.name || '--'"
+                  >
                     {{ child[item.dataNameKey] || child.name || '--' }}
                   </span>
-                  <span class="right"
-                        v-show="hoverChild === child"
-                        @click="removeNode(child, item)">
+                  <span
+                    class="right"
+                    v-show="hoverChild === child"
+                    @click="removeNode(child, item)"
+                  >
                     <i class="bk-icon icon-close-line"></i>
                   </span>
                 </li>
@@ -74,24 +92,27 @@
         </bk-collapse-item>
       </bk-collapse>
     </div>
-    <div class="drag" @mousedown="handleMouseDown"></div>
+    <div
+      class="drag"
+      @mousedown="handleMouseDown"
+    ></div>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop, Emit, Watch } from 'vue-property-decorator'
-import { IPreviewData, IMenu, IPerateFunc } from '../types/selector-type'
-import { Debounce } from '../common/util'
-import Menu from '../components/menu.vue'
+import { Component, Vue, Prop, Emit, Watch } from 'vue-property-decorator';
+import { IPreviewData, IMenu, IPerateFunc } from '../types/selector-type';
+import { Debounce } from '../common/util';
+import Menu from '../components/menu.vue';
 
 // 预览区域
 @Component({ name: 'selector-preview' })
 export default class SelectorPreview extends Vue {
-  @Prop({ default: 280, type: [Number, String] }) private readonly width!: number | string
-  @Prop({ default: () => [100, 600], type: Array }) private readonly range!: number[]
-  @Prop({ default: () => [], type: Array }) private readonly data!: any[]
-  @Prop({ default: () => [], type: [Array, Function] }) private readonly operateList!: IMenu[] | IPerateFunc
-  @Prop({ default: () => [], type: Array }) private readonly defaultActiveName!: string[]
+  @Prop({ default: 280, type: [Number, String] }) private readonly width!: number | string;
+  @Prop({ default: () => [100, 600], type: Array }) private readonly range!: number[];
+  @Prop({ default: () => [], type: Array }) private readonly data!: any[];
+  @Prop({ default: () => [], type: [Array, Function] }) private readonly operateList!: IMenu[] | IPerateFunc;
+  @Prop({ default: () => [], type: Array }) private readonly defaultActiveName!: string[];
 
   private preWidth: number | string = 280;
   private activeName: string[] = [];
@@ -108,20 +129,20 @@ export default class SelectorPreview extends Vue {
 
   @Watch('width')
   private handleChange(width: number) {
-    this.preWidth = width
+    this.preWidth = width;
   }
 
   private beforeDestroy() {
     if (this.menuInstance) {
-      this.menuInstance.$off('click', this.handleMenuClick)
-      this.menuInstance.$destroy()
+      this.menuInstance.$off('click', this.handleMenuClick);
+      this.menuInstance.$destroy();
     }
   }
 
   @Debounce(300)
   @Emit('update:width')
   private handleWidthChange() {
-    return this.preWidth
+    return this.preWidth;
   }
 
   @Emit('menu-click')
@@ -129,38 +150,36 @@ export default class SelectorPreview extends Vue {
     return {
       menu,
       item
-    }
+    };
   }
 
   @Emit('remove-node')
   private removeNode(child: any, item: IPreviewData) {
-    const index = item.data.indexOf(child)
-    this.hoverChild = index > -1 && item.data[index + 1] ? item.data[index + 1] : null
+    const index = item.data.indexOf(child);
+    this.hoverChild = index > -1 && item.data[index + 1] ? item.data[index + 1] : null;
     return {
       child,
       item
-    }
+    };
   }
 
   private handleMenuClick(menu: IMenu) {
-    this.popoverInstance && this.popoverInstance.hide()
-    this.handleMenuItemClick(menu, this.previewItem)
+    this.popoverInstance && this.popoverInstance.hide();
+    this.handleMenuItemClick(menu, this.previewItem);
   }
 
   private async handleShowMenu(event: Event, item: IPreviewData) {
-    if (!event.target) return
+    if (!event.target) return;
 
-    const list = typeof this.operateList === 'function'
-      ? await this.operateList(item)
-      : this.operateList
+    const list = typeof this.operateList === 'function' ? await this.operateList(item) : this.operateList;
 
-    if (!list || !list.length) return
+    if (!list || !list.length) return;
 
-    this.menuInstance.$props.list = list
+    this.menuInstance.$props.list = list;
 
-    this.previewItem = item
-    this.menuInstance.$off('click', this.handleMenuClick)
-    this.menuInstance.$on('click', this.handleMenuClick)
+    this.previewItem = item;
+    this.menuInstance.$off('click', this.handleMenuClick);
+    this.menuInstance.$on('click', this.handleMenuClick);
 
     this.popoverInstance = this.$bkPopover(event.target, {
       content: this.menuInstance.$el,
@@ -175,193 +194,193 @@ export default class SelectorPreview extends Vue {
       boundary: 'window',
       placement: 'bottom',
       onHidden: () => {
-        this.popoverInstance && this.popoverInstance.destroy()
-        this.popoverInstance = null
+        this.popoverInstance && this.popoverInstance.destroy();
+        this.popoverInstance = null;
       }
-    })
-    this.popoverInstance.show()
+    });
+    this.popoverInstance.show();
   }
 
   private handleMouseDown(e: MouseEvent) {
-    const node = e.target as HTMLElement
-    const parentNode = node.parentNode as HTMLElement
+    const node = e.target as HTMLElement;
+    const parentNode = node.parentNode as HTMLElement;
 
-    if (!parentNode) return
+    if (!parentNode) return;
 
-    const nodeRect = node.getBoundingClientRect()
-    const rect = parentNode.getBoundingClientRect()
+    const nodeRect = node.getBoundingClientRect();
+    const rect = parentNode.getBoundingClientRect();
     document.onselectstart = function () {
-      return false
-    }
+      return false;
+    };
     document.ondragstart = function () {
-      return false
-    }
+      return false;
+    };
     const handleMouseMove = (event: MouseEvent) => {
-      const [min, max] = this.range
-      const newWidth = rect.right - event.clientX + nodeRect.width
+      const [min, max] = this.range;
+      const newWidth = rect.right - event.clientX + nodeRect.width;
       if (newWidth < min) {
-        this.preWidth = 0
+        this.preWidth = 0;
       } else {
-        this.preWidth = Math.min(newWidth, max)
+        this.preWidth = Math.min(newWidth, max);
       }
-      this.handleWidthChange()
-    }
+      this.handleWidthChange();
+    };
     const handleMouseUp = () => {
-      document.body.style.cursor = ''
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      document.onselectstart = null
-      document.ondragstart = null
-    }
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.onselectstart = null;
+      document.ondragstart = null;
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }
 }
 </script>
 
 <style>
-  .ip-selector-theme {
-    /* stylelint-disable-next-line declaration-no-important */
-    padding: 0 !important;
+.ip-selector-theme {
+  /* stylelint-disable-next-line declaration-no-important */
+  padding: 0 !important;
+}
+</style>
+<style lang="scss" scoped>
+:deep(.bk-collapse-item) {
+  margin-bottom: 10px;
+
+  .bk-collapse-item-header {
+    padding: 0;
+    height: 24px;
+    line-height: 24px;
+
+    &:hover {
+      color: #63656e;
+    }
   }
-  </style>
-  <style lang="scss" scoped>
-  :deep(.bk-collapse-item) {
-    margin-bottom: 10px;
+}
 
-    .bk-collapse-item-header {
-      padding: 0;
-      height: 24px;
-      line-height: 24px;
+.selector-preview {
+  border: 1px solid #dcdee5;
+  background: #f5f6fa;
+  position: relative;
+  height: 100%;
 
-      &:hover {
-        color: #63656e;
+  &-title {
+    color: #313238;
+    font-size: 14px;
+    line-height: 22px;
+    padding: 10px 24px;
+  }
+
+  &-content {
+    height: calc(100% - 42px);
+    overflow: auto;
+
+    .collapse-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px 0 18px;
+
+      &-left {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+
+        .num {
+          color: #3a84ff;
+          font-weight: 700;
+          padding: 0 2px;
+        }
+      }
+
+      &-right {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 2px;
+
+        &:hover {
+          background: #e1ecff;
+          color: #3a84ff;
+        }
+
+        i {
+          font-size: 18px;
+          outline: 0;
+        }
       }
     }
-  }
 
-  .selector-preview {
-    border: 1px solid #dcdee5;
-    background: #f5f6fa;
-    position: relative;
-    height: 100%;
+    .collapse-content {
+      padding: 0 14px;
+      margin-top: 6px;
 
-    &-title {
-      color: #313238;
-      font-size: 14px;
-      line-height: 22px;
-      padding: 10px 24px;
-    }
-
-    &-content {
-      height: calc(100% - 42px);
-      overflow: auto;
-
-      .collapse-title {
+      &-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0 24px 0 18px;
+        height: 32px;
+        line-height: 32px;
+        background: #fff;
+        padding: 0 12px;
+        border-radius: 2px;
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.06);
+        margin-bottom: 2px;
 
-        &-left {
-          display: flex;
-          align-items: center;
-          font-size: 12px;
-
-          .num {
-            color: #3a84ff;
-            font-weight: 700;
-            padding: 0 2px;
-          }
+        .left {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          word-break: break-all;
         }
 
-        &-right {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-          border-radius: 2px;
-
-          &:hover {
-            background: #e1ecff;
-            color: #3a84ff;
-          }
+        .right {
+          cursor: pointer;
+          color: #3a84ff;
 
           i {
-            font-size: 18px;
-            outline: 0;
+            font-weight: 700;
           }
-        }
-      }
-
-      .collapse-content {
-        padding: 0 14px;
-        margin-top: 6px;
-
-        &-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          height: 32px;
-          line-height: 32px;
-          background: #fff;
-          padding: 0 12px;
-          border-radius: 2px;
-          box-shadow: 0px 1px 2px 0px rgba(0,0,0,.06);
-          margin-bottom: 2px;
-
-          .left {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            word-break: break-all;
-          }
-
-          .right {
-            cursor: pointer;
-            color: #3a84ff;
-
-            i {
-              font-weight: 700;
-            }
-          }
-        }
-      }
-
-      .icon-angle-right {
-        font-size: 24px;
-        transition: transform .2s ease-in-out;
-
-        &.expand {
-          transform: rotate(90deg);
         }
       }
     }
-  }
 
-  .drag {
+    .icon-angle-right {
+      font-size: 24px;
+      transition: transform 0.2s ease-in-out;
+
+      &.expand {
+        transform: rotate(90deg);
+      }
+    }
+  }
+}
+
+.drag {
+  position: absolute;
+  left: 0px;
+  top: calc(50% - 10px);
+  width: 6px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-items: center;
+  outline: 0;
+
+  &::after {
+    content: ' ';
+    height: 18px;
+    width: 0;
+    border-left: 2px dotted #c4c6cc;
     position: absolute;
-    left: 0px;
-    top: calc(50% - 10px);
-    width: 6px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-items: center;
-    outline: 0;
-
-    &::after {
-      content: ' ';
-      height: 18px;
-      width: 0;
-      border-left: 2px dotted #c4c6cc;
-      position: absolute;
-      left: 2px;
-    }
-
-    &:hover {
-      cursor: col-resize;
-    }
+    left: 2px;
   }
+
+  &:hover {
+    cursor: col-resize;
+  }
+}
 </style>

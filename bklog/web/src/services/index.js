@@ -52,27 +52,27 @@ import * as masking from './masking';
 
 const getMyProjectList = {
   url: '/meta/projects/mine/',
-  method: 'get',
+  method: 'get'
 };
 
 const getMySpaceList = {
   url: '/meta/spaces/mine/',
-  method: 'get',
+  method: 'get'
 };
 const frontendEventReport = {
   url: '/frontend_event/report/',
-  method: 'post',
+  method: 'post'
 };
 
 export default {
   project: {
-    getMyProjectList,
+    getMyProjectList
   },
   space: {
-    getMySpaceList,
+    getMySpaceList
   },
   report: {
-    frontendEventReport,
+    frontendEventReport
   },
   userInfo,
   example,
@@ -102,5 +102,5 @@ export default {
   favorite,
   ipChooser,
   authorization,
-  masking,
+  masking
 };

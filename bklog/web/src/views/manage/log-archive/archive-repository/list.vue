@@ -21,48 +21,67 @@
   -->
 
 <template>
-  <section class="log-archive-repository" data-test-id="archive_section_storehouseContainer">
+  <section
+    class="log-archive-repository"
+    data-test-id="archive_section_storehouseContainer"
+  >
     <section class="top-operation">
       <bk-button
         class="fl"
         theme="primary"
         data-test-id="storehouseContainer_button_addNewStoreHouse"
-        @click="handleCreate">
+        @click="handleCreate"
+      >
         {{ $t('新建') }}
       </bk-button>
       <div class="repository-search fr">
         <bk-input
+          v-model="params.keyword"
           :clearable="true"
           :right-icon="'bk-icon icon-search'"
-          v-model="params.keyword"
           data-test-id="storehouseContainer_input_searchTableItem"
           @enter="handleSearch"
-          @change="handleSearchChange">
+          @change="handleSearchChange"
+        >
         </bk-input>
       </div>
     </section>
-    <section class="log-repository-table" data-test-id="storehouseContainer_section_tableList">
+    <section
+      class="log-repository-table"
+      data-test-id="storehouseContainer_section_tableList"
+    >
       <bk-table
+        ref="repositoryTable"
+        v-bkloading="{ isLoading: isTableLoading }"
         class="repository-table"
         :data="tableDataPaged"
-        v-bkloading="{ isLoading: isTableLoading }"
         :pagination="pagination"
         :limit-list="pagination.limitList"
-        ref="repositoryTable"
         @filter-change="handleFilterChange"
         @page-change="handlePageChange"
-        @page-limit-change="handleLimitChange">
-        <bk-table-column :label="$t('集群ID')" :render-header="$renderHeader" width="120">
+        @page-limit-change="handleLimitChange"
+      >
+        <bk-table-column
+          :label="$t('集群ID')"
+          :render-header="$renderHeader"
+          width="120"
+        >
           <template slot-scope="props">
             {{ props.row.cluster_id }}
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('仓库名称')" :render-header="$renderHeader">
+        <bk-table-column
+          :label="$t('仓库名称')"
+          :render-header="$renderHeader"
+        >
           <template slot-scope="props">
             {{ props.row.repository_name }}
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('ES集群')" :render-header="$renderHeader">
+        <bk-table-column
+          :label="$t('ES集群')"
+          :render-header="$renderHeader"
+        >
           <template slot-scope="props">
             {{ props.row.cluster_name }}
           </template>
@@ -74,7 +93,8 @@
           class-name="filter-column"
           column-key="type"
           :filters="repositoryFilters"
-          :filter-multiple="false">
+          :filter-multiple="false"
+        >
           <template slot-scope="props">
             {{ repoTypeMap[props.row.type] }}
           </template>
@@ -86,23 +106,37 @@
           class-name="filter-column"
           column-key="cluster_source_type"
           :filters="sourceFilters"
-          :filter-multiple="false">
+          :filter-multiple="false"
+        >
           <template slot-scope="props">
             {{ props.row.cluster_source_name }}
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('创建人')" :render-header="$renderHeader">
+        <bk-table-column
+          :label="$t('创建人')"
+          :render-header="$renderHeader"
+        >
           <template slot-scope="props">
             {{ props.row.creator }}
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('创建时间')" :render-header="$renderHeader">
+        <bk-table-column
+          :label="$t('创建时间')"
+          :render-header="$renderHeader"
+        >
           <template slot-scope="props">
             {{ props.row.create_time }}
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('操作')" :render-header="$renderHeader" width="160">
-          <div class="repository-table-operate" slot-scope="props">
+        <bk-table-column
+          :label="$t('操作')"
+          :render-header="$renderHeader"
+          width="160"
+        >
+          <div
+            slot-scope="props"
+            class="repository-table-operate"
+          >
             <!-- 编辑 -->
             <!-- <bk-button
               theme="primary"
@@ -114,17 +148,21 @@
             </bk-button> -->
             <!-- 删除 -->
             <bk-button
+              v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]) }"
               theme="primary"
               text
               class="mr10 king-button"
-              v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]) }"
-              @click.stop="operateHandler(props.row, 'delete')">
+              @click.stop="operateHandler(props.row, 'delete')"
+            >
               {{ $t('删除') }}
             </bk-button>
           </div>
         </bk-table-column>
         <div slot="empty">
-          <empty-status :empty-type="emptyType" @operation="handleOperation" />
+          <empty-status
+            :empty-type="emptyType"
+            @operation="handleOperation"
+          />
         </div>
       </bk-table>
     </section>
@@ -149,7 +187,7 @@ export default {
   name: 'ArchiveRepository',
   components: {
     RepositorySlider,
-    EmptyStatus,
+    EmptyStatus
   },
   data() {
     return {
@@ -166,55 +204,55 @@ export default {
         current: 1,
         count: 0,
         limit: 10,
-        limitList: [10, 20, 50, 100],
+        limitList: [10, 20, 50, 100]
       },
       params: {
-        keyword: '',
+        keyword: ''
       },
       filterConditions: {
         type: '',
-        cluster_source_type: '',
+        cluster_source_type: ''
       },
       repoTypeMap: {
         hdfs: 'HDFS',
         fs: this.$t('共享目录'),
-        cos: 'COS',
+        cos: 'COS'
       },
       emptyType: 'empty',
       filterSearchObj: {},
-      isFilterSearch: false,
+      isFilterSearch: false
     };
   },
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
-      globalsData: 'globals/globalsData',
+      globalsData: 'globals/globalsData'
     }),
     authorityMap() {
       return authorityMap;
     },
     repositoryFilters() {
       const target = [];
-      Object.keys(this.repoTypeMap).map((item) => {
+      Object.keys(this.repoTypeMap).map(item => {
         target.push({
           text: this.repoTypeMap[item],
-          value: item,
+          value: item
         });
       });
       return target;
     },
     sourceFilters() {
-      const { es_source_type } = this.globalsData;
+      const { es_source_type: esSourceType } = this.globalsData;
       const target = [];
-      // eslint-disable-next-line camelcase
-      es_source_type && es_source_type.forEach((data) => {
-        target.push({
-          text: data.name,
-          value: data.id,
+      esSourceType &&
+        esSourceType.forEach(data => {
+          target.push({
+            text: data.name,
+            value: data.id
+          });
         });
-      });
       return target;
-    },
+    }
   },
   created() {
     this.getTableData();
@@ -223,7 +261,7 @@ export default {
     handleSearch() {
       this.isTableLoading = true;
       if (this.params.keyword) {
-        this.tableDataSearched = this.tableDataOrigin.filter((item) => {
+        this.tableDataSearched = this.tableDataOrigin.filter(item => {
           if (item.repository_name) {
             return (item.repository_name + item.cluster_name).includes(this.params.keyword);
           }
@@ -240,21 +278,23 @@ export default {
     },
     getTableData() {
       this.isTableLoading = true;
-      this.$http.request('archive/getRepositoryList', {
-        query: {
-          bk_biz_id: this.bkBizId,
-        },
-      }).then((res) => {
-        const { data } = res;
-        if (!data.length) {
-          return;
-        }
-        this.tableDataOrigin = data;
-        this.tableDataSearched = data;
-        this.pagination.count = data.length;
-        this.computePageData();
-      })
-        .catch((err) => {
+      this.$http
+        .request('archive/getRepositoryList', {
+          query: {
+            bk_biz_id: this.bkBizId
+          }
+        })
+        .then(res => {
+          const { data } = res;
+          if (!data.length) {
+            return;
+          }
+          this.tableDataOrigin = data;
+          this.tableDataSearched = data;
+          this.pagination.count = data.length;
+          this.computePageData();
+        })
+        .catch(err => {
           console.warn(err);
           this.emptyType = '500';
         })
@@ -264,15 +304,15 @@ export default {
     },
     // 根据分页数据过滤表格
     computePageData() {
-      this.emptyType = (this.params.keyword || this.isFilterSearch) ? 'search-empty' : 'empty';
+      this.emptyType = this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
       const { current, limit } = this.pagination;
       const start = (current - 1) * limit;
       const end = this.pagination.current * this.pagination.limit;
       this.tableDataPaged = this.tableDataSearched.slice(start, end);
     },
     handleFilterChange(data) {
-      Object.keys(data).forEach((item) => {
-        this.tableDataSearched = this.tableDataOrigin.filter((repo) => {
+      Object.keys(data).forEach(item => {
+        this.tableDataSearched = this.tableDataOrigin.filter(repo => {
           this.filterConditions[item] = Object.values(data)[0][0];
           const { type, cluster_source_type: clusterType } = this.filterConditions;
           if (!type && !clusterType) return true;
@@ -280,7 +320,7 @@ export default {
           return repo.type === type || repo.cluster_source_type === clusterType;
         });
       });
-      Object.entries(data).forEach(([key, value]) => this.filterSearchObj[key] = value.length);
+      Object.entries(data).forEach(([key, value]) => (this.filterSearchObj[key] = value.length));
       this.isFilterSearch = Object.values(this.filterSearchObj).reduce((pre, cur) => ((pre += cur), pre), 0);
       this.pagination.current = 1;
       this.pagination.count = this.tableDataSearched.length;
@@ -319,13 +359,15 @@ export default {
       this.getTableData();
     },
     operateHandler(row, operateType) {
-      if (!(row.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH])) {
+      if (!row.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
         return this.getOptionApplyData({
           action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
-          resources: [{
-            type: 'es_source',
-            id: row.cluster_id,
-          }],
+          resources: [
+            {
+              type: 'es_source',
+              id: row.cluster_id
+            }
+          ]
         });
       }
 
@@ -341,29 +383,31 @@ export default {
           subTitle: this.$t('当前仓库名称为{n}，确认要删除？', { n: row.repository_name }),
           confirmFn: () => {
             this.requestDeleteRepo(row);
-          },
+          }
         });
       }
     },
     requestDeleteRepo(row) {
-      this.$http.request('archive/deleteRepository', {
-        data: {
-          cluster_id: row.cluster_id,
-          snapshot_repository_name: row.repository_name,
-        },
-      }).then((res) => {
-        if (res.result) {
-          this.messageSuccess(this.$t('删除成功'));
-          if (this.tableDataPaged.length <= 1) {
-            this.pagination.current = this.pagination.current > 1 ? this.pagination.current - 1 : 1;
+      this.$http
+        .request('archive/deleteRepository', {
+          data: {
+            cluster_id: row.cluster_id,
+            snapshot_repository_name: row.repository_name
           }
-          const deleteIndex = this.tableDataSearched.findIndex((item) => {
-            return item.repository_name === row.repository_name;
-          });
-          this.tableDataSearched.splice(deleteIndex, 1);
-          this.computePageData();
-        }
-      })
+        })
+        .then(res => {
+          if (res.result) {
+            this.messageSuccess(this.$t('删除成功'));
+            if (this.tableDataPaged.length <= 1) {
+              this.pagination.current = this.pagination.current > 1 ? this.pagination.current - 1 : 1;
+            }
+            const deleteIndex = this.tableDataSearched.findIndex(item => {
+              return item.repository_name === row.repository_name;
+            });
+            this.tableDataSearched.splice(deleteIndex, 1);
+            this.computePageData();
+          }
+        })
         .catch(() => {});
     },
     async getOptionApplyData(paramData) {
@@ -398,39 +442,39 @@ export default {
         this.handleSearch();
         return;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/devops-common.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
 
-  .log-archive-repository {
-    padding: 20px 24px;
+.log-archive-repository {
+  padding: 20px 24px;
 
-    .top-operation {
-      margin-bottom: 20px;
+  .top-operation {
+    margin-bottom: 20px;
 
-      @include clearfix;
+    @include clearfix;
 
-      .bk-button {
-        width: 120px;
-      }
+    .bk-button {
+      width: 120px;
     }
+  }
 
-    .repository-search {
-      width: 320px;
-    }
+  .repository-search {
+    width: 320px;
+  }
 
-    .repository-table {
-      .filter-column {
-        .cell {
-          display: flex;
-        }
+  .repository-table {
+    .filter-column {
+      .cell {
+        display: flex;
       }
     }
   }
+}
 </style>

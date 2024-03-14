@@ -22,13 +22,22 @@
 
 <template>
   <div class="log-slog-content">
-    <bk-table height="100%" :border="true" :data="logList">
+    <bk-table
+      height="100%"
+      :border="true"
+      :data="logList"
+    >
       <bk-table-column
-        v-for="(field, index) in logFields" :key="index"
+        v-for="(field, index) in logFields"
+        :key="index"
         :label="field.field_alias || field.field_name"
-        :min-width="field.field_name === 'log' ? 300 : 100">
-        <div class="table-ceil-container" slot-scope="{ row }">
-          <span v-bk-overflow-tips>{{tableRowDeepView(row, field.field_name, field.field_type)}}</span>
+        :min-width="field.field_name === 'log' ? 300 : 100"
+      >
+        <div
+          slot-scope="{ row }"
+          class="table-ceil-container"
+        >
+          <span v-bk-overflow-tips>{{ tableRowDeepView(row, field.field_name, field.field_type) }}</span>
         </div>
       </bk-table-column>
     </bk-table>
@@ -43,24 +52,24 @@ export default {
   props: {
     isShowLog: {
       type: Boolean,
-      required: true,
+      required: true
     },
     logList: {
       type: Array,
-      required: true,
+      required: true
     },
     logFields: {
       type: Array,
-      required: true,
-    },
-  },
+      required: true
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .log-slog-content {
-    width: 100%;
-    height: calc(100vh - 60px);
-    padding: 30px;
-  }
+.log-slog-content {
+  width: 100%;
+  height: calc(100vh - 60px);
+  padding: 30px;
+}
 </style>

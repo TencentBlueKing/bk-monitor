@@ -29,9 +29,10 @@
     :position="{ top: dialogTop }"
     :auto-close="false"
     :value="showDialog"
+    data-test-id="addCollectionTarget_div_selectCollectionTargetBox"
     @value-change="handleValueChange"
     @confirm="handleConfirm"
-    data-test-id="addCollectionTarget_div_selectCollectionTargetBox">
+  >
     <div class="ip-select-dialog-content">
       <topo-selector
         v-if="showDialog"
@@ -42,7 +43,8 @@
         :target-object-type="targetObjectType"
         :checked-data="targetNodes"
         :show-dynamic-group="showDynamicGroup"
-        @check-change="handleChecked" />
+        @check-change="handleChecked"
+      />
     </div>
   </bk-dialog>
 </template>
@@ -52,38 +54,38 @@ import TopoSelector from '@/components/ip-selector/business/topo-selector-new.vu
 
 export default {
   components: {
-    TopoSelector,
+    TopoSelector
   },
   props: {
     showDialog: {
       type: Boolean,
-      default: false,
+      default: false
     },
     targetObjectType: {
       type: String,
-      default: 'HOST',
+      default: 'HOST'
     },
     targetNodeType: {
       type: String,
-      default: 'TOPO',
+      default: 'TOPO'
     },
     targetNodes: {
       type: Array,
       default() {
         return [];
-      },
+      }
     },
     // 是否显示动态分组
     showDynamicGroup: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   data() {
     const top = (window.innerHeight - 675) / 2;
     const dialogTop = top < 70 ? 70 : top;
     return {
-      dialogTop,
+      dialogTop
     };
   },
   methods: {
@@ -102,32 +104,32 @@ export default {
       const { type, data } = this.$refs.topoSelector.getCheckedData();
       return {
         target_node_type: type,
-        target_nodes: data,
+        target_nodes: data
       };
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .ip-select-dialog-content {
-    height: 560px;
-  }
+.ip-select-dialog-content {
+  height: 560px;
+}
 </style>
 
 <style lang="scss">
-  .king-dialog-ip-selector.bk-dialog-wrapper {
-    .bk-dialog-header {
-      padding-bottom: 10px;
-    }
-
-    .bk-dialog-body {
-      padding-bottom: 0;
-    }
-
-    .bk-dialog-footer {
-      border: none;
-      background-color: #fff;
-    }
+.king-dialog-ip-selector.bk-dialog-wrapper {
+  .bk-dialog-header {
+    padding-bottom: 10px;
   }
+
+  .bk-dialog-body {
+    padding-bottom: 0;
+  }
+
+  .bk-dialog-footer {
+    border: none;
+    background-color: #fff;
+  }
+}
 </style>

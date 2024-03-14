@@ -30,13 +30,13 @@ import TraceIndex from './trace-index';
 export default {
   name: 'Trace',
   components: {
-    TraceIndex,
-  },
+    TraceIndex
+  }
 };
 </script>
 
 <style scoped lang="scss">
-  .trace-container {
-    height: 100%;
-  }
+.trace-container {
+  height: 100%;
+}
 </style>

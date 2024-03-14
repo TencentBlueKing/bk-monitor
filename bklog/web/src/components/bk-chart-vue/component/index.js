@@ -23,7 +23,4 @@
 import BkLine from './bk-chart-line/bk-chart-line.vue';
 import LineTooltips from './bk-chart-line/line-tooltips.vue';
 
-export {
-  BkLine,
-  LineTooltips,
-};
+export { BkLine, LineTooltips };

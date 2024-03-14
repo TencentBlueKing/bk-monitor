@@ -25,7 +25,10 @@
     <!-- 请联系业务管理人员申请业务权限 -->
     <template v-if="$route.name === 'notTraceIndex'">
       <div class="notTraceIndex">
-        <img src="../../src/images/nodata.png" alt="">
+        <img
+          src="../../src/images/nodata.png"
+          alt=""
+        />
         <p>
           {{ $t('当前业务没有接入调用链日志，') }}<span @click="notTraceIndex">{{ $t('了解接入详情') }}</span>
         </p>
@@ -39,34 +42,34 @@ export default {
   methods: {
     notTraceIndex() {
       this.$router.push({
-        name: 'log-index-set',
+        name: 'log-index-set'
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .exception-box {
-    text-align: center;
-    margin: auto;
+.exception-box {
+  text-align: center;
+  margin: auto;
 
-    img {
-      max-width: 25%;
-      margin: 150px 0 10px;
+  img {
+    max-width: 25%;
+    margin: 150px 0 10px;
+  }
+}
+
+.notTraceIndex {
+  margin-top: 100px;
+
+  p {
+    font-size: 14px;
+
+    span {
+      color: #318dff;
+      cursor: pointer;
     }
   }
-
-  .notTraceIndex {
-    margin-top: 100px;
-
-    p {
-      font-size: 14px;
-
-      span {
-        color: #318dff;
-        cursor: pointer;
-      }
-    }
-  }
+}
 </style>

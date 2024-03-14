@@ -22,35 +22,28 @@
 
 const getIndexSet = {
   url: '/trace/index_set/',
-  method: 'get',
+  method: 'get'
 };
 const getLogTableHead = {
   url: '/trace/index_set/:index_set_id/fields/?scope=trace',
-  method: 'get',
+  method: 'get'
 };
 
 const getDocCountList = {
   url: '/search/index_set/:index_set_id/aggs/terms/',
-  method: 'post',
+  method: 'post'
 };
 const requestTableList = {
   url: '/trace/index_set/:index_set_id/search/',
-  method: 'post',
+  method: 'post'
 };
 const requestDateHistogram = {
   url: '/search/index_set/:index_set_id/aggs/date_histogram/',
-  method: 'post',
+  method: 'post'
 };
 const requestDateScatter = {
   url: '/trace/index_set/:index_set_id/search/scatter/',
-  method: 'post',
+  method: 'post'
 };
 
-export {
-  getIndexSet,
-  getLogTableHead,
-  getDocCountList,
-  requestTableList,
-  requestDateHistogram,
-  requestDateScatter,
-};
+export { getIndexSet, getLogTableHead, getDocCountList, requestTableList, requestDateHistogram, requestDateScatter };

@@ -21,16 +21,18 @@
   -->
 
 <template>
-  <div 
-    class="ip-list" 
-    ref="ipListWrapper" 
-    v-bkloading="{ isLoading: isLoading && !disabledLoading }">
+  <div
+    class="ip-list"
+    ref="ipListWrapper"
+    v-bkloading="{ isLoading: isLoading && !disabledLoading }"
+  >
     <bk-input
       clearable
       right-icon="bk-icon icon-search"
       v-model="tableKeyword"
       :placeholder="ipListPlaceholder"
-      @change="handleKeywordChange">
+      @change="handleKeywordChange"
+    >
     </bk-input>
     <slot name="tab"></slot>
     <ip-selector-table
@@ -45,20 +47,16 @@
       :empty-text="emptyText"
       @page-change="handlePageChange"
       @check-change="handleCheckChange"
-      @page-limit-change="handleLimitChange" />
+      @page-limit-change="handleLimitChange"
+    />
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop, Emit, Ref, Watch } from 'vue-property-decorator'
-import { Debounce } from '../common/util'
-import IpSelectorTable from '../components/ip-selector-table.vue'
-import {
-  ITableConfig,
-  SearchDataFuncType,
-  IipListParams,
-  IPagination,
-  ITableCheckData } from '../types/selector-type'
+import { Component, Vue, Prop, Emit, Ref, Watch } from 'vue-property-decorator';
+import { Debounce } from '../common/util';
+import IpSelectorTable from '../components/ip-selector-table.vue';
+import { ITableConfig, SearchDataFuncType, IipListParams, IPagination, ITableCheckData } from '../types/selector-type';
 
 // IP列表
 @Component({
@@ -69,150 +67,149 @@ import {
 })
 export default class IpList extends Vue {
   // 提交变更时调用该方法获取数据
-  @Prop({ type: Function, required: true }) private readonly getSearchTableData!: SearchDataFuncType
-  @Prop({ type: Function }) private readonly handleAgentStatus!: Function
-  @Prop({ type: Function }) private readonly getDefaultSelections!: Function
+  @Prop({ type: Function, required: true }) private readonly getSearchTableData!: SearchDataFuncType;
+  @Prop({ type: Function }) private readonly handleAgentStatus!: Function;
+  @Prop({ type: Function }) private readonly getDefaultSelections!: Function;
 
-  @Prop({ default: '', type: String }) private readonly ipListPlaceholder!: string
+  @Prop({ default: '', type: String }) private readonly ipListPlaceholder!: string;
   // 表格字段配置
-  @Prop({ default: () => [], type: Array }) private readonly ipListTableConfig!: ITableConfig[]
+  @Prop({ default: () => [], type: Array }) private readonly ipListTableConfig!: ITableConfig[];
   // 每页数
-  @Prop({ default: 10, type: Number }) private readonly limit!: number
-  @Prop({ default: 0, type: Number }) private readonly slotHeight!: number
-  @Prop({ default: true, type: Boolean }) private readonly showSelectionColumn!: boolean
+  @Prop({ default: 10, type: Number }) private readonly limit!: number;
+  @Prop({ default: 0, type: Number }) private readonly slotHeight!: number;
+  @Prop({ default: true, type: Boolean }) private readonly showSelectionColumn!: boolean;
   // 禁用组件的loading状态
-  @Prop({ default: false, type: Boolean }) private readonly disabledLoading!: boolean
-  @Prop({ default: '', type: String }) private readonly emptyText!: string
+  @Prop({ default: false, type: Boolean }) private readonly disabledLoading!: boolean;
+  @Prop({ default: '', type: String }) private readonly emptyText!: string;
 
-  @Ref('ipListWrapper') private readonly ipListWrapperRef!: HTMLElement
-  @Ref('table') private readonly tableRef!: IpSelectorTable
+  @Ref('ipListWrapper') private readonly ipListWrapperRef!: HTMLElement;
+  @Ref('table') private readonly tableRef!: IpSelectorTable;
 
-  private isLoading = false
+  private isLoading = false;
   // 前端分页时全量数据
-  private fullData: any[] = []
-  private frontendPagination = false
-  private tableData: any[] = []
-  private tableKeyword = ''
+  private fullData: any[] = [];
+  private frontendPagination = false;
+  private tableData: any[] = [];
+  private tableKeyword = '';
   private pagination: IPagination = {
     current: 1,
     limit: 20,
     count: 0,
     limitList: [10, 20, 50]
-  }
-  private maxHeight = 400
-  private defaultSelections: any[] = []
+  };
+  private maxHeight = 400;
+  private defaultSelections: any[] = [];
 
   @Watch('slotHeight')
   private handleSlotHeightChange() {
-    this.maxHeight = this.ipListWrapperRef.clientHeight - this.slotHeight - 42
+    this.maxHeight = this.ipListWrapperRef.clientHeight - this.slotHeight - 42;
   }
 
   private created() {
     this.pagination.limit = this.limit;
-    this.handleGetDefaultData()
+    this.handleGetDefaultData();
   }
 
   private mounted() {
-    this.maxHeight = this.ipListWrapperRef.clientHeight - this.slotHeight - 42
+    this.maxHeight = this.ipListWrapperRef.clientHeight - this.slotHeight - 42;
   }
 
   // eslint-disable-next-line @typescript-eslint/member-ordering
   public handleGetDefaultData(type = '') {
-    this.pagination.current = 1
-    this.pagination.count = 0
-    this.tableRef && this.tableRef.resetCheckedStatus()
-    this.handleGetSearchData(type)
+    this.pagination.current = 1;
+    this.pagination.count = 0;
+    this.tableRef && this.tableRef.resetCheckedStatus();
+    this.handleGetSearchData(type);
   }
   // eslint-disable-next-line @typescript-eslint/member-ordering
   public handleGetDefaultSelections() {
     // 获取默认勾选项
-    this.defaultSelections = this.tableData.filter(row => this.getDefaultSelections
-        && !!this.getDefaultSelections(row))
+    this.defaultSelections = this.tableData.filter(
+      row => this.getDefaultSelections && !!this.getDefaultSelections(row)
+    );
   }
   // eslint-disable-next-line @typescript-eslint/member-ordering
   public selectionAllData() {
     this.$nextTick(() => {
-      !!this.tableData.length && this.tableRef && this.tableRef.handleSelectionChange({ value: 2, type: 'all' })
-    })
+      !!this.tableData.length && this.tableRef && this.tableRef.handleSelectionChange({ value: 2, type: 'all' });
+    });
   }
 
   private async handleGetSearchData(type = '') {
     try {
-      this.isLoading = true
+      this.isLoading = true;
       const params: IipListParams = {
         current: this.pagination.current,
         // limit: this.limit,
         limit: this.pagination.limit,
         tableKeyword: this.tableKeyword
-      }
-      const { total, data } = await this.getSearchTableData(params, type)
+      };
+      const { total, data } = await this.getSearchTableData(params, type);
       if (data.length > this.pagination.limit) {
-        this.frontendPagination = true
-        this.fullData = data
+        this.frontendPagination = true;
+        this.fullData = data;
         // 如果未分页，则前端自动分页
-        const { limit, current } = this.pagination
-        this.tableData = data.slice(limit * (current - 1), limit * current)
+        const { limit, current } = this.pagination;
+        this.tableData = data.slice(limit * (current - 1), limit * current);
       } else {
-        this.frontendPagination = false
-        this.tableData = data || []
+        this.frontendPagination = false;
+        this.tableData = data || [];
       }
-      this.pagination.count = total || 0
-      this.handleGetDefaultSelections()
-      this.updateAgentStatus(this.tableData)
+      this.pagination.count = total || 0;
+      this.handleGetDefaultSelections();
+      this.updateAgentStatus(this.tableData);
     } catch (err) {
-      console.log(err)
+      console.log(err);
     } finally {
-      this.isLoading = false
+      this.isLoading = false;
     }
   }
 
   private async updateAgentStatus(tableData: any) {
-    if (!tableData.length) return
+    if (!tableData.length) return;
 
-    const data = await this.handleAgentStatus(tableData)
+    const data = await this.handleAgentStatus(tableData);
     if (data.length) {
       // 插入一定的业务逻辑 异步获取agent状态
       data.forEach(item => {
         this.tableData.forEach(row => {
           if (row.bk_inst_id === item.bk_inst_id && row.bk_obj_id === item.bk_obj_id) {
-            row.count = item.count,
-            row.agent_error_count = item.agent_error_count,
-            row.isFlag = true
+            (row.count = item.count), (row.agent_error_count = item.agent_error_count), (row.isFlag = true);
           }
-        })
-      })
+        });
+      });
     }
   }
 
   private handlePageChange(page: number) {
-    if (page === this.pagination.current) return
+    if (page === this.pagination.current) return;
 
-    this.pagination.current = page
-    this.handleGetSearchData('page-change')
+    this.pagination.current = page;
+    this.handleGetSearchData('page-change');
   }
 
   private handleLimitChange(limit: number) {
-    this.pagination.limit = limit
-    this.handleGetSearchData('limit-change')
+    this.pagination.limit = limit;
+    this.handleGetSearchData('limit-change');
   }
 
   @Debounce(300)
   private handleKeywordChange() {
-    this.handleGetDefaultData('keyword-change')
+    this.handleGetDefaultData('keyword-change');
   }
 
   @Emit('check-change')
   private handleCheckChange(data: ITableCheckData) {
-    const { selections, excludeData, checkType, checkValue } = data
-    let tmpSelections = selections
-    let tmpExcludeData = excludeData
+    const { selections, excludeData, checkType, checkValue } = data;
+    let tmpSelections = selections;
+    let tmpExcludeData = excludeData;
     // 前端分页
     if (this.frontendPagination && checkType === 'all') {
       // 跨页全选
       if (checkValue === 2) {
-        tmpSelections = this.fullData.filter(item => excludeData?.indexOf(item) === -1)
+        tmpSelections = this.fullData.filter(item => excludeData?.indexOf(item) === -1);
       } else if (checkValue === 0) {
-        tmpExcludeData = this.fullData.filter(item => selections.indexOf(item) === -1)
+        tmpExcludeData = this.fullData.filter(item => selections.indexOf(item) === -1);
       }
     }
 
@@ -220,29 +217,29 @@ export default class IpList extends Vue {
       selections: tmpSelections,
       excludeData: tmpExcludeData,
       checkType
-    }
+    };
   }
 }
 </script>
 
 <style lang="scss" scoped>
-  .ip-list {
-    height: 100%;
+.ip-list {
+  height: 100%;
 
-    .table-tab {
-      display: flex;
-      background-image: linear-gradient(transparent 36px,#dcdee5 0);
+  .table-tab {
+    display: flex;
+    background-image: linear-gradient(transparent 36px, #dcdee5 0);
 
-      &-item {
-        padding: 10px 0 8px 0;
-        margin-right: 20px;
-        cursor: pointer;
+    &-item {
+      padding: 10px 0 8px 0;
+      margin-right: 20px;
+      cursor: pointer;
 
-        &.active {
-          color: #3a84ff;
-          border-bottom: 2px solid #3a84ff;
-        }
+      &.active {
+        color: #3a84ff;
+        border-bottom: 2px solid #3a84ff;
       }
     }
   }
+}
 </style>

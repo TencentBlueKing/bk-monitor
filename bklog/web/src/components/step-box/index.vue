@@ -24,7 +24,8 @@
   <div
     class="step-box"
     :class="className"
-    :style="style">
+    :style="style"
+  >
     <div class="step-title">
       <slot name="title"></slot>
     </div>
@@ -43,16 +44,16 @@ export default {
   props: {
     placement: {
       type: String,
-      default: '',
+      default: ''
     },
     tipStyles: {
       type: Object,
-      default: {},
+      default: () => ({})
     },
     hasBorder: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   computed: {
     className() {
@@ -61,13 +62,12 @@ export default {
     },
     style() {
       return this.tipStyles;
-    },
-  },
+    }
+  }
 };
 </script>
 
-
-<style lang='scss'>
+<style lang="scss">
 .step-box {
   position: absolute;
   width: 270px;

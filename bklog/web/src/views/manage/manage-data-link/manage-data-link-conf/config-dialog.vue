@@ -31,46 +31,64 @@
     :title="dialogTitle"
     header-position="left"
     @confirm="handleConfirm"
-    @cancel="closeDialog">
-    <div class="link-config-form" data-test-id="addNewLinkConfig_div_linkConfigForm">
+    @cancel="closeDialog"
+  >
+    <div
+      class="link-config-form"
+      data-test-id="addNewLinkConfig_div_linkConfigForm"
+    >
       <bk-form
-        class="king-form"
         ref="form"
+        class="king-form"
         :label-width="220"
         :model="formData"
-        :rules="rules">
+        :rules="rules"
+      >
         <bk-form-item
           :label="$t('链路名称')"
           required
           property="link_group_name"
-          error-display-type="normal">
+          error-display-type="normal"
+        >
           <bk-input
-            data-test-id="linkConfigForm_div_linkName"
             v-model="formData.link_group_name"
+            data-test-id="linkConfigForm_div_linkName"
             :clearable="true"
-            style="width: 380px;"></bk-input>
+            style="width: 380px"
+          ></bk-input>
         </bk-form-item>
         <bk-form-item
           :label="$t('允许的空间')"
           required
           property="bk_biz_id"
-          error-display-type="normal">
+          error-display-type="normal"
+        >
           <bk-select
-            data-test-id="linkConfigForm_select_selectPermitted"
             v-model="formData.bk_biz_id"
+            data-test-id="linkConfigForm_select_selectPermitted"
             searchable
             :clearable="false"
-            style="width: 380px;">
-            <template v-for="item in projectList">
+            style="width: 380px"
+          >
+            <template>
               <bk-option
-                :key="item.bk_biz_id"
+                v-for="item in projectList"
                 :id="item.bk_biz_id"
-                :name="item.space_full_code_name">
+                :key="item.bk_biz_id"
+                :name="item.space_full_code_name"
+              >
                 <div class="space-code-option">
-                  <span class="code-name" :title="item.space_full_code_name">{{item.space_full_code_name}}</span>
-                  <div v-if="item.space_type_id" class="list-item-right">
+                  <span
+                    class="code-name"
+                    :title="item.space_full_code_name"
+                    >{{ item.space_full_code_name }}</span
+                  >
+                  <div
+                    v-if="item.space_type_id"
+                    class="list-item-right"
+                  >
                     <span :class="['list-item-tag', 'light-theme', item.space_type_id || 'other-type']">
-                      {{item.space_type_name}}
+                      {{ item.space_type_name }}
                     </span>
                   </div>
                 </div>
@@ -82,17 +100,21 @@
           label="Kafka"
           required
           property="kafka_cluster_id"
-          error-display-type="normal">
+          error-display-type="normal"
+        >
           <bk-select
-            data-test-id="linkConfigForm_select_selectKafka"
             v-model="formData.kafka_cluster_id"
+            data-test-id="linkConfigForm_select_selectKafka"
             :clearable="false"
-            style="width: 380px;">
-            <template v-for="item in selectData.kafka">
+            style="width: 380px"
+          >
+            <template>
               <bk-option
-                :key="item.cluster_id"
+                v-for="item in selectData.kafka"
                 :id="item.cluster_id"
-                :name="item.cluster_name">
+                :key="item.cluster_id"
+                :name="item.cluster_name"
+              >
               </bk-option>
             </template>
           </bk-select>
@@ -101,17 +123,21 @@
           label="Transfer"
           required
           property="transfer_cluster_id"
-          error-display-type="normal">
+          error-display-type="normal"
+        >
           <bk-select
-            data-test-id="linkConfigForm_select_selectTransfer"
             v-model="formData.transfer_cluster_id"
+            data-test-id="linkConfigForm_select_selectTransfer"
             :clearable="false"
-            style="width: 380px;">
-            <template v-for="item in selectData.transfer">
+            style="width: 380px"
+          >
+            <template>
               <bk-option
-                :key="item.cluster_id"
+                v-for="item in selectData.transfer"
                 :id="item.cluster_id"
-                :name="item.cluster_name">
+                :key="item.cluster_id"
+                :name="item.cluster_name"
+              >
               </bk-option>
             </template>
           </bk-select>
@@ -120,18 +146,22 @@
           :label="$t('ES集群')"
           required
           property="es_cluster_ids"
-          error-display-type="normal">
+          error-display-type="normal"
+        >
           <bk-select
-            data-test-id="linkConfigForm_select_selectEsClusterIds"
             v-model="formData.es_cluster_ids"
+            data-test-id="linkConfigForm_select_selectEsClusterIds"
             :clearable="false"
             multiple
-            style="width: 380px;">
-            <template v-for="item in selectData.es">
+            style="width: 380px"
+          >
+            <template>
               <bk-option
-                :key="item.cluster_id"
+                v-for="item in selectData.es"
                 :id="item.cluster_id"
-                :name="item.cluster_name">
+                :key="item.cluster_id"
+                :name="item.cluster_name"
+              >
               </bk-option>
             </template>
           </bk-select>
@@ -139,7 +169,8 @@
         <bk-form-item
           :label="$t('是否启用')"
           property="is_active"
-          error-display-type="normal">
+          error-display-type="normal"
+        >
           <bk-checkbox
             v-model="formData.is_active"
             data-test-id="linkConfigForm_checkbox_isEnable"
@@ -148,14 +179,16 @@
         <bk-form-item
           :label="$t('备注')"
           property="description"
-          error-display-type="normal">
+          error-display-type="normal"
+        >
           <bk-input
-            data-test-id="linkConfigForm_input_Remark"
             v-model="formData.description"
+            data-test-id="linkConfigForm_input_Remark"
             type="textarea"
             :maxlength="64"
             :clearable="true"
-            style="width: 380px;">
+            style="width: 380px"
+          >
           </bk-input>
         </bk-form-item>
       </bk-form>
@@ -168,26 +201,26 @@ export default {
   props: {
     visible: {
       type: Boolean,
-      default: false,
+      default: false
     },
     type: {
       type: String,
-      default: 'create',
+      default: 'create'
     },
     projectList: {
       type: Array,
-      required: true,
+      required: true
     },
     dataSource: {
       type: Object,
       default() {
         return {};
-      },
+      }
     },
     selectData: {
       type: Object,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
@@ -195,32 +228,42 @@ export default {
       confirmLoading: false,
       formData: {},
       rules: {
-        link_group_name: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        bk_biz_id: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        kafka_cluster_id: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        transfer_cluster_id: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        es_cluster_ids: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-      },
+        link_group_name: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        bk_biz_id: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        kafka_cluster_id: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        transfer_cluster_id: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        es_cluster_ids: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ]
+      }
     };
   },
   watch: {
@@ -230,7 +273,7 @@ export default {
         this.formData = JSON.parse(JSON.stringify(this.dataSource));
         this.$refs.form.clearError();
       }
-    },
+    }
   },
   methods: {
     async handleConfirm() {
@@ -239,17 +282,19 @@ export default {
         await this.$refs.form.validate();
         const formData = { ...this.formData };
         formData.bk_biz_id = Number(formData.bk_biz_id);
-        if (this.type === 'create') { // 新建
+        if (this.type === 'create') {
+          // 新建
           await this.$http.request('linkConfiguration/createLink', {
-            data: formData,
+            data: formData
           });
           this.messageSuccess(this.$t('创建成功'));
-        } else { // 编辑
+        } else {
+          // 编辑
           await this.$http.request('linkConfiguration/updateLink', {
             data: formData,
             params: {
-              data_link_id: this.formData.data_link_id,
-            },
+              data_link_id: this.formData.data_link_id
+            }
           });
           this.messageSuccess(this.$t('修改成功'));
         }
@@ -266,23 +311,23 @@ export default {
     closeDialog() {
       // 通过父组件关闭对话框
       this.$emit('update:visible', false);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/space-tag-option';
+@import '@/scss/space-tag-option';
 
-  .link-config-form {
-    :deep(.bk-form-content) {
-      position: relative;
+.link-config-form {
+  :deep(.bk-form-content) {
+    position: relative;
 
-      .form-error-tip {
-        position: absolute;
-        top: 32px;
-        margin: 0;
-      }
+    .form-error-tip {
+      position: absolute;
+      top: 32px;
+      margin: 0;
     }
   }
+}
 </style>

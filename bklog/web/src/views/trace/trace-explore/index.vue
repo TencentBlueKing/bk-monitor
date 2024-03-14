@@ -21,8 +21,15 @@
   -->
 
 <template>
-  <div class="trace-detail-container" v-bkloading="{ isLoading }">
-    <iframe :src="src" class="trace-iframe" @load="handleIframeLoad"></iframe>
+  <div
+    v-bkloading="{ isLoading }"
+    class="trace-detail-container"
+  >
+    <iframe
+      :src="src"
+      class="trace-iframe"
+      @load="handleIframeLoad"
+    ></iframe>
   </div>
 </template>
 
@@ -31,18 +38,18 @@ export default {
   data() {
     return {
       src: '',
-      isLoading: true,
+      isLoading: true
     };
   },
   computed: {
     bkBizId() {
       return this.$store.state.bkBizId;
-    },
+    }
   },
   watch: {
     '$route.query.spaceUid'() {
       this.updateIframeSrc();
-    },
+    }
   },
   mounted() {
     this.updateIframeSrc();
@@ -58,25 +65,25 @@ export default {
     },
     // iframe 页面加载完毕
     handleIframeLoad() {
-      setTimeout(() => this.isLoading = false, 1000);
-    },
-  },
+      setTimeout(() => (this.isLoading = false), 1000);
+    }
+  }
 };
 </script>
 
 <style scoped lang="scss">
-  .trace-detail-container {
-    width: 100%;
-    height: calc(100vh - 60px);
+.trace-detail-container {
+  width: 100%;
+  height: calc(100vh - 60px);
 
-    &.is-full-screen {
-      height: 100vh;
-    }
-
-    .trace-iframe {
-      border: none;
-      width: 100%;
-      height: 100%;
-    }
+  &.is-full-screen {
+    height: 100vh;
   }
+
+  .trace-iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+  }
+}
 </style>

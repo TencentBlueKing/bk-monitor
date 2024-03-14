@@ -26,27 +26,27 @@
 
 const detailsList = {
   url: '/databus/collectors/:collector_config_id/',
-  method: 'get',
+  method: 'get'
 };
 
 const collectList = {
   url: '/databus/collectors/:collector_config_id/subscription_status/',
-  method: 'get',
+  method: 'get'
 };
 
 const retryList = {
   url: '/databus/collectors/:collector_config_id/subscription_run/',
-  method: 'post',
+  method: 'post'
 };
 
 const dataList = {
   url: '/esb/databus/collectors/:collector_config_id/tail/',
-  method: 'get',
+  method: 'get'
 };
 
 export default {
   detailsList,
   collectList,
   retryList,
-  dataList,
+  dataList
 };

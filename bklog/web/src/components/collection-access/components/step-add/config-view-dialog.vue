@@ -30,29 +30,56 @@
     :title="$t('label-预览').replace('label-', '')"
     :auto-close="false"
     :show-footer="false"
-    @cancel="handelCancelDialog">
-    <div class="view-main" v-bkloading="{ isLoading: loading }">
+    @cancel="handelCancelDialog"
+  >
+    <div
+      v-bkloading="{ isLoading: loading }"
+      class="view-main"
+    >
       <template v-if="viewList.length">
-        <div class="view-container" v-for="(vItem, vIndex) in viewList" :key="vIndex">
+        <div
+          v-for="(vItem, vIndex) in viewList"
+          :key="vIndex"
+          class="view-container"
+        >
           <div
             :class="['view-title', !vItem.isShowTarget && 'hidden-bottom']"
-            @click="handleClickTitle(vIndex, vItem.isShowTarget)">
-            <div class="match title-overflow" v-bk-overflow-tips>
-              <span>{{vItem.group}}</span>
+            @click="handleClickTitle(vIndex, vItem.isShowTarget)"
+          >
+            <div
+              v-bk-overflow-tips
+              class="match title-overflow"
+            >
+              <span>{{ vItem.group }}</span>
             </div>
-            <i18n class="hit" path="已命中 {0} 个内容">
-              <span class="number">{{vItem.total}}</span>
+            <i18n
+              class="hit"
+              path="已命中 {0} 个内容"
+            >
+              <span class="number">{{ vItem.total }}</span>
             </i18n>
           </div>
-          <div class="view-target" v-show="vItem.isShowTarget">
-            <div class="title-overflow" v-for="(item, iIndex) in vItem.items" :key="iIndex" v-bk-overflow-tips>
-              <span>{{item}}</span>
+          <div
+            v-show="vItem.isShowTarget"
+            class="view-target"
+          >
+            <div
+              v-for="(item, iIndex) in vItem.items"
+              :key="iIndex"
+              v-bk-overflow-tips
+              class="title-overflow"
+            >
+              <span>{{ item }}</span>
             </div>
           </div>
         </div>
       </template>
-      <empty-status v-else empty-type="empty" :show-text="false">
-        <p>{{$t('暂无命中内容')}}</p>
+      <empty-status
+        v-else
+        empty-type="empty"
+        :show-text="false"
+      >
+        <p>{{ $t('暂无命中内容') }}</p>
       </empty-status>
     </div>
   </bk-dialog>
@@ -62,27 +89,27 @@ import EmptyStatus from '@/components/empty-status';
 
 export default {
   components: {
-    EmptyStatus,
+    EmptyStatus
   },
   props: {
     isShowDialog: {
       type: Boolean,
-      default: false,
+      default: false
     },
     viewQueryParams: {
       type: Object,
-      require: true,
+      require: true
     },
     isNode: {
       type: Boolean,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
       isShowList: false,
       viewList: [],
-      loading: false,
+      loading: false
     };
   },
   computed: {},
@@ -90,10 +117,11 @@ export default {
     isShowDialog(val) {
       if (val) {
         this.loading = true;
-        this.$http.request('container/getLabelHitView', {
-          data: this.viewQueryParams,
-        })
-          .then((res) => {
+        this.$http
+          .request('container/getLabelHitView', {
+            data: this.viewQueryParams
+          })
+          .then(res => {
             this.viewList = res.data.map(item => ({ ...item, isShowTarget: true }));
           })
           .finally(() => {
@@ -104,7 +132,7 @@ export default {
           this.viewList = [];
         }, 1000);
       }
-    },
+    }
   },
   methods: {
     handelCancelDialog() {
@@ -112,8 +140,8 @@ export default {
     },
     handleClickTitle(index, showValue) {
       this.viewList[index].isShowTarget = !showValue;
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>

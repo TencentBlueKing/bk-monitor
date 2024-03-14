@@ -21,41 +21,54 @@
   -->
 
 <template>
-  <div id="trace" v-bkloading="{ isLoading: false }">
+  <div
+    id="trace"
+    v-bkloading="{ isLoading: false }"
+  >
     <top-nav :menu="menu"></top-nav>
     <div class="trace-container">
       <div class="search">
         <div class="search-item">
           <div class="search-trace">
-            <div class="text-item">{{$t('索引集')}}</div>
+            <div class="text-item">{{ $t('索引集') }}</div>
             <bk-select
+              v-model="indexId"
               class="search-area fl"
               style="width: 300px"
               :searchable="true"
               :clearable="false"
-              v-model="indexId"
-              @selected="changeIndexSet">
+              @selected="changeIndexSet"
+            >
               <bk-option
                 v-for="item in indexSetList"
-                class="custom-no-padding-option"
-                :key="item.index_set_id"
                 :id="item.index_set_id"
-                :name="item.computedName">
+                :key="item.index_set_id"
+                class="custom-no-padding-option"
+                :name="item.computedName"
+              >
                 <div
                   v-if="!(item.permission && item.permission[authorityMap.SEARCH_LOG_AUTH])"
                   class="option-slot-container no-authority"
-                  @click.stop>
-                  <span class="text">{{item.computedName}}</span>
-                  <span class="apply-text" @click="applySearchAccess(item)">{{$t('申请权限')}}</span>
+                  @click.stop
+                >
+                  <span class="text">{{ item.computedName }}</span>
+                  <span
+                    class="apply-text"
+                    @click="applySearchAccess(item)"
+                    >{{ $t('申请权限') }}</span
+                  >
                 </div>
-                <div v-else class="option-slot-container">
-                  {{item.computedName}}
+                <div
+                  v-else
+                  class="option-slot-container"
+                >
+                  {{ item.computedName }}
                 </div>
               </bk-option>
             </bk-select>
           </div>
           <div class="search-trace">
-            <div class="text-item">{{$t('时间段')}}</div>
+            <div class="text-item">{{ $t('时间段') }}</div>
             <bk-date-picker
               class="search-area fl"
               style="width: 300px"
@@ -67,146 +80,185 @@
               :value="initDateTimeRange"
               format="yyyy-MM-dd HH:mm:ss"
               @change="dateChange"
-              @open-change="openChange">
-              <div v-if="showShortText" slot="trigger" @click.stop="openChange(!openDatePanel)">
+              @open-change="openChange"
+            >
+              <div
+                v-if="showShortText"
+                slot="trigger"
+                @click.stop="openChange(!openDatePanel)"
+              >
                 <div :class="['bk-date-picker-editor short-text', { 'is-focus': openDatePanel }]">
-                  {{showShortText}}
+                  {{ showShortText }}
                 </div>
                 <div class="icon-wrapper">
                   <span
                     class="log-icon icon-date-picker"
-                    style="font-size: 18px;position: absolute;left: 7px;top: 7px;color: #979ba5;">
+                    style="font-size: 18px; position: absolute; left: 7px; top: 7px; color: #979ba5"
+                  >
                   </span>
                 </div>
               </div>
             </bk-date-picker>
           </div>
-          <div class="search-trace" v-for="(val, ind) in traceData.additions" :key="ind">
-            <div class="text-item">{{val.fields_alias}}</div>
+          <div
+            v-for="(val, ind) in traceData.additions"
+            :key="ind"
+            class="search-trace"
+          >
+            <div class="text-item">{{ val.fields_alias }}</div>
             <bk-select
               v-if="val.show_type === 'select'"
+              v-model="searchData[val.field_name]"
               class="search-area fl"
               :searchable="true"
               :clearable="true"
               show-select-all
-              v-model="searchData[val.field_name]">
+            >
               <bk-option
                 v-for="option in docCountList[val.field_name]"
-                :key="option"
                 :id="option"
-                :name="option">
+                :key="option"
+                :name="option"
+              >
               </bk-option>
             </bk-select>
             <bk-input
               v-else
-              :type="val.show_type" style="width: 170px; margin-top: 8px;"
-              :placeholder="$t('请输入')"
               v-model="searchData[val.field_name]"
-              @enter="searchHandle">
+              :type="val.show_type"
+              style="width: 170px; margin-top: 8px"
+              :placeholder="$t('请输入')"
+              @enter="searchHandle"
+            >
             </bk-input>
             <div
+              v-if="ind === traceData.additions.length - 1"
               class="more-text"
               @click="moreTime = !moreTime"
-              v-if="ind === traceData.additions.length - 1">
-              {{$t('更多')}}
-              <i class="bk-icon icon-down-shape" v-if="!moreTime"></i>
-              <i class="bk-icon icon-up-shape" v-else></i>
+            >
+              {{ $t('更多') }}
+              <i
+                v-if="!moreTime"
+                class="bk-icon icon-down-shape"
+              ></i>
+              <i
+                v-else
+                class="bk-icon icon-up-shape"
+              ></i>
             </div>
           </div>
         </div>
-        <div class="search-time" :style="moreTime ? '' : 'display: none'">
+        <div
+          class="search-time"
+          :style="moreTime ? '' : 'display: none'"
+        >
           <!-- eslint-disable -->
           <div
             class="duration"
-            v-for="(val,key) in traceData.advance_additions"
+            v-for="(val, key) in traceData.advance_additions"
             :key="key"
-            v-if="val.field_name === 'duration'">
+            v-if="val.field_name === 'duration'"
+          >
             <!--eslint-enable-->
-            <div>{{val.fields_alias}}（ms）</div>
+            <div>{{ val.fields_alias }}（ms）</div>
             <div>
               <bk-input
-                type="number"
-                style="width: 100px; margin: 10px 0 0 0;"
-                :placeholder="$t('请输入')"
                 v-model="searchData.duration_gte"
-                @enter="searchHandle"></bk-input>
-              <div style="line-height: 30px;padding-top: 10px">{{$t('至')}}</div>
-              <bk-input
                 type="number"
-                style="width: 100px; margin: 10px 0 0 0;"
+                style="width: 100px; margin: 10px 0 0 0"
                 :placeholder="$t('请输入')"
+                @enter="searchHandle"
+              ></bk-input>
+              <div style="line-height: 30px; padding-top: 10px">{{ $t('至') }}</div>
+              <bk-input
                 v-model="searchData.duration_lte"
-                @enter="searchHandle"></bk-input>
+                type="number"
+                style="width: 100px; margin: 10px 0 0 0"
+                :placeholder="$t('请输入')"
+                @enter="searchHandle"
+              ></bk-input>
             </div>
           </div>
           <!-- eslint-disable -->
           <div
             class="code"
-            v-for="(val,key) in traceData.advance_additions"
+            v-for="(val, key) in traceData.advance_additions"
             :key="key"
-            v-if="val.field_name !== 'duration'">
+            v-if="val.field_name !== 'duration'"
+          >
             <!--eslint-enable-->
-            <div style="margin-bottom: 10px;">{{val.fields_alias}}</div>
+            <div style="margin-bottom: 10px">{{ val.fields_alias }}</div>
             <bk-select
               v-if="val.show_type === 'select'"
+              v-model="searchData[val.field_name]"
               class="search-area fl"
               :searchable="true"
               :clearable="true"
               show-select-all
-              v-model="searchData[val.field_name]">
+            >
               <bk-option
                 v-for="(option, index) in docCountList[val.field_name]"
-                :key="index"
                 :id="option"
-                :name="option">
+                :key="index"
+                :name="option"
+              >
               </bk-option>
             </bk-select>
             <bk-input
               v-else
-              :type="val.show_type" style="width: 170px; margin-top: 8px;"
-              :placeholder="$t('请输入')"
               v-model="searchData[val.field_name]"
-              @enter="searchHandle">
+              :type="val.show_type"
+              style="width: 170px; margin-top: 8px"
+              :placeholder="$t('请输入')"
+              @enter="searchHandle"
+            >
             </bk-input>
           </div>
         </div>
         <div class="search-keyword">
-          <div>{{$t('关键词')}}</div>
-          <div style="font-size: 0;">
+          <div>{{ $t('关键词') }}</div>
+          <div style="font-size: 0">
             <input
-              type="text"
-              class="bk-form-input" style="width: calc(100% - 90px);"
-              placeholder="Traceid / Spanid / Tag / Log"
               v-model="params.keyword"
-              @keyup.enter="searchHandle">
+              type="text"
+              class="bk-form-input"
+              style="width: calc(100% - 90px)"
+              placeholder="Traceid / Spanid / Tag / Log"
+              @keyup.enter="searchHandle"
+            />
             <bk-button
+              v-cursor="{ active: isSearchAllowed === false }"
               class="search-detail-button"
               theme="primary"
               :disabled="searchDisabled || !!authPageInfo"
-              v-cursor="{ active: isSearchAllowed === false }"
-              @click="searchHandle">
-              {{$t('搜索')}}
+              @click="searchHandle"
+            >
+              {{ $t('搜索') }}
             </bk-button>
           </div>
         </div>
       </div>
-      <div style="border-bottom: 1px solid #dcdee5;">
+      <div style="border-bottom: 1px solid #dcdee5">
         <auth-container-page
-          style="margin-top: 50px"
           v-if="authPageInfo"
-          :info="authPageInfo">
+          style="margin-top: 50px"
+          :info="authPageInfo"
+        >
         </auth-container-page>
         <template v-else>
           <div
-            class="chart-view"
             v-if="traceData.charts.length"
-            v-bkloading="{ isLoading: isChartLoading, zIndex: 1 }">
+            v-bkloading="{ isLoading: isChartLoading, zIndex: 1 }"
+            class="chart-view"
+          >
             <div class="chart-click">
               <span
-                v-for="(val, key) in traceData.charts" :key="key"
+                v-for="(val, key) in traceData.charts"
+                :key="key"
                 :class="fieldName === val.field_name && 'click-color'"
                 @click="handleCheckChartType(val)"
-              >{{val.tips}}</span>
+                >{{ val.tips }}</span
+              >
             </div>
             <chartView
               :chart-data="chartData"
@@ -215,58 +267,76 @@
               :initial-call="initialCall"
               :initial-call-show="initialCallShow"
               :chart-cut="chartCut === 'line' ? 'line' : 'consuming'"
-              @toggle-call-show="handleToggleCallShow"></chartView>
+              @toggle-call-show="handleToggleCallShow"
+            ></chartView>
           </div>
-          <div class="table-search" v-bkloading="{ isLoading: isTableLoading, zIndex: 1 }">
+          <div
+            v-bkloading="{ isLoading: isTableLoading, zIndex: 1 }"
+            class="table-search"
+          >
             <div class="log-switch">
               <time-formatter></time-formatter>
             </div>
             <bk-table
-              style="margin-top: 15px;"
               v-if="loaded"
               ref="logDetailTable"
+              style="margin-top: 15px"
               :empty-text="$t('未查询到数据')"
               :data="logTableList"
               :size="size"
-              @cell-click="handleCellClick">
+              @cell-click="handleCellClick"
+            >
               <template v-if="logTableList.length">
                 <!-- 展开详情 -->
-                <bk-table-column type="expand" width="30" align="center">
+                <bk-table-column
+                  type="expand"
+                  width="30"
+                  align="center"
+                >
                   <template slot-scope="item">
                     <div class="json-view-wrapper">
-                      <VueJsonPretty :deep="5" :data="logAllJsonList[item.$index]" />
+                      <VueJsonPretty
+                        :deep="5"
+                        :data="logAllJsonList[item.$index]"
+                      />
                     </div>
                   </template>
                 </bk-table-column>
                 <!-- 显示字段 -->
                 <template v-for="(field, index) in visibleFieldsInfo">
                   <bk-table-column
-                    v-if="field.field_name === 'tag.error'" :key="field.field_name"
-                    :label="field.field_alias || field.field_name">
+                    v-if="field.field_name === 'tag.error'"
+                    :key="field.field_name"
+                    :label="field.field_alias || field.field_name"
+                  >
                     <div slot-scope="{ row }">
                       <table-status :is-error="Boolean(row.tag.error)"></table-status>
                     </div>
                   </bk-table-column>
                   <bk-table-column
+                    v-else-if="field.field_name === 'traceID'"
                     :key="index"
                     :label="field.field_alias ? field.field_alias : field.field_name"
-                    :min-width="field.minWidth" v-else-if="field.field_name === 'traceID'">
+                    :min-width="field.minWidth"
+                  >
                     <template slot-scope="item">
                       <div class="td-log-container">
                         <span v-if="tableRowDeepView(item.row, field.field_name)">
-                          <span style="color: #3a84ff;cursor: pointer;">{{item.row.traceID}}</span>
+                          <span style="color: #3a84ff; cursor: pointer">{{ item.row.traceID }}</span>
                         </span>
                       </div>
                     </template>
                   </bk-table-column>
                   <bk-table-column
+                    v-else
                     :key="index"
                     :label="field.field_alias ? field.field_alias : field.field_name"
-                    :min-width="field.minWidth" v-else>
+                    :min-width="field.minWidth"
+                  >
                     <template slot-scope="{ row }">
                       <div class="td-log-container">
                         <span class="field-container add-to">
-                          {{tableRowDeepView(row, field.field_name, field.field_type)}}
+                          {{ tableRowDeepView(row, field.field_name, field.field_type) }}
                         </span>
                       </div>
                     </template>
@@ -274,20 +344,28 @@
                 </template>
               </template>
               <div slot="empty">
-                <empty-status :empty-type="emptyType" @operation="handleOperation" />
+                <empty-status
+                  :empty-type="emptyType"
+                  @operation="handleOperation"
+                />
               </div>
             </bk-table>
           </div>
         </template>
       </div>
     </div>
-    <div class="fixed-scroll-top-btn" v-show="isShowScrollTop" @click="scrollToTop">
+    <div
+      v-show="isShowScrollTop"
+      class="fixed-scroll-top-btn"
+      @click="scrollToTop"
+    >
       <i class="bk-icon icon-angle-up"></i>
     </div>
     <trace-detail
       :is-show.sync="showTraceDetail"
       :trace-id="traceId"
-      :index-set-name="indexSetName" />
+      :index-set-name="indexSetName"
+    />
   </div>
 </template>
 
@@ -312,7 +390,7 @@ export default {
     chartView,
     TimeFormatter,
     TraceDetail,
-    EmptyStatus,
+    EmptyStatus
   },
   mixins: [tableRowDeepViewMixin],
   data() {
@@ -321,7 +399,7 @@ export default {
       traceData: {
         additions: [],
         advance_additions: [],
-        charts: [],
+        charts: []
       },
       chartData: {},
       fieldName: '',
@@ -335,7 +413,7 @@ export default {
       messagetop: {
         content: this.$t('方法名，函数名或者一个大型计算中的某个阶段或子任务'),
         showOnInit: false,
-        placements: ['top'],
+        placements: ['top']
       },
       logAllJsonList: [],
       initialCall: false,
@@ -364,7 +442,7 @@ export default {
           },
           onClick: () => {
             this.showShortText = this.$t('近 5 秒');
-          },
+          }
         },
         {
           text: this.$t('近 5 分钟'),
@@ -376,7 +454,7 @@ export default {
           },
           onClick: () => {
             this.showShortText = this.$t('近 5 分钟');
-          },
+          }
         },
         {
           text: this.$t('近 15 分钟'),
@@ -388,7 +466,7 @@ export default {
           },
           onClick: () => {
             this.showShortText = this.$t('近 15 分钟');
-          },
+          }
         },
         {
           text: this.$t('近 30 分钟'),
@@ -400,7 +478,7 @@ export default {
           },
           onClick: () => {
             this.showShortText = this.$t('近 30 分钟');
-          },
+          }
         },
         {
           text: this.$t('近 1 小时'),
@@ -412,7 +490,7 @@ export default {
           },
           onClick: () => {
             this.showShortText = this.$t('近 1 小时');
-          },
+          }
         },
         {
           text: this.$t('近 4 小时'),
@@ -424,7 +502,7 @@ export default {
           },
           onClick: () => {
             this.showShortText = this.$t('近 4 小时');
-          },
+          }
         },
         {
           text: this.$t('近 12 小时'),
@@ -436,7 +514,7 @@ export default {
           },
           onClick: () => {
             this.showShortText = this.$t('近 12 小时');
-          },
+          }
         },
         {
           text: this.$t('近 1 天'),
@@ -448,8 +526,8 @@ export default {
           },
           onClick: () => {
             this.showShortText = this.$t('近 1 天');
-          },
-        },
+          }
+        }
       ],
       loaded: true,
       logTableList: [],
@@ -479,27 +557,27 @@ export default {
         keyword: '*',
         addition: [],
         begin: 0,
-        size: 20,
+        size: 20
       },
       isSearchAllowed: null,
       showTraceDetail: false,
       traceId: '',
       indexSetName: '',
-      emptyType: 'empty',
+      emptyType: 'empty'
     };
   },
   computed: {
     ...mapState({
       spaceUid: state => state.spaceUid,
       bkBizId: state => state.bkBizId,
-      indexIdCache: state => state.traceIndexId,
+      indexIdCache: state => state.traceIndexId
     }),
     ...mapGetters({
-      authGlobalInfo: 'globals/authContainerInfo',
+      authGlobalInfo: 'globals/authContainerInfo'
     }),
     authorityMap() {
       return authorityMap;
-    },
+    }
   },
   watch: {
     indexId(val) {
@@ -531,16 +609,14 @@ export default {
         timerInfo[this.$t('近 1 天')] = '1d';
         this.params.time_range = timerInfo[val];
       }
-    },
+    }
   },
   created() {
     !this.authGlobalInfo && this.getIndexSet();
   },
   mounted() {
     this.registerScrollEvent();
-    this.timeZone = new Date().toString()
-      .substr(24, 32)
-      .substr(0, 9);
+    this.timeZone = new Date().toString().substr(24, 32).substr(0, 9);
   },
   methods: {
     changeIndexSet(newValue) {
@@ -548,11 +624,11 @@ export default {
       this.indexId = newValue;
       this.$router.push({
         params: {
-          indexId: this.indexId,
+          indexId: this.indexId
         },
         query: {
-          bizId: this.bkBizId,
-        },
+          bizId: this.bkBizId
+        }
       });
     },
     // 申请索引集的搜索权限
@@ -562,10 +638,12 @@ export default {
         this.basicLoading = true;
         const res = await this.$store.dispatch('getApplyData', {
           action_ids: [authorityMap.SEARCH_LOG_AUTH],
-          resources: [{
-            type: 'indices',
-            id: item.index_set_id,
-          }],
+          resources: [
+            {
+              type: 'indices',
+              id: item.index_set_id
+            }
+          ]
         });
         window.open(res.data.apply_url);
       } catch (err) {
@@ -630,10 +708,10 @@ export default {
       const res = await this.$http.request('trace/getLogTableHead', {
         params: { index_set_id: this.indexId },
         mock: false,
-        manualSchema: true,
+        manualSchema: true
       });
       const { fields: totalFields, display_fields: displayFields, sort_list: sortFields, trace: traceData } = res.data;
-      totalFields.forEach((field) => {
+      totalFields.forEach(field => {
         field.minWidth = 0; // field.minWidth = field.field_type === 'date' ? 200 : 300
       });
       const visibleFieldsName = this.filterVisibleName(displayFields, totalFields);
@@ -642,7 +720,7 @@ export default {
     },
     filterVisibleName(displayFields, totalFields) {
       // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段名字数组
-      return displayFields.filter((name) => {
+      return displayFields.filter(name => {
         for (let i = 0; i < totalFields.length; i++) {
           if (totalFields[i].field_name === name) {
             return true;
@@ -653,7 +731,7 @@ export default {
     },
     filterVisibleInfo(visibleName, totalField) {
       // 获取排序后的字段对象数组
-      return visibleName.map((name) => {
+      return visibleName.map(name => {
         for (let i = 0; i < totalField.length; i++) {
           if (totalField[i].field_name === name) {
             return totalField[i];
@@ -668,10 +746,10 @@ export default {
         const res = await this.$http.request('trace/getIndexSet', {
           query: { bk_biz_id: this.bkBizId },
           mock: false,
-          manualSchema: true,
+          manualSchema: true
         });
         if (res.data.length) {
-          res.data.forEach((item) => {
+          res.data.forEach(item => {
             item.computedName = `${item.index_set_name}(${item.indices.map(item => item.result_table_id).join(';')})`;
           });
           // 根据权限排序
@@ -689,16 +767,20 @@ export default {
           // 如果都没有权限直接显示页面无权限
           // eslint-disable-next-line camelcase
           if (!this.indexSetList[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-            this.$store.dispatch('getApplyData', {
-              action_ids: [authorityMap.SEARCH_LOG_AUTH],
-              resources: [{
-                type: 'indices',
-                id: this.indexSetList[0].index_set_id,
-              }],
-            }).then((res) => {
-              this.authPageInfo = res.data;
-            })
-              .catch((err) => {
+            this.$store
+              .dispatch('getApplyData', {
+                action_ids: [authorityMap.SEARCH_LOG_AUTH],
+                resources: [
+                  {
+                    type: 'indices',
+                    id: this.indexSetList[0].index_set_id
+                  }
+                ]
+              })
+              .then(res => {
+                this.authPageInfo = res.data;
+              })
+              .catch(err => {
                 console.warn(err);
               })
               .finally(() => {
@@ -712,22 +794,24 @@ export default {
           this.changeIndexSet(cacheValid ? this.indexIdCache : this.indexSetList[0].index_set_id);
         } else {
           this.$router.push({
-            name: 'notTraceIndex',
+            name: 'notTraceIndex'
           });
         }
       } catch (e) {
         this.$router.push({
-          name: 'notTraceIndex',
+          name: 'notTraceIndex'
         });
       }
     },
     async searchHandle() {
       const paramData = {
         action_ids: [authorityMap.SEARCH_LOG_AUTH],
-        resources: [{
-          type: 'indices',
-          id: this.indexId,
-        }],
+        resources: [
+          {
+            type: 'indices',
+            id: this.indexId
+          }
+        ]
       };
       if (this.isSearchAllowed === null) {
         this.emptyType = 'empty';
@@ -748,7 +832,8 @@ export default {
           this.basicLoading = false;
           this.isTableLoading = false;
         }
-      } else if (this.isSearchAllowed === false) { // 已知当前选择索引无权限
+      } else if (this.isSearchAllowed === false) {
+        // 已知当前选择索引无权限
         try {
           this.basicLoading = true;
           this.isTableLoading = true;
@@ -770,20 +855,15 @@ export default {
         if (!this.totalFields.length) {
           this.basicLoading = true;
           this.isTableLoading = true;
-          const {
-            totalFields,
-            sortFields,
-            visibleFieldsName,
-            visibleFieldsInfo,
-            traceData,
-          } = await this.getFieldsInfo();
+          const { totalFields, sortFields, visibleFieldsName, visibleFieldsInfo, traceData } =
+            await this.getFieldsInfo();
           this.totalFields = totalFields;
           this.sortFields = sortFields;
           this.visibleFieldsName = visibleFieldsName;
           this.visibleFieldsInfo = visibleFieldsInfo;
           this.traceData = traceData;
           // eslint-disable-next-line camelcase
-          this.fieldName = this.fieldName ? this.fieldName : (traceData.charts[0]?.field_name || '');
+          this.fieldName = this.fieldName ? this.fieldName : traceData.charts[0]?.field_name || '';
           this.getDocCountList();
           this.basicLoading = false;
           // await this.requestDateHistogram(false)
@@ -793,7 +873,7 @@ export default {
         for (const val in searchData) {
           const additionData = { method: val === 'duration_lte' ? 'lte' : val === 'duration_gte' ? 'gte' : 'is' };
           if (this.searchData[val]) {
-            additionData.key = (val === 'duration_lte' || val === 'duration_gte') ? 'duration' : val;
+            additionData.key = val === 'duration_lte' || val === 'duration_gte' ? 'duration' : val;
             additionData.value = this.searchData[val];
             this.params.addition.push(additionData);
           }
@@ -830,7 +910,7 @@ export default {
           params: { index_set_id: this.indexId },
           data: this.params,
           mock: false,
-          manualSchema: true,
+          manualSchema: true
         });
         this.tableRowsWidth = {};
         const fieldsObj = res.data.fields || {};
@@ -895,14 +975,15 @@ export default {
       this.currentPage += 1;
       this.isPageOver = this.currentPage === this.totalPage;
       this.logTableList.splice(this.logTableList.length, 0, ...this.dataListPaged[this.currentPage - 1]);
-      top && this.$nextTick(() => {
-        this.searchContentEl.scrollTop = top;
-      });
+      top &&
+        this.$nextTick(() => {
+          this.searchContentEl.scrollTop = top;
+        });
     },
     calcTableRowWith() {
       const rowObj = {};
       const rowWidth = [];
-      this.visibleFieldsInfo.forEach((item) => {
+      this.visibleFieldsInfo.forEach(item => {
         const key = item.field_name;
         rowObj[key] = this.tableRowsWidth[key];
         rowWidth.push(this.tableRowsWidth[key]);
@@ -911,23 +992,23 @@ export default {
       const allWidth = rowWidth.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
       const WIDTH = 1000; // 固定最小宽度
       if (Math.ceil(allWidth * 6.5) <= WIDTH - rowNum * 20) {
-        this.visibleFieldsInfo.forEach((row) => {
+        this.visibleFieldsInfo.forEach(row => {
           const key = row.field_name;
           rowObj[key] = rowObj[key] < 5 ? 5 : rowObj[key];
           rowObj[key] = rowObj[key] > 30 ? rowObj[key] / 1.5 : rowObj[key];
-          row.minWidth = rowObj[key] / allWidth * (WIDTH - rowNum * 20);
+          row.minWidth = (rowObj[key] / allWidth) * (WIDTH - rowNum * 20);
         });
       } else {
         const half = Math.ceil(rowNum / 2);
         const proportion = [];
         for (const key in rowObj) {
           const width = rowObj[key] * 6.5;
-          if (width >= Math.floor(half / rowNum * WIDTH)) {
+          if (width >= Math.floor((half / rowNum) * WIDTH)) {
             proportion.push(half);
-          } else if (width <= Math.floor(1 / rowNum * WIDTH)) {
+          } else if (width <= Math.floor((1 / rowNum) * WIDTH)) {
             proportion.push(1);
           } else {
-            proportion.push(Math.floor(width * rowNum / WIDTH));
+            proportion.push(Math.floor((width * rowNum) / WIDTH));
           }
         }
         const proportionNum = proportion.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
@@ -938,23 +1019,25 @@ export default {
     },
     async getDocCountList() {
       const data = [];
-      this.traceData.additions.forEach((item) => {
+      this.traceData.additions.forEach(item => {
         if (item.show_type === 'select') {
           data.push(item.field_name);
         }
       });
-      await this.$http.request('trace/getDocCountList', {
-        params: { index_set_id: this.indexId },
-        data: {
-          fields: data,
-        },
-        mock: false,
-        manualSchema: true,
-      }).then((res) => {
-        if (res.result) {
-          this.docCountList = res.data.aggs_items;
-        }
-      });
+      await this.$http
+        .request('trace/getDocCountList', {
+          params: { index_set_id: this.indexId },
+          data: {
+            fields: data
+          },
+          mock: false,
+          manualSchema: true
+        })
+        .then(res => {
+          if (res.result) {
+            this.docCountList = res.data.aggs_items;
+          }
+        });
     },
     async requestDateHistogram(val) {
       this.params.size = 9999;
@@ -967,11 +1050,13 @@ export default {
         if (item.chart_alias === 'line') {
           this.params.fields = [{ term_filed: item.field_name }];
         } else if (item.chart_alias === 'consuming') {
-          this.params.fields = [{
-            term_filed: item.field_name,
-            metric_type: 'avg',
-            metric_field: 'duration',
-          }];
+          this.params.fields = [
+            {
+              term_filed: item.field_name,
+              metric_type: 'avg',
+              metric_field: 'duration'
+            }
+          ];
         }
       }
       try {
@@ -979,9 +1064,9 @@ export default {
         this.isChartLoading = true;
         const res = await this.$http.request(url, {
           params: {
-            index_set_id: this.indexId,
+            index_set_id: this.indexId
           },
-          data: this.params,
+          data: this.params
         });
         if (res.result) {
           if (val) {
@@ -1010,17 +1095,19 @@ export default {
           if (chartCut === 'line') {
             this.params.fields = [{ term_filed: fieldName }];
           } else if (chartCut === 'consuming') {
-            this.params.fields = [{
-              term_filed: fieldName,
-              metric_type: 'avg',
-              metric_field: 'duration',
-            }];
+            this.params.fields = [
+              {
+                term_filed: fieldName,
+                metric_type: 'avg',
+                metric_field: 'duration'
+              }
+            ];
           }
           const res = await this.$http.request('trace/requestDateHistogram', {
             params: {
-              index_set_id: this.indexId,
+              index_set_id: this.indexId
             },
-            data: this.params,
+            data: this.params
           });
           if (res.result) {
             this.chartData[fieldName] = res.data.aggs[fieldName];
@@ -1052,184 +1139,184 @@ export default {
         this.searchHandle();
         return;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
-  @import '../../../scss/mixins/clearfix.scss';
-  @import '../../../scss/devops-common.scss';
+@import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/clearfix.scss';
+@import '../../../scss/devops-common.scss';
 
-  #trace {
-    height: 100%;
-    overflow-y: auto;
+#trace {
+  height: 100%;
+  overflow-y: auto;
 
-    @include scroller(#ccc, 4px);
+  @include scroller(#ccc, 4px);
 
-    .chart-view {
-      position: relative;
-      background: #fff;
-      padding: 20px 60px;
+  .chart-view {
+    position: relative;
+    background: #fff;
+    padding: 20px 60px;
 
-      .chart-click {
-        z-index: 10;
-        position: absolute;
-        top: 30px;
-        font-size: 14px;
-
-        span {
-          display: inline-block;
-          margin-left: 20px;
-          cursor: pointer;
-          padding: 5px;
-        }
-
-        .click-color {
-          color: rgb(85, 150, 255);
-          border-bottom: 2px solid rgb(85, 150, 255);
-        }
-      }
-    }
-
-    .search-item {
-      display: flex;
-      flex-wrap: wrap;
-      background: #f4f7fa;
-      padding: 0 60px;
-      color: #63656e;
+    .chart-click {
+      z-index: 10;
+      position: absolute;
+      top: 30px;
       font-size: 14px;
 
-      .text-item {
-        margin-bottom: 8px;
-        line-height: 20px;
+      span {
+        display: inline-block;
+        margin-left: 20px;
+        cursor: pointer;
+        padding: 5px;
       }
 
-      .search-trace {
-        margin-right: 10px;
-        padding-top: 20px;
-      }
-    }
-
-    .search-area {
-      width: 170px;
-      background: #fff;
-    }
-
-    .more-text {
-      display: inline-block;
-      cursor: pointer;
-      transition: height .2s;
-      padding-left: 20px;
-      line-height: 30px;
-    }
-
-    .search-time {
-      padding: 20px 60px 0 60px;
-      display: flex;
-      color: #63656e;
-      font-size: 14px;
-
-      .duration {
-        div {
-          display: flex;
-          margin-right: 10px;
-        }
-      }
-
-      .code {
-        margin-right: 10px;
-      }
-    }
-
-    .search-keyword {
-      padding: 20px 60px 0 60px;
-      color: #63656e;
-      font-size: 14px;
-
-      div {
-        margin-bottom: 10px;
-        margin-right: 10px;
-      }
-    }
-
-    .top-middle:hover {
-      color: #3a84ff;
-    }
-
-    .search {
-      padding: 10px 0;
-      border-bottom: 1px solid rgb(220, 222, 229);
-    }
-
-    .table-search {
-      padding: 20px 60px 24px;
-      background-color: #fff;
-    }
-
-    .icon-sec {
-      font-size: 12px;
-      color: rgb(45, 203, 86);
-      margin-right: 3px;
-    }
-
-    .icon-fai {
-      font-size: 12px;
-      color: rgb(234, 54, 54);
-      margin-right: 3px;
-    }
-
-    .search-detail-button {
-      width: 80px;
-      margin-left: 10px;
-
-      div {
-        /* stylelint-disable-next-line declaration-no-important */
-        margin: 0 !important;
-      }
-    }
-
-    .trace-container {
-      height: calc(100% - 60px);
-      overflow-x: hidden;
-      overflow-y: auto;
-
-      @include scroller(#ccc, 4px);
-    }
-
-    .log-switch {
-      line-height: 14px;
-    }
-
-    .fixed-scroll-top-btn {
-      position: fixed;
-      bottom: 24px;
-      right: 14px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 36px;
-      height: 36px;
-      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .2);
-      border: 1px solid #dde4eb;
-      border-radius: 4px;
-      color: #63656e;
-      background: #f0f1f5;
-      cursor: pointer;
-      z-index: 50;
-      transition: all .2s;
-
-      &:hover {
-        color: #fff;
-        background: #979ba5;
-        transition: all .2s;
-      }
-
-      .bk-icon {
-        font-size: 20px;
-        font-weight: bold;
+      .click-color {
+        color: rgb(85, 150, 255);
+        border-bottom: 2px solid rgb(85, 150, 255);
       }
     }
   }
+
+  .search-item {
+    display: flex;
+    flex-wrap: wrap;
+    background: #f4f7fa;
+    padding: 0 60px;
+    color: #63656e;
+    font-size: 14px;
+
+    .text-item {
+      margin-bottom: 8px;
+      line-height: 20px;
+    }
+
+    .search-trace {
+      margin-right: 10px;
+      padding-top: 20px;
+    }
+  }
+
+  .search-area {
+    width: 170px;
+    background: #fff;
+  }
+
+  .more-text {
+    display: inline-block;
+    cursor: pointer;
+    transition: height 0.2s;
+    padding-left: 20px;
+    line-height: 30px;
+  }
+
+  .search-time {
+    padding: 20px 60px 0 60px;
+    display: flex;
+    color: #63656e;
+    font-size: 14px;
+
+    .duration {
+      div {
+        display: flex;
+        margin-right: 10px;
+      }
+    }
+
+    .code {
+      margin-right: 10px;
+    }
+  }
+
+  .search-keyword {
+    padding: 20px 60px 0 60px;
+    color: #63656e;
+    font-size: 14px;
+
+    div {
+      margin-bottom: 10px;
+      margin-right: 10px;
+    }
+  }
+
+  .top-middle:hover {
+    color: #3a84ff;
+  }
+
+  .search {
+    padding: 10px 0;
+    border-bottom: 1px solid rgb(220, 222, 229);
+  }
+
+  .table-search {
+    padding: 20px 60px 24px;
+    background-color: #fff;
+  }
+
+  .icon-sec {
+    font-size: 12px;
+    color: rgb(45, 203, 86);
+    margin-right: 3px;
+  }
+
+  .icon-fai {
+    font-size: 12px;
+    color: rgb(234, 54, 54);
+    margin-right: 3px;
+  }
+
+  .search-detail-button {
+    width: 80px;
+    margin-left: 10px;
+
+    div {
+      /* stylelint-disable-next-line declaration-no-important */
+      margin: 0 !important;
+    }
+  }
+
+  .trace-container {
+    height: calc(100% - 60px);
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    @include scroller(#ccc, 4px);
+  }
+
+  .log-switch {
+    line-height: 14px;
+  }
+
+  .fixed-scroll-top-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 36px;
+    height: 36px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    border: 1px solid #dde4eb;
+    border-radius: 4px;
+    color: #63656e;
+    background: #f0f1f5;
+    cursor: pointer;
+    z-index: 50;
+    transition: all 0.2s;
+
+    &:hover {
+      color: #fff;
+      background: #979ba5;
+      transition: all 0.2s;
+    }
+
+    .bk-icon {
+      font-size: 20px;
+      font-weight: bold;
+    }
+  }
+}
 </style>

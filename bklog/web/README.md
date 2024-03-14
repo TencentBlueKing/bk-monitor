@@ -30,7 +30,7 @@ npm run install-build
      const devProxyUrl = ''
      const devHost = ''
      const loginHost = ''
-     const devPort = 
+     const devPort =
      module.exports = {
          port: devPort, // 启动端口
          host: devHost, // 启动host

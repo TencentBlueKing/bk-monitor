@@ -23,49 +23,73 @@
 <template>
   <nav class="log-search-nav">
     <div class="nav-left fl">
-      <div class="log-logo-container" @click.stop="jumpToHome">
+      <div
+        class="log-logo-container"
+        @click.stop="jumpToHome"
+      >
         <img
           :src="require('@/images/log-logo.png')"
           alt="logo"
-          class="logo-image">
+          class="logo-image"
+        />
         <span class="logo-text">{{ logoText }}</span>
       </div>
     </div>
-    <div class="nav-center fl" data-test-id="topNav_div_topNavBox">
+    <div
+      class="nav-center fl"
+      data-test-id="topNav_div_topNavBox"
+    >
       <ul>
         <li
           v-for="menu in menuList"
-          :key="menu.id"
           :id="`${menu.id}MenuGuide`"
-          :class="['menu-item', { 'active': activeTopMenu.id === menu.id }]"
+          :key="menu.id"
+          :class="['menu-item', { active: activeTopMenu.id === menu.id }]"
           :data-test-id="`topNavBox_li_${menu.id}`"
-          @click="routerHandler(menu)">
+          @click="routerHandler(menu)"
+        >
           <template>
             {{ menu.name }}
           </template>
         </li>
       </ul>
     </div>
-    <div class="nav-right fr" v-show="usernameRequested">
+    <div
+      v-show="usernameRequested"
+      class="nav-right fr"
+    >
       <!-- 全局设置 -->
       <bk-dropdown-menu
         v-if="!isExternal"
         align="center"
         trigger="click"
         @show="dropdownGlobalShow"
-        @hide="dropdownGlobalHide">
-        <div class="icon-language-container" slot="dropdown-trigger">
+        @hide="dropdownGlobalHide"
+      >
+        <div
+          slot="dropdown-trigger"
+          class="icon-language-container"
+        >
           <span
             :class="{
               'setting bk-icon icon-cog-shape': true,
               active: isShowGlobalDialog || isShowGlobalDropdown
-            }"></span>
+            }"
+          ></span>
         </div>
-        <ul class="bk-dropdown-list" slot="dropdown-content">
-          <li class="language-btn" v-for="item in globalSettingList" :key="item.id">
+        <ul
+          slot="dropdown-content"
+          class="bk-dropdown-list"
+        >
+          <li
+            v-for="item in globalSettingList"
+            :key="item.id"
+            class="language-btn"
+          >
             <a
               href="javascript:;"
-              @click="handleClickGlobalDialog(item.id)">
+              @click="handleClickGlobalDialog(item.id)"
+            >
               {{ item.name }}
             </a>
           </li>
@@ -76,11 +100,13 @@
         align="center"
         trigger="click"
         @show="dropdownLanguageShow"
-        @hide="dropdownLanguageHide">
+        @hide="dropdownLanguageHide"
+      >
         <div
+          slot="dropdown-trigger"
           class="icon-language-container"
           :class="isShowLanguageDropdown && 'active'"
-          slot="dropdown-trigger">
+        >
           <div class="icon-circle-container">
             <img
               class="icon-language"
@@ -88,12 +114,20 @@
             />
           </div>
         </div>
-        <ul class="bk-dropdown-list" slot="dropdown-content">
-          <li class="language-btn" v-for="item in languageList" :key="item.id">
+        <ul
+          slot="dropdown-content"
+          class="bk-dropdown-list"
+        >
+          <li
+            v-for="item in languageList"
+            :key="item.id"
+            class="language-btn"
+          >
             <a
               href="javascript:;"
-              :class="{ 'active': language === item.id }"
-              @click="changeLanguage(item.id)">
+              :class="{ active: language === item.id }"
+              @click="changeLanguage(item.id)"
+            >
               <img
                 class="icon-language"
                 :src="item.id === 'en' ? require('@/images/icons/en.svg') : require('@/images/icons/zh.svg')"
@@ -105,35 +139,46 @@
       </bk-dropdown-menu>
       <!-- 版本日志和产品文档 -->
       <bk-dropdown-menu
+        ref="dropdownHelp"
         align="center"
         trigger="click"
         @show="dropdownHelpShow"
         @hide="dropdownHelpHide"
-        ref="dropdownHelp">
+      >
         <div
+          slot="dropdown-trigger"
           class="icon-language-container"
           :class="isShowHelpDropdown && 'active'"
-          slot="dropdown-trigger">
+        >
           <div class="icon-circle-container">
-            <span class="icon log-icon icon-help" slot="dropdown-trigger"></span>
+            <span
+              slot="dropdown-trigger"
+              class="icon log-icon icon-help"
+            ></span>
           </div>
         </div>
-        <ul class="bk-dropdown-list" slot="dropdown-content">
+        <ul
+          slot="dropdown-content"
+          class="bk-dropdown-list"
+        >
           <li>
             <a
               href="javascript:;"
-              @click.stop="dropdownHelpTriggerHandler('docCenter')">
+              @click.stop="dropdownHelpTriggerHandler('docCenter')"
+            >
               {{ $t('产品文档') }}
             </a>
             <a
               v-if="!isExternal"
               href="javascript:;"
-              @click.stop="dropdownHelpTriggerHandler('logVersion')">
+              @click.stop="dropdownHelpTriggerHandler('logVersion')"
+            >
               {{ $t('版本日志') }}
             </a>
             <a
               href="javascript:;"
-              @click.stop="dropdownHelpTriggerHandler('feedback')">
+              @click.stop="dropdownHelpTriggerHandler('feedback')"
+            >
               {{ $t('问题反馈') }}
             </a>
           </li>
@@ -144,20 +189,29 @@
         align="center"
         trigger="click"
         @show="dropdownLogoutShow"
-        @hide="dropdownLogoutHide">
+        @hide="dropdownLogoutHide"
+      >
         <div
+          slot="dropdown-trigger"
           class="icon-language-container"
           :class="isShowLogoutDropdown && 'active'"
-          slot="dropdown-trigger">
-          <span class="username" v-if="username">{{ username }}
+        >
+          <span
+            v-if="username"
+            class="username"
+            >{{ username }}
             <i class="bk-icon icon-down-shape"></i>
           </span>
         </div>
-        <ul class="bk-dropdown-list" slot="dropdown-content">
+        <ul
+          slot="dropdown-content"
+          class="bk-dropdown-list"
+        >
           <li>
             <a
               href="javascript:;"
-              @click="handleQuit">
+              @click="handleQuit"
+            >
               {{ $t('退出登录') }}
             </a>
           </li>
@@ -178,7 +232,7 @@ import { jsonp } from '@/common/jsonp';
 export default {
   name: 'HeaderNav',
   components: {
-    LogVersion,
+    LogVersion
   },
   mixins: [navMenuMixin],
   props: {},
@@ -195,7 +249,10 @@ export default {
       isShowLogoutDropdown: false,
       showLogVersion: false,
       language: 'zh-cn',
-      languageList: [{ id: 'zh-cn', name: '中文' }, { id: 'en', name: 'English' }],
+      languageList: [
+        { id: 'zh-cn', name: '中文' },
+        { id: 'en', name: 'English' }
+      ]
     };
   },
   computed: {
@@ -206,14 +263,14 @@ export default {
       iframeQuery: state => state.iframeQuery,
       isExternal: state => state.isExternal,
       isShowGlobalDialog: state => state.isShowGlobalDialog,
-      globalSettingList: state => state.globalSettingList,
+      globalSettingList: state => state.globalSettingList
     }),
     ...mapGetters('globals', ['globalsData']),
     envConfig() {
       const { paas_api_host: host, bk_domain: bkDomain } = this.globalsData;
       return {
         host,
-        bkDomain,
+        bkDomain
       };
     },
     dropDownActive() {
@@ -228,10 +285,10 @@ export default {
       return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
     },
     menuList() {
-      return this.topMenu.filter((menu) => {
+      return this.topMenu.filter(menu => {
         return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
       });
-    },
+    }
   },
   async created() {
     this.language = jsCookie.get('blueking_language') || 'zh-cn';
@@ -247,7 +304,7 @@ export default {
         this.$store.commit('updateUserMeta', res.data);
         if (window.__aegisInstance) {
           window.__aegisInstance.setConfig({
-            uin: res.data.username,
+            uin: res.data.username
           });
         }
       } catch (e) {
@@ -261,8 +318,8 @@ export default {
       this.$router.push({
         name: 'retrieve',
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
       setTimeout(() => {
         this.$emit('reloadRouter');
@@ -276,36 +333,39 @@ export default {
           this.$router.push({
             name: menu.id,
             query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
+              spaceUid: this.$store.state.spaceUid
+            }
           });
           this.$emit('reloadRouter');
           return;
-        } if (menu.id === 'extract') {
+        }
+        if (menu.id === 'extract') {
           if (this.$route.query.create) {
             this.$router.push({
               name: 'extract',
               query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
+                spaceUid: this.$store.state.spaceUid
+              }
             });
           } else {
             this.$emit('reloadRouter');
           }
           return;
-        } if (menu.id === 'trace') {
+        }
+        if (menu.id === 'trace') {
           if (this.$route.name === 'trace-detail') {
             this.$router.push({
               name: 'trace-list',
               query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
+                spaceUid: this.$store.state.spaceUid
+              }
             });
           } else {
             this.$emit('reloadRouter');
           }
           return;
-        } if (menu.id === 'dashboard') {
+        }
+        if (menu.id === 'dashboard') {
           // if (this.$route.query.manageAction) {
           //   const newQuery = { ...this.$route.query };
           //   delete newQuery.manageAction;
@@ -319,18 +379,19 @@ export default {
           this.$router.push({
             name: menu.id,
             query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
+              spaceUid: this.$store.state.spaceUid
+            }
           });
           this.$emit('reloadRouter');
           return;
-        } if (menu.id === 'manage') {
+        }
+        if (menu.id === 'manage') {
           if (this.$route.name !== 'collection-item') {
             this.$router.push({
               name: 'manage',
               query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
+                spaceUid: this.$store.state.spaceUid
+              }
             });
           } else {
             this.$emit('reloadRouter');
@@ -346,15 +407,15 @@ export default {
         this.$router.push({
           name: 'trace-list',
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
       } else {
         this.$router.push({
           name: menu.id,
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
       }
     },
@@ -384,16 +445,13 @@ export default {
       jsCookie.remove('blueking_language', { path: '' });
       jsCookie.set('blueking_language', value, {
         expires: 3600,
-        domain: this.envConfig.bkDomain
-                  || location.host.split('.').slice(-2)
-                    .join('.')
-                    .replace(`:${location.port}`, ''),
+        domain: this.envConfig.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, '')
       });
       await jsonp(
         `${this.envConfig.host}/api/c/compapi/v2/usermanage/fe_update_user_language/?language=${value}`,
         'localeChange',
-        true)
-      ;
+        true
+      );
     },
     dropdownLanguageShow() {
       this.isShowLanguageDropdown = true;
@@ -438,276 +496,276 @@ export default {
       // 打开全局设置弹窗
       this.$store.commit('updateGlobalActiveLabel', id);
       this.$store.commit('updateIsShowGlobalDialog', true);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '../../scss/mixins/clearfix';
-  @import '../../scss/conf';
-  @import '../../scss/mixins/flex';
+@import '../../scss/mixins/clearfix';
+@import '../../scss/conf';
+@import '../../scss/mixins/flex';
 
-  .log-search-nav {
-    height: 52px;
-    color: #fff;
-    background: #182132;
+.log-search-nav {
+  height: 52px;
+  color: #fff;
+  background: #182132;
+
+  @include clearfix;
+
+  .nav-left {
+    display: flex;
+    align-items: center;
+    width: 278px;
+    height: 100%;
+    padding-left: 23px;
+    font-size: 18px;
+
+    .log-logo-container {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      color: #96a2b9;
+      cursor: pointer;
+
+      .logo-text {
+        font-size: 16px;
+        font-weight: 700;
+        color: #96a2b9;
+      }
+
+      .logo-image {
+        width: 40px;
+        height: 40px;
+        margin-right: 10px;
+      }
+    }
+  }
+
+  .nav-center {
+    font-size: 14px;
+
+    ul {
+      @include clearfix;
+    }
+
+    .menu-item {
+      position: relative;
+      float: left;
+      padding: 0 20px;
+      height: 50px;
+      line-height: 50px;
+      cursor: pointer;
+      color: #979ba5;
+      transition: color 0.3s linear;
+
+      &.active {
+        color: #fff;
+        background: #0c1423;
+        transition: all 0.3s linear;
+      }
+
+      &:hover {
+        color: #fff;
+        transition: color 0.3s linear;
+      }
+
+      &.guide-highlight {
+        background: #000;
+      }
+    }
+
+    .bk-dropdown-content {
+      line-height: normal;
+      z-index: 2105;
+      min-width: 112px;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      text-align: center !important;
+    }
+
+    .drop-menu-item > .active {
+      color: #3a84ff;
+    }
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    color: #768197;
 
     @include clearfix;
 
-    .nav-left {
-      display: flex;
-      align-items: center;
-      width: 278px;
-      height: 100%;
-      padding-left: 23px;
-      font-size: 18px;
+    .setting {
+      font-size: 15px;
+      margin-right: 10px;
+      cursor: pointer;
+      position: relative;
 
-      .log-logo-container {
-        display: flex;
-        align-items: center;
-        height: 100%;
-        color: #96a2b9;
-        cursor: pointer;
+      &::before {
+        position: relative;
+        z-index: 999;
+        top: 1px;
+      }
 
-        .logo-text {
-          font-size: 16px;
-          font-weight: 700;
-          color: #96a2b9;
-        }
+      &.active,
+      &:hover {
+        color: #fff;
+      }
 
-        .logo-image {
-          width: 40px;
-          height: 40px;
-          margin-right: 10px;
-        }
+      &.active::after,
+      &:hover::after {
+        content: '';
+        z-index: 99;
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #424e5a;
       }
     }
 
-    .nav-center {
-      font-size: 14px;
-
-      ul {
-        @include clearfix;
-      }
-
-      .menu-item {
-        position: relative;
-        float: left;
-        padding: 0 20px;
-        height: 50px;
-        line-height: 50px;
-        cursor: pointer;
-        color: #979ba5;
-        transition: color .3s linear;
-
-        &.active {
-          color: #fff;
-          background: #0c1423;
-          transition: all .3s linear;
-        }
-
-        &:hover {
-          color: #fff;
-          transition: color .3s linear;
-        }
-
-        &.guide-highlight {
-          background: #000;
-        }
-      }
-
-      .bk-dropdown-content {
-        line-height: normal;
-        z-index: 2105;
-        min-width: 112px;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        text-align: center !important;
-      }
-
-      .drop-menu-item > .active {
-        color: #3a84ff;
-      }
+    .select-business {
+      margin-right: 22px;
+      border-color: #445060;
+      color: #979ba5;
     }
 
-    .nav-right {
-      display: flex;
-      align-items: center;
-      height: 100%;
-      color: #768197;
+    .icon-language-container {
+      height: 50px;
+      margin: 4px;
+      cursor: pointer;
 
-      @include clearfix;
+      @include flex-center;
 
-      .setting {
-        font-size: 15px;
-        margin-right: 10px;
-        cursor: pointer;
-        position: relative;
-
-        &::before {
-          position: relative;
-          z-index: 999;
-          top: 1px;
-        }
-
-        &.active,
-        &:hover {
-          color: #fff;
-        }
-
-        &.active::after,
-        &:hover::after {
-          content: '';
-          z-index: 99;
-          position: absolute;
-          bottom: -8px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 30px;
-          height: 30px;
-          border-radius: 50%;
-          background: #424e5a;
-        }
-      }
-
-      .select-business {
-        margin-right: 22px;
-        border-color: #445060;
-        color: #979ba5;
-      }
-
-      .icon-language-container {
-        height: 50px;
-        margin: 4px;
-        cursor: pointer;
+      .icon-circle-container {
+        width: 32px;
+        height: 32px;
+        border-radius: 16px;
+        transition: all 0.2s;
 
         @include flex-center;
 
-        .icon-circle-container {
-          width: 32px;
-          height: 32px;
-          border-radius: 16px;
-          transition: all .2s;
+        .log-icon {
+          font-size: 16px;
+          transition: all 0.2s;
+        }
 
-          @include flex-center;
+        .icon-language {
+          width: 20px;
+        }
+      }
+
+      &:hover,
+      &.active {
+        .icon-circle-container {
+          background: linear-gradient(270deg, #253047, #263247);
+          transition: all 0.2s;
 
           .log-icon {
-            font-size: 16px;
-            transition: all .2s;
-          }
-
-          .icon-language {
-            width: 20px;
-          }
-        }
-
-        &:hover,
-        &.active {
-          .icon-circle-container {
-            background: linear-gradient(270deg,#253047,#263247);
-            transition: all .2s;
-
-            .log-icon {
-              color: #d3d9e4;
-              transition: all .2s;
-            }
+            color: #d3d9e4;
+            transition: all 0.2s;
           }
         }
       }
+    }
 
-      .icon-icon-help-document-fill {
-        font-size: 16px;
+    .icon-icon-help-document-fill {
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .username {
+      margin: 0 28px 0 6px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #63656e;
+
+      &:hover {
+        color: #3a84ff;
         cursor: pointer;
       }
+    }
 
-      .username {
-        margin: 0 28px 0 6px;
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
+    .bk-dropdown-list {
+      .language-btn {
+        a {
+          display: flex;
+          align-items: center;
+        }
+
+        .icon-language {
+          width: 20px;
+          margin-right: 2px;
+        }
+      }
+
+      .active {
+        color: #3c96ff;
+      }
+    }
+  }
+}
+
+.select-business-dropdown-content {
+  /* stylelint-disable-next-line declaration-no-important */
+  border: none !important;
+
+  .bk-select-search-wrapper {
+    border: 1px solid #dcdee5;
+    border-bottom: none;
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+  }
+
+  .bk-options-wrapper {
+    border-left: 1px solid #dcdee5;
+    border-right: 1px solid #dcdee5;
+  }
+
+  .bk-select-extension {
+    padding: 0;
+    border: none;
+
+    &:hover {
+      background: #fafbfd;
+    }
+
+    .select-business-extension {
+      display: flex;
+      cursor: pointer;
+
+      .extension-item {
+        width: 50%;
+        text-align: center;
+        flex-grow: 1;
+        border: 1px solid #dcdee5;
+
+        &:nth-child(2) {
+          margin-left: -1px;
+          border-left-color: #dcdee5;
+        }
+
+        &:first-child {
+          border-bottom-left-radius: 2px;
+        }
+
+        &:last-child {
+          border-bottom-right-radius: 2px;
+        }
 
         &:hover {
           color: #3a84ff;
-          cursor: pointer;
-        }
-      }
-
-      .bk-dropdown-list {
-        .language-btn {
-          a {
-            display: flex;
-            align-items: center;
-          }
-
-          .icon-language {
-            width: 20px;
-            margin-right: 2px;
-          }
-        }
-
-        .active {
-          color: #3c96ff;
+          background: #f0f5ff;
+          border-color: #3a84ff;
+          z-index: 1;
         }
       }
     }
   }
-
-  .select-business-dropdown-content {
-    /* stylelint-disable-next-line declaration-no-important */
-    border: none !important;
-
-    .bk-select-search-wrapper {
-      border: 1px solid #dcdee5;
-      border-bottom: none;
-      border-top-left-radius: 2px;
-      border-top-right-radius: 2px;
-    }
-
-    .bk-options-wrapper {
-      border-left: 1px solid #dcdee5;
-      border-right: 1px solid #dcdee5;
-    }
-
-    .bk-select-extension {
-      padding: 0;
-      border: none;
-
-      &:hover {
-        background: #fafbfd;
-      }
-
-      .select-business-extension {
-        display: flex;
-        cursor: pointer;
-
-        .extension-item {
-          width: 50%;
-          text-align: center;
-          flex-grow: 1;
-          border: 1px solid #dcdee5;
-
-          &:nth-child(2) {
-            margin-left: -1px;
-            border-left-color: #dcdee5;
-          }
-
-          &:first-child {
-            border-bottom-left-radius: 2px;
-          }
-
-          &:last-child {
-            border-bottom-right-radius: 2px;
-          }
-
-          &:hover {
-            color: #3a84ff;
-            background: #f0f5ff;
-            border-color: #3a84ff;
-            z-index: 1;
-          }
-        }
-      }
-    }
-  }
+}
 </style>

@@ -36,21 +36,17 @@ let oldspaceUid = '';
 class ReportLogStore extends VuexModule {
   @Action
   reportRouteLog(params: Record<string, any>) {
-    const { 
-      isAppFirstLoad,
-      bkBizId,
-      spaceUid,
-      mySpaceList: spaceList
-    } = store.state;
+    const { isAppFirstLoad, bkBizId, spaceUid, mySpaceList: spaceList } = store.state;
 
     if (!bkBizId && !spaceUid) return;
-    
+
     if (
       !isAppFirstLoad &&
       oldspaceUid === spaceUid &&
       params.nav_name !== '日志聚类' &&
       (oldRouteId === params.route_id || oldNavId === params.nav_id)
-    ) return;
+    )
+      return;
 
     oldRouteId = params.route_id;
     oldNavId = params.nav_id;
@@ -60,26 +56,29 @@ class ReportLogStore extends VuexModule {
     const space = spaceList?.find(item => item.space_uid === spaceUid);
     const routeConfig = getRouteConfigById(params.nav_id);
 
-    $http.request('report/frontendEventReport', 
-      {
-        data: {
-          event_name: '用户运营数据',
-          event_content: '基于前端路由的运营数据上报',
-          target: 'bk_log',
-          timestamp: Date.now(),
-          dimensions: {
-            space_id: space?.space_uid || bkBizId,
-            space_name: space?.space_name || bkBizId,
-            user_name: username,
-            nav_name: params.nav_name || routeConfig?.meta?.title,
-            ...params
+    $http
+      .request(
+        'report/frontendEventReport',
+        {
+          data: {
+            event_name: '用户运营数据',
+            event_content: '基于前端路由的运营数据上报',
+            target: 'bk_log',
+            timestamp: Date.now(),
+            dimensions: {
+              space_id: space?.space_uid || bkBizId,
+              space_name: space?.space_name || bkBizId,
+              user_name: username,
+              nav_name: params.nav_name || routeConfig?.meta?.title,
+              ...params
+            }
           }
         },
-      },
-      {
-        catchIsShowMessage: false
-      }
-    ).catch(() => false);
+        {
+          catchIsShowMessage: false
+        }
+      )
+      .catch(() => false);
   }
 }
 export default getModule(ReportLogStore);

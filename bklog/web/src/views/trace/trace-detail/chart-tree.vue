@@ -32,12 +32,12 @@ export default {
   props: {
     tree: {
       type: Object,
-      required: true,
+      required: true
     },
     config: {
       type: Object,
-      required: true,
-    },
+      required: true
+    }
   },
   mounted() {
     const centerPoint = document.querySelector('.chart-container').clientWidth / 2;
@@ -45,12 +45,14 @@ export default {
       mode: 'readonly',
       background: '#fff',
       renderVisibleArea: true,
-      nodeConfig: [{
-        type: 'default',
-        width: this.config.span_width,
-        height: 30,
-        radius: '2px',
-      }],
+      nodeConfig: [
+        {
+          type: 'default',
+          width: this.config.span_width,
+          height: 30,
+          radius: '2px'
+        }
+      ],
       tree: {
         mode: 'vertical',
         node: { width: 120 },
@@ -58,33 +60,37 @@ export default {
         verticalSpacing: 50,
         chartArea: {
           left: centerPoint,
-          top: 50,
-        },
+          top: 50
+        }
       },
       zoom: {
         scaleExtent: [0.2, 2],
         controlPanel: true,
-        tools: [{
-          text: this.$t('放大'),
-          icon: 'bk-icon icon-plus-circle',
-          type: 'zoomIn',
-        }, {
-          text: this.$t('缩小'),
-          icon: 'bk-icon icon-minus-circle',
-          type: 'zoomOut',
-        }, {
-          text: this.$t('还原'),
-          icon: 'bk-icon icon-full-screen',
-          type: 'resetPosition',
-        }],
+        tools: [
+          {
+            text: this.$t('放大'),
+            icon: 'bk-icon icon-plus-circle',
+            type: 'zoomIn'
+          },
+          {
+            text: this.$t('缩小'),
+            icon: 'bk-icon icon-minus-circle',
+            type: 'zoomOut'
+          },
+          {
+            text: this.$t('还原'),
+            icon: 'bk-icon icon-full-screen',
+            type: 'resetPosition'
+          }
+        ]
       },
       lineConfig: {
         canvasLine: true,
         color: '#DCDEE5',
-        activeColor: '#3a84ff',
+        activeColor: '#3a84ff'
       },
       // 配置节点样式
-      onNodeRender: (node) => {
+      onNodeRender: node => {
         const isError = this.tableRowDeepView(node, this.config.error_field, '', false);
         const className = node.relationship === 1 ? 'subscript' : 'node-item';
         const nodeClass = isError === true ? `${className} is-error` : className;
@@ -95,85 +101,85 @@ export default {
                     ${node[this.config.display_field]}
                   </a>
                 </div>`;
-      },
+      }
     });
     instance.renderTree(this.tree, 'spanID', this.config.display_field);
 
-    instance.on('nodeClick', (node) => {
+    instance.on('nodeClick', node => {
       this.$emit('showSpanId', { spanID: node.spanID });
     });
-  },
+  }
 };
 </script>
 
 <style lang="scss">
-  #graph-wrapper {
-    width: 100%;
-    height: 458px;
+#graph-wrapper {
+  width: 100%;
+  height: 458px;
 
-    .node-item,
-    .subscript {
-      padding: 0 10px;
-      line-height: 30px;
-      text-align: center;
-      font-size: 12px;
-      height: 30px;
-      border-radius: 3px;
-      background-color: #f0f9eb;
-      border: 1px solid #defad0;
-      color: #67c23a;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      transition: all .2s;
+  .node-item,
+  .subscript {
+    padding: 0 10px;
+    line-height: 30px;
+    text-align: center;
+    font-size: 12px;
+    height: 30px;
+    border-radius: 3px;
+    background-color: #f0f9eb;
+    border: 1px solid #defad0;
+    color: #67c23a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: all 0.2s;
 
-      a {
-        color: inherit;
-      }
-
-      &:hover {
-        background: #83f095;
-        color: #fff;
-        transition: all .2s;
-      }
-
-      &.is-error {
-        background-color: #ffeded;
-        border: 1px solid #fde2e2;
-        color: #f56c6c;
-        transition: all .2s;
-
-        &:hover {
-          background: #fbb8ac;
-          color: #fff;
-          transition: all .2s;
-        }
-      }
+    a {
+      color: inherit;
     }
 
-    .subscript {
-      position: relative;
+    &:hover {
+      background: #83f095;
+      color: #fff;
+      transition: all 0.2s;
+    }
 
-      &::before {
-        content: '';
-        display: inline-block;
-        width: 0;
-        height: 0;
-        border-top: 7px solid #44e35f;
-        border-right: 7px solid transparent;
-        border-bottom: 7px solid transparent;
-        border-left: 7px solid #44e35f;
-        position: absolute;
-        top: 0;
-        left: 0;
-      }
+    &.is-error {
+      background-color: #ffeded;
+      border: 1px solid #fde2e2;
+      color: #f56c6c;
+      transition: all 0.2s;
 
-      &.is-error {
-        &::before {
-          border-top: 7px solid #fe6673;
-          border-left: 7px solid #fe6673;
-        }
+      &:hover {
+        background: #fbb8ac;
+        color: #fff;
+        transition: all 0.2s;
       }
     }
   }
+
+  .subscript {
+    position: relative;
+
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 0;
+      height: 0;
+      border-top: 7px solid #44e35f;
+      border-right: 7px solid transparent;
+      border-bottom: 7px solid transparent;
+      border-left: 7px solid #44e35f;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    &.is-error {
+      &::before {
+        border-top: 7px solid #fe6673;
+        border-left: 7px solid #fe6673;
+      }
+    }
+  }
+}
 </style>

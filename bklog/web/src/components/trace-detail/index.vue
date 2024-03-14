@@ -27,21 +27,31 @@
     :is-show.sync="isShowSlider"
     :quick-close="true"
     :width="sideWidth"
-    @hidden="handleHidden">
+    @hidden="handleHidden"
+  >
     <div slot="header">
       <div class="trace-detail-header">
         <span>{{ $t('详情') }}</span>
         <i
           :class="`bk-icon icon-${isFullScreen ? 'un-full-screen' : 'full-screen'}`"
-          @click="handleFullScreen">
+          @click="handleFullScreen"
+        >
         </i>
       </div>
     </div>
-    <div slot="content" ref="traceDetailContainer">
+    <div
+      slot="content"
+      ref="traceDetailContainer"
+    >
       <div
+        v-bkloading="{ isLoading }"
         :class="['trace-detail-container', { 'is-full-screen': isFullScreen }]"
-        v-bkloading="{ isLoading }">
-        <iframe :src="src" class="trace-iframe" @load="handleIframeLoad"></iframe>
+      >
+        <iframe
+          :src="src"
+          class="trace-iframe"
+          @load="handleIframeLoad"
+        ></iframe>
       </div>
     </div>
   </bk-sideslider>
@@ -52,23 +62,23 @@ export default {
   props: {
     isShow: {
       type: Boolean,
-      default: false,
+      default: false
     },
     traceId: {
       type: String,
-      default: '',
+      default: ''
     },
     indexSetName: {
       type: String,
-      default: '',
-    },
+      default: ''
+    }
   },
   data() {
     return {
       isShowSlider: false,
       isLoading: false,
       isFullScreen: false,
-      src: '',
+      src: ''
     };
   },
   computed: {
@@ -78,9 +88,9 @@ export default {
     sideWidth() {
       const minWidth = 1000;
       const viewWidth = document.body.clientWidth;
-      const width = (viewWidth / 2) < minWidth ? minWidth : (viewWidth / 2);
+      const width = viewWidth / 2 < minWidth ? minWidth : viewWidth / 2;
       return width;
-    },
+    }
   },
   watch: {
     isShow(val) {
@@ -92,7 +102,7 @@ export default {
       } else {
         document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
       }
-    },
+    }
   },
   methods: {
     // 初始化 iframe 页面
@@ -106,7 +116,7 @@ export default {
     },
     // iframe 页面加载完毕
     handleIframeLoad() {
-      setTimeout(() => this.isLoading = false, 500);
+      setTimeout(() => (this.isLoading = false), 500);
     },
     // 设置全屏
     handleFullScreen() {
@@ -125,38 +135,37 @@ export default {
     },
     handleHidden() {
       this.$emit('update:isShow', false);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .trace-detail-sideslider {
-    .trace-detail-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-right: 20px;
+.trace-detail-sideslider {
+  .trace-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-right: 20px;
 
-      .bk-icon {
-        cursor: pointer;
-      }
-    }
-
-    .trace-detail-container {
-      width: 100%;
-      height: calc(100vh - 60px);
-
-      &.is-full-screen {
-        height: 100vh;
-      }
-
-      .trace-iframe {
-        border: none;
-        width: 100%;
-        height: 100%;
-      }
+    .bk-icon {
+      cursor: pointer;
     }
   }
-</style>
 
+  .trace-detail-container {
+    width: 100%;
+    height: calc(100vh - 60px);
+
+    &.is-full-screen {
+      height: 100vh;
+    }
+
+    .trace-iframe {
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+</style>

@@ -21,12 +21,15 @@
   -->
 
 <template>
-  <div class="basic-info-container" v-bkloading="{ isLoading: basicLoading }">
+  <div
+    v-bkloading="{ isLoading: basicLoading }"
+    class="basic-info-container"
+  >
     <div>
       <div
-        class="deploy-sub"
-        v-en-class="'en-deploy'"
         v-if="!isContainer"
+        v-en-class="'en-deploy'"
+        class="deploy-sub"
       >
         <!-- 数据ID -->
         <div>
@@ -37,25 +40,41 @@
         <div v-if="collectorData.custom_type === 'otlp_log'">
           <span>Token</span>
           <section class="token-view">
-            <span v-if="!tokenStr" :class="['mask-content', { 'btn-loading': tokenLoading }]">
+            <span
+              v-if="!tokenStr"
+              :class="['mask-content', { 'btn-loading': tokenLoading }]"
+            >
               <span class="placeholder">●●●●●●●●●●</span>
-              <span v-if="tokenLoading" class="loading"></span>
+              <span
+                v-if="tokenLoading"
+                class="loading"
+              ></span>
               <bk-button
+                v-cursor="{ active: !tokenReviewAuth }"
                 text
                 class="view-btn"
-                v-cursor="{ active: !tokenReviewAuth }"
                 :loading="tokenLoading"
-                @click="handleGetToken">{{ tokenLoading ? '' : $t('点击查看')}}</bk-button>
+                @click="handleGetToken"
+                >{{ tokenLoading ? '' : $t('点击查看') }}</bk-button
+              >
             </span>
-            <span v-else class="password-content">
-              <span :class="{ 'placeholder': true, 'password-value': !showPassword }">
-                {{showPassword ? (tokenStr || '-') : '********'}}
+            <span
+              v-else
+              class="password-content"
+            >
+              <span :class="{ placeholder: true, 'password-value': !showPassword }">
+                {{ showPassword ? tokenStr || '-' : '********' }}
               </span>
               <span class="operate-box">
-                <span v-if="showPassword" class="icon log-icon icon-copy" @click="handleCopy(tokenStr)"></span>
+                <span
+                  v-if="showPassword"
+                  class="icon log-icon icon-copy"
+                  @click="handleCopy(tokenStr)"
+                ></span>
                 <span
                   :class="`bk-icon toggle-icon ${showPassword ? 'icon-eye-slash' : 'icon-eye'}`"
-                  @click="showPassword = !showPassword">
+                  @click="showPassword = !showPassword"
+                >
                 </span>
               </span>
             </span>
@@ -98,14 +117,24 @@
           <!-- 日志路径 -->
           <div>
             <span>
-              {{collectorData.collector_scenario_id === 'wineventlog' ?
-                $t('日志种类') : $t('日志路径') }}
+              {{ collectorData.collector_scenario_id === 'wineventlog' ? $t('日志种类') : $t('日志路径') }}
             </span>
-            <div v-if="collectorData.params.paths" class="deploy-path">
-              <p v-for="(val, key) in collectorData.params.paths" :key="key">{{ val }}</p>
+            <div
+              v-if="collectorData.params.paths"
+              class="deploy-path"
+            >
+              <p
+                v-for="(val, key) in collectorData.params.paths"
+                :key="key"
+              >
+                {{ val }}
+              </p>
             </div>
-            <div v-else class="deploy-path">
-              <p>{{getLogSpeciesStr}}</p>
+            <div
+              v-else
+              class="deploy-path"
+            >
+              <p>{{ getLogSpeciesStr }}</p>
             </div>
           </div>
           <!-- 日志字符集 -->
@@ -118,7 +147,12 @@
             <span>{{ $t('采集目标') }}</span>
             <span>
               <i18n path="已选择 {0} 个{1}">
-                <p class="num-color" @click="handleClickTarget">{{ collectorData.target_nodes.length || '-' }}</p>
+                <p
+                  class="num-color"
+                  @click="handleClickTarget"
+                >
+                  {{ collectorData.target_nodes.length || '-' }}
+                </p>
                 {{ collectorData.target_node_type !== 'INSTANCE' ? $t('节点') : $t('静态主机') }}
               </i18n>
             </span>
@@ -136,21 +170,23 @@
           </div>
           <!-- 过滤内容 -->
           <div
-            class="content-style"
-            v-if="collectorData.params.conditions &&
+            v-if="
+              collectorData.params.conditions &&
               collectorData.params.conditions.type === 'match' &&
-              collectorData.params.conditions.match_content !== ''">
+              collectorData.params.conditions.match_content !== ''
+            "
+            class="content-style"
+          >
             <span>{{ $t('过滤内容') }}</span>
             <div>
               <p>{{ $t('字符串匹配') }}</p>
-              <p
-                v-if="collectorData.params.conditions.match_content">
+              <p v-if="collectorData.params.conditions.match_content">
                 {{ collectorData.params.conditions.match_content }}
               </p>
               <p>
                 {{ collectorData.params.conditions.match_type }}/{{
-                  collectorData.params.conditions.match_type === 'include' ?
-                    $t('保留匹配字符串') : $t('过滤匹配字符串') }}
+                  collectorData.params.conditions.match_type === 'include' ? $t('保留匹配字符串') : $t('过滤匹配字符串')
+                }}
               </p>
             </div>
           </div>
@@ -159,21 +195,27 @@
             <div class="content-style">
               <span>{{ $t('段日志参数') }}</span>
               <div class="section-box">
-                <p>{{$t('行首正则')}}: <span>{{collectorData.params.multiline_pattern}}</span></p> <br>
+                <p>
+                  {{ $t('行首正则') }}: <span>{{ collectorData.params.multiline_pattern }}</span>
+                </p>
+                <br />
                 <p>
                   <i18n path="最多匹配{0}行，最大耗时{1}秒">
-                    <span>{{collectorData.params.multiline_max_lines}}</span>
-                    <span>{{collectorData.params.multiline_timeout}}</span>
+                    <span>{{ collectorData.params.multiline_max_lines }}</span>
+                    <span>{{ collectorData.params.multiline_timeout }}</span>
                   </i18n>
                 </p>
               </div>
             </div>
           </template>
           <div
-            class="content-style"
-            v-else-if="collectorData.params.conditions &&
+            v-else-if="
+              collectorData.params.conditions &&
               collectorData.params.conditions.type === 'separator' &&
-              collectorData.params.conditions.separator_filters !== []">
+              collectorData.params.conditions.separator_filters !== []
+            "
+            class="content-style"
+          >
             <span>{{ $t('过滤内容') }}</span>
             <div>
               <p>{{ $t('分隔符匹配') }}</p>
@@ -183,48 +225,61 @@
                   <div class="the-column">
                     <div
                       v-for="(val, key) in collectorData.params.conditions.separator_filters"
-                      :key="key">
-                      {{ $t('第 {n} 列', { n: val.fieldindex })}}
+                      :key="key"
+                    >
+                      {{ $t('第 {n} 列', { n: val.fieldindex }) }}
                     </div>
                   </div>
                   <div>
-                    <div v-for="(val, key) in collectorData.params.conditions.separator_filters" :key="key">
-                      <p @mouseenter="handleEnter" @mouseleave="handleLeave">{{ val.word }}</p>
+                    <div
+                      v-for="(val, key) in collectorData.params.conditions.separator_filters"
+                      :key="key"
+                    >
+                      <p
+                        @mouseenter="handleEnter"
+                        @mouseleave="handleLeave"
+                      >
+                        {{ val.word }}
+                      </p>
                       <div
+                        v-if="collectorData.params.conditions.separator_filters.length > 1"
                         :class="key === 0 ? 'line-styy' : 'line-sty'"
-                        v-if="collectorData.params.conditions.separator_filters.length > 1">
-                      </div>
+                      ></div>
                     </div>
                   </div>
                 </div>
-                <div class="con-text" v-if="collectorData.params.conditions.separator_filters.length > 1">
+                <div
+                  v-if="collectorData.params.conditions.separator_filters.length > 1"
+                  class="con-text"
+                >
                   <div class="line-styx"></div>
                   <p>
-                    {{ collectorData.params.conditions.separator_filters[0].logic_op === 'and' ?
-                      $t('并') : $t('或') }}
+                    {{ collectorData.params.conditions.separator_filters[0].logic_op === 'and' ? $t('并') : $t('或') }}
                   </p>
                 </div>
               </div>
             </div>
           </div>
           <div
+            v-else-if="collectorData.collector_scenario_id === 'wineventlog' && isHaveEventValue"
             class="content-style"
-            v-else-if="collectorData.collector_scenario_id === 'wineventlog' && isHaveEventValue">
+          >
             <span>{{ $t('过滤内容') }}</span>
             <div class="win-log">
               <div>
-                <p>{{$t('事件ID')}}:{{getEventIDStr}}</p>
+                <p>{{ $t('事件ID') }}:{{ getEventIDStr }}</p>
               </div>
               <div>
-                <p>{{$t('级别')}}:{{getLevelStr}}</p>
+                <p>{{ $t('级别') }}:{{ getLevelStr }}</p>
               </div>
             </div>
           </div>
-          <div class="content-style" v-else>
+          <div
+            v-else
+            class="content-style"
+          >
             <span>{{ $t('过滤内容') }}</span>
-            <div>
-              --
-            </div>
+            <div>--</div>
           </div>
         </template>
         <!-- 存储集群 -->
@@ -243,22 +298,33 @@
           <span>{{ collectorData.retention || '-' }} {{ $t('天') }}</span>
         </div>
       </div>
-      <container-base v-else :collector-data="collectorData" :is-loading.sync="basicLoading"></container-base>
+      <container-base
+        v-else
+        :collector-data="collectorData"
+        :is-loading.sync="basicLoading"
+      ></container-base>
     </div>
     <div>
       <bk-button
+        v-cursor="{ active: !editAuth }"
         :theme="'default'"
         ext-cls=""
-        style="min-width: 88px; color: #3a84ff;"
-        v-cursor="{ active: !editAuth }"
+        style="min-width: 88px; color: #3a84ff"
+        class="mr10"
         @click="handleClickEdit"
-        class="mr10">
+      >
         {{ $t('编辑') }}
       </bk-button>
       <bk-popover placement="bottom-end">
         <bk-button class="log-icon icon-lishijilu"></bk-button>
-        <div slot="content" class="create-name-and-time">
-          <div v-for="item in createAndTimeData" :key="item.key">
+        <div
+          slot="content"
+          class="create-name-and-time"
+        >
+          <div
+            v-for="item in createAndTimeData"
+            :key="item.key"
+          >
             <span>{{ item.label }}</span>
             <span>{{ item.value }}</span>
           </div>
@@ -276,13 +342,13 @@ import * as authorityMap from '../../../../../../common/authority-map';
 
 export default {
   components: {
-    containerBase,
+    containerBase
   },
   props: {
     collectorData: {
       type: Object,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
@@ -295,7 +361,7 @@ export default {
       showPassword: true, // 是否展示Token值
       tokenReviewAuth: false, // 是否有查看token的权限
       tokenLoading: false,
-      tokenStr: '', // token 的值
+      tokenStr: '' // token 的值
     };
   },
   computed: {
@@ -318,7 +384,7 @@ export default {
     // 自定义上报基本信息
     isCustomReport() {
       return this.$route.name === 'custom-report-detail';
-    },
+    }
   },
   created() {
     this.getCollectDetail();
@@ -327,21 +393,26 @@ export default {
   methods: {
     getCollectDetail() {
       try {
-        const collectorData = this.collectorData;
-        const createAndTimeData = [{
-          key: 'updated_by',
-          label: this.$t('更新人'),
-        }, {
-          key: 'updated_at',
-          label: this.$t('更新时间'),
-        }, {
-          key: 'created_by',
-          label: this.$t('创建人'),
-        }, {
-          key: 'created_at',
-          label: this.$t('创建时间'),
-        }];
-        this.createAndTimeData = createAndTimeData.map((item) => {
+        const { collectorData } = this;
+        const createAndTimeData = [
+          {
+            key: 'updated_by',
+            label: this.$t('更新人')
+          },
+          {
+            key: 'updated_at',
+            label: this.$t('更新时间')
+          },
+          {
+            key: 'created_by',
+            label: this.$t('创建人')
+          },
+          {
+            key: 'created_at',
+            label: this.$t('创建时间')
+          }
+        ];
+        this.createAndTimeData = createAndTimeData.map(item => {
           if (item.key === 'created_at' || item.key === 'updated_at') {
             item.value = utcFormatDate(collectorData[item.key]);
           } else {
@@ -364,7 +435,7 @@ export default {
         this.instance = this.$bkPopover(e.target, {
           content: e.path[0].childNodes[0].data,
           arrow: true,
-          placement: 'right',
+          placement: 'right'
         });
         this.instance.show(1000);
       }
@@ -376,7 +447,7 @@ export default {
       if (!this.editAuth && this.authData) {
         this.$store.commit('updateAuthDialogData', this.authData);
         return;
-      };
+      }
       const params = {};
       params.collectorId = this.$route.params.collectorId;
       const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
@@ -384,18 +455,20 @@ export default {
         name: routeName,
         params,
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
     },
     async getEditAuth() {
       try {
         const paramData = {
           action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-          resources: [{
-            type: 'collection',
-            id: this.$route.params.collectorId,
-          }],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId
+            }
+          ]
         };
         const res = await this.$store.dispatch('checkAndGetData', paramData);
         if (!res.isAllowed) this.authData = res.data;
@@ -410,13 +483,13 @@ export default {
       if (!this.tokenReviewAuth && this.authData) {
         this.$store.commit('updateAuthDialogData', this.authData);
         return;
-      };
+      }
       try {
         this.tokenLoading = true;
         const res = await this.$http.request('collect/reviewToken', {
           params: {
-            collector_config_id: this.$route.params.collectorId,
-          },
+            collector_config_id: this.$route.params.collectorId
+          }
         });
         this.tokenStr = res.data?.bk_data_token || '-';
       } catch (error) {
@@ -428,8 +501,8 @@ export default {
     },
     handleCopy(text) {
       copyMessage(text);
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -525,7 +598,6 @@ export default {
     }
   }
 
-
   .create-name-and-time {
     border-top: 1px solid #dcdee5;
     border-radius: 2px;
@@ -614,7 +686,5 @@ export default {
       }
     }
   }
-
-
 }
 </style>

@@ -64,34 +64,57 @@
         <span>500+(ms)</span>
       </div>
     </div>
-    <div class="row" v-for="x in datasets" :key="x.label">
-      <div class="column" :title="x.label">{{x.label}}</div>
+    <div
+      v-for="x in datasets"
+      :key="x.label"
+      class="row"
+    >
+      <div
+        class="column"
+        :title="x.label"
+      >
+        {{ x.label }}
+      </div>
       <span></span>
       <div
         v-for="item in x.data"
-        class="chunk"
         :key="item.label"
-        :class="item.value < 21 ?
-          'Auqamarin' : item.value < 41 ?
-            'MediumSpringGreen' : item.value < 71 ?
-              'LightYellow' : item.value < 101 ?
-                'LightGoldenrodYellow' :
-                item.value < 151 ?
-                  'Beige' : item.value < 201 ?
-                    'Yellow' : item.value < 251 ?
-                      'GoldEnrod' : item.value < 301 ?
-                        'Orange' : item.value < 501 ?
-                          'DarkOrange' : 'OrangeRed'"
-        @mouseenter="handleEnter($event,item)"
-        @mouseleave="handleLeave">
-      </div>
+        class="chunk"
+        :class="
+          item.value < 21
+            ? 'Auqamarin'
+            : item.value < 41
+              ? 'MediumSpringGreen'
+              : item.value < 71
+                ? 'LightYellow'
+                : item.value < 101
+                  ? 'LightGoldenrodYellow'
+                  : item.value < 151
+                    ? 'Beige'
+                    : item.value < 201
+                      ? 'Yellow'
+                      : item.value < 251
+                        ? 'GoldEnrod'
+                        : item.value < 301
+                          ? 'Orange'
+                          : item.value < 501
+                            ? 'DarkOrange'
+                            : 'OrangeRed'
+        "
+        @mouseenter="handleEnter($event, item)"
+        @mouseleave="handleLeave"
+      ></div>
     </div>
     <div class="abscissa">
       <div class="column"></div>
       <span></span>
-      <div v-for="item in abscissa" class="chunk" :key="item.theTime">
-        {{item.theTime}}
-        <div>{{item.theDate}}</div>
+      <div
+        v-for="item in abscissa"
+        :key="item.theTime"
+        class="chunk"
+      >
+        {{ item.theTime }}
+        <div>{{ item.theDate }}</div>
       </div>
     </div>
   </div>
@@ -103,19 +126,19 @@ export default {
   props: {
     conum: {
       type: Object,
-      default: () => {},
-    },
+      default: () => {}
+    }
   },
   data() {
     return {
       abscissa: [],
-      datasets: [],
+      datasets: []
     };
   },
   watch: {
     conum() {
       this.conumType();
-    },
+    }
   },
   created() {
     this.conumType();
@@ -125,7 +148,7 @@ export default {
       this.instance = this.$bkPopover(e.target, {
         content: `<div>${this.$t('耗时')}： ${val.value}</div><div>${this.$t('时间')}：${val.label}</div><div>${this.$t('数量')}: ${val.count}</div>`,
         arrow: true,
-        placement: 'top',
+        placement: 'top'
       });
       this.instance.show(1000);
     },
@@ -149,13 +172,13 @@ export default {
           lists = item.split(' ');
           data = {
             theDate: day === lists[0] ? '' : lists[0],
-            theTime: lists[1],
+            theTime: lists[1]
           };
           day = lists[0];
         } else {
           data = {
             theDate: '',
-            theTime: item,
+            theTime: item
           };
         }
         if (index % x === y) {
@@ -165,139 +188,139 @@ export default {
       this.abscissa = labels;
       this.datasets = this.conum.datasets;
       // 删除第一个value为0的点
-      this.datasets.forEach((item) => {
+      this.datasets.forEach(item => {
         item.data.splice(0, 1);
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped lang="scss">
-  .TakeDemo {
-    .chunk-border {
-      border-top: 1px solid rgba(231, 232, 236, .8);
-    }
+.TakeDemo {
+  .chunk-border {
+    border-top: 1px solid rgba(231, 232, 236, 0.8);
+  }
 
-    .check {
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
+  .check {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
 
-      div {
-        margin-right: 20px;
-        line-height: 20px;
-      }
-
-      .chunkclor {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        margin-right: 5px;
-      }
-    }
-
-    .abscissa {
-      display: flex;
+    div {
+      margin-right: 20px;
       line-height: 20px;
-      margin-top: -2px;
+    }
 
-      .column {
-        width: 150px;
-        flex-shrink: 0;
-        text-overflow: ellipsis;
-      }
-
-      .chunk {
-        border-top: 1px solid rgba(231, 232, 236, .8);
-        width: 100%;
-        text-align: center;
-        font-size: 12px;
-      }
-
-      .span {
-        width: 6px;
-        display: inline-block;
-        border-bottom: 1px solid rgba(231, 232, 236, .8);
-        flex-shrink: 0;
-      }
+    .chunkclor {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 5px;
     }
   }
 
-  .row {
+  .abscissa {
     display: flex;
-    height: 22px;
-
-    div:last-child {
-      border-right: 1px solid rgba(196,198,204,.8);
-    }
-
-    .chunk {
-      width: 100%;
-      height: 21px;
-      line-height: 48px;
-      text-align: center;
-      border-left: 1px solid  rgba(196,198,204,.8);
-    }
+    line-height: 20px;
+    margin-top: -2px;
 
     .column {
       width: 150px;
       flex-shrink: 0;
-      overflow: hidden;
       text-overflow: ellipsis;
-      text-align: right;
-      background-color: #fff;
-      line-height: 22px;
-      font-size: 14px;
     }
 
-    span {
-      display: inline-block;
+    .chunk {
+      border-top: 1px solid rgba(231, 232, 236, 0.8);
+      width: 100%;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .span {
       width: 6px;
-      height: 44px;
+      display: inline-block;
+      border-bottom: 1px solid rgba(231, 232, 236, 0.8);
       flex-shrink: 0;
-      border-top: 1px solid rgba(231, 232, 236, .8);
     }
   }
+}
 
-  .Auqamarin {
-    background-color: rgba(0, 250, 0, .2);
+.row {
+  display: flex;
+  height: 22px;
+
+  div:last-child {
+    border-right: 1px solid rgba(196, 198, 204, 0.8);
   }
 
-  .MediumSpringGreen {
-    background-color: rgba(0, 250, 0, .3);
+  .chunk {
+    width: 100%;
+    height: 21px;
+    line-height: 48px;
+    text-align: center;
+    border-left: 1px solid rgba(196, 198, 204, 0.8);
   }
 
-  .LightYellow {
-    background-color: #ffffe0;
+  .column {
+    width: 150px;
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    background-color: #fff;
+    line-height: 22px;
+    font-size: 14px;
   }
 
-  .LightGoldenrodYellow {
-    background-color: #fafad2;
+  span {
+    display: inline-block;
+    width: 6px;
+    height: 44px;
+    flex-shrink: 0;
+    border-top: 1px solid rgba(231, 232, 236, 0.8);
   }
+}
 
-  .Beige {
-    background-color: #f5f5dc;
-  }
+.Auqamarin {
+  background-color: rgba(0, 250, 0, 0.2);
+}
 
-  .Yellow {
-    background-color: #ff0;
-  }
+.MediumSpringGreen {
+  background-color: rgba(0, 250, 0, 0.3);
+}
 
-  .GoldEnrod {
-    background-color: #ffd700;
-  }
+.LightYellow {
+  background-color: #ffffe0;
+}
 
-  .Orange {
-    background-color: #ffa500;
-  }
+.LightGoldenrodYellow {
+  background-color: #fafad2;
+}
 
-  .DarkOrange {
-    background-color: #ff8c00;
-  }
+.Beige {
+  background-color: #f5f5dc;
+}
 
-  .OrangeRed {
-    background-color: #f07c7d;
-  }
+.Yellow {
+  background-color: #ff0;
+}
+
+.GoldEnrod {
+  background-color: #ffd700;
+}
+
+.Orange {
+  background-color: #ffa500;
+}
+
+.DarkOrange {
+  background-color: #ff8c00;
+}
+
+.OrangeRed {
+  background-color: #f07c7d;
+}
 </style>

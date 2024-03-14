@@ -25,95 +25,94 @@
  */
 const getConfig = {
   url: '/clustering_config/:index_set_id/config/',
-  method: 'get',
+  method: 'get'
 };
 
 const getDefaultConfig = {
   url: '/clustering_config/default_config/',
-  method: 'get',
+  method: 'get'
 };
 
 const changeConfig = {
   url: '/clustering_config/:index_set_id/create_or_update/',
-  method: 'post',
+  method: 'post'
 };
 
 const preview = {
   url: '/clustering_config/preview/',
-  method: 'post',
+  method: 'post'
 };
 
 const clusterSearch = {
   url: '/pattern/:index_set_id/search/',
-  method: 'post',
+  method: 'post'
 };
 
 const closeClean = {
   url: '/databus/collectors/:collector_config_id/close_clean/',
-  method: 'post',
+  method: 'post'
 };
 
 const updateStrategies = {
   url: '/clustering_monitor/:index_set_id/update_strategies/',
-  method: 'post',
+  method: 'post'
 };
 
 const getFingerLabels = {
   url: '/pattern/:index_set_id/labels/',
-  method: 'post',
+  method: 'post'
 };
 
 const getNewClsStrategy = {
   url: '/clustering_monitor/:index_set_id/get_new_cls_strategy/',
-  method: 'get',
+  method: 'get'
 };
 
 const updateNewClsStrategy = {
   url: '/clustering_monitor/:index_set_id/update_new_cls_strategy/',
-  method: 'post',
+  method: 'post'
 };
 
 const checkRegexp = {
   url: '/clustering_config/check_regexp/',
-  method: 'post',
+  method: 'post'
 };
 
 // 设置备注
 const setRemark = {
   url: '/pattern/:index_set_id/remark/ ',
-  method: 'post',
+  method: 'post'
 };
 
 // 更新备注
 const updateRemark = {
   url: '/pattern/:index_set_id/update_remark/ ',
-  method: 'put',
+  method: 'put'
 };
 
 // 删除备注
 const deleteRemark = {
   url: '/pattern/:index_set_id/delete_remark/ ',
-  method: 'delete',
+  method: 'delete'
 };
 
 // 设置负责人
 const setOwner = {
   url: '/pattern/:index_set_id/owner/',
-  method: 'post',
+  method: 'post'
 };
 
 // 获取当前pattern所有负责人列表
 const getOwnerList = {
   url: '/pattern/:index_set_id/list_owners/',
-  method: 'get',
+  method: 'get'
 };
 
 // 第一次进数据指纹时候的分组
 const updateInitGroup = {
   url: '/pattern/:index_set_id/group_fields/',
-  method: 'post',
+  method: 'post'
 };
-
 
 export {
   getConfig,
@@ -132,5 +131,5 @@ export {
   updateRemark,
   deleteRemark,
   getOwnerList,
-  updateInitGroup,
+  updateInitGroup
 };

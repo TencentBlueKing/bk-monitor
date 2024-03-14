@@ -26,66 +26,76 @@
       <span
         class="log-icon icon-camera-fill"
         :class="initialCallShow ? '' : 'click-stop'"
-        @click="clickIcon"></span>
+        @click="clickIcon"
+      ></span>
       <span :class="!initialCallShow ? 'rotate-from' : 'rotate'">
-        <i class="bk-icon icon-angle-up" @click="handleToggleCallShow"></i>
+        <i
+          class="bk-icon icon-angle-up"
+          @click="handleToggleCallShow"
+        ></i>
       </span>
     </div>
     <div
-      class="chart-views"
+      v-if="initialCall && initialCallShow"
       ref="imageDom"
-      v-if="initialCall && initialCallShow">
+      class="chart-views"
+    >
       <bk-line
+        v-if="chartCut === 'line'"
         :height="'100px'"
         :width="'600px'"
         :line-color="lineColor"
         :series="dataList"
         :labels="labels"
-        v-if="chartCut === 'line'" />
-      <take-demo :conum="conumData" v-else />
+      />
+      <take-demo
+        v-else
+        :conum="conumData"
+      />
     </div>
-    <div class="chart-blank" v-else></div>
+    <div
+      v-else
+      class="chart-blank"
+    ></div>
   </div>
 </template>
 <script>
 import { convertDomToPng } from '@/common/util';
 import dayjs from 'dayjs';
-import {
-  BkLine,
-} from '@/components/bk-chart-vue/component/index.js';
+import { BkLine } from '@/components/bk-chart-vue/component/index.js';
 import TakeDemo from './take-figure';
 export default {
   name: 'ChartView',
   components: {
     BkLine,
-    TakeDemo,
+    TakeDemo
     // Scatter
   },
   props: {
     chartData: {
       type: Object,
-      default: () => {},
+      default: () => {}
     },
     charDotData: {
       type: Object,
-      default: () => {},
+      default: () => {}
     },
     chartCut: {
       type: String,
-      default: '',
+      default: ''
     },
     fieldName: {
       type: String,
-      default: '',
+      default: ''
     },
     initialCall: {
       type: Boolean,
-      default: false,
+      default: false
     },
     initialCallShow: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   data() {
     return {
@@ -109,7 +119,7 @@ export default {
         '#c9ab00',
         '#7eb00a',
         '#6f5553',
-        '#c14089',
+        '#c14089'
       ],
       dataSets: [],
       labels: [],
@@ -119,8 +129,8 @@ export default {
       ticks: {
         callback(label) {
           return dayjs.tz(label).format('YY-MM-DD HH:mm:ss');
-        },
-      },
+        }
+      }
     };
   },
   watch: {
@@ -136,15 +146,15 @@ export default {
     },
     chartData(val) {
       if (val['tags.result_code'] && val['tags.result_code'].datasets) {
-        val['tags.result_code'].datasets.forEach((item) => {
+        val['tags.result_code'].datasets.forEach(item => {
           const data = [];
-          item.data.forEach((res) => {
+          item.data.forEach(res => {
             data.push(res.value);
           });
           item.data = data;
         });
       }
-    },
+    }
   },
   methods: {
     chartAssignment() {
@@ -163,80 +173,80 @@ export default {
     },
     handleToggleCallShow() {
       this.$emit('toggle-call-show');
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
-  .chart-views {
-    width: 100%;
-    padding: 50px 24px 10px;
-    border: 1px solid #ddd;
+.chart-views {
+  width: 100%;
+  padding: 50px 24px 10px;
+  border: 1px solid #ddd;
+}
+
+.icon-sty {
+  position: absolute;
+  right: 50px;
+  top: 20px;
+  line-height: 14px;
+
+  .log-icon {
+    background-color: #fff;
+    color: #979ba5;
+    transform: scale(1.2);
   }
 
-  .icon-sty {
-    position: absolute;
-    right: 50px;
-    top: 20px;
-    line-height: 14px;
+  i:hover {
+    color: #3a84ff;
+    transition: color 0.2s;
+  }
 
-    .log-icon {
-      background-color: #fff;
-      color: #979ba5;
-      transform: scale(1.2);
+  .click-stop {
+    /* stylelint-disable-next-line declaration-no-important */
+    color: #ccc !important;
+  }
+
+  span {
+    margin-left: 10px;
+    display: inline-block;
+    height: 14px;
+    width: 16px;
+    background: #979ba5;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    .bk-icon {
+      line-height: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-weight: bold;
     }
 
-    i:hover {
+    &:hover {
       color: #3a84ff;
-      transition: color .2s;
-    }
-
-    .click-stop {
-      /* stylelint-disable-next-line declaration-no-important */
-      color: #ccc!important;
-    }
-
-    span {
-      margin-left: 10px;
-      display: inline-block;
-      height: 14px;
-      width: 16px;
-      background: #979ba5;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: background .2s;
-
-      .bk-icon {
-        line-height: 14px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        color: #fff;
-        font-weight: bold;
-      }
-
-      &:hover {
-        color: #3a84ff;
-        transition: background .2s;
-      }
+      transition: background 0.2s;
     }
   }
+}
 
-  .chart-blank {
-    height: 60px;
-    border: 1px solid #ddd;
-  }
+.chart-blank {
+  height: 60px;
+  border: 1px solid #ddd;
+}
 
-  .rotate-from {
-    .bk-icon {
-      transform: rotate(180deg);
-      transition: transform .2s;
-    }
+.rotate-from {
+  .bk-icon {
+    transform: rotate(180deg);
+    transition: transform 0.2s;
   }
+}
 
-  .rotate {
-    .bk-icon {
-      transition: transform .2s;
-    }
+.rotate {
+  .bk-icon {
+    transition: transform 0.2s;
   }
+}
 </style>
