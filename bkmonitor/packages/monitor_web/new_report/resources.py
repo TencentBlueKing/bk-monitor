@@ -548,7 +548,7 @@ class GetApplyRecordsResource(Resource):
 
     def perform_request(self, validated_request_data):
         qs = ReportApplyRecord.objects.all()
-        if not validated_request_data["query_type"] == ApplyRecordQueryTypeEnum.USER:
+        if validated_request_data["query_type"] == ApplyRecordQueryTypeEnum.USER.value:
             # 根据用户获取
             username = get_request().user.username
             qs = qs.filter(create_user=username)
