@@ -1,0 +1,58 @@
+.business-item-big-skeleton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+
+  .w--100 {
+    width: 100%;
+  }
+
+  .h-50 {
+    height: 50px;
+  }
+
+  .w-82 {
+    width: 82px; 
+  }
+
+  .h-20 {
+    height: 20px;
+  }
+
+  .left {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 438px;
+    height: 261px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    .container-01 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 392px;
+      margin-top: 11px;
+    }
+  }
+
+  .line {
+    position: relative;
+    top: -103px;
+    width: 24px;
+    height: 2px;
+    background: #dcdee5;
+    opacity: 1;
+  }
+
+  .right {
+    flex: 1;
+    height: 261px;
+    background-color: #fff;
+  }
+}
