@@ -19,9 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
+
+from apps.utils import ChoicesEnum
 
 DEFAULT_NEW_CLS_HOURS = 24
 
@@ -239,3 +240,27 @@ class FrequencyTypeEnum(ChoicesEnum):
     MINUTE = 1
     DAY = 2
     WEEK = 3
+
+
+class RemarkConfigEnum(ChoicesEnum):
+    ALL = "all"
+    NO_REMARK = "no_remark"
+    REMARKED = "remarked"
+
+    _choices_labels = (
+        (ALL, _("全部")),
+        (NO_REMARK, _("未备注")),
+        (REMARKED, _("已备注")),
+    )
+
+
+class OwnerConfigEnum(ChoicesEnum):
+    ALL = "all"
+    NO_OWNER = "no_owner"
+    OWNER = "owner"
+
+    _choices_labels = (
+        (ALL, _("全部")),
+        (NO_OWNER, _("未指定责任人")),
+        (OWNER, _("指定责任人")),
+    )

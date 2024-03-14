@@ -2722,3 +2722,14 @@
   name: metadata_create_vm_cluster
   path: /v2/monitor_v3/metadata_create_vm_cluster/
   method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_vm_datalink/
+  is_hidden: false
+  label: 查询接入 vm 的链路
+  label_en: query vm datalink
+  name: metadata_query_vm_datalink
+  path: /v2/monitor_v3/metadata_query_vm_datalink/
+  method: GET

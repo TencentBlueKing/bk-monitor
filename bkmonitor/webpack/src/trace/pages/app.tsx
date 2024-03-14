@@ -37,8 +37,6 @@ import { useAppStore } from '../store/modules/app';
 
 import { useAppReadonlyProvider } from './provider';
 
-// 全量引入 bkui-vue 样式
-import 'bkui-vue/dist/style.css';
 import './app.scss';
 
 export default defineComponent({

@@ -255,3 +255,19 @@ class UpdateIndexSetResource(LogSearchAPIGWResource):
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class SearchPatternResource(LogSearchAPIGWResource):
+    """
+    查询索引集模型
+    """
+
+    action = "/pattern/{index_set_id}/search/"
+    method = "POST"
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(index_set_id=validated_request_data.pop("index_set_id"))
