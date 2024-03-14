@@ -118,12 +118,27 @@
     border: 1px solid #3fc06d;
   }
 
+  &.SUCCESS {
+    background: #e5f6ea;
+    border: 1px solid #3fc06d;
+  }
+
+  &.FAILED {
+    background: #e5f6ea;
+    border: 1px solid #3fc06d;
+  }
+
   &.gray {
     background: #f0f1f5;
     border: 1px solid #c4c6cc;
   }
 
   &.failed {
+    background: #ffe6e6;
+    border: 1px solid #ea3636;
+  }
+
+  &.RUNNING {
     background: #ffe6e6;
     border: 1px solid #ea3636;
   }
