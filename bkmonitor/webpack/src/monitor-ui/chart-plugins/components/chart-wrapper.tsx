@@ -544,7 +544,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             on-close-modal={this.handleCloseViewDetail}
           />
         )}
-        {!window.graph_watermark && (
+        {!!window.graph_watermark && (
           <div
             class='wm'
             v-watermark={{
