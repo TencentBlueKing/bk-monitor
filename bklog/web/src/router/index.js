@@ -894,15 +894,6 @@ const routes = [
         },
       },
       {
-        path: 'report-management',
-        name: 'report-management', // 日志归档 - 订阅管理
-        component: ReportManagement,
-        meta: {
-          title: '订阅管理',
-          navId: 'report-management',
-        },
-      },
-      {
         path: 'manage-log-extract',
         name: 'manage-log-extract', // 日志提取 - 提取配置
         component: ExtractPermission,
@@ -1009,6 +1000,15 @@ const routes = [
         meta: {
           title: '设置',
           navId: 'manage-data-link-conf',
+        },
+      },
+      {
+        path: 'report-manage',
+        name: 'report-manage', // 订阅 - 订阅管理
+        component: ReportManagement,
+        meta: {
+          title: '订阅管理',
+          navId: 'report-manage',
         },
       },
     ],
