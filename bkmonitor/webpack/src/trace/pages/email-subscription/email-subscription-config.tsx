@@ -24,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -48,6 +48,7 @@ import dayjs from 'dayjs';
 import {
   createOrUpdateReport,
   deleteReport,
+  getApplyRecords,
   getReport,
   getReportList,
   getSendRecords,
@@ -73,6 +74,7 @@ type TooltipsToggleMapping = {
 
 // 表格字段 显隐设置的配置需要持久化到本地。
 const keyOfTableSettingInLocalStorage = 'report_list_table_settings';
+const keyOfTableForSelfSettingInLocalStorage = 'report_list_table_for_self_settings';
 
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
 
@@ -86,8 +88,9 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
     // 查询订阅列表 相关参数 开始
-    const createType = ref<'manager' | 'user'>('manager');
+    const createType = ref<'manager' | 'user' | 'self'>('manager');
     const queryType = ref<'all' | 'available' | 'invalid'>('all');
+    const queryTypeForSelf = ref<'all' | 'RUNNING' | 'FAILED' | 'SUCCESS'>('all');
     const searchKey = ref('');
     const page = ref(1);
     const pageSize = ref(20);
@@ -106,6 +109,14 @@ export default defineComponent({
         name: t('订阅配置')
       }
     ]);
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const ApplyStatus = {
+      RUNNING: t('未审批'),
+      FAILED: t('未通过'),
+      SUCCESS: t('已通过')
+    };
+    const isSelfMode = ref(false);
+    const isTableLoading = ref(false);
     const table = reactive({
       data: [],
       columns: {
@@ -426,7 +437,6 @@ export default defineComponent({
         ],
         limit: 0
       },
-      isLoading: false,
       settings: {
         fields: [],
         checked: [],
@@ -447,6 +457,164 @@ export default defineComponent({
       // 这里先不展示 创建时间 ，让用户自己手动开。
       .filter(item => !['create_time'].includes(item.field))
       .map(item => item.field);
+    // 订阅审批
+    const tableForSelf = reactive({
+      data: [],
+      columns: {
+        fields: [
+          {
+            width: '20%',
+            label: `${t('订阅名称')}`,
+            field: 'name',
+            render: ({ data }) => {
+              return (
+                <Button
+                  theme='primary'
+                  text
+                  onClick={() => {
+                    fetchReportDetail(data.report_id);
+                    isSelfMode.value = true;
+                    isShowSubscriptionDetailSideslider.value = true;
+                  }}
+                >
+                  {t(`${data.content_title}`)}
+                </Button>
+              );
+            }
+          },
+          {
+            label: `${t('通知渠道')}`,
+            field: 'channels',
+            render: ({ data }) => {
+              const content = data.channels
+                .filter(item => item.is_enabled)
+                .map(item => t(ChannelName[item.channel_name]))
+                .toString();
+              return (
+                <Popover
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                  v-slots={{
+                    content
+                  }}
+                >
+                  <div>{content}</div>
+                </Popover>
+              );
+            }
+          },
+          {
+            label: `${t('订阅场景')}`,
+            field: 'scenario',
+            render: ({ data }) => {
+              return <div>{t(Scenario[data.scenario])}</div>;
+            }
+          },
+          {
+            label: `${t('发送模式')}`,
+            field: 'send_mode',
+            render: ({ data }) => {
+              return <div>{t(SendMode[data.send_mode])}</div>;
+            },
+            filter: {
+              list: [
+                {
+                  text: t('周期发送'),
+                  value: 'periodic'
+                },
+                {
+                  text: t('仅发一次'),
+                  value: 'one_time'
+                }
+              ],
+              filterFn: () => true
+            }
+          },
+          {
+            label: `${t('发送时间')}`,
+            field: 'send_time',
+            render: ({ data }) => {
+              const content =
+                data?.frequency?.type === FrequencyType.onlyOnce
+                  ? `${getSendFrequencyText(data)} ${dayjs(data.frequency.run_time).format('YYYY-MM-DD HH:mm')}`
+                  : getSendFrequencyText(data);
+              return (
+                <Popover
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
+                  v-slots={{
+                    content
+                  }}
+                >
+                  <div>{content}</div>
+                </Popover>
+              );
+            }
+          },
+          {
+            label: `${t('审批状态')}`,
+            field: 'status',
+            render: ({ data }) => {
+              return (
+                <div>
+                  <i
+                    class={['icon-circle', data.status]}
+                    style='margin-right: 10px;'
+                  ></i>
+                  {ApplyStatus[data.status]}
+                </div>
+              );
+            }
+          },
+          {
+            label: `${t('创建人')}`,
+            field: 'create_user',
+            render: ({ data }) => {
+              return <div>{data.create_user}</div>;
+            }
+          },
+          {
+            label: `${t('操作')}`,
+            field: 'action',
+            width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
+            render: ({ data }) => {
+              return (
+                <div>
+                  <Button
+                    theme='primary'
+                    text
+                    onClick={() => {
+                      window.open(data.approval_url, '_blank');
+                    }}
+                  >
+                    {['SUCCESS', 'FAILED'].includes(data.status) ? t('查看') : t('操作')}
+                  </Button>
+                </div>
+              );
+            }
+          }
+        ],
+        limit: 0
+      },
+      settings: {
+        fields: [],
+        checked: [],
+        limit: 0,
+        size: 'small',
+        sizeList: [],
+        showLineHeight: false
+      }
+    });
+    // 根据 tableForSelf 字段生成对应的字段显隐 setting
+    tableForSelf.settings.fields = tableForSelf.columns.fields.map(item => {
+      return {
+        label: item.label,
+        field: item.field
+      };
+    });
+    tableForSelf.settings.checked = tableForSelf.columns.fields.map(item => item.field);
     setTableSetting();
 
     // 发送记录 里控制多个 tooltips 的显隐
@@ -696,7 +864,7 @@ export default defineComponent({
     }
 
     function handleInputKeydown() {
-      resetAndGetSubscriptionList();
+      if (isManagerOrUser.value) resetAndGetSubscriptionList();
     }
 
     async function handleDeleteRow(report_id) {
@@ -763,7 +931,7 @@ export default defineComponent({
     }
 
     function fetchSubscriptionList() {
-      table.isLoading = true;
+      isTableLoading.value = true;
       getReportList({
         create_type: createType.value,
         query_type: queryType.value,
@@ -778,7 +946,7 @@ export default defineComponent({
           totalReportSize.value = response.total;
         })
         .finally(() => {
-          table.isLoading = false;
+          isTableLoading.value = false;
         });
     }
 
@@ -946,10 +1114,63 @@ export default defineComponent({
 
     function setTableSetting() {
       const tableSetting = window.localStorage.getItem(keyOfTableSettingInLocalStorage);
+      const tableForSelfSetting = window.localStorage.getItem(keyOfTableForSelfSettingInLocalStorage);
       if (tableSetting) {
         table.settings.checked = JSON.parse(tableSetting);
       }
+      if (tableForSelfSetting) {
+        tableForSelf.settings.checked = JSON.parse(tableForSelfSetting);
+      }
     }
+
+    function fetchApplyList() {
+      tableForSelf.data.length = 0;
+      isTableLoading.value = true;
+      getApplyRecords({
+        query_type: 'biz',
+        // 选择 全部 时则不传
+        status: queryTypeForSelf.value === 'all' ? undefined : queryTypeForSelf.value
+      })
+        .then(res => {
+          tableForSelf.data = res;
+        })
+        .finally(() => {
+          isTableLoading.value = false;
+        });
+    }
+
+    function fetchReportDetail(report_id) {
+      isFetchReport.value = true;
+      getReport({
+        report_id
+      })
+        .then(response => {
+          subscriptionDetail.value = response;
+        })
+        .finally(() => {
+          isFetchReport.value = false;
+        });
+    }
+
+    const isManagerOrUser = computed(() => {
+      return ['manager', 'user'].includes(createType.value);
+    });
+
+    const filterConfig = reactive({
+      key: '',
+      value: []
+    });
+
+    const computedTableDataForSelf = computed(() => {
+      return tableForSelf.data
+        .filter(item => {
+          if (filterConfig.key) return filterConfig.value.includes(item[filterConfig.key]);
+          return item;
+        })
+        .filter(item => {
+          return item.content_title.includes(searchKey.value) || item.create_user.includes(searchKey.value);
+        });
+    });
 
     watch(route, () => {
       checkNeedShowEditSlider();
@@ -995,7 +1216,16 @@ export default defineComponent({
       isShowCreateReportFormComponent,
       isOnCloneMode,
       navList,
-      isShowCreateSubscription
+      isShowCreateSubscription,
+      isTableLoading,
+      tableForSelf,
+      isManagerOrUser,
+      fetchApplyList,
+      queryTypeForSelf,
+      fetchReportDetail,
+      isSelfMode,
+      computedTableDataForSelf,
+      filterConfig
     };
   },
   render() {
@@ -1017,45 +1247,66 @@ export default defineComponent({
               v-model={this.createType}
               style='margin-left: 16px;background-color: white;'
               onChange={() => {
-                this.resetAndGetSubscriptionList();
+                if (this.isManagerOrUser) {
+                  this.resetAndGetSubscriptionList();
+                } else {
+                  this.fetchApplyList();
+                }
               }}
             >
               <Radio.Button label='manager'>{this.t('管理员创建的')}</Radio.Button>
               <Radio.Button label='user'>{this.t('用户订阅的')}</Radio.Button>
+              <Radio.Button label='self'>{this.t('订阅审批')}</Radio.Button>
             </Radio.Group>
           </div>
           <div class='right-container'>
-            <Radio.Group
-              v-model={this.queryType}
-              type='capsule'
-              onChange={() => {
-                this.resetAndGetSubscriptionList();
-              }}
-            >
-              <Radio.Button label='all'>{this.t('全部')}</Radio.Button>
-              <Radio.Button label='available'>
-                <i
-                  class='icon-circle success'
-                  style='margin-right: 4px;'
-                />
-                <span>{this.t('生效中')}</span>
-              </Radio.Button>
-              <Radio.Button label='invalid'>
-                <i
-                  class='icon-circle gray'
-                  style='margin-right: 4px;'
-                />
-                <span>{this.t('已失效')}</span>
-              </Radio.Button>
-              {/* 暂时不需要 */}
-              {/* <Radio.Button label='cancelled'>
+            {this.isManagerOrUser && (
+              <Radio.Group
+                v-model={this.queryType}
+                type='capsule'
+                onChange={() => {
+                  this.resetAndGetSubscriptionList();
+                }}
+              >
+                <Radio.Button label='all'>{this.t('全部')}</Radio.Button>
+                <Radio.Button label='available'>
+                  <i
+                    class='icon-circle success'
+                    style='margin-right: 4px;'
+                  />
+                  <span>{this.t('生效中')}</span>
+                </Radio.Button>
+                <Radio.Button label='invalid'>
+                  <i
+                    class='icon-circle gray'
+                    style='margin-right: 4px;'
+                  />
+                  <span>{this.t('已失效')}</span>
+                </Radio.Button>
+                {/* 暂时不需要 */}
+                {/* <Radio.Button label='cancelled'>
                 <i
                   class='icon-circle cancelled'
                   style='margin-right: 4px;'
                 />
                 <span>{this.t('已取消')}</span>
               </Radio.Button> */}
-            </Radio.Group>
+              </Radio.Group>
+            )}
+            {!this.isManagerOrUser && (
+              <Radio.Group
+                v-model={this.queryTypeForSelf}
+                type='capsule'
+                onChange={() => {
+                  this.fetchApplyList();
+                }}
+              >
+                <Radio.Button label='all'>{this.t('全部')}</Radio.Button>
+                <Radio.Button label='RUNNING'>{this.t('未审批')}</Radio.Button>
+                <Radio.Button label='FAILED'>{this.t('未通过')}</Radio.Button>
+                <Radio.Button label='SUCCESS'>{this.t('已通过')}</Radio.Button>
+              </Radio.Group>
+            )}
             <Input
               v-model={this.searchKey}
               clearable
@@ -1085,8 +1336,9 @@ export default defineComponent({
         <div class='email-subscription-config-container'>
           {/* 头部搜索 部分 */}
           {headerTmpl()}
-          <Loading loading={this.table.isLoading}>
+          <Loading loading={this.isTableLoading}>
             <Table
+              v-show={this.isManagerOrUser}
               data={this.table.data}
               columns={this.table.columns.fields as Column[]}
               border={['outer']}
@@ -1143,6 +1395,28 @@ export default defineComponent({
               }}
               onSettingChange={({ checked }) => {
                 window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
+              }}
+            ></Table>
+
+            <Table
+              v-show={this.createType === 'self'}
+              data={this.computedTableDataForSelf}
+              columns={this.tableForSelf.columns.fields as Column[]}
+              border={['outer']}
+              settings={this.tableForSelf.settings}
+              style='margin-top: 16px;background-color: white;'
+              onColumnFilter={({ checked, column }) => {
+                if (!checked.length) {
+                  this.filterConfig.key = '';
+                  this.filterConfig.value.length = 0;
+                  return;
+                }
+                const { field } = column;
+                this.filterConfig.key = field.toString();
+                this.filterConfig.value = deepClone(checked);
+              }}
+              onSettingChange={({ checked }) => {
+                window.localStorage.setItem(keyOfTableForSelfSettingInLocalStorage, JSON.stringify(checked));
               }}
             ></Table>
           </Loading>
@@ -1238,6 +1512,9 @@ export default defineComponent({
             width={640}
             ext-cls='detail-subscription-sideslider-container'
             transfer
+            onHidden={() => {
+              this.isSelfMode = false;
+            }}
             v-slots={{
               header: () => {
                 return (
@@ -1264,64 +1541,66 @@ export default defineComponent({
                       </Popover>
                     </div>
 
-                    <div class='operation-container'>
-                      <Button
-                        style='margin-right: 8px;'
-                        onClick={() => {
-                          InfoBox({
-                            extCls: 'report-tips-dialog',
-                            infoType: 'warning',
-                            title: this.t('是否发送给自己?'),
-                            showMask: true,
-                            onConfirm: () => {
-                              return this.handleSendMyself()
-                                .then(() => {
-                                  return true;
-                                })
-                                .catch(() => {
-                                  return false;
-                                });
-                            }
-                          });
-                        }}
-                      >
-                        {this.t('发送给自己')}
-                      </Button>
-                      <Button
-                        outline
-                        theme='primary'
-                        style='margin-right: 8px;'
-                        onClick={() => {
-                          this.isShowEditSideslider = true;
-                        }}
-                      >
-                        {this.t('编辑')}
-                      </Button>
-
-                      <Popover
-                        placement='bottom-end'
-                        v-slots={{
-                          content: () => {
-                            return (
-                              <div>
-                                <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
-                                <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
-                                  'YYYY-MM-DD HH:mm:ss'
-                                )}`}</div>
-                                <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
-                                <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
-                                  'YYYY-MM-DD HH:mm:ss'
-                                )}`}</div>
-                              </div>
-                            );
-                          }
-                        }}
-                      >
-                        <Button style='margin-right: 24px;'>
-                          <i class='icon-monitor icon-lishi'></i>
+                    {!this.isSelfMode && (
+                      <div class='operation-container'>
+                        <Button
+                          style='margin-right: 8px;'
+                          onClick={() => {
+                            InfoBox({
+                              extCls: 'report-tips-dialog',
+                              infoType: 'warning',
+                              title: this.t('是否发送给自己?'),
+                              showMask: true,
+                              onConfirm: () => {
+                                return this.handleSendMyself()
+                                  .then(() => {
+                                    return true;
+                                  })
+                                  .catch(() => {
+                                    return false;
+                                  });
+                              }
+                            });
+                          }}
+                        >
+                          {this.t('发送给自己')}
                         </Button>
-                      </Popover>
-                    </div>
+                        <Button
+                          outline
+                          theme='primary'
+                          style='margin-right: 8px;'
+                          onClick={() => {
+                            this.isShowEditSideslider = true;
+                          }}
+                        >
+                          {this.t('编辑')}
+                        </Button>
+
+                        <Popover
+                          placement='bottom-end'
+                          v-slots={{
+                            content: () => {
+                              return (
+                                <div>
+                                  <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
+                                  <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
+                                    'YYYY-MM-DD HH:mm:ss'
+                                  )}`}</div>
+                                  <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
+                                  <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
+                                    'YYYY-MM-DD HH:mm:ss'
+                                  )}`}</div>
+                                </div>
+                              );
+                            }
+                          }}
+                        >
+                          <Button style='margin-right: 24px;'>
+                            <i class='icon-monitor icon-lishi'></i>
+                          </Button>
+                        </Popover>
+                      </div>
+                    )}
                   </div>
                 );
               },
