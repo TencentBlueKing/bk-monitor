@@ -1126,13 +1126,18 @@ class SearchHandler(object):
 
         tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
 
-        timestamp_datetime = datetime.datetime.fromtimestamp(int(self.dtEventTimeStamp) / 1000, tz_info)
+        record_obj = StorageClusterRecord.objects.none()
 
-        record_obj = (
-            StorageClusterRecord.objects.filter(index_set_id=int(self.index_set_id), created_at__gt=timestamp_datetime)
-            .order_by("created_at")
-            .first()
-        )
+        if self.dtEventTimeStamp:
+            timestamp_datetime = datetime.datetime.fromtimestamp(int(self.dtEventTimeStamp) / 1000, tz_info)
+
+            record_obj = (
+                StorageClusterRecord.objects.filter(
+                    index_set_id=int(self.index_set_id), created_at__gt=timestamp_datetime
+                )
+                .order_by("created_at")
+                .first()
+            )
 
         dsl_params_base = {"indices": context_indice, "scenario_id": self.scenario_id}
 
