@@ -31,6 +31,12 @@ label {
   }
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 div,
 ul,
 section,

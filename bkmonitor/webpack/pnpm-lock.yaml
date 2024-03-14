@@ -939,7 +939,7 @@ importers:
         version: 4.8.24
       '@blueking/date-picker':
         specifier: ^1.0.0
-        version: 1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@3.4.20)
+        version: 1.0.0(bkui-vue@1.0.3-beta.3)(dayjs@1.11.10)(vue@3.4.20)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -950,8 +950,8 @@ importers:
         specifier: workspace:*
         version: link:../apm
       bkui-vue:
-        specifier: 1.0.0
-        version: 1.0.0(highlight.js@11.5.1)(vue@3.4.20)
+        specifier: 1.0.3-beta.3
+        version: 1.0.3-beta.3(highlight.js@11.5.1)(vue@3.4.20)
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -2821,7 +2821,7 @@ packages:
       vue: 2.7.14
     dev: false
 
-  /@blueking/date-picker@1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@3.4.20):
+  /@blueking/date-picker@1.0.0(bkui-vue@1.0.3-beta.3)(dayjs@1.11.10)(vue@3.4.20):
     resolution: {integrity: sha512-E42AB4Qt3mCD5Q1S6z925LFmLZQmRw3+iRa9nKAgJZIzYC3rcwOKpFlwkXaSYDNOKko3C2HTOvGQcxmyuPcSYg==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
@@ -2829,7 +2829,7 @@ packages:
       dayjs: ^1.11.10
       vue: ^3.2.0
     dependencies:
-      bkui-vue: 1.0.0(highlight.js@11.5.1)(vue@3.4.20)
+      bkui-vue: 1.0.3-beta.3(highlight.js@11.5.1)(vue@3.4.20)
       dayjs: 1.11.10
       vue: 3.4.20(typescript@4.9.5)
     dev: false
@@ -5487,12 +5487,12 @@ packages:
       vue-types: 4.1.1(vue@2.7.14)
     dev: false
 
-  /bkui-vue@1.0.0(highlight.js@11.5.1)(vue@3.4.20):
-    resolution: {integrity: sha512-PRH9U+DAesEUdrgdj+uQrISWFeaFZZazjSrpyNteFMPwmPQMynq1ZWrdm/XfowqHXoWx2XlrjEtlgm7YMd0aig==}
+  /bkui-vue@1.0.3-beta.3(highlight.js@11.5.1)(vue@3.4.20):
+    resolution: {integrity: sha512-PSqqNgKhN4nb9FMb/skcV9U+fjeui8g9h7I0Xlyl19UDPGNp0fOuEcR+jAbjhzfEBs+IPxqK6IvvqOy+DxB2Iw==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
-      vue: ^3.3.0
+      vue: ^3.2.0
     dependencies:
       '@floating-ui/dom': 1.5.3
       '@popperjs/core': 2.11.8
