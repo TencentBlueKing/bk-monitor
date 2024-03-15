@@ -529,10 +529,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
               children={{ row: 10, height: '20px' }}
             ></SkeletonBase>
           ) : (
-            <bk-table
-              data={this.tableColumnList.length ? this.tableData : []}
-              v-bkloading={{ isLoading: this.tableLoading }}
-            >
+            <bk-table data={this.tableColumnList.length ? this.tableData : []}>
               <bk-table-column
                 type='expand'
                 scopedSlots={{

@@ -30,6 +30,7 @@ import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import SkeletonBase from '../../../components/skeleton/skeleton-base';
 import { FavoriteIndexType, IFavList } from '../typings';
 
 import CollectGroup from './collect-group';
@@ -94,39 +95,48 @@ export default class CollectContainer extends tsc<FavoriteIndexType.IContainerPr
     return (
       <div class='retrieve-collect-container'>
         {this.$slots.default}
-        <div
-          class='group-container'
-          v-bkloading={{ isLoading: this.collectLoading, zIndex: 999 }}
-        >
-          {!this.isEmptyData ? (
-            <VueDraggable
-              vModel={this.dragList}
-              animation='150'
-              handle='.group-title'
-              on-end={this.handleMoveEnd}
-              move={this.handleMoveIng}
-              disabled={true}
-            >
-              <transition-group>
-                {this.dragList.map(item => (
-                  <div key={`${item.id}`}>
-                    <CollectGroup
-                      collectItem={item}
-                      groupList={this.groupList}
-                      favCheckedValue={this.favCheckedValue}
-                      isSearchFilter={this.isSearchFilter}
-                    ></CollectGroup>
-                  </div>
-                ))}
-              </transition-group>
-            </VueDraggable>
+        <div class='group-container'>
+          {!this.collectLoading ? (
+            [
+              !this.isEmptyData ? (
+                <VueDraggable
+                  vModel={this.dragList}
+                  animation='150'
+                  handle='.group-title'
+                  on-end={this.handleMoveEnd}
+                  move={this.handleMoveIng}
+                  disabled={true}
+                >
+                  <transition-group>
+                    {this.dragList.map(item => (
+                      <div key={`${item.id}`}>
+                        <CollectGroup
+                          collectItem={item}
+                          groupList={this.groupList}
+                          favCheckedValue={this.favCheckedValue}
+                          isSearchFilter={this.isSearchFilter}
+                        ></CollectGroup>
+                      </div>
+                    ))}
+                  </transition-group>
+                </VueDraggable>
+              ) : (
+                <div class='data-empty'>
+                  <EmptyStatus
+                    type={this.emptyStatusType}
+                    onOperation={this.handleOperation}
+                  />
+                </div>
+              )
+            ]
           ) : (
-            <div class='data-empty'>
-              <EmptyStatus
-                type={this.emptyStatusType}
-                onOperation={this.handleOperation}
-              />
-            </div>
+            <SkeletonBase
+              class='collect-container-skeleton'
+              title={{ row: 1, height: '32px' }}
+              children={{ row: 4, width: '80%', height: '20px', justifyContent: 'space-around' }}
+              hasGroup={true}
+              groupNumber={5}
+            />
           )}
         </div>
       </div>

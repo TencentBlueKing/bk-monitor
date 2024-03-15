@@ -414,6 +414,31 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     this.$emit('autoQueryChange', !!val);
   }
 
+  renderFormSkeleton() {
+    function renderFormItemSkeleton(type = 'input') {
+      return (
+        <div class='form-item-skeleton'>
+          <div class='title skeleton-element'></div>
+          <div class={['skeleton-element', type]}></div>
+        </div>
+      );
+    }
+
+    return (
+      <div class='form-skeleton-box'>
+        {renderFormItemSkeleton()}
+        {renderFormItemSkeleton()}
+        {renderFormItemSkeleton('textarea')}
+        <div class='handle-button-skeleton'>
+          <div class='skeleton-element square' />
+          <div class='skeleton-element rect' />
+          <div class='skeleton-element rect' />
+          <div class='skeleton-element square' />
+        </div>
+      </div>
+    );
+  }
+
   render() {
     // 查询语句的提示内容
     const tipsContentTpl = () => (
@@ -446,10 +471,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     );
     return (
       <div class='event-retrieval-wrapper'>
-        <div
-          class='event-retrieval-bg'
-          v-bkloading={{ isLoading: this.formLoading }}
-        >
+        <div class='event-retrieval-bg'>
           <div class='er-from-item'>
             <div class='er-from-item-label'>{this.$t('事件类型')}</div>
             <bk-select
@@ -521,6 +543,8 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
             onAddFav={this.handleAddEventFav}
             onClear={this.handleClearQuery}
           />
+
+          {this.formLoading && this.renderFormSkeleton()}
         </div>
         {this.gourpByLoading ? (
           <SkeletonBase

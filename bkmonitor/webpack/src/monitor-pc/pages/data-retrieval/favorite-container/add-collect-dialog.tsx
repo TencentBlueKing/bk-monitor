@@ -29,6 +29,8 @@ import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { createFavoriteGroup, listFavoriteGroup } from 'monitor-api/modules/model';
 
+import SkeletonBase from '../../../components/skeleton/skeleton-base';
+
 import './add-collect-dialog.scss';
 import 'vue-json-pretty/lib/styles.css';
 
@@ -89,6 +91,11 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
   formLoading = false;
   radioValue = 'null'; // 可见范围
   isShowJsonKeywords = false; // 是否展示json格式的查询语句
+
+  formSkeletonConfig = Object.freeze([
+    { widths: '60px', height: '20px', className: 'title' },
+    { widths: '100%', height: '32px', className: 'content' }
+  ]);
   public rules = {
     name: [
       {
@@ -357,125 +364,133 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         on-value-change={this.handleValueChange}
         on-confirm={this.handleSubmitFormData}
       >
-        <bk-form
-          form-type='vertical'
-          ref='validateForm'
-          v-bkloading={{ isLoading: this.formLoading }}
-          {...{
-            props: {
-              model: this.favoriteData,
-              rules: this.rules
-            }
-          }}
-        >
-          <div class='edit-information'>
-            <span>{this.$t('查询语句')}</span>
-            {this.favoriteSearchType === 'metric' ? metricKeywordsSlot() : eventKeywordsSlot()}
-          </div>
-          <bk-form-item
-            label={this.$t('收藏名')}
-            required
-            property='name'
-            class='group-name'
+        {!this.formLoading ? (
+          <bk-form
+            form-type='vertical'
+            ref='validateForm'
+            {...{
+              props: {
+                model: this.favoriteData,
+                rules: this.rules
+              }
+            }}
           >
-            <bk-input
-              class='collect-name'
-              vModel={this.favoriteData.name}
-              placeholder={this.$t('填写收藏名（长度30个字符）')}
-            ></bk-input>
-          </bk-form-item>
+            <div class='edit-information'>
+              <span>{this.$t('查询语句')}</span>
+              {this.favoriteSearchType === 'metric' ? metricKeywordsSlot() : eventKeywordsSlot()}
+            </div>
+            <bk-form-item
+              label={this.$t('收藏名')}
+              required
+              property='name'
+              class='group-name'
+            >
+              <bk-input
+                class='collect-name'
+                vModel={this.favoriteData.name}
+                placeholder={this.$t('填写收藏名（长度30个字符）')}
+              ></bk-input>
+            </bk-form-item>
 
-          <bk-form-item
-            class='collect-radio'
-            label={this.$t('可见范围')}
-            required
-          >
-            <bk-radio-group
-              vModel={this.radioValue}
-              on-change={this.handleClickRadio}
+            <bk-form-item
+              class='collect-radio'
+              label={this.$t('可见范围')}
+              required
             >
-              <bk-radio value={'null'}>
-                {this.$t('公开')}({this.$t('本业务可见')})
-              </bk-radio>
-              <bk-radio
-                value={'0'}
-                disabled={this.isCannotChangeVisible}
+              <bk-radio-group
+                vModel={this.radioValue}
+                on-change={this.handleClickRadio}
               >
-                {this.$t('私有')}
-                {this.$t('(仅个人可见)')}
-              </bk-radio>
-            </bk-radio-group>
-          </bk-form-item>
-          <bk-form-item
-            label={this.$t('所属组')}
-            class='affiliation-group'
-          >
-            <bk-select
-              vModel={this.favoriteData.group_id}
-              disabled={this.isDisableSelect}
-              ext-popover-cls='add-new-page-container'
-              searchable
+                <bk-radio value={'null'}>
+                  {this.$t('公开')}({this.$t('本业务可见')})
+                </bk-radio>
+                <bk-radio
+                  value={'0'}
+                  disabled={this.isCannotChangeVisible}
+                >
+                  {this.$t('私有')}
+                  {this.$t('(仅个人可见)')}
+                </bk-radio>
+              </bk-radio-group>
+            </bk-form-item>
+            <bk-form-item
+              label={this.$t('所属组')}
+              class='affiliation-group'
             >
-              {this.showGroupList.map(item => (
-                <bk-option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                ></bk-option>
-              ))}
-              <div slot='extension'>
-                {this.isShowAddGroup ? (
-                  <div
-                    class='select-add-new-group'
-                    onClick={() => (this.isShowAddGroup = false)}
-                  >
-                    <div>
-                      <i class='bk-icon icon-plus-circle'></i>
-                      {this.$t('新增')}
-                    </div>
-                  </div>
-                ) : (
-                  <li
-                    class='add-new-page-input'
-                    style={{ padding: '6px 0' }}
-                  >
-                    <bk-form
-                      labelWidth={0}
-                      style={{ width: '100%' }}
-                      ref='checkInputForm'
-                      {...{
-                        props: {
-                          model: this.verifyData,
-                          rules: this.groupNameRules
-                        }
-                      }}
+              <bk-select
+                vModel={this.favoriteData.group_id}
+                disabled={this.isDisableSelect}
+                ext-popover-cls='add-new-page-container'
+                searchable
+              >
+                {this.showGroupList.map(item => (
+                  <bk-option
+                    id={item.id}
+                    key={item.id}
+                    name={item.name}
+                  ></bk-option>
+                ))}
+                <div slot='extension'>
+                  {this.isShowAddGroup ? (
+                    <div
+                      class='select-add-new-group'
+                      onClick={() => (this.isShowAddGroup = false)}
                     >
-                      <bk-form-item property='groupName'>
-                        <bk-input
-                          clearable
-                          placeholder={this.$t('输入组名,30个字符')}
-                          vModel={this.verifyData.groupName}
-                          onEnter={this.handleCreateGroup}
-                          maxlength={10}
-                        ></bk-input>
-                      </bk-form-item>
-                    </bk-form>
-                    <div class='operate-button'>
-                      <span
-                        class='bk-icon icon-check-line'
-                        onClick={this.handleCreateGroup}
-                      ></span>
-                      <span
-                        class='bk-icon icon-close-line-2'
-                        onClick={this.handleCancelCreateGroup}
-                      ></span>
+                      <div>
+                        <i class='bk-icon icon-plus-circle'></i>
+                        {this.$t('新增')}
+                      </div>
                     </div>
-                  </li>
-                )}
-              </div>
-            </bk-select>
-          </bk-form-item>
-        </bk-form>
+                  ) : (
+                    <li
+                      class='add-new-page-input'
+                      style={{ padding: '6px 0' }}
+                    >
+                      <bk-form
+                        labelWidth={0}
+                        style={{ width: '100%' }}
+                        ref='checkInputForm'
+                        {...{
+                          props: {
+                            model: this.verifyData,
+                            rules: this.groupNameRules
+                          }
+                        }}
+                      >
+                        <bk-form-item property='groupName'>
+                          <bk-input
+                            clearable
+                            placeholder={this.$t('输入组名,30个字符')}
+                            vModel={this.verifyData.groupName}
+                            onEnter={this.handleCreateGroup}
+                            maxlength={10}
+                          ></bk-input>
+                        </bk-form-item>
+                      </bk-form>
+                      <div class='operate-button'>
+                        <span
+                          class='bk-icon icon-check-line'
+                          onClick={this.handleCreateGroup}
+                        ></span>
+                        <span
+                          class='bk-icon icon-close-line-2'
+                          onClick={this.handleCancelCreateGroup}
+                        ></span>
+                      </div>
+                    </li>
+                  )}
+                </div>
+              </bk-select>
+            </bk-form-item>
+          </bk-form>
+        ) : (
+          <SkeletonBase
+            class='add-collect-skeleton'
+            children={this.formSkeletonConfig}
+            hasGroup
+            groupNumber={3}
+          />
+        )}
       </bk-dialog>
     );
   }

@@ -32,6 +32,7 @@ import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import { K8sTableSkeletonModelConfig } from '../../../../components/skeleton/model';
 import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
@@ -628,7 +629,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         {this.loading && (
           <SkeletonBase
             class='select-table-skeleton-box'
-            children={{ row: 30, height: '20px' }}
+            children={K8sTableSkeletonModelConfig(30)}
           />
         )}
       </div>
