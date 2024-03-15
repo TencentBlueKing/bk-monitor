@@ -27,10 +27,8 @@ import { deepClone } from '../../../components/monitor-echarts/utils';
 import './ui-query.scss';
 import $http from '../../../api';
 
-interface IProps {}
-
 @Component
-export default class UiQuery extends tsc<IProps> {
+export default class UiQuery extends tsc<{}> {
   @Prop({ type: Object, required: true }) activeFavorite: object;
   @Prop({ type: Boolean, required: true }) isFavoriteSearch: boolean;
   @Prop({ type: String, required: true }) keyword: string;

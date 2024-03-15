@@ -156,8 +156,9 @@ export const formatDatetime = (time, fmt) => {
   };
   if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, `${time.getFullYear()}`.substr(4 - RegExp.$1.length));
   for (const key in obj) {
-    if (new RegExp(`(${key})`).test(fmt))
+    if (new RegExp(`(${key})`).test(fmt)) {
       fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? obj[key] : `00${obj[key]}`.substr(`${obj[key]}`.length));
+    }
   }
   return fmt;
 };

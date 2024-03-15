@@ -26,15 +26,13 @@ import { Switcher, Select, Option, DropdownMenu, TagInput, Button, Checkbox } fr
 import './condition.scss';
 import { Debounce } from '../../../common/util';
 
-interface IProps {}
-
 const INTEGER_MIN_NUMBER = -Math.pow(2, 31) + 1;
 const INTEGER_MAX_NUMBER = Math.pow(2, 31) - 1;
 const LONG_MIN_NUMBER = -Math.pow(2, 63) + 1;
 const LONG_MAX_NUMBER = Math.pow(2, 63) - 1;
 
 @Component
-export default class Condition extends tsc<IProps> {
+export default class Condition extends tsc<{}> {
   @Prop({ type: Array, required: true }) operatorList; // 操作列表
   @Prop({ type: Object, required: true }) operatorItem; // 当前操作元素
   @Prop({ type: Boolean, required: true }) isInclude: boolean; // 是否包含

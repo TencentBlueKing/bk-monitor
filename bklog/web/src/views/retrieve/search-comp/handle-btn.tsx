@@ -28,8 +28,6 @@ import './handle-btn.scss';
 import { deepEqual, Debounce } from '../../../common/util';
 import $http from '../../../api';
 
-interface IProps {}
-
 const searchMap = {
   // 检索按钮
   search: {
@@ -53,7 +51,7 @@ const searchMap = {
 };
 
 @Component
-export default class HandleBtn extends tsc<IProps> {
+export default class HandleBtn extends tsc<{}> {
   @Inject('handleUserOperate') handleUserOperate;
 
   @Prop({ type: Boolean, default: false }) tableLoading: boolean;
