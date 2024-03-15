@@ -33,9 +33,9 @@ export interface ISkeletonSimpleOption {
   /** 行数 */
   row: number;
   /** 每行宽度 */
-  width?: number | string;
+  width?: string;
   /** 每行高度 */
-  height?: number | string;
+  height?: string;
   /** 行内分布方式 */
   justifyContent?: string;
 }
@@ -43,11 +43,13 @@ export interface ISkeletonSimpleOption {
 /** 骨架屏每行配置 */
 export interface ISkeletonOption {
   /** 每行几列，每列宽度 */
-  widths?: number | string | (number | string)[];
+  widths?: string | string[];
   /** 每行高度 */
-  height?: number | string;
+  height?: string;
   /** 行内分布方式 */
   justifyContent?: string;
+  /** 类名 */
+  className?: string;
 }
 
 export interface ISkeletonBaseProps {
@@ -71,10 +73,10 @@ export default class SkeletonBase extends tsc<ISkeletonBaseProps> {
 
   createSimpleSkeleton(option: ISkeletonSimpleOption) {
     if (!option) return;
-    const { row, width = '100%', height, justifyContent } = option;
+    const { row, width = '100%', height = '20px', justifyContent } = option;
     const style = {
-      width: typeof width === 'string' ? width : `${width}px`,
-      height: typeof height === 'string' ? height : `${height || 24}px`
+      width,
+      height
     };
     return new Array(row).fill('').map(() => (
       <div
@@ -91,12 +93,12 @@ export default class SkeletonBase extends tsc<ISkeletonBaseProps> {
 
   createSkeleton(option: ISkeletonOption[]) {
     return option.map(item => {
-      const { widths, height, justifyContent } = item;
+      const { widths, height, justifyContent, className = '' } = item;
       const cols = (Array.isArray(widths) ? widths : [widths]).map(width => {
-        if (width) return typeof width === 'string' ? width : `${width}px`;
+        if (width) return width;
         return '100%';
       });
-      const heightStyle = typeof height === 'string' ? height : `${height || 24}px`;
+      const heightStyle = height || `20px`;
       return (
         <div
           class='skeleton-row'
@@ -104,7 +106,7 @@ export default class SkeletonBase extends tsc<ISkeletonBaseProps> {
         >
           {cols.map(width => (
             <div
-              class='skeleton-element'
+              class={`skeleton-element ${className}`}
               style={{ width, height: heightStyle }}
             ></div>
           ))}

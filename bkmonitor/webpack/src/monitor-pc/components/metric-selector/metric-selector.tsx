@@ -842,6 +842,28 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     this.selectedMetric = selectedMetric;
   }
 
+  renderSkeleton() {
+    return (
+      <div class='metric-selector-wrap-skeleton'>
+        <div class='metric-skeleton'>
+          {Array.from({ length: 8 }).map(() => (
+            <div class='skeleton-element'></div>
+          ))}
+        </div>
+        <div class='category-skeleton'>
+          {Array.from({ length: 2 }).map(() => (
+            <div class='category-item'>
+              <div class='skeleton-element title'></div>
+              {Array.from({ length: 5 }).map(() => (
+                <div class='skeleton-element child-item'></div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   render() {
     return (
       <MetricPopover
@@ -867,109 +889,114 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               onClick={this.handleRefreshClick}
             ></bk-button>
           </div>
-          <div
-            class='metric-selector-content-wrap'
-            v-bkloading={{ isLoading: this.loading }}
-          >
-            {this.type === MetricType.TimeSeries ? (
-              <div class='metric-selector-tags'>
-                <HorizontalScrollContainer key={String(this.tag.list?.length || 0)}>
-                  <div class='built-in'>
-                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(item => (
-                      <div
-                        class={['built-in-item', { active: this.tag.value === item.id }]}
-                        key={item.id}
-                        on-click={() => this.handleTagClick(item.id)}
-                      >
-                        {item.name}
-                      </div>
-                    ))}
-                  </div>
-                </HorizontalScrollContainer>
-              </div>
-            ) : undefined}
-            <div class={['metric-selector-content', this.type, { 'has-tag': this.type === MetricType.TimeSeries }]}>
-              <div
-                class='content-main'
-                ref='metricScrollWrap'
-                onScroll={this.handleScrollContent}
-                onMousemove={this.handleMousemove}
-              >
-                {!!this.selectedMetric && (
+          <div class='metric-selector-content-wrap'>
+            {!this.loading
+              ? [
+                  this.type === MetricType.TimeSeries && (
+                    <div class='metric-selector-tags'>
+                      <HorizontalScrollContainer key={String(this.tag.list?.length || 0)}>
+                        <div class='built-in'>
+                          {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(item => (
+                            <div
+                              class={['built-in-item', { active: this.tag.value === item.id }]}
+                              key={item.id}
+                              on-click={() => this.handleTagClick(item.id)}
+                            >
+                              {item.name}
+                            </div>
+                          ))}
+                        </div>
+                      </HorizontalScrollContainer>
+                    </div>
+                  ),
                   <div
-                    class={[
-                      'metric-item',
-                      'pin-top-top',
-                      {
-                        'common-type': this.type === MetricType.TimeSeries
-                      }
-                    ]}
+                    class={['metric-selector-content', this.type, { 'has-tag': this.type === MetricType.TimeSeries }]}
                   >
-                    <div class='selected-label'>
-                      <div class='blue-bg'>
-                        {!isEn ? (
-                          <span class='text'>{this.$t('已选')}</span>
-                        ) : (
-                          <span class='icon-monitor icon-mc-check-small'></span>
-                        )}
-                      </div>
-                    </div>
-                    {this.metricItem(this.selectedMetric)}
-                  </div>
-                )}
-                {this.metricList.length ? (
-                  [
-                    this.metricList.map((item, index) => (
-                      <div
-                        class={[
-                          'metric-item',
-                          {
-                            selected: this.currentIndex === index && !this.isHoverItem,
-                            checked: this.metricId === item.metric_id,
-                            'common-type': this.type === MetricType.TimeSeries
-                          }
-                        ]}
-                        id={`_metric_id_${item.metric_field}_${index}`.replace(/\./g, '_')}
-                        onClick={() => this.handleSelectMetric(item)}
-                        onMouseenter={() => this.handleHoverItem(index)}
-                      >
-                        {this.metricItem(item)}
-                      </div>
-                    )),
-                    <div class='metric-next-page-tips'>
-                      {this.nextPageLoading && <span class='loading-icon'></span>}
-                      <span class='loading-text'>{this.$tc(this.isLoadAll ? '已加载全部数据' : '加载中...')}</span>
-                    </div>
-                  ]
-                ) : (
-                  <EmptyStatus
-                    type={this.emptyStatusType}
-                    onOperation={this.handleEmptyOperation}
-                  >
-                    {this.emptyStatusType === 'search-empty' && (
-                      <div class='search-empty-msg'>
-                        <p class='tip-text'>{this.$t('你可以将该搜索内容直接自定义为指标选项')}</p>
-                        <bk-button
-                          text
-                          title='primary'
-                          class='create-custom-metric'
-                          onClick={() => this.handleEmptyOperation('create-custom-metric')}
+                    <div
+                      class='content-main'
+                      ref='metricScrollWrap'
+                      onScroll={this.handleScrollContent}
+                      onMousemove={this.handleMousemove}
+                    >
+                      {!!this.selectedMetric && (
+                        <div
+                          class={[
+                            'metric-item',
+                            'pin-top-top',
+                            {
+                              'common-type': this.type === MetricType.TimeSeries
+                            }
+                          ]}
                         >
-                          {this.$t('生成自定义指标')}
-                        </bk-button>
-                      </div>
-                    )}
-                  </EmptyStatus>
-                )}
-              </div>
-              <div class='content-aside'>
-                <CheckedboxList
-                  value={this.checkededValue}
-                  list={this.checkedboxList}
-                  onChange={this.handleCheckedboxListChange}
-                />
-              </div>
-            </div>
+                          <div class='selected-label'>
+                            <div class='blue-bg'>
+                              {!isEn ? (
+                                <span class='text'>{this.$t('已选')}</span>
+                              ) : (
+                                <span class='icon-monitor icon-mc-check-small'></span>
+                              )}
+                            </div>
+                          </div>
+                          {this.metricItem(this.selectedMetric)}
+                        </div>
+                      )}
+                      {this.metricList.length ? (
+                        [
+                          this.metricList.map((item, index) => (
+                            <div
+                              class={[
+                                'metric-item',
+                                {
+                                  selected: this.currentIndex === index && !this.isHoverItem,
+                                  checked: this.metricId === item.metric_id,
+                                  'common-type': this.type === MetricType.TimeSeries
+                                }
+                              ]}
+                              id={`_metric_id_${item.metric_field}_${index}`.replace(/\./g, '_')}
+                              onClick={() => this.handleSelectMetric(item)}
+                              onMouseenter={() => this.handleHoverItem(index)}
+                            >
+                              {this.metricItem(item)}
+                            </div>
+                          )),
+                          <div class='metric-next-page-tips'>
+                            {this.nextPageLoading && <span class='loading-icon'></span>}
+                            <span class='loading-text'>
+                              {this.$tc(this.isLoadAll ? '已加载全部数据' : '加载中...')}
+                            </span>
+                          </div>
+                        ]
+                      ) : (
+                        <EmptyStatus
+                          type={this.emptyStatusType}
+                          onOperation={this.handleEmptyOperation}
+                        >
+                          {this.emptyStatusType === 'search-empty' && (
+                            <div class='search-empty-msg'>
+                              <p class='tip-text'>{this.$t('你可以将该搜索内容直接自定义为指标选项')}</p>
+                              <bk-button
+                                text
+                                title='primary'
+                                class='create-custom-metric'
+                                onClick={() => this.handleEmptyOperation('create-custom-metric')}
+                              >
+                                {this.$t('生成自定义指标')}
+                              </bk-button>
+                            </div>
+                          )}
+                        </EmptyStatus>
+                      )}
+                    </div>
+                    <div class='content-aside'>
+                      <CheckedboxList
+                        value={this.checkededValue}
+                        list={this.checkedboxList}
+                        onChange={this.handleCheckedboxListChange}
+                      />
+                    </div>
+                  </div>
+                ]
+              : this.renderSkeleton()}
           </div>
         </div>
       </MetricPopover>

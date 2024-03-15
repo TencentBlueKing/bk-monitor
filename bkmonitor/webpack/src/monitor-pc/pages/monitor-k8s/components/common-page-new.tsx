@@ -177,6 +177,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   tabList: ITabItem[] = [];
   // 是否展示loading
   loading = false;
+  // 右侧视图区域loading
+  rightWrapLoading = false;
   // 当前场景数据模型 页签
   sceneData: BookMarkModel = null;
   // 变量是否已经获取完毕
@@ -1245,12 +1247,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.filters = viewOptions.filters;
     this.groups = viewOptions.groups;
     if (this.sceneData.fetchPanel) {
-      this.loading = true;
+      this.rightWrapLoading = true;
       this.selectorReady = false;
       const panels = await getPanelData(this.sceneData.fetchPanel, viewOptions);
       this.sceneData.updatePanels(panels);
       this.localPanels = this.handleGetLocalPanels(panels);
-      this.loading = false;
+      this.rightWrapLoading = false;
     }
     this.selectorReady = true;
     this.handleUpdateViewOptions();
@@ -1672,7 +1674,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               )}
             </keep-alive>
             {this.showMode !== 'list' &&
-              this.selectorReady && [
+              this.selectorReady &&
+              !this.rightWrapLoading && [
                 <div
                   class='dashboard-panel-wrap'
                   ref='dashboardPanelWrap'
@@ -1817,6 +1820,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   ) : undefined}
                 </div>
               ]}
+            {(!this.selectorReady || this.rightWrapLoading) && (
+              <SkeletonBase
+                class='right-panel-wrap-skeleton'
+                children={{ row: 12, height: '20px' }}
+              />
+            )}
             <keep-alive>
               {this.enableDetail && (
                 <CommonDetail

@@ -838,9 +838,7 @@ export default class DataRetrieval extends tsc<{}> {
           item.showSource = false;
           return;
         }
-        item.loading = true;
         await this.handlePromqlQuery(item, index);
-        item.loading = false;
       }
     }
   }
@@ -2446,10 +2444,7 @@ export default class DataRetrieval extends tsc<{}> {
       item.switchToUI
     )
       return;
-    item.loading = true;
-    return this.handlePromqlQuery(item, index).finally(() => {
-      this.$nextTick(() => (item.loading = false));
-    });
+    return this.handlePromqlQuery(item, index);
   }
 
   /**
@@ -2478,21 +2473,14 @@ export default class DataRetrieval extends tsc<{}> {
     if (item.sourceCodeIsNullMetric) return true;
     const queryConfigs = this.getQueryConfgs(undefined, item);
     if (!queryConfigs[0].metric) return true;
-    item.loading = true;
     const params = {
       query_config_format: 'graph',
       expression: queryConfigs[0].alias || 'a',
       query_configs: queryConfigs
     };
-    const res = await queryConfigToPromql(params)
-      .catch(err => {
-        console.error(err);
-      })
-      .finally(() => {
-        setTimeout(() => {
-          item.loading = false;
-        }, 0);
-      });
+    const res = await queryConfigToPromql(params).catch(err => {
+      console.error(err);
+    });
     if (!res) return;
     item.consistency = true;
     item.sourceCode = res.promql;
@@ -2986,7 +2974,6 @@ export default class DataRetrieval extends tsc<{}> {
               onDragover={evt => this.handleDragOver(evt)}
             >
               <bk-collapse-item
-                v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 class='collapse-item'
                 name={item.key}
                 scopedSlots={{

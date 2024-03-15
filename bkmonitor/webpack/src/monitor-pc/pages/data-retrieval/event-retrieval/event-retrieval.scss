@@ -2,6 +2,7 @@
   font-size: 12px;
 
   .event-retrieval-bg {
+    position: relative;
     padding: 16px 24px 24px;
     background-color: #fff;
   }
@@ -44,6 +45,51 @@
     height: 450px;
     padding: 16px;
     background-color: #fff;
+  }
+
+  .form-skeleton-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    width: 100%;
+    padding: 16px 24px 24px;
+    background-color: #fff;
+
+    .form-item-skeleton {
+      margin-bottom: 16px;
+
+      .title {
+        width: 60px;
+        height: 20px;
+        margin-bottom: 5px;
+      }
+
+      .input {
+        height: 32px;
+      }
+
+      .textarea {
+        height: 72px;
+      }
+    }
+
+    .handle-button-skeleton {
+      display: flex;
+      padding-top: 44px;
+
+      .square {
+        width: 32px;
+        height: 32px;
+        margin-right: 2px;
+      }
+
+      .rect {
+        width: 80px;
+        height: 32px;
+        margin-right: 8px;
+      }
+    }
   }
 }
 

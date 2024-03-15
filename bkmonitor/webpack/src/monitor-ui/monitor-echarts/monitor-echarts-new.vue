@@ -686,7 +686,7 @@ export default class MonitorEcharts extends Vue {
   }
 
   initChart() {
-    this.initTableHeight();
+    this.hasTable && this.initTableHeight();
     this.chartTitle = this.title;
     this.chartSubTitle = this.subtitle;
     if (this.isEchartsRender && this.chartRef) {

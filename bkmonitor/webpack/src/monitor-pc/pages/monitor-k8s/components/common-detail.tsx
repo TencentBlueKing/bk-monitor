@@ -40,7 +40,8 @@ import MonitorResizeLayout, {
   ASIDE_DEFAULT_HEIGHT,
   IUpdateHeight
 } from '../../../components/resize-layout/resize-layout';
-import SkeletonBase from '../../../components/skeleton/skeleton-base';
+import { formSkeletonModelConfig } from '../../../components/skeleton/model';
+import SkeletonBase, { ISkeletonOption, type ISkeletonSimpleOption } from '../../../components/skeleton/skeleton-base';
 import { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils/index';
@@ -192,6 +193,9 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   isActived = false;
   // hack reflesh conputed
   refleshMaxWidthKey = random(10);
+  /** 骨架屏配置 */
+  skeletonConfig: ISkeletonSimpleOption | ISkeletonOption[] = formSkeletonModelConfig(7, ['60px', '160px']);
+
   /** 索引列表类型 */
   get indexListType() {
     return this.indexList.some(item => !!item.children?.length) ? 'tree' : 'list';
@@ -293,7 +297,6 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   // @Debounce(500)
   async getPanelData() {
     if (this.panel?.targets?.[0]) {
-      this.loading = true;
       const [item] = this.panel.targets;
       const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
       const variablesService = new VariablesService({
@@ -310,13 +313,13 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
           Object.values(params || {}).some(v => typeof v === 'undefined')) ||
         (this.oldParams && isShadowEqual(params, this.oldParams))
       ) {
-        this.loading = false;
         return;
       }
       if (this.cancelToken) {
         this.cancelToken?.();
         this.cancelToken = null;
       }
+      this.loading = true;
       this.oldParams = { ...params };
       const data = await (this as any).$api[item.apiModule]
         [item.apiFunc](params, {
@@ -599,7 +602,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         {this.loading ? (
           <SkeletonBase
             class='skeleton-base-box'
-            children={{ row: 25, height: '20px' }}
+            children={this.skeletonConfig}
           />
         ) : (
           [
