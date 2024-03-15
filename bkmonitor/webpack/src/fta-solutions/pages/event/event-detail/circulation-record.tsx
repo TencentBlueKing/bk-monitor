@@ -213,19 +213,19 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
    */
   listLinkCompatibility(list) {
     return list.map(item => {
-      if (!!item?.router_info) {
-        const routerName = item.router_info?.router_name;
-        const params = item.router_info?.params;
+      if (!!item?.routerInfo) {
+        const routerName = item.routerInfo?.routerName;
+        const params = item.routerInfo?.params;
         if (routerName === 'alarm-shield-detail') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}/#/trace/alarm-shield/edit/${params?.shield_id}`
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/trace/alarm-shield/edit/${params?.shieldId}`
           };
         }
         if (routerName === 'alarm-dispatch') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}/#/alarm-dispatch?group_id=${params?.group_id}`
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`
           };
         }
       }
