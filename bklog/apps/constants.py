@@ -171,6 +171,8 @@ class LuceneReservedLogicOperatorEnum(ChoicesEnum):
 
 # Lucene保留字符
 LUCENE_RESERVED_CHARS = ["+", "-", "=", "&", "&&", ">", "<", "!", "(", ")", "}", "[", "]", '"', "~", "*", "?", ":", "/"]
+# 全角冒号
+FULL_WIDTH_COLON = "："
 # 全角字符转半角字符
 FULL_WIDTH_CHAR_MAP = {
     "（": "(",
