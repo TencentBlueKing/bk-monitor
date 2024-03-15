@@ -31,7 +31,7 @@
     "clean:mobile": "rimraf weixin/*",
     "clean:pc": "rimraf ../static/monitor/*",
     "clean-dll": "rimraf ../static/monitor/dll/*",
-    "analyze": "npm run clean && bkmonitor-cli build -a",
+    "analyze": "npm run clean && bkmonitor-cli build -t -a",
     "analyze:mobile": "npm run clean && bkmonitor-cli build -m -a",
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js",
@@ -78,7 +78,7 @@
   },
   "pnpm": {
     "overrides": {
-      "@blueking/date-picker": "^0.0.73",
+      "@blueking/date-picker": "^1.0.0",
       "@blueking/stylelint-config": "0.0.3",
       "@blueking/user-selector>vue": "2.7.14",
       "@typescript-eslint/eslint-plugin": "^5.62.0",

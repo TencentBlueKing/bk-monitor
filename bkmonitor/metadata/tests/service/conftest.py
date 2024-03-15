@@ -14,9 +14,18 @@ import pytest
 from metadata import models
 from metadata.tests.common_utils import CustomConsul
 
+from ..space.conftest import consul_client
+
 DEFAULT_TABLE_ID = "test.test"
 DEFAULT_STORAGE_CLUSTER_ID = 100001
 DEFAULT_PROXY_STORAGE_CLUSTER_ID = 10001
+DEFAULT_NAME = "test_query"
+DEFAULT_DATA_ID = 1100000
+DEFAULT_BIZ_ID = 1
+DEFAULT_MQ_CLUSTER_ID = 10000
+DEFAULT_MQ_CONFIG_ID = 10001
+DEFAULT_SPACE_TYPE = "bkcc"
+DEFAULT_CREATOR = "system"
 
 pytestmark = pytest.mark.django_db
 
@@ -54,3 +63,68 @@ def create_and_delete_records(mocker):
     models.InfluxDBStorage.objects.filter(table_id=DEFAULT_TABLE_ID).delete()
     models.ClusterInfo.objects.filter(cluster_id=DEFAULT_STORAGE_CLUSTER_ID).delete()
     models.AccessVMRecord.objects.filter(result_table_id=DEFAULT_TABLE_ID).delete()
+
+
+@pytest.fixture
+def create_and_delete_datalink_records(mocker):
+    models.DataSource.objects.create(
+        bk_data_id=DEFAULT_DATA_ID,
+        data_name=DEFAULT_NAME,
+        mq_cluster_id=DEFAULT_MQ_CLUSTER_ID,
+        mq_config_id=DEFAULT_MQ_CONFIG_ID,
+        etl_config="test",
+        is_custom_source=False,
+        is_platform_data_id=False,
+        space_type_id=DEFAULT_SPACE_TYPE,
+    )
+    models.DataSource.objects.create(
+        bk_data_id=DEFAULT_DATA_ID + 1,
+        data_name=f"{DEFAULT_NAME}1",
+        mq_cluster_id=DEFAULT_MQ_CLUSTER_ID,
+        mq_config_id=DEFAULT_MQ_CONFIG_ID,
+        etl_config="test",
+        is_custom_source=False,
+        is_platform_data_id=True,
+        space_type_id=DEFAULT_SPACE_TYPE,
+    )
+    models.DataSource.objects.create(
+        bk_data_id=DEFAULT_DATA_ID + 2,
+        data_name=f"{DEFAULT_NAME}2",
+        mq_cluster_id=DEFAULT_MQ_CLUSTER_ID,
+        mq_config_id=DEFAULT_MQ_CONFIG_ID,
+        etl_config="test",
+        is_custom_source=False,
+        is_platform_data_id=True,
+        space_type_id=DEFAULT_SPACE_TYPE,
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=DEFAULT_DATA_ID, table_id=DEFAULT_TABLE_ID, creator=DEFAULT_CREATOR
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=DEFAULT_DATA_ID + 2, table_id=f"{DEFAULT_TABLE_ID}_one", creator=DEFAULT_CREATOR
+    )
+    models.ResultTable.objects.create(
+        table_id=DEFAULT_TABLE_ID,
+        table_name_zh=DEFAULT_TABLE_ID,
+        is_custom_table=False,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        bk_biz_id=DEFAULT_BIZ_ID,
+    )
+    models.ResultTable.objects.create(
+        table_id=f"{DEFAULT_TABLE_ID}_one",
+        table_name_zh=f"{DEFAULT_TABLE_ID}_one",
+        is_custom_table=False,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        bk_biz_id=DEFAULT_BIZ_ID,
+        is_enable=False,
+    )
+    models.DataSourceOption.objects.create(
+        bk_data_id=DEFAULT_DATA_ID, name=DEFAULT_NAME, value=DEFAULT_NAME, value_type="string"
+    )
+    models.ResultTableOption.objects
+    yield
+    mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    models.DataSourceOption.objects.filter(bk_data_id=DEFAULT_DATA_ID, name=DEFAULT_NAME).delete()
+    models.ResultTable.objects.filter(table_id__in=[DEFAULT_TABLE_ID, f"{DEFAULT_TABLE_ID}_one"]).delete()
+    models.DataSourceResultTable.objects.filter(bk_data_id__in=[DEFAULT_DATA_ID, DEFAULT_DATA_ID + 2]).delete()
+    models.DataSource.objects.filter(data_name__startswith=DEFAULT_NAME).delete()

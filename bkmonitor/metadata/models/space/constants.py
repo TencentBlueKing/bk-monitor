@@ -161,3 +161,6 @@ DBM_1001_TABLE_ID_PREFIX = "dbm_system."
 
 # BKCI 类型可以访问的主机类型结果表前缀
 BKCI_SYSTEM_TABLE_ID_PREFIX = "system."
+
+# 插件授权给 bkci 空间使用
+BKCI_SPACE_ACCESS_PLUGIN_LIST = []

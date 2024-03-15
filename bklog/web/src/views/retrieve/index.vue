@@ -399,7 +399,10 @@ export default {
       /** 是否还需要分页 */
       finishPolling: false,
       timezone: dayjs.tz.guess(),
+      /** 数据指纹是否请求布尔值 */
       fingerSearchState: false,
+      /** 批量添加条件的请求定时器timer */
+      addFilterTimer: null,
     };
   },
   computed: {
@@ -768,6 +771,7 @@ export default {
     },
     // 添加过滤条件
     addFilterCondition(field, operator, value, isLink = false) {
+      clearTimeout(this.addFilterTimer);
       let mappingKey = this.mappingKey;
       const textType = this.getFieldType(field);
       switch (textType) {
@@ -794,8 +798,10 @@ export default {
       if (!isLink) {
         this.retrieveParams.addition.splice(startIndex, 0, newAddition);
         this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
-        this.$refs.searchCompRef.setRouteParams();
-        this.retrieveLog();
+        this.addFilterTimer = setTimeout(() => {
+          this.$refs.searchCompRef.setRouteParams();
+          this.retrieveLog();
+        }, 0);
       } else {
         this.additionLinkOpen(newAddition);
       }
@@ -1642,6 +1648,8 @@ export default {
     // 表格tab切换或聚类参数回填
     backFillClusterRouteParams(activeTableTab = 'origin', clusterParams) {
       this.activeTableTab = activeTableTab;
+      // 如果初始化时是日志聚类，切换回原始日志时候需要重新计算表格宽度，不重新分配宽度会导致操作列表宽度太长，挡住kv列表里的交互
+      if (activeTableTab === 'origin') this.setDefaultTableColumn();
       const { query, params } = this.$route;
       const newQuery = { ...query };
       newQuery.activeTableTab = activeTableTab;

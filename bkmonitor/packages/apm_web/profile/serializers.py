@@ -87,7 +87,6 @@ class ProfileQueryLabelValuesSerializer(QueryBaseSerializer):
 class ProfileUploadSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID")
     service_name = serializers.CharField(label="服务名称", required=False)
-    file_type = serializers.ChoiceField(choices=["perf_script", "pprof"])
 
 
 class ProfileUploadRecordSLZ(serializers.ModelSerializer):

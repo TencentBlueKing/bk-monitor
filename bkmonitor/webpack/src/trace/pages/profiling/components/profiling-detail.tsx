@@ -139,6 +139,9 @@ export default defineComponent({
           <Form.FormItem label={`${this.t('文件md5')}:`}>{data.file_md5 || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('上传人')}:`}>{data.operator || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('上传时间')}:`}>{data.uploaded_time || '-'}</Form.FormItem>
+          {['parsing_failed', 'store_failed'].includes(data.status) && (
+            <Form.FormItem label={`${this.t('错误信息')}:`}>{data.content || '-'}</Form.FormItem>
+          )}
         </Form>
       );
     };
