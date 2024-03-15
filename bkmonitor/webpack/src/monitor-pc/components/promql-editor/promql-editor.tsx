@@ -27,7 +27,6 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { parser } from '@prometheus-io/lezer-promql';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import { throttle } from 'throttle-debounce';
 
 import { promLanguageDefinition } from './monaco-promql';
 import { completionItemProvider, language, languageConfiguration } from './promql';
@@ -94,7 +93,6 @@ const defalutOptions = {
   renderLineHighlightOnlyWhenFocus: true,
   overviewRulerBorder: false,
   overviewRulerLanes: 0,
-  automaticLayout: true,
   wordWrap: 'on',
   scrollBeyondLastLine: false,
   renderLineHighlight: 'none',
@@ -104,6 +102,10 @@ const defalutOptions = {
     horizontal: 'hidden',
     horizontalScrollbarSize: 0,
     alwaysConsumeMouseWheel: false
+  },
+  padding: {
+    top: 4,
+    bottom: 5
   },
   suggest: () => ({
     showWords: false
@@ -156,11 +158,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   preventTriggerChangeEvent = false;
 
   wrapHeight = 0;
-  throttleUpdateLayout = () => {};
-
-  created() {
-    this.throttleUpdateLayout = throttle(200, true, this.updateLayout);
-  }
 
   mounted() {
     this.initMonaco();
@@ -179,7 +176,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
    */
   handleEditorDidMount() {
     setTimeout(() => {
-      this.throttleUpdateLayout();
+      this.updateLayout();
     }, 300);
     const placeholderWidget = new PlaceholderWidget(this.editor);
     this.subscription = this.editor.onDidChangeModelContent(_event => {
@@ -187,7 +184,6 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         this.onChange(this.editor.getValue());
       }
       placeholderWidget.update();
-      this.throttleUpdateLayout();
       const model = this.editor.getModel();
       if (!model) {
         return;
@@ -202,6 +198,9 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         ...boundary
       }));
       monaco.editor.setModelMarkers(model, this.language, markers);
+    });
+    this.editor.onDidContentSizeChange(_event => {
+      this.updateLayout();
     });
     this.editor.onDidBlurEditorText(() => {
       this.$emit('blur', this.editor.getValue(), this.getLinterStatus());
@@ -226,16 +225,10 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   }
 
   updateLayout() {
-    const rowLen = this.editor.getModel().getLineCount();
-    let height = 0;
-    // 遍历每一行，计算其高度
-    for (let lineNumber = 0; lineNumber < rowLen; lineNumber++) {
-      const lineTop = this.editor.getTopForLineNumber(lineNumber + 1);
-      const nextLineTop = this.editor.getTopForLineNumber(lineNumber + 2);
-      const lineHeight = nextLineTop - lineTop;
-      height += lineHeight;
-    }
-    this.wrapHeight = height + 40;
+    const pixelHeight = this.editor.getContentHeight();
+    const height = pixelHeight + 2 > this.minHeight ? pixelHeight + 2 : this.minHeight;
+    this.editor.layout({ width: this.$el.clientWidth, height: height - 2 });
+    this.wrapHeight = height;
   }
 
   /**
@@ -360,6 +353,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     } else {
       this.wrapHeight = newHeight;
     }
+    this.editor.layout({ width: this.$el.clientWidth, height: this.wrapHeight - 2 });
   }
   stopResize() {
     window.removeEventListener('mousemove', this.resizeElement);
