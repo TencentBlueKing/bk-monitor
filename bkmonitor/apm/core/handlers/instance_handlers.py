@@ -45,3 +45,4 @@ class InstanceHandler:
         # 连续7天无数据, key 过期
         self.redis_client.set(name, json.dumps(update_map), ex=DEFAULT_TOPO_INSTANCE_EXPIRE)
         logger.info(f"[InstanceDiscover] {name} update {len(update_map)}")
+
