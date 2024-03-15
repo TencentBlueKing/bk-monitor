@@ -38,6 +38,7 @@ import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empt
 // import MonitorSkeleton from '../../components/skeleton/skeleton';
 import NoBussiness from '../no-business/no-business.vue';
 
+import BusinessItemBigSkeleton from './skeleton/business-item-big-skeleton';
 import BusinessItemBig from './business-item-big';
 import NoBusinessItem from './no-business-item';
 import OverviewContent, { IData as IDataOverviewData } from './overview-content';
@@ -258,7 +259,6 @@ export default class Home extends tsc<{}> {
       item.num = +(+numObj.num).toFixed(1);
       item.unit = numObj.unit;
     });
-    debugger;
     // 业务概览
     this.businessOverview.data = this.getDetails(data.details);
     // 是否到底
@@ -336,7 +336,7 @@ export default class Home extends tsc<{}> {
 
   async handleScroll(e: any) {
     if (this.isEnd) return;
-    if (this.scrollLoading) return;
+    if (this.scrollLoading || this.loading) return;
     const { scrollHeight, scrollTop, clientHeight } = e.target;
     // 大屏有误差所以要+1
     const isEnd = scrollHeight - scrollTop <= clientHeight + 1 && scrollTop !== 0;
@@ -488,12 +488,32 @@ export default class Home extends tsc<{}> {
                   </bk-select>
                 </span>
               </div>
-              {this.businessOverview.data.length ? (
+              {this.businessOverview.data.length || this.loading ? (
                 <div
                   class='overview-content'
-                  v-bkloading={{ isLoading: this.businessLoading }}
+                  // v-bkloading={{ isLoading: this.businessLoading }}
                 >
-                  {this.businessOverview.data.map(item =>
+                  {(() => {
+                    if (this.loading) {
+                      return new Array(this.firstPageSize)
+                        .fill(null)
+                        .map((_item, index) => <BusinessItemBigSkeleton key={index}></BusinessItemBigSkeleton>);
+                    }
+                    return this.businessOverview.data.map(item =>
+                      item.isAllowed ? (
+                        <BusinessItemBig
+                          key={item.id}
+                          data={item}
+                          homeDays={this.homeDays}
+                          onSticky={() => this.handleSticky()}
+                          onToEvent={this.handleToEvent}
+                        ></BusinessItemBig>
+                      ) : (
+                        <NoBusinessItem data={{ ...item }}></NoBusinessItem>
+                      )
+                    );
+                  })()}
+                  {/* {this.businessOverview.data.map(item =>
                     item.isAllowed ? (
                       <BusinessItemBig
                         key={item.id}
@@ -505,7 +525,7 @@ export default class Home extends tsc<{}> {
                     ) : (
                       <NoBusinessItem data={{ ...item }}></NoBusinessItem>
                     )
-                  )}
+                  )} */}
                 </div>
               ) : (
                 <EmptyStatus
