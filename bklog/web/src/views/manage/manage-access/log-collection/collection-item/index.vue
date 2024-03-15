@@ -160,6 +160,18 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="checkcFields('label')"
+          :label="$t('标签')"
+          :render-header="$renderHeader">
+          <template slot-scope="props">
+            <index-set-label-select
+              :row-data="props.row"
+              :label.sync="props.row.tags"
+              :select-label-list="selectLabelList"
+              @refreshLabelList="initLabelSelectList" />
+          </template>
+        </bk-table-column>
+        <bk-table-column
           v-if="checkcFields('es_host_state')"
           :class-name="'td-status'"
           :label="$t('采集状态')"
@@ -478,12 +490,14 @@ import { mapGetters } from 'vuex';
 import * as authorityMap from '../../../../../common/authority-map';
 import CollectionReportView from '../../components/collection-report-view';
 import EmptyStatus from '../../../../../components/empty-status';
+import IndexSetLabelSelect from '../../../../../components/index-set-label-select';
 
 export default {
   name: 'CollectionItem',
   components: {
     CollectionReportView,
     EmptyStatus,
+    IndexSetLabelSelect,
   },
   mixins: [collectedItemsMixin],
   data() {
@@ -513,6 +527,10 @@ export default {
       {
         id: 'retention',
         label: this.$t('过期时间'),
+      },
+      {
+        id: 'label',
+        label: this.$t('标签'),
       },
       // 采集状态
       {
@@ -572,7 +590,7 @@ export default {
       isAllowedCreate: null,
       columnSetting: {
         fields: settingFields,
-        selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
+        selectedFields: [...settingFields.slice(3, 9), settingFields[2]],
       },
       // 是否支持一键检测
       enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
@@ -585,6 +603,7 @@ export default {
       isFilterSearch: false,
       isShouldPollCollect: false, // 当前列表是否需要轮询
       settingCacheKey: 'clusterList',
+      selectLabelList: [],
     };
   },
   computed: {
@@ -631,8 +650,9 @@ export default {
     const { selectedFields } = this.columnSetting;
     this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
   },
-  mounted() {
+  async mounted() {
     this.needGuide = !localStorage.getItem('needGuide');
+    !this.authGlobalInfo && await this.initLabelSelectList();
     !this.authGlobalInfo && this.search();
   },
   destroyed() {
@@ -954,6 +974,15 @@ export default {
         });
       } catch (error) {
         return [];
+      }
+    },
+    /** 初始化标签列表 */
+    async initLabelSelectList() {
+      try {
+        const res = await this.$http.request('unionSearch/unionLabelList');
+        this.selectLabelList = res.data;
+      } catch (error) {
+        this.selectLabelList = [];
       }
     },
   },

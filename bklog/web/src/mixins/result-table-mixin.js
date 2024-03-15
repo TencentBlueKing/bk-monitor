@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import { formatDate, random, copyMessage } from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import EventPopover from '@/views/retrieve/result-comp/event-popover.vue';
@@ -113,6 +113,11 @@ export default {
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
+    ...mapGetters({
+      isUnionSearch: 'isUnionSearch',
+      unionIndexList: 'unionIndexList',
+      unionIndexItemList: 'unionIndexItemList',
+    }),
     showHandleOption() {
       return Boolean(this.visibleFields.length);
     },
@@ -240,8 +245,23 @@ export default {
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
+        const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
+        let unionContent = '';
+        // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
+        if (this.isUnionSearch) {
+          const indexSetIDs = field.index_set_ids?.map(item => String(item)) || [];
+          const isDifferentFields = indexSetIDs.length !== this.unionIndexItemList.length;
+          if (isDifferentFields && !isUnionSource) {
+            const lackIndexNameList = this.unionIndexItemList
+              .filter(item => indexSetIDs.includes(item.index_set_id))
+              .map(item => item.index_set_name);
+            unionContent = `${this.$t('字段来源')}: <br>${lackIndexNameList.join(' <br>')}`;
+          }
+        }
+        const isLackIndexFields = (!!unionContent && this.isUnionSearch);
+        const isHiddenToggleDisplay = this.visibleFields.filter(item => item.tag !== 'union-source').length === 1 || isUnionSource;
 
         return h('div', {
           class: 'render-header',
@@ -258,7 +278,16 @@ export default {
               },
             ],
           }),
-          h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [fieldName]),
+          h('span',
+            {
+              directives: [{
+                name: 'bk-tooltips',
+                value: { content: isLackIndexFields ? unionContent : fieldName },
+              }],
+              class: { 'lack-index-filed': isLackIndexFields },
+            },
+            [fieldName],
+          ),
           h(TimeFormatterSwitcher, {
             class: 'timer-formatter',
             style: {
@@ -266,7 +295,7 @@ export default {
             },
           }),
           h('i', {
-            class: `bk-icon icon-minus-circle-shape toggle-display ${this.visibleFields.length === 1 ? 'is-hidden' : ''}`,
+            class: `bk-icon icon-minus-circle-shape toggle-display ${isHiddenToggleDisplay ? 'is-hidden' : ''}`,
             directives: [
               {
                 name: 'bk-tooltips',
@@ -336,7 +365,7 @@ export default {
           placement: 'top',
           offset: '0, -50',
           theme: 'light',
-          allowHTML: true,
+          // allowHTML: true,
           interactive: true,
           appendTo: 'parent',
           boundary: this.scrollContent,
@@ -360,6 +389,13 @@ export default {
       };
       const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
       this.$emit('shouldRetrieve', { sort_list: sortList }, false);
+    },
+    getTableColumnContent(row, field) {
+      // 日志来源 展示来源的索引集名称
+      if (field?.tag === 'union-source') {
+        return this.unionIndexItemList.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ?? '';
+      }
+      return this.tableRowDeepView(row, field.field_name, field.field_type);
     },
   },
 };

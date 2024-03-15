@@ -52,7 +52,7 @@
     <template v-for="(field, index) in visibleFields">
       <bk-table-column
         align="left"
-        :sortable="field.es_doc_values"
+        :sortable="field.es_doc_values && field.tag !== 'union-source'"
         :column-key="field.field_name"
         :key="field.field_name"
         :min-width="field.minWidth"
@@ -68,9 +68,10 @@
               :title="isWrap ? '' : tableRowDeepView(row, field.field_name, field.field_type)">
               <table-column
                 :is-wrap="isWrap"
-                :content="tableRowDeepView(row, field.field_name, field.field_type)"
+                :content="getTableColumnContent(row, field)"
                 :field-name="field.field_name"
                 :field-type="field.field_type"
+                :field-tag="field.tag"
                 @iconClick="(type, content) => handleIconClick(type, content, field, row)"
                 @computedHeight="handleOverColumn(field.field_name)" />
               <p

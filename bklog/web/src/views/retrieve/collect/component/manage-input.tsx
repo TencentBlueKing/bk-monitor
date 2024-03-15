@@ -22,7 +22,7 @@
 
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Ref, Emit, Prop, Watch } from 'vue-property-decorator';
-import { Input } from 'bk-magic-vue';
+import { Input, Popover } from 'bk-magic-vue';
 import { IFavoriteItem } from '../collect-index';
 import './manage-input.scss';
 
@@ -35,6 +35,14 @@ export default class ManageInput extends tsc<IProps> {
   @Ref() inputRef: any;
 
   inputStr = '';
+  isClick = false;
+
+  /** 是否展示失效 */
+  isFailFavorite(item) {
+    return item.index_set_type === 'single'
+      ? !item.is_active
+      : !item.is_actives.every(Boolean);
+  }
 
   @Watch('favoriteData.name', { immediate: true })
   handleWatchFavoriteName(str) {
@@ -45,7 +53,12 @@ export default class ManageInput extends tsc<IProps> {
   handleChangeFavoriteName() {
     return this.inputStr;
   }
-  isClick = false;
+
+  /** 是否是多索引集 */
+  isMultiIndex(item) {
+    return item.index_set_type === 'union';
+  }
+
   handleClickInput() {
     this.isClick = true;
     this.$nextTick(() => {
@@ -68,11 +81,42 @@ export default class ManageInput extends tsc<IProps> {
           ></Input>
         ) : (
           <div class="collect-box">
-            <span class="collect-name" v-bk-overflow-tips>{this.inputStr}</span>
-            {!this.favoriteData.is_active ? (
-              <span v-bk-tooltips={{ content: this.$t('数据源不存在'), placement: 'right' }}>
+            <span class="collect-name" v-bk-overflow-tips>
+              {this.inputStr}
+            </span>
+            {this.isFailFavorite(this.favoriteData) ? (
+              <Popover
+                theme="light"
+                placement="right"
+                ext-cls="favorite-data-source"
+              >
                 <span class="bk-icon log-icon icon-shixiao"></span>
-              </span>
+                <div slot="content">
+                  {this.isMultiIndex(this.favoriteData) ? (
+                    <ul>
+                      {this.favoriteData.index_set_names.map(
+                        (setItem, setIndex) => (
+                          <li
+                            class={{
+                              'index-fail':
+                                !this.favoriteData.is_actives[setIndex],
+                            }}
+                          >
+                            <span>
+                              <span>{setItem}</span>
+                              {!this.favoriteData.is_actives[setIndex] ? (
+                                <span>({this.$t('已失效')})</span>
+                              ) : undefined}
+                            </span>
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  ) : (
+                    <p>{this.$t('数据源不存在')}</p>
+                  )}
+                </div>
+              </Popover>
             ) : undefined}
           </div>
         )}

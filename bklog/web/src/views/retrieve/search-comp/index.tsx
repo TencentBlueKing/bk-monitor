@@ -166,12 +166,20 @@ export default class SearchComp extends tsc<IProps> {
     return [...unDisabledList, ...disabledList];
   }
 
+  get unionIndexList() {
+    return this.$store.state.unionIndexList;
+  }
+
+  get isUnionSearch() {
+    return this.$store.getters.isUnionSearch;
+  }
+
   get ipChooserIsOpen() { // ip选择器开关
     return this.conditionList.find(item => item.conditionType === 'ip-select')?.isInclude ?? false;
   }
 
   get keywordAndFields() {
-    return `${this.retrievedKeyword}_${this.fieldsKeyStrList.join(',')}`;
+    return `${this.retrievedKeyword}_${this.fieldsKeyStrList.join(',')}_${this.unionIndexList.join(',')}`;
   }
 
   @Watch('keywordAndFields', { immediate: true })
@@ -260,7 +268,7 @@ export default class SearchComp extends tsc<IProps> {
    * @param {Boolean} chooserSwitch 路由的ip选择器是否打开
    */
   initConditionList(initAddition, initIPChooser, chooserSwitch = true) {
-    let addition = initAddition ?? this.retrieveParams.addition;
+    const addition = initAddition ?? this.retrieveParams.addition;
     const ipChooser = initIPChooser ?? this.retrieveParams.ip_chooser;
     this.conditionList = [];
     const isHaveIP = Boolean(Object.keys(ipChooser).length);
@@ -465,16 +473,23 @@ export default class SearchComp extends tsc<IProps> {
     if (!fields.length) return;
     const tempList = handleTransformToTimestamp(this.datePickerValue);
     try {
-      const res = await $http.request('retrieve/getAggsTerms', {
+      const urlStr = this.isUnionSearch ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
+      const queryData = {
+        keyword: !!this.retrievedKeyword ? this.retrievedKeyword : '*',
+        fields,
+        start_time: formatDate(tempList[0] * 1000),
+        end_time: formatDate(tempList[1] * 1000),
+      };
+      if (this.isUnionSearch) {
+        Object.assign(queryData, {
+          index_set_ids: this.unionIndexList,
+        });
+      }
+      const res = await $http.request(urlStr, {
         params: {
           index_set_id: this.indexId,
         },
-        data: {
-          keyword: !!this.retrievedKeyword ? this.retrievedKeyword : '*',
-          fields,
-          start_time: formatDate(tempList[0] * 1000),
-          end_time: formatDate(tempList[1] * 1000),
-        },
+        data: queryData,
       });
       this.aggsItems = res.data.aggs_items;
       this.initValueList();

@@ -131,3 +131,9 @@ class UnionSearchDateHistogramSerializer(DateHistogramSerializer):
     index_set_ids = serializers.ListField(
         label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
     )
+
+
+class UnionSearchAggsTermsSerializer(AggsTermsSerializer):
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
+    )

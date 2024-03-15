@@ -22,8 +22,11 @@ the project delivered to anyone in the future.
 import abc
 import copy
 import datetime
+import operator
 import typing
 from collections import defaultdict
+
+from elasticsearch_dsl import A, Search
 
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import DateHistogramException
@@ -38,7 +41,6 @@ from apps.utils.time_handler import (
     generate_time_range,
     timestamp_to_timeformat,
 )
-from elasticsearch_dsl import A, Search
 
 
 class AggsBase(abc.ABC):
@@ -183,11 +185,11 @@ class AggsHandlers(AggsBase):
                 extended_bounds={"min": min_value, "max": max_value},
             )
         else:
-            num = 10 ** 3
+            num = 10**3
             if time_field_unit == TimeFieldUnitEnum.SECOND.value:
                 num = 1
             elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
-                num = 10 ** 6
+                num = 10**6
             min_value = start_time.timestamp * num
             max_value = end_time.timestamp * num
             date_histogram = A(
@@ -207,11 +209,11 @@ class AggsHandlers(AggsBase):
         result = SearchHandlerEsquery(index_set_id, query_data).search(search_type=None)
         if time_field_type != TimeFieldTypeEnum.DATE.value:
             buckets = result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
-            time_multiplicator = 1 / (10 ** 3)
+            time_multiplicator = 1 / (10**3)
             if time_field_unit == TimeFieldUnitEnum.SECOND.value:
                 time_multiplicator = 1
             elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
-                time_multiplicator = 1 / (10 ** 6)
+                time_multiplicator = 1 / (10**6)
             for _buckets in buckets:
                 _buckets["key_as_string"] = timestamp_to_timeformat(
                     _buckets["key"], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
@@ -424,6 +426,79 @@ class AggsViewAdapter(object):
         )
 
         return ret_data
+
+    @staticmethod
+    def union_search_terms(query_data: dict):
+        index_set_ids = query_data.get("index_set_ids", [])
+
+        # 多线程请求数据
+        multi_execute_func = MultiExecuteFunc()
+
+        for index_set_id in index_set_ids:
+            params = {"index_set_id": index_set_id, "query_data": query_data}
+            multi_execute_func.append(
+                result_key=f"union_search_terms_{index_set_id}",
+                func=AggsViewAdapter().terms,
+                params=params,
+                multi_func_params=True,
+            )
+
+        multi_result = multi_execute_func.run()
+
+        aggs_all = dict()
+        aggs_items_all = dict()
+        # 处理返回结果
+        for index_set_id in index_set_ids:
+            result = multi_result.get(f"union_search_terms_{index_set_id}", {})
+
+            if not result:
+                continue
+
+            # 处理 aggs
+            for key, value in result.get("aggs", {}).items():
+                if not value or not isinstance(value, dict):
+                    value = dict()
+                if key not in aggs_all:
+                    aggs_all[key] = value
+                else:
+                    try:
+                        for v_kk, v_vv in value.items():
+                            if isinstance(v_vv, int):
+                                aggs_all[key][v_kk] += v_vv
+                            elif isinstance(v_vv, list):
+                                aggs_all[key][v_kk].extend(v_vv)
+                    except Exception as e:
+                        logger.error(f"[union_search_terms error] e={e}")
+                        continue
+
+            # 处理 aggs_items
+            for items_k, items_v in result.get("aggs_items", {}).items():
+                if items_k not in aggs_items_all:
+                    aggs_items_all[items_k] = items_v
+                    continue
+                elif isinstance(items_v, list):
+                    aggs_items_all[items_k].extend(items_v)
+                aggs_items_all[items_k] = list(set(aggs_items_all[items_k]))
+
+        # buckets 合并排序
+        for all_key, all_value in aggs_all.items():
+            if not all_value or not isinstance(all_value, dict):
+                continue
+            buckets = all_value.get("buckets", [])
+            if not buckets:
+                continue
+            buckets_info = dict()
+            for bucket in buckets:
+                bucket_key = bucket["key"]
+                if bucket_key not in buckets_info:
+                    buckets_info[bucket_key] = bucket
+                else:
+                    buckets_info[bucket_key]["doc_count"] += bucket["doc_count"]
+
+            sorted_buckets = sorted(list(buckets_info.values()), key=operator.itemgetter("doc_count"), reverse=True)
+            all_value["buckets"] = sorted_buckets
+
+        return {"aggs": aggs_all, "aggs_items": aggs_items_all}
 
     def _del_empty_histogram(self, aggs):
         """

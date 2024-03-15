@@ -154,5 +154,12 @@ export default {
   新增采样: 'New sample',
   钉住: 'Nail sample',
   取消钉住: 'Cancel nail sample',
-  新增备注: 'Add New Label'
+  新增备注: 'Add New Label',
+  新增标签: 'Add New Label',
+  多选: 'Multiple',
+  单选: 'Single',
+  收藏该组合: 'Favorite this set',
+  确认收藏: 'Confirm',
+  取消收藏: 'Cancel',
+  查看配置: 'View Configuration'
 };

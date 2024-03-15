@@ -38,7 +38,6 @@
         :field-name="fieldName"
         :field-type="fieldType"
         :menu-click="handleMenuClick" />
-      <!-- <span v-else>{{ formatterStr(content) }}</span> -->
       <text-highlight
         v-else
         style="word-break: break-all;"

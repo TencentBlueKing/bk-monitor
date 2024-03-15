@@ -38,7 +38,7 @@ from metadata.models.result_table import (
 )
 from metadata.models.storage import ClusterInfo
 from metadata.utils.db import filter_model_by_in_page
-from packages.utils.redis_client import RedisClient
+from utils.redis_client import RedisClient
 
 from .base import CustomGroupBase
 

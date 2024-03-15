@@ -151,6 +151,7 @@
 import VueDraggable from 'vuedraggable';
 import fieldsSettingOperate from './fields-setting-operate';
 import { deepClone } from '@/components/monitor-echarts/utils';
+import { mapGetters } from 'vuex';
 
 export default {
   components: {
@@ -218,6 +219,10 @@ export default {
     fieldWidth() {
       return this.$store.state.isEnLanguage ? '60' : '114';
     },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
   },
   watch: {
     newConfigStr() {
@@ -232,13 +237,21 @@ export default {
     async requestFields() {
       this.isLoading = true;
       try {
-        const res = await this.$http.request('retrieve/getLogTableHead', {
+        const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+        const queryData = {
+          start_time: this.retrieveParams.start_time,
+          end_time: this.retrieveParams.end_time,
+          is_realtime: 'True',
+        };
+        if (this.isUnionSearch) {
+          Object.assign(queryData, {
+            index_set_ids: this.unionIndexList,
+          });
+        }
+        const res = await this.$http.request(urlStr, {
           params: { index_set_id: this.$route.params.indexId },
-          query: {
-            start_time: this.retrieveParams.start_time,
-            end_time: this.retrieveParams.end_time,
-            is_realtime: 'True',
-          },
+          query: !this.isUnionSearch ? queryData : undefined,
+          data: this.isUnionSearch ? queryData : undefined,
         });
         this.shadowAllTotal = res.data.fields.map(item => ({ ...item, is_display: false }));
       } catch (e) {
@@ -290,8 +303,13 @@ export default {
     /** 更新config */
     async submitFieldsSet(configID) {
       await this.$http.request('retrieve/postFieldsConfig', {
-        params: { index_set_id: this.$route.params.indexId },
-        data: { display_fields: this.shadowVisible, sort_list: this.shadowSort, config_id: configID },
+        data: {
+          index_set_id: this.$route.params.indexId,
+          index_set_ids: this.unionIndexList,
+          index_set_type: this.isUnionSearch ? 'union' : 'single',
+          display_fields: this.shadowVisible,
+          sort_list: this.shadowSort, config_id: configID,
+        },
       }).catch((e) => {
         console.warn(e);
       });
@@ -451,11 +469,13 @@ export default {
         sort_list: updateItem.sort_list,
         display_fields: updateItem.display_fields,
         config_id: undefined,
+        index_set_id: this.$route.params.indexId,
+        index_set_ids: this.unionIndexList,
+        index_set_type: this.isUnionSearch ? 'union' : 'single',
       };
       if (!isCreate) data.config_id = updateItem.id;
       try {
         await this.$http.request(`retrieve/${requestStr}FieldsConfig`, {
-          params: { index_set_id: this.$route.params.indexId },
           data,
         });
         if (this.activeFieldTab === 'sort') {
@@ -471,8 +491,12 @@ export default {
     async handleDeleteConfig(configID) {
       try {
         await this.$http.request('retrieve/deleteFieldsConfig', {
-          params: { index_set_id: this.$route.params.indexId },
-          data: { config_id: configID },
+          data: {
+            config_id: configID,
+            index_set_id: this.$route.params.indexId,
+            index_set_ids: this.unionIndexList,
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+          },
         });
       } catch (error) {} finally {
         this.initRequestConfigListShow();
@@ -513,7 +537,12 @@ export default {
       this.isLoading = true;
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
-          params: { index_set_id: this.$route.params.indexId, scope: 'default' },
+          data: {
+            index_set_id: this.$route.params.indexId,
+            index_set_ids: this.unionIndexList,
+            scope: 'default',
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+          },
         });
         this.configTabPanels = res.data.map(item => ({
           ...item,

@@ -98,6 +98,7 @@ class IndexSetViewSet(ModelViewSet):
             time_field_unit = serializers.ChoiceField(
                 required=False, default=None, choices=TimeFieldUnitEnum.get_choices()
             )
+            tag_ids = serializers.ListField(required=False, default=[], child=serializers.IntegerField())
 
             class Meta:
                 model = LogIndexSet

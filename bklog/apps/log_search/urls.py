@@ -19,16 +19,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import url, include
+from django.conf.urls import include, url
 from rest_framework import routers
 
-from apps.log_search.views import meta_views, favorite_search_views
-from apps.log_search.views import bizs_views
-from apps.log_search.views import index_set_views
-from apps.log_search.views import search_views
-from apps.log_search.views import aggs_views
-
-from apps.log_search.views import result_table_views
+from apps.log_search.views import (
+    aggs_views,
+    bizs_views,
+    favorite_search_views,
+    index_set_views,
+    meta_views,
+    result_table_views,
+    search_views,
+)
 
 app_name = "apps.log_search"  # pylint: disable=invalid-name
 
@@ -46,6 +48,7 @@ router.register(r"search/index_set", search_views.SearchViewSet, basename="searc
 router.register(r"search/index_set", aggs_views.AggsViewSet, basename="aggs")
 router.register(r"search/favorite", favorite_search_views.FavoriteViewSet, basename="favorite")
 router.register(r"search/favorite_group", favorite_search_views.FavoriteGroupViewSet, basename="favorite_group")
+router.register(r"search/favorite_union", favorite_search_views.FavoriteUnionSearchViewSet, basename="favorite_union")
 
 router.register(r"result_table", result_table_views.ResultTablesViewSet, basename="result_table")
 

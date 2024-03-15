@@ -44,6 +44,7 @@
             size="small"
             searchable
             ref="configSelectRef"
+            :disabled="fieldConfigIsLoading"
             :clearable="false"
             :value="filedSettingConfigID"
             :popover-min-width="240"
@@ -57,7 +58,7 @@
             <div slot="extension">
               <span class="extension-add-new-config" @click="handleAddNewConfig">
                 <span class="bk-icon icon-close-circle"></span>
-                <span>{{$t('新建配置')}}</span>
+                <span>{{$t('查看配置')}}</span>
               </span>
             </div>
           </bk-select>
@@ -120,7 +121,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapGetters } from 'vuex';
 import TableLog from './table-log.vue';
 import FieldsSetting from '../../result-comp/fields-setting';
 import ExportLog from '../../result-comp/export-log.vue';
@@ -153,7 +154,8 @@ export default {
       showAsyncExport: false, // 异步下载弹窗
       exportLoading: false,
       fieldsConfigList: [],
-      selectConfigID: null,
+      fieldConfigIsLoading: false,
+      isFiledQuery: false,
     };
   },
   computed: {
@@ -169,15 +171,22 @@ export default {
     filedSettingConfigID() { // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
     },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
+    watchQueryIndexValue() {
+      return `${this.routeIndexSet}_${this.unionIndexList.join(',')}`;
+    },
     routeIndexSet() {
       return this.$route.params.indexId;
     },
   },
   watch: {
-    routeIndexSet: {
+    watchQueryIndexValue: {
       immediate: true,
-      handler(val) {
-        if (!!val) this.requestFiledConfig();
+      handler() {
+        if (this.routeIndexSet) this.routerAndUnionRequestFields();
       },
     },
   },
@@ -205,24 +214,29 @@ export default {
     },
     closeDropdown() {
       this.showFieldsSetting = false;
-      this.$refs.fieldsSettingPopper.instance?.hide();
+      this.$refs.fieldsSettingPopper?.instance.hide();
     },
     setPopperInstance(status = true) {
-      this.$refs.fieldsSettingPopper.instance?.set({
+      this.$refs.fieldsSettingPopper?.instance.set({
         hideOnClick: status,
       });
     },
     async requestFiledConfig() {
       /** 获取配置列表 */
-      this.isLoading = true;
+      this.fieldConfigIsLoading = true;
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
-          params: { index_set_id: this.routeIndexSet, scope: 'default' },
+          data: {
+            index_set_id: this.routeIndexSet,
+            index_set_ids: this.unionIndexList,
+            scope: 'default',
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+          },
         });
         this.fieldsConfigList = res.data;
       } catch (error) {
       } finally {
-        this.isLoading = false;
+        this.fieldConfigIsLoading = false;
       }
     },
     async handleSelectFieldConfig(configID, option) {
@@ -230,10 +244,12 @@ export default {
       // 更新config
       await this.$http
         .request('retrieve/postFieldsConfig', {
-          params: { index_set_id: this.$route.params.indexId },
           data: {
-            display_fields: displayFields,
-            sort_list: sortList,
+            index_set_id: this.routeIndexSet,
+            index_set_ids: this.unionIndexList,
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+            display_fields: this.shadowVisible,
+            sort_list: this.shadowSort,
             config_id: configID,
           },
         })
@@ -246,6 +262,39 @@ export default {
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
       this.$refs.fieldsSettingPopper.instance?.show();
+    },
+    /** 请求字段 */
+    async routerAndUnionRequestFields() {
+      if (this.isFiledQuery) return;
+      this.isFiledQuery = true;
+      if (this.isUnionSearch) {
+        try {
+          const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+          const queryData = {
+            start_time: this.retrieveParams.start_time,
+            end_time: this.retrieveParams.end_time,
+            is_realtime: 'True',
+          };
+          if (this.isUnionSearch) {
+            Object.assign(queryData, {
+              index_set_ids: this.unionIndexList,
+            });
+          }
+          return await this.$http.request(urlStr, {
+            params: { index_set_id: this.$route.params.indexId },
+            query: !this.isUnionSearch ? queryData : undefined,
+            data: this.isUnionSearch ? queryData : undefined,
+          });
+        } catch (e) {
+          console.warn(e);
+        } finally {
+          this.requestFiledConfig();
+          this.isFiledQuery = false;
+        };
+      } else {
+        this.isFiledQuery = false;
+        this.requestFiledConfig();
+      }
     },
   },
 };

@@ -57,6 +57,8 @@ import HeaderSettingModal from './header-setting-modal';
 import './app.scss';
 import introduce from '../common/introduce';
 import { isAuthority } from '../router/router';
+import { getDashboardCache } from './grafana/utils';
+import { getDashboardList } from '../../monitor-api/modules/grafana';
 
 const changeNoticeRouteList = [
   'strategy-config-add',
@@ -170,7 +172,6 @@ export default class App extends tsc<{}> {
   get isFullScreen() {
     return this.$store.getters.isFullScreen;
   }
-
   // route loading
   get routeChangeLoading() {
     return this.$store.getters.routeChangeLoading;
@@ -404,13 +405,23 @@ export default class App extends tsc<{}> {
     }
     // 跳转
     if (navId === 'grafana') {
-      this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', 'grafana-home');
-      await this.handleUpdateRoute({ bizId: `${v}` }, promise, '/grafana/home').then(hasAuth => {
-        hasAuth && (this.routeViewKey = random(10));
+      const dashboardCache = getDashboardCache();
+      const dashboardId = dashboardCache[v];
+      let path = 'grafana/home';
+      if (dashboardId) {
+        const list = await getDashboardList().catch(() => []);
+        const hasDashboard = list.some(item => item.uid === dashboardId);
+        path = hasDashboard ? `grafana/d/${dashboardId}` : 'grafana/home';
+      }
+      this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', path);
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise, path).then(async hasAuth => {
+        if (hasAuth) {
+          this.routeViewKey = random(10);
+        }
       });
-      window.requestIdleCallback(() => {
+      setTimeout(() => {
         this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
-      });
+      }, 32);
     } else if (navId !== this.$route.name) {
       // 所有页面的子路由在切换业务的时候都统一返回到父级页面
       const parentRoute = this.$router.options.routes.find(item => item.name === navId);

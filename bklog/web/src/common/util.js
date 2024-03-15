@@ -506,6 +506,14 @@ export function formatDate(val, isTimzone = true) {
   const time = date.toTimeString().slice(0, 8);
   return `${yyyy}-${mm}-${dd} ${time}`;
 }
+/**
+ * @desc: days时间格式化
+ * @param {String} val
+ * @returns {String}
+ */
+export function daysFormatDate(val) {
+  return dayjs(val).format('YYYY-MM-DD HH:mm:ss');
+}
 
 /**
   * 格式化文件大小

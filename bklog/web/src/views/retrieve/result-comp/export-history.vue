@@ -60,7 +60,7 @@
             width="100">
             <template slot-scope="{ row }">
               <span>
-                {{row.log_index_set_id}}
+                {{ getIndexSetIDs(row) }}
               </span>
             </template>
           </bk-table-column>
@@ -220,6 +220,7 @@
 
 <script>
 import { formatDate } from '@/common/util';
+import { mapGetters } from 'vuex';
 
 export default {
   props: {
@@ -271,6 +272,10 @@ export default {
     getTableWidth() {
       return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
     },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
   },
   watch: {
     showHistoryExport(val) {
@@ -307,7 +312,9 @@ export default {
     openDownloadUrl(params) {
       const exportParams = encodeURIComponent(JSON.stringify({ ...params }));
       // eslint-disable-next-line max-len
-      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?export_dict=${exportParams}`;
+      const targetUrl = !!this.index_set_ids?.length
+        ? `${window.SITE_URL}api/v1/search/index_set/union_search/export/?export_dict=${exportParams}`
+        : `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?export_dict=${exportParams}`;
       const net = window.open(targetUrl, '_blank', '', false);
       net.addEventListener('beforeunload', () => {
         this.getTableList(true);
@@ -434,14 +441,21 @@ export default {
       isReset && (this.pagination.current = 1);
       !isPolling && (this.tableLoading = true);
       const { limit, current } = this.pagination;
-      this.$http.request('retrieve/getExportHistoryList', {
-        params: {
-          index_set_id: this.$route.params.indexId,
-          bk_biz_id: this.bkBizId,
-          page: current,
-          pagesize: limit,
-          show_all: this.isSearchAll,
-        },
+      const queryUrl = this.isUnionSearch
+        ? 'unionSearch/unionExportHistory'
+        : 'retrieve/getExportHistoryList';
+      const params = {
+        index_set_id: this.$route.params.indexId,
+        bk_biz_id: this.bkBizId,
+        page: current,
+        pagesize: limit,
+        show_all: this.isSearchAll,
+      };
+      if (this.isUnionSearch) {
+        Object.assign(params, { index_set_ids: this.unionIndexList });
+      }
+      this.$http.request(queryUrl, {
+        params,
       }).then((res) => {
         if (res.result) {
           this.pagination.count = res.data.total;
@@ -481,6 +495,9 @@ export default {
       };
       this.stopStatusPolling();
       this.$emit('handleCloseDialog');
+    },
+    getIndexSetIDs(row) {
+      return row.log_index_set_ids?.length ? row.log_index_set_ids.join(',') : row.log_index_set_id;
     },
   },
 };

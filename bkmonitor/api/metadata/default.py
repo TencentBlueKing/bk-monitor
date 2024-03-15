@@ -911,3 +911,13 @@ class UpdateRegisteredClusterResource(MetaDataAPIGWResource):
         is_ssl_verify = serializers.BooleanField(label="是否 ssl 验证", default=False)
         label = serializers.CharField(label="标签", default="", allow_blank=True)
         default_settings = serializers.JSONField(required=False, label="默认集群配置", default={})
+
+
+class CustomTimeSeriesDetailResource(MetaDataAPIGWResource):
+    action = "/custom_time_series_detail"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        model_only = serializers.BooleanField(required=False, default=False)

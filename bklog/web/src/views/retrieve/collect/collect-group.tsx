@@ -25,6 +25,7 @@ import { Component, Prop, Inject } from 'vue-property-decorator';
 import { utcFormatDate } from '../../../common/util';
 import GroupDropdown from './component/group-dropdown';
 import { IGroupItem, IFavoriteItem } from './collect-index';
+import { Popover } from 'bk-magic-vue';
 import './collect-group.scss';
 
 interface ICollectProps {
@@ -54,7 +55,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
     setTimeout(() => {
       this.clickDrop = false;
     }, 100);
-    if (!item.is_active || this.clickDrop) return;
+    if (this.isCannotClickFavorite(item) || this.clickDrop) return;
     this.handleUserOperate('click-favorite', item);
   }
   handleHoverTitle(type: boolean) {
@@ -85,6 +86,25 @@ export default class CollectGroup extends tsc<ICollectProps> {
     }
   }
 
+  /** 是否是多索引集 */
+  isMultiIndex(item) {
+    return item.index_set_type === 'union';
+  }
+
+  /** 是否展示失效 */
+  isFailFavorite(item) {
+    return item.index_set_type === 'single'
+      ? !item.is_active
+      : !item.is_actives.every(Boolean);
+  }
+
+  /** 判断是否不能点击收藏 */
+  isCannotClickFavorite(item) {
+    return item.index_set_type === 'single'
+      ? !item.is_active
+      : item.is_actives.some(active => !active);
+  }
+
   render() {
     const groupDropdownSlot = (groupName) => {
       return !this.isCannotChange ? (
@@ -92,15 +112,19 @@ export default class CollectGroup extends tsc<ICollectProps> {
           data={this.collectItem}
           group-list={this.groupList}
           group-name={groupName}
-          is-hover-title={this.isHoverTitle} />
-      ) : <span class="title-number">{this.collectItem.favorites.length}</span>;
+          is-hover-title={this.isHoverTitle}
+        />
+      ) : (
+        <span class="title-number">{this.collectItem.favorites.length}</span>
+      );
     };
     const collectDropdownSlot = item => (
       <div onClick={() => (this.clickDrop = true)}>
         <GroupDropdown
           drop-type={'collect'}
           data={item}
-          group-list={this.groupList} />
+          group-list={this.groupList}
+        />
       </div>
     );
     return (
@@ -114,9 +138,18 @@ export default class CollectGroup extends tsc<ICollectProps> {
             },
           ]}
           onMouseenter={() => this.handleHoverTitle(true)}
-          onMouseleave={() => this.handleHoverTitle(false)}>
-          <span class="group-cur" onClick={() => (this.isHiddenList = !this.isHiddenList)}>
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span>
+          onMouseleave={() => this.handleHoverTitle(false)}
+        >
+          <span
+            class="group-cur"
+            onClick={() => (this.isHiddenList = !this.isHiddenList)}
+          >
+            <span
+              class={[
+                'bk-icon icon-play-shape',
+                { 'is-active': !this.isHiddenList },
+              ]}
+            ></span>
             <span class="group-str">{this.collectItem.group_name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.group_name)}
@@ -127,24 +160,66 @@ export default class CollectGroup extends tsc<ICollectProps> {
               key={index}
               class={{
                 'group-item': true,
-                'is-disabled': !item.is_active,
+                'is-disabled': this.isFailFavorite(item),
                 active: item.id === this.activeFavoriteID,
               }}
-              onClick={() => this.handleClickCollect(item)}>
-                <div class={{
+              onClick={() => this.handleClickCollect(item)}
+            >
+              <div
+                class={{
                   'group-item-left': true,
                   'active-name': item.id === this.activeFavoriteID,
-                }}>
-                    <div class="fav-name" onMouseenter={e => this.handleHoverFavoriteName(e, item)}>
-                      <span>{item.name}</span>
-                      {!item.is_active ? (
-                        <span v-bk-tooltips={{ content: this.$t('数据源不存在'), placement: 'right' }}>
-                          <span class="bk-icon log-icon icon-shixiao"></span>
-                        </span>
-                      ) : undefined}
-                    </div>
-                  {collectDropdownSlot(item)}
+                }}
+              >
+                <div
+                  class="fav-name"
+                  onMouseenter={e => this.handleHoverFavoriteName(e, item)}
+                >
+                  <span>{item.name}</span>
+                  {this.isFailFavorite(item) ? (
+                    <Popover
+                      theme="light"
+                      placement="bottom"
+                      ext-cls="favorite-data-source"
+                    >
+                      <span class="bk-icon log-icon icon-shixiao"></span>
+                      <div slot="content">
+                        {this.isMultiIndex(item) ? (
+                          <ul>
+                            {item.index_set_names.map((setItem, setIndex) => (
+                              <li
+                                class={{
+                                  'index-fail': !item.is_actives[setIndex],
+                                }}
+                              >
+                                <span>
+                                  <span>{setItem}</span>
+                                  {!item.is_actives[setIndex] ? (
+                                    <span>({this.$t('已失效')})</span>
+                                  ) : undefined}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p>{this.$t('数据源不存在')}</p>
+                        )}
+                      </div>
+                    </Popover>
+                  ) : undefined}
+                  {this.isMultiIndex(item) ? (
+                    <span
+                      v-bk-tooltips={{
+                        content: this.$t('多索引集'),
+                        placement: 'right',
+                      }}
+                    >
+                      <span class="bk-icon icon-panels"></span>
+                    </span>
+                  ) : undefined}
                 </div>
+                {collectDropdownSlot(item)}
+              </div>
             </div>
           ))}
         </div>

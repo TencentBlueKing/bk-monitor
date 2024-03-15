@@ -94,6 +94,17 @@
           <div>{{ props.row.storage_cluster_name || '--' }}</div>
         </template>
       </bk-table-column>
+      <bk-table-column
+        :label="$t('标签')"
+        :render-header="$renderHeader">
+        <template slot-scope="props">
+          <index-set-label-select
+            :row-data="props.row"
+            :label.sync="props.row.tags"
+            :select-label-list="selectLabelList"
+            @refreshLabelList="initLabelSelectList" />
+        </template>
+      </bk-table-column>
       <bk-table-column :label="$t('状态')" :render-header="$renderHeader" prop="apply_status_name">
         <template slot-scope="{ row }">
           <div
@@ -156,12 +167,14 @@
 import { projectManages } from '@/common/util';
 import { mapGetters } from 'vuex';
 import * as authorityMap from '../../../../../../common/authority-map';
+import IndexSetLabelSelect from '@/components/index-set-label-select';
 import EmptyStatus from '@/components/empty-status';
 
 export default {
   name: 'IndexSetList',
   components: {
     EmptyStatus,
+    IndexSetLabelSelect,
   },
   data() {
     const scenarioId = this.$route.name.split('-')[0];
@@ -184,6 +197,7 @@ export default {
       isAllowedCreate: null,
       emptyType: 'empty',
       isInit: true,
+      selectLabelList: [],
     };
   },
   computed: {
@@ -208,6 +222,7 @@ export default {
     },
   },
   created() {
+    this.initLabelSelectList();
     this.checkCreateAuth();
     this.getIndexSetList();
   },
@@ -438,6 +453,15 @@ export default {
         });
       } catch (error) {
         return [];
+      }
+    },
+    /** 初始化标签列表 */
+    async initLabelSelectList() {
+      try {
+        const res = await this.$http.request('unionSearch/unionLabelList');
+        this.selectLabelList = res.data;
+      } catch (error) {
+        this.selectLabelList = [];
       }
     },
   },

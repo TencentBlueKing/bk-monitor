@@ -13,7 +13,6 @@ import operator
 import re
 from dataclasses import dataclass
 
-import requests
 from kubernetes.client import ApiException
 
 from apm_ebpf.apps import logger
@@ -37,24 +36,6 @@ class DeepflowDatasourceInfo:
     @property
     def is_valid(self):
         if not self.bk_biz_id or not self.name or not self.request_url:
-            return False
-
-        # 尝试访问url判断是否失效
-        if self.tracing_url:
-            try:
-                requests.get(self.tracing_url, timeout=10)
-            except requests.exceptions.RequestException:
-                logger.warning(
-                    f"[DatasourceInfo] fail to request: {self.tracing_url} in {self.name}, tracing may be abnormal."
-                )
-
-        try:
-            requests.get(self.request_url, timeout=10)
-        except requests.exceptions.RequestException:
-            logger.warning(
-                f"[DatasourceInfo] fail to request: {self.request_url} in {self.name}, "
-                f"this datasource will not be created."
-            )
             return False
 
         return True

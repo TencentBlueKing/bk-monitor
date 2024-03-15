@@ -86,7 +86,7 @@ CREATE_SUCCESS = {
         "is_active": True,
         "fields_snapshot": None,
         "source_app_code": settings.APP_CODE,
-        "tag_ids": "",
+        "tag_ids": [],
         "is_editable": True,
     },
     "code": 0,
@@ -153,7 +153,7 @@ UPDATE_INDEX_SET = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": "[]",
+    "tag_ids": [],
     "is_editable": True,
 }
 
@@ -226,7 +226,7 @@ INDEX_SET_LISTS = {
             "is_active": True,
             "fields_snapshot": "{}",
             "source_app_code": settings.APP_CODE,
-            "tag_ids": "[]",
+            "tags": [],
             "category_name": "其他",
             "scenario_name": "第三方ES",
             "storage_cluster_name": "",
@@ -353,7 +353,7 @@ RETRIEVE_LIST = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": "[]",
+    "tag_ids": [],
     "is_editable": True,
 }
 

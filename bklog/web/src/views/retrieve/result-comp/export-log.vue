@@ -57,7 +57,7 @@
       :title="getDialogTitle"
       :mask-close="false"
       :ok-text="$t('下载')"
-      :show-footer="!isShowAsyncDownload"
+      :show-footer="isShowFooter"
       @confirm="handleClickSubmit"
       @after-leave="closeExportDialog">
       <div class="export-container" v-bkloading="{ isLoading: exportLoading }">
@@ -94,7 +94,8 @@
           </bk-radio-group>
         </div>
         <div v-if="asyncExportUsable && isShowAsyncDownload" class="style-line"></div>
-        <template v-if="!asyncExportUsable">
+        <span v-if="isUnionSearch && isShowAsyncDownload">{{ $t('联合查询无法进行异步下载，可直接下载前1万条数据') }}</span>
+        <template v-if="!asyncExportUsable && !isUnionSearch">
           <span>{{$t('当前因{n}导致无法进行异步下载， 可直接下载前1万条数据', { n: asyncExportUsableReason })}}</span>
           <div class="cannot-async-btn">
             <bk-button theme="primary" @click="openDownloadUrl">{{ $t('直接下载') }}</bk-button>
@@ -187,6 +188,8 @@ export default {
       bkBizId: 'bkBizId',
       spaceUid: 'spaceUid',
       isShowMaskingTemplate: 'isShowMaskingTemplate',
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
     }),
     getAsyncText() { // 异步下载按钮前的文案
       return this.totalCount > this.exportSecondComparedSize
@@ -201,6 +204,9 @@ export default {
     },
     isShowAsyncDownload() { // 是否展示异步下载
       return this.totalCount > this.exportFirstComparedSize;
+    },
+    isShowFooter() {
+      return !this.isShowAsyncDownload || this.isUnionSearch;
     },
     submitSelectFiledList() { // 下载时提交的字段
       if (this.selectFiledType === 'specify') return this.selectFiledList;
@@ -253,6 +259,9 @@ export default {
     openDownloadUrl() {
       const { timezone, ...rest } = this.retrieveParams;
       const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
+      if (this.isUnionSearch) { // 判断是否是联合查询 如果是 则加参数
+        Object.assign(params, { index_set_ids: this.unionIndexList });
+      }
       const exportParams = encodeURIComponent(JSON.stringify({
         ...params,
         size: this.totalCount,
@@ -261,7 +270,9 @@ export default {
         is_desensitize: this.desensitizeRadioType === 'desensitize',
       }));
       // eslint-disable-next-line max-len
-      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?space_uid=${this.spaceUid}&export_dict=${exportParams}`;
+      const targetUrl = this.isUnionSearch
+        ? `${window.SITE_URL}api/v1/search/index_set/union_search/export/?export_dict=${exportParams}`
+        : `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?space_uid=${this.spaceUid}&export_dict=${exportParams}`;
       this.selectFiledList = [];
       this.isShowExportDialog = false;
       window.open(targetUrl);
