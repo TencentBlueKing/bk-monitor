@@ -141,6 +141,11 @@ export default class SceneView extends tsc<IProps> {
     );
   }
 
+  // 事件详情的页面 和 事件详情侧边弹窗的样式有所不同。
+  get eventDetailStyle() {
+    if (this.$route.name === 'event-center-detail') return 'position: absolute;width: 100%;';
+  }
+
   render() {
     return (
       <div
@@ -158,8 +163,14 @@ export default class SceneView extends tsc<IProps> {
           ></DashboardPanel>
         )}
         {!this.readonly && !!this.localPanels.length && (
-          <div class='view-bottom'>
-            <div class='view-bottom-label'>
+          <div
+            class='view-bottom'
+            style='position: relative;'
+          >
+            <div
+              class='view-bottom-label'
+              style={this.eventDetailStyle}
+            >
               <i18n path='可{0}完整查看'>
                 <span
                   class='link'
