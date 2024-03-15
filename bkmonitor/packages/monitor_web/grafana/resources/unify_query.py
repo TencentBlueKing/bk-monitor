@@ -1062,7 +1062,7 @@ class GraphPromqlQueryResource(Resource):
     通过PromQL查询图表数据
     """
 
-    ALL_REPLACE_PATTERN = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*\s*(=|=~)\s*['\"]__ALL__['\"]\s*,?")
+    ALL_REPLACE_PATTERN = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*\s*(=|=~)\s*['\"]__BKMONITOR_ALL__['\"]\s*,?")
     SURPLUS_COMMA_PATTERN = re.compile(r",\s*}$")
 
     class RequestSerializer(serializers.Serializer):
