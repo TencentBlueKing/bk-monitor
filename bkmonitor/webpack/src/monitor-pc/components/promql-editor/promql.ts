@@ -266,31 +266,35 @@ export const language = {
     whitespace: [[/[ \t\r\n]+/, 'white']]
   }
 };
+
+function kindFn(type: string) {
+  if (type === 'functions' || type === 'aggregations' || type === 'aggregationsOverTime') {
+    return languages.CompletionItemKind.Variable;
+  }
+  if (type === 'duration') {
+    return languages.CompletionItemKind.Unit;
+  }
+  return languages.CompletionItemKind.Keyword;
+}
 // noinspection JSUnusedGlobalSymbols
 export const completionItemProvider = {
-  provideCompletionItems() {
+  provideCompletionItems(_model, _position, context) {
     // To simplify, we made the choice to never create automatically the parenthesis behind keywords
     // It is because in PromQL, some keywords need parenthesis behind, some don't, some can have but it's optional.
-    const suggestions = keywords.map(function (item) {
+    let list = [];
+    if (context.triggerCharacter === '[') {
+      list = keywords.filter(item => item.type === 'duration');
+    } else {
+      list = keywords;
+    }
+    const maxIndexDigits = list.length.toString().length;
+    const suggestions = list.map((item, index) => {
       return {
         label: item.keyword,
-        kind: (() => {
-          if (item.type === 'functions' || item.type === 'aggregations' || item.type === 'aggregationsOverTime') {
-            return languages.CompletionItemKind.Variable;
-          }
-          if (item.type === 'duration') {
-            return languages.CompletionItemKind.Unit;
-          }
-          return languages.CompletionItemKind.Keyword;
-        })(),
-        commitCharacters: (() => {
-          if (item.type === 'duration') {
-            return ['['];
-          }
-          return ['{', ',', '(', '=', '~', ' ', '"'];
-        })(),
+        kind: kindFn(item.type),
         insertText: item.keyword,
-        insertTextRules: languages.CompletionItemInsertTextRule.InsertAsSnippet
+        insertTextRules: languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        sortText: index.toString().padStart(maxIndexDigits, '0')
       };
     });
     return { suggestions };
