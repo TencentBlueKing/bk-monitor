@@ -207,22 +207,26 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
   }
 
   /**
-   * @description 兼容流转记录旧的告警屏蔽链接
+   * @description 含router_info的由前端拼接url
    * @param list
    * @returns
    */
   listLinkCompatibility(list) {
     return list.map(item => {
-      if (!!item?.url) {
-        if (typeof item.url === 'string') {
-          const match = item.url.match(/\/alarm-shield-detail\/(\d+)/);
-          const id = match?.[1];
-          if (!!id) {
-            return {
-              ...item,
-              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`
-            };
-          }
+      if (!!item?.router_info) {
+        const routerName = item.router_info?.router_name;
+        const params = item.router_info?.params;
+        if (routerName === 'alarm-shield-detail') {
+          return {
+            ...item,
+            url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}/#/trace/alarm-shield/edit/${params?.shield_id}`
+          };
+        }
+        if (routerName === 'alarm-dispatch') {
+          return {
+            ...item,
+            url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}/#/alarm-dispatch?group_id=${params?.group_id}`
+          };
         }
       }
       return item;
