@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+import json
 import logging
 
-import ujson
 from django.conf import settings
 
 from apm.constants import APM_TOPO_INSTANCE, DEFAULT_TOPO_INSTANCE_EXPIRE
@@ -25,7 +25,7 @@ class InstanceHandler:
         """
         json_res = self.redis_client.get(name)
         if json_res:
-            return ujson.loads(json_res)
+            return json.loads(json_res)
         return {}
 
     @staticmethod
@@ -43,5 +43,5 @@ class InstanceHandler:
             return
 
         # 连续7天无数据, key 过期
-        self.redis_client.set(name, ujson.dumps(update_map), ex=DEFAULT_TOPO_INSTANCE_EXPIRE)
+        self.redis_client.set(name, json.dumps(update_map), ex=DEFAULT_TOPO_INSTANCE_EXPIRE)
         logger.info(f"[InstanceDiscover] {name} update {len(update_map)}")
