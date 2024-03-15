@@ -31,7 +31,7 @@
     "clean:mobile": "rimraf weixin/*",
     "clean:pc": "rimraf ../static/monitor/*",
     "clean-dll": "rimraf ../static/monitor/dll/*",
-    "analyze": "npm run clean && bkmonitor-cli build -t -a",
+    "analyze": "npm run clean && bkmonitor-cli build -a",
     "analyze:mobile": "npm run clean && bkmonitor-cli build -m -a",
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js",
@@ -62,7 +62,7 @@
     "stylelint": "^16.2.1"
   },
   "dependencies": {
-    "@blueking/bkmonitor-cli": "2.0.0-beta.17",
+    "@blueking/bkmonitor-cli": "2.0.0-beta.18",
     "cross-env": "^7.0.3"
   },
   "nodemonConfig": {
