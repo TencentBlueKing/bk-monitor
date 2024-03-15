@@ -66,16 +66,9 @@ const DashboardTempView = {
   name: 'DashboardTempView',
   template: '<router-view></router-view>'
 };
-const TraceTempView = {
-  name: 'TraceTempView',
-  template: '<router-view></router-view>'
-};
 
-const page403 = () => import(/* webpackChunkName: 'page403' */ '@/views/403');
 const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve');
 const dashboard = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard');
-const trace = () => import(/* webpackChunkName: 'logTrace' */ '@/views/trace');
-const traceDetaid = () => import(/* webpackChunkName: 'logTraceDetail' */ '@/views/trace/trace-explore');
 
 // 管理端
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
@@ -320,44 +313,6 @@ const routes = [
           navId: 'dashboard'
         },
         component: dashboard
-      }
-    ]
-  },
-  {
-    path: '/trace',
-    name: 'trace',
-    component: TraceTempView,
-    redirect: '/trace/trace-list',
-    meta: {
-      title: '调用链列表',
-      navId: 'trace'
-    },
-    children: [
-      {
-        path: 'trace-list',
-        name: 'trace-list', // 调用链列表
-        component: trace,
-        meta: {
-          title: '调用链列表',
-          navId: 'trace'
-        }
-      },
-      {
-        path: 'trace-detail',
-        name: 'trace-detail', // 调用链详情
-        component: traceDetaid,
-        navId: 'trace',
-        title: '调用链详情'
-      },
-      {
-        path: '/notTraceIndex',
-        name: 'notTraceIndex',
-        component: page403,
-        meta: {
-          needBack: true,
-          backName: 'trace',
-          navId: 'trace'
-        }
       }
     ]
   },
@@ -1028,11 +983,6 @@ const routes = [
       }
     ]
   },
-  // {
-  //   path: '/notTraceIndex',
-  //   name: 'notTraceIndex',
-  //   component: page403,
-  // },
   {
     path: '/external-auth/:activeNav?',
     name: 'externalAuth',

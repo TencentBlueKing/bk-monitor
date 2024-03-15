@@ -15,7 +15,6 @@
     "stylelint": "stylelint \"./src/**/*.(vue|scss|css)\" --fix"
   },
   "dependencies": {
-    "@blueking/bkcharts": "^2.0.11-alpha.5",
     "@blueking/bkmonitor-cli": "1.0.0-beta.21",
     "@blueking/date-picker": "^0.0.71",
     "@blueking/ip-selector": "^0.0.1-beta.134",
@@ -95,8 +94,7 @@
     "extentions": []
   },
   "engines": {
-    "node": ">= 12.10.0",
-    "npm": ">= 6.5.0"
+    "node": ">= 18"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged --concurrent false",
