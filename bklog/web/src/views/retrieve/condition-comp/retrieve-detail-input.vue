@@ -32,18 +32,18 @@
       @blur="handleBlur"
       @keydown="handleKeydown" />
     <div v-if="isKeywordsError" class="refresh-keywords">
-      <span class="error-message">{{$t('当前查询语句有语法错误')}}, </span>
-      <span v-if="keywordIsResolved" @click="handleRefreshKeywords">
-        <i18n path="点击可进行{0}" class="error-message">
-          <span>
-            <span class="log-icon icon-refresh-icon"></span>
-            <span class="refresh-btn">{{$t('自动转换')}}</span>
-          </span>
-        </i18n>
-      </span>
+      <span class="error-message">{{$t('当前查询语句有语法错误')}}</span>
       <div v-if="!!keywordErrorMessage">
         <span class="error-title">{{$t('错误原因')}}: </span>
         <span class="error-message">{{keywordErrorMessage}}</span>
+        <span v-if="keywordIsResolved" @click="handleRefreshKeywords">
+          <i18n path="点击可进行{0}" class="error-message">
+            <span>
+              <span class="log-icon icon-refresh-icon"></span>
+              <span class="refresh-btn">{{$t('以此替换')}}</span>
+            </span>
+          </i18n>
+        </span>
       </div>
     </div>
     <!-- 搜索提示 -->
@@ -233,6 +233,7 @@ export default {
   },
   computed: {
     renderDropdown() {
+      if (this.showValue && this.showDropdown && !this.valueList.length) return false;
       return this.showDropdown
              && (this.showFields
               || this.showValue
@@ -269,6 +270,7 @@ export default {
     },
     dropdownData: {
       handler(val) {
+        // .filter(v => v !=='index')
         this.originFieldList = Object.keys(val);
         if (this.originFieldList.length && this.showDropdown) {
           // 可能字段接口还没返回用户就 focus 了输入框

@@ -238,9 +238,9 @@ export default {
       }
 
       &-green {
-        background-color: #14a5681a;
-        border-color: #14a568;
-        color: #14a568;
+        background-color: #f0f1f5;
+        border: none;
+        color: #63656e;
       }
 
       &-red {

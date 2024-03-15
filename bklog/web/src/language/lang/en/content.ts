@@ -299,7 +299,7 @@ export default {
   自动转换成正确的数据名格式: 'Automatically converted to the correct english name format',
   '当前已选择 {0} 条数据': 'Currently selected {0} data entries',
   检索收藏功能支持分组和管理: 'The search collection function supports grouping and management',
-  可输入SQL语句进行快速查询: 'Sql statements can be entered for quick query',
+  可输入DSL语句进行快速查询: 'Dsl statements can be entered for quick query',
   '字段名匹配(*代表通配符)：': 'Field name matching (* stands for wildcard):',
   '当前业务没有接入调用链日志，': 'The current business has not accessed the trace logs,',
   '文本类型不支持 {n} 操作': 'Text type does not support {n} operation',

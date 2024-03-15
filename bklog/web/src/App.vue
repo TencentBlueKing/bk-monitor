@@ -693,6 +693,18 @@ export default {
     white-space: normal !important;
   }
 
+  .bk-options .bk-option {
+    &:hover {
+      color: #63656e;
+      background-color: #f5f7fa;
+    }
+
+    &.is-selected {
+      color: #3a84ff;
+      background-color: #e1ecff;
+    }
+  }
+
   // .bk-label {
   //   .bk-label-text {
   //     font-size: 12px;

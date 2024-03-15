@@ -547,12 +547,6 @@ export default {
         id: 'updated_at',
         label: this.$t('更新时间'),
       },
-      // 操作
-      {
-        id: 'operation',
-        label: this.$t('操作'),
-        disabled: true,
-      },
       // 存储集群
       {
         id: 'storage_cluster_name',
@@ -562,6 +556,12 @@ export default {
       {
         id: 'category_name',
         label: this.$t('数据类型'),
+      },
+      // 操作
+      {
+        id: 'operation',
+        label: this.$t('操作'),
+        disabled: true,
       },
     ];
 
@@ -590,7 +590,7 @@ export default {
       isAllowedCreate: null,
       columnSetting: {
         fields: settingFields,
-        selectedFields: [...settingFields.slice(3, 9), settingFields[2]],
+        selectedFields: [...settingFields.slice(3, 7), settingFields[2]],
       },
       // 是否支持一键检测
       enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),

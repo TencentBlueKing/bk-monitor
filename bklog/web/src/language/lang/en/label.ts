@@ -592,4 +592,5 @@ export default {
   字段来源: 'Field Source',
   索引字段: 'Index Set Fields',
   'label-内置字段': 'Built-in Fields',
+  以此替换: 'Replaced with this',
 };

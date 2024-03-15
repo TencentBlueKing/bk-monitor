@@ -39,9 +39,9 @@
     }
 
     &-green {
-      background-color: #14a5681a;
-      border-color: #14a568;
-      color: #14a568;
+      background-color: #f0f1f5;
+      border: none;
+      color: #63656e;;
     }
 
     &-red {
@@ -111,6 +111,7 @@
     justify-content: space-between;
 
     .not-val {
+      flex-shrink: 0;
       margin: 0 4px 0 0;
     }
   }
@@ -413,6 +414,10 @@
       height: 324px;
       overflow-y: auto;
 
+      > :nth-child(2) {
+        margin-top: 0;
+      }
+
       li {
         position: relative;
         background: #fff;
@@ -423,11 +428,16 @@
 
         .tag-box {
           max-height: 83px;
-          overflow: auto;
+          overflow-y: auto;
+          overflow-x: hidden;
           margin: 8px;
           flex-wrap: wrap;
 
           @include flex-justify(start);
+
+          .tag-item {
+            max-width: 190px;
+          }
         }
 
         &.active {
@@ -466,7 +476,7 @@
 
   .select-index-container {
     // margin-top: 46px;
-    height: 100px;
+    max-height: 100px;
     background: #f5f7fa;
 
     .title {
@@ -511,6 +521,7 @@
       align-items: center;
       flex-wrap: wrap;
       overflow-y: auto;
+      padding-bottom: 2px;
 
       @include flex-justify(start);
 
@@ -611,6 +622,13 @@
       > :first-child {
         margin-right: 12px;
       }
+    }
+  }
+
+  .union-select-item {
+    &.is-selected {
+      background: transparent;
+      color: #63656e;
     }
   }
 }
