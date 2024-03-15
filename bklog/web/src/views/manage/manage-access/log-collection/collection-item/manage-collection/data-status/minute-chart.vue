@@ -254,8 +254,8 @@ export default {
 <style lang="scss" scoped>
 .chart-container {
   .time-range-wrap {
-    font-weight: normal;
     font-size: 12px;
+    font-weight: normal;
   }
 }
 </style>

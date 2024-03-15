@@ -211,17 +211,17 @@ export default {
 
 <style lang="scss" scoped>
 .sub-nav-container {
+  position: fixed;
+  top: 51px;
+  z-index: 9;
   display: flex;
-  align-items: center;
   width: 100%;
   height: 48px;
   padding: 0 20px;
   line-height: 24px;
   background-color: #fff;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
-  position: fixed;
-  top: 51px;
-  z-index: 9;
+  align-items: center;
 
   .main-title {
     font-size: 16px;
@@ -242,15 +242,15 @@ export default {
 
   .sub-nav-list {
     display: flex;
+    margin-left: 35px;
     font-size: 14px;
     color: #63656e;
-    margin-left: 35px;
 
     .sub-nav-item {
       height: 52px;
-      line-height: 52px;
       padding: 0 10px;
       margin: 0 25px;
+      line-height: 52px;
       cursor: pointer;
       border-bottom: 3px solid transparent;
       transition:
@@ -269,12 +269,12 @@ export default {
   }
 
   .collect-link {
+    padding: 0 9px;
     margin-left: 12px;
     font-size: 12px;
-    border-radius: 2px;
-    padding: 0 9px;
     color: #63656e;
     background: #f0f1f5;
+    border-radius: 2px;
 
     .icon-position {
       font-size: 14px;

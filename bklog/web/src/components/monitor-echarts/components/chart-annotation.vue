@@ -97,14 +97,14 @@ export default class ChartAnnotation extends Vue {
 <style lang="scss" scoped>
 .echart-annotation {
   position: absolute;
-  min-height: 84px;
+  z-index: 99;
   width: 220px;
+  min-height: 84px;
+  font-size: 12px;
+  color: #63656e;
   background: white;
   border-radius: 2px;
   box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.2);
-  z-index: 99;
-  font-size: 12px;
-  color: #63656e;
 
   &-title {
     margin: 6px 0 0 16px;
@@ -112,17 +112,17 @@ export default class ChartAnnotation extends Vue {
   }
 
   &-name {
-    margin-top: 2px;
-    padding-left: 18px;
-    height: 20px;
     display: flex;
-    align-items: center;
-    font-weight: 700;
-    border-bottom: 1px solid #f0f1f5;
+    height: 20px;
+    max-width: 90%;
+    padding-left: 18px;
+    margin-top: 2px;
     overflow: hidden;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 90%;
+    border-bottom: 1px solid #f0f1f5;
+    align-items: center;
 
     .name-mark {
       flex: 0 0 12px;
@@ -142,23 +142,22 @@ export default class ChartAnnotation extends Vue {
       padding-left: 16px;
 
       .item-icon {
+        width: 16px;
+        height: 16px;
         margin-right: 10px;
         font-size: 16px;
-        margin-right: 10px;
-        height: 16px;
-        width: 16px;
       }
 
       &-link {
-        font-size: 12px;
-        margin-left: auto;
         margin-right: 6px;
+        margin-left: auto;
+        font-size: 12px;
       }
 
       &:hover {
-        background-color: #e1ecff;
-        cursor: pointer;
         color: #3a84ff;
+        cursor: pointer;
+        background-color: #e1ecff;
       }
     }
   }

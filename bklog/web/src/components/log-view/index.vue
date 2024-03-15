@@ -273,17 +273,17 @@ export default {
   background: #222;
 
   #log-content {
-    box-sizing: border-box;
     margin: 0;
     font-size: 0;
+    box-sizing: border-box;
 
     .line {
       display: flex;
-      flex-direction: row;
-      margin: 0;
-      padding: 0 15px 0 55px;
       min-height: 16px;
+      padding: 0 15px 0 55px;
+      margin: 0;
       font-size: 12px;
+      flex-direction: row;
 
       &.log-init {
         background: #5f3a3a;
@@ -300,20 +300,20 @@ export default {
 
     .line-num {
       display: inline-block;
-      margin-left: -37px;
-      padding-right: 12px;
       min-width: 32px;
+      padding-right: 12px;
+      margin-left: -37px;
       line-height: 24px;
-      text-align: right;
       color: #5f697d;
+      text-align: right;
       user-select: none;
     }
 
     .line-text {
       line-height: 24px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
       word-break: break-all;
+      word-wrap: break-word;
+      white-space: pre-wrap;
     }
   }
 }

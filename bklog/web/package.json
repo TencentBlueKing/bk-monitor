@@ -12,7 +12,7 @@
     "analyze": "npm run clean && bkmonitor-cli build -a",
     "lint": "eslint --fix --ext .js,.vue,.ts src",
     "prettier": "prettier --write ./ '!**/*.{css,scss,less}'",
-    "style": "stylelint \"./src/**/*.(vue|scss|css)\" --fix"
+    "stylelint": "stylelint \"./src/**/*.(vue|scss|css)\" --fix"
   },
   "dependencies": {
     "@blueking/bkcharts": "^2.0.11-alpha.5",
@@ -105,6 +105,9 @@
   "lint-staged": {
     "src/**/*.(vue|js|ts|tsx)": [
       "eslint --ext .js,.tsx,.ts,.vue --cache --fix"
+    ],
+    "src/**/*.(vue|scss|css|sass)": [
+      "stylelint --cache --fix"
     ]
   }
 }

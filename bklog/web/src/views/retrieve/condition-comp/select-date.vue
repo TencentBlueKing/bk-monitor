@@ -276,6 +276,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+/* stylelint-disable no-descending-specificity */
 .log-date-picker {
   display: flex;
   align-items: center;
@@ -291,9 +292,9 @@ export default {
       width: 320px;
 
       :deep(.bk-date-picker-editor) {
+        line-height: 30px;
         background: #fff;
         border-color: #fff;
-        line-height: 30px;
 
         &.is-focus {
           border-color: #3a84ff;
@@ -302,8 +303,8 @@ export default {
 
       :deep(.icon-date-picker) {
         position: absolute;
-        left: 7px;
         top: 7px;
+        left: 7px;
         font-size: 18px;
       }
     }
@@ -313,11 +314,11 @@ export default {
 
       .trigger {
         display: flex;
-        align-items: center;
         height: 52px;
-        white-space: nowrap;
         line-height: 22px;
+        white-space: nowrap;
         cursor: pointer;
+        align-items: center;
 
         .icon-clock {
           padding: 0 5px 0 17px;
@@ -338,13 +339,13 @@ export default {
         }
 
         &::before {
-          content: '';
+          position: absolute;
+          top: 20px;
+          left: 0;
           width: 1px;
           height: 14px;
           background-color: #dcdee5;
-          position: absolute;
-          left: 0;
-          top: 20px;
+          content: '';
         }
 
         &:hover {
@@ -362,8 +363,8 @@ export default {
       min-width: 268px;
 
       :deep(.bk-date-picker-editor) {
-        padding-left: 5px;
         padding-right: 0;
+        padding-left: 5px;
         border: none;
       }
 

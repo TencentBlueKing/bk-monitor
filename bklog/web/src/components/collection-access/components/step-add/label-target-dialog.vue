@@ -465,21 +465,21 @@ export default {
 </script>
 <style lang="scss">
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .log-target-container {
+  display: flex;
   width: 100%;
   height: 585px;
+  overflow: hidden;
   background: #fff;
   border: 1px solid #dcdee5;
   border-radius: 2px;
-  display: flex;
-  overflow: hidden;
 
   .label-tree {
-    min-width: 290px;
-    padding: 14px 24px;
     position: relative;
     z-index: 99;
+    min-width: 290px;
+    padding: 14px 24px;
     background: #fff;
     border-right: 1px solid #dcdee5;
 
@@ -512,14 +512,14 @@ export default {
 
       .item-number {
         display: inline-block;
-        font-size: 12px;
-        min-width: 20px;
         height: 16px;
+        min-width: 20px;
         padding: 2px 0;
         margin: 0 6px;
+        font-size: 12px;
         line-height: 12px;
-        text-align: center;
         color: #979ba5;
+        text-align: center;
         background: #f0f1f5;
         border-radius: 2px;
       }
@@ -532,8 +532,8 @@ export default {
 
       &.is-selected {
         .item-number {
-          background: #a3c5fd;
           color: #fff;
+          background: #a3c5fd;
         }
       }
     }
@@ -543,21 +543,21 @@ export default {
     width: calc(100% - 300px);
 
     .label-config {
-      height: 100%;
       width: 100%;
+      height: 100%;
       min-width: 600px;
       padding: 14px 24px;
     }
 
     .select-title {
+      margin-bottom: 12px;
       font-size: 14px;
       color: #313238;
-      margin-bottom: 12px;
     }
 
     .select-container {
-      border-bottom: 1px solid #dcdee5;
       padding-bottom: 22px;
+      border-bottom: 1px solid #dcdee5;
 
       & + .no-choice-container {
         margin-top: 22px;
@@ -580,8 +580,8 @@ export default {
     }
 
     .disabled {
-      opacity: 0.6;
       cursor: no-drop;
+      opacity: 0.6;
 
       .operator {
         color: #979ba5;
@@ -607,19 +607,19 @@ export default {
 
   .bk-log-drag-simple {
     position: absolute;
+    top: 50%;
+    z-index: 100;
+    display: flex;
     width: 10px;
     height: 100%;
-    display: flex;
+    border-radius: 3px;
+    transform: translateY(-50%);
     align-items: center;
     justify-items: center;
-    border-radius: 3px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 100;
 
     &:hover {
-      user-select: none;
       cursor: col-resize;
+      user-select: none;
     }
   }
 
@@ -634,8 +634,8 @@ export default {
     @include flex-center();
 
     p {
-      font-size: 14px;
       margin-bottom: 12px;
+      font-size: 14px;
     }
 
     span {
@@ -644,8 +644,8 @@ export default {
     }
 
     .icon-empty {
-      color: #c3cdd7;
       font-size: 50px;
+      color: #c3cdd7;
     }
   }
 }

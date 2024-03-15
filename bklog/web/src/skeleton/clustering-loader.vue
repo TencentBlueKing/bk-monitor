@@ -94,8 +94,8 @@ export default {
   }
 
   .cell {
-    padding-top: 14px;
     width: 100%;
+    padding-top: 14px;
   }
 
   .cell-bar {
@@ -105,8 +105,8 @@ export default {
   }
 
   :deep(.bk-table-empty-text) {
-    padding: 0;
     width: 100%;
+    padding: 0;
   }
 }
 </style>

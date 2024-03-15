@@ -295,9 +295,9 @@ export default class DynamicTopo extends Vue {
   }
 
   &-right {
-    flex: 1;
-    overflow: auto;
     padding-left: 10px;
+    overflow: auto;
+    flex: 1;
   }
 }
 </style>

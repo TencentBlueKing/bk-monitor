@@ -571,8 +571,8 @@ export default {
     }
 
     .bk-form-item {
-      margin-top: 12px;
       padding-left: 34px;
+      margin-top: 12px;
     }
 
     .bk-alert {
@@ -618,14 +618,14 @@ export default {
       float: left;
       width: 158px;
       height: 76px;
-      margin-right: 12px;
       padding: 12px;
-      background: #f5f7fa;
-      border-radius: 2px;
+      margin-right: 12px;
       font-size: 14px;
       color: #63656e;
-      border: 1px solid #f5f7fa;
       cursor: pointer;
+      background: #f5f7fa;
+      border: 1px solid #f5f7fa;
+      border-radius: 2px;
 
       &:last-child {
         margin-right: 0;
@@ -646,12 +646,12 @@ export default {
   }
 
   .form-title {
-    margin: 24px 40px 0 0;
     padding: 0 0 8px 10px;
+    margin: 24px 40px 0 0;
     font-size: 14px;
     font-weight: 600;
-    color: #63656e;
     line-height: 20px;
+    color: #63656e;
     border-bottom: 1px solid #dcdee5;
   }
 
@@ -674,8 +674,8 @@ export default {
 }
 
 .option-slot-container {
-  padding: 8px 0;
   min-height: 32px;
+  padding: 8px 0;
   line-height: 14px;
 
   &.no-authority {

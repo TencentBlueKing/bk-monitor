@@ -1202,7 +1202,7 @@ export default {
 <style lang="scss">
 @import '@/scss/mixins/clearfix';
 @import '@/scss/mixins/overflow-tips.scss';
-
+/* stylelint-disable no-descending-specificity */
 .field-table-container {
   position: relative;
   display: flex;
@@ -1215,8 +1215,8 @@ export default {
 
   .field-table {
     .cell {
-      padding-left: 5px;
       padding-right: 5px;
+      padding-left: 5px;
     }
 
     .bk-label {
@@ -1240,13 +1240,13 @@ export default {
 
       span:nth-child(3) {
         display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-top: 2px;
-        outline: none;
         width: 14px;
         height: 14px;
+        margin-top: 2px;
         font-size: 14px;
+        outline: none;
+        justify-content: center;
+        align-items: center;
       }
     }
 
@@ -1269,20 +1269,20 @@ export default {
 
   .preview-panel-right {
     width: 335px;
+    font-size: 12px;
     color: #c4c6cc;
     background: #63656e;
     border-bottom: 1px solid #72757d;
-    font-size: 12px;
     border-radius: 0 2px 2px 0;
 
     .preview-item {
       height: 42px;
-      line-height: 42px;
       padding: 0 10px;
-      border-top: 1px solid #72757d;
-      white-space: nowrap;
-      text-overflow: ellipsis;
       overflow: hidden;
+      line-height: 42px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      border-top: 1px solid #72757d;
 
       &:first-child {
         height: 43px;
@@ -1335,8 +1335,8 @@ export default {
 
 .field-date-dialog {
   .prompt {
-    margin-bottom: 20px;
     padding: 6px 7px;
+    margin-bottom: 20px;
     font-size: 12px;
     color: #63656e;
     background: #f6f6f6;
@@ -1353,13 +1353,13 @@ export default {
 }
 
 .field-dropdown-list {
-  margin: -7px -14px;
   padding: 7px 0;
+  margin: -7px -14px;
 
   .dropdown-item {
     padding: 0 10px;
-    line-height: 32px;
     font-size: 12px;
+    line-height: 32px;
     color: #63656e;
     cursor: pointer;
 

@@ -459,18 +459,18 @@ export default {
 
   .dialog-label {
     display: flex;
-    align-items: center;
     margin-bottom: 20px;
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    align-items: center;
   }
 
   .dialog-title {
-    color: #313238;
-    font-size: 20px;
     margin-right: 20px;
+    font-size: 20px;
     line-height: 20px;
+    color: #313238;
   }
 
   .dialog-bars {
@@ -484,14 +484,14 @@ export default {
 
       .control-icon {
         display: flex;
-        justify-content: center;
-        align-items: center;
         width: 32px;
         height: 32px;
-        border: 1px solid #c4c6cc;
         font-size: 32px;
         cursor: pointer;
+        border: 1px solid #c4c6cc;
         transition: color 0.2s;
+        justify-content: center;
+        align-items: center;
 
         &:not(:last-child) {
           margin-right: 10px;
@@ -507,8 +507,8 @@ export default {
 
   .dialog-log-markdown {
     height: 404px;
-    background: #f5f7fa;
     overflow-y: auto;
+    background: #f5f7fa;
 
     @include scroller($backgroundColor: #aaa, $width: 4px);
 
@@ -519,17 +519,17 @@ export default {
 
   .scroll-bar {
     position: absolute;
-    right: 24px;
     top: 68px;
+    right: 24px;
     display: flex;
+    height: 56px;
     flex-flow: column;
     justify-content: space-between;
-    height: 56px;
 
     .icon {
       font-size: 24px;
-      cursor: pointer;
       color: #d9d9d9;
+      cursor: pointer;
     }
   }
 
@@ -540,8 +540,8 @@ export default {
 }
 
 .log-full-dialog-wrapper {
-  margin-top: 10px;
   height: calc(100% - 72px);
+  margin-top: 10px;
 
   .dialog-log-markdown {
     height: calc(100% - 76px);

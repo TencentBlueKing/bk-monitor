@@ -174,30 +174,30 @@ export default {
   margin: -33px -24px -26px;
 
   &-left {
-    flex: 0 0 180px;
+    display: flex;
+    padding: 40px 0;
+    font-size: 12px;
     background-color: #fafbfd;
     border-right: 1px solid #dcdee5;
-    padding: 40px 0;
-    display: flex;
-    font-size: 12px;
+    flex: 0 0 180px;
 
     .left-list {
-      border-top: 1px solid #dcdee5;
-      border-bottom: 1px solid #dcdee5;
+      display: flex;
+      width: 100%;
       height: 520px;
       overflow: auto;
-      display: flex;
+      border-top: 1px solid #dcdee5;
+      border-bottom: 1px solid #dcdee5;
       flex-direction: column;
-      width: 100%;
 
       &-item {
-        flex: 0 0 54px;
+        position: relative;
         display: flex;
+        padding-left: 30px;
+        border-bottom: 1px solid #dcdee5;
+        flex: 0 0 54px;
         flex-direction: column;
         justify-content: center;
-        padding-left: 30px;
-        position: relative;
-        border-bottom: 1px solid #dcdee5;
 
         &:hover {
           cursor: pointer;
@@ -205,8 +205,8 @@ export default {
         }
 
         .item-title {
-          color: #313238;
           font-size: 16px;
+          color: #313238;
         }
 
         .item-date {
@@ -215,29 +215,29 @@ export default {
 
         .item-current {
           position: absolute;
-          right: 20px;
           top: 8px;
-          background-color: #699df4;
-          border-radius: 2px;
+          right: 20px;
+          display: flex;
           width: 58px;
           height: 20px;
-          display: flex;
+          color: #fff;
+          background-color: #699df4;
+          border-radius: 2px;
           align-items: center;
           justify-content: center;
-          color: #fff;
         }
 
         &.item-active {
           background-color: #fff;
 
           &::before {
-            content: ' ';
             position: absolute;
             top: 0px;
             bottom: 0px;
             left: 0;
             width: 6px;
             background-color: #3a84ff;
+            content: ' ';
           }
         }
       }

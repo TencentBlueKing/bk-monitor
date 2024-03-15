@@ -62,8 +62,8 @@ export default {
   }
 
   .text {
-    color: #63656e;
     margin-left: 2px;
+    color: #63656e;
   }
 }
 </style>

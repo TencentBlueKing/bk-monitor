@@ -517,7 +517,7 @@ export default {
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
 @import '@/scss/basic.scss';
-
+/* stylelint-disable no-descending-specificity */
 .basic-info-container {
   display: flex;
   justify-content: space-between;
@@ -537,22 +537,22 @@ export default {
     > span:nth-child(1) {
       display: block;
       width: 98px;
+      font-size: 14px;
       color: #979ba5;
       text-align: right;
-      font-size: 14px;
     }
 
     > span:nth-child(2) {
       margin-left: 24px;
-      color: #63656e;
       font-size: 14px;
+      color: #63656e;
     }
 
     .deploy-path {
       margin-left: 24px;
-      color: #63656e;
       font-size: 14px;
       line-height: 22px;
+      color: #63656e;
     }
   }
 
@@ -565,8 +565,8 @@ export default {
     align-items: center;
 
     .win-log {
-      height: 60px;
       display: flex;
+      height: 60px;
       flex-direction: column;
       justify-content: space-between;
     }
@@ -578,19 +578,19 @@ export default {
     }
 
     > div {
-      font-size: 14px;
       margin-left: 24px;
+      font-size: 14px;
 
       p {
         display: inline-block;
-        margin-right: 2px;
-        background-color: #f0f1f5;
-        padding: 0 5px;
-        border-radius: 2px;
-        color: #63656e;
         height: 20px;
-        text-align: center;
+        padding: 0 5px;
+        margin-right: 2px;
         line-height: 20px;
+        color: #63656e;
+        text-align: center;
+        background-color: #f0f1f5;
+        border-radius: 2px;
       }
     }
 
@@ -599,19 +599,19 @@ export default {
 
       .container-item {
         padding: 4px 10px;
+        margin-right: 8px;
         color: #63656e;
         background: #f0f1f5;
-        margin-right: 8px;
         border-radius: 2px;
       }
     }
   }
 
   .config-box {
+    margin-bottom: 20px;
     margin-left: 24px;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    margin-bottom: 20px;
 
     .deploy-sub {
       padding: 12px 43px 0 0;
@@ -624,29 +624,29 @@ export default {
     .config-title {
       width: 100%;
       height: 30px;
-      line-height: 30px;
       padding-left: 11px;
-      background: #f0f1f5;
+      line-height: 30px;
       color: #63656e;
+      background: #f0f1f5;
       border-bottom: 1px solid #dcdee5;
     }
   }
 
   .specify-box {
-    min-width: 700px;
-    margin-left: 24px;
     display: flex;
-    flex-flow: wrap;
+    min-width: 700px;
     padding: 2px 16px;
     margin-bottom: 8px;
+    margin-left: 24px;
     background: #f5f7fa;
     border-radius: 2px;
+    flex-flow: wrap;
 
     .specify-container {
       width: 50%;
       height: 30px;
-      line-height: 28px;
       overflow: hidden;
+      line-height: 28px;
       text-overflow: ellipsis;
       white-space: nowrap;
 
@@ -656,15 +656,15 @@ export default {
       }
 
       .operator {
-        padding: 0 6px;
         height: 24px;
-        line-height: 24px;
-        text-align: center;
-        color: #ff9c01;
-        background: #fff;
-        border-radius: 2px;
+        padding: 0 6px;
         font-size: 14px;
         font-weight: 700;
+        line-height: 24px;
+        color: #ff9c01;
+        text-align: center;
+        background: #fff;
+        border-radius: 2px;
       }
 
       :last-child {

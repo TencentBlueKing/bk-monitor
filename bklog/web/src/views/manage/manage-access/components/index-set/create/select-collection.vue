@@ -317,8 +317,8 @@ export default {
   }
 
   .button-footer {
-    text-align: right;
     margin-top: 20px;
+    text-align: right;
 
     .king-button {
       width: 86px;

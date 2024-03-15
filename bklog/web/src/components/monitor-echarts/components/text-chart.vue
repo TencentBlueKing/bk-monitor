@@ -62,25 +62,25 @@ export default class TextChart extends Vue {
   margin: auto;
 
   &-value {
-    color: #3a84ff;
+    margin-right: 6px;
     font-size: 32px;
     font-weight: 500;
     line-height: 30px;
-    margin-right: 6px;
+    color: #3a84ff;
   }
 
   &-unit {
     font-size: 12px;
-    color: #979ba5;
     line-height: 20px;
+    color: #979ba5;
     align-self: flex-end;
   }
 
   &-empty {
-    color: #dcdee5;
+    margin-left: -16px;
     font-size: 50px;
     line-height: 30px;
-    margin-left: -16px;
+    color: #dcdee5;
   }
 }
 </style>

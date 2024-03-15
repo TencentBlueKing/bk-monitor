@@ -2242,10 +2242,10 @@ export default {
 
 <style lang="scss">
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .add-collection-container {
-  min-width: 950px;
   max-height: 100%;
+  min-width: 950px;
   padding: 0 42px 42px;
   overflow: auto;
 
@@ -2259,16 +2259,16 @@ export default {
     }
 
     .text-error {
-      display: inline-block;
       position: absolute;
       top: 6px;
       left: 12px;
+      display: inline-block;
       font-size: 12px;
       color: transparent;
-      pointer-events: none;
 
       /* stylelint-disable-next-line declaration-no-important */
       text-decoration: red wavy underline !important;
+      pointer-events: none;
     }
   }
 
@@ -2287,21 +2287,21 @@ export default {
 
   .add-collection-title {
     width: 100%;
+    padding-top: 36px;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
     font-size: 14px;
     font-weight: 600;
     color: #63656e;
     border-bottom: 1px solid #dcdee5;
-    padding-top: 36px;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
   }
 
   .original-title {
     @include flex-justify(start);
 
     > div {
-      font-weight: 500;
       margin-left: 40px;
+      font-weight: 500;
     }
   }
 
@@ -2313,8 +2313,8 @@ export default {
   }
 
   .en-name-tips {
-    margin-left: 0;
     margin-top: 8px;
+    margin-left: 0;
     line-height: 12px;
   }
 
@@ -2326,11 +2326,11 @@ export default {
       display: inline-block;
       width: 9px;
       height: 5px;
-      background: url('../../images/icons/triangle.png');
-      background-size: 100% 100%;
+      margin-top: -3px;
       margin-right: 6px;
       vertical-align: middle;
-      margin-top: -3px;
+      background: url('../../images/icons/triangle.png');
+      background-size: 100% 100%;
     }
 
     .icon-left {
@@ -2407,22 +2407,22 @@ export default {
     }
 
     .prefix {
+      margin-right: 8px;
       font-size: 14px;
       line-height: 32px;
       color: #858790;
-      margin-right: 8px;
     }
 
     .count {
+      margin-left: 8px;
       font-size: 12px;
       line-height: 32px;
       color: #7a7c85;
-      margin-left: 8px;
     }
 
     .font-blue {
-      color: #4e99ff;
       font-weight: bold;
+      color: #4e99ff;
     }
 
     .font-gray {
@@ -2431,10 +2431,10 @@ export default {
 
     .icons {
       font-size: 21px;
+      line-height: 32px;
+      color: #c4c6cb;
       vertical-align: middle;
       cursor: pointer;
-      color: #c4c6cb;
-      line-height: 32px;
     }
 
     .disable {
@@ -2463,12 +2463,12 @@ export default {
   }
 
   .choose-table {
-    background: #fff;
     width: 100%;
     height: 100%;
     max-width: 1170px;
-    border: 1px solid #dcdee5;
     padding-bottom: 14px;
+    background: #fff;
+    border: 1px solid #dcdee5;
 
     .bk-form-content {
       /* stylelint-disable-next-line declaration-no-important */
@@ -2481,23 +2481,23 @@ export default {
     }
 
     .choose-table-item {
+      position: relative;
       display: flex;
       height: 32px;
-      line-height: 32px;
       padding: 0 20px;
-      font-size: 13px;
-      color: #858790;
       margin-top: 13px;
-      position: relative;
+      font-size: 13px;
+      line-height: 32px;
+      color: #858790;
 
       .left {
         width: 110px;
       }
 
       .main {
-        flex: 1;
-        padding-right: 130px;
         position: relative;
+        padding-right: 130px;
+        flex: 1;
 
         .bk-form-control {
           width: 88%;
@@ -2507,13 +2507,13 @@ export default {
       .line {
         .bk-form-control {
           &::before {
-            content: '';
+            position: absolute;
+            top: 16px;
+            left: 100%;
             width: 25px;
             height: 1px;
             border-top: 1px dashed #c4c6cc;
-            position: absolute;
-            left: 100%;
-            top: 16px;
+            content: '';
           }
         }
       }
@@ -2525,11 +2525,11 @@ export default {
 
     .choose-table-item-head {
       height: 42px;
+      margin-top: 0;
+      font-size: 12px;
       line-height: 42px;
       background: #fafbfd;
       border-bottom: 1px solid #dcdee5;
-      margin-top: 0;
-      font-size: 12px;
     }
 
     .choose-table-item-body {
@@ -2537,11 +2537,11 @@ export default {
       height: 100%;
 
       .choose-select {
-        height: 100%;
         position: absolute;
         top: 0;
         left: calc(88% - 120px);
         display: flex;
+        height: 100%;
         align-items: center;
 
         .select-div {
@@ -2549,23 +2549,23 @@ export default {
         }
 
         &::before {
-          content: '';
+          position: absolute;
+          top: 50%;
+          right: 80px;
           width: 20px;
           height: 1px;
           border-top: 1px dashed #c4c6cc;
-          position: absolute;
-          right: 80px;
-          top: 50%;
+          content: '';
         }
 
         &::after {
-          content: '';
+          position: absolute;
+          top: 17px;
+          right: 100px;
           width: 1px;
           height: calc(100% - 32px);
           border-left: 1px dashed #c4c6cc;
-          position: absolute;
-          right: 100px;
-          top: 17px;
+          content: '';
         }
       }
     }
@@ -2591,9 +2591,9 @@ export default {
     }
 
     .is-updated {
+      color: #63656e;
       background: #fafbfd;
       border-color: #dcdee5;
-      color: #63656e;
     }
   }
 
@@ -2601,9 +2601,9 @@ export default {
     margin-bottom: -30px;
 
     .bk-form-checkbox {
-      height: 30px;
-      width: 320px;
       display: flex;
+      width: 320px;
+      height: 30px;
       align-items: center;
     }
 
@@ -2655,17 +2655,17 @@ export default {
   }
 
   .win-content {
-    padding-bottom: 20px;
     position: relative;
     left: 118px;
     width: 76%;
+    padding-bottom: 20px;
 
     > span {
-      color: #90929a;
-      font-size: 14px;
       position: absolute;
-      left: -80px;
       top: 6px;
+      left: -80px;
+      font-size: 14px;
+      color: #90929a;
     }
 
     &.en-span span {
@@ -2678,8 +2678,8 @@ export default {
 
     .bk-select {
       width: 184px;
-      margin: 0 8px 12px 0;
       height: 32px;
+      margin: 0 8px 12px 0;
     }
   }
 
@@ -2700,9 +2700,9 @@ export default {
 
       .environment-category {
         display: inline-block;
-        font-weight: 400;
-        font-size: 12px;
         margin: 6px 0;
+        font-size: 12px;
+        font-weight: 400;
         color: #63656e;
       }
 
@@ -2710,25 +2710,25 @@ export default {
         display: flex;
 
         .environment-button {
+          display: flex;
           width: 120px;
           height: 40px;
           margin-right: 16px;
+          font-size: 12px;
           color: #313238;
+          cursor: pointer;
           border: 1px solid #dcdee5;
           border-radius: 2px;
-          display: flex;
-          align-items: center;
-          cursor: pointer;
           user-select: none;
-          font-size: 12px;
+          align-items: center;
 
           img {
             padding: 0 8px 0 4px;
           }
 
           &.disable {
-            background: #fafbfd;
             cursor: no-drop;
+            background: #fafbfd;
           }
 
           &.active {
@@ -2739,17 +2739,17 @@ export default {
       }
 
       &:not(:first-child) {
-        margin-left: 24px;
         position: relative;
+        margin-left: 24px;
 
         &::before {
-          content: ' ';
+          position: absolute;
+          top: 36px;
+          left: -24px;
           width: 1px;
           height: 32px;
           background-color: #dcdee5;
-          position: absolute;
-          left: -24px;
-          top: 36px;
+          content: ' ';
         }
       }
     }
@@ -2770,20 +2770,20 @@ export default {
 
   .config-box {
     width: 730px;
+    margin-bottom: 20px;
+    font-size: 14px;
     background: #fff;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    font-size: 14px;
-    margin-bottom: 20px;
 
     .config-title {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
       height: 31px;
+      padding: 0 16px;
       background: #f0f1f5;
       border-radius: 1px 1px 0 0;
-      padding: 0 16px;
+      justify-content: space-between;
+      align-items: center;
 
       .icon-delete {
         font-size: 16px;
@@ -2799,17 +2799,17 @@ export default {
 
       .config-cluster-box {
         padding: 8px 12px 16px;
+        font-size: 12px;
         background: #fff;
         border: 1px solid #eaebf0;
         border-radius: 2px;
-        font-size: 12px;
 
         .config-cluster-title {
           padding: 8px 12px;
 
           .title {
-            font-weight: 700;
             margin-right: 14px;
+            font-weight: 700;
           }
 
           .bk-icon {
@@ -2845,10 +2845,10 @@ export default {
         }
 
         .icon-delete {
+          display: none;
           font-size: 14px;
           color: #ea3636;
           cursor: pointer;
-          display: none;
         }
       }
 
@@ -2858,10 +2858,10 @@ export default {
         @include flex-center();
 
         > :nth-child(2) {
-          flex: 1;
-          left: -1px;
           position: relative;
+          left: -1px;
           border-radius: 0 2px 2px 0;
+          flex: 1;
         }
 
         .operate-select {
@@ -2882,8 +2882,8 @@ export default {
       .config-item {
         padding: 8px 12px;
         margin-bottom: 12px;
-        border-radius: 2px;
         font-size: 12px;
+        border-radius: 2px;
 
         .select-label {
           margin-top: 4px;
@@ -2895,19 +2895,19 @@ export default {
           }
 
           .select {
-            margin-left: 15px;
             position: relative;
+            margin-left: 15px;
             cursor: pointer;
 
             &::before {
-              content: ' ';
               position: absolute;
-              left: -14px;
               top: 4px;
+              left: -14px;
               display: inline-block;
               width: 1px;
               height: 14px;
               background: #eaebf0;
+              content: ' ';
             }
           }
         }
@@ -2939,17 +2939,17 @@ export default {
           margin-right: 24px;
 
           &:not(:first-child) {
-            margin-right: 0;
             position: relative;
+            margin-right: 0;
 
             &::before {
-              content: ' ';
+              position: absolute;
+              top: 3px;
+              left: -11px;
               width: 1px;
               height: 16px;
               background-color: #dcdee5;
-              position: absolute;
-              left: -11px;
-              top: 3px;
+              content: ' ';
             }
           }
         }
@@ -2970,12 +2970,12 @@ export default {
       }
 
       .filter-content {
-        color: #979ba5;
         margin-top: 24px;
+        color: #979ba5;
 
         > span {
-          color: #63656e;
           margin-bottom: 0;
+          color: #63656e;
         }
       }
 
@@ -2989,8 +2989,8 @@ export default {
       }
 
       .specify-domain {
-        margin-top: 8px;
         max-height: 210px;
+        margin-top: 8px;
         overflow-y: auto;
 
         > div {
@@ -3011,16 +3011,16 @@ export default {
   .conflict-container {
     width: 730px;
     height: 32px;
+    padding: 0 11px;
     margin: 12px 0 14px 115px;
     font-size: 12px;
     background: #fff4e2;
     border: 1px solid #ffdfac;
     border-radius: 2px;
-    padding: 0 11px;
 
     .icon-exclamation-circle {
-      color: #ff9c01;
       font-size: 16px;
+      color: #ff9c01;
     }
 
     .conflict-message {
@@ -3037,12 +3037,12 @@ export default {
   .add-config-item {
     width: 730px;
     height: 42px;
-    font-size: 12px;
     margin: 0 0 14px 115px;
-    justify-content: center;
+    font-size: 12px;
+    cursor: pointer;
     background: #fafbfd;
     border: 1px dashed #dcdee5;
-    cursor: pointer;
+    justify-content: center;
 
     @include flex-align();
 
@@ -3053,8 +3053,8 @@ export default {
     }
 
     .icon-plus {
-      color: #989ca7;
       font-size: 22px;
+      color: #989ca7;
     }
   }
 
@@ -3073,8 +3073,8 @@ export default {
     }
 
     span {
-      color: #ff9c01;
       margin: 0 7px;
+      color: #ff9c01;
     }
 
     .bk-form-control {

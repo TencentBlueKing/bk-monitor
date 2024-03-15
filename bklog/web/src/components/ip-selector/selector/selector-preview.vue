@@ -249,8 +249,8 @@ export default class SelectorPreview extends Vue {
   margin-bottom: 10px;
 
   .bk-collapse-item-header {
-    padding: 0;
     height: 24px;
+    padding: 0;
     line-height: 24px;
 
     &:hover {
@@ -260,16 +260,16 @@ export default class SelectorPreview extends Vue {
 }
 
 .selector-preview {
-  border: 1px solid #dcdee5;
-  background: #f5f6fa;
   position: relative;
   height: 100%;
+  background: #f5f6fa;
+  border: 1px solid #dcdee5;
 
   &-title {
-    color: #313238;
+    padding: 10px 24px;
     font-size: 14px;
     line-height: 22px;
-    padding: 10px 24px;
+    color: #313238;
   }
 
   &-content {
@@ -288,9 +288,9 @@ export default class SelectorPreview extends Vue {
         font-size: 12px;
 
         .num {
-          color: #3a84ff;
-          font-weight: 700;
           padding: 0 2px;
+          font-weight: 700;
+          color: #3a84ff;
         }
       }
 
@@ -303,8 +303,8 @@ export default class SelectorPreview extends Vue {
         border-radius: 2px;
 
         &:hover {
-          background: #e1ecff;
           color: #3a84ff;
+          background: #e1ecff;
         }
 
         i {
@@ -320,26 +320,26 @@ export default class SelectorPreview extends Vue {
 
       &-item {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
         height: 32px;
+        padding: 0 12px;
+        margin-bottom: 2px;
         line-height: 32px;
         background: #fff;
-        padding: 0 12px;
         border-radius: 2px;
         box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.06);
-        margin-bottom: 2px;
+        justify-content: space-between;
+        align-items: center;
 
         .left {
           overflow: hidden;
           text-overflow: ellipsis;
-          white-space: nowrap;
           word-break: break-all;
+          white-space: nowrap;
         }
 
         .right {
-          cursor: pointer;
           color: #3a84ff;
+          cursor: pointer;
 
           i {
             font-weight: 700;
@@ -361,22 +361,22 @@ export default class SelectorPreview extends Vue {
 
 .drag {
   position: absolute;
-  left: 0px;
   top: calc(50% - 10px);
+  left: 0px;
+  display: flex;
   width: 6px;
   height: 20px;
-  display: flex;
+  outline: 0;
   align-items: center;
   justify-items: center;
-  outline: 0;
 
   &::after {
-    content: ' ';
-    height: 18px;
-    width: 0;
-    border-left: 2px dotted #c4c6cc;
     position: absolute;
     left: 2px;
+    width: 0;
+    height: 18px;
+    border-left: 2px dotted #c4c6cc;
+    content: ' ';
   }
 
   &:hover {

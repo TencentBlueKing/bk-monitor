@@ -189,10 +189,10 @@ export default {
   .fields-config-tippy {
     .config-title {
       padding: 20px 24px 0;
-      color: #313238;
       font-size: 20px;
-      line-height: 28px;
       font-weight: normal;
+      line-height: 28px;
+      color: #313238;
     }
 
     .field-list-container {
@@ -219,9 +219,9 @@ export default {
           &.display-item {
             .icon-drag-dots {
               width: 16px;
-              text-align: left;
               font-size: 14px;
               color: #979ba5;
+              text-align: left;
               cursor: move;
               transition: opacity 0.2s linear;
             }

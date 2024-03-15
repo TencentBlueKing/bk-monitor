@@ -81,5 +81,3 @@ export default class Cluster extends Vue {
   }
 }
 </script>
-
-<style lang="scss" scoped></style>

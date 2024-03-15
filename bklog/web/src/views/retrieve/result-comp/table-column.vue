@@ -129,21 +129,21 @@ export default {
     }
 
     &.mark {
-      background: #f3e186;
       color: black;
+      background: #f3e186;
     }
   }
 
   .icon-search-container {
     display: none;
-    justify-content: center;
-    align-items: center;
-    vertical-align: bottom;
     width: 14px;
     height: 14px;
     margin-left: 5px;
+    vertical-align: bottom;
     cursor: pointer;
     background: #3a84ff;
+    justify-content: center;
+    align-items: center;
 
     .icon {
       font-size: 12px;

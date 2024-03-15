@@ -232,9 +232,9 @@ export default {
   height: 100%;
 
   .dashboard-iframe {
-    border: none;
     width: 100%;
     height: 100%;
+    border: none;
   }
 }
 </style>

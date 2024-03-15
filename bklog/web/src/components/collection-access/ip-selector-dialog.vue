@@ -128,8 +128,8 @@ export default {
   }
 
   .bk-dialog-footer {
-    border: none;
     background-color: #fff;
+    border: none;
   }
 }
 </style>

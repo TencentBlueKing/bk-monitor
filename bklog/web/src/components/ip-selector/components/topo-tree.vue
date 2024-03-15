@@ -137,6 +137,12 @@ export default class StaticTopo extends Vue {
 
 <style lang="scss" scoped>
 :deep(.bk-big-tree-node) {
+  .node-content {
+    overflow: inherit;
+    text-overflow: inherit;
+    white-space: nowrap;
+  }
+
   &.is-checked {
     background: #f5f6fa;
   }
@@ -158,12 +164,6 @@ export default class StaticTopo extends Vue {
     /* stylelint-disable-next-line declaration-no-important */
     display: none !important;
   }
-
-  .node-content {
-    overflow: inherit;
-    text-overflow: inherit;
-    white-space: nowrap;
-  }
 }
 
 .node-label {
@@ -173,12 +173,12 @@ export default class StaticTopo extends Vue {
   font-size: 12px;
 
   .num {
+    height: 18px;
+    padding: 0 5px;
+    line-height: 18px;
+    color: #63656e;
     background: #f0f1f5;
     border-radius: 2px;
-    height: 18px;
-    line-height: 18px;
-    padding: 0 5px;
-    color: #63656e;
 
     &.selected {
       background: #fff;

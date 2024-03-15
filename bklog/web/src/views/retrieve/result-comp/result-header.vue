@@ -527,25 +527,25 @@ export default {
 
 <style lang="scss">
 .result-header {
+  position: relative;
   display: flex;
-  justify-content: space-between;
   // align-items: center;
   width: 100%;
   height: 48px;
+  font-size: 12px;
   color: #63656e;
   background: #fff;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
-  font-size: 12px;
-  position: relative;
+  justify-content: space-between;
 
   &:after {
     position: absolute;
     bottom: 0;
+    z-index: 800;
     width: 100%;
     height: 4px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
     content: '';
-    z-index: 800;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
   }
 
   .result-left {
@@ -554,52 +554,51 @@ export default {
 
     .icon-container {
       position: relative;
+      display: flex;
       margin: 17px 25px 17px 14px;
       background: #f0f1f5;
       border-radius: 2px;
-      display: flex;
 
       > :first-child {
         margin-right: 2px;
       }
 
       &::after {
-        content: '';
+        position: absolute;
+        top: 6px;
+        right: -25px;
         width: 1px;
         height: 14px;
         background-color: #dcdee5;
-        position: absolute;
-        right: -25px;
-        top: 6px;
+        content: '';
       }
 
       .result-icon-box {
         width: 32px;
         height: 24px;
-        line-height: 20px;
-        text-align: center;
         font-size: 14px;
+        line-height: 20px;
         color: #fff;
+        text-align: center;
+        cursor: pointer;
         background: #699df4;
         border-radius: 2px;
-        cursor: pointer;
 
         &.light-icon {
-          background: #f0f1f5;
           color: #63656e;
+          background: #f0f1f5;
         }
 
         .icon-jiansuo {
           display: inline-block;
-          transform: translateY(2px);
           font-size: 18px;
+          transform: translateY(2px);
         }
 
         &.disabled {
-          cursor: not-allowed;
-
           /* stylelint-disable-next-line declaration-no-important */
           pointer-events: none !important;
+          cursor: not-allowed;
         }
 
         &.light-icon:hover {
@@ -619,16 +618,16 @@ export default {
   }
 
   .open-condition {
-    flex-shrink: 0;
     display: flex;
-    justify-content: center;
-    align-items: center;
     width: 49px;
     height: 100%;
-    border-right: 1px solid #f0f1f5;
     font-size: 24px;
-    cursor: pointer;
     color: #979ba5;
+    cursor: pointer;
+    border-right: 1px solid #f0f1f5;
+    flex-shrink: 0;
+    justify-content: center;
+    align-items: center;
 
     &:hover {
       color: #3a84ff;
@@ -640,28 +639,28 @@ export default {
   }
 
   .time-range-wrap {
+    position: relative;
     display: flex;
     align-items: center;
-    position: relative;
 
     &::before {
-      content: '';
+      position: absolute;
+      top: 8px;
+      left: 0;
       width: 1px;
       height: 14px;
       background-color: #dcdee5;
-      position: absolute;
-      left: 0;
-      top: 8px;
+      content: '';
     }
   }
 
   .auto-refresh-trigger {
     display: flex;
-    align-items: center;
     height: 52px;
-    white-space: nowrap;
     line-height: 22px;
+    white-space: nowrap;
     cursor: pointer;
+    align-items: center;
 
     .log-icon {
       padding: 0 5px 0 17px;
@@ -690,24 +689,24 @@ export default {
     }
 
     &::before {
-      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
       width: 1px;
       height: 14px;
       background-color: #dcdee5;
-      position: absolute;
-      left: 0;
-      top: 20px;
+      content: '';
     }
   }
 
   .more-operation {
     display: flex;
-    align-items: center;
-    padding: 0 16px 0 12px;
     height: 52px;
-    white-space: nowrap;
+    padding: 0 16px 0 12px;
     line-height: 22px;
+    white-space: nowrap;
     cursor: pointer;
+    align-items: center;
 
     .icon-ellipsis-more {
       display: flex;
@@ -721,25 +720,25 @@ export default {
       &:hover {
         color: #0083ff;
         cursor: pointer;
-        border-radius: 2px;
         background-color: #e1ecff;
+        border-radius: 2px;
       }
     }
 
     &::before {
-      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
       width: 1px;
       height: 14px;
       background-color: #dcdee5;
-      position: absolute;
-      left: 0;
-      top: 20px;
+      content: '';
     }
   }
 
   .step-box {
-    min-height: 60px;
     z-index: 1001;
+    min-height: 60px;
 
     .target-arrow {
       /* stylelint-disable-next-line declaration-no-important */
@@ -764,22 +763,22 @@ export default {
 .retrieve-setting-container {
   .list-menu {
     display: flex;
-    flex-direction: column;
     padding: 6px 0;
-    background-color: white;
     color: #63656e;
+    background-color: white;
+    flex-direction: column;
 
     &-item {
       display: flex;
-      align-items: center;
-      padding: 0 10px;
       height: 32px;
       min-width: 150px;
+      padding: 0 10px;
+      align-items: center;
 
       &:hover {
+        color: #3a84ff;
         cursor: pointer;
         background-color: #eaf3ff;
-        color: #3a84ff;
       }
     }
   }

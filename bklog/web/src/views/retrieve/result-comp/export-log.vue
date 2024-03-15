@@ -388,18 +388,19 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+/* stylelint-disable no-descending-specificity */
 .operation-icon {
   display: flex;
-  justify-content: center;
-  align-items: center;
   width: 32px;
   height: 32px;
   margin-left: 10px;
   cursor: pointer;
   border: 1px solid #c4c6cc;
-  transition: boder-color 0.2s;
   border-radius: 2px;
   outline: none;
+  transition: boder-color 0.2s;
+  justify-content: center;
+  align-items: center;
 
   &:hover {
     border-color: #979ba5;
@@ -426,14 +427,14 @@ export default {
 }
 
 .disabled-icon {
+  cursor: not-allowed;
   background-color: #fff;
   border-color: #dcdee5;
-  cursor: not-allowed;
 
   &:hover,
   .log-icon {
-    border-color: #dcdee5;
     color: #c4c6cc;
+    border-color: #dcdee5;
   }
 }
 
@@ -443,9 +444,9 @@ export default {
 }
 
 .filed-select-box {
-  text-align: left;
   margin-bottom: 10px;
   font-size: 12px;
+  text-align: left;
 
   .filed-radio-box {
     margin: 8px 0 10px 0;
@@ -464,9 +465,9 @@ export default {
 }
 
 .desensitize-select-box {
-  text-align: left;
   margin: 18px 0 10px 0;
   font-size: 12px;
+  text-align: left;
 
   .desensitize-radio-box {
     margin-top: 8px;
@@ -479,10 +480,10 @@ export default {
 
 .middle-title {
   &::after {
-    content: '*';
     display: inline-block;
-    transform: translateX(2px) translateY(2px);
     color: #ea3636;
+    content: '*';
+    transform: translateX(2px) translateY(2px);
   }
 }
 
@@ -493,10 +494,18 @@ export default {
 
 .async-export-dialog {
   .header {
-    text-align: center;
-
+    display: inline-block;
+    width: 100%;
     /* stylelint-disable-next-line declaration-no-important */
     padding: 18px 0px 16px !important;
+    margin: 0;
+    overflow: hidden;
+    font-size: 24px;
+    line-height: 1.5;
+    color: #313238;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .export-container {
@@ -505,47 +514,34 @@ export default {
 
   .bk-dialog-warning {
     display: block;
-    margin: 0 auto;
     width: 58px;
     height: 58px;
-    line-height: 58px;
+    margin: 0 auto;
     font-size: 30px;
+    line-height: 58px;
     color: #ff9c01;
-    border-radius: 50%;
     background-color: #ffe8c3;
-  }
-
-  .header {
-    padding: 18px 24px 32px;
-    display: inline-block;
-    width: 100%;
-    font-size: 24px;
-    color: #313238;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.5;
-    margin: 0;
+    border-radius: 50%;
   }
 
   .export-type {
-    margin-bottom: 24px;
-    padding: 0 22px;
     display: flex;
+    padding: 0 22px;
+    margin-bottom: 24px;
     align-items: start;
 
     .export-text {
-      margin-left: 8px;
       max-width: 184px;
-      text-align: left;
+      margin-left: 8px;
       font-size: 12px;
-      color: #63656e;
       line-height: 18px;
+      color: #63656e;
+      text-align: left;
     }
 
     .bk-button {
-      margin-left: auto;
       min-width: auto;
+      margin-left: auto;
     }
 
     .bk-icon {
@@ -556,10 +552,10 @@ export default {
 
 .download-box {
   display: flex;
+  min-height: 60px;
   font-size: 12px;
   flex-direction: column;
   justify-content: space-evenly;
-  min-height: 60px;
 
   span {
     cursor: pointer;

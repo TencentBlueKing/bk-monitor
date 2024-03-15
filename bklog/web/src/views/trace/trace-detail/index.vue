@@ -620,11 +620,11 @@ export default {
 
 <style lang="scss" scoped>
 @import '../../../scss/mixins/scroller';
-
+/* stylelint-disable no-descending-specificity */
 .trace-detail-container {
   height: 100%;
-  color: #313238;
   font-size: 14px;
+  color: #313238;
 
   .top-title-container {
     height: 61px;
@@ -633,12 +633,12 @@ export default {
     border-bottom: 1px solid #dde4eb;
 
     .top-title {
-      margin: 0;
       padding-left: 10px;
-      border-left: 2px solid #a3c5fd;
-      line-height: 20px;
+      margin: 0;
       font-size: 14px;
       font-weight: normal;
+      line-height: 20px;
+      border-left: 2px solid #a3c5fd;
     }
   }
 
@@ -658,8 +658,8 @@ export default {
       position: relative;
       height: 460px;
       margin-top: 20px;
-      background: #fff;
       overflow: hidden;
+      background: #fff;
       border: 1px solid #dfe6ec;
       transition: height 0.3s;
 
@@ -680,15 +680,15 @@ export default {
           margin-left: 10px;
 
           &.collapse-icon {
+            cursor: pointer;
             background: #979ba5;
             border-radius: 2px;
-            cursor: pointer;
             transition: background 0.2s;
 
             .bk-icon {
-              color: #fff;
               font-size: 16px;
               font-weight: bold;
+              color: #fff;
               transition: transform 0.2s;
             }
 
@@ -699,8 +699,8 @@ export default {
           }
 
           &.shot-icon {
-            color: #979ba5;
             font-size: 20px;
+            color: #979ba5;
             cursor: pointer;
             transition: color 0.2s;
 
@@ -737,15 +737,15 @@ export default {
 
       .fields-config {
         display: flex;
-        justify-content: center;
-        align-items: center;
         width: 32px;
         height: 32px;
+        cursor: pointer;
         background: #fff;
         border: 1px solid #c4c6cc;
         border-radius: 2px;
-        cursor: pointer;
         outline: none;
+        justify-content: center;
+        align-items: center;
 
         .bk-icon {
           font-size: 12px;
@@ -763,8 +763,8 @@ export default {
 
         &.disabled {
           color: #c4c6cc;
-          border-color: #dcdee5;
           cursor: not-allowed;
+          border-color: #dcdee5;
         }
       }
     }
@@ -783,9 +783,9 @@ export default {
         .table-chart-bar {
           position: relative;
           height: 10px;
-          border-radius: 5px;
-          background: #a3c5fd;
           overflow: visible;
+          background: #a3c5fd;
+          border-radius: 5px;
 
           .table-chart-text {
             position: absolute;
@@ -802,18 +802,18 @@ export default {
 
   .asyncSwitch {
     display: inline-block;
+    margin-left: 5px;
     line-height: 30px;
     color: #63656e;
-    margin-left: 5px;
   }
 }
 
 .span-detail-slider {
   .span-detail-slot {
-    background: #313238;
     height: 100%;
     min-height: calc(100vh - 60px);
     color: #c4c6cc;
+    background: #313238;
   }
 }
 </style>
@@ -827,15 +827,15 @@ export default {
     .config-title {
       padding: 0 24px;
       margin-bottom: 14px;
-      color: #313238;
       font-size: 24px;
       font-weight: normal;
+      color: #313238;
     }
 
     .config-list {
-      padding: 0 24px;
-      width: 468px;
       display: flex;
+      width: 468px;
+      padding: 0 24px;
       align-items: center;
       flex-flow: wrap;
 

@@ -106,9 +106,9 @@ export default {
 
 <style scoped lang="scss">
 .no-index-set-container {
-  text-align: center;
-  margin-top: 142px;
   height: calc(100% - 142px);
+  margin-top: 142px;
+  text-align: center;
 
   .icon-index-set {
     margin-bottom: 25px;
@@ -141,14 +141,14 @@ export default {
       .index-manage-tips {
         height: 88px;
         margin: 40px 0 0;
-        color: #63656e;
         font-size: 14px;
         font-weight: 600;
         line-height: 24px;
+        color: #63656e;
 
         p:last-child {
-          color: #979ba5;
           font-weight: normal;
+          color: #979ba5;
         }
       }
 

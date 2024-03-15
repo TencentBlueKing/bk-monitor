@@ -81,21 +81,21 @@ export default class AgentStatus extends Vue {
 
 <style lang="scss" scoped>
 @mixin normal {
-  border-color: #3fc06d;
-  background: #86e7a9;
   color: #3fc06d;
+  background: #86e7a9;
+  border-color: #3fc06d;
 }
 
 @mixin error {
-  border-color: #ea3636;
-  background: #fd9c9c;
   color: #ea3636;
+  background: #fd9c9c;
+  border-color: #ea3636;
 }
 
 @mixin unknown {
-  border-color: #c4c6cc;
-  background: #f0f1f5;
   color: #c4c6cc;
+  background: #f0f1f5;
+  border-color: #c4c6cc;
 }
 
 .separator {
@@ -108,12 +108,12 @@ export default class AgentStatus extends Vue {
 }
 
 .status-mark {
-  margin-right: 8px;
+  display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 4px;
+  margin-right: 8px;
   border: 1px solid;
-  display: inline-block;
+  border-radius: 4px;
 }
 
 .status-font {

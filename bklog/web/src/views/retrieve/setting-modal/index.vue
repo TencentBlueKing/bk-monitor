@@ -403,9 +403,9 @@ export default {
 
 <style lang="scss" scoped>
 :deep(.bk-dialog-body) {
-  background-color: #f5f6fa;
-  overflow: hidden;
   padding: 0;
+  overflow: hidden;
+  background-color: #f5f6fa;
 }
 
 :deep(.bk-dialog-tool) {
@@ -419,54 +419,54 @@ export default {
 }
 
 .setting-container {
-  height: calc(100vh - 52px);
-  overflow-y: auto;
-  min-width: 1460px;
   display: flex;
+  height: calc(100vh - 52px);
+  min-width: 1460px;
+  overflow-y: auto;
   justify-content: center;
 
   .setting-title {
+    position: fixed;
+    z-index: 999;
     width: calc(100vw + 12px);
     height: 52px;
     min-width: 1460px;
-    line-height: 52px;
     font-size: 16px;
+    line-height: 52px;
     text-align: center;
-    position: fixed;
-    z-index: 999;
     background-color: #fff;
     border-bottom: 1px solid #dcdee5;
     // box-shadow:0 3px 6px #DEE0E7 ;
     .bk-icon {
-      font-size: 32px;
-      cursor: pointer;
       position: absolute;
       top: 10px;
       right: 24px;
+      font-size: 32px;
+      cursor: pointer;
     }
   }
 
   .setting-main {
-    padding: 72px 40px 0;
-    display: flex;
     position: relative;
+    display: flex;
+    padding: 72px 40px 0;
 
     .setting-left {
-      min-width: 240px;
       height: 365px;
+      min-width: 240px;
       padding-top: 4px;
 
       @include container-shadow;
 
       .setting-option {
-        height: 40px;
-        font-size: 15px;
-        margin: 4px 0;
         display: flex;
+        height: 40px;
+        margin: 4px 0;
+        font-size: 15px;
         cursor: pointer;
+        transition: all 0.3s;
         justify-content: space-evenly;
         align-items: center;
-        transition: all 0.3s;
 
         .log-icon {
           margin-right: 20px;
@@ -479,13 +479,13 @@ export default {
     }
 
     .setting-right {
-      margin-left: 20px;
       max-width: 1020px;
+      margin-left: 20px;
 
       .more-details {
+        display: flex;
         height: 48px;
         padding: 0 24px;
-        display: flex;
         justify-content: space-between;
         align-items: center;
 
@@ -521,9 +521,9 @@ export default {
       }
 
       .operation-container {
-        margin-top: 20px;
         min-height: 770px;
         padding: 24px 20px 100px;
+        margin-top: 20px;
 
         @include container-shadow;
       }

@@ -165,21 +165,21 @@ export default {
   &-title {
     display: flex;
     height: 40px;
-    background: #fafbfd;
-    color: #63656e;
-    font-weight: bold;
-    align-items: center;
     padding: 0 16px;
+    font-weight: bold;
+    color: #63656e;
     cursor: pointer;
+    background: #fafbfd;
+    align-items: center;
 
     &.is-collapse {
-      border-bottom: 1px solid #dcdee5;
       height: 41px;
+      border-bottom: 1px solid #dcdee5;
     }
 
     .title-icon {
-      font-size: 14px;
       margin-right: 5px;
+      font-size: 14px;
 
       &:hover {
         cursor: pointer;
@@ -190,8 +190,8 @@ export default {
       color: #979ba5;
 
       &-num {
-        color: #3a84ff;
         margin: 0 3px;
+        color: #3a84ff;
       }
     }
   }

@@ -183,8 +183,8 @@ export default {
       line-height: 20px;
 
       .bk-icon {
-        font-size: 12px;
         margin-right: 6px;
+        font-size: 12px;
       }
 
       .icon-check-circle-shape {
@@ -197,8 +197,8 @@ export default {
 
       .match-counts {
         margin: 0 4px;
-        color: #3a84ff;
         font-weight: bold;
+        color: #3a84ff;
       }
     }
   }

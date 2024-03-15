@@ -53,15 +53,15 @@ export default {
 <style lang="scss" scoped>
 .bk-login-dialog {
   position: fixed;
-  left: 0;
   top: 0;
+  left: 0;
+  z-index: 999999999;
   display: flex;
-  justify-content: center;
-  align-items: center;
   width: 100%;
   height: 100%;
-  z-index: 999999999;
   background: rgba(0, 0, 0, 0.7);
+  justify-content: center;
+  align-items: center;
 
   .bk-login-wrapper {
     display: flex;

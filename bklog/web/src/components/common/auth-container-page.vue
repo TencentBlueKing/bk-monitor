@@ -138,29 +138,29 @@ export default {
 }
 
 .auth-page-container {
-  width: 800px;
   display: flex;
+  width: 800px;
+  transform: translateY(-30%);
   flex-flow: column;
   align-items: center;
-  transform: translateY(-30%);
 
   .lock-icon {
-    margin-top: 128px;
     width: 160px;
+    margin-top: 128px;
   }
 
   .title {
     margin-top: 26px;
-    line-height: 28px;
     font-size: 20px;
     font-weight: 500;
+    line-height: 28px;
     color: #313238;
   }
 
   .detail {
     margin: 30px 10px 0 0;
-    line-height: 20px;
     font-size: 14px;
+    line-height: 20px;
     color: #63656e;
   }
 
@@ -171,15 +171,15 @@ export default {
   .permission-container {
     margin-top: 20px;
     border: 1px solid #e7e8ed;
-    box-shadow: 1px -1px 2px #e7e8ed;
     border-bottom: 0;
+    box-shadow: 1px -1px 2px #e7e8ed;
   }
 
   .permission-table {
     width: 100%;
     color: #63656e;
-    border-bottom: 1px solid #e7e8ed;
     border-collapse: collapse;
+    border-bottom: 1px solid #e7e8ed;
     table-layout: fixed;
 
     th,
@@ -187,8 +187,8 @@ export default {
       padding: 12px 18px;
       font-size: 12px;
       text-align: left;
-      border-bottom: 1px solid #e7e8ed;
       word-break: break-all;
+      border-bottom: 1px solid #e7e8ed;
     }
 
     th {
@@ -199,9 +199,9 @@ export default {
 
   .table-content {
     max-height: 260px;
-    border-bottom: 1px solid #e7e8ed;
-    border-top: 0;
     overflow: auto;
+    border-top: 0;
+    border-bottom: 1px solid #e7e8ed;
 
     .permission-table {
       border-top: 0;
@@ -223,8 +223,8 @@ export default {
 
     .no-data {
       padding: 30px;
-      text-align: center;
       color: #999;
+      text-align: center;
     }
   }
 }

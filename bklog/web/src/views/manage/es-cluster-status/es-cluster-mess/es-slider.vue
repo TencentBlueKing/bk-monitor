@@ -1330,10 +1330,10 @@ export default {
 
   .add-collection-title {
     width: 100%;
+    padding-top: 18px;
     font-size: 14px;
     font-weight: 600;
     color: #63656e;
-    padding-top: 18px;
   }
 
   .king-form {
@@ -1366,18 +1366,18 @@ export default {
 
       .bk-tag {
         position: relative;
-        margin-left: 10px;
         padding-left: 18px;
+        margin-left: 10px;
       }
 
       .tag-icon::before {
         position: absolute;
         top: 9px;
         left: 8px;
-        content: '';
         width: 4px;
         height: 4px;
         border-radius: 50%;
+        content: '';
       }
 
       .is-active::before {
@@ -1390,14 +1390,14 @@ export default {
     }
 
     .source-name-input.is-error {
+      color: #f56c6c;
       background-color: #ffeded;
       border-color: #fde2e2;
-      color: #f56c6c;
       transition: all 0.2s;
 
       &:hover {
-        background: #fbb8ac;
         color: #fff;
+        background: #fbb8ac;
         transition: all 0.2s;
       }
     }
@@ -1415,9 +1415,9 @@ export default {
       }
 
       .form-item-label {
+        margin-bottom: 8px;
         font-size: 14px;
         color: #63656e;
-        margin-bottom: 8px;
 
         @include flex-align;
       }
@@ -1436,8 +1436,8 @@ export default {
         @include flex-align;
 
         .check-document {
-          font-size: 12px;
           margin: 0 6px 0 20px;
+          font-size: 12px;
         }
 
         .icon-text-file {
@@ -1448,8 +1448,8 @@ export default {
     }
 
     .es-cluster-management {
-      font-size: 14px;
       display: flex;
+      font-size: 14px;
       align-items: center;
 
       .icon-angle-double-down {
@@ -1468,20 +1468,20 @@ export default {
     }
 
     .visible-scope-box {
-      min-height: 30px;
-      display: flex;
       position: relative;
+      display: flex;
+      min-height: 30px;
 
       .please-select {
-        color: #c3cdd7;
         margin-left: 10px;
+        color: #c3cdd7;
       }
 
       .icon-angle-down {
         position: absolute;
-        font-size: 20px;
         top: 4px;
         right: 0;
+        font-size: 20px;
         transform: rotateZ(0deg);
         transition: all 0.3s;
       }
@@ -1519,10 +1519,10 @@ export default {
 .submit-container {
   position: fixed;
   bottom: 0;
-  padding: 8px 0 8px 20px;
-  border-top: 1px solid #dcdee5;
   width: 100%;
+  padding: 8px 0 8px 20px;
   background: #fafbfd;
+  border-top: 1px solid #dcdee5;
 }
 
 .illustrate {
@@ -1534,20 +1534,20 @@ export default {
 }
 
 .test-container {
+  display: flex;
   margin-top: 10px;
   font-size: 14px;
   color: #63656e;
-  display: flex;
   align-items: center;
 
   .success-text .bk-icon {
-    color: rgb(45, 203, 86);
     margin: 0 6px 0 10px;
+    color: rgb(45, 203, 86);
   }
 
   .error-text .bk-icon {
-    color: rgb(234, 54, 54);
     margin: 0 6px 0 10px;
+    color: rgb(234, 54, 54);
   }
 }
 

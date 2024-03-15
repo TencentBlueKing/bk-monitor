@@ -276,11 +276,11 @@ export default {
     height: 400px;
 
     .tree-container {
-      padding: 12px;
       width: 340px;
+      padding: 12px;
+      overflow: auto;
       border: 1px solid #dfe0e5;
       border-right: none;
-      overflow: auto;
     }
 
     .selected-ip-list {

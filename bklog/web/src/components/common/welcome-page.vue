@@ -179,13 +179,13 @@ export default {
   background: #f4f7fa;
 
   .title {
-    margin: 70px 0 35px;
     height: 26px;
-    text-align: center;
+    margin: 70px 0 35px;
     font-size: 20px;
     font-weight: normal;
     line-height: 26px;
     color: #313238;
+    text-align: center;
   }
 
   .card-container {
@@ -203,13 +203,23 @@ export default {
       border-radius: 2px;
       transition: box-shadow 0.3s;
 
+      .outside-link-icon {
+        position: absolute;
+        top: 333px;
+        left: 162px;
+        width: 10px;
+        height: 10px;
+        cursor: pointer;
+        fill: #63656e;
+      }
+
       &:not(:last-child) {
         margin-right: 40px;
       }
 
       &:hover {
-        transition: box-shadow 0.3s;
         box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.3s;
 
         .outside-link-icon {
           fill: #fff;
@@ -217,9 +227,9 @@ export default {
       }
 
       .card-img {
-        margin: 28px 0 20px;
         width: 220px;
         height: 160px;
+        margin: 28px 0 20px;
       }
 
       .card-title {
@@ -231,25 +241,15 @@ export default {
 
       .card-detail {
         display: flex;
-        justify-content: center;
-        align-items: center;
         width: 200px;
         height: 60px;
         margin: 11px 0 21px;
-        text-align: center;
         font-size: 12px;
         line-height: 20px;
         color: #63656e;
-      }
-
-      .outside-link-icon {
-        position: absolute;
-        width: 10px;
-        height: 10px;
-        top: 333px;
-        left: 162px;
-        fill: #63656e;
-        cursor: pointer;
+        text-align: center;
+        justify-content: center;
+        align-items: center;
       }
 
       .king-button {

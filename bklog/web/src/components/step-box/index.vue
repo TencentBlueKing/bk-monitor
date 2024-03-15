@@ -75,13 +75,21 @@ export default {
   padding: 12px 10px 10px;
   font-size: 12px;
   color: #313238;
-  border-radius: 2px;
   background: #fff;
+  border-radius: 2px;
+
+  .target-arrow {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: inherit;
+    transform: rotateZ(45deg);
+  }
 
   &.has-border {
-    box-shadow: 0 0 6px 0 #dcdee5;
     background-color: #fff;
     border: 1px solid #dcdee5;
+    box-shadow: 0 0 6px 0 #dcdee5;
   }
 
   &.right {
@@ -137,18 +145,10 @@ export default {
       margin-left: 14px;
       line-height: 20px;
       color: #fff;
-      border-radius: 10px;
-      background: #3a84ff;
       cursor: pointer;
+      background: #3a84ff;
+      border-radius: 10px;
     }
-  }
-
-  .target-arrow {
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    background: inherit;
-    transform: rotateZ(45deg);
   }
 }
 </style>

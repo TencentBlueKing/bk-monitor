@@ -211,9 +211,9 @@ export default {
           }
 
           .percent-value {
-            flex-shrink: 0;
-            color: #2dcb56;
             margin-left: 6px;
+            color: #2dcb56;
+            flex-shrink: 0;
           }
         }
 

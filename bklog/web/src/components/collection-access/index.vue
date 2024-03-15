@@ -485,15 +485,15 @@ export default {
   display: flex;
   width: 100%;
   height: 100%;
-  border: 1px solid $borderWeightColor;
   overflow: hidden;
+  border: 1px solid $borderWeightColor;
 }
 
 .access-step-wrapper {
-  padding-left: 30px;
   width: 200px;
-  border-right: 1px solid $borderWeightColor;
+  padding-left: 30px;
   background: $bgHoverColor;
+  border-right: 1px solid $borderWeightColor;
 
   .fixed-steps {
     position: relative;
@@ -509,14 +509,14 @@ export default {
     }
 
     .bk-step {
-      color: #7a7c85;
-      height: 70px;
       display: flex;
+      height: 70px;
+      color: #7a7c85;
       white-space: normal;
 
       &::after {
-        width: 1px;
         left: 14px;
+        width: 1px;
         background: none;
         border-left: 1px dashed #e5e6ec;
       }
@@ -525,20 +525,20 @@ export default {
         display: inline-block;
         width: 28px;
         height: 28px;
-        line-height: 28px;
+        margin-right: 10px;
         font-size: 12px;
+        line-height: 28px;
         color: #858790;
         text-align: center;
-        border-radius: 50%;
         border: 1px solid #c4c6cc;
-        margin-right: 10px;
+        border-radius: 50%;
         box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
       }
 
       .bk-step-content {
+        display: inline-block;
         width: 78%;
         overflow: hidden;
-        display: inline-block;
         hyphens: auto;
       }
 
@@ -574,25 +574,23 @@ export default {
       }
 
       .bk-step-number {
-        color: #fafbfd;
-        box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
         position: relative;
+        color: #fafbfd;
         background: #fafbfd;
+        box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
 
         &::before {
-          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
           width: 16px;
           height: 16px;
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          transform: translate(-50%, -50%);
-          transform: translate(-50%, -50%);
-          transform: translate(-50%, -50%);
           background-color: #fafbfd;
-          border-radius: 50%;
           background-image: url('../../images/icons/finish.svg');
           background-size: 100% 100%;
+          border-radius: 50%;
+          content: '';
+          transform: translate(-50%, -50%);
         }
       }
 
@@ -608,16 +606,15 @@ export default {
 
   .step-arrow {
     position: absolute;
+    right: 1px;
     width: 10px;
     height: 10px;
+    background: #fff;
     border-top: 1px solid $borderWeightColor;
     border-right: 1px solid $borderWeightColor;
     border-left: 1px solid transparent;
-    border-left: 1px solid transparent;
-    right: 1px;
-    background: #fff;
-    transform-origin: 62% 0;
     transform: rotate(-135deg);
+    transform-origin: 62% 0;
   }
 }
 

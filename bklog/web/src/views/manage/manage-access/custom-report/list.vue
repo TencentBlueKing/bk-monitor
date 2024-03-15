@@ -628,10 +628,10 @@ export default {
 }
 
 .collection-operation-list {
-  margin: 0;
-  min-width: 50px;
-  list-style: none;
   display: flex;
+  min-width: 50px;
+  margin: 0;
+  list-style: none;
   flex-direction: column;
   justify-content: center;
 
@@ -642,8 +642,8 @@ export default {
     cursor: pointer;
 
     &:hover {
-      background-color: #eaf3ff;
       color: #3a84ff;
+      background-color: #eaf3ff;
     }
   }
 

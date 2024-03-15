@@ -124,9 +124,9 @@ export default {
     top: 14px;
     right: 14px;
     z-index: 1;
+    font-size: 20px;
     color: #979ba5;
     cursor: pointer;
-    font-size: 20px;
 
     &:hover {
       color: #3a84ff;
@@ -138,13 +138,13 @@ export default {
     z-index: 1;
     width: 100%;
     max-height: 268px;
-    overflow: auto;
-    margin-top: 4px;
     padding: 6px 0;
+    margin-top: 4px;
+    overflow: auto;
     background: #fff;
-    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
-    border-radius: 2px;
     border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
 
     @include scroller(#ccc);
 
@@ -165,8 +165,8 @@ export default {
       }
 
       &:hover {
-        cursor: pointer;
         color: #3a84ff;
+        cursor: pointer;
         background: #eaf3ff;
         transition:
           color,

@@ -150,23 +150,23 @@ export default {
 .view-main {
   max-height: 600px;
   min-height: 200px;
+  padding: 0 6px;
+  margin-top: -14px;
   overflow-y: auto;
   font-size: 12px;
-  margin-top: -14px;
-  padding: 0 6px;
 
   .view-container {
     max-height: 264px;
     margin-bottom: 12px;
-    box-sizing: border-box;
     border: 1px solid #dcdee5;
     border-radius: 2px;
+    box-sizing: border-box;
 
     .view-title {
-      border-bottom: 1px solid #dcdee5;
       padding: 6px 12px;
-      background: #f0f1f5;
       cursor: pointer;
+      background: #f0f1f5;
+      border-bottom: 1px solid #dcdee5;
 
       @include flex-justify(space-between);
 

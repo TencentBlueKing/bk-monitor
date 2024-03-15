@@ -257,12 +257,12 @@ export default class IpSelectorTable extends Vue {
   }
 
   .column-string {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    direction: rtl;
-    text-align: left;
     display: block;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
   }
 }
 </style>

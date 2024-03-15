@@ -123,52 +123,52 @@ export default class ChartMenu extends Vue {
 
 <style lang="scss" scoped>
 .chart-menu {
-  width: 182px;
+  position: absolute;
+  z-index: 999;
   display: flex;
-  flex-direction: column;
+  width: 182px;
+  padding: 6px 0;
+  font-size: 12px;
   background: #fff;
   border: 1px solid #dcdee5;
   border-radius: 2px;
   box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.15);
-  padding: 6px 0;
-  font-size: 12px;
-  position: absolute;
-  z-index: 999;
+  flex-direction: column;
 
   &-item {
     display: flex;
     width: 100%;
+    padding-left: 12px;
+    font-weight: normal;
+    color: #63656e;
     align-items: center;
     flex: 0 0 32px;
-    padding-left: 12px;
-    color: #63656e;
-    font-weight: normal;
+
+    .menu-icon,
+    %menu-icon {
+      display: flex;
+      width: 12px;
+      height: 12px;
+      margin-right: 12px;
+      font-size: 14px;
+      color: #979ba5;
+      align-items: center;
+      justify-content: center;
+    }
 
     &:hover {
-      background: #f5f6fa;
       color: #3a84ff;
       cursor: pointer;
+      background: #f5f6fa;
 
       .menu-icon {
         color: #3a84ff;
       }
     }
 
-    .menu-icon,
-    %menu-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      width: 12px;
-      height: 12px;
-      margin-right: 12px;
-      color: #979ba5;
-    }
-
     .link-icon {
-      color: #979ba5;
       margin-left: auto;
+      color: #979ba5;
 
       @extend %menu-icon;
 

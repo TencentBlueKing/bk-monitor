@@ -153,8 +153,8 @@ export default {
     width: 120px;
     height: 40px;
     padding-right: 20px;
-    text-align: right;
     color: #979ba5;
+    text-align: right;
   }
 
   .description-definition {

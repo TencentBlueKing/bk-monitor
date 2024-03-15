@@ -54,20 +54,20 @@ export default class Menu extends Vue {
 
 <style lang="scss" scoped>
 .menu {
-  font-size: 12px;
-  padding: 6px 0;
   min-width: 84px;
+  padding: 6px 0;
+  font-size: 12px;
   background: #fff;
 
   &-item {
     height: 32px;
-    line-height: 32px;
     padding: 0 10px;
+    line-height: 32px;
     cursor: pointer;
 
     &:hover {
-      background: #f5f6fa;
       color: #3a84ff;
+      background: #f5f6fa;
     }
   }
 

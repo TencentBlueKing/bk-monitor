@@ -287,9 +287,9 @@ export default class CustomInput extends Vue {
 
     .err-tips {
       width: 100%;
+      margin-top: 2px;
       color: #ea3636;
       text-align: left;
-      margin-top: 2px;
     }
   }
 

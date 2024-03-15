@@ -580,8 +580,8 @@ export default {
 
 .search-history {
   width: 100%;
-  text-align: right;
   margin: 10px 0 20px 0;
+  text-align: right;
 }
 
 .export-table {
@@ -601,18 +601,18 @@ export default {
 
 .parameter-search {
   max-width: 170px;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .file-name {
+  width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
-  width: 140px;
 }
 
 .status {

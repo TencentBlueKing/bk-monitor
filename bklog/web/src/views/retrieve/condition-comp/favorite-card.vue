@@ -215,11 +215,11 @@ export default {
 .retrieve-favorite-card {
   position: relative;
   display: flex;
-  padding: 0 14px 0 24px;
   height: 42px;
-  flex: 1;
+  padding: 0 14px 0 24px;
   overflow: hidden;
   cursor: pointer;
+  flex: 1;
 
   .card-title {
     margin-right: 12px;
@@ -233,50 +233,50 @@ export default {
   }
 
   .favorite-list {
-    margin: 0 10px;
     display: flex;
+    padding: 14px 0;
+    margin: 0 10px;
     flex-wrap: wrap;
     flex: 1;
-    padding: 14px 0;
   }
 
   .favorite-item {
     position: relative;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
     float: left;
+    height: 22px;
+    padding: 0 4px 0 8px;
     margin-right: 10px;
     margin-bottom: 10px;
-    padding: 0 4px 0 8px;
-    height: 22px;
+    cursor: pointer;
     background: #fafbfd;
     border: 1px solid #dcdee5;
     border-radius: 3px;
-    cursor: pointer;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .fav-overflow-item {
     width: 22px;
     height: 22px;
-    line-height: 18px;
     margin: 0 4px 10px 0;
+    line-height: 18px;
+    background-color: #fafbfd;
     border: 1px solid rgba(151, 155, 165, 0.3);
     border-radius: 3px;
-    background-color: #fafbfd;
 
     .tag {
       display: inline-block;
       width: 100%;
-      text-align: center;
       padding: 0;
+      text-align: center;
     }
   }
 
   .is-latest {
+    color: #3a84ff;
     background: #edf4ff;
     border-color: #3a84ff;
-    color: #3a84ff;
   }
 
   .title {
@@ -284,9 +284,9 @@ export default {
   }
 
   .icon-close-line-2 {
-    display: none;
     position: absolute;
     right: 4px;
+    display: none;
     font-size: 12px;
     color: #63656e;
     cursor: pointer;
@@ -306,8 +306,8 @@ export default {
 
   .expand-icon {
     display: inline-block;
-    color: #63656e;
     font-size: 22px;
+    color: #63656e;
     cursor: pointer;
     transition: transform 0.3s;
 

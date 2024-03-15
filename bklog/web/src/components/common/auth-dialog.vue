@@ -171,9 +171,9 @@ export default {
   }
 
   .title {
+    margin-bottom: 30px;
     font-size: 20px;
     color: #63656e;
-    margin-bottom: 30px;
   }
 
   :deep(.king-table) {

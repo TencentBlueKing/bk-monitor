@@ -123,7 +123,7 @@ export default {
 
 <style lang="scss" scoped>
 @import '../../../scss/mixins/scroller.scss';
-
+/* stylelint-disable no-descending-specificity */
 .retrieve-favorite-container {
   height: 100%;
 
@@ -135,8 +135,8 @@ export default {
 
     .favorite-item {
       padding: 8px 14px;
-      border-bottom: 1px solid #f0f1f5;
       font-size: 12px;
+      border-bottom: 1px solid #f0f1f5;
 
       .title {
         display: flex;
@@ -165,9 +165,9 @@ export default {
             }
 
             .text {
+              overflow: hidden;
               line-height: 24px;
               color: #313238;
-              overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
             }
@@ -188,12 +188,12 @@ export default {
 
             .icon-container {
               display: flex;
-              justify-content: center;
-              align-items: center;
               width: 24px;
               height: 24px;
-              border-radius: 12px;
               cursor: pointer;
+              border-radius: 12px;
+              justify-content: center;
+              align-items: center;
 
               &:hover {
                 color: #3a84ff;
@@ -210,14 +210,15 @@ export default {
         transition: max-height 0.3s;
 
         .text {
-          max-height: 100px;
-          line-height: 20px;
-          margin: 8px 30px 12px;
-          color: #63656e;
-          overflow: hidden;
           display: box;
-          -webkit-line-clamp: 5;
+          max-height: 100px;
+          margin: 8px 30px 12px;
+          overflow: hidden;
+          line-height: 20px;
+          color: #63656e;
+          /* stylelint-disable-next-line property-no-unknown */
           box-orient: vertical;
+          -webkit-line-clamp: 5;
         }
 
         &.expanded {

@@ -619,16 +619,16 @@ export default {
   .article {
     padding: 22px 24px;
     margin-bottom: 20px;
+    background-color: #fff;
     border: 1px solid #dcdee5;
     border-radius: 3px;
-    background-color: #fff;
 
     .title {
       margin: 0 0 10px;
       font-size: 14px;
       font-weight: bold;
-      color: #63656e;
       line-height: 20px;
+      color: #63656e;
     }
 
     .king-form {
@@ -649,18 +649,18 @@ export default {
         position: relative;
         width: 160px;
         padding: 10px 24px 10px 0;
+        font-size: 12px;
         line-height: 32px;
         text-align: right;
-        font-size: 12px;
 
         &:after {
-          content: '*';
-          color: #ea3636;
-          font-size: 12px;
-          display: inline-block;
           position: absolute;
           top: 12px;
           right: 16px;
+          display: inline-block;
+          font-size: 12px;
+          color: #ea3636;
+          content: '*';
         }
       }
 
@@ -671,12 +671,12 @@ export default {
 
         :deep(.bk-tag) {
           display: inline-flex;
-          align-items: center;
           height: 32px;
-          line-height: 32px;
-          background-color: #f0f1f5;
           padding: 0 4px 0 10px;
           margin: 0 10px 10px 0;
+          line-height: 32px;
+          background-color: #f0f1f5;
+          align-items: center;
 
           .bk-tag-close {
             font-size: 18px;

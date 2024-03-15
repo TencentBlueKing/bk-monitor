@@ -201,10 +201,10 @@ export default class SelectorTab extends Vue {
 
   &-header {
     display: flex;
-    align-items: center;
+    background: #fafbfd;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    background: #fafbfd;
+    align-items: center;
   }
 
   &-content {
@@ -221,16 +221,16 @@ export default class SelectorTab extends Vue {
 }
 
 .tab-item {
-  height: 42px;
   display: flex;
-  align-items: center;
+  height: 42px;
+  padding: 0 24px;
   font-size: 14px;
   color: #63656e;
-  padding: 0 24px;
+  cursor: pointer;
   border-right: 1px solid #dcdee5;
   border-bottom: 1px solid #dcdee5;
-  cursor: pointer;
   outline: 0;
+  align-items: center;
 
   &.disabled {
     color: #c4c6cc;
@@ -249,15 +249,15 @@ export default class SelectorTab extends Vue {
 }
 
 .selector-tab-all {
-  font-size: 20px;
+  display: flex;
   width: 32px;
   height: 42px;
+  font-size: 20px;
   line-height: 42px;
-  display: flex;
+  cursor: pointer;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  cursor: pointer;
 
   i {
     outline: 0;

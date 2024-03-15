@@ -607,7 +607,7 @@ export default {
 <style lang="scss" scoped>
 @import '../../../../../../scss/mixins/clearfix';
 @import '../../../../../../scss/conf';
-
+/* stylelint-disable no-descending-specificity */
 .collection-status-container {
   .collect {
     min-width: 1040px;
@@ -618,25 +618,25 @@ export default {
     justify-content: space-between;
 
     span {
-      color: #bfc0c6;
-      font-size: 12px;
       display: inline-block;
       margin-right: 10px;
+      font-size: 12px;
+      color: #bfc0c6;
     }
 
     .icon-question-circle {
-      color: #979ba5;
-      font-size: 16px;
       margin-right: 10px;
+      font-size: 16px;
+      color: #979ba5;
     }
 
     :deep(.bk-button) {
-      font-size: 12px;
       padding: 0 10px;
+      font-size: 12px;
 
       .icon-right-turn-line {
-        font-size: 18px;
         margin-right: 4px;
+        font-size: 18px;
       }
     }
   }
@@ -648,16 +648,15 @@ export default {
       width: 100%;
       height: 42px;
       line-height: 42px;
-      border-radius: 2px 2px 0 0;
       background-color: #f0f1f5;
       border: 1px solid #dcdee5;
       border-bottom: none;
-      user-select: none;
+      border-radius: 2px 2px 0 0;
       user-select: none;
 
       :nth-child(2) {
-        font-weight: Bold;
         font-size: 12px;
+        font-weight: Bold;
         color: #63656e;
       }
 
@@ -667,8 +666,8 @@ export default {
       }
 
       :nth-child(3) {
-        color: #2dcb56;
         margin-left: 20px;
+        color: #2dcb56;
       }
 
       :nth-child(5) {
@@ -704,13 +703,13 @@ export default {
     border-radius: 3px;
 
     span {
-      cursor: pointer;
-      font-size: 12px;
       display: inline-block;
       height: 32px;
-      line-height: 30px;
       padding: 0 15px;
       margin: 0;
+      font-size: 12px;
+      line-height: 30px;
+      cursor: pointer;
       border: 1px #c4c6cc solid;
       border-right: none;
     }
@@ -725,10 +724,9 @@ export default {
     }
 
     .button-wit {
-      background-color: white;
-
       /* stylelint-disable-next-line declaration-no-important */
       color: #63656e !important;
+      background-color: white;
     }
 
     .button-bul {
@@ -742,26 +740,26 @@ export default {
     display: flex;
 
     > div {
-      font-size: 14px;
       margin-left: 24px;
+      font-size: 14px;
 
       p {
         display: inline-block;
-        margin-right: 2px;
-        background-color: #f0f1f5;
-        padding: 0 5px;
-        border-radius: 2px;
-        color: #63656e;
         height: 20px;
-        text-align: center;
+        padding: 0 5px;
+        margin-right: 2px;
         line-height: 20px;
+        color: #63656e;
+        text-align: center;
+        background-color: #f0f1f5;
+        border-radius: 2px;
       }
     }
   }
 
   .title-icon {
-    font-size: 14px;
     margin-left: 23px;
+    font-size: 14px;
 
     &:hover {
       cursor: pointer;
@@ -779,8 +777,8 @@ export default {
     padding-bottom: 0;
 
     .bk-sideslider-content {
-      background-color: #313238;
       color: #c4c6cc;
+      background-color: #313238;
 
       a {
         color: #3a84ff;

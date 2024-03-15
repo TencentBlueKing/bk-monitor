@@ -509,7 +509,7 @@ export default {
 <style lang="scss" scoped>
 @import '@/scss/basic.scss';
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .basic-info-container {
   display: flex;
   justify-content: space-between;
@@ -529,31 +529,31 @@ export default {
     > span:nth-child(1) {
       display: block;
       width: 98px;
+      font-size: 14px;
       color: #979ba5;
       text-align: right;
-      font-size: 14px;
     }
 
     > span:nth-child(2) {
       margin-left: 24px;
-      color: #63656e;
       font-size: 14px;
+      color: #63656e;
     }
 
     .deploy-path {
       margin-left: 24px;
-      color: #63656e;
       font-size: 14px;
       line-height: 22px;
+      color: #63656e;
     }
 
     .num-color {
       display: inline-block;
       padding: 0;
+      font-weight: bold;
 
       /* stylelint-disable-next-line declaration-no-important */
       color: #4e99ff !important;
-      font-weight: bold;
       cursor: pointer;
     }
   }
@@ -563,8 +563,8 @@ export default {
     align-items: flex-start;
 
     .win-log {
-      height: 60px;
       display: flex;
+      height: 60px;
       flex-direction: column;
       justify-content: space-between;
     }
@@ -581,19 +581,19 @@ export default {
     }
 
     > div {
-      font-size: 14px;
       margin-left: 24px;
+      font-size: 14px;
 
       p {
         display: inline-block;
-        margin-right: 2px;
-        background-color: #f0f1f5;
-        padding: 0 5px;
-        border-radius: 2px;
-        color: #63656e;
         height: 20px;
-        text-align: center;
+        padding: 0 5px;
+        margin-right: 2px;
         line-height: 20px;
+        color: #63656e;
+        text-align: center;
+        background-color: #f0f1f5;
+        border-radius: 2px;
       }
     }
   }
@@ -603,19 +603,19 @@ export default {
     border-radius: 2px;
 
     div {
-      height: 40px;
       width: 260px;
+      height: 40px;
+      line-height: 40px;
+      border-right: 1px solid #dcdee5;
       border-bottom: 1px solid #dcdee5;
       border-left: 1px solid #dcdee5;
-      border-right: 1px solid #dcdee5;
-      line-height: 40px;
 
       span:nth-child(1) {
+        display: inline-block;
+        width: 48px;
         margin-left: 14px;
         font-size: 12px;
         color: #313238;
-        display: inline-block;
-        width: 48px;
       }
 
       span:nth-child(2) {
@@ -632,8 +632,8 @@ export default {
 
     .mask-content {
       .view-btn {
-        font-size: 12px;
         margin-left: 8px;
+        font-size: 12px;
         color: #3a84ff;
         cursor: pointer;
       }
@@ -660,16 +660,16 @@ export default {
       }
 
       .operate-box {
-        display: inline-block;
         position: relative;
         top: -2px;
+        display: inline-block;
       }
 
       .icon-copy {
         position: absolute;
         top: -2px;
-        font-size: 26px;
         margin-left: 8px;
+        font-size: 26px;
         cursor: pointer;
 
         &:hover {

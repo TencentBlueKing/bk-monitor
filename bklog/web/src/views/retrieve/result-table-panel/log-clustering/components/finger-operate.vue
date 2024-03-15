@@ -489,8 +489,8 @@ export default {
 
 .fingerprint-setting {
   height: 32px;
-  line-height: 24px;
   font-size: 12px;
+  line-height: 24px;
   flex-shrink: 0;
 
   > div {
@@ -501,10 +501,10 @@ export default {
     @include flex-center;
 
     > span {
-      border-bottom: 1px dashed #979ba5;
       margin-left: 4px;
       line-height: 16px;
       cursor: pointer;
+      border-bottom: 1px dashed #979ba5;
     }
   }
 
@@ -524,15 +524,15 @@ export default {
 .compared-select-option {
   .compared-customize {
     position: relative;
-    margin-bottom: 8px;
     top: -3px;
+    margin-bottom: 8px;
   }
 
   .compared-select-icon {
-    font-size: 14px;
     position: absolute;
     top: 0;
     right: 22px;
+    font-size: 14px;
   }
 
   .customize-option {
@@ -557,17 +557,17 @@ export default {
 }
 
 .alarm-content {
-  color: #3a84ff;
   font-size: 12px;
+  color: #3a84ff;
   cursor: pointer;
 
   .right-alarm {
     margin-left: 6px;
 
     &:before {
-      content: '|';
       margin-right: 6px;
       color: #dcdee5;
+      content: '|';
     }
   }
 }
@@ -598,26 +598,26 @@ export default {
     }
 
     .notice {
-      color: #979ba5;
       font-size: 14px;
+      color: #979ba5;
       cursor: pointer;
     }
 
     .group-alert {
       position: relative;
-      margin: 6px 0 14px 0;
       padding: 6px 30px;
+      margin: 6px 0 14px 0;
       line-height: 20px;
       color: #63656e;
       background: #f0f1f5;
       border-radius: 2px;
 
       .icon-info {
-        color: #979ba5;
-        font-size: 16px;
         position: absolute;
         top: 8px;
         left: 8px;
+        font-size: 16px;
+        color: #979ba5;
       }
     }
 
@@ -639,47 +639,46 @@ export default {
 }
 
 .ext-box {
-  height: 32px;
-
   /* stylelint-disable-next-line declaration-no-important */
   display: flex !important;
+  height: 32px;
 
   @include flex-center();
 
   :deep(.bk-checkbox-text) {
-    /* stylelint-disable-next-line declaration-no-important */
-    font-size: 12px !important;
     width: calc(100% - 20px);
     overflow: hidden;
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 }
 
 .disabled-icon {
+  cursor: not-allowed;
   background-color: #fff;
   border-color: #dcdee5;
-  cursor: not-allowed;
 
   &:hover,
   .log-icon {
-    border-color: #dcdee5;
     color: #c4c6cc;
+    border-color: #dcdee5;
   }
 }
 
 .operation-icon {
   display: flex;
-  justify-content: center;
-  align-items: center;
   width: 26px;
   height: 26px;
   margin-left: 10px;
   cursor: pointer;
   border: 1px solid #c4c6cc;
-  transition: boder-color 0.2s;
   border-radius: 2px;
   outline: none;
+  transition: boder-color 0.2s;
+  justify-content: center;
+  align-items: center;
 
   &:hover {
     border-color: #979ba5;

@@ -197,16 +197,17 @@ export default {
 </script>
 
 <style scoped lang="scss">
+/* stylelint-disable no-descending-specificity */
 .TakeDemo {
   .chunk-border {
     border-top: 1px solid rgba(231, 232, 236, 0.8);
   }
 
   .check {
-    width: 100%;
     display: flex;
-    justify-content: center;
+    width: 100%;
     margin-bottom: 20px;
+    justify-content: center;
 
     div {
       margin-right: 20px;
@@ -223,8 +224,8 @@ export default {
 
   .abscissa {
     display: flex;
-    line-height: 20px;
     margin-top: -2px;
+    line-height: 20px;
 
     .column {
       width: 150px;
@@ -233,15 +234,15 @@ export default {
     }
 
     .chunk {
-      border-top: 1px solid rgba(231, 232, 236, 0.8);
       width: 100%;
-      text-align: center;
       font-size: 12px;
+      text-align: center;
+      border-top: 1px solid rgba(231, 232, 236, 0.8);
     }
 
     .span {
-      width: 6px;
       display: inline-block;
+      width: 6px;
       border-bottom: 1px solid rgba(231, 232, 236, 0.8);
       flex-shrink: 0;
     }
@@ -266,13 +267,13 @@ export default {
 
   .column {
     width: 150px;
-    flex-shrink: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: right;
-    background-color: #fff;
-    line-height: 22px;
     font-size: 14px;
+    line-height: 22px;
+    text-align: right;
+    text-overflow: ellipsis;
+    background-color: #fff;
+    flex-shrink: 0;
   }
 
   span {

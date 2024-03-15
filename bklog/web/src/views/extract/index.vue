@@ -77,8 +77,8 @@ export default {
 
 .log-extract-container {
   padding: 0 24px 20px;
-  color: #313238;
   font-size: 14px;
+  color: #313238;
 
   .top-title-container {
     height: 60px;
@@ -88,18 +88,18 @@ export default {
 
     .top-title {
       display: flex;
-      align-items: center;
-      margin: 0;
       padding-left: 10px;
-      border-left: 2px solid #a3c5fd;
-      line-height: 20px;
+      margin: 0;
       font-size: 14px;
       font-weight: bold;
+      line-height: 20px;
+      border-left: 2px solid #a3c5fd;
+      align-items: center;
 
       .icon-arrows-left-shape {
+        padding: 2px 8px 2px 2px;
         color: #979ba5;
         cursor: pointer;
-        padding: 2px 8px 2px 2px;
         transition: color 0.2s;
 
         &:hover {

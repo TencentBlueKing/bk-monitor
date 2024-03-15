@@ -289,8 +289,8 @@ export default {
 
 .usage-details-container {
   .time-range-wrap {
-    font-weight: normal;
     font-size: 12px;
+    font-weight: normal;
   }
 }
 </style>

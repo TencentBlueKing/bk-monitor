@@ -216,26 +216,26 @@ export default {
   overflow: hidden;
 
   .drag-item {
+    position: absolute;
+    top: 48%;
+    right: 304px;
+    z-index: 100;
+    display: inline-block;
     width: 20px;
     height: 40px;
-    display: inline-block;
     color: #c4c6cc;
-    position: absolute;
-    z-index: 100;
-    right: 304px;
-    top: 48%;
-    user-select: none;
     cursor: col-resize;
+    user-select: none;
 
     &.hidden-drag {
       display: none;
     }
 
     .icon-more::after {
-      content: '\e189';
       position: absolute;
-      left: 0;
       top: 12px;
+      left: 0;
+      content: '\e189';
     }
   }
 

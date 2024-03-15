@@ -592,7 +592,7 @@ export default {
 
 <style lang="scss" scoped>
 @import '../../../scss/mixins/scroller';
-
+/* stylelint-disable no-descending-specificity */
 .retrieve-detail-input {
   position: relative;
 
@@ -610,8 +610,8 @@ export default {
 
     .refresh-btn,
     .icon-refresh-icon {
-      cursor: pointer;
       color: #3a84ff;
+      cursor: pointer;
     }
   }
 
@@ -626,12 +626,12 @@ export default {
     z-index: 99;
     width: 100%;
     max-height: 360px;
-    overflow: auto;
     margin-top: 4px;
+    overflow: auto;
     background: #fff;
-    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
     border: 1px solid #dcdee5;
     border-radius: 2px;
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
 
     @include scroller(#ccc);
 
@@ -643,9 +643,9 @@ export default {
       background-color: #fff;
 
       .item-type-icon {
+        display: flex;
         width: 32px;
         height: 32px;
-        display: flex;
         justify-content: center;
         align-items: center;
 
@@ -655,23 +655,23 @@ export default {
       }
 
       .item-text {
-        flex: 1;
         min-width: 150px;
         padding: 0 8px;
-        color: #63656e;
         font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+        color: #63656e;
+        flex: 1;
       }
 
       .item-description {
-        flex: 2;
-        color: #979ba5;
         margin-left: 24px;
+        color: #979ba5;
+        flex: 2;
 
         .item-callout {
           padding: 0 4px;
+          font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
           color: #313238;
           background-color: #f4f6fa;
-          font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
         }
       }
 
@@ -759,9 +759,9 @@ export default {
     }
 
     .history-title-item.list-item {
-      border-top: 1px solid #dcdee5;
-      background-color: #fff;
       cursor: default;
+      background-color: #fff;
+      border-top: 1px solid #dcdee5;
 
       .item-text {
         color: #979ba5;

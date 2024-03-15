@@ -83,8 +83,8 @@ export default {
 
     .bk-sideslider-content {
       height: 100%;
-      background-color: #313238;
       color: #c4c6cc;
+      background-color: #313238;
 
       .check-info {
         padding: 20px;

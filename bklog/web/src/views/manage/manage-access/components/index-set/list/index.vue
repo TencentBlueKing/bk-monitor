@@ -512,7 +512,7 @@ export default {
 <style lang="scss" scoped>
 @import '../../../../../../scss/mixins/clearfix';
 @import '../../../../../../scss/conf';
-
+/* stylelint-disable no-descending-specificity */
 .index-set-container {
   padding: 20px 24px;
 
@@ -546,11 +546,11 @@ export default {
 
   .indexSet-name {
     display: inline-block;
-    white-space: nowrap;
     overflow: hidden;
     color: #3a84ff;
     // width: 100%;
     text-overflow: ellipsis;
+    white-space: nowrap;
     cursor: pointer;
   }
 

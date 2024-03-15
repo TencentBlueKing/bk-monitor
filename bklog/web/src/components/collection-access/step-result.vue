@@ -175,8 +175,8 @@ export default {
     }
 
     .title {
-      margin: 21px 0 0 0;
       padding: 0;
+      margin: 21px 0 0 0;
       font-size: 16px;
       color: #000;
     }

@@ -92,8 +92,7 @@ export default {
   .exception-image {
     height: 180px;
     user-select: none;
-    user-select: none;
-    user-select: none;
+    /* stylelint-disable-next-line property-no-unknown */
     onselectstart: none;
   }
 
@@ -104,14 +103,14 @@ export default {
   .empty-text {
     margin: 8px 0;
     font-size: 14px;
-    color: #63656e;
     line-height: 22px;
+    color: #63656e;
   }
 
   .operation-text {
     font-size: 12px;
-    color: #63656e;
     line-height: 20px;
+    color: #63656e;
   }
 
   .operation-btn {

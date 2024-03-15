@@ -673,9 +673,9 @@ export default {
     margin-bottom: 25px;
 
     .left-word {
-      font-weight: 700;
-      font-size: 14px;
       margin-right: 16px;
+      font-size: 14px;
+      font-weight: 700;
       flex-shrink: 0;
     }
 
@@ -691,13 +691,13 @@ export default {
     flex-wrap: wrap;
 
     .icon-box {
-      min-width: 32px;
       height: 32px;
-      background: #fff;
+      min-width: 32px;
       font-size: 14px;
       line-height: 28px;
       text-align: center;
       cursor: pointer;
+      background: #fff;
       border: 1px solid #c4c6cc;
 
       :deep(.bk-select-name) {
@@ -734,8 +734,8 @@ export default {
     }
 
     .min-100 {
-      min-width: 100px;
       max-height: 32px;
+      min-width: 100px;
     }
 
     .mr-neg1 {
@@ -771,9 +771,9 @@ export default {
     }
 
     .submit-dialog-title {
-      font-weight: 700;
-      font-size: 16px;
       margin-bottom: 7px;
+      font-size: 16px;
+      font-weight: 700;
     }
 
     .submit-dialog-text {

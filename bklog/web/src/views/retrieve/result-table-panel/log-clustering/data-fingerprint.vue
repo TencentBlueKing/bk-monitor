@@ -1093,7 +1093,7 @@ export default {
 
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .finger-container {
   position: relative;
 
@@ -1102,18 +1102,17 @@ export default {
   }
 
   .auto-height {
-    padding: 2px;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    display: box;
     height: auto; /* 设置元素高度为自动 */
     min-height: 20px; /* 根据需要设置最小高度 */
+    padding: 2px;
     overflow: hidden;
-
-    /* stylelint-disable-next-line property-no-vendor-prefix */
-    display: -webkit-box;
+    text-overflow: ellipsis;
 
     /* stylelint-disable-next-line property-no-vendor-prefix */
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
-    text-overflow: ellipsis;
   }
 
   .top-operate {
@@ -1135,9 +1134,9 @@ export default {
     }
 
     .operate-click {
+      padding-right: 6px;
       color: #3a84ff;
       cursor: pointer;
-      padding-right: 6px;
     }
   }
 
@@ -1145,8 +1144,8 @@ export default {
     color: #313238;
 
     :deep(.bk-table-body-wrapper) {
-      margin-top: 32px;
       min-height: calc(100vh - 570px);
+      margin-top: 32px;
 
       .bk-table-empty-block {
         min-height: calc(100vh - 570px);
@@ -1170,9 +1169,9 @@ export default {
 
       span {
         overflow: hidden;
+        line-height: 24px;
         text-overflow: ellipsis;
         white-space: nowrap;
-        line-height: 24px;
       }
     }
 
@@ -1196,8 +1195,8 @@ export default {
       }
 
       .empty-leave {
-        color: #3a84ff;
         margin-top: 8px;
+        color: #3a84ff;
         cursor: pointer;
       }
     }
@@ -1209,10 +1208,10 @@ export default {
 
     .pattern-content {
       position: relative;
+      display: inline-block;
       padding: 0 6px;
       margin-bottom: 15px;
       overflow: hidden;
-      display: inline-block;
 
       &.is-limit {
         max-height: 96px;
@@ -1239,16 +1238,16 @@ export default {
       top: 80px;
       width: 100%;
       height: 24px;
-      color: #3a84ff;
       font-size: 12px;
-      background: #fff;
+      color: #3a84ff;
       cursor: pointer;
+      background: #fff;
       transition: background-color 0.25s ease;
     }
 
     .hide-whole-btn {
-      line-height: 14px;
       margin-top: 2px;
+      line-height: 14px;
       color: #3a84ff;
       cursor: pointer;
     }
@@ -1269,8 +1268,8 @@ export default {
 .bottom-tips {
   height: 43px;
   line-height: 43px;
-  text-align: center;
   color: #979ba5;
+  text-align: center;
 
   span {
     color: #3a84ff;
@@ -1279,13 +1278,13 @@ export default {
 }
 
 .new-finger {
-  margin-left: 6px;
   width: 40px;
   height: 16px;
+  margin-left: 6px;
   font-size: 12px;
   line-height: 14px;
-  text-align: center;
   color: #ea3636;
+  text-align: center;
   background: #fee;
   border: 1px solid #fd9c9c;
   border-radius: 9px;
@@ -1316,10 +1315,9 @@ export default {
 
   :deep(.user-selector-container) {
     /* stylelint-disable-next-line declaration-no-important */
-    border: none !important;
-
-    /* stylelint-disable-next-line declaration-no-important */
     background: transparent !important;
+    /* stylelint-disable-next-line declaration-no-important */
+    border: none !important;
 
     &.disabled {
       /* stylelint-disable-next-line declaration-no-important */
@@ -1330,11 +1328,11 @@ export default {
 
 #remark-tips {
   .remark-list {
+    max-height: 120px;
+    margin-bottom: 6px;
+    overflow-y: auto;
     font-size: 12px;
     color: #63656e;
-    max-height: 120px;
-    overflow-y: auto;
-    margin-bottom: 6px;
     border-bottom: 1px solid #eaebf0;
 
     .user {
@@ -1342,8 +1340,8 @@ export default {
     }
 
     .content {
-      white-space: pre-wrap;
       padding: 6px 0;
+      white-space: pre-wrap;
     }
 
     .tools {
@@ -1355,8 +1353,8 @@ export default {
 
     .icon {
       display: inline-block;
-      font-size: 14px;
       margin-right: 8px;
+      font-size: 14px;
 
       .bk-icon:hover {
         cursor: pointer;

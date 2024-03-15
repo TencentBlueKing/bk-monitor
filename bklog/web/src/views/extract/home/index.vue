@@ -623,12 +623,12 @@ export default {
       }
 
       .text {
-        color: #313238;
+        padding: 10px 0;
         margin: 0;
         font-size: 16px;
         font-weight: 500;
         line-height: 20px;
-        padding: 10px 0;
+        color: #313238;
         word-break: break-all;
       }
 
@@ -651,8 +651,8 @@ export default {
       .list-item {
         padding: 10px 0;
         line-height: 20px;
-        border-bottom: 1px solid #dcdee5;
         word-break: break-all;
+        border-bottom: 1px solid #dcdee5;
 
         &:hover {
           background-color: #f0f1f5;

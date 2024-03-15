@@ -432,15 +432,15 @@ export default {
 
     .log-icon {
       font-size: 18px;
-      cursor: pointer;
       color: #ea3636;
+      cursor: pointer;
     }
 
     .input-tips {
-      color: #979ba5;
+      margin-top: 2px;
       font-size: 12px;
       line-height: 14px;
-      margin-top: 2px;
+      color: #979ba5;
     }
   }
 
@@ -449,14 +449,14 @@ export default {
     top: 7px;
     right: 14px;
     z-index: 10;
+    padding-left: 12px;
     font-size: 12px;
     color: #2dcb56;
-    padding-left: 12px;
   }
 
   .button-footer {
-    text-align: right;
     margin-top: 20px;
+    text-align: right;
 
     .king-button {
       width: 86px;

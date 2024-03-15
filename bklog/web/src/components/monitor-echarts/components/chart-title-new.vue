@@ -108,10 +108,10 @@ export default class ChartTitle extends Vue {
   .chart-title {
     padding: 4px 10px;
     margin-left: -10px;
-    border-radius: 2px;
-    color: #63656e;
     font-size: 12px;
+    color: #63656e;
     cursor: pointer;
+    border-radius: 2px;
 
     // &:hover {
     //   .main-title {
@@ -122,17 +122,17 @@ export default class ChartTitle extends Vue {
     // }
 
     .main-title {
-      font-weight: 700;
       display: flex;
+      font-weight: 700;
       align-items: center;
       flex-wrap: nowrap;
 
       .title-name {
+        height: 20px;
         overflow: hidden;
+        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
-        line-height: 20px;
-        height: 20px;
       }
 
       .icon-down-shape {
@@ -161,10 +161,10 @@ export default class ChartTitle extends Vue {
     }
 
     .sub-title {
-      line-height: 16px;
       height: 16px;
-      color: #979ba5;
       overflow: hidden;
+      line-height: 16px;
+      color: #979ba5;
       text-overflow: ellipsis;
       white-space: nowrap;
     }

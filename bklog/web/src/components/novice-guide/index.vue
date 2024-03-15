@@ -354,14 +354,13 @@ export default {
 body {
   *.guide-highlight {
     /* stylelint-disable-next-line declaration-no-important */
-    opacity: 1 !important;
-
-    /* stylelint-disable-next-line declaration-no-important */
     z-index: 100001 !important;
-    background: #fff;
 
     /* stylelint-disable-next-line declaration-no-important */
     pointer-events: none !important;
+    background: #fff;
+    /* stylelint-disable-next-line declaration-no-important */
+    opacity: 1 !important;
   }
 }
 
@@ -393,20 +392,20 @@ body {
         top: 0;
         left: 50%;
         display: flex;
-        align-items: center;
-        justify-content: center;
         width: 86px;
         height: 86px;
         font-size: 55px;
         color: #fff;
+        background: #2dcb56;
         border: 13px solid #dcffe2;
         border-radius: 50%;
-        background: #2dcb56;
         transform: translate(-50%, -27px);
+        align-items: center;
+        justify-content: center;
 
         &:after {
-          content: '';
           position: absolute;
+          content: '';
         }
       }
     }
@@ -423,8 +422,8 @@ body {
       height: 370px;
       padding-top: 25px;
       text-align: center;
-      border-radius: 2px;
       background: #fff;
+      border-radius: 2px;
 
       .cancal-btn {
         position: absolute;
@@ -432,13 +431,13 @@ body {
         right: 5px;
         width: 26px;
         height: 26px;
-        font-weight: 700;
         font-size: 22px;
-        color: #979ba5;
+        font-weight: 700;
         line-height: 26px;
+        color: #979ba5;
         text-align: center;
-        border-radius: 50%;
         cursor: pointer;
+        border-radius: 50%;
 
         &:hover {
           background-color: #f0f1f5;

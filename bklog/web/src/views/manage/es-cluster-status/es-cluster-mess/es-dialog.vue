@@ -29,7 +29,7 @@
     header-position="left"
     @value-change="handleVisibilityChange"
   >
-    <div style="padding-bottom: 20px; min-height: 200px">
+    <div style="min-height: 200px; padding-bottom: 20px">
       <bk-table
         v-if="value"
         :data="filterList"

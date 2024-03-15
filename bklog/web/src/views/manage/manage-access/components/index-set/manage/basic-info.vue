@@ -350,21 +350,21 @@ export default {
   }
 
   .description-term {
-    min-width: 120px;
     height: 40px;
+    min-width: 120px;
     padding-right: 20px;
-    text-align: right;
     color: #63656e;
+    text-align: right;
   }
 
   .description-definition {
     width: 200px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-right: 10px;
     height: 40px;
+    margin-right: 10px;
+    overflow: hidden;
     color: #313238;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

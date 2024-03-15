@@ -345,8 +345,8 @@ export default {
     overflow: auto;
 
     .checkbox-container {
-      line-height: 22px;
       padding: 0 0 7px 20px;
+      line-height: 22px;
       border-bottom: 1px solid #dfdfdf;
     }
   }

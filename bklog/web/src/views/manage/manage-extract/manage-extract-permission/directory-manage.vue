@@ -383,8 +383,8 @@ export default {
 <style lang="scss" scoped>
 .directory-manage-container {
   position: relative;
-  padding: 0 0 50px;
   height: calc(100vh - 60px);
+  padding: 0 0 50px;
 
   .directory-manage {
     height: 100%;
@@ -395,21 +395,21 @@ export default {
       margin: 20px 24px 0;
 
       .title {
+        margin-bottom: 8px;
         font-size: 12px;
         line-height: 20px;
-        margin-bottom: 8px;
         color: #313238;
 
         .required {
           font-size: 16px;
-          color: #ff5656;
           font-weight: bold;
+          color: #ff5656;
         }
 
         .icon-info-fill {
+          font-size: 16px;
           color: #979ba5;
           cursor: pointer;
-          font-size: 16px;
         }
       }
 
@@ -444,8 +444,8 @@ export default {
 
         .bk-icon {
           padding: 4px;
-          color: #979ba5;
           font-size: 20px;
+          color: #979ba5;
           cursor: pointer;
         }
       }
@@ -455,14 +455,14 @@ export default {
   .button-container {
     position: absolute;
     bottom: 0;
-    padding-right: 24px;
+    display: flex;
     width: 100%;
     height: 50px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
+    padding-right: 24px;
     background: #fff;
     border-top: 1px solid #dcdee5;
+    justify-content: flex-end;
+    align-items: center;
   }
 }
 </style>

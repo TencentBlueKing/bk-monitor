@@ -514,8 +514,8 @@ export default {
 @import '../../../../scss/mixins/scroller';
 
 .extract-link-create-container {
-  padding: 20px 24px;
   height: 100%;
+  padding: 20px 24px;
   overflow: auto;
 
   @include scroller($backgroundColor: #adadad, $width: 4px);
@@ -523,16 +523,16 @@ export default {
   .article {
     padding: 22px 24px;
     margin-bottom: 20px;
+    background-color: #fff;
     border: 1px solid #dcdee5;
     border-radius: 3px;
-    background-color: #fff;
 
     .title {
       margin: 0 0 10px;
       font-size: 14px;
       font-weight: bold;
-      color: #63656e;
       line-height: 20px;
+      color: #63656e;
     }
 
     .king-form {
@@ -557,13 +557,13 @@ export default {
         text-align: right;
 
         &:after {
-          content: '*';
-          color: #ea3636;
-          font-size: 12px;
-          display: inline-block;
           position: absolute;
           top: 12px;
           right: 16px;
+          display: inline-block;
+          font-size: 12px;
+          color: #ea3636;
+          content: '*';
         }
       }
 
@@ -578,18 +578,18 @@ export default {
       }
 
       .host-list {
+        font-size: 12px;
         border: 1px solid #dcdee5;
         border-bottom: none;
-        font-size: 12px;
 
         .host-item {
           display: flex;
-          align-content: center;
           width: 100%;
-          line-height: 32px;
           padding: 5px 0;
-          border-bottom: 1px solid #dcdee5;
+          line-height: 32px;
           background-color: #fff;
+          border-bottom: 1px solid #dcdee5;
+          align-content: center;
 
           &.header {
             background-color: #fafbfd;

@@ -7,13 +7,13 @@
     @include flex-align();
 
     .tag {
-      flex-shrink: 0;
       height: 16px;
-      line-height: 16px;
-      font-size: 12px;
       padding: 0 4px;
-      border-radius: 2px;
       margin-left: 4px;
+      font-size: 12px;
+      line-height: 16px;
+      border-radius: 2px;
+      flex-shrink: 0;
     }
 
     .global {
@@ -45,14 +45,14 @@
       }
 
       .refresh-btn {
-        min-width: auto;
         width: 32px;
+        min-width: auto;
         padding: 0;
       }
 
       .bk-icon {
-        font-size: 18px;
         top: 0;
+        font-size: 18px;
       }
     }
   }

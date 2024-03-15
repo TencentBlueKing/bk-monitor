@@ -33,7 +33,7 @@
         :loading="isButtonLoading"
         class="king-button"
         theme="primary"
-        style="margin: 20px 0; width: 120px"
+        style="width: 120px; margin: 20px 0"
         data-test-id="extractLinkListBox_button_addNewLinkList"
         @click="handleCreate"
       >

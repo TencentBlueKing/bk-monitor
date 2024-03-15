@@ -109,8 +109,8 @@ export default {
 
 <style lang="scss">
 .advance-clean-land {
-  padding-top: 210px;
   height: 100%;
+  padding-top: 210px;
   text-align: center;
   background: #fff;
   border: 1px solid #dcdee5;
@@ -134,8 +134,8 @@ export default {
 
   .refresh-button {
     margin: 18px 0 20px;
-    color: #3a84ff;
     font-size: 12px;
+    color: #3a84ff;
     cursor: pointer;
   }
 }

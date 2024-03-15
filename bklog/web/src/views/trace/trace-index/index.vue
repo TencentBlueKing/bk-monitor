@@ -93,7 +93,7 @@
                 <div class="icon-wrapper">
                   <span
                     class="log-icon icon-date-picker"
-                    style="font-size: 18px; position: absolute; left: 7px; top: 7px; color: #979ba5"
+                    style="position: absolute; top: 7px; left: 7px; font-size: 18px; color: #979ba5"
                   >
                   </span>
                 </div>
@@ -169,7 +169,7 @@
                 :placeholder="$t('请输入')"
                 @enter="searchHandle"
               ></bk-input>
-              <div style="line-height: 30px; padding-top: 10px">{{ $t('至') }}</div>
+              <div style="padding-top: 10px; line-height: 30px">{{ $t('至') }}</div>
               <bk-input
                 v-model="searchData.duration_lte"
                 type="number"
@@ -1148,7 +1148,7 @@ export default {
 @import '../../../scss/mixins/scroller';
 @import '../../../scss/mixins/clearfix.scss';
 @import '../../../scss/devops-common.scss';
-
+/* stylelint-disable no-descending-specificity */
 #trace {
   height: 100%;
   overflow-y: auto;
@@ -1157,20 +1157,20 @@ export default {
 
   .chart-view {
     position: relative;
-    background: #fff;
     padding: 20px 60px;
+    background: #fff;
 
     .chart-click {
-      z-index: 10;
       position: absolute;
       top: 30px;
+      z-index: 10;
       font-size: 14px;
 
       span {
         display: inline-block;
+        padding: 5px;
         margin-left: 20px;
         cursor: pointer;
-        padding: 5px;
       }
 
       .click-color {
@@ -1182,11 +1182,11 @@ export default {
 
   .search-item {
     display: flex;
-    flex-wrap: wrap;
-    background: #f4f7fa;
     padding: 0 60px;
-    color: #63656e;
     font-size: 14px;
+    color: #63656e;
+    background: #f4f7fa;
+    flex-wrap: wrap;
 
     .text-item {
       margin-bottom: 8px;
@@ -1194,8 +1194,8 @@ export default {
     }
 
     .search-trace {
-      margin-right: 10px;
       padding-top: 20px;
+      margin-right: 10px;
     }
   }
 
@@ -1206,17 +1206,17 @@ export default {
 
   .more-text {
     display: inline-block;
-    cursor: pointer;
-    transition: height 0.2s;
     padding-left: 20px;
     line-height: 30px;
+    cursor: pointer;
+    transition: height 0.2s;
   }
 
   .search-time {
-    padding: 20px 60px 0 60px;
     display: flex;
-    color: #63656e;
+    padding: 20px 60px 0 60px;
     font-size: 14px;
+    color: #63656e;
 
     .duration {
       div {
@@ -1232,12 +1232,12 @@ export default {
 
   .search-keyword {
     padding: 20px 60px 0 60px;
-    color: #63656e;
     font-size: 14px;
+    color: #63656e;
 
     div {
-      margin-bottom: 10px;
       margin-right: 10px;
+      margin-bottom: 10px;
     }
   }
 
@@ -1256,15 +1256,15 @@ export default {
   }
 
   .icon-sec {
+    margin-right: 3px;
     font-size: 12px;
     color: rgb(45, 203, 86);
-    margin-right: 3px;
   }
 
   .icon-fai {
+    margin-right: 3px;
     font-size: 12px;
     color: rgb(234, 54, 54);
-    margin-right: 3px;
   }
 
   .search-detail-button {
@@ -1291,21 +1291,21 @@ export default {
 
   .fixed-scroll-top-btn {
     position: fixed;
-    bottom: 24px;
     right: 14px;
+    bottom: 24px;
+    z-index: 50;
     display: flex;
-    justify-content: center;
-    align-items: center;
     width: 36px;
     height: 36px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    color: #63656e;
+    cursor: pointer;
+    background: #f0f1f5;
     border: 1px solid #dde4eb;
     border-radius: 4px;
-    color: #63656e;
-    background: #f0f1f5;
-    cursor: pointer;
-    z-index: 50;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
     transition: all 0.2s;
+    justify-content: center;
+    align-items: center;
 
     &:hover {
       color: #fff;

@@ -315,8 +315,8 @@ export default {
   .event-box {
     height: 32px;
     min-width: 240px;
-    font-size: 12px;
     padding: 0 10px;
+    font-size: 12px;
     cursor: pointer;
 
     @include flex-center();
@@ -377,8 +377,8 @@ export default {
   }
 
   .menu-list {
-    display: none;
     position: absolute;
+    display: none;
   }
 
   .valid-text {
@@ -391,8 +391,8 @@ export default {
   }
 
   .null-item {
-    min-width: 6px;
     display: inline;
+    min-width: 6px;
   }
 }
 </style>

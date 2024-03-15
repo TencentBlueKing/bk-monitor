@@ -113,24 +113,25 @@ export default {
 </script>
 
 <style lang="scss">
+/* stylelint-disable no-descending-specificity */
 #graph-wrapper {
   width: 100%;
   height: 458px;
 
   .node-item,
   .subscript {
-    padding: 0 10px;
-    line-height: 30px;
-    text-align: center;
-    font-size: 12px;
     height: 30px;
-    border-radius: 3px;
-    background-color: #f0f9eb;
-    border: 1px solid #defad0;
-    color: #67c23a;
+    padding: 0 10px;
     overflow: hidden;
+    font-size: 12px;
+    line-height: 30px;
+    color: #67c23a;
+    text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
+    background-color: #f0f9eb;
+    border: 1px solid #defad0;
+    border-radius: 3px;
     transition: all 0.2s;
 
     a {
@@ -138,20 +139,20 @@ export default {
     }
 
     &:hover {
-      background: #83f095;
       color: #fff;
+      background: #83f095;
       transition: all 0.2s;
     }
 
     &.is-error {
+      color: #f56c6c;
       background-color: #ffeded;
       border: 1px solid #fde2e2;
-      color: #f56c6c;
       transition: all 0.2s;
 
       &:hover {
-        background: #fbb8ac;
         color: #fff;
+        background: #fbb8ac;
         transition: all 0.2s;
       }
     }
@@ -161,7 +162,9 @@ export default {
     position: relative;
 
     &::before {
-      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
       display: inline-block;
       width: 0;
       height: 0;
@@ -169,9 +172,7 @@ export default {
       border-right: 7px solid transparent;
       border-bottom: 7px solid transparent;
       border-left: 7px solid #44e35f;
-      position: absolute;
-      top: 0;
-      left: 0;
+      content: '';
     }
 
     &.is-error {

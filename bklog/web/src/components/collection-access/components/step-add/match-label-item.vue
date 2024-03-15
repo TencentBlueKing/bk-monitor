@@ -380,13 +380,13 @@ export default {
 </script>
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .match-container {
   width: 100%;
 
   .is-disabled {
-    opacity: 0.6;
     cursor: no-drop;
+    opacity: 0.6;
 
     .operator,
     .select-operator {
@@ -401,9 +401,9 @@ export default {
 }
 
 .customize-box {
-  padding: 4px 0;
-  width: 100%;
   display: flex;
+  width: 100%;
+  padding: 4px 0;
   align-items: center;
 
   .customize-left {
@@ -417,9 +417,9 @@ export default {
   }
 
   .fill-key {
-    width: 100%;
     position: relative;
     z-index: 999;
+    width: 100%;
     margin-right: -1px;
 
     :deep(.bk-form-input) {
@@ -429,9 +429,9 @@ export default {
   }
 
   .fill-operate {
-    border-radius: 0;
-    margin-right: -1px;
     min-width: 100px;
+    margin-right: -1px;
+    border-radius: 0;
 
     &.is-focus {
       z-index: 999;
@@ -447,8 +447,8 @@ export default {
     }
 
     :deep(.bk-form-input) {
-      border-top-left-radius: 0;
       border-bottom-left-radius: 0;
+      border-top-left-radius: 0;
     }
   }
 
@@ -460,13 +460,13 @@ export default {
     }
 
     .icon-check-line {
-      color: #2dcb56;
       margin: 0 7px;
+      color: #2dcb56;
     }
 
     .icon-close-line-2 {
-      color: #c4c6cc;
       margin-right: 8px;
+      color: #c4c6cc;
     }
   }
 }
@@ -490,39 +490,39 @@ export default {
 }
 
 .specify-box {
-  width: 100%;
   display: flex;
-  flex-flow: wrap;
+  width: 100%;
   padding: 2px 8px;
+  font-size: 12px;
   background: #f5f7fa;
   border-radius: 2px;
-  font-size: 12px;
+  flex-flow: wrap;
 
   .specify-container {
+    display: flex;
     width: 50%;
     padding: 0 6px;
-    line-height: 30px;
     overflow: hidden;
-    display: flex;
+    line-height: 30px;
     justify-content: start;
     align-items: center;
 
     .operator,
     %operator {
-      margin-right: 10px;
-      padding: 0 6px;
       height: 24px;
-      line-height: 24px;
-      text-align: center;
+      padding: 0 6px;
+      margin-right: 10px;
       font-weight: 700;
+      line-height: 24px;
       color: #ff9c01;
+      text-align: center;
       background: #fff;
       border-radius: 2px;
     }
 
     .select-operator {
-      padding: 0;
       height: 24px;
+      padding: 0;
       line-height: 24px;
       border: none;
 
@@ -544,17 +544,17 @@ export default {
 }
 
 .edit {
-  visibility: hidden;
-  color: #979ba5;
   font-size: 18px;
+  color: #979ba5;
+  visibility: hidden;
 
   .bk-icon {
     cursor: pointer;
   }
 
   .icon-edit-line {
-    font-size: 16px;
     margin: 0 8px;
+    font-size: 16px;
   }
 
   .icon-close-line-2 {

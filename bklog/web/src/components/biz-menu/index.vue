@@ -407,31 +407,31 @@ export default {
 <style lang="scss">
 @import '../../scss/mixins/flex.scss';
 @import '../../scss/mixins/ellipsis.scss';
-
+/* stylelint-disable no-descending-specificity */
 .biz-menu-select {
   padding-left: 8px;
 
   .menu-select {
-    padding: 0 4px 0 8px;
-    flex: 1;
-    display: flex;
-    align-items: center;
     position: relative;
+    display: flex;
     height: 32px;
-    border-radius: 2px;
+    padding: 0 4px 0 8px;
     background-color: #2b354d;
+    border-radius: 2px;
+    flex: 1;
+    align-items: center;
 
     &-name {
-      padding: 0 26px 0 8px;
-      flex: 1;
       position: relative;
-      color: #acb2c6;
-      font-size: 12px;
+      padding: 0 26px 0 8px;
       overflow: hidden;
+      font-size: 12px;
+      line-height: 30px;
+      color: #acb2c6;
       text-overflow: ellipsis;
       white-space: nowrap;
-      line-height: 30px;
       cursor: pointer;
+      flex: 1;
 
       .select-icon {
         position: absolute;
@@ -450,39 +450,38 @@ export default {
     }
 
     &-list {
-      display: flex;
       position: fixed;
-      left: 0;
       top: 100px;
-      flex-direction: column;
-      z-index: 99;
-      background-color: #38455f;
+      left: 0;
+      z-index: 2000;
+      display: flex;
       overflow: auto;
+      background-color: #38455f;
       border-radius: 2px;
       box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
-      z-index: 2000;
+      flex-direction: column;
 
       .biz-list {
         display: flex;
-        flex-direction: column;
         max-height: 240px;
-        overflow: auto;
         padding: 6px 0;
+        overflow: auto;
+        flex-direction: column;
 
         .group-title {
+          display: inline-block;
+          margin: 0 0 7px 12px;
           font-size: 12px;
           color: #66768e;
-          margin: 0 0 7px 12px;
-          display: inline-block;
         }
 
         .list-empty,
         %list-empty {
           height: 32px;
-          flex: 0 0 32px;
           padding: 0 9px 0 12px;
-          color: #c3d0e7;
           font-size: 12px;
+          color: #c3d0e7;
+          flex: 0 0 32px;
 
           @include flex-center;
         }
@@ -555,28 +554,28 @@ export default {
         }
 
         &::-webkit-scrollbar-thumb {
-          border-radius: 20px;
           background: #ddd;
+          border-radius: 20px;
           box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
         }
       }
     }
 
     &-search {
+      width: inherit;
       padding: 0 12px;
       flex: 1;
-      width: inherit;
 
       .left-icon {
         color: #63656e;
       }
 
       .bk-form-input {
+        color: #acb5c6;
+        background-color: #38455f;
         border: 0;
         border-bottom: 1px solid rgba(240, 241, 245, 0.16);
         border-radius: 0;
-        background-color: #38455f;
-        color: #acb5c6;
 
         &::placeholder {
           /* stylelint-disable-next-line declaration-no-important */
@@ -597,11 +596,11 @@ export default {
     &-extension {
       display: flex;
       padding: 10px 0;
-      border-top: 1px solid #434e68;
       font-size: 12px;
       color: #c3d0e7;
-      background-color: #323c53;
       cursor: pointer;
+      background-color: #323c53;
+      border-top: 1px solid #434e68;
 
       &-item {
         width: 50%;
@@ -628,16 +627,16 @@ export default {
   }
 
   .menu-title {
-    height: 20px;
-    flex: 1;
-    border-radius: 2px;
     width: 20px;
-    min-width: 20px;
+    height: 20px;
     max-width: 20px;
-    background: #a09e21;
-    color: #fff;
-    font-weight: 700;
+    min-width: 20px;
     font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    background: #a09e21;
+    border-radius: 2px;
+    flex: 1;
 
     @include flex-center;
   }
@@ -651,8 +650,8 @@ export default {
     border: 0;
 
     .menu-select-name {
-      color: #313238;
       font-size: 14px;
+      color: #313238;
     }
 
     .select-icon {
@@ -672,10 +671,10 @@ export default {
         padding: 6px 0;
 
         .group-title {
+          display: inline-block;
+          margin: 0 0 7px 12px;
           font-size: 12px;
           color: #c4c6cc;
-          margin: 0 0 7px 12px;
-          display: inline-block;
         }
 
         .list-empty,
@@ -714,15 +713,15 @@ export default {
     }
 
     &-name {
-      color: #63656e;
       font-size: 12px;
+      color: #63656e;
     }
 
     &-search {
       .bk-form-input {
-        border-bottom: 1px solid #eaebf0;
-        background-color: #fff;
         color: #63656e;
+        background-color: #fff;
+        border-bottom: 1px solid #eaebf0;
 
         &::placeholder {
           background-color: #fff;
@@ -739,9 +738,9 @@ export default {
     }
 
     &-extension {
-      border-top: 1px solid #dcdee5;
       color: #63656e;
       background-color: #fafbfd;
+      border-top: 1px solid #dcdee5;
 
       &-item {
         &:hover {
@@ -773,15 +772,15 @@ export default {
 
   .space-type-item {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 10px;
-    border-radius: 2px;
-    margin-right: 4px;
     height: 22px;
+    padding: 0 10px;
+    margin-right: 4px;
     font-size: 12px;
     cursor: pointer;
     border: 1px solid transparent;
+    border-radius: 2px;
+    align-items: center;
+    justify-content: center;
   }
 }
 </style>

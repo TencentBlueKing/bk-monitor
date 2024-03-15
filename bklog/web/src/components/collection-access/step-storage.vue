@@ -819,11 +819,11 @@ export default {
 @import '@/scss/mixins/clearfix';
 @import '@/scss/storage.scss';
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .step-storage {
   position: relative;
-  min-width: 950px;
   max-height: 100%;
+  min-width: 950px;
   padding: 0 42px 42px;
   overflow: auto;
 
@@ -832,10 +832,10 @@ export default {
   }
 
   .tips {
-    font-size: 12px;
-    color: #aeb0b7;
     margin-left: 8px;
+    font-size: 12px;
     line-height: 32px;
+    color: #aeb0b7;
   }
 
   .form-div {
@@ -852,23 +852,23 @@ export default {
     }
 
     .prefix {
+      min-width: 80px;
+      margin-right: 8px;
       font-size: 14px;
       line-height: 32px;
       color: #858790;
-      margin-right: 8px;
-      min-width: 80px;
       text-align: right;
     }
   }
 
   .add-collection-title {
     width: 100%;
+    padding-bottom: 10px;
+    margin: 30px 0 20px 0;
     font-size: 14px;
     font-weight: 600;
     color: #63656e;
     border-bottom: 1px solid #dcdee5;
-    padding-bottom: 10px;
-    margin: 30px 0 20px 0;
   }
 
   .capacity-assessment {
@@ -878,8 +878,8 @@ export default {
     @include flex-align;
 
     .capacity-message {
-      color: #63656e;
       margin-left: 20px;
+      color: #63656e;
     }
 
     .icon-angle-double-down {
@@ -897,20 +897,20 @@ export default {
 
   .capacity-illustrate {
     height: 104px;
+    padding: 12px 20px;
+    margin-bottom: 20px;
     background: #fafbfd;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    padding: 12px 20px;
-    margin-bottom: 20px;
 
     .illustrate-title {
       font-weight: 700;
     }
 
     p {
-      color: #63656e;
       margin-bottom: 4px;
       font-size: 12px;
+      color: #63656e;
     }
   }
 
@@ -924,12 +924,12 @@ export default {
 
     .unit-container {
       width: 40px;
-      border: 1px solid #c4c6cc;
-      background: #f2f4f8;
-      color: #63656e;
-      text-align: center;
       margin: 1px 0 0 -1px;
       margin-right: 8px;
+      color: #63656e;
+      text-align: center;
+      background: #f2f4f8;
+      border: 1px solid #c4c6cc;
     }
 
     .right {
@@ -943,8 +943,8 @@ export default {
     @include flex-align;
 
     .bk-checkbox-text {
-      font-size: 12px;
       margin-right: 12px;
+      font-size: 12px;
     }
 
     .approval-alert {
@@ -953,8 +953,8 @@ export default {
     }
 
     .icon-exclamation-circle {
-      font-size: 16px;
       margin-right: 8px;
+      font-size: 16px;
       color: #ff9c01;
     }
   }

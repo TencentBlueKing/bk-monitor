@@ -89,9 +89,9 @@ export default class SelectorContent extends Vue {
 
 <style lang="scss" scoped>
 .selector-content {
+  height: 100%;
   padding: 24px 24px 0 24px;
   overflow: hidden;
-  height: 100%;
   background: #fff;
 
   .layout {

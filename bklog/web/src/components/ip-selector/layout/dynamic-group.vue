@@ -253,13 +253,13 @@ export default class DynamicGroup extends Vue {
     }
 
     .group-list-item {
-      height: 32px;
-      line-height: 32px;
       display: flex;
-      justify-content: space-between;
-      cursor: pointer;
+      height: 32px;
       padding: 0 10px;
+      line-height: 32px;
+      cursor: pointer;
       border-radius: 2px;
+      justify-content: space-between;
 
       .item-name {
         display: flex;
@@ -275,11 +275,11 @@ export default class DynamicGroup extends Vue {
       }
 
       .count {
+        display: inline-block;
         height: 20px;
+        padding: 0 5px;
         line-height: 20px;
         background: #f0f1f5;
-        padding: 0 5px;
-        display: inline-block;
       }
 
       &:hover {

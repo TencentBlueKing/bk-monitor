@@ -218,9 +218,9 @@ export default {
 
     .status-icon {
       display: inline-block;
-      margin-right: 6px;
       width: 4px;
       height: 4px;
+      margin-right: 6px;
       border-radius: 50%;
 
       &.is-SUCCESS {

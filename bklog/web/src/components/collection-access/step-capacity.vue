@@ -496,12 +496,12 @@ export default {
 
       .capacity-description-container {
         padding: 5px 10px;
+        font-size: 12px;
         line-height: 18px;
         color: #63656e;
         background-color: #fafbfd;
         border: 1px solid #c4c6cc;
         border-radius: 2px;
-        font-size: 12px;
 
         .content {
           margin-left: 24px;
@@ -516,9 +516,9 @@ export default {
 
           .column {
             display: flex;
-            flex-flow: column;
-            white-space: pre-wrap;
             text-align: center;
+            white-space: pre-wrap;
+            flex-flow: column;
           }
         }
       }

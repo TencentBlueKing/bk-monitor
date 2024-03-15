@@ -276,8 +276,8 @@ export default {
   }
 
   :deep(.bk-date-picker-editor) {
-    background: #fff;
     line-height: 30px;
+    background: #fff;
 
     &.is-focus {
       border-color: #3a84ff;
@@ -286,8 +286,8 @@ export default {
 
   :deep(.icon-date-picker) {
     position: absolute;
-    left: 7px;
     top: 7px;
+    left: 7px;
     font-size: 18px;
   }
 }

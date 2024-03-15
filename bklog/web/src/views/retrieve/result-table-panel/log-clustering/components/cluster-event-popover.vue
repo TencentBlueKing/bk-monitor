@@ -145,8 +145,8 @@ export default {
   .event-box {
     height: 32px;
     min-width: 240px;
-    font-size: 12px;
     padding: 0 10px;
+    font-size: 12px;
     cursor: pointer;
 
     @include flex-center();

@@ -191,8 +191,8 @@ export default {
   }
 
   .top-nav-list {
-    border-left: 1px solid $borderWeightColor;
     color: #313238;
+    border-left: 1px solid $borderWeightColor;
 
     @include clearfix;
 
@@ -223,8 +223,8 @@ export default {
     color: #64656e;
 
     span {
-      cursor: pointer;
       color: #979ba5;
+      cursor: pointer;
     }
 
     span:hover {

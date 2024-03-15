@@ -283,8 +283,8 @@ export default {
 
     .switch-label {
       margin-right: 2px;
-      color: #63656e;
       font-size: 12px;
+      color: #63656e;
     }
   }
 
@@ -296,16 +296,16 @@ export default {
 
     .operation-icon {
       display: flex;
-      justify-content: center;
-      align-items: center;
       width: 32px;
       height: 32px;
       margin-left: 10px;
       cursor: pointer;
       border: 1px solid #c4c6cc;
-      transition: boder-color 0.2s;
       border-radius: 2px;
       outline: none;
+      transition: boder-color 0.2s;
+      justify-content: center;
+      align-items: center;
 
       &:hover {
         border-color: #979ba5;
@@ -325,14 +325,14 @@ export default {
     }
 
     .disabled-icon {
+      cursor: not-allowed;
       background-color: #fff;
       border-color: #dcdee5;
-      cursor: not-allowed;
 
       &:hover,
       .log-icon {
-        border-color: #dcdee5;
         color: #c4c6cc;
+        border-color: #dcdee5;
       }
     }
   }
@@ -349,15 +349,15 @@ export default {
   }
 
   .field-select {
+    position: relative;
     width: 120px;
     margin-left: 16px;
-    position: relative;
 
     .icon-field-config {
-      width: 18px;
       position: absolute;
       top: 4px;
       left: 4px;
+      width: 18px;
     }
 
     :deep(.bk-select .bk-select-name) {
@@ -372,8 +372,8 @@ export default {
   @include flex-center();
 
   :last-child {
-    color: #63656e;
     margin-left: 4px;
+    color: #63656e;
   }
 
   .icon-close-circle {

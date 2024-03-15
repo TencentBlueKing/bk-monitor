@@ -409,8 +409,8 @@ export default {
 
 <style lang="scss">
 .restore-slider-content {
-  min-height: 394px;
   height: calc(100vh - 60px);
+  min-height: 394px;
 
   .bk-form.bk-form-vertical {
     padding: 10px 0 36px 36px;

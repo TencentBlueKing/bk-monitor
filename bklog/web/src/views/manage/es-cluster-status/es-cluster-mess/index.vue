@@ -43,7 +43,7 @@
         </bk-button>
         <bk-input
           v-model="params.keyword"
-          style="width: 360px; float: right"
+          style="float: right; width: 360px"
           right-icon="bk-icon icon-search"
           data-test-id="esAccessBox_input_search"
           :placeholder="$t('搜索ES源名称，地址，创建人')"
@@ -763,9 +763,9 @@ export default {
 
 <style lang="scss">
 .es-access-container {
-  transition: padding 0.5s;
   position: relative;
   display: flex;
+  transition: padding 0.5s;
   justify-content: space-between;
 
   .main-operator-container {
@@ -782,8 +782,8 @@ export default {
       .bk-badge {
         width: 5px;
         height: 5px;
-        border-radius: 50%;
         margin-right: 4px;
+        border-radius: 50%;
       }
 
       .bk-danger {
@@ -823,26 +823,26 @@ export default {
   }
 
   .drag-item {
+    position: absolute;
+    top: 48%;
+    right: 304px;
+    z-index: 99;
+    display: inline-block;
     width: 20px;
     height: 40px;
-    display: inline-block;
     color: #c4c6cc;
-    position: absolute;
-    z-index: 99;
-    right: 304px;
-    top: 48%;
-    user-select: none;
     cursor: col-resize;
+    user-select: none;
 
     &.hidden-drag {
       display: none;
     }
 
     .icon-more::after {
-      content: '\e189';
       position: absolute;
-      left: 0;
       top: 12px;
+      left: 0;
+      content: '\e189';
     }
   }
 

@@ -234,6 +234,7 @@ export default {
 </script>
 
 <style lang="scss">
+/* stylelint-disable no-descending-specificity */
 .log-cluster-table {
   color: #313238;
 
@@ -263,11 +264,11 @@ export default {
   }
 
   .symbol-content {
+    position: relative;
     display: inline-block;
     padding-right: 15px;
-    position: relative;
-    line-height: 20px;
     overflow: hidden;
+    line-height: 20px;
 
     &.is-limit {
       max-height: 96px;
@@ -285,16 +286,16 @@ export default {
     top: 80px;
     width: 100%;
     height: 24px;
-    color: #3a84ff;
     font-size: 12px;
-    background: #fff;
+    color: #3a84ff;
     cursor: pointer;
+    background: #fff;
     transition: background-color 0.25s ease;
   }
 
   .hide-whole-btn {
-    line-height: 14px;
     margin-top: 2px;
+    line-height: 14px;
     color: #3a84ff;
     cursor: pointer;
   }
@@ -325,8 +326,8 @@ export default {
     align-items: center;
 
     .empty-leave {
-      color: #3a84ff;
       margin-top: 8px;
+      color: #3a84ff;
       cursor: pointer;
     }
   }

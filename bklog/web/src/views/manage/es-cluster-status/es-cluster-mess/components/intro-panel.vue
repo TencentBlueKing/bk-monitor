@@ -227,22 +227,22 @@ export default {
   height: 100%;
 
   .right-window {
-    height: 100vh;
+    position: absolute;
     width: 100%;
+    height: 100vh;
+    padding: 16px 0 0 24px;
+    color: #63656e;
     background: #fff;
     border-left: 1px solid #dcdee5;
-    position: absolute;
-    color: #63656e;
-    padding: 16px 0 0 24px;
 
     .top-title {
       height: 28px;
     }
 
     h1 {
+      margin: 26px 0 10px;
       font-size: 12px;
       font-weight: 700;
-      margin: 26px 0 10px;
 
       &:first-child {
         margin-top: 0;
@@ -254,8 +254,8 @@ export default {
 
       li {
         margin-top: 8px;
-        list-style: inside;
         font-size: 12px;
+        list-style: inside;
       }
     }
 
@@ -264,11 +264,11 @@ export default {
     }
 
     pre {
+      padding: 10px 14px;
       margin: 0;
       margin-top: 6px;
-      padding: 10px 14px;
-      background: #f4f4f7;
       overflow-x: auto;
+      background: #f4f4f7;
 
       @include scroller;
     }
@@ -302,8 +302,8 @@ export default {
         color: #3a84ff;
 
         span {
-          transform: translateY(-1px);
           display: inline-block;
+          transform: translateY(-1px);
         }
       }
 
@@ -314,17 +314,17 @@ export default {
   }
 
   .create-btn {
-    width: 24px;
-    height: 24px;
     position: absolute;
     z-index: 999;
+    width: 24px;
+    height: 24px;
 
     @include flex-center;
 
     &.details {
+      position: fixed;
       top: 64px;
       right: 16px;
-      position: fixed;
       transform: rotateZ(360deg) rotateX(180deg);
 
       @include flex-center;
@@ -336,9 +336,9 @@ export default {
     }
 
     &:hover {
+      color: #3a84ff;
       cursor: pointer;
       background: #f0f1f5;
-      color: #3a84ff;
       border-radius: 2px;
     }
   }
@@ -351,9 +351,9 @@ export default {
     padding: 0 2px 10px;
 
     .qw-icon {
+      margin-right: 10px;
       font-size: 38px;
       color: #3a84ff;
-      margin-right: 10px;
     }
   }
 

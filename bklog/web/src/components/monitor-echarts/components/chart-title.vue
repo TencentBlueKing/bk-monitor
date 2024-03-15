@@ -95,40 +95,27 @@ export default class ChartTitle extends Vue {
   .chart-title {
     padding: 5px 10px;
     margin-left: -10px;
-    border-radius: 2px;
-    color: #63656e;
     font-size: 12px;
-
-    &:hover {
-      background-color: #f0f1f5;
-      cursor: pointer;
-
-      .main-title {
-        color: black;
-
-        &::after {
-          display: flex;
-        }
-      }
-    }
+    color: #63656e;
+    border-radius: 2px;
 
     .main-title {
-      font-weight: 700;
       display: flex;
+      font-weight: 700;
       align-items: center;
       flex-wrap: nowrap;
 
       .title-name {
+        height: 20px;
         overflow: hidden;
+        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
-        line-height: 20px;
-        height: 20px;
       }
 
       .icon-down-shape {
-        font-size: 16px;
         margin-right: 8px;
+        font-size: 16px;
         color: #c4c6cc;
         transition: transform 0.3s;
 
@@ -139,25 +126,36 @@ export default class ChartTitle extends Vue {
       }
 
       &::after {
-        /* stylelint-disable-next-line declaration-no-important */
-        font-family: 'icon-monitor' !important;
-        content: '\e61c';
-        font-size: 20px;
+        display: none;
         width: 24px;
         height: 16px;
+        margin-right: auto;
+        font-size: 20px;
+        color: #979ba5;
+        content: '\e61c';
         align-items: center;
         justify-content: center;
-        color: #979ba5;
-        margin-right: auto;
-        display: none;
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: #f0f1f5;
+
+      .main-title {
+        color: black;
+
+        &::after {
+          display: flex;
+        }
       }
     }
 
     .sub-title {
-      line-height: 16px;
       height: 16px;
-      color: #979ba5;
       overflow: hidden;
+      line-height: 16px;
+      color: #979ba5;
       text-overflow: ellipsis;
       white-space: nowrap;
     }

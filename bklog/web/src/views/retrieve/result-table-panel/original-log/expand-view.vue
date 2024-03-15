@@ -128,22 +128,22 @@ export default {
       display: inline-block;
       width: 68px;
       height: 26px;
-      line-height: 26px;
       font-size: 12px;
-      border: 1px solid #eaebf0;
-      background-color: #f5f7fa;
-      border-top: 0;
+      line-height: 26px;
       text-align: center;
       cursor: pointer;
+      background-color: #f5f7fa;
+      border: 1px solid #eaebf0;
+      border-top: 0;
 
       &:first-child {
         border-left: 0;
       }
 
       &.active {
-        border: 0;
         color: #3a84ff;
         background-color: #fafbfd;
+        border: 0;
       }
     }
   }

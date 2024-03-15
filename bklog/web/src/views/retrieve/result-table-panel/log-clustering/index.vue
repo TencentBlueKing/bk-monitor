@@ -642,7 +642,7 @@ export default {
 
 <style lang="scss">
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .log-cluster-table-container {
   overflow: hidden;
 
@@ -684,8 +684,8 @@ export default {
     }
 
     .empty-leave {
-      color: #3a84ff;
       margin-top: 8px;
+      color: #3a84ff;
       cursor: pointer;
     }
   }
@@ -693,21 +693,21 @@ export default {
 
 .fixed-scroll-top-btn {
   position: fixed;
-  bottom: 24px;
   right: 14px;
+  bottom: 24px;
+  z-index: 2100;
   display: flex;
-  justify-content: center;
-  align-items: center;
   width: 36px;
   height: 36px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  color: #63656e;
+  cursor: pointer;
+  background: #f0f1f5;
   border: 1px solid #dde4eb;
   border-radius: 4px;
-  color: #63656e;
-  background: #f0f1f5;
-  cursor: pointer;
-  z-index: 2100;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
   transition: all 0.2s;
+  justify-content: center;
+  align-items: center;
 
   &:hover {
     color: #fff;

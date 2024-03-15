@@ -159,9 +159,9 @@ export default {
   padding: 8px 2px;
 
   .title {
+    margin-bottom: 10px;
     font-size: 12px;
     line-height: 16px;
-    margin-bottom: 10px;
   }
 
   .king-radio-group {
@@ -225,9 +225,9 @@ export default {
 .bk-option {
   .field-filter-option-icon {
     width: 12px;
+    margin-right: 8px;
     font-size: 12px;
     color: #979ba5;
-    margin-right: 8px;
   }
 
   &.is-selected .field-filter-option-icon {
@@ -236,8 +236,8 @@ export default {
 }
 
 .icon-ext {
-  width: 13px;
   display: inline-block;
+  width: 13px;
   font-size: 12px;
   transform: translateX(-1px) scale(0.8);
 }

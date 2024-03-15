@@ -429,14 +429,14 @@ export default {
   .condition-item-container {
     position: relative;
     display: flex;
-    flex-flow: wrap;
-    align-items: center;
-    border-radius: 2px;
+    padding: 0 22px 0 4px;
     margin-right: 8px;
     margin-bottom: 2px;
-    padding: 0 22px 0 4px;
-    background: #eceef5;
     cursor: pointer;
+    background: #eceef5;
+    border-radius: 2px;
+    flex-flow: wrap;
+    align-items: center;
   }
 
   .filter-text {
@@ -449,8 +449,8 @@ export default {
     padding: 0 4px;
     margin-bottom: 2px;
     font-size: 12px;
-    color: #63656e;
     line-height: 32px;
+    color: #63656e;
     white-space: nowrap;
 
     &.text-tag {
@@ -483,8 +483,8 @@ export default {
 
   .icon-close-line {
     position: absolute;
-    right: 2px;
     top: 10px;
+    right: 2px;
     display: none;
     margin: 0 6px;
     font-size: 12px;
@@ -503,21 +503,21 @@ export default {
 .add-condition-filter-popover {
   .filter-title {
     padding: 24px 24px 22px;
-    color: #313238;
     font-size: 16px;
+    color: #313238;
   }
 
   .add-filter-content {
     display: flex;
-    align-items: center;
-    margin-bottom: 24px;
     padding: 0 24px;
+    margin-bottom: 24px;
+    align-items: center;
 
     label {
       display: inline-block;
       margin-bottom: 4px;
-      color: #2d3542;
       font-size: 12px;
+      color: #2d3542;
     }
   }
 
@@ -532,8 +532,8 @@ export default {
   .filter-footer {
     padding: 8px 24px 10px 0;
     text-align: right;
-    border-top: 1px solid #dcdee5;
     background-color: #fafbfd;
+    border-top: 1px solid #dcdee5;
 
     .bk-primary {
       margin-right: 6px;

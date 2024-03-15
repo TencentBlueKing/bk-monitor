@@ -210,7 +210,7 @@
             <bk-input
               v-show="isString"
               v-model="subFormData.params.conditions.match_content"
-              style="margin-left: 8px; width: 600px"
+              style="width: 600px; margin-left: 8px"
             ></bk-input>
             <bk-select
               v-if="!isString"
@@ -815,18 +815,19 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
+/* stylelint-disable no-descending-specificity */
 .horizontal-item {
-  padding: 20px 0;
   position: relative;
   left: 115px;
   max-width: 80%;
+  padding: 20px 0;
 
   > span {
-    color: #90929a;
-    font-size: 14px;
     position: absolute;
-    left: -80px;
     top: 23px;
+    left: -80px;
+    font-size: 14px;
+    color: #90929a;
   }
 
   .filter-select {
@@ -878,8 +879,8 @@ export default {
 
 .filter-title {
   display: inline-block;
-  border-bottom: 1px dashed #000;
   margin-bottom: 8px;
   font-size: 12px;
+  border-bottom: 1px dashed #000;
 }
 </style>

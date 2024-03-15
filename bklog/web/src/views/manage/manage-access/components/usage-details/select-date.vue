@@ -93,8 +93,8 @@ export default {
   font-weight: normal;
 
   :deep(.bk-date-picker-editor) {
-    background: #fff;
     line-height: 30px;
+    background: #fff;
 
     &.is-focus {
       border-color: #3a84ff;

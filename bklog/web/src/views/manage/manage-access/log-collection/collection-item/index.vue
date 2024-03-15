@@ -1067,7 +1067,7 @@ export default {
 @import '../../../../../scss/mixins/clearfix';
 @import '../../../../../scss/conf';
 @import '../../../../../scss/devops-common.scss';
-
+/* stylelint-disable no-descending-specificity */
 .collection-item-container {
   padding: 20px 24px;
 
@@ -1118,15 +1118,15 @@ export default {
   }
 
   .table-mark {
-    margin-left: 4px;
     display: inline-block;
-    padding: 0 2px;
     height: 17px;
-    line-height: 17px;
-    border-radius: 2px;
+    padding: 0 2px;
+    margin-left: 4px;
     font-size: 10px;
-    background: #979ba5;
+    line-height: 17px;
     color: #fff;
+    background: #979ba5;
+    border-radius: 2px;
   }
 
   .icon-masking {
@@ -1137,9 +1137,9 @@ export default {
     cursor: pointer;
 
     .icon-circle {
+      display: inline-block;
       width: 5px;
       height: 5px;
-      display: inline-block;
       border-radius: 50%;
       transform: translateY(-2px);
 
@@ -1192,10 +1192,10 @@ export default {
 }
 
 .collection-operation-list {
-  margin: 0;
-  min-width: 50px;
-  list-style: none;
   display: flex;
+  min-width: 50px;
+  margin: 0;
+  list-style: none;
   flex-direction: column;
   justify-content: center;
 
@@ -1206,8 +1206,8 @@ export default {
     cursor: pointer;
 
     &:hover {
-      background-color: #eaf3ff;
       color: #3a84ff;
+      background-color: #eaf3ff;
     }
   }
 

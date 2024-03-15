@@ -227,6 +227,7 @@ export default {
 </script>
 
 <style lang="scss">
+/* stylelint-disable no-descending-specificity */
 .tippy-tooltip.light-theme.bk-table-setting-popover-content-theme {
   padding: 0;
 }
@@ -250,8 +251,8 @@ export default {
     }
 
     .bk-table-body-wrapper {
-      color: #313238;
       min-height: calc(100vh - 550px);
+      color: #313238;
 
       .bk-table-empty-block {
         display: flex;
@@ -268,8 +269,8 @@ export default {
     }
 
     td mark {
-      background: #f3e186;
       color: #313238;
+      background: #f3e186;
     }
 
     :deep(.result-table-loading) {
@@ -279,9 +280,9 @@ export default {
 
     .handle-card {
       display: inline-block;
-      margin-left: 10px;
       width: 14px;
       height: 14px;
+      margin-left: 10px;
 
       &:first-child {
         margin-left: 0;
@@ -322,8 +323,8 @@ export default {
       }
 
       .origin-str {
-        color: #313238;
         line-height: 24px;
+        color: #313238;
       }
 
       .show-whole-btn {
@@ -331,16 +332,16 @@ export default {
         top: 93px;
         width: 100%;
         height: 24px;
-        color: #3a84ff;
         font-size: 12px;
-        background: #fff;
+        color: #3a84ff;
         cursor: pointer;
+        background: #fff;
         transition: background-color 0.25s ease;
       }
 
       .hide-whole-btn {
-        line-height: 14px;
         margin-top: -2px;
+        line-height: 14px;
         color: #3a84ff;
         cursor: pointer;
       }
@@ -387,8 +388,8 @@ export default {
     }
 
     .bk-table-empty-text {
-      padding: 0;
       width: 100%;
+      padding: 0;
     }
 
     .visiable-field {
@@ -435,11 +436,11 @@ export default {
 
     .toggle-display {
       position: absolute;
-      right: 12px;
       top: 16px;
+      right: 12px;
+      display: none;
       color: #c4c6cc;
       cursor: pointer;
-      display: none;
 
       &:hover {
         color: #ea3636;
@@ -471,8 +472,8 @@ export default {
 
 .more-desc {
   font-size: 12px;
-  text-align: center;
   color: #979ba5;
+  text-align: center;
 
   a {
     color: #3a84ff;

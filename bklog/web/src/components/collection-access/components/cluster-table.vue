@@ -272,8 +272,8 @@ export default {
 @import '@/scss/mixins/overflow-tips.scss';
 
 .cluster-container {
-  line-height: 14px;
   min-width: 900px;
+  line-height: 14px;
 
   .overflow-tips {
     display: inline-block;
@@ -297,6 +297,11 @@ export default {
 
       @include flex-align;
 
+      .icon-angle-up-fill {
+        margin: 0 10px;
+        font-size: 16px;
+      }
+
       &.is-active {
         border-bottom: 1px solid #dcdee5;
 
@@ -304,11 +309,6 @@ export default {
           transform: rotateZ(-90deg);
         }
       }
-    }
-
-    .icon-angle-up-fill {
-      margin: 0 10px;
-      font-size: 16px;
     }
   }
 
@@ -323,13 +323,13 @@ export default {
 
     .cluster-illustrate {
       width: 42%;
-      min-width: 460px;
       max-height: 254px;
+      min-width: 460px;
       padding: 16px;
+      overflow: hidden;
       font-size: 12px;
       border: 1px solid #dcdee5;
       border-left: none;
-      overflow: hidden;
 
       .illustrate-title {
         font-weight: 700;
@@ -377,8 +377,8 @@ export default {
         @include flex-center;
 
         .empty-message {
-          color: #63656e;
           margin-bottom: 6px;
+          color: #63656e;
         }
       }
 
@@ -401,8 +401,8 @@ export default {
 }
 
 :deep(.bk-form-radio) {
-  white-space: nowrap;
   display: flex;
+  white-space: nowrap;
   align-items: center;
 
   & > input[type='radio'] {
@@ -413,8 +413,8 @@ export default {
 }
 
 :deep(.bk-radio-text) {
-  font-size: 12px;
   display: inline;
   width: 100%;
+  font-size: 12px;
 }
 </style>

@@ -74,7 +74,7 @@
           :label="$t('数据类型')"
           :property="'name'"
         >
-          <div style="margin-top: -4px; min-width: 500px">
+          <div style="min-width: 500px; margin-top: -4px">
             <div class="bk-button-group">
               <bk-button
                 v-for="(item, index) of globalsData.databus_custom"
@@ -756,32 +756,32 @@ export default {
     }
 
     .text-error {
-      display: inline-block;
       position: absolute;
       top: 6px;
       left: 12px;
+      display: inline-block;
       font-size: 12px;
       color: transparent;
-      pointer-events: none;
 
       /* stylelint-disable-next-line declaration-no-important */
       text-decoration: red wavy underline !important;
+      pointer-events: none;
     }
   }
 
   .create-form {
-    background: #fff;
     padding: 24px 37px;
     margin-top: 20px;
-    border-radius: 2px;
-    border: 1px solid #dcdee5;
     overflow-x: hidden;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
 
     .form-title {
-      font-size: 14px;
-      color: #63656e;
-      font-weight: 700;
       margin-bottom: 24px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #63656e;
     }
 
     .form-input {
@@ -807,26 +807,26 @@ export default {
     overflow: hidden;
 
     .drag-item {
+      position: absolute;
+      top: 48%;
+      right: 304px;
+      z-index: 100;
+      display: inline-block;
       width: 20px;
       height: 40px;
-      display: inline-block;
       color: #c4c6cc;
-      position: absolute;
-      z-index: 100;
-      right: 304px;
-      top: 48%;
-      user-select: none;
       cursor: col-resize;
+      user-select: none;
 
       &.hidden-drag {
         display: none;
       }
 
       .icon-more::after {
-        content: '\e189';
         position: absolute;
-        left: 0;
         top: 12px;
+        left: 0;
+        content: '\e189';
       }
     }
 

@@ -166,10 +166,10 @@ export default {
 
 <style lang="scss" scoped>
 .config-tab-item {
+  display: flex;
   width: 100%;
   height: 40px;
   padding: 0 12px 0 4px;
-  display: flex;
   align-items: center;
   justify-content: space-between;
 
@@ -185,14 +185,14 @@ export default {
     max-width: 100px;
     padding-left: 20px;
     overflow: hidden;
-    white-space: nowrap;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .panel-operate {
-    color: #979ba5;
     margin-left: 10px;
     font-size: 14px;
+    color: #979ba5;
     cursor: pointer;
 
     .edit-icon:hover {

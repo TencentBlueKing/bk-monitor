@@ -175,13 +175,13 @@ export default class ChartLegend extends Vue {
 
 <style lang="scss" scoped>
 .chart-legend {
+  min-width: 400px;
+  overflow: auto;
   font-size: 12px;
-  border-collapse: collapse;
   line-height: 26px;
   color: #63656e;
-  overflow: auto;
+  border-collapse: collapse;
   user-select: none;
-  min-width: 400px;
 
   tr {
     height: 26px;
@@ -193,9 +193,9 @@ export default class ChartLegend extends Vue {
   }
 
   th {
-    white-space: nowrap;
     padding: 0 12px;
     font-weight: bold;
+    white-space: nowrap;
 
     &:hover {
       cursor: pointer;
@@ -203,31 +203,31 @@ export default class ChartLegend extends Vue {
     }
 
     .caret-wrapper {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      height: 20px;
-      flex: 20px 0 0;
-      vertical-align: middle;
-      cursor: pointer;
       position: relative;
       top: -1px;
+      display: inline-flex;
+      height: 20px;
       margin-left: 4px;
+      vertical-align: middle;
+      cursor: pointer;
+      flex-direction: column;
+      align-items: center;
+      flex: 20px 0 0;
 
       .sort-caret {
+        position: absolute;
         width: 0;
         height: 0;
-        border: 5px solid transparent;
-        position: absolute;
         margin-left: 4px;
+        border: 5px solid transparent;
 
         &:hover {
           cursor: pointer;
         }
 
         &.is-asc {
-          border-bottom-color: #c0c4cc;
           top: -1px;
+          border-bottom-color: #c0c4cc;
 
           &.active {
             border-bottom-color: #63656e;
@@ -235,8 +235,8 @@ export default class ChartLegend extends Vue {
         }
 
         &.is-desc {
-          border-top-color: #c0c4cc;
           bottom: -1px;
+          border-top-color: #c0c4cc;
 
           &.active {
             border-top-color: #63656e;
@@ -248,9 +248,9 @@ export default class ChartLegend extends Vue {
 
   td {
     display: table-cell;
-    white-space: nowrap;
     padding: 0 6px;
     text-align: right;
+    white-space: nowrap;
 
     .content-wrapper {
       display: flex;
@@ -258,27 +258,27 @@ export default class ChartLegend extends Vue {
       text-align: right;
 
       .legend-metric {
-        text-align: left;
-        margin-right: 9px;
         display: inline-flex;
-        align-items: center;
+        margin-right: 9px;
         overflow: hidden;
-        white-space: nowrap;
+        text-align: left;
         text-overflow: ellipsis;
+        white-space: nowrap;
+        align-items: center;
 
         .metric-label {
           display: inline-block;
           width: 12px;
           height: 4px;
-          background-color: violet;
-          margin-right: 6px;
           min-width: 12px;
+          margin-right: 6px;
+          background-color: violet;
         }
 
         .metric-name {
           overflow: hidden;
-          white-space: nowrap;
           text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         &:hover {
@@ -297,19 +297,19 @@ export default class ChartLegend extends Vue {
 
 .common-legend {
   &-item {
-    float: left;
-    white-space: nowrap;
-    margin-left: 10px;
     display: flex;
-    align-items: center;
-    line-height: 16px;
+    float: left;
+    margin-left: 10px;
     font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
+    align-items: center;
 
     .legend-icon {
       width: 12px;
       height: 4px;
-      background-color: violet;
       margin-right: 6px;
+      background-color: violet;
     }
 
     &:hover {

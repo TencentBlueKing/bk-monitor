@@ -409,13 +409,13 @@ export default {
 @import '@/scss/mixins/flex.scss';
 
 .customize-box {
-  width: 100%;
   display: flex;
+  width: 100%;
   align-items: center;
 
   > span {
-    color: #ff9c01;
     padding: 0 8px;
+    color: #ff9c01;
   }
 }
 
@@ -430,17 +430,17 @@ export default {
   @include flex-center();
 
   .icon-empty {
-    color: #c3cdd7;
     font-size: 50px;
+    color: #c3cdd7;
   }
 }
 
 #content-copy-html {
-  height: 20px;
   display: flex;
-  align-items: center;
+  height: 20px;
   font-size: 20px;
   cursor: pointer;
+  align-items: center;
 
   .icon-copy {
     display: inline-block;
@@ -455,10 +455,10 @@ export default {
   @include flex-justify(space-between);
 
   > span:first-child {
+    padding-right: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding-right: 4px;
   }
 }
 

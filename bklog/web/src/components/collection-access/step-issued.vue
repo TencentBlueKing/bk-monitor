@@ -43,8 +43,9 @@
       <template v-if="!isShowStepInfo">
         <div class="step-issued-header">
           <div class="tab-only-compact fl">
-            <template v-for="tabItem in tabList">
+            <template>
               <li
+                v-for="tabItem in tabList"
                 :key="tabItem.type"
                 :class="['tab-item', { 'cur-tab': tabItem.type === curTab }]"
               >
@@ -708,35 +709,35 @@ export default {
 @import '@/scss/mixins/clearfix';
 @import '@/scss/conf';
 @import '@/scss/mixins/overflow-tips.scss';
-
+/* stylelint-disable no-descending-specificity */
 .step-issued-wrapper {
   position: relative;
-  padding: 30px 60px;
   max-height: 100%;
+  padding: 30px 60px;
   overflow-x: hidden;
   overflow-y: auto;
 
   .step-issued-notice {
-    margin-bottom: 20px;
-    padding: 9px 12px;
     height: 36px;
-    line-height: 16px;
-    border-radius: 2px;
+    padding: 9px 12px;
+    margin-bottom: 20px;
     font-size: 12px;
+    line-height: 16px;
     color: #63656e;
+    border-radius: 2px;
 
     .notice-text {
       margin-left: 10px;
     }
 
     .notice-icon {
-      vertical-align: text-bottom;
       font-size: 14px;
+      vertical-align: text-bottom;
     }
 
     &.notice-primary {
-      border: 1px solid #a3c5fd;
       background: #f0f8ff;
+      border: 1px solid #a3c5fd;
 
       .notice-icon {
         color: #3a84ff;
@@ -759,8 +760,8 @@ export default {
   }
 
   .cluster-menu {
-    margin-bottom: 10px;
     max-width: 100%;
+    margin-bottom: 10px;
 
     &.has-title-sign .right-panel-title {
       padding-left: 0;
@@ -775,12 +776,12 @@ export default {
 
   .heder-title-sign {
     position: relative;
-    margin-left: -1px;
-    margin-right: 16px;
-    padding: 0 12px 0 7px;
     height: 24px;
-    line-height: 23px;
+    padding: 0 12px 0 7px;
+    margin-right: 16px;
+    margin-left: -1px;
     font-size: 12px;
+    line-height: 23px;
     color: #fff;
     background: #3a84ff;
 
@@ -798,14 +799,14 @@ export default {
 
     &:after {
       position: absolute;
-      right: 0;
       top: 0;
+      right: 0;
       display: block;
-      content: '';
       border-top: 12px solid transparent;
+      border-right: 6px solid #f0f1f5;
       border-bottom: 12px solid transparent;
       border-left: 6px solid transparent;
-      border-right: 6px solid #f0f1f5;
+      content: '';
     }
   }
 
@@ -859,11 +860,11 @@ export default {
       p {
         position: relative;
         display: inline-block;
-        padding-right: 30px;
         max-width: 100%;
-        white-space: nowrap;
+        padding-right: 30px;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
 
         .detail-text {
           display: inline-block;
@@ -876,15 +877,11 @@ export default {
 
     .more {
       position: absolute;
-      right: 0;
       top: 0;
-      color: #3a84ff;
+      right: 0;
       display: none;
+      color: #3a84ff;
     }
-  }
-
-  .step-issued-footer {
-    margin-top: 20px;
   }
 
   .tab-only-compact {
@@ -908,30 +905,34 @@ export default {
   }
 
   .step-issued-footer {
+    margin-top: 20px;
+
     button {
       margin-right: 10px;
     }
   }
 
   .empty-view {
-    height: 452px;
-    background: #fff;
-    border-radius: 2px;
-    border: 1px dashed #dcdee5;
     position: relative;
     display: flexbox;
     display: flex;
+    height: 452px;
+    background: #fff;
+    border: 1px dashed #dcdee5;
+    border-radius: 2px;
+    /* stylelint-disable-next-line property-no-unknown */
     box-pack: center;
+    /* stylelint-disable-next-line property-no-unknown */
     flex-pack: center;
     justify-content: center;
 
     .hint-text {
-      min-width: 144px;
-      height: 16px;
-      line-height: 16px;
       position: absolute;
       top: 186px;
+      height: 16px;
+      min-width: 144px;
       font-size: 12px;
+      line-height: 16px;
       color: #979ba5;
     }
 
@@ -949,8 +950,8 @@ export default {
   padding-bottom: 0;
 
   .bk-sideslider-content {
-    background-color: #313238;
     color: #c4c6cc;
+    background-color: #313238;
   }
 
   .header {
@@ -965,8 +966,8 @@ export default {
 
   .detail-content {
     min-height: calc(100vh - 60px);
-    white-space: pre-wrap;
     font-size: 12px;
+    white-space: pre-wrap;
 
     a {
       color: #3a84ff;

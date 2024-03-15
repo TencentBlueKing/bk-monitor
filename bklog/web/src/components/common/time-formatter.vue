@@ -68,8 +68,8 @@ export default {
 
   .switch-label {
     margin-right: 6px;
-    color: #63656e;
     font-size: 12px;
+    color: #63656e;
   }
 
   .time-zone-text {

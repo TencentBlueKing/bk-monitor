@@ -104,24 +104,24 @@ export default {
 @import '@/scss/mixins/scroller';
 
 .intro-panel {
+  position: relative;
   width: 100%;
   height: 100%;
-  position: relative;
 
   .right-window {
-    width: 100%;
-    height: 100%;
-    background: #fff;
-    border: 1px solid #dcdee5;
     position: absolute;
     z-index: 99;
-    color: #63656e;
+    width: 100%;
+    height: 100%;
     padding: 16px 0 0 24px;
+    color: #63656e;
+    background: #fff;
+    border: 1px solid #dcdee5;
 
     .html-container {
       max-height: calc(100vh - 200px);
-      overflow-y: auto;
       padding-right: 24px;
+      overflow-y: auto;
     }
 
     .top-title {
@@ -133,9 +133,9 @@ export default {
     }
 
     h1 {
+      margin: 26px 0 10px;
       font-size: 12px;
       font-weight: 700;
-      margin: 26px 0 10px;
 
       &:first-child {
         margin-top: 0;
@@ -147,8 +147,8 @@ export default {
 
       li {
         margin-top: 8px;
-        list-style: inside;
         font-size: 12px;
+        list-style: inside;
       }
     }
 
@@ -157,11 +157,11 @@ export default {
     }
 
     pre {
+      padding: 10px 14px;
       margin: 0;
       margin-top: 6px;
-      padding: 10px 14px;
-      background: #f4f4f7;
       overflow-x: auto;
+      background: #f4f4f7;
 
       @include scroller;
     }
@@ -174,17 +174,17 @@ export default {
   }
 
   .create-btn {
-    width: 24px;
-    height: 24px;
     position: absolute;
     z-index: 999;
+    width: 24px;
+    height: 24px;
 
     @include flex-center;
 
     &.details {
+      position: fixed;
       top: 64px;
       right: 16px;
-      position: fixed;
       transform: rotateZ(360deg) rotateX(180deg);
 
       @include flex-center;
@@ -196,9 +196,9 @@ export default {
     }
 
     &:hover {
+      color: #3a84ff;
       cursor: pointer;
       background: #f0f1f5;
-      color: #3a84ff;
       border-radius: 2px;
     }
   }

@@ -218,18 +218,18 @@ export default {
 }
 
 .nav-head {
-  height: 20px;
-  line-height: 20px;
-  font-size: 14px;
   position: relative;
+  height: 20px;
+  font-size: 14px;
+  line-height: 20px;
 
   i {
-    cursor: pointer;
-    font-size: 18px;
-    color: #3a84ff;
-    font-weight: 900;
     position: absolute;
     top: 1px;
+    font-size: 18px;
+    font-weight: 900;
+    color: #3a84ff;
+    cursor: pointer;
   }
 
   span {
@@ -243,18 +243,18 @@ export default {
 }
 
 .text-style {
-  max-height: 54px;
-  line-height: 18px;
-  overflow: hidden;
   display: flex;
+  max-height: 54px;
+  overflow: hidden;
+  line-height: 18px;
   flex-flow: column;
 
   span {
-    flex-shrink: 0;
-    font-size: 12px;
     overflow: hidden;
+    font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex-shrink: 0;
   }
 }
 
@@ -267,8 +267,8 @@ export default {
 }
 
 .json-text-style {
-  background-color: #313238;
   color: #c4c6cc;
+  background-color: #313238;
 }
 
 .locker-style {
@@ -286,9 +286,9 @@ export default {
 
       > div:nth-child(2) {
         height: 50px;
+        font-size: 14px;
         line-height: 50px;
         color: #737987;
-        font-size: 14px;
 
         > div {
           display: flex;
@@ -296,15 +296,15 @@ export default {
           align-items: center;
 
           span {
-            margin-right: 20px;
             display: inline-block;
             width: 68px;
             height: 32px;
-            border: 1px solid #c4c6cc;
+            margin-right: 20px;
             line-height: 32px;
-            text-align: center;
             color: #737987;
+            text-align: center;
             cursor: pointer;
+            border: 1px solid #c4c6cc;
           }
         }
       }

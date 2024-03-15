@@ -143,7 +143,7 @@
     <div class="button-container">
       <bk-button
         theme="primary"
-        style="margin-right: 16px; width: 120px"
+        style="width: 120px; margin-right: 16px"
         data-test-id="addNewExtraction_button_submitConfigure"
         :disabled="canSubmit"
         @click="handleSubmit"
@@ -382,11 +382,11 @@ export default {
 
 <style lang="scss" scoped>
 .create-task-container {
-  margin-top: 20px;
-  padding: 20px 24px;
   min-width: 1260px;
-  background-color: #fff;
+  padding: 20px 24px;
+  margin-top: 20px;
   color: #63656e;
+  background-color: #fff;
   border: 1px solid #dcdee5;
 
   .row-container {
@@ -397,9 +397,8 @@ export default {
     .title {
       width: 128px;
       margin-right: 16px;
-      font-size: 16px;
-      line-height: 40px;
       font-size: 12px;
+      line-height: 40px;
       text-align: right;
 
       .required {

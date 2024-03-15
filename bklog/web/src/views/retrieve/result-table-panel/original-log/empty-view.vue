@@ -256,13 +256,13 @@ export default {
     color: #63656e;
 
     .empty-main {
-      font-size: 12px;
       min-width: 230px;
+      font-size: 12px;
       text-align: left;
 
       .suggest-title {
-        color: #979ba5;
         padding: 8px 0;
+        color: #979ba5;
       }
 
       .suggest-list {
@@ -271,16 +271,16 @@ export default {
         line-height: 18px;
 
         .grammar-list {
-          margin-left: 14px;
           display: flex;
+          margin-left: 14px;
           flex-direction: column;
         }
       }
     }
 
     .more-rule {
-      font-size: 12px;
       margin-top: 8px;
+      font-size: 12px;
       color: #3a84ff;
       cursor: pointer;
 

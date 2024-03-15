@@ -204,8 +204,8 @@ export default class SelectionColumn extends Vue {
     position: relative;
     top: 3px;
     font-size: 20px;
-    cursor: pointer;
     color: #63656e;
+    cursor: pointer;
     outline: 0;
 
     &.disabled {

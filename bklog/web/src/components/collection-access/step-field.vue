@@ -1780,10 +1780,10 @@ export default {
 <style lang="scss">
 @import '@/scss/mixins/clearfix';
 @import '@/scss/space-tag-option';
-
+/* stylelint-disable no-descending-specificity */
 .step-field-container {
-  min-width: 950px;
   max-height: 100%;
+  min-width: 950px;
   padding: 0 30px 42px;
   overflow: auto;
 }
@@ -1807,22 +1807,22 @@ export default {
 
   .step-field-title {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
     width: 100%;
+    padding-top: 50px;
+    padding-bottom: 10px;
     font-size: 14px;
     font-weight: 600;
     color: #63656e;
     border-bottom: 1px solid #dcdee5;
-    padding-top: 50px;
-    padding-bottom: 10px;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .text-nav {
     display: inline-block;
     font-size: 12px;
-    color: #3a84ff;
     font-weight: normal;
+    color: #3a84ff;
 
     span {
       margin-left: 10px;
@@ -1845,19 +1845,19 @@ export default {
   }
 
   .tips {
-    font-size: 12px;
-    color: #aeb0b7;
     margin-left: 8px;
+    font-size: 12px;
     line-height: 32px;
+    color: #aeb0b7;
   }
 
   .tips_storage {
     width: 540px;
-    background-color: rgb(239, 248, 255);
-    border: 1px solid deepskyblue;
-    font-size: 12px;
     padding: 10px;
     margin-top: 15px;
+    font-size: 12px;
+    background-color: rgb(239, 248, 255);
+    border: 1px solid deepskyblue;
 
     div {
       line-height: 24px;
@@ -1879,11 +1879,11 @@ export default {
     }
 
     .prefix {
+      min-width: 80px;
+      margin-right: 8px;
       font-size: 14px;
       line-height: 32px;
       color: #858790;
-      margin-right: 8px;
-      min-width: 80px;
       text-align: right;
     }
   }
@@ -1906,8 +1906,8 @@ export default {
   }
 
   .field-method-head {
-    margin: 0 0 10px 0;
     top: -34px;
+    margin: 0 0 10px 0;
 
     @include clearfix;
 
@@ -1922,8 +1922,8 @@ export default {
     }
 
     .table-setting {
-      line-height: 18px;
       display: flex;
+      line-height: 18px;
       align-items: center;
     }
 
@@ -1949,9 +1949,9 @@ export default {
 
   .field-method-title {
     margin: 0;
-    line-height: 20px;
     font-size: 14px;
     font-weight: normal;
+    line-height: 20px;
     color: #7a7c85;
   }
 
@@ -1980,12 +1980,11 @@ export default {
 
   .field-step {
     position: relative;
-    margin-bottom: 12px;
     padding-bottom: 24px;
     padding-left: 20px;
+    margin-bottom: 12px;
 
     &::before {
-      content: '';
       position: absolute;
       top: 4px;
       left: 0;
@@ -1993,16 +1992,17 @@ export default {
       height: 8px;
       border: 2px solid #d8d8d8;
       border-radius: 50%;
+      content: '';
     }
 
     &::after {
-      content: '';
       position: absolute;
       top: 18px;
       left: 6px;
       width: 1px;
       height: 100%;
       background: #d8d8d8;
+      content: '';
     }
 
     &:last-child::before {
@@ -2015,8 +2015,8 @@ export default {
     }
 
     .step-text {
-      color: #63656e;
       font-size: 14px;
+      color: #63656e;
     }
 
     .template-text {
@@ -2043,10 +2043,10 @@ export default {
     align-items: center;
 
     .documentation {
-      color: #3a84ff;
       font-size: 12px;
-      transform: translateX(45px) translateY(2px);
+      color: #3a84ff;
       cursor: pointer;
+      transform: translateX(45px) translateY(2px);
     }
   }
 
@@ -2061,14 +2061,14 @@ export default {
   }
 
   .add-field-container {
+    display: flex;
     height: 40px;
+    padding-left: 4px;
     border: 1px solid #dcdee5;
     border-top: none;
     border-bottom: 1.5px solid #dcdee5;
     border-radius: 0 0 2px 2px;
     transform: translateY(-1px);
-    padding-left: 4px;
-    display: flex;
     align-items: center;
 
     .text-btn {
@@ -2096,20 +2096,20 @@ export default {
     }
 
     .visible-scope-box {
-      min-height: 30px;
-      display: flex;
       position: relative;
+      display: flex;
+      min-height: 30px;
 
       .please-select {
-        color: #c3cdd7;
         margin-left: 10px;
+        color: #c3cdd7;
       }
 
       .icon-angle-down {
         position: absolute;
-        font-size: 20px;
         top: 4px;
         right: 0;
+        font-size: 20px;
         transform: rotateZ(0deg);
         transition: all 0.3s;
       }
@@ -2128,8 +2128,8 @@ export default {
 
   .debug-btn {
     margin-left: 12px;
-    background: #fff;
     color: #3a84ff;
+    background: #fff;
 
     &:hover {
       color: #fff;
@@ -2147,20 +2147,20 @@ export default {
   }
 
   .textarea-wrapper {
-    width: 100%;
     position: relative;
+    width: 100%;
   }
 
   .mimic-textarea {
-    margin: 0;
-    padding: 6px 10px;
     width: 100%;
-    line-height: 1.5;
     min-height: 72px;
+    padding: 6px 10px;
+    margin: 0;
     font-size: 12px;
+    line-height: 1.5;
     color: transparent;
-    outline: none;
     white-space: pre-wrap;
+    outline: none;
   }
 
   .regex-textarea {
@@ -2201,16 +2201,16 @@ export default {
     display: flex;
 
     .bk-label {
-      line-height: 20px;
       width: auto;
       padding: 0;
       font-size: 12px;
+      line-height: 20px;
       color: #63656e;
 
       &.has-desc > span {
         margin-right: 20px;
-        border-bottom: 1px dashed #d8d8d8;
         cursor: pointer;
+        border-bottom: 1px dashed #d8d8d8;
       }
     }
 
@@ -2267,24 +2267,25 @@ export default {
 
     .step-num {
       margin-right: 8px;
-      font-size: 24px;
+      /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
       font-family: Impact, Impact-Regular;
-      color: #a3c5fd;
+      font-size: 24px;
       line-height: 29px;
+      color: #a3c5fd;
     }
 
     .step-description {
-      margin-top: 26px;
       width: 320px;
+      margin-top: 26px;
+      font-size: 14px;
       line-height: 20px;
       color: #63656e;
-      font-size: 14px;
     }
 
     .remark {
       margin-top: 20px;
-      color: #979ba5;
       font-size: 12px;
+      color: #979ba5;
     }
 
     .link {
@@ -2304,8 +2305,8 @@ export default {
 
 .standard-field-table {
   width: 965px;
-  padding-bottom: 14px;
   max-height: 464px;
+  padding-bottom: 14px;
   overflow-x: hidden;
   overflow-y: auto;
 
@@ -2319,13 +2320,13 @@ export default {
 }
 
 .json-text-style {
-  background-color: #313238;
   color: #c4c6cc;
+  background-color: #313238;
 }
 
 .option-slot-container {
-  padding: 8px 0;
   min-height: 32px;
+  padding: 8px 0;
   line-height: 14px;
 
   &.no-authority {

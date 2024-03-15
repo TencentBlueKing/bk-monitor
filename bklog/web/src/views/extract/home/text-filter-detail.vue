@@ -89,12 +89,12 @@ export default {
     }
 
     .text {
-      color: #313238;
+      padding: 10px 0;
       margin: 0;
       font-size: 16px;
       font-weight: 500;
       line-height: 20px;
-      padding: 10px 0;
+      color: #313238;
     }
   }
 

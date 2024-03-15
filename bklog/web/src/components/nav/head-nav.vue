@@ -552,11 +552,11 @@ export default {
     .menu-item {
       position: relative;
       float: left;
-      padding: 0 20px;
       height: 50px;
+      padding: 0 20px;
       line-height: 50px;
-      cursor: pointer;
       color: #979ba5;
+      cursor: pointer;
       transition: color 0.3s linear;
 
       &.active {
@@ -576,9 +576,9 @@ export default {
     }
 
     .bk-dropdown-content {
-      line-height: normal;
       z-index: 2105;
       min-width: 112px;
+      line-height: normal;
 
       /* stylelint-disable-next-line declaration-no-important */
       text-align: center !important;
@@ -598,15 +598,15 @@ export default {
     @include clearfix;
 
     .setting {
-      font-size: 15px;
-      margin-right: 10px;
-      cursor: pointer;
       position: relative;
+      margin-right: 10px;
+      font-size: 15px;
+      cursor: pointer;
 
       &::before {
         position: relative;
-        z-index: 999;
         top: 1px;
+        z-index: 999;
       }
 
       &.active,
@@ -616,23 +616,23 @@ export default {
 
       &.active::after,
       &:hover::after {
-        content: '';
-        z-index: 99;
         position: absolute;
         bottom: -8px;
         left: 50%;
-        transform: translateX(-50%);
+        z-index: 99;
         width: 30px;
         height: 30px;
-        border-radius: 50%;
         background: #424e5a;
+        border-radius: 50%;
+        content: '';
+        transform: translateX(-50%);
       }
     }
 
     .select-business {
       margin-right: 22px;
-      border-color: #445060;
       color: #979ba5;
+      border-color: #445060;
     }
 
     .icon-language-container {
@@ -718,13 +718,13 @@ export default {
   .bk-select-search-wrapper {
     border: 1px solid #dcdee5;
     border-bottom: none;
-    border-top-left-radius: 2px;
     border-top-right-radius: 2px;
+    border-top-left-radius: 2px;
   }
 
   .bk-options-wrapper {
-    border-left: 1px solid #dcdee5;
     border-right: 1px solid #dcdee5;
+    border-left: 1px solid #dcdee5;
   }
 
   .bk-select-extension {
@@ -759,10 +759,10 @@ export default {
         }
 
         &:hover {
+          z-index: 1;
           color: #3a84ff;
           background: #f0f5ff;
           border-color: #3a84ff;
-          z-index: 1;
         }
       }
     }

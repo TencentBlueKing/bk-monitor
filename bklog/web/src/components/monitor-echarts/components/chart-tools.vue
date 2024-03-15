@@ -159,16 +159,16 @@ export default class ChartTools extends Vue {
     margin-right: 8px;
 
     &:hover {
-      cursor: pointer;
       color: #3a84ff;
+      cursor: pointer;
     }
   }
 }
 
 .monitor-chart-theme {
+  z-index: 999;
   /* stylelint-disable-next-line declaration-no-important */
   background: white !important;
-  z-index: 999;
 
   .tool-list {
     display: flex;
@@ -185,8 +185,8 @@ export default class ChartTools extends Vue {
       color: #63656e;
 
       &:hover {
-        cursor: pointer;
         color: #3a84ff;
+        cursor: pointer;
         background-color: #eaf3ff;
       }
     }

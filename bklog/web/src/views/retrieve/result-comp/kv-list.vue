@@ -363,31 +363,31 @@ export default {
 
 <style lang="scss" scoped>
 @import '../../../scss/mixins/scroller';
-
+/* stylelint-disable no-descending-specificity */
 .kv-list-wrapper {
   .log-item {
     display: flex;
     align-items: baseline;
 
     .field-label {
-      flex-shrink: 0;
-      height: 100%;
       display: flex;
+      height: 100%;
+      flex-shrink: 0;
       align-items: baseline;
       flex-wrap: nowrap;
 
       .field-text {
-        word-break: normal;
-        width: auto;
         display: block;
-        white-space: pre-wrap;
-        word-wrap: break-word;
+        width: auto;
         overflow: hidden;
+        word-break: normal;
+        word-wrap: break-word;
+        white-space: pre-wrap;
       }
 
       :deep(.icon-ext) {
-        width: 13px;
         display: inline-block;
+        width: 13px;
         font-size: 12px;
         transform: translateX(-1px) scale(0.8);
       }
@@ -419,12 +419,9 @@ export default {
       }
 
       .icon-arrows-up-circle {
-        transform: rotate(45deg);
-      }
-
-      .icon-arrows-up-circle {
         margin-right: 2px;
         font-size: 12px;
+        transform: rotate(45deg);
 
         &.is-hidden {
           transform: rotate(225deg);
@@ -436,9 +433,9 @@ export default {
       }
 
       .icon-copy {
-        transform: rotate(0);
         font-size: 24px;
         cursor: pointer;
+        transform: rotate(0);
       }
 
       .icon-enlarge-line,

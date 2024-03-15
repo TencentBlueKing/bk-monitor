@@ -175,14 +175,14 @@ export default {
 
 <style lang="scss" scoped>
 .handle-content {
-  display: flex;
   position: absolute;
+  top: 0;
   right: 0;
+  display: flex;
   width: 84px;
   padding: 14px 10px;
-  align-items: flex-start;
-  top: 0;
   overflow: hidden;
+  align-items: flex-start;
   justify-content: flex-end;
 }
 

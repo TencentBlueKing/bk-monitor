@@ -1010,21 +1010,21 @@ export default class MonitorEcharts extends Vue {
 <style lang="scss" scoped>
 .monitor-echart-wrap {
   position: relative;
-  background-repeat: repeat;
-  background-position: top;
-  background-color: #fff;
-  border-radius: 2px;
   width: 100%;
   height: 100%;
-  color: #63656e;
   padding: 18px 24px 24px;
+  color: #63656e;
+  background-color: #fff;
+  background-position: top;
+  background-repeat: repeat;
+  border-radius: 2px;
 
   .echart-header {
     display: flex;
-    align-items: center;
     min-width: 100%;
-    color: #63656e;
     font-weight: 700;
+    color: #63656e;
+    align-items: center;
   }
 
   .chart-wrapper {
@@ -1032,25 +1032,25 @@ export default class MonitorEcharts extends Vue {
     display: flex;
 
     .echart-instance {
-      min-width: 100px;
-      height: 260px;
-      flex: 1;
       display: flex;
+      height: 260px;
+      min-width: 100px;
       overflow: hidden;
+      flex: 1;
     }
 
     .echart-legend {
-      margin-left: 16px;
       margin-top: 8px;
+      margin-left: 16px;
       overflow: auto;
     }
 
     .echart-pie-center {
       position: absolute;
-      left: 50%;
       top: 50%;
-      transform: translate3d(-50%, -50%, 0);
+      left: 50%;
       display: flex;
+      transform: translate3d(-50%, -50%, 0);
       align-items: center;
       justify-content: center;
     }
@@ -1058,14 +1058,14 @@ export default class MonitorEcharts extends Vue {
 
   .echart-content {
     position: absolute;
-    left: 1px;
-    right: 1px;
     top: 36px;
+    right: 1px;
     bottom: 1px;
+    left: 1px;
     display: flex;
+    background: rgba(255, 255, 255, 0);
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0);
   }
 }
 </style>

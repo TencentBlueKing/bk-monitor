@@ -82,33 +82,36 @@ $statusBgColor: #e7f9f2 #f0f1f5 #ffe8c3;
 
   &-item {
     display: flex;
+    height: 30px;
     padding: 5px 14px;
+    margin: 0 2px 2px 0;
+    font-size: 12px;
+    line-height: 20px;
+    border-radius: 2px;
     align-items: center;
     justify-content: center;
-    line-height: 20px;
-    font-size: 12px;
-    border-radius: 2px;
-    margin: 0 2px 2px 0;
-    height: 30px;
 
     @for $i from 0 through 2 {
       &.status-#{$i} {
-        background: nth($statusBgColor, $i + 1);
+        /* stylelint-disable-next-line function-no-unknown */
         color: nth($statusFontColor, $i + 1);
+        /* stylelint-disable-next-line function-no-unknown */
+        background: nth($statusBgColor, $i + 1);
 
         &:hover {
-          background: nth($statusFontColor, $i + 1);
           color: white;
           cursor: pointer;
+          /* stylelint-disable-next-line function-no-unknown */
+          background: nth($statusFontColor, $i + 1);
         }
       }
     }
   }
 
   &-empty {
-    color: #dcdee5;
     font-size: 50px;
     line-height: 30px;
+    color: #dcdee5;
   }
 }
 </style>

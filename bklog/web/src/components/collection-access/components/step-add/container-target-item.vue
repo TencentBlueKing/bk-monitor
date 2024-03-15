@@ -176,7 +176,7 @@ export default {
 </script>
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .load-container {
   @include flex-center;
 
@@ -228,10 +228,10 @@ export default {
 
 .icon-angle-down {
   position: absolute;
+  top: 6px;
+  right: 4px;
   font-size: 21px;
   color: #979ba5;
-  right: 4px;
-  top: 6px;
   transition: transform 0.3s;
 }
 

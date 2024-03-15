@@ -63,27 +63,27 @@ export default {
 <style lang="scss" scoped>
 #tooltips {
   height: 60px;
+  padding: 0 30px;
   margin-top: 20px;
   overflow-y: auto;
-  padding: 0 30px;
 
   .tooltips-item {
     display: inline-block;
     height: 20px;
-    line-height: 20px;
-    font-size: 12px;
-    margin-right: 32px;
     padding-bottom: 10px;
-    cursor: pointer;
+    margin-right: 32px;
+    font-size: 12px;
+    line-height: 20px;
     color: #6e7079;
+    cursor: pointer;
 
     .tooltips-tips {
       display: inline-block;
       width: 10px;
       height: 10px;
-      border-radius: 50%;
-      margin-right: 5px;
       margin-top: 1px;
+      margin-right: 5px;
+      border-radius: 50%;
     }
   }
 

@@ -51,8 +51,8 @@ export default {
 
 <style lang="scss" scoped>
 .exception-box {
-  text-align: center;
   margin: auto;
+  text-align: center;
 
   img {
     max-width: 25%;

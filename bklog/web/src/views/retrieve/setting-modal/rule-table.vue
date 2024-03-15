@@ -729,7 +729,7 @@ export default {
 </script>
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .container-item {
   margin-bottom: 40px;
 
@@ -737,8 +737,8 @@ export default {
     min-width: 48px;
 
     .bk-icon {
-      width: 10px;
       left: -3px;
+      width: 10px;
     }
   }
 
@@ -756,9 +756,9 @@ export default {
     height: 100px;
     padding: 5px 10px;
     font-size: 12px;
-    background: #fafbfd;
     line-height: 24px;
     color: #000;
+    background: #fafbfd;
     border: 1px solid#DCDEE5;
     border-radius: 2px;
   }
@@ -768,11 +768,11 @@ export default {
 
     .debug-tool {
       display: flex;
-      align-items: center;
-      font-size: 14px;
       margin-bottom: 4px;
+      font-size: 14px;
       color: #3a84ff;
       cursor: pointer;
+      align-items: center;
 
       .bk-icon {
         display: inline-block;
@@ -792,9 +792,9 @@ export default {
 
 .table-row {
   min-height: 44px;
-  border-bottom: 1px solid #dcdee5;
-  background-color: #fafbfd;
   font-size: 12px;
+  background-color: #fafbfd;
+  border-bottom: 1px solid #dcdee5;
 
   .icon {
     margin: 0 10px 0 4px;
@@ -802,9 +802,9 @@ export default {
 
   .icon-drag-dots {
     width: 16px;
-    text-align: left;
     font-size: 14px;
     color: #979ba5;
+    text-align: left;
     cursor: move;
     opacity: 0;
     transition: opacity 0.2s linear;
@@ -870,12 +870,12 @@ export default {
 
 .table-operate {
   position: absolute;
-  right: 0;
   top: 0;
+  right: 0;
 
   .bk-button {
-    border-radius: 3px;
     margin-left: 2px;
+    border-radius: 3px;
   }
 
   .btn-hover {
@@ -887,16 +887,16 @@ export default {
 }
 
 .no-cluster-rule {
-  height: 200px;
   display: flex;
+  height: 200px;
+  border-bottom: 1px solid #dcdee5;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  border-bottom: 1px solid #dcdee5;
 
   .icon-empty {
-    color: #c3cdd7;
     font-size: 80px;
+    color: #c3cdd7;
   }
 }
 
@@ -922,8 +922,8 @@ export default {
 
 .add-rule {
   .bk-form {
-    margin-left: 15px;
     width: 560px;
+    margin-left: 15px;
 
     :deep(.bk-label) {
       text-align: left;
@@ -931,8 +931,8 @@ export default {
   }
 
   .inspection-status {
-    display: flex;
     position: relative;
+    display: flex;
     font-size: 14px;
 
     .bk-icon {
@@ -940,8 +940,8 @@ export default {
     }
 
     .spin {
-      top: 2px;
       position: absolute;
+      top: 2px;
     }
   }
 }

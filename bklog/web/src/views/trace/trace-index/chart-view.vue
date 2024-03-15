@@ -178,6 +178,7 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
+/* stylelint-disable no-descending-specificity */
 .chart-views {
   width: 100%;
   padding: 50px 24px 10px;
@@ -186,13 +187,13 @@ export default {
 
 .icon-sty {
   position: absolute;
-  right: 50px;
   top: 20px;
+  right: 50px;
   line-height: 14px;
 
   .log-icon {
-    background-color: #fff;
     color: #979ba5;
+    background-color: #fff;
     transform: scale(1.2);
   }
 
@@ -207,22 +208,22 @@ export default {
   }
 
   span {
-    margin-left: 10px;
     display: inline-block;
-    height: 14px;
     width: 16px;
+    height: 14px;
+    margin-left: 10px;
+    cursor: pointer;
     background: #979ba5;
     border-radius: 2px;
-    cursor: pointer;
     transition: background 0.2s;
 
     .bk-icon {
-      line-height: 14px;
       display: flex;
+      font-weight: bold;
+      line-height: 14px;
+      color: #fff;
       justify-content: center;
       align-items: center;
-      color: #fff;
-      font-weight: bold;
     }
 
     &:hover {

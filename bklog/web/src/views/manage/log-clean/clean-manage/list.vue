@@ -557,17 +557,17 @@ export default {
 
     .operation-icon {
       display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-left: 10px;
-      min-width: 32px;
       width: 32px;
       height: 32px;
+      min-width: 32px;
+      margin-left: 10px;
       cursor: pointer;
       border: 1px solid #c4c6cc;
-      transition: boder-color 0.2s;
       border-radius: 2px;
       outline: none;
+      transition: boder-color 0.2s;
+      justify-content: center;
+      align-items: center;
 
       &:hover {
         border-color: #979ba5;
@@ -585,15 +585,14 @@ export default {
       }
 
       .loading {
+        display: inline-block;
         width: 14px;
         height: 14px;
+        margin: 0 auto;
         border: 2px solid #3a84ff;
         border-right: 2px solid transparent;
         border-radius: 50%;
         animation: button-icon-loading 1s linear infinite;
-        animation: button-icon-loading 1s linear infinite;
-        margin: 0 auto;
-        display: inline-block;
       }
     }
   }

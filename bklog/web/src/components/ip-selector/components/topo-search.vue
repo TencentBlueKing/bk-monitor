@@ -208,24 +208,24 @@ export default class TopoSearch extends Vue {
   &-result {
     position: absolute;
     top: 34px;
-    min-width: 100%;
-    height: auto;
-    background: #fff;
-    margin: 0;
     z-index: 2500;
-    border-radius: 2px;
-    border: 1px solid #dcdee5;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(51, 60, 72, 0.1);
+    height: auto;
+    min-width: 100%;
+    margin: 0;
     text-align: left;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px rgba(51, 60, 72, 0.1);
+    transition: all 0.3s ease;
 
     .result-title {
       display: flex;
-      justify-content: space-between;
-      color: #c4c6cc;
       height: 32px;
-      line-height: 32px;
       padding: 0 20px;
+      line-height: 32px;
+      color: #c4c6cc;
+      justify-content: space-between;
 
       .select-all {
         font-size: 12px;
@@ -255,13 +255,13 @@ export default class TopoSearch extends Vue {
 
         &-name {
           font-weight: 700;
-          color: #63656e;
           line-height: 16px;
+          color: #63656e;
         }
 
         &-path {
-          color: #979ba5;
           line-height: 16px;
+          color: #979ba5;
         }
       }
 
@@ -273,29 +273,29 @@ export default class TopoSearch extends Vue {
         .checkbox {
           position: relative;
           display: inline-block;
-          vertical-align: middle;
           width: 16px;
           height: 16px;
+          vertical-align: middle;
           border: 1px solid #979ba5;
           border-radius: 2px;
 
           &.is-checked {
-            border-color: #3a84ff;
             background-color: #3a84ff;
+            border-color: #3a84ff;
             background-clip: border-box;
 
             &::after {
-              content: '';
               position: absolute;
               top: 1px;
               left: 4px;
               width: 4px;
               height: 8px;
               border: 2px solid #fff;
-              border-left: 0;
               border-top: 0;
-              transform-origin: center;
+              border-left: 0;
+              content: '';
               transform: rotate(45deg) scaleY(1);
+              transform-origin: center;
             }
           }
         }
