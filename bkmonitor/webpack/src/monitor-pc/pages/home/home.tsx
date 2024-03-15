@@ -334,7 +334,7 @@ export default class Home extends tsc<{}> {
 
   async handleScroll(e: any) {
     if (this.isEnd) return;
-    if (this.scrollLoading) return;
+    if (this.scrollLoading || this.loading) return;
     const { scrollHeight, scrollTop, clientHeight } = e.target;
     // 大屏有误差所以要+1
     const isEnd = scrollHeight - scrollTop <= clientHeight + 1 && scrollTop !== 0;

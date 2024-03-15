@@ -26,42 +26,25 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import BusinessRight from './business-right';
-
-import './business-item-big-skeleton.scss';
+import './business-right.scss';
 
 @Component
-export default class BusinessItemBigSkeleton extends tsc<{}> {
+export default class BusinessRight extends tsc<{}> {
   render() {
     return (
-      <div class='business-item-big-skeleton'>
-        <div class='left'>
-          <div class='w--100 h-50 skeleton-element'></div>
-          <div class='container-01'>
-            <div class='w-82 h-20 skeleton-element'></div>
-            <div class='w-82 h-20 skeleton-element'></div>
-            <div class='w-82 h-20 skeleton-element'></div>
-          </div>
-          <div class='w-392 h-1 mt-14 skeleton-element'></div>
-          <div class='container-02'>
-            <div class='container-02-left'>
-              <div class='ring-out skeleton-element'>
-                <div class='ring-in'>
-                  <div class='rect skeleton-element'></div>
-                </div>
-              </div>
-              <div class='w-48 h-16 mt-16 skeleton-element'></div>
-            </div>
-            <div class='container-02-right'>
-              <div class='skeleton-element'></div>
-              <div class='skeleton-element'></div>
-              <div class='skeleton-element'></div>
-              <div class='skeleton-element'></div>
-            </div>
-          </div>
+      <div class='business-right-skeleton'>
+        <div class='business-right-skeleton-left'>
+          <div class='w-65 h-20 skeleton-element'></div>
+          <div class='w-180 h-172 mt-24 skeleton-element'></div>
         </div>
-        <div class='line'></div>
-        <BusinessRight></BusinessRight>
+        <div class='business-right-skeleton-right'>
+          <div class='w-173 h-32 skeleton-element'></div>
+          <div class='w--100 h-20 mt-12 skeleton-element'></div>
+          <div class='w-65 h-20 mt-24 skeleton-element'></div>
+          <div class='w-125 h-20 mt-12 skeleton-element'></div>
+          <div class='w-125 h-20 mt-12 skeleton-element'></div>
+          <div class='w-254 h-20 mt-24 skeleton-element'></div>
+        </div>
       </div>
     );
   }
