@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import ugettext_lazy as _lazy
 
-
 # 标准事件字段
 EVENT_NORMAL_FIELDS = [
     {
@@ -60,6 +59,12 @@ EVENT_NORMAL_FIELDS = [
         "field_type": "object",
     },
     {
+        "field": "dedupe_keys",
+        "display_name": _lazy("维度字段"),
+        "description": _lazy("事件去重的维度字段"),
+        "field_type": "object",
+    },
+    {
         "field": "assignee",
         "display_name": _lazy("受理人"),
         "description": _lazy("事件受理人，可作为动作的执行者"),
@@ -84,3 +89,12 @@ EVENT_NORMAL_FIELDS = [
         "field_type": "string",
     },
 ]
+
+
+class CollectType:
+    """
+    推送采集类型
+    """
+
+    BK_COLLECTOR = "bk_collector"
+    BK_INGESTOR = "bk_ingestor"

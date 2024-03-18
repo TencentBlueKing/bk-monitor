@@ -8,147 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import fnmatch
 import logging
-import os
 import typing
-from typing import List
 
 from blueapps.conf import settings
 
-from apm_ebpf.constants import DeepflowComp
-from apm_ebpf.handlers.deepflow import DeepflowHandler
-from bk_dataview.provisioning import Dashboard, Datasource, SimpleProvisioning
+from bk_dataview.provisioning import Dashboard, SimpleProvisioning
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.utils.cache import CacheType, using_cache
-from core.drf_resource import api
 from monitor_web.grafana.utils import patch_home_panels
 
 logger = logging.getLogger(__name__)
-
-
-class ApmEbpfProvisioning(SimpleProvisioning):
-    _FOLDER_NAME = "eBPF"
-    # eBPF的仪表盘模版插件Id 需要与apm_ebpf/*.json文件下__inputs.pluginId一致
-    _TEMPLATE_PLUGIN_ID = "deepflowio-deepflow-datasource"
-
-    @using_cache(CacheType.GRAFANA)
-    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
-        res = []
-        # 增加EBPF数据源
-        datasources = DeepflowHandler(org_name).list_datasources()
-
-        for datasource in datasources:
-            res.append(
-                Datasource(
-                    name=datasource.name,
-                    type=DeepflowComp.GRAFANA_DATASOURCE_TYPE_NAME,
-                    url="",
-                    access="proxy",
-                    withCredentials=False,
-                    jsonData={"requestUrl": datasource.request_url, "traceUrl": datasource.tracing_url},
-                )
-            )
-
-        return res
-
-    def dashboards(self, request, org_name: str, org_id: int):
-        """
-        注册默认仪表盘
-        @ApmEbpfProvisioning返回空列表 不走外层sync_dashboards逻辑
-        注册仪表盘操作在@method: self.upsert_dashboards里完成
-        """
-        if not DeepflowHandler(org_name).list_datasources():
-            yield from []
-
-        # 接入APM EBPF仪表盘
-        dashboard_mapping = self.get_dashboard_mapping(org_name)
-
-        self.upsert_dashboards(org_id, org_name, dashboard_mapping)
-
-        yield from []
-
-    def get_dashboard_mapping(self, _):
-        """
-        获取此业务下所有的默认仪表盘
-        """
-        res = {}
-
-        # 获取apm_ebpf目录下所有*.json文件
-        directory = "apm_ebpf"
-        path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards/{directory}")
-        templates = [n for n in os.listdir(path) if fnmatch.fnmatch(n, "*.json")]
-
-        for template in templates:
-            origin_name, _ = os.path.splitext(template)
-            res[f"{directory}_{origin_name}"] = os.path.join(directory, origin_name)
-
-        return res
-
-    @classmethod
-    def delete_empty_directory(cls):
-        """删除空的eBPF目录"""
-        orgs = api.grafana.get_all_organization()
-        if not orgs.get("result"):
-            logger.info(f"failed to get organization, result: {orgs}")
-            return
-
-        for org in orgs.get("data", []):
-            folders = api.grafana.list_folder(org_id=org["id"])
-            if not folders.get("result"):
-                logger.warning(f"list folder of org_id: {org['id']} failed, result: {folders}, skipped")
-                continue
-
-            ebpf_folder = next((f for f in folders.get("data", []) if f["title"] == cls._FOLDER_NAME), None)
-            if not ebpf_folder:
-                continue
-
-            dashboards = api.grafana.search_folder_or_dashboard(org_id=org["id"], folderIds=[ebpf_folder["id"]])
-            if dashboards.get("result") and not dashboards.get("data"):
-                api.grafana.delete_folder(org_id=org["id"], uid=ebpf_folder["id"])
-                logger.info(f"delete {cls._FOLDER_NAME} folder of org_id: {org['id']}(org_name: {org['name']})")
-
-    @classmethod
-    def _generate_default_dashboards(
-        cls, datasources, org_id, json_name, template, folder_id
-    ) -> typing.List[Dashboard]:
-        type_mapping = {
-            # 可能会存在多个相同的DeepFlow数据源导致Key相互覆盖 但是这里我们只需要任意取其中一个即可 因为多个数据源可以共用一个仪表盘
-            d["type"]: {"type": "datasource", "pluginId": d["type"], "value": d.get("uid", "")}
-            for d in datasources
-        }
-        if cls._TEMPLATE_PLUGIN_ID not in type_mapping:
-            # 此业务无eBPF集群 不创建仪表盘
-            return []
-
-        inputs = []
-        for input_field in template.get("__inputs", []):
-            if input_field["type"] != "datasource" or input_field["pluginId"] not in type_mapping:
-                continue
-            inputs.append({"name": input_field["name"], **type_mapping[input_field["pluginId"]]})
-
-        folders = api.grafana.search_folder_or_dashboard(org_id=org_id, type="dash-folder")
-        folder_mapping = {i["title"]: i for i in folders["data"]}
-
-        if folder_id == 0:
-            # 如果没有指定文件ID 则将仪表盘存放只eBPF目录下
-            if cls._FOLDER_NAME not in folder_mapping:
-                folder_id = api.grafana.create_folder(org_id=org_id, title=cls._FOLDER_NAME)["data"]["id"]
-            else:
-                folder_id = folder_mapping[cls._FOLDER_NAME]["id"]
-
-        ds = Dashboard(
-            org_id=org_id,
-            dashboard=template,
-            inputs=inputs,
-            folderId=folder_id,
-        )
-        if template.get("__path"):
-            # __path为eBPF模版中自定义字段 如果字段存在则证明为数据源内置仪表盘
-            ds.pluginId = cls._TEMPLATE_PLUGIN_ID
-            ds.path = template["__path"]
-
-        return [ds]
 
 
 class BkMonitorProvisioning(SimpleProvisioning):
@@ -164,6 +33,22 @@ class BkMonitorProvisioning(SimpleProvisioning):
         self.upsert_dashboards(org_id, org_name, dashboard_mapping)
 
         yield from []
+
+    @classmethod
+    def upsert_dashboards(cls, org_id, org_name, dashboard_mapping):
+        from monitor.models import ApplicationConfig
+
+        dashboard_keys = set(dashboard_mapping.keys())
+        created = set(
+            ApplicationConfig.objects.filter(key__in=dashboard_keys, cc_biz_id=org_name, value="created").values_list(
+                "key", flat=True
+            )
+        )
+        not_created = dashboard_keys - created
+        for i in not_created:
+            # 不存在则进行创建
+            if cls.create_default_dashboard(org_id, f"{dashboard_mapping[i]}.json", bk_biz_id=org_name):
+                ApplicationConfig.objects.get_or_create(cc_biz_id=org_name, key=i, value="created")
 
     @classmethod
     def get_dashboard_mapping(cls, org_name):

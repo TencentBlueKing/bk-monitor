@@ -32,7 +32,6 @@ import { VNode } from 'vue';
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Collapse, CollapseItem } from 'bk-magic-vue';
 
 import './group.scss';
 
@@ -132,10 +131,10 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
 
   render() {
     return (
-      <Collapse vModel={this.activeName}>
+      <bk-collapse vModel={this.activeName}>
         {this.data?.map(item =>
           item.data.length > 0 ? (
-            <CollapseItem
+            <bk-collapse-item
               ext-cls={`collapse-item collapse-item-${this.theme}`}
               hide-arrow
               key={item.id}
@@ -144,10 +143,10 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
                 default: () => this.titleSlot(item),
                 content: () => this.$scopedSlots?.default?.({ item })
               }}
-            ></CollapseItem>
+            ></bk-collapse-item>
           ) : undefined
         )}
-      </Collapse>
+      </bk-collapse>
     );
   }
 }

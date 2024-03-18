@@ -25,13 +25,13 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { CancelToken } from '../../../../../../../monitor-api/index';
+import { CancelToken } from 'monitor-api/index';
 import {
   getIntelligentDetectAccessStatus,
   getIntelligentModel,
   listIntelligentModels
-} from '../../../../../../../monitor-api/modules/strategies';
+} from 'monitor-api/modules/strategies';
+
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
 import { BoundType } from '../form/alarm-threshold-select';
@@ -278,7 +278,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
    */
   async getModelList() {
     this.loading = true;
-    const resData = await listIntelligentModels({ algorithm: 'TimeSeriesForecasting' }).catch(
+    const resData = await listIntelligentModels({ algorithm: 'TimeSeriesForecasting' }).finally(
       () => (this.loading = false)
     );
     let modelItem: FormItem = null;

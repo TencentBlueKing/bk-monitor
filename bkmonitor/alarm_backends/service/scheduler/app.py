@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import os
+import random
 
 import django
 import six.moves.urllib.error
@@ -38,35 +39,6 @@ except Exception as e:
 
     print("django setup failed: {}".format(e))
     sys.exit(-1)
-
-
-if settings.CACHE_BACKEND_TYPE == "SentinelRedisCache":
-    import celery
-    import redis
-    from celery.backends.redis import RedisBackend
-
-    from alarm_backends.core.storage.redis import SentinelRedisCache
-
-    if celery.VERSION.major < 4:
-        from celery.backends import BACKEND_ALIASES
-    else:
-        from celery.app.backends import BACKEND_ALIASES
-
-    class RedisSentinelBackend(RedisBackend):
-        def __init__(self, *args, **kwargs):
-            super(RedisSentinelBackend, self).__init__(*args, **kwargs)
-            self.client = SentinelRedisCache(
-                {
-                    "host": self.connparams["host"],
-                    "port": self.connparams["port"],
-                    "db": self.connparams["db"],
-                    "password": self.connparams["password"],
-                },
-                redis_class=redis.Redis,
-                decode_responses=False,
-            )
-
-    BACKEND_ALIASES["redis-sentinel"] = "{}.{}".format(RedisSentinelBackend.__module__, RedisSentinelBackend.__name__)
 
 
 def default_celery_worker_num():
@@ -170,7 +142,6 @@ def rabbitmq_conf():
     redis_db = redis_celery_conf["db"]
 
     class RabbitmqConf(Conf):
-        # 3.1.25 -> 4.4.7
         CELERY_TASK_SERIALIZER = "pickle"
         CELERY_ACCEPT_CONTENT = ["pickle"]
         CELERY_RESULT_SERIALIZER = "pickle"
@@ -195,23 +166,32 @@ def rabbitmq_conf():
         redbeat_lock_timeout = REDBEAT_LOCK_TIMEOUT = 300
 
         if settings.CACHE_BACKEND_TYPE == "SentinelRedisCache":
-            CELERY_RESULT_BACKEND = "redis-sentinel://:{}@{}:{}/{}".format(
-                six.moves.urllib.parse.quote(settings.REDIS_SENTINEL_PASS),
-                redis_host,
-                redis_port,
-                redis_db,
+            CELERY_RESULT_BACKEND = ";".join(
+                "sentinel://:{}@{}:{}/{}".format(
+                    six.moves.urllib.parse.quote(settings.REDIS_PASSWD),
+                    h,
+                    redis_port,
+                    redis_db,
+                )
+                for h in redis_host.split(";")
+                if h
             )
+            CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {
+                "master_name": settings.REDIS_MASTER_NAME,
+                "sentinel_kwargs": {"password": settings.REDIS_SENTINEL_PASS},
+            }
+
             # celery redbeat config
-            redbeat_redis_url = (
-                REDBEAT_REDIS_URL
-            ) = f"redis-sentinel://:{six.moves.urllib.parse.quote(settings.REDIS_SENTINEL_PASS)}@redis-sentinel:26379/0"
+            redbeat_redis_url = "redis-sentinel://redis-sentinel:26379/0"
             REDBEAT_REDIS_OPTIONS = {
-                "sentinels": [(redis_host, redis_port)],
+                "sentinels": [(h, redis_port) for h in redis_host.split(";") if h],
                 "password": redis_password,
                 "service_name": getattr(settings, "REDIS_MASTER_NAME", "mymaster"),
                 "socket_timeout": 10,
                 "retry_period": 60,
             }
+            # 随机打乱顺序，避免每次都是同一个节点
+            random.shuffle(REDBEAT_REDIS_OPTIONS["sentinels"])
 
             if getattr(settings, "REDIS_SENTINEL_PASS", ""):
                 REDBEAT_REDIS_OPTIONS["sentinel_kwargs"] = {"password": settings.REDIS_SENTINEL_PASS}
@@ -222,7 +202,7 @@ def rabbitmq_conf():
                 redis_port,
                 redis_db,
             )
-            redbeat_redis_url = REDBEAT_REDIS_URL = "redis://:{}@{}:{}/0".format(
+            redbeat_redis_url = "redis://:{}@{}:{}/0".format(
                 redis_password,
                 redis_host,
                 redis_port,

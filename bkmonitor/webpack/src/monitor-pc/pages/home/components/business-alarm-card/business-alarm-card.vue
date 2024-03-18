@@ -58,10 +58,10 @@
 
 <script>
 import dayjs from 'dayjs';
+// import { graphPoint } from 'monitor-api/modules/alert_events';
+import { alertGraphQuery } from 'monitor-api/modules/alert';
+import MonitorEacharts from 'monitor-ui/monitor-echarts/monitor-echarts';
 
-// import { graphPoint } from '../../../../../monitor-api/modules/alert_events';
-import { alertGraphQuery } from '../../../../../monitor-api/modules/alert';
-import MonitorEacharts from '../../../../../monitor-ui/monitor-echarts/monitor-echarts';
 import { gotoPageMixin } from '../../../../common/mixins';
 
 export default {

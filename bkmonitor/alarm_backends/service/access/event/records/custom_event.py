@@ -133,7 +133,7 @@ class GseCustomStrEventRecord(EventRecord):
             return []
 
         for strategy_id, strategy_obj in list(strategies.items()):
-            if self.METRIC_ID not in strategy_obj.items[0].metric_ids:
+            if not strategy_obj.items or self.METRIC_ID not in strategy_obj.items[0].metric_ids:
                 continue
             new_alarm = {}
             new_alarm.update(alarm)

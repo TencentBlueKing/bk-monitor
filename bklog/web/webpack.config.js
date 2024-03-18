@@ -76,6 +76,7 @@ const logPluginConfig = {
       window.ASSESSMEN_HOST_COUNT = \${BK_ASSESSMEN_HOST_COUNT}
       window.ENABLE_CHECK_COLLECTOR = \${ENABLE_CHECK_COLLECTOR}
       window.IS_EXTERNAL = \${IS_EXTERNAL}
+      window.BCS_WEB_CONSOLE_DOMAIN = '\${BCS_WEB_CONSOLE_DOMAIN}'
     </script>
     % if TAM_AEGIS_KEY != "" :
       <script src="https://cdn-go.cn/aegis/aegis-sdk/latest/aegis.min.js?_bid=3977"></script>

@@ -110,6 +110,9 @@ const store = new Vuex.Store({
     /** 外部版路由菜单 */
     externalMenu: [],
     isAppFirstLoad: true,
+    /** 是否清空了显示字段，展示全量字段 */
+    isNotVisibleFieldsShow: false,
+    showAlert: false, // 是否展示跑马灯
   },
   // 公共 getters
   getters: {
@@ -142,6 +145,7 @@ const store = new Vuex.Store({
     globalActiveLabel: state => state.globalActiveLabel,
     globalSettingList: state => state.globalSettingList,
     maskingToggle: state => state.maskingToggle,
+    isNotVisibleFieldsShow: state => state.isNotVisibleFieldsShow,
     /** 脱敏灰度判断 */
     isShowMaskingTemplate: state => (
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId))
@@ -280,6 +284,12 @@ const store = new Vuex.Store({
     },
     updateExternalMenu(state, val) {
       state.externalMenu = val;
+    },
+    updateIsNotVisibleFieldsShow(state, val) {
+      state.isNotVisibleFieldsShow = val;
+    },
+    updateNoticeAlert(state, val) {
+      state.showAlert = val;
     },
   },
   actions: {

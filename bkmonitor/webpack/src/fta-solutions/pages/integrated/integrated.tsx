@@ -25,9 +25,8 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Exception } from 'bk-magic-vue';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
 import IntegratedModule from '../../store/modules/integrated';
 import MonitorDrag from '../event/monitor-drag';
 
@@ -372,12 +371,12 @@ export default class Integrated extends tsc<IIntegratedProps> {
           ) : (
             <div class='integrated-content-empty'>
               {!this.loading ? (
-                <Exception
+                <bk-exception
                   type='empty'
                   scene='page'
                 >
                   {this.$t('暂无数据')}
-                </Exception>
+                </bk-exception>
               ) : undefined}
             </div>
           )}

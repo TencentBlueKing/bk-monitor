@@ -29,14 +29,14 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Button, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
+import { getSceneView } from 'monitor-api/modules/scene_view';
+import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
-import { getSceneView } from '../../../monitor-api/modules/scene_view';
-import { copyText, deepClone, random } from '../../../monitor-common/utils/utils';
 import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
-import ProfilingGraph from '../../plugins/charts/profiling-graph/profiling-graph';
+import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
@@ -236,6 +236,7 @@ export default defineComponent({
                 <img
                   class='span-icon'
                   src={icon}
+                  alt=''
                 />
                 <span>{serviceName}</span>
                 <i class='icon-monitor icon-fenxiang' />
@@ -601,7 +602,7 @@ export default defineComponent({
       if (content === 'text') {
         text = spanID;
       } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}?app_name=${
+        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
           appName.value
         }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
         text = location.href.replace(location.hash, hash);
@@ -1159,8 +1160,9 @@ export default defineComponent({
                         loading={isTabPanelLoading.value}
                         style='height: 100%;'
                       >
-                        <ProfilingGraph
+                        <ProfilingFlameGraph
                           appName={appName.value}
+                          serviceName={serviceNameProvider.value}
                           profileId={originalData.value.span_id}
                           start={originalData.value.start_time}
                           end={originalData.value.end_time}

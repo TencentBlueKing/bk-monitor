@@ -21,10 +21,8 @@
  */
 
 import { mapState, mapGetters } from 'vuex';
-import { formatDate, random, copyMessage } from '@/common/util';
+import { formatDate, random, copyMessage, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
-import EventPopover from '@/views/retrieve/result-comp/event-popover.vue';
-import RegisterColumn from '@/views/retrieve/result-comp/register-column.vue';
 import TextHighlight from 'vue-text-highlight';
 import OperatorTools from '@/views/retrieve/result-table-panel/original-log/operator-tools';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
@@ -36,13 +34,11 @@ import OriginalLightHeight from '@/views/retrieve/result-comp/original-light-hei
 
 export default {
   components: {
-    EventPopover,
     TextHighlight,
     OperatorTools,
     RetrieveLoader,
     TableColumn,
     ExpandView,
-    RegisterColumn,
     EmptyView,
     TimeFormatterSwitcher,
     OriginalLightHeight,
@@ -109,21 +105,72 @@ export default {
       originStrInstance: null,
       /** 当前需要复制的原始日志 */
       hoverOriginStr: '',
+      logSourceField: {
+        description: null,
+        es_doc_values: false,
+        field_alias: '',
+        field_name: this.$t('日志来源'),
+        field_operator: [],
+        field_type: 'keyword',
+        filterExpand: false,
+        filterVisible: false,
+        is_analyzed: false,
+        is_display: false,
+        is_editable: false,
+        minWidth: 0,
+        tag: 'union-source',
+        width: 230,
+      },
     };
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
+    ...mapState(['isNotVisibleFieldsShow', 'clearTableWidth']),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
       unionIndexList: 'unionIndexList',
       unionIndexItemList: 'unionIndexItemList',
     }),
     showHandleOption() {
-      return Boolean(this.visibleFields.length);
+      return Boolean(this.tableList.length);
     },
     getOperatorToolsWidth() {
-      return this.operatorConfig?.bcsWebConsole.is_active ? '84' : '58';
+      return this.operatorConfig?.bcsWebConsole?.is_active ? '84' : '58';
     },
+    getShowTableVisibleFields() {
+      this.tableRandomKey = random(6);
+      return this.isNotVisibleFieldsShow ? this.fullQuantityFields : this.visibleFields;
+    },
+    /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
+    fullQuantityFields() {
+      const dataFields = [];
+      const indexSetFields = [];
+      const logFields = [];
+      this.totalFields.forEach((item) => {
+        if (item.field_type === 'date') {
+          dataFields.push(item);
+        } else if (item.field_name === 'log' || item.field_alias === 'original_text') {
+          logFields.push(item);
+        } else if (!(item.field_type === '__virtual__' || item.is_built_in)) {
+          indexSetFields.push(item);
+        }
+      });
+      const sortIndexSetFieldsList = indexSetFields.sort((a, b) => {
+        const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+        const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+        return sortA.localeCompare(sortB);
+      });
+      const sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      if (this.isUnionSearch && this.isShowSourceField) {
+        sortFieldsList.unshift(this.logSourceField);
+      }
+      setDefaultTableWidth(sortFieldsList, this.tableList);
+      return sortFieldsList;
+    },
+    /** 是否展示数据来源 */
+    isShowSourceField() {
+      return this.operatorConfig.isShowSourceField;
+    }
   },
   watch: {
     retrieveParams: {
@@ -137,28 +184,31 @@ export default {
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
     },
-    visibleFields: {
-      deep: true,
-      handler(list) {
-        this.tableRandomKey = random(6);
-        if (list.length !== 0) {
-          const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-          const { params: { indexId }, query: { bizId } } = this.$route;
-          let widthObj = {};
+    clearTableWidth() {
+      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      const { params: { indexId }, query: { bizId } } = this.$route;
+      if (columnObj === null || JSON.stringify(columnObj) === '{}') {
+        return;
+      }
+      const isHaveBizId = Object.keys(columnObj).some(el => el === bizId);
 
-          for (const bizKey in columnObj) {
-            if (bizKey === bizId) {
-              for (const fieldKey in columnObj[bizId].fields) {
-                fieldKey === indexId && (widthObj = columnObj[bizId].fields[indexId]);
-              }
+      if (!isHaveBizId || columnObj[bizId].fields[indexId] === undefined) {
+        return;
+      }
+
+      for (const bizKey in columnObj) {
+        if (bizKey === bizId) {
+          for (const fieldKey in columnObj[bizKey].fields) {
+            if (fieldKey === indexId) {
+              delete columnObj[bizId].fields[indexId];
+              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexId, 1));
+              columnObj[bizId].indexsetIds.length === 0 && delete columnObj[bizId];
             }
           }
-
-          list.forEach((el, index) => {
-            el.width = widthObj[index] || el.width;
-          });
         }
-      },
+      }
+
+      localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
     },
   },
   methods: {
@@ -240,8 +290,8 @@ export default {
     },
     // eslint-disable-next-line no-unused-vars
     renderHeaderAliasName(h, { column, $index }) {
-      const field = this.visibleFields[$index - 1];
-      const isShowSwitcher = field.field_type === 'date';
+      const field = this.getShowTableVisibleFields[$index - 1];
+      const isShowSwitcher = field?.field_type === 'date';
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
@@ -261,7 +311,6 @@ export default {
           }
         }
         const isLackIndexFields = (!!unionContent && this.isUnionSearch);
-        const isHiddenToggleDisplay = this.visibleFields.filter(item => item.tag !== 'union-source').length === 1 || isUnionSource;
 
         return h('div', {
           class: 'render-header',
@@ -295,7 +344,7 @@ export default {
             },
           }),
           h('i', {
-            class: `bk-icon icon-minus-circle-shape toggle-display ${isHiddenToggleDisplay ? 'is-hidden' : ''}`,
+            class: `bk-icon icon-minus-circle-shape toggle-display ${this.isNotVisibleFieldsShow ? 'is-hidden' : ''}`,
             directives: [
               {
                 name: 'bk-tooltips',
@@ -318,28 +367,28 @@ export default {
         ]);
       }
     },
-    handleIconClick(type, content, field, row) {
+    handleIconClick(type, content, field, row, isLink) {
       let value = field.field_type === 'date' ? row[field.field_name] : content;
       value = String(value).replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
       if (type === 'search') { // 将表格单元添加到过滤条件
-        this.$emit('addFilterCondition', field.field_name, 'eq', value);
+        this.$emit('addFilterCondition', field.field_name, 'eq', value, isLink);
       } else if (type === 'copy') { // 复制单元格内容
         copyMessage(value);
       } else if (['is', 'is not'].includes(type)) {
-        this.$emit('addFilterCondition', field.field_name, type, value === '--' ? '' : value.toString());
+        this.$emit('addFilterCondition', field.field_name, type, value === '--' ? '' : value.toString(), isLink);
       }
     },
     getFieldIcon(fieldType) {
       return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
     },
-    handleMenuClick(option) {
+    handleMenuClick(option, isLink) {
       switch (option.operation) {
         case 'is':
         case 'is not':
           // eslint-disable-next-line no-case-declarations
           const { fieldName, operation, value } = option;
-          this.$emit('addFilterCondition', fieldName, operation, value === '--' ? '' : value.toString());
+          this.$emit('addFilterCondition', fieldName, operation, value === '--' ? '' : value.toString(), isLink);
           break;
         case 'copy':
           copyMessage(option.value);
@@ -349,32 +398,6 @@ export default {
           break;
         default:
           break;
-      }
-    },
-    /**
-     * @desc: 鼠标放到原始日志上
-     * @param {Element} e hover的dom
-     * @param {String} originStr hover的原始日志的字符串
-     */
-    handleHoverFavoriteName(e, originStr = '') {
-      if (!this.originStrInstance) {
-        this.hoverOriginStr = originStr;
-        this.originStrInstance = this.$bkPopover(e.target, {
-          content: this.$refs.copyTools,
-          arrow: true,
-          placement: 'top',
-          offset: '0, -50',
-          theme: 'light',
-          // allowHTML: true,
-          interactive: true,
-          appendTo: 'parent',
-          boundary: this.scrollContent,
-          onHidden: () => {
-            this.originStrInstance?.destroy();
-            this.originStrInstance = null;
-          },
-        });
-        this.originStrInstance.show(500);
       }
     },
     /**

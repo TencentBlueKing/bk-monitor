@@ -78,7 +78,7 @@
         <div v-else class="authority" style="padding: 9px 10px;">
           <span class="index-info">
             <span
-              :class="[item.is_favorite ? 'log-icon icon-star-shape' : 'bk-icon icon-star']"
+              :class="[item.is_favorite ? 'log-icon icon-lc-star-shape' : 'bk-icon icon-star']"
               style="color: #fe9c00;"
               @click.stop="handleCollection(item)">
             </span>

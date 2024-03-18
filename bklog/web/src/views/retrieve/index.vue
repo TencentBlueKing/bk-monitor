@@ -177,6 +177,8 @@
               :active-table-tab="activeTableTab"
               :cluster-route-params="clusterRouteParams"
               :is-init-page="isInitPage"
+              :is-thollte-field="isThollteField"
+              :finger-search-state="fingerSearchState"
               @request-table-data="requestTableData"
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
@@ -218,7 +220,8 @@
       :total-fields="totalFields"
       :clean-config="cleanConfig"
       :config-data="clusteringData"
-      :statistical-fields-data="statisticalFieldsData"
+      :date-picker-value="datePickerValue"
+      :retrieve-params="retrieveParams"
       @closeSetting="isShowSettingModal = false;"
       @updateLogFields="requestFields" />
     <!-- 收藏更新弹窗 -->
@@ -248,7 +251,7 @@ import SettingModal from './setting-modal/index.vue';
 import CollectIndex from './collect/collect-index';
 import AddCollectDialog from './collect/add-collect-dialog';
 import SearchComp from './search-comp';
-import { readBlobRespToJson, parseBigNumberList, calculateTableColsWidth } from '@/common/util';
+import { readBlobRespToJson, parseBigNumberList, setDefaultTableWidth } from '@/common/util';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
@@ -401,6 +404,10 @@ export default {
       finishPolling: false,
       catchUnionBeginList: [],
       timezone: dayjs.tz.guess(),
+      /** 数据指纹是否请求布尔值 */
+      fingerSearchState: false,
+      /** 批量添加条件的请求定时器timer */
+      addFilterTimer: null,
       logSourceField: {
         description: null,
         es_doc_values: false,
@@ -488,11 +495,6 @@ export default {
       handler(val) {
         this.localIframeQuery = val;
       },
-    },
-    'visibleFields.length'() {
-      if (this.isSetDefaultTableColumn) {
-        this.setDefaultTableColumn();
-      }
     },
     unionIndexList: {
       deep: true,
@@ -792,9 +794,12 @@ export default {
       //     addition: []
       // })
       // 过滤相关
+      const tempList = handleTransformToTimestamp(this.datePickerValue);
       this.retrieveParams = {
         bk_biz_id: this.$store.state.bkBizId,
         ...DEFAULT_RETRIEVE_PARAMS,
+        start_time: tempList[0],
+        end_time: tempList[1],
       };
       this.statisticalFieldsData = {};
       this.retrieveDropdownData = {};
@@ -845,16 +850,17 @@ export default {
     },
     // 由添加条件来修改的过滤条件
     searchAddChange(addObj) {
-      const { addition, isQuery } = addObj;
+      const { addition, isQuery, isForceQuery } = addObj;
       this.retrieveParams.addition = addition;
-      if (isQuery && this.isAutoQuery) this.retrieveLog();
+      if ((isQuery && this.isAutoQuery) || isForceQuery) this.retrieveLog();
     },
     getFieldType(field) {
       const target = this.totalFields.find(item => item.field_name === field);
       return target ? target.field_type : '';
     },
     // 添加过滤条件
-    addFilterCondition(field, operator, value, index) {
+    addFilterCondition(field, operator, value, isLink = false) {
+      clearTimeout(this.addFilterTimer);
       let mappingKey = this.mappingKey;
       const textType = this.getFieldType(field);
       switch (textType) {
@@ -871,14 +877,27 @@ export default {
         && addition.value.toString() === value.toString();
       });
       // 已存在相同条件
-      if (isExist) return;
+      if (isExist) {
+        if (isLink) this.additionLinkOpen();
+        return;
+      };
 
-      const startIndex = index > -1 ? index : this.retrieveParams.addition.length;
-      const deleteCount = index > -1 ? 1 : 0;
-      this.retrieveParams.addition.splice(startIndex, deleteCount, { field, operator: mapOperator, value });
-      this.retrieveLog();
-      this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
-      this.$refs.searchCompRef.setRouteParams();
+      const startIndex = this.retrieveParams.addition.length;
+      const newAddition = { field, operator: mapOperator, value };
+      if (!isLink) {
+        this.retrieveParams.addition.splice(startIndex, 0, newAddition);
+        this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
+        this.addFilterTimer = setTimeout(() => {
+          this.$refs.searchCompRef.setRouteParams();
+          this.retrieveLog();
+        }, 0);
+      } else {
+        this.additionLinkOpen(newAddition);
+      }
+    },
+    additionLinkOpen(newAddition = {}) {
+      const openUrl = this.$refs.searchCompRef.setRouteParams({}, false, newAddition);
+      window.open(openUrl, '_blank');
     },
     /** 改变是否展示联合查询日志来源 */
     changeShowUnionSource() {
@@ -887,9 +906,9 @@ export default {
     },
     /** 日志来源显隐操作 */
     showShowUnionSource(keepLastTime = false) {
+      // 非联合查询 或者清空了所有字段 不走逻辑
+      if (!this.isUnionSearch || !this.visibleFields.length) return;
       const isExist = this.visibleFields.some(item => item.tag === 'union-source');
-      // 非联合查询 不走逻辑
-      if (!this.isUnionSearch) return;
       // 保持之前的逻辑
       if (keepLastTime) {
         const isShowSourceField = this.operatorConfig.isShowSourceField;
@@ -1119,9 +1138,7 @@ export default {
               // case 'start_time':
               // case 'end_time':
               // case 'time_range':
-                if (this.retrieveParams[field] !== '') {
-                  queryParamsStr[field] = encodeURIComponent(this.retrieveParams[field]);
-                }
+                queryParamsStr[field] = this.retrieveParams[field] === '' ? '*' : encodeURIComponent(this.retrieveParams[field]);
                 break;
               case 'host_scopes':
                 if (this.retrieveParams[field].ips !== ''
@@ -1162,8 +1179,7 @@ export default {
         spaceUid: this.$store.state.spaceUid,
         bizId: this.$store.state.bkBizId,
         ...queryParamsStr,
-        // 由于要缓存过滤条件 解构route的query时会把缓存的pickerTimeRange参数携带上，故重新更新pickerTimeRange参数
-        // pickerTimeRange: queryParamsStr?.pickerTimeRange,
+        keyword: queryParamsStr?.keyword,
       };
       this.$router.push({
         name: 'retrieve',
@@ -1183,6 +1199,8 @@ export default {
           await this.requestFields();
           this.shouldUpdateFields = false;
         }
+        // 指纹请求监听放在这里是要等字段更新完后才会去请求数据指纹
+        this.fingerSearchState = !this.fingerSearchState;
 
         if (this.isInitPage) {
           Object.assign(this.retrieveParams, queryParams); // 回填查询参数中的检索条件
@@ -1202,6 +1220,7 @@ export default {
           const addition = !!queryParamsStr.addition ? JSON.parse(queryParamsStr?.addition) : undefined;
           const chooserSwitch = Boolean(queryParams.ip_chooser);
           this.$refs.searchCompRef.initConditionList(addition, this.catchIpChooser, chooserSwitch); // 初始化 更新当前添加条件列表
+          // this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
           this.isInitPage = false;
         }
 
@@ -1338,6 +1357,9 @@ export default {
         this.fieldAliasMap = fieldAliasMap;
         this.isThollteField = false;
         this.$store.commit('retrieve/updateFiledSettingConfigID', config_id); // 当前配置ID
+        this.$nextTick(() => {
+          this.$refs.searchCompRef?.initAdditionDefault();
+        });
       } catch (e) {
         this.ipTopoSwitch = true;
         this.bkmonitorUrl = false;
@@ -1363,8 +1385,11 @@ export default {
         }
       }).filter(Boolean);
       this.showShowUnionSource(true);
+      this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
+      if (!this.isSetDefaultTableColumn) {
+        this.setDefaultTableColumn();
+      }
       this.isSetDefaultTableColumn = false;
-      this.setDefaultTableColumn();
     },
     sessionShowFieldObj() { // 显示字段缓存
       const showFieldStr = sessionStorage.getItem('showFieldSession');
@@ -1481,30 +1506,12 @@ export default {
     },
     // 首次加载设置表格默认宽度自适应
     setDefaultTableColumn() {
-      try {
-        const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-        const { params: { indexId }, query: { bizId } } = this.$route;
-        // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-        if (columnObj?.[bizId] && columnObj[bizId].indexsetIds?.includes(indexId)) return;
-
-        if (this.tableData?.list.length && this.visibleFields.length) {
-          this.visibleFields.forEach((field) => {
-            field.width = calculateTableColsWidth(field, this.tableData.list);
-          });
-          const columnsWidth = this.visibleFields.reduce((prev, next) => prev + next.width, 0);
-          const tableElem = document.querySelector('.original-log-panel');
-          // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-          if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
-            this.visibleFields.forEach((field) => {
-              field.width = field.width < 300 ? 'default' : field.width;
-            });
-          }
-        }
-
-        this.isSetDefaultTableColumn = true;
-      } catch (error) {
-        this.isSetDefaultTableColumn = false;
-      }
+      // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
+      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      const { params: { indexId }, query: { bizId } } = this.$route;
+      const catchFieldsWidthObj = columnObj?.[bizId]?.fields[indexId];
+      const tableList = this.tableData?.list ?? [];
+      this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);
     },
     // 根据表格数据统计字段值及出现次数
     getStatisticalFieldsData(listData) {
@@ -1787,6 +1794,8 @@ export default {
     // 表格tab切换或聚类参数回填
     backFillClusterRouteParams(activeTableTab = 'origin', clusterParams) {
       this.activeTableTab = activeTableTab;
+      // 如果初始化时是日志聚类，切换回原始日志时候需要重新计算表格宽度，不重新分配宽度会导致操作列表宽度太长，挡住kv列表里的交互
+      if (activeTableTab === 'origin') this.setDefaultTableColumn();
       const { query, params } = this.$route;
       const newQuery = { ...query };
       newQuery.activeTableTab = activeTableTab;

@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { VNode } from 'vue';
-
-import { IBookMark, ICurVarItem } from '../../../../monitor-ui/chart-plugins/typings';
+import { IBookMark, ICurVarItem } from 'monitor-ui/chart-plugins/typings';
 /** 编辑页签  编辑变量 编辑视图 */
 export type SettingType = 'edit-tab' | 'edit-variate' | 'edit-dashboard';
 export type ISettingTpl = Record<SettingType, VNode>;

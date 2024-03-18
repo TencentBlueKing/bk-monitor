@@ -26,8 +26,10 @@
       <div class="space-item-label">{{$t('应用类型')}}</div>
       <bk-select
         v-model="formData.workload_type"
+        ref="typeSelectRef"
         searchable
         clearable
+        allow-create
         @toggle="closeTitle">
         <bk-option
           v-for="(option, index) in typeList"
@@ -99,16 +101,24 @@ export default {
     ...mapGetters({
       bkBizId: 'bkBizId',
     }),
+    typeListIDStrList() {
+      return this.typeList.map(item => item.id);
+    },
   },
   watch: {
     'formData.workload_type'(val) {
       !!val ? this.getWorkLoadNameList() : this.nameList = [];
     },
-    'conItem.noQuestParams.namespaceStr'() {
-      clearTimeout(this.timer);
-      this.timer = setTimeout(() => {
-        this.getWorkLoadNameList();
-      }, 1000);
+    'conItem.noQuestParams.namespaceStr': {
+      immediate: true,
+      handler(str) {
+        if (str) {
+          clearTimeout(this.timer);
+          this.timer = setTimeout(() => {
+            this.getWorkLoadNameList();
+          }, 1000);
+        }
+      },
     },
     formData: {
       handler(val) {
@@ -127,9 +137,11 @@ export default {
   },
   mounted() {
     this.$refs.loadSelectRef.$refs.createInput.placeholder = this.placeHolderStr;
+    this.$refs.typeSelectRef.$refs.createInput.placeholder = this.$t('请输入');
   },
   methods: {
     getWorkLoadNameList() {
+      if (!this.typeListIDStrList.includes(this.formData.workload_type)) return;
       this.nameCannotClick = true;
       const query = {
         type: this.formData.workload_type,
@@ -160,16 +172,20 @@ export default {
 @import '@/scss/mixins/flex.scss';
 
 .load-container {
+  @include flex-center;
+
   > :first-child {
     width: 28%;
     margin-right: 12px;
   }
+
   > :last-child {
     flex: 1;
   }
-  @include flex-center;
+
   .flex-space-item {
     position: relative;
+
     @include flex-justify(space-between);
 
     .bk-select,
@@ -185,6 +201,7 @@ export default {
       height: 34px;
     }
   }
+
   .space-item-label {
     min-width: 48px;
     padding: 0 6px;

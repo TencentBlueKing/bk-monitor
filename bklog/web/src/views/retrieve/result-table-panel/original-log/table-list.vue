@@ -34,8 +34,7 @@
     <bk-table-column
       type="expand"
       width="30"
-      align="center"
-      v-if="visibleFields.length">
+      align="center">
       <template slot-scope="{ $index }">
         <expand-view
           v-bind="$attrs"
@@ -49,7 +48,7 @@
       </template>
     </bk-table-column>
     <!-- 显示字段 -->
-    <template v-for="(field, index) in visibleFields">
+    <template v-for="(field, index) in getShowTableVisibleFields">
       <bk-table-column
         align="left"
         :sortable="field.es_doc_values && field.tag !== 'union-source'"
@@ -72,7 +71,7 @@
                 :field-name="field.field_name"
                 :field-type="field.field_type"
                 :field-tag="field.tag"
-                @iconClick="(type, content) => handleIconClick(type, content, field, row)"
+                @iconClick="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
                 @computedHeight="handleOverColumn(field.field_name)" />
               <p
                 v-if="!cacheExpandStr.includes($index)"
@@ -112,18 +111,18 @@
       <retrieve-loader
         is-loading
         :is-original-field="false"
-        :visible-fields="visibleFields">
+        :visible-fields="getShowTableVisibleFields">
       </retrieve-loader>
     </bk-table-column>
     <template v-else slot="empty">
       <empty-view v-bind="$attrs" v-on="$listeners" />
     </template>
     <!-- 下拉刷新骨架屏loading -->
-    <template slot="append" v-if="tableList.length && visibleFields.length && isPageOver">
+    <template slot="append" v-if="tableList.length && getShowTableVisibleFields.length && isPageOver">
       <retrieve-loader
         :is-page-over="isPageOver"
         :is-original-field="false"
-        :visible-fields="visibleFields">
+        :visible-fields="getShowTableVisibleFields">
       </retrieve-loader>
     </template>
   </bk-table>

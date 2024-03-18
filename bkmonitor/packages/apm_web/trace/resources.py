@@ -510,6 +510,7 @@ class TraceDetailResource(Resource):
             allow_empty=True,
             required=False,
         )
+        query_trace_relation_app = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_request_data):
         data = api.apm_api.query_trace_detail(
@@ -518,6 +519,7 @@ class TraceDetailResource(Resource):
                 "app_name": validated_request_data["app_name"],
                 "trace_id": validated_request_data["trace_id"],
                 "displays": validated_request_data["displays"],
+                "query_trace_relation_app": validated_request_data["query_trace_relation_app"],
             }
         )
         if not data.get("trace_data"):

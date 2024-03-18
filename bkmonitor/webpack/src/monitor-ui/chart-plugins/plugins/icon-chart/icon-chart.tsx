@@ -26,8 +26,8 @@
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import { PanelModel } from '../../typings';
 import CommonSimpleChart from '../common-simple-chart';
 
@@ -148,6 +148,7 @@ class IconChart extends CommonSimpleChart {
                 </div>
                 {!!this.panel.instant && (
                   <img
+                    alt=''
                     class='instant-icon'
                     // eslint-disable-next-line @typescript-eslint/no-require-imports
                     src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}

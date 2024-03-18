@@ -81,7 +81,7 @@
         </div>
       </div>
     </template>
-    <template v-else>
+    <template v-else-if="logType !== 'origin'">
       <span
         class="handle-card union-icon" v-bk-tooltips="$t('{0}日志来源', {
           0: !isShowSourceField ? $t('显示') : $t('隐藏')

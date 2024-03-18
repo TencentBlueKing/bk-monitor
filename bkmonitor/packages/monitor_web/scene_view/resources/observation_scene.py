@@ -21,17 +21,19 @@ from rest_framework import serializers
 from bkmonitor.commons.tools import get_host_view_display_fields
 from bkmonitor.data_source import (
     BkMonitorLogDataSource,
-    BkMonitorTimeSeriesDataSource,
     CustomEventDataSource,
-    CustomTimeSeriesDataSource,
+    UnifyQuery,
+    load_data_source,
 )
 from bkmonitor.models import QueryConfigModel, StrategyModel
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.cmdb import TargetNodeType, TargetObjectType
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import CacheResource, Resource, api
 from monitor_web.collecting.constant import OperationType
+from monitor_web.commons.data_access import ResultTable
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import (
     CollectConfigMeta,
@@ -41,6 +43,7 @@ from monitor_web.models import (
     PluginVersionHistory,
 )
 from monitor_web.plugin.constant import PluginType
+from monitor_web.plugin.manager import PluginManagerFactory
 
 logger = logging.getLogger(__name__)
 
@@ -93,13 +96,23 @@ class GetObservationSceneStatusList(CacheResource):
         if not custom_metric:
             return False
 
-        data_source = CustomTimeSeriesDataSource(
-            bk_biz_id=bk_biz_id,
+        sampling_duration = 60 * 3  # 计算三个采集周期
+        metrics = [
+            {"field": metric["name"], "method": "count"}
+            for metric in custom_metric.get_metrics().values()
+            if metric["monitor_type"] == "metric"
+        ]
+        data_source_class = load_data_source(DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES)
+        data_source = data_source_class(
             table=custom_metric.table_id,
-            metrics=[{"field": "COUNT(*)"}],
+            metrics=metrics,
+            interval=sampling_duration,  # 步长设置为整个时间段，模拟即时查询
         )
-        records = data_source.query_data(start_time=(int(time.time()) - 180) * 1000, limit=1)
-        return bool(records)
+        query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
+        now_ts = int(time.time())
+        records = query.query_data(start_time=(now_ts - sampling_duration) * 1000, end_time=now_ts * 1000)
+
+        return records[0]["_result_"] > 0
 
     @classmethod
     def check_custom_event(cls, bk_biz_id: int, bk_event_group_id: int) -> bool:
@@ -161,30 +174,42 @@ class GetObservationSceneStatusList(CacheResource):
             return bool(records)
 
         filter_dict["bk_biz_id"] = str(bk_biz_id)
-        # 获取结果表配置
+
+        # 指标无数据判断
         if plugin.plugin_type == PluginType.PROCESS:
             db_name = "process"
-            table_ids = ["perf"]
+            metric_info = PluginManagerFactory.get_manager(
+                plugin=plugin.plugin_id, plugin_type=plugin.plugin_type
+            ).gen_metric_info()
+            metric_json = [table for table in metric_info if table["table_name"] == "perf"]
         else:
             db_name = "{plugin_type}_{plugin_id}".format(plugin_type=plugin.plugin_type, plugin_id=plugin.plugin_id)
-            table_ids = [table["table_name"] for table in plugin.release_version.info.metric_json]
+            metric_json = plugin.release_version.info.metric_json
 
-        for table_id in table_ids:
+        sampling_duration = period * 3  # 计算三个采集周期
+        result_tables = [ResultTable.new_result_table(table) for table in metric_json]
+        for table in result_tables:
+            metrics = [
+                {"field": field["field_name"], "method": "count"} for field in table.fields if field["tag"] == "metric"
+            ]
+            data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+            data_source = data_source_class(
+                table=f"{db_name.lower()}.{table.table_name}",
+                metrics=metrics,
+                filter_dict=filter_dict,
+                interval=sampling_duration,  # 步长设置为整个时间段，模拟即时查询
+            )
+            query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
+            now_ts = int(time.time())
             try:
-                data_source = BkMonitorTimeSeriesDataSource(
-                    table=f"{db_name.lower()}.{table_id.lower()}",
-                    metrics=[{"field": "count(*)"}],
-                    filter_dict=filter_dict,
-                    group_by=[],
-                )
-                records = data_source.query_data(
-                    start_time=(int(time.time()) - period * 3) * 1000, end_time=int(time.time()) * 1000, limit=1
-                )
+                records = query.query_data(start_time=(now_ts - sampling_duration) * 1000, end_time=now_ts * 1000)
             except Exception as e:
                 logger.exception(e)
-                records = []
-            if records:
+                continue
+
+            if records[0]["_result_"] > 0:
                 return True
+
         return False
 
     def get_observation_scene_status(self, bk_biz_id: int, scene_view_id: str) -> str:
@@ -225,7 +250,6 @@ class GetObservationSceneStatusList(CacheResource):
             scene_view_id__status_map[scene_view_id] = {"status": status}
 
     def perform_request(self, params):
-
         scene_view_id__status_map: Dict[str, str] = {}
         th_list: List[InheritParentThread] = [
             InheritParentThread(
@@ -288,7 +312,6 @@ class GetObservationSceneList(Resource):
 
         collect_plugin_list: List[Dict[str, Any]] = []
         for plugin in plugins:
-
             # 如果存在未停用的采集任务才进行展示
             collect_config_count: int = collect_config_counter.get(f"{bk_biz_id}-{plugin.plugin_id}", 0)
             if collect_config_count == 0:

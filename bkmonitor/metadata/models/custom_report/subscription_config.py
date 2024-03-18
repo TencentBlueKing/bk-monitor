@@ -40,7 +40,7 @@ def get_proxy_host_ids(bk_host_ids):
     remove_host_ids = []
     for plugin in all_plugin:
         proxy_plugin = list(filter(lambda x: x["name"] == "bkmonitorproxy", plugin["plugin_status"]))
-        # 如果bkmonitorproxy插件存在，且状态为未停用，则下发子配置文件
+        # 如果 bkmonitorproxy 插件存在，且状态为未停用，则下发子配置文件
         if proxy_plugin and proxy_plugin[0].get("status", "") != "MANUAL_STOP":
             proxy_host_ids.append(plugin["bk_host_id"])
         else:
@@ -80,10 +80,21 @@ class CustomReportSubscription(models.Model):
 
     @classmethod
     def create_subscription(cls, bk_biz_id, items, bk_host_ids, plugin_name, op_type="add"):
-        # 使用proxy插件卸除配置时，针对proxy状态为手动停止的机器进行卸载
-        bk_host_ids = (
-            get_proxy_host_ids(bk_host_ids) if plugin_name == "bkmonitorproxy" and op_type == "remove" else bk_host_ids
-        )
+
+        available_host_ids = get_proxy_host_ids(bk_host_ids) if plugin_name == "bkmonitorproxy" else bk_host_ids
+
+        if op_type != "remove" and not available_host_ids:
+            # 目标主机 bkmonitorproxy 全部为手动停止或未部署时，暂不下发
+            # 业务背景：bkmonitorproxy 的功能将被 bk-collector 取代，为了版本兼容目前采取两边下发的逻辑
+            #         当 bkmonitorproxy 被停止或未部署时，说明 bkmonitorproxy 已下线，无需进行下发
+            logger.info(
+                "[custom_report] skipped because no available nodes: bk_biz_id(%s), plugin(%s)", bk_biz_id, plugin_name
+            )
+            return
+
+        if op_type == "remove":
+            # 使用 Proxy 插件卸除配置时，针对 Proxy 状态为手动停止的机器进行卸载
+            bk_host_ids = available_host_ids
 
         logger.info(
             "update or create subscription task, bk_biz_id(%s), target_hosts(%s), plugin(%s)",
@@ -150,7 +161,10 @@ class CustomReportSubscription(models.Model):
 
     @classmethod
     def get_protocol(cls, bk_data_id):
-        from alarm_backends.core.cache.models.custom_ts_grouop import CustomTSGroupCacheManager
+        from alarm_backends.core.cache.models.custom_ts_group import (
+            CustomTSGroupCacheManager,
+        )
+
         return CustomTSGroupCacheManager.get(bk_data_id) or "json"
 
     @classmethod

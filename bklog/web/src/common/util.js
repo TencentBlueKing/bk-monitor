@@ -1007,3 +1007,49 @@ export const utcFormatDate = (val) => {
 
   return formatDate(date.getTime());
 };
+
+// 首次加载设置表格默认宽度自适应
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
+  try {
+    if (tableData.length && visibleFields.length) {
+      visibleFields.forEach((field, index) => {
+        if (catchFieldsWidthObj) {
+          const catchWidth = catchFieldsWidthObj[index];
+          field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
+        } else {
+          field.width = calculateTableColsWidth(field, tableData);
+        };
+      });
+      const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
+      const tableElem = document.querySelector('.original-log-panel');
+      // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
+      if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
+        visibleFields.forEach((field) => {
+          field.width = field.width < 300 ? 'default' : field.width;
+        });
+      }
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
+ * @desc: 下载blob类型的文件
+ * @param {Any} data 数据源
+ * @param {String} fileName 文件名
+ * @param {String} type 文件类型
+ */
+export const blobDownload = (data, fileName = 'default', type = 'text/plain') => {
+  const blob = new Blob([data], { type });
+  const downloadElement = document.createElement('a');
+  const href = window.URL.createObjectURL(blob); // 创建下载的链接
+  downloadElement.href = href;
+  downloadElement.download = fileName; // 下载后文件名
+  document.body.appendChild(downloadElement);
+  downloadElement.click(); // 点击下载
+  document.body.removeChild(downloadElement);
+  window.URL.revokeObjectURL(href); // 释放掉blob对象
+};

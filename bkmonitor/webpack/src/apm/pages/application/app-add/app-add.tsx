@@ -25,11 +25,11 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { createApplication, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { Debounce } from 'monitor-common/utils/utils';
+import { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
 
-import { createApplication, metaConfigInfo } from '../../../../monitor-api/modules/apm_meta';
-import { Debounce } from '../../../../monitor-common/utils/utils';
-import { INavItem, IRouteBackItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import Viewer from '../../../../monitor-ui/markdown-editor/viewer';
 import { ICreateAppFormData } from '../../home/app-list';
 import NavBar from '../../home/nav-bar';
 
@@ -272,6 +272,8 @@ export default class AppAdd extends tsc<{}> {
       app_alias: this.appInfo?.enName, // 应用别名
       description: this.appInfo?.desc, // 应用描述
       plugin_id: this.appInfo?.pluginId, // 插件id
+      enable_profiling: this.appInfo.enableProfiling,
+      enable_tracing: this.appInfo.enableTracing,
       deployment_ids: deploymentIds, // 环境id
       language_ids: languageIds, // 语言
       datasource_option: clusterInfo

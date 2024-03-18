@@ -26,7 +26,6 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox } from 'bk-magic-vue';
 
 import './notice-item.scss';
 
@@ -56,13 +55,13 @@ export default class NoticeItem extends tsc<IProps> {
       <div class='notice-item-container mb10'>
         <div class='notice-item-warp'>
           <div class='notice-header-warp'>
-            <Checkbox
+            <bk-checkbox
               onChange={value => {
                 this.valueChange(value);
                 this.clearError();
               }}
               value={this.value}
-            ></Checkbox>
+            ></bk-checkbox>
             <div
               class='title'
               v-bk-overflow-tips

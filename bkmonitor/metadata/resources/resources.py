@@ -39,6 +39,8 @@ from metadata.models.bcs import (
 )
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from metadata.service.data_source import stop_or_enable_datasource
+from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
 from metadata.utils.es_tools import get_client
@@ -376,6 +378,20 @@ class ModifyDataSource(Resource):
             space_type_id=request_data["space_type_id"],
         )
         return data_source.to_json()
+
+
+class StopOrEnableDatasource(Resource):
+    """批量启停数据源
+    1. 设置数据源的状态为启停
+    2. 增删transfer依赖的consul配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        data_id_list = serializers.ListField(required=True, child=serializers.IntegerField(), label="数据源列表")
+        is_enabled = serializers.BooleanField(required=False, label="是否启用数据源", default=True)
+
+    def perform_request(self, request_data):
+        stop_or_enable_datasource(request_data["data_id_list"], request_data["is_enabled"])
 
 
 class QueryDataSourceBySpaceUidResource(Resource):
@@ -1563,6 +1579,7 @@ class ModifyResultTableSnapshotResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
+        status = serializers.CharField(required=False, label="操作者")
 
     def perform_request(self, validated_request_data):
         models.EsSnapshot.modify_snapshot(**validated_request_data)
@@ -1576,6 +1593,7 @@ class DeleteResultTableSnapshotResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
         models.EsSnapshot.delete_snapshot(**validated_request_data)
@@ -1647,6 +1665,7 @@ class RestoreResultTableSnapshotResource(Resource):
         end_time = serializers.DateTimeField(required=True, label="数据结束时间", format="%Y-%m-%d %H:%M:%S")
         expired_time = serializers.DateTimeField(required=True, label="指定过期时间", format="%Y-%m-%d %H:%M:%S")
         operator = serializers.CharField(required=True, label="操作者")
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
         return models.EsSnapshotRestore.create_restore(**validated_request_data)
@@ -1675,6 +1694,7 @@ class DeleteRestoreResultTableSnapshotResource(Resource):
     class RequestSerializer(serializers.Serializer):
         restore_id = serializers.IntegerField(required=True, label="快照恢复任务id")
         operator = serializers.CharField(required=True, label="操作者")
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
         models.EsSnapshotRestore.delete_restore(**validated_request_data)
@@ -1787,3 +1807,18 @@ class KafkaTailResource(Resource):
                     break
 
         return result.reverse()
+
+
+class QueryResultTableStorageDetailResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        bcs_cluster_id = serializers.CharField(required=False, label="集群ID")
+
+    def perform_request(self, validated_request_data):
+        source = ResultTableAndDataSource(
+            table_id=validated_request_data.get("table_id", None),
+            bk_data_id=validated_request_data.get("bk_data_id", None),
+            bcs_cluster_id=validated_request_data.get("bcs_cluster_id", None),
+        )
+        return source.get_detail()

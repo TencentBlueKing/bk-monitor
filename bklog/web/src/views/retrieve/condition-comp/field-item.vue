@@ -56,7 +56,7 @@
       <!-- 聚合字段数量 -->
       <!-- 设置字段显示或隐藏 -->
       <div
-        :class="['operation-text', { 'disable-hidden': isDisabledHiddenField }]"
+        class="operation-text"
         @click.stop="handleShowOrHiddenItem">
         {{ type === 'visible' ? $t('隐藏') : $t('显示') }}
       </div>
@@ -140,9 +140,6 @@ export default {
     isShowFieldsCount() {
       return !['object', 'nested', 'text'].includes(this.fieldItem.field_type);
     },
-    isDisabledHiddenField() {
-      return this.visibleFields.filter(item => item.tag !== 'union-source').length === 1 && this.type === 'visible';
-    },
     /** 冲突字段索引集名称*/
     unionConflictFieldsName() {
       return this.unionIndexItemList
@@ -162,7 +159,7 @@ export default {
     },
     // 显示或隐藏字段
     handleShowOrHiddenItem() {
-      if (this.isDisabledHiddenField) return;
+      // if (this.isDisabledHiddenField) return;
       this.$emit('toggleItem', this.type, this.fieldItem);
     },
     /** 联合查询并且有冲突字段 */
@@ -273,13 +270,13 @@ export default {
         }
       }
 
-      .disable-hidden {
-        color: #979ba5;
+      // .disable-hidden {
+      //   color: #979ba5;
 
-        &:hover {
-          color: #979ba5;
-        }
-      }
+      //   &:hover {
+      //     color: #979ba5;
+      //   }
+      // }
 
       &:hover {
         background-color: #f4f5f8;

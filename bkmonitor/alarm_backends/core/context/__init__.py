@@ -28,6 +28,7 @@ from bkmonitor.models import (
     GlobalConfig,
 )
 from bkmonitor.utils.common_utils import count_md5
+from constants import alert as alert_constants
 from constants.action import (
     ActionSignal,
     ActionStatus,
@@ -35,8 +36,8 @@ from constants.action import (
     NoticeChannel,
     NoticeWay,
     NoticeWayChannel,
+    UserGroupType,
 )
-from constants.alert import EVENT_SEVERITY_DICT, EventSeverity
 
 logger = logging.getLogger("fta_action.run")
 
@@ -48,6 +49,7 @@ class ActionContext(object):
 
     Fields = [
         "notice_way",
+        "user_type",
         "notice_channel",
         "notice_receiver",
         "mentioned_users",
@@ -73,26 +75,12 @@ class ActionContext(object):
         "action",
         "action_instance",
         "action_instance_content",
+        "collect_ctx",
     ]
 
-    DEFAULT_TITLE_TEMPLATE = "{{business.bk_biz_name}} - {{alarm.name}} {{alarm.display_type}}"
+    DEFAULT_TITLE_TEMPLATE = alert_constants.DEFAULT_TITLE_TEMPLATE
 
-    DEFAULT_TEMPLATE = (
-        "{{content.level}}\n"
-        "{{content.begin_time}}\n"
-        "{{content.time}}\n"
-        "{{content.duration}}\n"
-        "{{content.target_type}}\n"
-        "{{content.data_source}}\n"
-        "{{content.content}}\n"
-        "{{content.current_value}}\n"
-        "{{content.biz}}\n"
-        "{{content.target}}\n"
-        "{{content.dimension}}\n"
-        "{{content.detail}}\n"
-        "{{content.assign_detail}}\n"
-        "{{content.related_info}}\n"
-    )
+    DEFAULT_TEMPLATE = alert_constants.DEFAULT_TEMPLATE
 
     DEFAULT_ACTION_TEMPLATE = (
         "{{action_instance_content.name}}\n"
@@ -107,9 +95,9 @@ class ActionContext(object):
     )
 
     ALERT_LEVEL_COLOR = {
-        EventSeverity.FATAL: "#EA3636",
-        EventSeverity.WARNING: "#FF9C01",
-        EventSeverity.REMIND: "#FFDE3A",
+        alert_constants.EventSeverity.FATAL: "#EA3636",
+        alert_constants.EventSeverity.WARNING: "#FF9C01",
+        alert_constants.EventSeverity.REMIND: "#FFDE3A",
     }
 
     def __init__(
@@ -121,7 +109,7 @@ class ActionContext(object):
         notice_way=None,
         dynamic_kwargs=None,
     ):
-        self.action = action
+        self.action: ActionInstance = action
         self.user_content = ""
         self.limit = False
         self.converge_type = ConvergeType.ACTION
@@ -165,6 +153,36 @@ class ActionContext(object):
                 # 如果无法解析也获取不到，默认是用户渠道
                 channel = NoticeChannel.USER
         return channel, notice_way
+
+    @cached_property
+    def user_type(self):
+        """
+        告警组类型
+        """
+        if self.example_action and self.example_action.inputs.get("followed"):
+            # 如果当前通知
+            return UserGroupType.FOLLOWER
+        return None
+
+    @cached_property
+    def followed(self):
+        """
+        是否为关注人
+        """
+
+        if self.example_action and self.example_action.inputs.get("followed"):
+            # 如果当前通知
+            return True
+        return False
+
+    @cached_property
+    def group_notice_way(self):
+        """
+        附带用户组类型的通知方法
+        """
+        if self.user_type:
+            return f"{self.user_type}-{self.notice_way}"
+        return self.notice_way
 
     @cached_property
     def mentioned_users(self):
@@ -256,7 +274,7 @@ class ActionContext(object):
 
     @cached_property
     def level_name(self):
-        return str(EVENT_SEVERITY_DICT.get(self.alert_level, self.alert_level))
+        return str(alert_constants.EVENT_SEVERITY_DICT.get(self.alert_level, self.alert_level))
 
     @cached_property
     def level_color(self):
@@ -348,6 +366,10 @@ class ActionContext(object):
         return Converge(self)
 
     @cached_property
+    def collect_ctx(self):
+        return self.converge_context
+
+    @cached_property
     def action_instance(self):
         from .action_instance import ActionInstanceContext
 
@@ -432,6 +454,14 @@ class ActionContext(object):
             template = notify_config.get(signal)
             if not template:
                 template = self.DEFAULT_TEMPLATE
+
+        # 除了「邮件」「企业微信」其他均不支持发送标题，如果通知配置自定义了标题（非默认模板），将 title 加入 content
+        # 忽略首尾的空白符进行比较
+        if (
+            self.notice_way not in [NoticeWay.MAIL, "rtx"]
+            and self.title_template.strip() != self.DEFAULT_TITLE_TEMPLATE.strip()
+        ):
+            template = "\n".join([self.title_template, template])
 
         return template
 

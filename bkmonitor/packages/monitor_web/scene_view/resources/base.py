@@ -12,9 +12,8 @@ import copy
 from abc import ABC
 from functools import cmp_to_key
 
-from monitor_web.scene_view.table_format import DefaultTableFormat
-
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from monitor_web.scene_view.table_format import DefaultTableFormat
 
 
 class PageListResource(ApiAuthResource, ABC):
@@ -126,6 +125,8 @@ class PageListResource(ApiAuthResource, ABC):
     def check_filter(self, row: dict, filter_dict: dict, column_map: dict):
         for filter_field, values in filter_dict.items():
             value = column_map.get(filter_field, DefaultTableFormat()).get_value(row)
+            if isinstance(values, bool):
+                values = "on" if values else "off"
             if value not in values:
                 return False
         return True
@@ -189,13 +190,17 @@ class PageListResource(ApiAuthResource, ABC):
     def add_extra_params(self, data):
         return {}
 
-    def get_columns_config(self, data, column_type):
+    def get_columns_config(self, data, column_type, params=None):
         column_formats = self.get_response_columns(data, column_type)
-        column_format_map = {column.id: column for column in column_formats}
+        if not params:
+            column_format_map = {column.id: column for column in column_formats}
+        else:
+            column_format_map = {column.id: column for column in column_formats if column.display(params)}
+            column_formats = [i for i in column_formats if i.id in column_format_map]
         return column_formats, column_format_map
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
-        column_formats, column_format_map = self.get_columns_config(data, column_type)
+        column_formats, column_format_map = self.get_columns_config(data, column_type, params)
 
         # 筛选
         data = self.handle_filter(params, data, column_format_map)

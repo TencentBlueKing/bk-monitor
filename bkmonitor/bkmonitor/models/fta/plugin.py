@@ -42,7 +42,6 @@ class EventPluginBaseModel(AbstractRecordModel):
     # 业务ID先预留，一期先默认都是公共的
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
     tags = JsonField("插件标签", default=[])
-
     scenario = models.CharField("场景", max_length=64, choices=Scenario.to_choice(), default=Scenario.MONITOR)
 
     popularity = models.IntegerField("热度", default=0)
@@ -150,6 +149,9 @@ class EventPluginV2(EventPluginBaseModel):
     is_latest = models.BooleanField("是否最新版本", default=False)
     config_params = models.JSONField("插件配置实例信息", default=list)
 
+    # 条件配置清洗规则
+    clean_configs = models.JSONField("条件清洗配置", default=list)
+
     def list_alert_config(self):
         return AlertConfig.objects.filter(plugin_id=self.plugin_id, plugin_instance_id=0).order_by("id", "order")
 
@@ -170,9 +172,13 @@ class EventPluginInstance(AbstractRecordModel):
     name = models.CharField("配置名称", max_length=64, default="", blank=True)
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
     data_id = models.IntegerField("数据ID", default=0)
+    token = models.TextField("关联信息token", max_length=64, default="")
     config_params = models.JSONField("插件配置实例信息", default=list)
     ingest_config = models.JSONField("插件配置信息", default=dict)
     normalization_config = models.JSONField("字段清洗规则", default=list)
+
+    # 条件配置清洗规则
+    clean_configs = models.JSONField("条件清洗配置", default=list)
 
     class Meta:
         verbose_name = "插件安装信息"
@@ -182,6 +188,13 @@ class EventPluginInstance(AbstractRecordModel):
     @cached_property
     def event_plugin(self):
         return EventPluginV2.objects.get(plugin_id=self.plugin_id, version=self.version)
+
+    @cached_property
+    def collect_type(self):
+        """
+        接收类型
+        """
+        return self.ingest_config.get("collect_type")
 
     @property
     def updatable(self):

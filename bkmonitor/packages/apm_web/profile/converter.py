@@ -27,6 +27,9 @@ class Converter:
     # preset profile_id for querying
     # if preset_profile_id is not None, force insert it to labels of sample
     preset_profile_id: Optional[str] = None
+    inject_labels: dict = field(default_factory=dict)
+    raw_data: list = field(default_factory=list)
+    init_first_empty_str: bool = True
 
     # mappings for deduplication
     _location_mapping: Dict[str, Location] = field(default_factory=dict)
@@ -46,7 +49,9 @@ class Converter:
 
     def init_profile(self):
         self.profile = Profile()
-        self.profile.string_table.append("")
+
+        if self.init_first_empty_str:
+            self.profile.string_table.append("")
 
     def add_string(self, value: str) -> int:
         """add string to profile string table"""
@@ -96,3 +101,7 @@ def get_converter_by_input_type(input_type: str):
         raise ValueError(f"Converter for {input_type} not found")
 
     return _converters[input_type]
+
+
+def list_converter() -> Dict[str, Type[Converter]]:
+    return _converters

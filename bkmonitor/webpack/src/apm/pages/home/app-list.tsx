@@ -27,9 +27,7 @@
 // import { Component, Mixins, Provide } from 'vue-tsx-support';
 import { Component, Provide, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Dialog } from 'bk-magic-vue';
-
-import { CancelToken } from '../../../monitor-api/index';
+import { CancelToken } from 'monitor-api/index';
 import {
   deleteApplication,
   listApplication,
@@ -37,22 +35,23 @@ import {
   metaConfigInfo,
   start,
   stop
-} from '../../../monitor-api/modules/apm_meta';
-import { Debounce } from '../../../monitor-common/utils/utils';
-import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
-import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
-import type { INodeType, TargetObjectType } from '../../../monitor-pc/components/monitor-ip-selector/typing';
-import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
-// import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import AlarmTools from '../../../monitor-pc/pages/monitor-k8s/components/alarm-tools';
-import CommonTable, { ICommonTableProps } from '../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import { IFilterDict, INavItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import OperateOptions, { IOperateOption } from '../../../monitor-pc/pages/uptime-check/components/operate-options';
-import introduceData from '../../../monitor-pc/router/space';
-import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
-import { ITableDataItem } from '../../../monitor-ui/chart-plugins/typings/table-chart';
+} from 'monitor-api/modules/apm_meta';
+import { Debounce } from 'monitor-common/utils/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+import GuidePage from 'monitor-pc/components/guide-page/guide-page';
+import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+// import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
+import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
+import CommonTable, { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import OperateOptions, { IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
+import introduceData from 'monitor-pc/router/space';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
+
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 
@@ -68,6 +67,8 @@ export interface ICreateAppFormData {
   enName: string;
   desc: string;
   pluginId: string;
+  enableProfiling: boolean;
+  enableTracing: boolean;
   plugin_config?: {
     target_node_type: INodeType;
     target_object_type: TargetObjectType;
@@ -214,7 +215,7 @@ export default class AppList extends tsc<{}> {
   }
 
   created() {
-    const { query } = this.$route;
+    const { query } = this.$route || {};
     if (query?.queryString) {
       this.searchKeyword = query.queryString as string;
     }
@@ -668,7 +669,7 @@ export default class AppList extends tsc<{}> {
           pluginId={this.pluginId}
           v-model={this.showAddDialog}
         ></AppAddForm>
-        <Dialog
+        <bk-dialog
           value={this.showGuideDialog}
           mask-close={true}
           ext-cls='guide-create-dialog'
@@ -681,7 +682,7 @@ export default class AppList extends tsc<{}> {
             guideId='apm-home'
             guideData={this.apmIntroduceData}
           />
-        </Dialog>
+        </bk-dialog>
       </div>
     );
   }

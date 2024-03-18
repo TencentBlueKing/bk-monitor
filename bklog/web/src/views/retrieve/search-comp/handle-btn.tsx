@@ -281,7 +281,7 @@ export default class HandleBtn extends tsc<IProps> {
                 <span class={[
                   'icon',
                   !this.isFavoriteUpdate
-                    ? 'log-icon icon-star-shape'
+                    ? 'log-icon icon-lc-star-shape'
                     : 'bk-icon icon-save',
                 ]}>
                 </span>

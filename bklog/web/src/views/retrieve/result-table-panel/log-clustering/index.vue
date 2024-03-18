@@ -39,15 +39,34 @@
         </div>
 
         <finger-operate
-          v-if="active === 'dataFingerprint'"
+          v-if="isFingerNav"
+          ref="fingerRef"
           :total-fields="totalFields"
           :finger-operate-data="fingerOperateData"
           :request-data="requestData"
           @handleFingerOperate="handleFingerOperate" />
       </div>
 
+      <div v-if="isShowGroupTag" style="margin: 0 0 16px -6px;">
+        <bk-tag v-if="getDimensionStr">
+          {{ getDimensionStr }}
+        </bk-tag>
+        <bk-tag
+          v-if="getGroupStr"
+          closable
+          @close="handleCloseGroupTag">
+          {{ getGroupStr }}
+        </bk-tag>
+        <bk-tag
+          v-if="getYearStr"
+          closable
+          @close="handleCloseYearTag">
+          {{ getYearStr }}
+        </bk-tag>
+      </div>
+
       <bk-alert
-        v-if="active === 'dataFingerprint' && signatureSwitch && !exhibitAll"
+        v-if="isFingerNav && signatureSwitch && !exhibitAll"
         :title="$t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')"
         closable
         type="info">
@@ -69,7 +88,7 @@
             :clustering-field="clusteringField"
             :active="active" />
           <data-fingerprint
-            v-if="active === 'dataFingerprint'"
+            v-if="isFingerNav"
             v-bind="$attrs"
             v-on="$listeners"
             ref="fingerTableRef"
@@ -81,8 +100,9 @@
             :all-finger-list="allFingerList"
             :loader-width-list="smallLoaderWidthList"
             @paginationOptions="paginationOptions"
-            @updateRequest="updateRequest"
-            @handleScrollIsShow="handleScrollIsShow" />
+            @updateRequest="requestFinger"
+            @handleScrollIsShow="handleScrollIsShow"
+            @handleFingerOperate="handleFingerOperate" />
         </div>
       </div>
 
@@ -122,7 +142,7 @@
 import DataFingerprint from './data-fingerprint';
 import IgnoreTable from './ignore-table';
 import ClusteringLoader from '@/skeleton/clustering-loader';
-import fingerOperate from './components/finger-operate';
+import FingerOperate from './components/finger-operate';
 import { mapGetters } from 'vuex';
 import EmptyStatus from '@/components/empty-status';
 
@@ -131,7 +151,7 @@ export default {
     DataFingerprint,
     IgnoreTable,
     ClusteringLoader,
-    fingerOperate,
+    FingerOperate,
     EmptyStatus,
   },
   props: {
@@ -163,21 +183,21 @@ export default {
       type: Object,
       required: true,
     },
-    isChangeTableNav: {
+    isThollteField: {
       type: Boolean,
-      default: false,
+      required: true,
+    },
+    fingerSearchState: {
+      type: Boolean,
+      required: true,
     },
   },
   data() {
     return {
       active: 'ignoreNumbers',
-      clusterSwitch: false, // 日志聚类开关
-      exhibitAll: false, // 是否显示nav
       isClickFingerNav: false, // 是否点击过数据指纹nav
-      globalLoading: false, // 日志聚类大loading
       tableLoading: false, // 详情loading
       isShowCustomize: true, // 是否显示自定义
-      indexId: -1,
       clusterNavList: [{
         id: 'ignoreNumbers',
         name: this.$t('忽略数字'),
@@ -195,7 +215,11 @@ export default {
         patternList: [], // pattern敏感度List
         isShowCustomize: true, // 是否显示自定义
         signatureSwitch: false, // 数据指纹开关
-        groupList: [], // 缓存分组列表
+        dimensionList: [], // 维度字段列表
+        selectGroupList: [], // 选中的字段分组列表
+        yearSwitch: false, // 同比开关
+        yearOnYearHour: 0, // 同比的值
+        groupList: [], // 所有的字段分组列表
         alarmObj: {}, // 是否需要告警对象
       },
       requestData: { // 数据请求
@@ -204,6 +228,9 @@ export default {
         show_new_pattern: false,
         group_by: [],
         size: 10000,
+        remark_config: 'all',
+        owner_config: 'all',
+        owners: [],
       },
       isPageOver: false,
       fingerPage: 1,
@@ -217,7 +244,8 @@ export default {
       fingerList: [],
       allFingerList: [], // 所有数据指纹List
       showScrollTop: false, // 是否展示返回顶部icon
-      throttle: false, // 请求防抖
+      /** 索引集是否切换 */
+      isIndexSetChange: false,
       isInitPage: true, // 是否是第一次进入数据指纹
     };
   },
@@ -226,9 +254,7 @@ export default {
       globalsData: 'globals/globalsData',
     }),
     smallLoaderWidthList() {
-      if (this.active !== 'dataFingerprint') {
-        return this.loadingWidthList.ignore;
-      }
+      if (!this.isFingerNav) return this.loadingWidthList.ignore;
       return this.requestData.year_on_year_hour > 0
         ? this.loadingWidthList.compared
         : this.loadingWidthList.notCompared;
@@ -262,29 +288,60 @@ export default {
     configID() {
       return this.cleanConfig.extra?.collector_config_id;
     },
+    /** 日志聚类开关 */
+    clusterSwitch() {
+      return this.configData?.is_active;
+    },
+    isFingerNav() {
+      return this.active === 'dataFingerprint';
+    },
+    exhibitAll() {
+      /**
+       *  无字段提取或者聚类开关没开时直接不显示聚类nav和table
+       *  来源如果是数据平台并且日志聚类大开关有打开则进入text判断
+       *  有text则提示去开启日志聚类 无则显示跳转计算平台
+       */
+      return this.totalFields.some(el => el.field_type === 'text');
+    },
+    globalLoading() {
+      // 判断是否可以字段提取的全局loading
+      return this.isThollteField;
+    },
+    routerIndexSet() {
+      return this.$route.params.indexId;
+    },
+    getDimensionStr() {
+      return this.fingerOperateData.dimensionList.length ? `${this.$t('维度')} : ${this.fingerOperateData.dimensionList.join(', ')}` : '';
+    },
+    getGroupStr() {
+      return this.fingerOperateData.selectGroupList.length ? `${this.$t('分组')} : ${this.fingerOperateData.selectGroupList.join(', ')}` : '';
+    },
+    getYearStr() {
+      return this.requestData.year_on_year_hour ? `${this.$t('同比')} : ${this.requestData.year_on_year_hour}h` : '';
+    },
+    isShowGroupTag() {
+      return this.active === 'dataFingerprint' && (this.getGroupStr || this.getDimensionStr || this.getYearStr);
+    },
   },
   watch: {
+    routerIndexSet: {
+      immediate: true,
+      handler() {
+        this.initTable();
+      },
+    },
     configData: {
       deep: true,
       immediate: true,
-      handler(val) {
-        this.globalLoading = true;
-        // 日志聚类开关赋值
-        this.clusterSwitch = val.is_active;
+      handler() {
+        this.isClickFingerNav = false;
         // 数据指纹开关赋值
         this.fingerOperateData.signatureSwitch = this.signatureSwitch;
-        this.isClickFingerNav = false;
         // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
-        if (this.active === 'dataFingerprint' && this.signatureSwitch) {
-          this.isClickFingerNav = true;
-        } else {
+        if (this.isFingerNav) {
           this.fingerList = [];
           this.allFingerList = [];
         };
-        // 判断是否可以字段提取的全局loading
-        setTimeout(() => {
-          this.globalLoading = false;
-        }, 700);
       },
     },
     totalFields: {
@@ -299,39 +356,15 @@ export default {
            */
           // 初始化分组下拉列表
           this.filterGroupList();
-          this.initTable();
-          // 判断是否有text字段 无则提示当前不支持采集项清洗
-          this.exhibitAll = newList.some(el => el.field_type === 'text');
         }
       },
     },
-    originTableList: {
-      deep: true,
-      handler(newList) {
-        if (newList.length) {
-          // 过滤条件变化及当前活跃为数据指纹并且数据指纹打开时才发送请求
-          if (this.indexId === this.$route.params.indexId && this.signatureSwitch) {
-            this.requestFinger();
-          } else {
-            this.indexId = this.$route.params.indexId;
-          }
-        }
-      },
-    },
-    requestData: {
-      deep: true,
+    fingerSearchState: {
       handler() {
-        if (this.signatureSwitch) {
-          this.requestFinger();
-        }
+        if (this.exhibitAll) this.requestFinger();
+        // isIndexSetChange 为true时, 证明是切换过索引集或者是第一次请求数据指纹 则要判断是否保存过分组状态 不根据检索来请求数据指纹;
+        this.isIndexSetChange = false;
       },
-    },
-    isChangeTableNav(val) {
-      // 若数据指纹开启则自动显示数据指纹
-      if (val && this.signatureSwitch) {
-        this.active = 'dataFingerprint';
-        this.$emit('update:is-change-table-nav', false);
-      };
     },
   },
   methods: {
@@ -342,14 +375,12 @@ export default {
         ...this.clusterRouteParams,
         activeNav: this.active,
       });
-      if (!this.isClickFingerNav) {
-        if (this.signatureSwitch && id === 'dataFingerprint') {
-          this.isClickFingerNav = true;
-          this.requestFinger();
-        }
-      }
     },
-    initTable() {
+    /**
+     * @desc: 初始化table所需的一些参数
+     */
+    async initTable() {
+      this.isIndexSetChange = true;
       const {
         log_clustering_level_year_on_year: yearOnYearList,
         log_clustering_level: clusterLevel,
@@ -364,9 +395,22 @@ export default {
         }
       };
       const patternList = clusterLevel.sort((a, b) => Number(b) - Number(a));
-      const queryRequestData = { pattern_level: clusterLevel[patternLevel - 1] };
+      const queryRequestData = {
+        pattern_level: clusterLevel[patternLevel - 1],
+        group_by: [],
+        remark_config: 'all',
+        owner_config: 'all',
+        owners: [],
+      };
+      // url是否有缓存的值
+      const isNoRouteValue = JSON.stringify(this.clusterRouteParams) === '{}';
+      // 初始化nav如果是数据指纹 且打开数据指纹 则初始化时请求一次数据指纹
+      if (this.isInitPage && this.signatureSwitch && isNoRouteValue) {
+        this.active = 'dataFingerprint';
+        this.isClickFingerNav = true;
+      }
       // 通过路由返回的值 初始化数据指纹的操作参数
-      if (this.isInitPage && JSON.stringify(this.clusterRouteParams) !== '{}') {
+      if (this.isInitPage && !isNoRouteValue) {
         this.active = this.clusterRouteParams.activeNav;
         const paramData = this.clusterRouteParams.requestData;
         const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
@@ -375,68 +419,79 @@ export default {
           pattern_level: paramData.pattern_level ? paramData.pattern_level : clusterLevel[patternLevel - 1],
         });
       };
+      const { year_on_year_hour: yearOnYearHour } = queryRequestData;
       Object.assign(this.fingerOperateData, {
         patternSize: patternLevel - 1,
         sliderMaxVal: clusterLevel.length - 1,
         patternList,
-        comparedList: yearOnYearList,
+        comparedList: yearOnYearList.filter(item => item.id !== 0),
+        yearOnYearHour: yearOnYearHour > 0 ? yearOnYearHour : 1,
+        yearSwitch: yearOnYearHour > 0,
+        dimensionList: [],
+        selectGroupList: queryRequestData.group_by || [], // 未请求维度时 默认是所有字段的分组
       });
+      // 这里判断是否有保存过所有人都显示一样的分组 如果有则直接显示相应的分组
+      const groupFields = await this.getInitGroupFields();
+      if (groupFields?.length) {
+        const selectGroupList = this.fingerOperateData.selectGroupList.filter(item => !groupFields.includes(item));
+        // 如果初始化时有默认维度的字段 将维度和分组分开来处理
+        Object.assign(queryRequestData, { group_by: [...groupFields, ...selectGroupList] });
+        Object.assign(this.fingerOperateData, {
+          dimensionList: groupFields,
+          selectGroupList,
+        });
+      };
       Object.assign(this.requestData, queryRequestData);
+      this.isIndexSetChange = false;
+      this.isInitPage = false;
+      this.requestFinger();
       this.$nextTick(() => {
-        if (this.isInitPage && this.signatureSwitch && JSON.stringify(this.clusterRouteParams) === '{}') {
-          this.active = 'dataFingerprint';
-        };
-        // 初始化nav如果是数据指纹 且打开数据指纹 则初始化时请求一次数据指纹
-        if (this.active === 'dataFingerprint' && this.signatureSwitch) {
-          this.requestFinger();
-        };
-        this.isInitPage = false;
         this.scrollEl = document.querySelector('.result-scroll-container');
       });
+    },
+    /**
+     * @desc: 获取分组状态
+     * @returns {Array<string>}
+     */
+    async getInitGroupFields() {
+      try {
+        if (this.signatureSwitch) {
+          const params = { index_set_id: this.routerIndexSet };
+          const data = { collector_config_id: this.configID };
+          const res = await this.$http.request('/logClustering/getConfig', { params, data });
+          return res.data.group_fields;
+        }
+        return [];
+      } catch (err) {
+        console.warn(err);
+        return [];
+      }
     },
     /**
      * @desc: 数据指纹操作
      * @param { String } operateType 操作类型
      * @param { Any } val 具体值
      */
-    handleFingerOperate(operateType, val) {
+    handleFingerOperate(operateType, val = {}, isQuery = false) {
       switch (operateType) {
-        case 'compared': // 同比操作
-          this.requestData.year_on_year_hour = val;
+        case 'requestData': // 数据指纹的请求参数
+          Object.assign(this.requestData, val);
+          // 数据指纹对请求参数修改过的操作将数据回填到url上
+          this.$emit('backFillClusterRouteParams', 'clustering', {
+            activeNav: this.active,
+            requestData: this.requestData,
+          });
           break;
-        case 'patternSize': // patter大小
-          this.requestData.pattern_level = val;
-          break;
-        case 'isShowNear': // 是否展示近24小时
-          this.requestData.show_new_pattern = val;
-          break;
-        case 'enterCustomize': // 自定义同比时常
-          this.handleEnterCompared(val);
-          break;
-        case 'customize': // 是否展示自定义
-          this.fingerOperateData.isShowCustomize = val;
-          break;
-        case 'group': // 分组操作
-          this.requestData.group_by = val;
-          break;
-        case 'getNewStrategy': // 获取新类告警状态
-          this.fingerOperateData.alarmObj = val;
+        case 'fingerOperateData': // 数据指纹操作的参数
+          Object.assign(this.fingerOperateData, val);
           break;
         case 'editAlarm': { // 更新新类告警请求
           const { alarmObj: { strategy_id: strategyID } } = this.fingerOperateData;
-          if (strategyID) {
-            this.$refs.fingerTableRef.policyEditing(strategyID);
-          }
+          if (strategyID) this.$refs.fingerTableRef.policyEditing(strategyID);
         }
           break;
       };
-      // 数据指纹的操作回填到url上
-      if (['compared', 'patternSize', 'isShowNear', 'group'].includes(operateType)) {
-        this.$emit('backFillClusterRouteParams', 'clustering', {
-          activeNav: this.active,
-          requestData: this.requestData,
-        });
-      }
+      if (isQuery) this.requestFinger();
     },
     handleLeaveCurrent() {
       // 不显示字段提取时跳转计算平台
@@ -458,41 +513,16 @@ export default {
       }
     },
     /**
-     * @desc: 同比自定义输入
-     * @param { String } val
-     */
-    handleEnterCompared(val) {
-      const matchVal = val.match(/^(\d+)h$/);
-      if (!matchVal) {
-        this.$bkMessage({
-          theme: 'warning',
-          message: this.$t('请按照提示输入'),
-        });
-        return;
-      }
-      this.fingerOperateData.isShowCustomize = true;
-      const isRepeat = this.fingerOperateData.comparedList.some(el => el.id === Number(matchVal[1]));
-      if (isRepeat) {
-        this.requestData.year_on_year_hour = Number(matchVal[1]);
-        return;
-      }
-      this.fingerOperateData.comparedList.push({
-        id: Number(matchVal[1]),
-        name: this.$t('{n} 小时前', { n: matchVal[1] }),
-      });
-      this.requestData.year_on_year_hour = Number(matchVal[1]);
-    },
-    /**
      * @desc: 数据指纹请求
      */
     requestFinger() {
-      if (this.throttle) return;
+      // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
+      if (this.tableLoading || !this.signatureSwitch || this.isIndexSetChange) return;
 
-      this.throttle = true;
       this.tableLoading = true;
       this.$http.request('/logClustering/clusterSearch', {
         params: {
-          index_set_id: this.$route.params.indexId,
+          index_set_id: this.routerIndexSet,
         },
         data: {
           ...this.retrieveParams,
@@ -509,11 +539,8 @@ export default {
         })
         .finally(() => {
           this.tableLoading = false;
+          this.isClickFingerNav = true;
         });
-
-      setTimeout(() => {
-        this.throttle = false;
-      }, 500);
     },
     /**
      * @desc: 数据指纹分页操作
@@ -542,7 +569,6 @@ export default {
           return { id, name: alias ? `${id}(${alias})` : id };
         });
       this.fingerOperateData.groupList = filterList;
-      this.requestData.group_by.splice(0, this.requestData.group_by.length);
     },
     scrollToTop() {
       this.$easeScroll(0, 300, this.scrollEl);
@@ -550,8 +576,13 @@ export default {
     handleScrollIsShow() {
       this.showScrollTop = this.scrollEl.scrollTop > 550;
     },
-    updateRequest() {
-      this.requestFinger();
+    handleCloseGroupTag() {
+      Object.assign(this.fingerOperateData, { selectGroupList: [] });
+      this.handleFingerOperate('requestData', { group_by: this.fingerOperateData.dimensionList }, true);
+    },
+    handleCloseYearTag() {
+      Object.assign(this.fingerOperateData, { yearSwitch: false });
+      this.handleFingerOperate('requestData', { year_on_year_hour: 0 }, true);
     },
   },
 };
@@ -564,9 +595,11 @@ export default {
   overflow: hidden;
 
   .cluster-nav {
+    height: 32px;
     margin-bottom: 12px;
     color: #63656e;
     flex-wrap: nowrap;
+    align-items: center;
 
     @include flex-justify(space-between);
   }

@@ -23,21 +23,15 @@ import re
 import time
 from collections import defaultdict
 from typing import List
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from django.db.models import Count
 
-from config.domains import MONITOR_APIGATEWAY_ROOT
+from django.conf import settings
+from django.db.models import Count
+from django.utils.translation import ugettext as _
 
 from apps.api import NodeApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import SCENARIO_BKDATA
 from apps.log_databus.constants import DEFAULT_ETL_CONFIG, EtlConfig
-from apps.log_search.constants import CollectorScenarioEnum, TimeEnum
-from apps.log_search.models import LogIndexSet
-from apps.utils.db import array_group, array_chunk
-from apps.utils.thread import MultiExecuteFunc
-from apps.utils.log import logger
 from apps.log_databus.models import CollectorConfig, BKDataClean
 from apps.log_measure.constants import (
     INDEX_FORMAT,
@@ -50,9 +44,15 @@ from apps.log_measure.constants import (
     MAX_QUERY_SUBSCRIPTION,
 )
 from apps.log_measure.utils.metric import MetricUtils
+from apps.log_search.constants import CollectorScenarioEnum, TimeEnum
+from apps.log_search.models import LogIndexSet
+from apps.utils.db import array_group, array_chunk
+from apps.utils.log import logger
+from apps.utils.thread import MultiExecuteFunc
+from bk_monitor.api.client import Client
 from bk_monitor.constants import TimeFilterEnum
 from bk_monitor.utils.metric import register_metric, Metric
-from bk_monitor.api.client import Client
+from config.domains import MONITOR_APIGATEWAY_ROOT
 
 
 class CollectMetricCollector(object):
@@ -254,15 +254,40 @@ class CollectMetricCollector(object):
             report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
             bk_username="admin",
         )
+        start_time = MetricUtils.get_instance().report_ts - TimeEnum.FIVE_MINUTE_SECOND.value
+        end_time = MetricUtils.get_instance().report_ts
         params = {
-            "sql": f"select sum({field}) as {field} from {TABLE_BKUNIFYBEAT_TASK} \
-            where time >= '5m' group by task_data_id"
+            "down_sample_range": "5s",
+            "start_time": start_time,
+            "end_time": end_time,
+            "expression": "a",
+            "display": True,
+            "query_configs": [
+                {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "metrics": [{"field": field, "method": "SUM", "alias": "a"}],
+                    "table": TABLE_BKUNIFYBEAT_TASK,
+                    "group_by": ["task_data_id"],
+                    "display": True,
+                    "where": [],
+                    "interval": TimeEnum.ONE_MINUTE_SECOND.value,
+                    "interval_unit": "s",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "functions": [],
+                }
+            ],
+            "target": [],
+            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID),
         }
         try:
-            result = bk_monitor_client.get_ts_data(data=params)
-            for ts_data in result["list"]:
-                value = ts_data[field]
-                task_data_id = ts_data["task_data_id"]
+            result = bk_monitor_client.unify_query(data=params)
+            for ts_data in result["series"]:
+                task_data_id = ts_data["dimensions"]["task_data_id"]
+                if not ts_data["datapoints"]:
+                    continue
+                value = sum([i[0] for i in ts_data["datapoints"] if i[0]])
                 data[task_data_id] = value
 
         except Exception as e:  # pylint: disable=broad-except

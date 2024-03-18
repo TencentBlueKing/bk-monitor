@@ -57,6 +57,7 @@ class WinEventLogScenario(CollectorScenario):
         local_params = self._add_labels(local_params, params, collector_config_id)
         local_params = self._add_ext_meta(local_params, params)
         local_params = self._deal_edge_transport_params(local_params, data_link_id)
+        local_params = self._handle_collector_config_overlay(local_params, params)
         steps = [
             {
                 "id": f"main:{self.PLUGIN_NAME}",

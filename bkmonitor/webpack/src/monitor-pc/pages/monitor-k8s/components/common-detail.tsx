@@ -25,14 +25,13 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
+import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
+import { CancelToken } from 'monitor-api/index';
+import { copyText, Debounce, random } from 'monitor-common/utils/utils';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
-import { CancelToken } from '../../../../monitor-api/index';
-import { copyText, Debounce, random } from '../../../../monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
-import { isShadowEqual } from '../../../../monitor-ui/chart-plugins/utils';
-import { VariablesService } from '../../../../monitor-ui/chart-plugins/utils/variable';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { resize } from '../../../components/ip-selector/common/observer-directive';
@@ -41,6 +40,8 @@ import MonitorResizeLayout, {
   ASIDE_DEFAULT_HEIGHT,
   IUpdateHeight
 } from '../../../components/resize-layout/resize-layout';
+import { TimeRangeType } from '../../../components/time-range/time-range';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils/index';
 import IndexList, { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 import { ITableItem } from '../typings';
@@ -158,6 +159,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 是否只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @ProvideReactive('width') width = DEFAULT_WIDTH;
 
   data: IDetailItem[] = [];
@@ -292,10 +294,13 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     if (this.panel?.targets?.[0]) {
       this.loading = true;
       const [item] = this.panel.targets;
+      const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.viewOptions.filters,
-        ...this.viewOptions.variables
+        ...this.viewOptions.variables,
+        start_time,
+        end_time
       });
       const params: any = variablesService.transformVariables(item.data);
       // magic code
@@ -630,7 +635,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                     onClick={e => e.stopPropagation()}
                   >
                     {this.showIndexSearchInput ? (
-                      <Input
+                      <bk-input
                         v-model={this.indexSearchKeyword}
                         behavior='simplicity'
                         right-icon='bk-icon icon-search'

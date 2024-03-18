@@ -38,10 +38,10 @@ import {
 import { useI18n } from 'vue-i18n';
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { CancelToken } from 'monitor-api/index';
+import { traceDetail } from 'monitor-api/modules/apm_trace';
+import { copyText, typeTools } from 'monitor-common/utils/utils';
 
-import { CancelToken } from '../../../../monitor-api/index';
-import { traceDetail } from '../../../../monitor-api/modules/apm_trace';
-import { copyText, typeTools } from '../../../../monitor-common/utils/utils';
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import RelationTopo from '../../../components/relation-topo/relation-topo';
@@ -82,7 +82,7 @@ const TraceDetailProps = {
 type IPanelEnum = 'timeline' | 'topo' | 'statistics' | 'flame' | 'sequence';
 
 interface ITabItem {
-  id: string;
+  id: string; // id
   name: string;
   icon: string;
 }
@@ -222,7 +222,7 @@ export default defineComponent({
       if (content === 'text') {
         text = traceId;
       } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}?app_name=${
+        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
           props.appName
         }&search_type=accurate&trace_id=${traceId}`;
         text = location.href.replace(location.hash, hash);
@@ -846,6 +846,7 @@ export default defineComponent({
                   <img
                     class='service-icon'
                     src={card.icon}
+                    alt=''
                   />
                 ) : (
                   ''

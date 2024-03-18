@@ -62,30 +62,35 @@
           @closePopover="closePopoverIfOpened" />
       </bk-popover>
     </div>
-    <div v-if="visibleFields.length" class="fields-container is-selected">
+    <div v-if="totalFields.length" class="fields-container is-selected">
       <div class="title">{{ $t('已添加字段') }}</div>
       <!-- <ul class="filed-list"> -->
-      <vue-draggable
-        class="filed-list"
-        v-bind="dragOptions"
-        v-model="dragVisibleFields"
-        @end="handleVisibleMoveEnd">
-        <transition-group>
-          <template v-for="item in visibleFields">
-            <field-item
-              v-show="item.filterVisible"
-              type="visible"
-              :key="item.field_name"
-              :retrieve-params="retrieveParams"
-              :field-alias-map="fieldAliasMap"
-              :show-field-alias="showFieldAlias"
-              :visible-fields="visibleFields"
-              :statistical-field-data="statisticalFieldsData[item.field_name]"
-              :field-item="item"
-              @toggleItem="handleToggleItem" />
-          </template>
-        </transition-group>
-      </vue-draggable>
+      <template v-if="visibleFields.length">
+        <vue-draggable
+          class="filed-list"
+          v-bind="dragOptions"
+          v-model="dragVisibleFields"
+          @end="handleVisibleMoveEnd">
+          <transition-group>
+            <template v-for="item in visibleFields">
+              <field-item
+                v-show="item.filterVisible"
+                type="visible"
+                :key="item.field_name"
+                :retrieve-params="retrieveParams"
+                :field-alias-map="fieldAliasMap"
+                :show-field-alias="showFieldAlias"
+                :visible-fields="visibleFields"
+                :statistical-field-data="statisticalFieldsData[item.field_name]"
+                :field-item="item"
+                @toggleItem="handleToggleItem" />
+            </template>
+          </transition-group>
+        </vue-draggable>
+      </template>
+      <template v-else>
+        <span class="all-field-item">{{ $t('当前显示全部字段') }}</span>
+      </template>
       <!-- </ul> -->
     </div>
     <div v-if="indexSetFields.length" class="fields-container not-selected">
@@ -428,6 +433,14 @@ export default {
 
       .title {
         margin-bottom: 7px;
+      }
+
+      .all-field-item {
+        color: #63656e;
+        height: 26px;
+        line-height: 26px;
+        display: inline-block;
+        margin: 0 0 7px 20px;
       }
     }
   }

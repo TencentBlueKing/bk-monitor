@@ -14,7 +14,7 @@ import arrow
 from django.db import connections
 from django.utils.functional import cached_property
 
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source import UnifyQuery, load_data_source
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.statistics.metric import Metric, register
@@ -132,25 +132,26 @@ class HostCollector(BaseCollector):
         now_ts = arrow.now()
         data_source = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)(
             table="system.cpu_summary",
-            metrics=[{"field": "idle", "method": "COUNT", "alias": "result"}],
+            metrics=[{"field": "idle", "method": "COUNT", "alias": "a"}],
             interval=60,
             group_by=["bk_biz_id", "bk_cloud_id"],
         )
-        records = data_source.query_data(
+        query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
+        records = query.query_data(
             start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
         )
 
         biz_cnt_map = defaultdict(int)
         for item in records:
-            bk_biz_id = item["bk_biz_id"]
+            bk_biz_id = item.get("bk_biz_id")
             if not bk_biz_id:
                 continue
             bk_cloud_id = item["bk_cloud_id"]
-            biz_cnt_map[(bk_biz_id, bk_cloud_id)] = max(biz_cnt_map[(bk_biz_id, bk_cloud_id)], item["result"])
+            biz_cnt_map[(bk_biz_id, bk_cloud_id)] = max(biz_cnt_map[(bk_biz_id, bk_cloud_id)], item["_result_"])
 
         # 正常的指标
         for item in records:
-            bk_biz_id = item["bk_biz_id"]
+            bk_biz_id = item.get("bk_biz_id")
             if not self.biz_exists(bk_biz_id):
                 continue
             bk_cloud_id = item["bk_cloud_id"]

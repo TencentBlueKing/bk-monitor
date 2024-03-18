@@ -25,8 +25,8 @@
  */
 import { VNode } from 'vue';
 import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../monitor-common/utils/utils';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import * as authorityMap from '../alarm-group/authority-map';
 

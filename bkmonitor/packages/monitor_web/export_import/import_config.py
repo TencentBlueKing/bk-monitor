@@ -15,6 +15,15 @@ import re
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
+from six.moves import map
+
+from bkmonitor.action.serializers import UserGroupDetailSlz
+from bkmonitor.models import ActionConfig, StrategyModel, UserGroup
+from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.utils.local import local
+from core.drf_resource import api, resource
+from core.errors.collecting import SubscriptionStatusError
+from core.errors.export_import import ImportConfigError
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.collecting.resources import update_config_operation_result
 from monitor_web.export_import.constant import ConfigType, ImportDetailStatus
@@ -28,16 +37,7 @@ from monitor_web.models import (
 )
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.plugin.resources import CreatePluginResource
-from six.moves import map
 from utils import count_md5
-
-from bkmonitor.action.serializers import UserGroupDetailSlz
-from bkmonitor.models import ActionConfig, StrategyModel, UserGroup
-from bkmonitor.strategy.new_strategy import Strategy
-from bkmonitor.utils.local import local
-from core.drf_resource import api, resource
-from core.errors.collecting import SubscriptionStatusError
-from core.errors.export_import import ImportConfigError
 
 logger = logging.getLogger("monitor_web")
 
@@ -132,7 +132,7 @@ def import_process_collect(data, bk_biz_id):
 
 
 def check_and_change_bkdata_table_id(query_config, bk_biz_id):
-    if query_config["data_source_label"] == "bk_data" and query_config["data_type_label"] == "time_series":
+    if query_config.get("data_source_label") == "bk_data" and query_config.get("data_type_label") == "time_series":
         query_config["result_table_id"] = str(bk_biz_id) + "_" + query_config["result_table_id"].split("_", 1)[-1]
 
 
@@ -279,9 +279,17 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                     if group_detail["id"] not in user_group_ids:
                         user_group_ids.append(group_detail["id"])
                         user_groups_dict[group_detail["name"]] = group_detail
-                    if group_detail["duty_arranges"]:
-                        group_detail["duty_arranges"][0].pop("id", None)
-                        group_detail["duty_arranges"][0].pop("user_group_id", None)
+
+                    for duty_arrange in group_detail.get("duty_arranges") or []:
+                        duty_arrange.pop("id", None)
+                        duty_arrange.pop("user_group_id", None)
+                        duty_arrange.pop("duty_rule_id", None)
+
+            # TODO(crayon) 目前导入功能没有考虑轮值，预设方案：
+            # 1. 导出：group_detail["duty_rules_info"] 增加 duty_arranges 信息
+            # 1. 创建用户组之前，要把 group_detail["duty_rules_info"] 先创建好，得到 duty_rule_id old - new ID 映射关系
+            # 2. 将 group_detail["duty_rules"]: List[int] 按映射关系进行替换
+
             qs = UserGroup.objects.filter(name__in=list(user_groups_dict.keys()), bk_biz_id=bk_biz_id)
             for user_group in qs:
                 group_detail = user_groups_dict[user_group.name]
@@ -319,7 +327,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 action.pop("id", None)
                 config.pop("id", None)
                 config["bk_biz_id"] = bk_biz_id
-                action_config_instance, _ = ActionConfig.objects.update_or_create(
+                action_config_instance, created = ActionConfig.objects.update_or_create(
                     name=config["name"], bk_biz_id=bk_biz_id, defaults=config
                 )
                 action["config_id"] = action_config_instance.id
@@ -396,7 +404,7 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
                     create_config["title"] = f"{create_config['title']}_clone"
 
             # 对计算平台数据源进行处理
-            for panel in create_config["panels"]:
+            for panel in create_config.get("panels", []):
                 for target in panel.get("targets", []):
                     for query_config in target.get("query_configs", []):
                         check_and_change_bkdata_table_id(query_config, bk_biz_id)

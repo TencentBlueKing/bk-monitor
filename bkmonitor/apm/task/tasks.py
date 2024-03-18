@@ -25,10 +25,16 @@ from apm.core.application_config import ApplicationConfig
 from apm.core.discover.base import TopoHandler
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
+from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
 from apm.core.platform_config import PlatformConfig
-from apm.models import ApmApplication, EbpfApplicationConfig, MetricDataSource
+from apm.models import (
+    ApmApplication,
+    EbpfApplicationConfig,
+    MetricDataSource,
+    ProfileDataSource,
+)
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -120,3 +126,30 @@ def check_apm_consul_config():
     logger.info(f"[check_apm_consul_config] start {datetime.datetime.now()}")
     ConsulHandler.check_update()
     logger.info(f"[check_apm_consul_config] end {datetime.datetime.now()}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def profile_handler(bk_biz_id: int, app_name: str):
+    logger.info(f"[profile_handler] ({bk_biz_id}){app_name} start at {datetime.datetime.now()}")
+    try:
+        ProfileDiscoverHandler(bk_biz_id, app_name).discover()
+    except Exception as e:  # noqa
+        logger.error(f"[profile_handler] occur exception of {bk_biz_id}-{app_name}: {e}")
+    logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")
+
+
+def profile_discover_cron():
+    """定时发现profile服务"""
+    logger.info(f"[profile_discover_cron] start at {datetime.datetime.now()}")
+    apps = [
+        (i["bk_biz_id"], i["app_name"])
+        for i in ApmApplication.objects.filter(is_enabled=True).values("bk_biz_id", "app_name")
+    ]
+    apps = [i for i in ProfileDataSource.objects.all() if (i.bk_biz_id, i.app_name) in apps]
+
+    for item in apps:
+        logger.info(f"[profile_discover_cron] start handle. ({item.bk_biz_id}){item.app_name}")
+        profile_handler(item.bk_biz_id, item.app_name)
+        logger.info(f"[profile_discover_cron] finished handle. ({item.bk_biz_id}){item.app_name}")
+
+    logger.info(f"[profile_discover_cron] end at {datetime.datetime.now()}")

@@ -307,3 +307,5 @@ MULTI_METRIC_DATA_SOURCES = {
 
 HOST_SCENARIO = ["os", "host_process", "host_device"]
 SERVICE_SCENARIO = ["service_module", "component", "service_process"]
+
+DATALINK_SOURCE = "__datalink_collecting__"

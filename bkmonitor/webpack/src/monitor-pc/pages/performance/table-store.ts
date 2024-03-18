@@ -33,8 +33,8 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-param-reassign */
 // @ts-nocheck
-import { isFullIpv6, padIPv6 } from '../../../monitor-common/utils/ip-utils';
-import { typeTools } from '../../../monitor-common/utils/utils.js';
+import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
+import { typeTools } from 'monitor-common/utils/utils.js';
 
 import { CheckType, IConditionValue, IFieldConfig, IOption, ITableOptions, ITableRow } from './performance-type';
 

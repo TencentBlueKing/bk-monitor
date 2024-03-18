@@ -89,6 +89,7 @@ INSTALLED_APPS += (
     "apps.log_desensitize",
     "log_adapter",
     "bkm_search_module",
+    "bk_notice_sdk",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -847,7 +848,7 @@ BCS_CC_SSM_SWITCH = os.getenv("BKAPP_BCS_CC_SSM_SWITCH", "on")
 BCS_APIGATEWAY_HOST = os.getenv("BKAPP_BCS_APIGATEWAY_HOST", "")
 BCS_CC_APIGATEWAY_HOST = os.getenv("BKAPP_BCS_CC_APIGATEWAY_HOST", "")
 BK_SSM_HOST = os.getenv("BKAPP_SSM_HOST", "http://bkssm.service.consul:5000/api/v1/auth/access-tokens")
-BCS_WEB_CONSOLE_DOMAIN = os.getenv("BKAPP_BCS_WEB_CONSOLE_DOMAIN", "")
+BCS_WEB_CONSOLE_DOMAIN = os.getenv("BKAPP_BCS_WEB_CONSOLE_DOMAIN", BK_BKLOG_HOST.replace("bklog", "bcs"))
 BKLOG_CONFIG_KIND = os.getenv("BKAPP_BKLOG_CONFIG_KIND", "BkLogConfig")
 BKLOG_CONFIG_API_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_API_VERSION", "bk.tencent.com/v1alpha1")
 BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
@@ -893,6 +894,8 @@ ES_QUERY_ACCESS_LIST: list = ["bkdata", "es", "log"]
 ES_QUERY_TIMEOUT = int(os.environ.get("BKAPP_ES_QUERY_TIMEOUT", 55))
 
 # ESQUERY 查询白名单，直接透传
+ESQUERY_EXTRA_WHITE_LIST = [app for app in os.getenv("BKAPP_ESQUERY_WHITE_LIST", "").split(",") if app]
+
 ESQUERY_WHITE_LIST = [
     "bk_log_search",
     "hippogriff-4",
@@ -913,7 +916,9 @@ ESQUERY_WHITE_LIST = [
     "bk_dbm",
     "bk-audit",
     "klc_saas",
-]
+    "paasv3cli",
+    "bk_paas3",
+] + ESQUERY_EXTRA_WHITE_LIST
 
 # BK repo conf
 BKREPO_ENDPOINT_URL = os.getenv("BKREPO_ENDPOINT_URL") or os.getenv("BKAPP_BKREPO_ENDPOINT_URL")
@@ -1163,12 +1168,17 @@ allowed_cors_from_settings = os.environ.get("BKAPP_ALLOWED_CORS_ORIGINS", "").sp
 # 监控默认域名
 default_allowed_bkmonitor_origin = BK_BKLOG_HOST.replace("bklog", "bkmonitor")
 # 中间件CorsMiddleware中支持跨域的域名配置
-CORS_ALLOWED_ORIGINS = [
-    default_allowed_bkmonitor_origin
-]
+CORS_ALLOWED_ORIGINS = [default_allowed_bkmonitor_origin]
 for origin in allowed_cors_from_settings:
     if origin:
         CORS_ALLOWED_ORIGINS.append(origin)
+
+#  通知中心配置
+BK_NOTICE = {
+    # 添加默认值防止本地调试无法启动
+    "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
+}
+
 
 """
 以下为框架代码 请勿修改

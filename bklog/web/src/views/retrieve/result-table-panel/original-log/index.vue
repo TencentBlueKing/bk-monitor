@@ -197,15 +197,14 @@ export default {
     },
     handleDropdownHide() {
       this.showFieldsSetting = false;
+      this.requestFiledConfig();
     },
-    confirmModifyFields(displayFieldNames, showFieldAlias, isUpdateSelectList = true) {
+    confirmModifyFields(displayFieldNames, showFieldAlias) {
       this.modifyFields(displayFieldNames, showFieldAlias);
       this.closeDropdown();
-      if (isUpdateSelectList) this.requestFiledConfig();
     },
     cancelModifyFields() {
       this.closeDropdown();
-      this.requestFiledConfig();
     },
     /** 更新显示字段 */
     modifyFields(displayFieldNames, showFieldAlias) {
@@ -214,6 +213,7 @@ export default {
     },
     closeDropdown() {
       this.showFieldsSetting = false;
+      this.$refs.fieldsSettingPopper?.instance.hide();
       this.$refs.fieldsSettingPopper?.instance.hide();
     },
     setPopperInstance(status = true) {
@@ -257,11 +257,44 @@ export default {
           console.warn(e);
         });
       this.$store.commit('updateClearTableWidth', 1);
-      this.confirmModifyFields(displayFields, sortList, false);
+      this.confirmModifyFields(displayFields, sortList);
     },
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
-      this.$refs.fieldsSettingPopper.instance?.show();
+      this.$refs.fieldsSettingPopper?.instance.show();
+    },
+    /** 请求字段 */
+    async routerAndUnionRequestFields() {
+      if (this.isFiledQuery) return;
+      this.isFiledQuery = true;
+      if (this.isUnionSearch) {
+        try {
+          const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+          const queryData = {
+            start_time: this.retrieveParams.start_time,
+            end_time: this.retrieveParams.end_time,
+            is_realtime: 'True',
+          };
+          if (this.isUnionSearch) {
+            Object.assign(queryData, {
+              index_set_ids: this.unionIndexList,
+            });
+          }
+          return await this.$http.request(urlStr, {
+            params: { index_set_id: this.$route.params.indexId },
+            query: !this.isUnionSearch ? queryData : undefined,
+            data: this.isUnionSearch ? queryData : undefined,
+          });
+        } catch (e) {
+          console.warn(e);
+        } finally {
+          this.requestFiledConfig();
+          this.isFiledQuery = false;
+        };
+      } else {
+        this.isFiledQuery = false;
+        this.requestFiledConfig();
+      }
     },
     /** 请求字段 */
     async routerAndUnionRequestFields() {

@@ -117,39 +117,10 @@ export default {
   computed: {
     ...mapState({
       bkBizId: state => state.bkBizId,
-      clearTableWidth: state => state.clearTableWidth,
     }),
     ...mapState('globals', ['fieldTypeMap']),
   },
   inject: ['changeShowUnionSource'],
-  watch: {
-    clearTableWidth() {
-      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-      const { params: { indexId }, query: { bizId } } = this.$route;
-      if (columnObj === null || JSON.stringify(columnObj) === '{}') {
-        return;
-      }
-      const isHaveBizId = Object.keys(columnObj).some(el => el === bizId);
-
-      if (!isHaveBizId || columnObj[bizId].fields[indexId] === undefined) {
-        return;
-      }
-
-      for (const bizKey in columnObj) {
-        if (bizKey === bizId) {
-          for (const fieldKey in columnObj[bizKey].fields) {
-            if (fieldKey === indexId) {
-              delete columnObj[bizId].fields[indexId];
-              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexId, 1));
-              columnObj[bizId].indexsetIds.length === 0 && delete columnObj[bizId];
-            }
-          }
-        }
-      }
-
-      localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
-    },
-  },
   methods: {
     // 滚动到顶部
     scrollToTop() {
@@ -340,10 +311,6 @@ export default {
         .origin-str {
           color: #313238;
           line-height: 24px;
-        }
-
-        .origin-str:hover {
-          color: #3a84ff;
         }
 
         .show-whole-btn {

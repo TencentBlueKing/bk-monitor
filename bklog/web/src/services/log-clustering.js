@@ -84,11 +84,36 @@ const setRemark = {
   method: 'post',
 };
 
+// 更新备注
+const updateRemark = {
+  url: '/pattern/:index_set_id/update_remark/ ',
+  method: 'put',
+};
+
+// 删除备注
+const deleteRemark = {
+  url: '/pattern/:index_set_id/delete_remark/ ',
+  method: 'delete',
+};
+
 // 设置负责人
 const setOwner = {
   url: '/pattern/:index_set_id/owner/',
   method: 'post',
 };
+
+// 获取当前pattern所有负责人列表
+const getOwnerList = {
+  url: '/pattern/:index_set_id/list_owners/',
+  method: 'get',
+};
+
+// 第一次进数据指纹时候的分组
+const updateInitGroup = {
+  url: '/pattern/:index_set_id/group_fields/',
+  method: 'post',
+};
+
 
 export {
   getConfig,
@@ -104,4 +129,8 @@ export {
   checkRegexp,
   setRemark,
   setOwner,
+  updateRemark,
+  deleteRemark,
+  getOwnerList,
+  updateInitGroup,
 };

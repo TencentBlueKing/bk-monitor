@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone, isPostiveInt } from 'monitor-common/utils';
 
-import { deepClone, isPostiveInt } from '../../../../../../../monitor-common/utils';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
 
 import './ring-ratio.scss';

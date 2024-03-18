@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import itertools
 import operator
 
+from django.conf import settings
 from django.db.models import Q
 from django.utils.datetime_safe import datetime
 
@@ -28,12 +29,29 @@ class RelationHandler:
         """
         BCS集群发现
         """
-        clusters = api.bcs_cluster_manager.get_project_k8s_non_shared_clusters()
-        projects = api.bcs_project.get_projects()
+        projects = (
+            api.bcs_cc.batch_get_projects() if settings.ENABLE_BCS_CC_PROJECT_API else api.bcs.get_projects(kind="k8s")
+        )
         project_id_mapping = cls.group_by(projects, operator.itemgetter("project_id"))
 
+        clusters = api.bcs_cluster_manager.get_project_k8s_non_shared_clusters()
         cluster_mapping = cls.group_by(clusters, operator.itemgetter("cluster_id"))
         logger.info(f"[RelationHandler] found: {len(cluster_mapping)} k8s clusters")
+
+        # 兼容特殊集群和业务映射配置
+        if settings.DEBUGGING_BCS_CLUSTER_ID_MAPPING_BIZ_ID:
+            items = settings.DEBUGGING_BCS_CLUSTER_ID_MAPPING_BIZ_ID.split(",")
+            for item in items:
+                mapping = item.split(":")
+                if len(mapping) != 2:
+                    continue
+
+                special_cluster_id, special_biz_id = mapping[0], mapping[1]
+                if special_cluster_id in cluster_mapping:
+                    project_id = cluster_mapping[special_cluster_id][0]["project_id"]
+                    cluster_mapping[special_cluster_id] = [
+                        {"project_id": project_id, "cluster_id": special_cluster_id, "bk_biz_id": special_biz_id},
+                    ]
 
         add_keys = []
         update_ids = []

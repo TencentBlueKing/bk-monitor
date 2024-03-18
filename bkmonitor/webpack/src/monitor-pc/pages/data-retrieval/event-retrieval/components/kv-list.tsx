@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { copyText } from 'monitor-common/utils/utils';
 
-import { copyText } from '../../../../../monitor-common/utils/utils';
 import { EventRetrievalViewType } from '../../typings';
 
 import TextSegmentation from './text-segmentation';

@@ -28,34 +28,23 @@
         'field-container',
         'add-to',
         { 'active': hasClickEvent },
-        { 'mark': markList.includes(formatterStr(content)) }
       ]"
       @click.stop="handleClickContent"
       v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }">
       <text-segmentation
-        v-if="isInViewPort"
         :content="content"
-        :field-name="fieldName"
         :field-type="fieldType"
         :menu-click="handleMenuClick" />
-      <text-highlight
-        v-else
-        style="word-break: break-all;"
-        :queries="markList">
-        {{formatterStr(content)}}
-      </text-highlight>
     </span>
   </div>
 </template>
 
 <script>
 import TextSegmentation from './text-segmentation';
-import TextHighlight from 'vue-text-highlight';
 
 export default {
   components: {
     TextSegmentation,
-    TextHighlight,
   },
   props: {
     isWrap: {
@@ -84,24 +73,6 @@ export default {
       isInViewPort: false,
     };
   },
-  computed: {
-    // isInViewPort() {
-    //   const {
-    //     top,
-    //     bottom,
-    //   } = this.$el.getBoundingClientRect();
-    //   return (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);;
-    // },
-    // 高亮
-    markList() {
-      let markVal = this.content.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
-      if (markVal.length) {
-        markVal = markVal.map(item => item.replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, ''));
-      }
-      return markVal;
-    },
-  },
   mounted() {
     setTimeout(this.registerObserver, 20);
   },
@@ -109,28 +80,16 @@ export default {
     this.unregisterOberver();
   },
   methods: {
-    formatterStr(content) {
-      // 匹配高亮标签
-      let value = content;
-      const markVal = content.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
-      if (markVal.length) {
-        value = String(value).replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, '');
-      }
-
-      return value;
-    },
     handleClickContent() {
       if (this.hasClickEvent) this.$emit('contentClick');
     },
-    handleMenuClick(option, content) {
+    handleMenuClick(option, content, isLink = false) {
       const operator = option === 'not' ? 'is not' : option;
-      this.$emit('iconClick', operator, content);
+      this.$emit('iconClick', operator, content, isLink);
     },
     unregisterOberver() {
       if (this.intersectionObserver) {
         this.intersectionObserver.unobserve(this.$el);
-        // console.info('unobserve : ', this.$el, this.intersectionObserver);
         this.intersectionObserver.disconnect();
         this.intersectionObserver = null;
       }
@@ -143,10 +102,7 @@ export default {
       this.intersectionObserver = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
           if (this.intersectionObserver) {
-            if (entry.boundingClientRect.height > 72) {
-              this.$emit('computedHeight');
-            }
-            this.isInViewPort = entry.intersectionRatio > 0;
+            if (entry.boundingClientRect.height > 72) this.$emit('computedHeight');
           }
         });
       });

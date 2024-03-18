@@ -27,26 +27,11 @@
   <div style="width: 100%">
     <!--服务状态-->
     <mo-healthz-header-view :msg.sync="msg" />
-    <div
-      class="dash-board-center-div"
-      v-show="msg === 0"
-      v-bkloading="{ isLoading: dashLoading }"
-    >
-      <!--监控后台服务状态-->
-      <mo-healthz-backend-view v-if="isShowBackend" />
-      <!--监控saas依赖周边组件状态-->
-      <mo-healthz-saas-view />
-    </div>
     <!--异常告警-->
     <mo-healthz-alarm-config :msg.sync="msg" />
-    <!--数据流弹窗，依赖周边组件信息，及rabbitmq弹窗-->
-    <mo-healthz-common-popup-window-view />
   </div>
 </template>
 <script>
-import MoHealthzCommonPopupWindowView from './common/healthz-common-popup-window';
-import MoHealthzBackendView from './healthz-backend/healthz-backend';
-import MoHealthzSaasView from './healthz-saas/healthz-saas';
 import store from './store/healthz/store';
 import MoHealthzAlarmConfig from './healthz-error';
 import MoHealthzHeaderView from './healthz-header';
@@ -56,14 +41,11 @@ export default {
   name: 'MoHealthzView',
   components: {
     MoHealthzHeaderView,
-    MoHealthzBackendView,
-    MoHealthzSaasView,
-    MoHealthzAlarmConfig,
-    MoHealthzCommonPopupWindowView
+    MoHealthzAlarmConfig
   },
   data() {
     return {
-      msg: 0,
+      msg: 1,
       dashLoading: true, // 控制页面是否载入中
       isShowBackend: !window.is_container_mode, // 容器化部署不展示自监控服务后台状态
       configData: {
@@ -109,30 +91,30 @@ export default {
     // 请求网络获取到全局数据
     getGlobalData() {
       // eslint-disable-next-line @typescript-eslint/no-this-alias
-      const self = this;
-      this.$api.healthz.getGlobalStatus({}, { needRes: true }).then((res) => {
-        if (res.result && res.data.length) {
-          // 将获取到的全局数据放入store中
-          store.commit('loadGlobalData', res.data);
-          // 数据加载完成后，需要将数据中的所有 ip 聚合放在列表里面
-          const tmpIPlist = [];
-          res.data.forEach((tmpData) => {
-            if (
-              tmpData.node_name === 'system'
-              && Object.prototype.hasOwnProperty.call(tmpData, 'server_ip')
-              && tmpData.server_ip !== ''
-              && tmpIPlist.indexOf(tmpData.server_ip) === -1
-            ) {
-              tmpIPlist.push(tmpData.server_ip);
-            }
-          });
-          // 首次加载选中的和全部的ip列表相同
-          store.commit('changeSelectedIPs', tmpIPlist);
-          store.commit('changeAllIPs', tmpIPlist);
-        }
-        // 取消 loading 状态
-        self.dashLoading = false;
-      });
+      // const self = this;
+      // this.$api.healthz.getGlobalStatus({}, { needRes: true }).then((res) => {
+      //   if (res.result && res.data.length) {
+      //     // 将获取到的全局数据放入store中
+      //     store.commit('loadGlobalData', res.data);
+      //     // 数据加载完成后，需要将数据中的所有 ip 聚合放在列表里面
+      //     const tmpIPlist = [];
+      //     res.data.forEach((tmpData) => {
+      //       if (
+      //         tmpData.node_name === 'system'
+      //         && Object.prototype.hasOwnProperty.call(tmpData, 'server_ip')
+      //         && tmpData.server_ip !== ''
+      //         && tmpIPlist.indexOf(tmpData.server_ip) === -1
+      //       ) {
+      //         tmpIPlist.push(tmpData.server_ip);
+      //       }
+      //     });
+      //     // 首次加载选中的和全部的ip列表相同
+      //     store.commit('changeSelectedIPs', tmpIPlist);
+      //     store.commit('changeAllIPs', tmpIPlist);
+      //   }
+      //   // 取消 loading 状态
+      //   self.dashLoading = false;
+      // });
       // 填充配置信息
       this.loadConfigData();
     },

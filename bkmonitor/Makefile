@@ -31,3 +31,7 @@ webpack-copy:
 .PHONY: build-clean
 build-clean:
 	sh version/pack.sh ${TARGET_DIR} ${PLATFORM} ${ROLE} ${VERSION}
+
+
+build-test-image:
+	cp scripts/unittest/.dockerignore .dockerignore && docker build -f scripts/unittest/Dockerfile -t mirrors.tencent.com/bkmonitorv3/bkmonitor-test:latest .

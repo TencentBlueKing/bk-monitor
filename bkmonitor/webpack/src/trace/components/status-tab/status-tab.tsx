@@ -26,8 +26,7 @@
 import { computed, defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Popover } from 'bkui-vue';
-
-import { ITableFilterItem } from '../../../monitor-pc/pages/monitor-k8s/typings';
+import { type ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './status-tab.scss';
 

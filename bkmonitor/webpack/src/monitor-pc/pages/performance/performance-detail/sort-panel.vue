@@ -284,8 +284,8 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
+import { deepClone, typeTools } from 'monitor-common/utils/utils';
 
-import { deepClone, typeTools } from '../../../../monitor-common/utils/utils';
 import { orderList } from '../../collector-config/collector-view/type';
 import MoreList from '../../custom-escalation/more-list.tsx';
 import { matchRuleFn } from '../../monitor-k8s/utils';

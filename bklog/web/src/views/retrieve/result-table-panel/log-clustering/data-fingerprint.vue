@@ -124,7 +124,7 @@
           :sort-by="'year_on_year_percentage'">
           <template slot-scope="{ row }">
             <div class="fl-ac compared-change">
-              <span>{{`${toFixedNumber(row.year_on_year_percentage, 0)}%`}}</span>
+              <span>{{`${toFixedNumber(row.year_on_year_percentage, 2)}%`}}</span>
               <span :class="['bk-icon', showArrowsClass(row)]"></span>
             </div>
           </template>
@@ -135,16 +135,11 @@
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, $index }">
           <div class="pattern">
-            <div
-              :class="['pattern-remark', { 'have-remark': !!row.remark.length }]"
-              @mouseenter="e => handleHoverRemarkIcon(e, row, $index)">
-              <i class="log-icon icon-log-remark"></i>
-            </div>
             <div :class="['pattern-content', { 'is-limit': !cacheExpandStr.includes($index) }]">
               <cluster-event-popover
                 :context="row.pattern"
-                :tippy-options="{ distance: -10, placement: 'top', boundary: scrollContent }"
-                @eventClick="(option) => handleMenuClick(option,row)">
+                :tippy-options="{ distance: 10, placement: 'bottom', boundary: scrollContent }"
+                @eventClick="(option, isLink) => handleMenuClick(option, row, isLink)">
                 <text-highlight
                   style="word-break: break-all; white-space: pre-line;"
                   :queries="getHeightLightList(row.pattern)">
@@ -186,25 +181,39 @@
 
       <bk-table-column
         width="200"
-        align="center"
         :label="$t('责任人')"
-        :render-header="$renderHeader">
+        :render-header="renderUserHeader">
         <template slot-scope="{ row, $index }">
-          <div
-            v-bk-tooltips="{
-              content: $t('分组模式下，暂不支持添加{n}', { n: $t('责任人') }),
-              disabled: !isGroupSearch,
+          <div 
+            v-bk-tooltips.top="{ 
+              content: row.owners.join(', '), 
+              delay: 300,
+              disabled: !row.owners.length
             }">
             <bk-user-selector
               class="principal-input"
               placeholder=" "
-              :disabled="isGroupSearch"
-              :multiple="false"
+              multiple
+              style="margin-top: 4px;"
               :value="row.owners"
               :api="userApi"
               :empty-text="$t('无匹配人员')"
               @change="(val) => handleChangePrincipal(val, $index)">
             </bk-user-selector>
+          </div>
+        </template>
+      </bk-table-column>
+
+      <bk-table-column
+        width="260"
+        align="center"
+        :label="$t('备注')"
+        :render-header="renderRemarkHeader">
+        <template slot-scope="{ row, $index }">
+          <div class="auto-height-container" @mouseenter="e => handleHoverRemarkIcon(e, row, $index)">
+            <span class="auto-height">
+              {{ remarkContent(row.remark) }}
+            </span>
           </div>
         </template>
       </bk-table-column>
@@ -236,19 +245,18 @@
       <div id="remark-tips" ref="remarkTips">
         <div v-show="currentRemarkList.length" class="remark-list">
           <div v-for="(remark, index) in currentRemarkList" :key="index">
-            <div v-if="remark.username">
-              <span>{{remark.create_time}}</span>
-              <span>&nbsp;{{remark.username}}</span>
+            <div class="user" v-if="remark.username">{{ remark.username }}</div>
+            <div class="content">{{ remark.remark }}</div>
+            <div class="tools">
+              <span>{{ remark.showTime }}</span>
+              <div v-if="remark.username === username" class="icon">
+                <i class="bk-icon icon-edit-line" @click="handleEditRemark(remark)"></i>
+                <i class="bk-icon icon-delete" @click="handleDeleteRemark(remark)"></i>
+              </div>
             </div>
-            <div style="padding: 4px 0;">{{remark.remark}}</div>
           </div>
         </div>
-        <div
-          class="add-new-remark"
-          v-bk-tooltips="{
-            content: $t('分组模式下，暂不支持添加{n}', { n: $t('备注') }),
-            disabled: !isGroupSearch,
-          }">
+        <div class="add-new-remark">
           <div class="text-btn" @click="handleClickAddNewRemark">
             <i class="icon bk-icon icon-plus push"></i>
             <span class="text">{{$t('新增备注')}}</span>
@@ -287,7 +295,8 @@
 import ClusterEventPopover from './components/cluster-event-popover';
 import ClusteringLoader from '@/skeleton/clustering-loader';
 import fingerSelectColumn from './components/finger-select-column';
-import { copyMessage, formatDate } from '@/common/util';
+import ClusterFilter from './components/cluster-filter';
+import { copyMessage, formatDate, deepClone } from '@/common/util';
 import TextHighlight from 'vue-text-highlight';
 import EmptyStatus from '@/components/empty-status';
 import BkUserSelector from '@blueking/user-selector';
@@ -377,6 +386,35 @@ export default {
       currentRemarkList: [],
       popoverInstance: null,
       userApi: window.BK_LOGIN_URL,
+      catchOperatorVal: {},
+      ownerBaseList: [
+        {
+          id: 'all',
+          name: this.$t('全部'),
+        },
+        {
+          id: 'no_owner',
+          name: this.$t('未指定责任人'),
+        },
+      ],
+      remarkSelect: ['all'],
+      ownerSelect: ['all'],
+      remarkList: [
+        {
+          id: 'all',
+          name: this.$t('全部'),
+        },
+        {
+          id: 'remarked',
+          name: this.$t('已备注'),
+        },
+        {
+          id: 'no_remark',
+          name: this.$t('未备注'),
+        },
+      ],
+      ownerList: [],
+      // ownerLoading: false,
     };
   },
   inject: ['addFilterCondition'],
@@ -393,15 +431,26 @@ export default {
     getTableWidth() {
       return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
     },
-    /** 获取当前hover操作的数据 */
+    /** 获取当前编辑操作的数据 */
     getHoverRowValue() {
       return this.fingerList[this.editDialogIndex];
+    },
+    /** 获取当前hover操作的数据 */
+    getHoverRowGroupsValue() {
+      if (!this.requestData.group_by.length) return {};
+      return this.requestData.group_by.reduce((acc, cur, index) => {
+        acc[cur] = this.getHoverRowValue.group[index] ?? '';
+        return acc;
+      }, {});
     },
     scrollContent() {
       return document.querySelector('.result-scroll-container');
     },
     isGroupSearch() {
       return !!this.requestData.group_by.length;
+    },
+    username() {
+      return this.$store.state.userMeta?.username;
     },
   },
   watch: {
@@ -435,18 +484,25 @@ export default {
     },
   },
   mounted() {
+    this.handleToggleUserSelect();
+    this.handleToggleRemarkSelect();
     this.scrollEvent('add');
   },
   beforeDestroy() {
     this.scrollEvent('close');
   },
   methods: {
-    handleMenuClick(option, row) {
+    handleMenuClick(option, row, isLink = false) {
       switch (option) {
         // pattern 下钻
         case 'show original':
-          this.addFilterCondition(`__dist_${this.requestData.pattern_level}`, 'is', row.signature.toString());
-          this.$emit('showOriginLog');
+          if (this.requestData.group_by.length) {
+            this.requestData.group_by.forEach((el, index) => {
+              this.addFilterCondition(el, 'is', row.group[index]);
+            });
+          }
+          this.addFilterCondition(`__dist_${this.requestData.pattern_level}`, 'is', row.signature.toString(), isLink);
+          if (!isLink) this.$emit('showOriginLog');
           break;
         case 'copy':
           copyMessage(row.pattern);
@@ -468,6 +524,7 @@ export default {
     },
     toFixedNumber(value, size) {
       if (typeof value === 'number' && !isNaN(value)) {
+        if (value === 0) return 0;
         return value.toFixed(size);
       }
       return value;
@@ -671,6 +728,8 @@ export default {
         data: {
           signature: this.getHoverRowValue.signature,
           owners: val,
+          origin_pattern: this.getHoverRowValue.origin_pattern,
+          groups: this.getHoverRowGroupsValue,
         },
       }).then((res) => {
         if (res.result) {
@@ -683,15 +742,41 @@ export default {
         }
       });
     },
-    /** 设置备注 */
-    handleAddRemark() {
-      this.$http.request('/logClustering/setRemark', {
+    /** 设置备注  */
+    remarkQuery(markType = 'add') {
+      let additionData;
+      let queryStr;
+      switch (markType) {
+        case 'update':
+          queryStr = 'updateRemark';
+          additionData = {
+            new_remark: this.verifyData.textInputStr.trim(),
+            ...this.catchOperatorVal,
+          };
+          break;
+        case 'delete':
+          queryStr = 'deleteRemark';
+          additionData = {
+            remark: this.verifyData.textInputStr.trim(),
+            ...this.catchOperatorVal,
+          };
+          break;
+        case 'add':
+          queryStr = 'setRemark';
+          additionData = {
+            remark: this.verifyData.textInputStr.trim(),
+          };
+          break;
+      }
+      this.$http.request(`/logClustering/${queryStr}`, {
         params: {
           index_set_id: this.$route.params.indexId,
         },
         data: {
           signature: this.getHoverRowValue.signature,
-          remark: this.verifyData.textInputStr.trim(),
+          ...additionData,
+          origin_pattern: this.getHoverRowValue.origin_pattern,
+          groups: this.getHoverRowGroupsValue,
         },
       }).then((res) => {
         if (res.result) {
@@ -705,6 +790,7 @@ export default {
       })
         .finally(() => {
           this.verifyData.textInputStr = '';
+          this.catchOperatorVal = {};
         });
     },
     checkName() {
@@ -715,11 +801,11 @@ export default {
     handleHoverRemarkIcon(e, row, index) {
       if (!this.popoverInstance) {
         this.currentRemarkList = row.remark
-          .sort((a, b) => (b.create_time - a.create_time))
           .map(item => ({
             ...item,
-            create_time: item.create_time > 0 ? formatDate(item.create_time) : '',
-          }));
+            showTime: item.create_time > 0 ? formatDate(item.create_time) : '',
+          }))
+          .sort((a, b) => (b.create_time - a.create_time));
         this.popoverInstance = this.$bkPopover(event.target, {
           content: this.$refs.remarkTips,
           allowHTML: true,
@@ -744,7 +830,8 @@ export default {
     async confirmDialogStr() {
       try {
         await this.$refs.labelRef.validate();
-        this.handleAddRemark();
+        const queryType = Object.keys(this.catchOperatorVal).length ? 'update' : 'add';
+        this.remarkQuery(queryType);
         this.isShowStrInputDialog = false;
       } catch (err) {
         return false;
@@ -754,8 +841,146 @@ export default {
     handleClickAddNewRemark() {
       this.popoverInstance.hide();
       this.verifyData.textInputStr = '';
-      if (this.isGroupSearch) return;
       this.isShowStrInputDialog = true;
+    },
+    handleEditRemark(row) {
+      this.popoverInstance.hide();
+      this.verifyData.textInputStr = row.remark;
+      this.catchOperatorVal = {
+        old_remark: row.remark,
+        create_time: row.create_time,
+      };
+      this.isShowStrInputDialog = true;
+    },
+    handleDeleteRemark(row) {
+      this.popoverInstance.hide();
+      this.catchOperatorVal = {
+        remark: row.remark,
+        create_time: row.create_time,
+      };
+      this.remarkQuery('delete');
+    },
+    remarkContent(remarkList) {
+      if (!remarkList.length) return '--';
+      const maxTimestamp = remarkList.reduce((pre, cur) => {
+        return cur.create_time > pre.create_time ? cur : pre;
+      }, remarkList[0]);
+      return maxTimestamp.remark;
+    },
+    /**
+     * @desc: 获取当前数据指纹所有的责任人
+     */
+    getUserList() {
+      // this.ownerLoading = true;
+      const cloneOwnerBase = deepClone(this.ownerBaseList);
+      this.$http.request('/logClustering/getOwnerList', {
+        params: {
+          index_set_id: this.$route.params.indexId,
+        } })
+        .then((res) => {
+          this.ownerList = res.data.reduce((acc, cur) => {
+            acc.push({
+              id: cur,
+              name: cur,
+            });
+            return acc;
+          }, cloneOwnerBase);
+        })
+        .finally(() => {
+          // this.ownerLoading = false;
+        });
+    },
+    /**
+     * @desc: 选中责任人列表里的值
+     */
+    handleUserSelectChange(v) {
+      const lastSelect = v[v.length - 1];
+      if (['no_owner', 'all'].includes(lastSelect)) {
+        this.ownerSelect = [lastSelect];
+      } else {
+        this.ownerSelect = v.filter(item => !['no_owner', 'all'].includes(item));
+      }
+    },
+    /**
+     * @desc: 选中备注列表里的值 单选永远是最后一个
+     */
+    handleRemarkSelectChange(v) {
+      this.remarkSelect = [v[v.length - 1]];
+    },
+    /**
+     * @desc: 责任人提交
+     */
+    handleUserSubmit(v) {
+      const lastSelect = v[v.length - 1];
+      const ownerData = ['no_owner', 'all'].includes(lastSelect)
+        ? {
+          owner_config: lastSelect,
+          owners: [],
+        }
+        : {
+          owner_config: 'owner',
+          owners: v,
+        };
+      this.$emit('handleFingerOperate', 'requestData', ownerData, true);
+    },
+    /**
+     * @desc: 备注提交
+     */
+    handleRemarkSubmit(v) {
+      this.$emit('handleFingerOperate', 'requestData', { remark_config: v[v.length - 1] }, true);
+    },
+    /**
+     * @desc: 初始化责任人选择的数据和初始化责任人列表
+     */
+    handleToggleUserSelect(v) {
+      this.ownerSelect = !!this.requestData.owners.length
+        ? this.requestData.owners
+        : [this.requestData.owner_config];
+      if (v) this.getUserList();
+    },
+    /**
+     * @desc: 初始化备注选择的数据
+     */
+    handleToggleRemarkSelect() {
+      this.remarkSelect = [this.requestData.remark_config];
+    },
+    renderUserHeader(h, { column }) {
+      const isActive = this.ownerSelect.length && !this.ownerSelect.includes('all');
+      return h(ClusterFilter, {
+        props: {
+          title: column.label,
+          disabled: false,
+          select: this.ownerSelect,
+          selectList: this.ownerList,
+          // loading: this.ownerLoading,
+          toggle: this.handleToggleUserSelect,
+          isActive,
+        },
+        on: {
+          selected: this.handleUserSelectChange,
+          submit: this.handleUserSubmit,
+        },
+      });
+    },
+    renderRemarkHeader(h, { column }) {
+      const isActive = this.remarkSelect.length && !this.remarkSelect.includes('all');
+      return h(ClusterFilter, {
+        props: {
+          title: column.label,
+          searchable: false,
+          popoverMinWidth: 170,
+          disabled: false,
+          select: this.remarkSelect,
+          selectList: this.remarkList,
+          // loading: this.ownerLoading,
+          toggle: this.handleToggleRemarkSelect,
+          isActive,
+        },
+        on: {
+          selected: this.handleRemarkSelectChange,
+          submit: this.handleRemarkSubmit,
+        },
+      });
     },
   },
 };
@@ -766,6 +991,25 @@ export default {
 
 .finger-container {
   position: relative;
+
+  .auto-height-container {
+    padding: 6px 0 6px;
+  }
+
+  .auto-height {
+    padding: 2px;
+    height: auto; /* 设置元素高度为自动 */
+    min-height: 20px; /* 根据需要设置最小高度 */
+    overflow: hidden;
+
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    display: -webkit-box;
+
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    text-overflow: ellipsis;
+  }
 
   .top-operate {
     position: absolute;
@@ -832,6 +1076,10 @@ export default {
       justify-content: center;
     }
 
+    .bk-icon {
+      font-size: 22px;
+    }
+
     .empty-text {
       display: flex;
       flex-direction: column;
@@ -852,25 +1100,6 @@ export default {
     .pattern {
       display: flex;
       align-items: center;
-    }
-
-    .pattern-remark {
-      width: 22px;
-      height: 22px;
-      background: #f0f1f5;
-      border-radius: 2px;
-      flex-shrink: 0;
-      margin-right: 8px;
-      font-size: 16px;
-      cursor: pointer;
-
-      @include flex-center;
-
-      &.have-remark,
-      &:hover {
-        color: #3a84ff;
-        background: #e1ecff;
-      }
     }
 
     .pattern-content {
@@ -897,26 +1126,6 @@ export default {
             background: #eaebf0 !important;
           }
         }
-      }
-    }
-
-    .row-label {
-      display: flex;
-      justify-content: center;
-
-      .label-container {
-        max-width: 90%;
-        position: relative;
-        display: flex;
-        align-items: center;
-      }
-
-      .icon-edit-line {
-        position: absolute;
-        right: -16px;
-        color: #3a84ff;
-        font-size: 14px;
-        cursor: pointer;
       }
     }
 
@@ -997,10 +1206,6 @@ export default {
   @include flex-align;
 }
 
-.bk-icon {
-  font-size: 24px;
-}
-
 .principal-input {
   width: 100%;
 
@@ -1027,8 +1232,46 @@ export default {
     margin-bottom: 6px;
     border-bottom: 1px solid #eaebf0;
 
+    .user {
+      font-weight: 700;
+    }
+
+    .content {
+      white-space: pre-wrap;
+      padding: 6px 0;
+    }
+
+    .tools {
+      color: #979ba5;
+      align-items: center;
+
+      @include flex-justify(space-between);
+    }
+
+    .icon {
+      display: inline-block;
+      font-size: 14px;
+      margin-right: 8px;
+
+      .bk-icon:hover {
+        cursor: pointer;
+      }
+
+      .icon-edit-line:hover {
+        color: #3a84ff;
+      }
+
+      .icon-delete:hover {
+        color: #ea3636;
+      }
+    }
+
     > div:not(:last-child) {
-      margin-bottom: 20px;
+      margin-bottom: 10px;
+    }
+
+    > div:last-child {
+      margin-bottom: 8px;
     }
   }
 
@@ -1043,6 +1286,10 @@ export default {
       .text,
       .icon {
         color: #3a84ff;
+      }
+
+      .push {
+        font-size: 24px;
       }
 
       .text {

@@ -126,11 +126,12 @@ def create_and_delete_record(mocker):
         (None, None, 13),
         (12321, None, 13),
         (DEFAULT_DATA_ID, None, 13),
-        (DEFAULT_DATA_ID_ONE, None, 10),
-        (None, "bk_exporter", 10),
-        (DEFAULT_DATA_ID, "bk_exporter", 10),
-        (DEFAULT_DATA_ID_ONE, "bk_exporter", 10),
-        (12321, "bk_exporter", 10),
+        (DEFAULT_DATA_ID_ONE, None, 13),
+        (None, "bk_exporter", 13),
+        (DEFAULT_DATA_ID, "bk_exporter", 13),
+        (DEFAULT_DATA_ID_ONE, "bk_exporter", 13),
+        (12321, "bk_exporter", 13),
+        (1100006, "bk_exporter", 19),
     ],
 )
 def test_get_timestamp_len(data_id, etl_config, expected_value, create_and_delete_record):

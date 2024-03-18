@@ -9,9 +9,17 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
+import os
 from unittest import mock
 
+from django.conf import settings
+from django.core.files.storage import default_storage
 from django.test import TestCase
+
+from bkmonitor.event_plugin.serializers import HttpPullPluginInstSerializer
+from bkmonitor.models import EventPluginInstance, EventPluginV2
+from core.drf_resource.exceptions import CustomException
+from core.errors.event_plugin import PluginIDExistError
 from fta_web.event_plugin.resources import (
     CreateEventPluginInstanceResource,
     CreateEventPluginResource,
@@ -21,16 +29,14 @@ from fta_web.event_plugin.resources import (
     UpdateEventPluginInstanceResource,
     UpdateEventPluginResource,
 )
-from fta_web.event_plugin.views import event_plugin_media
-
-from bkmonitor.event_plugin.serializers import HttpPullPluginInstSerializer
-from bkmonitor.models import EventPluginInstance, EventPluginV2
-from core.drf_resource.exceptions import CustomException
-from core.errors.event_plugin import PluginIDExistError
 
 mock.patch(
     "bkmonitor.event_plugin.accessor.EventPluginInstAccessor.access",
     return_value=10001,
+).start()
+mock.patch(
+    "fta_web.event_plugin.resources.CollectorProxyHostInfo.request",
+    return_value=[],
 ).start()
 
 from fta_web.handlers import install_global_event_plugin, register_event_plugin
@@ -105,6 +111,20 @@ def get_plugin_info():
         ],
         "alert_config": [
             {"name": "REST默认分类", "rules": [{"key": "alarm_type", "value": ["api_default"], "method": "eq"}]}
+        ],
+        "clean_configs": [
+            {
+                "normalization_config": [{"field": "alert_name", "expr": "AlarmTypeName", "option": {}}],
+                "alert_config": [
+                    {
+                        "rules": [
+                            {"key": "AlarmTypeName", "value": ["NVME SSD test"], "method": "eq", "condition": ""}
+                        ],
+                        "name": "NVME SSD test",
+                    }
+                ],
+                "rules": [{"key": "FeatureId", "value": ["90063"], "method": "eq", "condition": ""}],
+            }
         ],
         "description": "这是说明",
         "tutorial": "123",
@@ -235,7 +255,7 @@ SEVERITY1、SEVERITY2、SEVERITY3分别替换成Prometheus日志对应的severit
               "alertname": "hostMemUsageAlert",
               "instance": "localhost:10001",
               "job": "node_exporter",
-              "node": "10.0.1.56",
+              "node": "127.0.0.1",
               "severity": "2",
               "target_type": "db"
             },
@@ -258,7 +278,140 @@ SEVERITY1、SEVERITY2、SEVERITY3分别替换成Prometheus日志对应的severit
     return plugin_info
 
 
+def get_multi_cloud_plugin_info():
+    plugin_info = {
+        "plugin_id": "multi_cloud6",
+        "version": "1.0.0",
+        "plugin_display_name": "公有云告警推送",
+        "plugin_type": "http_push",
+        "summary": "推送公有云监控告警",
+        "author": "蓝鲸智云",
+        "tags": ["TENCENT CLOUD", "GOOGLE CLOUD"],
+        "ingest_config": {
+            "source_format": "json",
+            "multiple_events": True,
+            "events_path": "data",
+            "alert_sources": [{"code": "TENCENT", "name": "腾讯云"}, {"code": "GOOGLE", "name": "谷歌云"}],
+            "is_external": True,
+            "collect_type": "bk_collector",
+        },
+        "normalization_config": [
+            {"field": "alert_name", "expr": "alarmPolicyInfo.policyName"},
+            {"field": "event_id", "expr": "event_id"},
+            {
+                "field": "description",
+                "expr": "alarmPolicyInfo.conditions.metricShowName && alarmPolicyInfo.conditions.calcType "
+                "&& alarmPolicyInfo.conditions.calcValue && alarmPolicyInfo.conditions.calcUnit "
+                "&& join(' ', [alarmPolicyInfo.conditions.metricShowName, alarmPolicyInfo.conditions.calcType, "
+                "alarmPolicyInfo.conditions.calcValue, "
+                "alarmPolicyInfo.conditions.calcUnit]) || alarmPolicyInfo.conditions.productShowName "
+                "&& alarmPolicyInfo.conditions.eventShowName "
+                "&& join(' ', [alarmPolicyInfo.conditions.productShowName, alarmPolicyInfo.conditions.eventShowName]) "
+                "|| alarmObjInfo.content",
+            },
+            {"field": "metric", "expr": "alarmPolicyInfo.conditions.metricName"},
+            {"field": "category", "expr": "category"},
+            {"field": "assignee", "expr": "assignee"},
+            {"field": "status", "expr": "get_field({1: 'ABNORMAL', 0: 'RECOVERED'}, alarmStatus)"},
+            {"field": "target_type", "expr": "target_type"},
+            {"field": "target", "expr": "target_type"},
+            {"field": "severity", "expr": "'1'"},
+            {"field": "bk_biz_id", "expr": "bk_biz_id || '{{plugin_inst_biz_id}}'"},
+            {
+                "field": "tags",
+                "expr": "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, "
+                "appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, content: alarmObjInfo.content, "
+                "summary: alarmObjInfo.summary, alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}, "
+                "alarmObjInfo.dimensions, alarmObjInfo.tags)",
+            },
+            {"field": "time", "expr": "firstOccurTime"},
+            {"field": "source_time", "expr": "firstOccurTime"},
+            {"field": "anomaly_time", "expr": "firstOccurTime"},
+        ],
+        "clean_configs": [
+            {
+                "rules": [
+                    {"key": 'headers."user-agent"', "value": ["Google-Alerts"], "method": "eq", "condition": "or"},
+                    {"key": '__http_query_params__.source', "value": ["google"], "method": "eq", "condition": "or"},
+                ],
+                "normalization_config": [
+                    {"field": "alert_name", "expr": "incident.policy_name"},
+                    {"field": "event_id", "expr": "incident.incident_id"},
+                    {"field": "description", "expr": "incident.summary"},
+                    {"field": "metric", "expr": "incident.metric.displayName"},
+                    {"field": "category", "expr": "category"},
+                    {"field": "assignee", "expr": "assignee"},
+                    {
+                        "field": "status",
+                        "expr": "get_field({OPEN: 'ABNORMAL', open: 'ABNORMAL', CLOSED: 'CLOSED', "
+                        "closed: 'CLOSED'}, incident.state)",
+                    },
+                    {"field": "target_type", "expr": "target_type"},
+                    {"field": "target", "expr": "target_type"},
+                    {"field": "severity", "expr": "'1'"},
+                    {"field": "bk_biz_id", "expr": "bk_biz_id || '{{plugin_inst_biz_id}}'"},
+                    {
+                        "field": "tags",
+                        "expr": "merge({scoping_project_id: incident.scoping_project_id, "
+                        "scoping_project_number: incident.scoping_project_number, "
+                        "observed_value: incident.observed_value, resource: to_string("
+                        "incident.resource), resource_id: incident.resource_id, "
+                        "resource_display_name: incident.resource_display_name, "
+                        "metric: to_string(incident.metric), policy_user_labels: "
+                        "incident.policy_user_labels, condition: to_string("
+                        "incident.condition)}, incident.metadata)",
+                    },
+                    {"field": "time", "expr": "incident.started_at"},
+                    {"field": "anomaly_time", "expr": "incident.started_at"},
+                ],
+            },
+            {
+                "rules": [
+                    {"key": '__http_query_params__.source', "value": ["tencent"], "method": "eq"},
+                ],
+                "normalization_config": [
+                    {"field": "alert_name", "expr": "alarmPolicyInfo.policyName"},
+                    {"field": "event_id", "expr": "event_id"},
+                    {
+                        "field": "description",
+                        "expr": "alarmPolicyInfo.conditions.metricShowName && alarmPolicyInfo.conditions.calcType && "
+                        "alarmPolicyInfo.conditions.calcValue && alarmPolicyInfo.conditions.calcUnit && join(' "
+                        "', [alarmPolicyInfo.conditions.metricShowName, alarmPolicyInfo.conditions.calcType, "
+                        "alarmPolicyInfo.conditions.calcValue, alarmPolicyInfo.conditions.calcUnit]) || "
+                        "alarmPolicyInfo.conditions.productShowName && alarmPolicyInfo.conditions.eventShowName "
+                        "&& join(' ', [alarmPolicyInfo.conditions.productShowName, "
+                        "alarmPolicyInfo.conditions.eventShowName]) || alarmObjInfo.content",
+                    },
+                    {"field": "metric", "expr": "alarmPolicyInfo.conditions.metricName"},
+                    {"field": "category", "expr": "category"},
+                    {"field": "assignee", "expr": "assignee"},
+                    {"field": "status", "expr": "get_field({1: 'ABNORMAL', 0: 'RECOVERED'}, alarmStatus)"},
+                    {"field": "target_type", "expr": "target_type"},
+                    {"field": "target", "expr": "target_type"},
+                    {"field": "severity", "expr": "'1'"},
+                    {"field": "bk_biz_id", "expr": "bk_biz_id || '{{plugin_inst_biz_id}}'"},
+                    {
+                        "field": "tags",
+                        "expr": "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, "
+                        "appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, "
+                        "content: alarmObjInfo.content, summary: alarmObjInfo.summary, "
+                        "alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}, "
+                        "alarmObjInfo.dimensions, alarmObjInfo.tags)",
+                    },
+                    {"field": "time", "expr": "firstOccurTime"},
+                    {"field": "source_time", "expr": "firstOccurTime"},
+                    {"field": "anomaly_time", "expr": "firstOccurTime"},
+                ],
+            },
+        ],
+        "description": """just test""",
+    }
+    return plugin_info
+
+
 class TestEventPluginMigrate(TestCase):
+    databases = {"monitor_api", "default"}
+
     def setUp(self) -> None:
         EventPluginV2.objects.all().delete()
         EventPluginInstance.objects.all().delete()
@@ -266,6 +419,18 @@ class TestEventPluginMigrate(TestCase):
     def tearDown(self) -> None:
         EventPluginV2.objects.all().delete()
         EventPluginInstance.objects.all().delete()
+        self.clear_plugin_storage()
+
+    @classmethod
+    def clear_plugin_storage(cls, path="."):
+        dirs, files = default_storage.listdir(path)
+        for file in files:
+            file_path = os.path.join(path, file)
+            default_storage.delete(file_path)
+        for file_dir in dirs:
+            dir_path = os.path.join(path, file_dir)
+            cls.clear_plugin_storage(dir_path)
+            default_storage.delete(dir_path)
 
     def test_deploy_event_plugin(self):
         plugin_info = get_plugin_info()
@@ -275,6 +440,7 @@ class TestEventPluginMigrate(TestCase):
         self.assertEqual(ingest_config["url"], "http://www.blueking.com/")
         self.assertIsNotNone(data["params_schema"])
         self.assertEqual(int(data["bk_biz_id"]), 0)
+        self.assertIsNotNone(data["clean_configs"])
 
         inst_info = {
             "bk_biz_id": 0,
@@ -285,6 +451,8 @@ class TestEventPluginMigrate(TestCase):
 
         inst = CreateEventPluginInstanceResource().request(inst_info)
         plugin_info["plugin_display_name"] = f"deploy{plugin_info['plugin_display_name']}"
+        ep = EventPluginInstance.objects.get(id=inst["id"])
+        self.assertTrue(bool(ep.clean_configs))
         r = DeployEventPluginResource()
         data = r.request(plugin_info)
         self.assertEqual(data["plugin_display_name"], plugin_info["plugin_display_name"])
@@ -313,6 +481,38 @@ class TestEventPluginMigrate(TestCase):
         data = r.request(plugin_info)
         self.assertEqual(data["plugin_display_name"], plugin_info["plugin_display_name"])
         self.assertEqual(data["updated_instances"]["succeed_instances"], [inst["id"]])
+
+    def test_create_multi_cloud_event_plugin(self):
+        data_id_patch = mock.patch("core.drf_resource.api.metadata.get_data_id", return_value={"token": "test token"})
+        data_id_patch.start()
+        # 测试创建
+        plugin_info = get_multi_cloud_plugin_info()
+        event_plugin_request = CreateEventPluginResource().request(plugin_info)
+        ingest_config = event_plugin_request["ingest_config"]
+        self.assertEqual(ingest_config["collect_type"], "bk_collector")
+        self.assertEqual(plugin_info["plugin_type"], "http_push")
+        # 测试更新
+        plugin_info["plugin_display_name"] = f"update {plugin_info['plugin_display_name']}"
+        event_plugin_request = UpdateEventPluginResource().request(plugin_info)
+        self.assertEqual(event_plugin_request["plugin_display_name"], plugin_info["plugin_display_name"])
+        # 测试安装
+        event_plugin = EventPluginV2.objects.get(
+            plugin_id=event_plugin_request["plugin_id"], version=event_plugin_request["version"]
+        )
+        install_info = {
+            "bk_biz_id": 2,
+            "plugin_id": event_plugin.plugin_id,
+            "version": event_plugin.version,
+            "config_params": {},
+        }
+        install_event_plugin = CreateEventPluginInstanceResource()
+        install_event_plugin_request = install_event_plugin.request(install_info)
+        self.assertEqual(install_event_plugin_request["data_id"], 10001)
+        install_info = GetEventPluginInstanceResource().perform_request(
+            {"bk_biz_id": 2, "plugin_id": event_plugin.plugin_id, "version": event_plugin.version}
+        )
+        print(install_info)
+        data_id_patch.stop()
 
     def test_create_event_plugin(self):
         plugin_info = get_plugin_info()
@@ -375,6 +575,8 @@ class TestEventPluginMigrate(TestCase):
             inst_r.request(inst_info)
 
     def test_register_by_file(self):
+        document_root = os.path.join(settings.PROJECT_ROOT, "support-files/fta/event_plugins")
+        tar_count = len(os.listdir(document_root))
         pull_config_params = [
             {
                 "field": "url",
@@ -411,7 +613,7 @@ class TestEventPluginMigrate(TestCase):
         for p_id in ["rest_api", "rest_pull"]:
             install_global_event_plugin(plugins[p_id])
 
-        self.assertEqual(EventPluginV2.objects.all().count(), 4)
+        self.assertEqual(EventPluginV2.objects.all().count(), tar_count)
         self.assertEqual(EventPluginInstance.objects.filter(bk_biz_id=0).count(), 2)
 
         pull_inst = EventPluginInstance.objects.get(plugin_id="rest_pull")
@@ -508,21 +710,14 @@ class TestEventPluginMigrate(TestCase):
         self.assertEqual(new_normalization_config["bk_biz_id"]["expr"], "bk_biz_id || '2'")
 
         plugin_id = "zabbix"
-        version = "1.0.0"
+        version = "1.0.1"
         bk_biz_id = 0
         register_event_plugin()
         inst_info = {"bk_biz_id": bk_biz_id, "plugin_id": plugin_id, "version": version, "config_params": {}}
-        inst_r = CreateEventPluginInstanceResource().request(inst_info)
+        CreateEventPluginInstanceResource().request(inst_info)
 
         plugin_instances = GetEventPluginInstanceResource().request(
-            plugin_id=plugin_id, version="1.0.0", bk_biz_id=bk_biz_id
+            plugin_id=plugin_id, version=version, bk_biz_id=bk_biz_id
         )
-        self.assertEqual(
-            plugin_instances["ingest_config"].get("ingester_host"), "http://ingester.bkmonitorv3.service.consul"
-        )
+        self.assertEqual(plugin_instances["ingest_config"].get("ingest_host"), "http://ingester.bkfta.service.consul")
         self.assertIsNotNone(plugin_instances["ingest_config"].get("push_url", None))
-
-        plugin_infos = EventPluginV2.objects.get(plugin_id=plugin_id)
-        plugin_kwargs = {"plugin_id": plugin_id, "package_dir": plugin_infos.package_dir}
-
-        event_plugin_media(**plugin_kwargs)

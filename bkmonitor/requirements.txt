@@ -66,6 +66,7 @@ blueapps[opentelemetry]==4.7.1
 bkstorages==1.0.8
 bk-iam==1.1.14
 whitenoise==5.0
+bk-notice-sdk==1.2.0
 
 # monitor
 raven==6.9.0
@@ -124,3 +125,6 @@ apigw-manager==2.0.0
 
 # crypto
 bk-crypto-python-sdk==1.0.4
+
+# graphviz
+graphviz==0.19.1

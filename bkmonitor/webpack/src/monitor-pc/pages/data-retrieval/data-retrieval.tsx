@@ -31,11 +31,10 @@
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
-import { Collapse, CollapseItem, Input, Popover } from 'bk-magic-vue';
-
-import { getMainlineObjectTopo } from '../../../monitor-api/modules/commons';
-import { getGraphQueryConfig } from '../../../monitor-api/modules/data_explorer';
-import { getFunctions } from '../../../monitor-api/modules/grafana';
+import { CancelToken } from 'monitor-api/index';
+import { getMainlineObjectTopo } from 'monitor-api/modules/commons';
+import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
+import { getFunctions } from 'monitor-api/modules/grafana';
 import {
   createFavorite,
   createFavoriteGroup,
@@ -44,16 +43,17 @@ import {
   listByGroupFavorite,
   updateFavorite,
   updateFavoriteGroup
-} from '../../../monitor-api/modules/model';
+} from 'monitor-api/modules/model';
 import {
   getMetricListV2,
   getScenarioList,
   promqlToQueryConfig,
   queryConfigToPromql
-} from '../../../monitor-api/modules/strategies';
-import { monitorDrag } from '../../../monitor-common/utils/drag-directive';
-import { Debounce, copyText, deepClone, getUrlParam, random } from '../../../monitor-common/utils/utils';
-import PromqlEditor from '../../../monitor-ui/promql-editor/promql-editor';
+} from 'monitor-api/modules/strategies';
+import { monitorDrag } from 'monitor-common/utils/drag-directive';
+import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
+import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
+
 import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
@@ -304,6 +304,7 @@ export default class DataRetrieval extends tsc<{}> {
   eventSelectTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
+  cancelFn = null; // 取消查询接口
 
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
@@ -496,8 +497,8 @@ export default class DataRetrieval extends tsc<{}> {
           vm.handleRouteQueryDataOfEvent(targetsList, type);
         } else if (targets && from.name !== 'view-detail') {
           // 跳转数据检索
-          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-            item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+            item?.data?.query_configs?.find?.(set => !!set.metrics)
           )
             ? 'performance-detail'
             : 'grafana';
@@ -560,8 +561,8 @@ export default class DataRetrieval extends tsc<{}> {
         this.handleRouteQueryDataOfEvent(targetsList, type);
       } else if (targets && from.name !== 'view-detail') {
         // 跳转数据检索
-        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-          item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+          item?.data?.query_configs?.find?.(set => !!set.metrics)
         )
           ? 'performance-detail'
           : 'grafana';
@@ -1634,7 +1635,8 @@ export default class DataRetrieval extends tsc<{}> {
         }
       };
     }
-    getGraphQueryConfig(params)
+    this.cancelFn?.();
+    getGraphQueryConfig(params, { cancelToken: new CancelToken(c => (this.cancelFn = c)) })
       .then(data => {
         this.queryTimeRange = +new Date() - queryStartTime;
         this.queryResult = data.panels;
@@ -1943,20 +1945,25 @@ export default class DataRetrieval extends tsc<{}> {
                 bk_biz_id: this.bizId,
                 page: 1,
                 page_size: 1,
-                conditions: metricFields.map((field, index) => {
-                  const res = {
-                    key: field,
-                    value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
-                  };
-                  if (field === 'metrics[0].field') {
-                    res.key = 'metric_field';
-                    res.value = query.metrics[0].field;
-                  }
-                  if (field === 'table') {
-                    res.key = 'result_table_id';
-                  }
-                  return res;
-                }),
+                conditions: metricFields
+                  .map((field, index) => {
+                    const res = {
+                      key: field,
+                      value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
+                    };
+                    if (field === 'data_label' && !res.value) {
+                      return undefined;
+                    }
+                    if (field === 'metrics[0].field') {
+                      res.key = 'metric_field';
+                      res.value = query.metrics[0].field;
+                    }
+                    if (field === 'table') {
+                      res.key = 'result_table_id';
+                    }
+                    return res;
+                  })
+                  .filter(Boolean),
                 search_value: '',
                 tag: ''
               })
@@ -2292,25 +2299,36 @@ export default class DataRetrieval extends tsc<{}> {
    * @description: 添加策略
    */
   handleAddStrategy() {
-    const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
-    const epxList = this.localValue.filter(item => !item.isMetric) as IDataRetrieval.IExpressionItem[];
-    const queryConfigs = metricList.map(item => ({
-      data_source_label: item.data_source_label,
-      data_type_label: item.data_type_label,
-      filter_dict: {},
-      functions: item.functions,
-      group_by: item.agg_dimension,
-      index_set_id: item.index_set_id,
-      interval: item.agg_interval,
-      table: item.result_table_id,
-      item: item.time_field,
-      where: item.agg_condition,
-      metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }]
-    }));
-    const queryData = {
-      expression: epxList?.[0]?.value?.toLocaleLowerCase?.(),
-      query_configs: queryConfigs
-    };
+    let queryData = null;
+    if (this.editMode === 'PromQL') {
+      queryData = {
+        mode: 'code',
+        data: this.promqlData.map(item => ({
+          promql: item.code,
+          step: item.step
+        }))
+      };
+    } else {
+      const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
+      const epxList = this.localValue.filter(item => !item.isMetric) as IDataRetrieval.IExpressionItem[];
+      const queryConfigs = metricList.map(item => ({
+        data_source_label: item.data_source_label,
+        data_type_label: item.data_type_label,
+        filter_dict: {},
+        functions: item.functions,
+        group_by: item.agg_dimension,
+        index_set_id: item.index_set_id,
+        interval: item.agg_interval,
+        table: item.result_table_id,
+        item: item.time_field,
+        where: item.agg_condition,
+        metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }]
+      }));
+      queryData = {
+        expression: epxList?.[0]?.value?.toLocaleLowerCase?.(),
+        query_configs: queryConfigs
+      };
+    }
     window.open(
       `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(
         JSON.stringify(queryData)
@@ -2590,9 +2608,6 @@ export default class DataRetrieval extends tsc<{}> {
   }
   // 切换业务
   handleChangeBizId(v: number) {
-    window.cc_biz_id = v;
-    window.bk_biz_id = v;
-    window.space_uid = this.$store.getters.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
     this.$store.commit('app/SET_BIZ_ID', v);
     const { navId } = this.$route.meta;
     // 所有页面的子路由在切换业务的时候都统一返回到父级页面
@@ -2919,7 +2934,7 @@ export default class DataRetrieval extends tsc<{}> {
                 style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
               ></i>
             )}
-            {/* <Popover
+            {/* <bk-popover
               ref="autoQueryPopover"
               theme="light"
               trigger="click"
@@ -2927,14 +2942,14 @@ export default class DataRetrieval extends tsc<{}> {
               <i class="icon-monitor icon-menu-setting" onClick={() => this.handleIseeCache()}></i>
               <div slot="content" class="setting-pop-centent">
                 <span class="text">{this.$t('是否开启自动查询')}</span>
-                <Switcher
+                <bk-switcher
                   vModel={this.autoQuery}
-                  class="switcher" size="small" theme="primary" onChange={this.handleAutoQueryChange}></Switcher>
+                  class="switcher" size="small" theme="primary" onChange={this.handleAutoQueryChange}></bk-switcher>
                 { this.isShowTips
                   ? <span class="i-see-btn" onClick={() => this.handleIseeCache(true)}>{this.$t('知道了!')}</span>
                   : undefined }
               </div>
-            </Popover> */}
+            </bk-popover> */}
             {/* <span class="icon-monitor icon-double-down"
                   onClick={() => this.handleLeftHiddenAndShow(false)}></span> */}
           </div>
@@ -2952,7 +2967,7 @@ export default class DataRetrieval extends tsc<{}> {
       </div>
     );
     const metricRetrieval = () => [
-      <Collapse
+      <bk-collapse
         class='collapse-wrap collapse-wrap-data'
         vModel={this.expandedData}
       >
@@ -2971,7 +2986,7 @@ export default class DataRetrieval extends tsc<{}> {
               onDragenter={() => this.handleDragEnter(index)}
               onDragover={evt => this.handleDragOver(evt)}
             >
-              <CollapseItem
+              <bk-collapse-item
                 v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 class='collapse-item'
                 name={item.key}
@@ -2979,11 +2994,11 @@ export default class DataRetrieval extends tsc<{}> {
                   default: () => titleSlot(item, index),
                   content: () => contentSlot(item, index)
                 }}
-              ></CollapseItem>
+              ></bk-collapse-item>
             </li>
           ))}
         </transition-group>
-      </Collapse>,
+      </bk-collapse>,
       <div class='query-add-btn-wrap'>
         <span
           class='query-add-btn'
@@ -3031,7 +3046,7 @@ export default class DataRetrieval extends tsc<{}> {
           onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
           onSelected={this.handleSelectMetric}
         ></MetricSelector>
-        <Collapse
+        <bk-collapse
           class='collapse-wrap collapse-wrap-data'
           v-model={this.promqlExpandedData}
         >
@@ -3040,7 +3055,7 @@ export default class DataRetrieval extends tsc<{}> {
               class='drag-item'
               key={item.key}
             >
-              <CollapseItem
+              <bk-collapse-item
                 class='collapse-item'
                 name={item.key}
                 scopedSlots={{
@@ -3091,7 +3106,7 @@ export default class DataRetrieval extends tsc<{}> {
                         </div>
                       </div>
                       <span class='step-content'>
-                        <Input
+                        <bk-input
                           class='step-input'
                           value={item.step}
                           onChange={value => this.handleSourceStepChange(value, index)}
@@ -3111,16 +3126,16 @@ export default class DataRetrieval extends tsc<{}> {
                               }}
                             ></span>
                           </div>
-                        </Input>
+                        </bk-input>
                       </span>
                       {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
                     </div>
                   )
                 }}
-              ></CollapseItem>
+              ></bk-collapse-item>
             </li>
           ))}
-        </Collapse>
+        </bk-collapse>
         <div class='query-add-btn-wrap'>
           <span
             class='query-add-btn'

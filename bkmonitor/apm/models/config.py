@@ -26,7 +26,7 @@ from apm.constants import (
     SpanKind,
 )
 from bkmonitor.utils.db import JsonField
-from constants.apm import OtlpKey
+from constants.apm import OtlpKey, TrpcAttributes
 
 logger = logging.getLogger("apm")
 
@@ -69,6 +69,8 @@ class ApmTopoDiscoverRule(models.Model):
     DB_PREDICATE_KEY = OtlpKey.get_attributes_key(SpanAttributes.DB_SYSTEM)
     MESSAGING_PREDICATE_KEY = OtlpKey.get_attributes_key(SpanAttributes.MESSAGING_SYSTEM)
     ASYNC_BACKEND_PREDICATE_KEY = OtlpKey.get_attributes_key(SpanAttributes.MESSAGING_DESTINATION)
+    # for trpc
+    TRPC_PREDICATE_KEY = OtlpKey.get_attributes_key(TrpcAttributes.TRPC_NAMESPACE)
 
     COMMON_RULE = [
         {
@@ -289,6 +291,21 @@ class ApmMetricDimension(models.Model):
         },
     ]
 
+    if settings.APM_TRPC_ENABLED:
+        trpc_metric_dimensions = {
+            "predicate_key": ApmTopoDiscoverRule.TRPC_PREDICATE_KEY,
+            "dimensions": [
+                OtlpKey.get_attributes_key(TrpcAttributes.TRPC_NAMESPACE),
+                OtlpKey.get_attributes_key(TrpcAttributes.TRPC_CALLER_SERVICE),
+                OtlpKey.get_attributes_key(TrpcAttributes.TRPC_CALLEE_SERVICE),
+                OtlpKey.get_attributes_key(TrpcAttributes.TRPC_CALLEE_METHOD),
+                OtlpKey.get_attributes_key(TrpcAttributes.TRPC_STATUS_TYPE),
+                OtlpKey.get_attributes_key(TrpcAttributes.TRPC_STATUS_CODE),
+            ],
+        }
+        CLIENT_DIMENSION_KEYS.append(trpc_metric_dimensions)
+        SERVER_DIMENSION_KEYS.append(trpc_metric_dimensions)
+
     PRODUCER_DIMENSION_KEYS = [
         {"predicate_key": DEFAULT_PREDICATE_KEY, "dimensions": []},
         {
@@ -486,7 +503,6 @@ class AppConfigBase(models.Model):
 
     @classmethod
     def refresh_config(cls, bk_biz_id, app_name, config_level, config_key, refresh_configs, need_delete_config=True):
-
         create_objs = []
         exist_ids = []
         if need_delete_config:
@@ -713,7 +729,6 @@ class DbConfig(AppConfigBase):
 
 
 class ProbeConfig(AppConfigBase):
-
     REFRESH_CONFIG_KEYS = ["sn", "rules"]
 
     sn = models.CharField("配置变更标识", max_length=255)

@@ -40,7 +40,34 @@
       class="config-deploy-header"
       v-if="isRunning"
     >
-      <div class="bk-button-group">
+      <div class="header-filter">
+        <div
+          v-for="(item) in statusList"
+          :key="item.id"
+          :class="['header-filter-item', { active: item.id === header.status }]"
+          @click="header.status = item.id"
+        >
+          <span
+            v-if="item.color"
+            class="point mr-3"
+            :style="{ background: item.color[0] }"
+          >
+            <span
+              class="s-point"
+              :style="{ background: item.color[1] }"
+            />
+          </span>
+          <span v-if="item.id === 'RUNNING'">
+            <bk-spin
+              size="mini"
+              class="mr-3"
+            />
+          </span>
+          <span class="mr-3">{{item.name}}</span>
+          <span class="mt-2">{{item.count}}</span>
+        </div>
+      </div>
+      <!-- <div class="bk-button-group">
         <bk-button
           @click="header.status = 'ALL'"
           :class="{ 'is-selected': header.status === 'ALL' }"
@@ -65,11 +92,11 @@
           size="normal"
         >
           {{ $t('执行中') }}({{ header.data.pendingNum }})</bk-button>
-      </div>
+      </div> -->
       <bk-button
         :icon="header.batchRetry ? 'loading' : ''"
         :disabled="header.batchRetry || !(header.data.failedNum > 0 && header.data.pendingNum === 0)"
-        class="header-retry"
+        class="ml-auto header-retry"
         hover-theme="primary"
         @click="handleBatchRetry"
       >
@@ -135,6 +162,7 @@
                   class="col-status-img"
                   v-if="isRunning && (props.row.status === 'RUNNING' || props.row.status === 'PENDING')"
                   src="../../../static/images/svg/spinner.svg"
+                  alt=""
                 >
                 <div
                   class="col-status-radius"
@@ -291,8 +319,9 @@ import {
   batchRevokeTargetNodes,
   getCollectLogDetail,
   isTaskReady,  retryTargetNodes,
-  revokeTargetNodes } from '../../../../monitor-api/modules/collecting';
-import { copyText } from '../../../../monitor-common/utils/utils.js';
+  revokeTargetNodes } from 'monitor-api/modules/collecting';
+import { copyText } from 'monitor-common/utils/utils.js';
+
 import RightPanel from '../../../components/ip-select/right-panel';
 import { transformJobUrl } from '../../../utils/index';
 
@@ -385,6 +414,14 @@ export default {
         resArr.push(res);
       });
       return resArr.some(item => item);
+    },
+    statusList() {
+      return [
+        { id: 'ALL', name: window.i18n.t('全部'), count: this.header.data.total },
+        { id: 'SUCCESS', color: ['#3fc06d29', '#3FC06D'], name: window.i18n.t('正常'), count: this.header.data.successNum },
+        { id: 'FAILED', color: ['#ea363629', '#EA3636'], name: window.i18n.t('异常'), count: this.header.data.failedNum },
+        { id: 'RUNNING', name: window.i18n.t('执行中'), count: this.header.data.pendingNum }
+      ];
     }
   },
   watch: {
@@ -623,6 +660,90 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
+.mr-3 {
+  margin-right: 3px;
+}
+
+.ml-auto {
+  margin-left: auto !important;
+}
+
+.mt-2 {
+  margin-top: 2px;
+}
+
+@mixin pointStatus() {
+  .point {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+
+    .s-point {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+  }
+}
+
+@mixin filterList() {
+  .header-filter {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 4px;
+    color: #63656e;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    .header-filter-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 24px;
+      padding: 0 12px;
+      cursor: pointer;
+
+      @include pointStatus();
+
+      &:not(:last-of-type) {
+        &::after {
+          position: absolute;
+          top: 6px;
+          right: 0px;
+          width: 1px;
+          height: 12px;
+          content: '';
+          background: #dcdee5;
+        }
+      }
+
+      &.active {
+        color: #3a84ff;
+        background: #fff;
+
+        &::after {
+          display: none;
+        }
+
+        &::before {
+          position: absolute;
+          top: 6px;
+          left: -1px;
+          width: 1px;
+          height: 12px;
+          content: '';
+          background: #f0f1f5;
+        }
+      }
+    }
+  }
+}
+
 .config-deploy {
   &-description {
     height: 16px;
@@ -645,6 +766,8 @@ export default {
     display: flex;
     align-items: center;
     margin-bottom: 20px;
+
+    @include filterList();
 
     .header-retry {
       margin-left: 10px;
@@ -763,7 +886,7 @@ export default {
     }
 
     .bk-sideslider-content {
-      height: calc(100% - 52px);
+      height: calc(100% - 52px - var(--notice-alert-height));
       background: #fafbfd;
     }
   }

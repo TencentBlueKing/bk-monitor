@@ -12,10 +12,17 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
-from metadata.service.vm_storage import disable_influxdb_router_for_vm_table
+from metadata.service.vm_storage import (
+    disable_influxdb_router_for_vm_table,
+    query_vm_datalink,
+)
 from metadata.tests.common_utils import CustomConsul
 
-from .conftest import DEFAULT_PROXY_STORAGE_CLUSTER_ID, DEFAULT_TABLE_ID
+from .conftest import (
+    DEFAULT_DATA_ID,
+    DEFAULT_PROXY_STORAGE_CLUSTER_ID,
+    DEFAULT_TABLE_ID,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -37,3 +44,27 @@ def test_disable_influxdb_router_for_vm_table(create_and_delete_records, mocker)
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=CustomConsul)
     disable_influxdb_router_for_vm_table(table_ids=[DEFAULT_TABLE_ID], can_deleted=True)
     assert not models.InfluxDBStorage.objects.filter(table_id=DEFAULT_TABLE_ID).exists()
+
+
+def test_not_enable_datasource_dl(create_and_delete_datalink_records, mocker):
+    data = query_vm_datalink(DEFAULT_DATA_ID + 1)
+
+    assert data["is_enabled"] is False
+    assert "result_table_list" not in data
+
+
+def test_not_enable_rt_dl(create_and_delete_datalink_records, mocker):
+    data = query_vm_datalink(DEFAULT_DATA_ID + 2)
+
+    assert data["is_enabled"] is True
+    assert data["result_table_list"] == []
+
+
+def test_rt_dl(create_and_delete_datalink_records, mocker):
+    data = query_vm_datalink(DEFAULT_DATA_ID)
+
+    assert data["is_enabled"] is True
+    assert "result_table_list" in data
+    result_table_list = data["result_table_list"]
+    assert len(result_table_list) == 1
+    assert result_table_list[0]["result_table"] == DEFAULT_TABLE_ID
