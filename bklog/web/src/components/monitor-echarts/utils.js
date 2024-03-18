@@ -24,7 +24,7 @@
  * 获取Cookie
  * @param {String} name
  */
-export const getCookie = (name) => {
+export const getCookie = name => {
   const reg = new RegExp(`(^|)${name}=([^;]*)(;|$)`);
   const data = document.cookie.match(reg);
   if (data) {
@@ -34,9 +34,8 @@ export const getCookie = (name) => {
 };
 export const deleteCookie = (name, path, domain) => {
   if (getCookie(name)) {
-    document.cookie = `${name}=${
-      (path) ? `;path=${path}` : ''
-    }${(domain) ? `;domain=${domain}` : ''
+    document.cookie = `${name}=${path ? `;path=${path}` : ''}${
+      domain ? `;domain=${domain}` : ''
     };expires=Thu, 01 Jan 1970 00:00:01 GMT`;
   }
 };
@@ -49,10 +48,14 @@ export const deepClone = (obj, hash = new WeakMap()) => {
   if (Object(obj) !== obj) return obj;
   if (obj instanceof Set) return new Set(obj);
   if (hash.has(obj)) return hash.get(obj);
-  const result = obj instanceof Date ? new Date(obj)
-    : obj instanceof RegExp ? new RegExp(obj.source, obj.flags)
-      : obj.constructor ? new obj.constructor()
-        : Object.create(null);
+  const result =
+    obj instanceof Date
+      ? new Date(obj)
+      : obj instanceof RegExp
+        ? new RegExp(obj.source, obj.flags)
+        : obj.constructor
+          ? new obj.constructor()
+          : Object.create(null);
   hash.set(obj, result);
   if (obj instanceof Map) {
     Array.from(obj, ([key, val]) => result.set(key, deepClone(val, hash)));
@@ -64,7 +67,8 @@ export const deepClone = (obj, hash = new WeakMap()) => {
  * 生成随机数
  * @param {Number} n
  */
-export const random = (n) => { // 生成n位长度的字符串
+export const random = n => {
+  // 生成n位长度的字符串
   const str = 'abcdefghijklmnopqrstuvwxyz0123456789'; // 可以作为常量放到random外面
   let result = '';
   for (let i = 0; i < n; i++) {
@@ -86,15 +90,14 @@ export const transformDataKey = (data = {}, flag = false) => {
   if (Array.isArray(data)) {
     return data.map(item => transformDataKey(item, flag));
   }
-  Object.keys(data).forEach((key) => {
+  Object.keys(data).forEach(key => {
     const matchList = flag ? key.match(/([A-Z])/g) : key.match(/(_[a-zA-Z])/g);
     let newKey = key;
     const item = data[key];
     if (matchList) {
-      matchList.forEach((set) => {
+      matchList.forEach(set => {
         if (flag) {
-          newKey = newKey.replace(set, `_${set
-            .toLocaleLowerCase()}`);
+          newKey = newKey.replace(set, `_${set.toLocaleLowerCase()}`);
         } else {
           newKey = newKey.replace(set, set.replace('_', '').toLocaleUpperCase());
         }
@@ -133,7 +136,7 @@ export const typeTools = {
   isFunction: obj => Object.prototype.toString.call(obj) === '[object Function]',
   isBoolean: obj => Object.prototype.toString.call(obj) === '[object Boolean]',
   isNull: obj => obj === null || obj === '' || obj === undefined,
-  isNotNull: obj => !this.isNull(obj),
+  isNotNull: obj => !this.isNull(obj)
 };
 
 /**
@@ -149,23 +152,23 @@ export const formatDatetime = (time, fmt) => {
     'm+': time.getMinutes(), // 分
     's+': time.getSeconds(), // 秒
     'q+': Math.floor((time.getMonth() + 3) / 3), // 季度
-    S: time.getMilliseconds(), // 毫秒
+    S: time.getMilliseconds() // 毫秒
   };
-  if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (`${time.getFullYear()}`).substr(4 - RegExp.$1.length));
+  if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, `${time.getFullYear()}`.substr(4 - RegExp.$1.length));
   for (const key in obj) {
-    if (new RegExp(`(${key})`).test(fmt)) fmt = fmt.replace(
-      RegExp.$1,
-      (RegExp.$1.length === 1) ? (obj[key]) : ((`00${obj[key]}`).substr((`${obj[key]}`).length)),
-    );
+    if (new RegExp(`(${key})`).test(fmt)) {
+      fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? obj[key] : `00${obj[key]}`.substr(`${obj[key]}`.length));
+    }
   }
   return fmt;
 };
 
 // 获取url中的参数
-export const getUrlParam = (name) => {
+export const getUrlParam = name => {
   const reg = new RegExp(`(^|&)${name}=([^&]*)(&|$)`); // 构造一个含有目标参数的正则表达式对象
   const r = window.location.search.substr(1).match(reg); // 匹配目标参数
-  if (r != null) return decodeURI(r[2]); return null; // 返回参数值
+  if (r != null) return decodeURI(r[2]);
+  return null; // 返回参数值
 };
 
 /**
@@ -177,12 +180,12 @@ export const transfromNum = (num, digits = 0) => {
   if (!num) return num;
   const si = [
     { value: 1, symbol: '' },
-    { value: 1E3, symbol: 'K' },
-    { value: 1E6, symbol: 'M' },
-    { value: 1E9, symbol: 'G' },
-    { value: 1E12, symbol: 'T' },
-    { value: 1E15, symbol: 'P' },
-    { value: 1E18, symbol: 'E' },
+    { value: 1e3, symbol: 'K' },
+    { value: 1e6, symbol: 'M' },
+    { value: 1e9, symbol: 'G' },
+    { value: 1e12, symbol: 'T' },
+    { value: 1e15, symbol: 'P' },
+    { value: 1e18, symbol: 'E' }
   ];
   const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
   let i;
@@ -194,25 +197,27 @@ export const transfromNum = (num, digits = 0) => {
   return (num / si[i].value).toFixed(digits).replace(rx, '$1') + si[i].symbol;
 };
 /**
-* 防抖装饰器
-* @param [delay: number] 延时ms
-* @returns descriptor
-*/
-export const Debounce = (delay = 200) => (target, key, descriptor) => {
-  const originFunction = descriptor.value;
-  const getNewFunction = () => {
-    let timer;
-    const newFunction = function (...args) {
-      if (timer) window.clearTimeout(timer);
-      timer = setTimeout(() => {
-        originFunction.call(this, args);
-      }, delay);
+ * 防抖装饰器
+ * @param [delay: number] 延时ms
+ * @returns descriptor
+ */
+export const Debounce =
+  (delay = 200) =>
+  (target, key, descriptor) => {
+    const originFunction = descriptor.value;
+    const getNewFunction = () => {
+      let timer;
+      const newFunction = function (...args) {
+        if (timer) window.clearTimeout(timer);
+        timer = setTimeout(() => {
+          originFunction.call(this, args);
+        }, delay);
+      };
+      return newFunction;
     };
-    return newFunction;
+    descriptor.value = getNewFunction();
+    return descriptor;
   };
-  descriptor.value = getNewFunction();
-  return descriptor;
-};
 /**
  * 判断是否是对象
  *
@@ -236,12 +241,13 @@ export const sort = (arr, key) => {
     if (isObject(pre) && isObject(next) && key) {
       if (reg.test(pre[key]) && !reg.test(next[key])) {
         return -1;
-      } if (!reg.test(pre[key]) && reg.test(next[key])) {
+      }
+      if (!reg.test(pre[key]) && reg.test(next[key])) {
         return 1;
       }
       return pre[key].localeCompare(next[key]);
     }
-    return (`${pre}`).toString().localeCompare((`${pre}`));
+    return `${pre}`.toString().localeCompare(`${pre}`);
   });
 };
 

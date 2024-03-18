@@ -27,37 +27,73 @@
       class="config-tab-item"
       @mouseenter="isHoverItem = true"
       @mouseleave="isHoverItem = false"
-      @click="emitOperate('click')">
-      <span class="panel-name" :title="configItem.name">{{ configItem.name }}</span>
-      <div v-show="isShowEditIcon || isClickDelete" class="panel-operate" @click="(e) => e.stopPropagation()">
-        <i class="bk-icon edit-icon icon-edit-line" @click="emitOperate('edit')"></i>
+      @click="emitOperate('click')"
+    >
+      <span
+        class="panel-name"
+        :title="configItem.name"
+        >{{ configItem.name }}</span
+      >
+      <div
+        v-show="isShowEditIcon || isClickDelete"
+        class="panel-operate"
+        @click="e => e.stopPropagation()"
+      >
+        <i
+          class="bk-icon edit-icon icon-edit-line"
+          @click="emitOperate('edit')"
+        ></i>
         <bk-popover
           ref="deletePopoverRef"
           ext-cls="config-tab-item"
           :tippy-options="tippyOptions"
-          :on-hide="popoverHidden">
-          <i class="bk-icon edit-icon icon-delete" @click="handleClickDeleteConfigIcon"></i>
+          :on-hide="popoverHidden"
+        >
+          <i
+            class="bk-icon edit-icon icon-delete"
+            @click="handleClickDeleteConfigIcon"
+          ></i>
           <div slot="content">
             <div class="popover-slot">
-              <span>{{$t('确定要删除当前字段配置')}}?</span>
+              <span>{{ $t('确定要删除当前字段配置') }}?</span>
               <div class="popover-btn">
-                <bk-button text @click="emitOperate('delete')">{{$t('确定')}}</bk-button>
-                <bk-button text theme="danger" @click="handleCancelDelete">{{$t('取消')}}</bk-button>
+                <bk-button
+                  text
+                  @click="emitOperate('delete')"
+                  >{{ $t('确定') }}</bk-button
+                >
+                <bk-button
+                  text
+                  theme="danger"
+                  @click="handleCancelDelete"
+                  >{{ $t('取消') }}</bk-button
+                >
               </div>
             </div>
           </div>
         </bk-popover>
       </div>
     </div>
-    <div v-show="configItem.isShowEdit" class="config-tab-item" @click="(e) => e.stopPropagation()">
+    <div
+      v-show="configItem.isShowEdit"
+      class="config-tab-item"
+      @click="e => e.stopPropagation()"
+    >
       <bk-input
-        :class="['config-input', { 'input-error': isInputError }]"
         v-model="nameStr"
+        :class="['config-input', { 'input-error': isInputError }]"
         :maxlength="10"
-        :placeholder="$t('请输入配置名')"></bk-input>
+        :placeholder="$t('请输入配置名')"
+      ></bk-input>
       <div class="panel-operate">
-        <i class="bk-icon icon-check-line" @click="emitOperate('update')"></i>
-        <i class="bk-icon icon-close-line-2" @click="emitOperate('cancel')"></i>
+        <i
+          class="bk-icon icon-check-line"
+          @click="emitOperate('update')"
+        ></i>
+        <i
+          class="bk-icon icon-close-line-2"
+          @click="emitOperate('cancel')"
+        ></i>
       </div>
     </div>
   </div>
@@ -70,8 +106,8 @@ export default {
   props: {
     configItem: {
       type: Object,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
@@ -82,19 +118,20 @@ export default {
       tippyOptions: {
         placement: 'bottom',
         trigger: 'click',
-        theme: 'light',
-      },
+        theme: 'light'
+      }
     };
   },
   computed: {
-    isShowEditIcon() { // 是否展示编辑或删除icon
+    isShowEditIcon() {
+      // 是否展示编辑或删除icon
       return this.isHoverItem && this.configItem.index !== 0;
-    },
+    }
   },
   watch: {
     nameStr() {
       this.isInputError = false;
-    },
+    }
   },
   methods: {
     /** 用户配置操作 */
@@ -122,17 +159,17 @@ export default {
     handleClickDeleteConfigIcon() {
       this.isClickDelete = true;
       this.$emit('setPopperInstance', false);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
 .config-tab-item {
+  display: flex;
   width: 100%;
   height: 40px;
   padding: 0 12px 0 4px;
-  display: flex;
   align-items: center;
   justify-content: space-between;
 
@@ -148,14 +185,14 @@ export default {
     max-width: 100px;
     padding-left: 20px;
     overflow: hidden;
-    white-space: nowrap;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .panel-operate {
-    color: #979ba5;
     margin-left: 10px;
     font-size: 14px;
+    color: #979ba5;
     cursor: pointer;
 
     .edit-icon:hover {

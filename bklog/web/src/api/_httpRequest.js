@@ -50,19 +50,27 @@ class HttpRequst {
       let _service = this.__formatService(service, options);
       _service = Object.assign({}, { method: options.method || 'get' }, _service);
       if (service.callback && typeof service.callback === 'function') {
-        return this.__axios(_service.url, _service.method, options.data, options.query, options.ext, config)
-          .then(res => service.callback(res, options));
+        return this.__axios(_service.url, _service.method, options.data, options.query, options.ext, config).then(res =>
+          service.callback(res, options)
+        );
       }
       return this.__axios(_service.url, _service.method, options.data, options.query, options.ext, config);
     }
     if (Array.isArray(service.url)) {
       const requests = [];
-      service.url.forEach((url) => {
+      service.url.forEach(url => {
         if (typeof url === 'string') {
           const _url = this.__formatUrl(url, options);
-          requests.push(this.__axios(_url, service.method
-            || options.method
-            || 'get', options.data, options.query, options.ext, config));
+          requests.push(
+            this.__axios(
+              _url,
+              service.method || options.method || 'get',
+              options.data,
+              options.query,
+              options.ext,
+              config
+            )
+          );
         } else {
           let _service = this.__formatService(url, options);
           _service = Object.assign({}, { method: options.method || 'get' }, _service);
@@ -79,9 +87,7 @@ class HttpRequst {
 
   __getHttpService(service, options) {
     const splitor = this.__getSericeSplitor(service);
-    let _service = splitor[1]
-      ? this.services[splitor[0]][splitor[1]]
-      : this.services[splitor[0]];
+    let _service = splitor[1] ? this.services[splitor[0]][splitor[1]] : this.services[splitor[0]];
     if (typeof _service === 'function') {
       _service = _service(service, options);
     }
@@ -107,7 +113,7 @@ class HttpRequst {
       const res = options.manualSchema ? mock : { data: mock, result: true, code: 0 };
 
       if (options.timeout) {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           setTimeout(() => {
             resolve(res);
           }, options.timeout);
@@ -130,7 +136,7 @@ class HttpRequst {
     if (option && option.params) {
       const matchs = url.match(/:(_|\d|_|[a-z])+/gi);
       if (matchs && matchs.length) {
-        matchs.forEach((match) => {
+        matchs.forEach(match => {
           const key = match.replace(/^:/, '');
           const param = option.params[key];
           url = url.replace(match, param);
@@ -157,15 +163,20 @@ class HttpRequst {
   }
 
   __axios(url, method, data, query, ext, config) {
-    const param = Object.assign({}, {
-      url,
-      method,
-      data,
-      params: query,
-      paramsSerializer(params) {
-        return qs.stringify(params, { arrayFormat: 'repeat' });
+    const param = Object.assign(
+      {},
+      {
+        url,
+        method,
+        data,
+        params: query,
+        paramsSerializer(params) {
+          return qs.stringify(params, { arrayFormat: 'repeat' });
+        }
       },
-    }, ext || {}, config);
+      ext || {},
+      config
+    );
     return this.axiosInstance(param);
   }
 }

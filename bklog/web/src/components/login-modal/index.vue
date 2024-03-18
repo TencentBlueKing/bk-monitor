@@ -26,7 +26,8 @@
       <iframe
         :src="loginData.loginUrl"
         :width="loginData.width || '400'"
-        :height="loginData.height || '400'">
+        :height="loginData.height || '400'"
+      >
       </iframe>
     </div>
   </div>
@@ -41,34 +42,34 @@ export default {
         return {
           loginUrl: '',
           width: '400',
-          height: '400',
+          height: '400'
         };
-      },
-    },
-  },
+      }
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .bk-login-dialog {
-    position: fixed;
-    left: 0;
-    top: 0;
+.bk-login-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 999999999;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  justify-content: center;
+  align-items: center;
+
+  .bk-login-wrapper {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    z-index: 999999999;
-    background: rgba(0, 0, 0, .7);
+    background-color: #fff;
 
-    .bk-login-wrapper {
-      display: flex;
-      background-color: #fff;
-
-      iframe {
-        border: none;
-      }
+    iframe {
+      border: none;
     }
   }
+}
 </style>

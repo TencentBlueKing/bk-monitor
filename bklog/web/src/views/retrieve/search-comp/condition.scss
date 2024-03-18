@@ -1,15 +1,15 @@
 .head-row {
+  position: relative;
   display: flex;
+  margin-top: 20px;
   flex-wrap: nowrap;
   align-items: center;
-  position: relative;
-  margin-top: 20px;
 
   .cascader {
-    display: flex;
     position: relative;
-    text-overflow: ellipsis;
+    display: flex;
     overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 
     .bk-cascader-wrapper {
@@ -20,46 +20,46 @@
 
     .bk-select {
       display: flex;
-      text-overflow: ellipsis;
       overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
 
       .bk-select-trigger {
         display: flex;
-        text-overflow: ellipsis;
         overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
       }
     }
   }
 
   .label {
-    font-size: 12px;
-    color: #63656e;
-    letter-spacing: 0;
-    line-height: 20px;
-    border-radius: 2px;
-    margin-right: 3px;
-    padding: 0 2px;
-    cursor: pointer;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
     display: inline-block;
+    padding: 0 2px;
+    margin-right: 3px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 20px;
+    letter-spacing: 0;
+    color: #63656e;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    border-radius: 2px;
 
     &.label-hover {
       background: #f0f1f5;
     }
 
     &.label-active {
-      background: #d8e6ff;
       color: #3a84ff;
+      background: #d8e6ff;
     }
 
     &.label-disabled {
       color: #ced0d4;
-      background: transparent;
       cursor: not-allowed;
+      background: transparent;
     }
   }
 
@@ -67,11 +67,11 @@
     width: 200px;
 
     li {
-      line-height: 20px;
       padding: 4px 15px;
+      font-size: 12px;
+      line-height: 20px;
       color: #63656e;
       cursor: pointer;
-      font-size: 12px;
 
       &:hover {
         color: #3a84ff;
@@ -82,14 +82,14 @@
 
   .vague-match {
     display: none;
+    margin: 0 13.5px 0 auto;
     font-size: 12px;
     text-align: right;
-    margin: 0 13.5px 0 auto;
     white-space: nowrap;
 
     .match-title {
-      color: #63656e;
       font-size: 12px;
+      color: #63656e;
     }
 
     & +.bk-icon {
@@ -107,16 +107,16 @@
   }
 
   .condition-type {
-    font-size: 12px;
-    color: #ff9c01;
-    letter-spacing: 0;
-    line-height: 20px;
-    border-radius: 2px;
-    cursor: pointer;
-    font-weight: 700;
-    padding: 2px 5px;
     display: flex;
+    padding: 2px 5px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 20px;
+    letter-spacing: 0;
+    color: #ff9c01;
     white-space: nowrap;
+    cursor: pointer;
+    border-radius: 2px;
 
     &:hover {
       background: #f0f1f5;
@@ -127,21 +127,21 @@
     }
 
     &.condition-type-active {
-      background: #d8e6ff;
       color: #3a84ff;
+      background: #d8e6ff;
     }
 
     &.condition-type-disabled {
       color: #ced0d4;
-      background: transparent;
       cursor: not-allowed;
+      background: transparent;
     }
   }
 
   .inquire-cascader {
     position: absolute;
-    left: 0;
     top: 0;
+    left: 0;
     width: 100%;
     opacity: 0;
 
@@ -153,8 +153,8 @@
   i.icon-delete {
     margin: 0 13.5px 0 auto;
     font-size: 13px;
-    cursor: pointer;
     color: #494b50;
+    cursor: pointer;
 
     &:hover {
       color: #cb2427;
@@ -162,15 +162,15 @@
   }
 
   .bk-switcher.bk-switcher-small {
-    flex-shrink: 0;
-    height: 12px;
     width: 22px;
+    height: 12px;
+    flex-shrink: 0;
 
     &:after {
-      width: 10px;
-      height: 10px;
       top: 1px;
       left: 1px;
+      width: 10px;
+      height: 10px;
     }
 
     &.is-checked:after {
@@ -180,28 +180,28 @@
 }
 
 .ip-filter-container {
-  height: 32px;
   display: flex;
+  height: 32px;
   align-items: center;
 
   .add-ip-button {
     font-size: 12px;
 
     .icon-plus {
-      font-size: 20px;
       margin-right: 6px;
+      font-size: 20px;
     }
   }
 }
 
 #match-tips-content {
+  padding-bottom: 4px;
   color: #63656e;
   word-break: normal;
-  padding-bottom: 4px;
 
   .tips-link {
-    color: #3a84ff;
     margin-left: 5px;
+    color: #3a84ff;
     cursor: pointer;
 
     .icon-lianjie {
@@ -210,8 +210,8 @@
   }
 
   .title {
-    font-weight: 600;
     margin: 10px 0 4px;
+    font-weight: 600;
   }
 
   .detail {

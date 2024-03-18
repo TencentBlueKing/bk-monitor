@@ -21,9 +21,21 @@
   -->
 
 <template>
-  <div class="dashboard-container" v-bkloading="{ isLoading }">
-    <auth-container-page v-if="authPageInfo" :info="authPageInfo" />
-    <iframe v-if="src" :src="src" ref="iframeRef" class="dashboard-iframe" @load="handleIframeLoad"></iframe>
+  <div
+    v-bkloading="{ isLoading }"
+    class="dashboard-container"
+  >
+    <auth-container-page
+      v-if="authPageInfo"
+      :info="authPageInfo"
+    />
+    <iframe
+      v-if="src"
+      ref="iframeRef"
+      :src="src"
+      class="dashboard-iframe"
+      @load="handleIframeLoad"
+    ></iframe>
   </div>
 </template>
 
@@ -34,14 +46,14 @@ import * as authorityMap from '../../common/authority-map';
 export default {
   name: 'Dashboard',
   components: {
-    AuthContainerPage,
+    AuthContainerPage
   },
   data() {
     return {
       isLoading: true,
       authPageInfo: null, // 无查看权限显示无权限页面
       hasManageAuth: false,
-      src: '',
+      src: ''
     };
   },
   computed: {
@@ -50,27 +62,28 @@ export default {
     },
     bkBizId() {
       return this.$store.state.bkBizId;
-    },
+    }
   },
   watch: {
     '$route.query.spaceUid': {
       handler(val) {
         val && this.bkBizId && this.handleBizChange();
       },
-      immediate: true,
+      immediate: true
     },
     '$route.query.bizId': {
       handler(val) {
         val && this.handleBizChange();
       },
-      immediate: true,
+      immediate: true
     },
-    '$route.query.manageAction'(manageAction) { // 在仪表盘页面点击导航管理
+    '$route.query.manageAction'(manageAction) {
+      // 在仪表盘页面点击导航管理
       this.handleClickManage(manageAction);
     },
     '$route.name'(manageAction) {
       this.handleClickManage(manageAction);
-    },
+    }
   },
   mounted() {
     window.addEventListener('message', this.messageListener);
@@ -109,10 +122,12 @@ export default {
       try {
         const res = await this.$store.dispatch('checkAndGetData', {
           action_ids: [authorityMap.VIEW_DASHBOARD_AUTH],
-          resources: [{
-            type: 'space',
-            id: this.spaceUid,
-          }],
+          resources: [
+            {
+              type: 'space',
+              id: this.spaceUid
+            }
+          ]
         });
         if (res.isAllowed === false) {
           this.authPageInfo = res.data;
@@ -145,14 +160,16 @@ export default {
     // iframe 页面加载完毕
     async handleIframeLoad() {
       const { manageAction } = this.$route.query;
-      if (manageAction) { // 页面加载完成之后检查是不是需要管理仪表盘
+      if (manageAction) {
+        // 页面加载完成之后检查是不是需要管理仪表盘
         await this.handleClickManage(manageAction);
       }
       this.isLoading = false;
     },
     // 在仪表盘页面点击导航管理
     async handleClickManage(manageAction) {
-      if (this.authPageInfo || !manageAction) { // 没查看权限直返
+      if (this.authPageInfo || !manageAction) {
+        // 没查看权限直返
         return;
       }
 
@@ -174,7 +191,7 @@ export default {
         // import_dashboard: 'import',
         'create-dashboard': 'create',
         'create-folder': 'folder',
-        'import-dashboard': 'import',
+        'import-dashboard': 'import'
       };
       if (idMap[manageAction]) {
         this.$refs.iframeRef.contentWindow.postMessage(idMap[manageAction], '*');
@@ -187,10 +204,12 @@ export default {
       try {
         const res = await this.$store.dispatch('checkAndGetData', {
           action_ids: [authorityMap.MANAGE_DASHBOARD_AUTH],
-          resources: [{
-            type: 'space',
-            id: this.spaceUid,
-          }],
+          resources: [
+            {
+              type: 'space',
+              id: this.spaceUid
+            }
+          ]
         });
         if (res.isAllowed === false) {
           this.$store.commit('updateAuthDialogData', res.data);
@@ -203,19 +222,19 @@ export default {
         this.isLoading = false;
         return false;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped lang="scss">
-  .dashboard-container {
-    height: 100%;
+.dashboard-container {
+  height: 100%;
 
-    .dashboard-iframe {
-      border: none;
-      width: 100%;
-      height: 100%;
-    }
+  .dashboard-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
   }
+}
 </style>

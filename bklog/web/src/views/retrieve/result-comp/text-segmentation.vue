@@ -22,65 +22,105 @@
 
 <template>
   <span class="log-content-wrapper">
-    <span class="null-item" v-if="isVirtual">{{ content }}</span>
+    <span
+      v-if="isVirtual"
+      class="null-item"
+      >{{ content }}</span
+    >
     <span
       v-else-if="!isNeedSegment"
-      class="valid-text">
+      class="valid-text"
+    >
       <template v-for="(item, index) in markItem">
-        <mark v-if="item.isMark" :key="index" @click="handleClick($event, item.str)">{{item.str}}</mark>
-        <span class="null-item" v-else :key="index" @click="handleClick($event, item.str)">{{item.str}}</span>
+        <mark
+          v-if="item.isMark"
+          :key="index"
+          @click="handleClick($event, item.str)"
+          >{{ item.str }}</mark
+        >
+        <span
+          v-else
+          :key="index"
+          class="null-item"
+          @click="handleClick($event, item.str)"
+          >{{ item.str }}</span
+        >
       </template>
     </span>
-    <span v-else class="segment-content">
+    <span
+      v-else
+      class="segment-content"
+    >
       <template v-for="(item, index) in splitList">
         <!-- 换行 -->
-        <br :key="index" v-if="item === '\n'">
+        <br
+          v-if="item === '\n'"
+          :key="index"
+        />
         <!-- 分割符 -->
-        <template v-else-if="segmentReg.test(item)">{{item}}</template>
+        <template v-else-if="segmentReg.test(item)">{{ item }}</template>
         <!-- 高亮 -->
         <mark
-          :key="index"
           v-else-if="checkMark(item)"
-          @click="handleClick($event, item)">{{item}}</mark>
+          :key="index"
+          @click="handleClick($event, item)"
+          >{{ item }}</mark
+        >
         <!-- 可操作分词 -->
         <span
+          v-else-if="index < segmentLimitIndex"
           :key="index"
-          v-else-if="index < (segmentLimitIndex)"
           class="valid-text"
-          @click="handleClick($event, item)">{{item}}</span>
-        <template v-else>{{item}}</template>
+          @click="handleClick($event, item)"
+          >{{ item }}</span
+        >
+        <template v-else>{{ item }}</template>
       </template>
     </span>
 
     <div v-show="false">
-      <div ref="moreTools" class="event-icons">
+      <div
+        ref="moreTools"
+        class="event-icons"
+      >
         <div class="event-box">
-          <span class="event-btn" @click="handleMenuClick('copy')">
+          <span
+            class="event-btn"
+            @click="handleMenuClick('copy')"
+          >
             <i class="icon log-icon icon-copy"></i>
             <span>{{ $t('复制') }}</span>
           </span>
         </div>
         <div class="event-box">
-          <span class="event-btn" @click="handleMenuClick('is')">
+          <span
+            class="event-btn"
+            @click="handleMenuClick('is')"
+          >
             <i class="icon bk-icon icon-plus-circle"></i>
             <span>{{ $t('添加到本次检索') }}</span>
           </span>
           <div
-            class="new-link"
             v-bk-tooltips="$t('新开标签页')"
-            @click.stop="handleMenuClick('is', true)">
+            class="new-link"
+            @click.stop="handleMenuClick('is', true)"
+          >
             <i class="log-icon icon-jump"></i>
           </div>
         </div>
         <div class="event-box">
-          <span class="event-btn" @click="handleMenuClick('not')">
+          <span
+            class="event-btn"
+            @click="handleMenuClick('not')"
+          >
             <i class="icon bk-icon icon-minus-circle"></i>
             <span>{{ $t('从本次检索中排除') }}</span>
           </span>
           <div
-            class="new-link"
             v-bk-tooltips="$t('新开标签页')"
-            @click.stop="handleMenuClick('not', true)">
+            class="new-link"
+            @click.stop="handleMenuClick('not', true)"
+          >
             <i class="log-icon icon-jump"></i>
           </div>
         </div>
@@ -90,18 +130,17 @@
 </template>
 
 <script>
-
 export default {
   props: {
     content: {
       type: [String, Number],
-      required: true,
+      required: true
     },
     fieldType: {
       type: String,
-      default: '',
+      default: ''
     },
-    menuClick: Function,
+    menuClick: Function
   },
   data() {
     return {
@@ -111,7 +150,7 @@ export default {
       segmentLimitIndex: 0, // 分词超出最大数量边界下标
       limitCount: 256, // 支持分词最大数量
       currentEvent: null,
-      intersectionObserver: null,
+      intersectionObserver: null
     };
   },
   computed: {
@@ -131,8 +170,7 @@ export default {
     markList() {
       let markVal = this.content.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
       if (markVal.length) {
-        markVal = markVal.map(item => item.replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, ''));
+        markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
       }
       return markVal;
     },
@@ -144,22 +182,25 @@ export default {
         .filter(Boolean)
         .map(item => ({
           str: item,
-          isMark: false,
+          isMark: false
         }));
       // 过滤切割的数组 判断所有的值filter(Boolean)清空所有空字符串后 若为空数组 则补一个空字符串展示位
-      if (!splitList.length) splitList = [{
-        str: '',
-        isMark: false,
-      }];
+      if (!splitList.length)
+        splitList = [
+          {
+            str: '',
+            isMark: false
+          }
+        ];
       let markVal = this.content.toString().match(this.originalMarkReg);
       if (markVal?.length) {
-        splitList.forEach((el) => {
+        splitList.forEach(el => {
           markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
           markVal.includes(el.str) && (el.isMark = true); // 给匹配到的数据 mark高亮设置为true
         });
       }
       return splitList;
-    },
+    }
   },
   beforeDestroy() {
     this.handleDestroy();
@@ -184,7 +225,8 @@ export default {
       // 匹配高亮标签
       let value = content;
       if (this.markList.length) {
-        value = String(value).replace(/<mark>/g, '')
+        value = String(value)
+          .replace(/<mark>/g, '')
           .replace(/<\/mark>/g, '');
       }
 
@@ -220,15 +262,15 @@ export default {
           setTimeout(this.registerObserver, 20);
           this.currentEvent = e.target;
           this.currentEvent.classList.add('focus-text');
-        },
+        }
       });
       this.popoverInstance && this.popoverInstance.show(10);
     },
     // 注册Intersection监听
     registerObserver() {
       if (this.intersectionObserver) this.unregisterObserver();
-      this.intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
           if (this.intersectionObserver) {
             if (entry.intersectionRatio <= 0) {
               this.popoverInstance.hide();
@@ -248,16 +290,15 @@ export default {
     checkMark(splitItem) {
       if (!this.markList.length) return false;
       // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-      return this.markList.some(item => item === splitItem
-       || splitItem.startsWith(`.${item}`)
-       || splitItem.endsWith(`${item}.`),
+      return this.markList.some(
+        item => item === splitItem || splitItem.startsWith(`.${item}`) || splitItem.endsWith(`${item}.`)
       );
     },
     handleMenuClick(event, isLink = false) {
       this.menuClick(event, this.curValue, isLink);
       this.handleDestroy();
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -274,8 +315,8 @@ export default {
   .event-box {
     height: 32px;
     min-width: 240px;
-    font-size: 12px;
     padding: 0 10px;
+    font-size: 12px;
     cursor: pointer;
 
     @include flex-center();
@@ -336,8 +377,8 @@ export default {
   }
 
   .menu-list {
-    display: none;
     position: absolute;
+    display: none;
   }
 
   .valid-text {
@@ -350,8 +391,8 @@ export default {
   }
 
   .null-item {
-    min-width: 6px;
     display: inline;
+    min-width: 6px;
   }
 }
 </style>

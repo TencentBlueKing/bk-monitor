@@ -25,60 +25,83 @@
     <div class="flex-box">
       <bk-select
         v-model="previewIp"
-        style="width: 190px; margin-right: 20px;background-color: #fff;"
+        style="width: 190px; margin-right: 20px; background-color: #fff"
         data-test-id="addNewExtraction_div_selectPreviewAddress"
         :clearable="false"
         multiple
-        show-select-all>
+        show-select-all
+      >
         <bk-option
           v-for="option in ipSelectNewNameList"
-          :key="option.selectID"
           :id="option.selectID"
+          :key="option.selectID"
           :name="option.name"
         ></bk-option>
       </bk-select>
-      <span style="font-size: 12px;">{{ $t('文件日期') }}：</span>
-      <file-date-picker :time-range.sync="timeRange" :time-value.sync="timeValue" />
+      <span style="font-size: 12px">{{ $t('文件日期') }}：</span>
+      <file-date-picker
+        :time-range.sync="timeRange"
+        :time-value.sync="timeValue"
+      />
       <bk-checkbox
         v-model="isSearchChild"
-        style="margin-right: 20px;"
+        style="margin-right: 20px"
         data-test-id="addNewExtraction_div_isSearchSubdirectory"
-      >{{ $t('是否搜索子目录') }}</bk-checkbox>
+        >{{ $t('是否搜索子目录') }}</bk-checkbox
+      >
       <bk-button
         theme="primary"
         size="small"
         :disabled="!ipList.length || !fileOrPath"
         :loading="isLoading"
         data-test-id="addNewExtraction_button_searchFilterCondition"
-        @click="getExplorerList({})">{{ $t('搜索') }}
+        @click="getExplorerList({})"
+        >{{ $t('搜索') }}
       </bk-button>
     </div>
     <span class="table-head-text">{{ $t('从下载目标中选择预览目标') }}</span>
-    <div class="flex-box" v-bkloading="{ isLoading, opacity: .7, zIndex: 0 }">
+    <div
+      v-bkloading="{ isLoading, opacity: 0.7, zIndex: 0 }"
+      class="flex-box"
+    >
       <bk-table
         ref="previewTable"
         class="preview-scroll-table"
-        style="background-color: #fff;"
+        style="background-color: #fff"
         :data="explorerList"
         :height="360"
-        @selection-change="handleSelect">
-        <bk-table-column type="selection" width="60" :selectable="row => row.size !== '0'"></bk-table-column>
+        @selection-change="handleSelect"
+      >
+        <bk-table-column
+          type="selection"
+          width="60"
+          :selectable="row => row.size !== '0'"
+        ></bk-table-column>
         <bk-table-column
           prop="path"
           :label="$t('文件名')"
           :render-header="$renderHeader"
           min-width="80"
           sortable
-          :sort-by="['path', 'mtime', 'size']">
-          <div class="table-ceil-container" slot-scope="{ row }">
+          :sort-by="['path', 'mtime', 'size']"
+        >
+          <div
+            slot-scope="{ row }"
+            class="table-ceil-container"
+          >
             <span
               v-if="row.size === '0'"
               v-bk-overflow-tips
               class="download-url-text"
-              @click="getExplorerList(row)">
+              @click="getExplorerList(row)"
+            >
               {{ row.path }}
             </span>
-            <span v-else v-bk-overflow-tips>{{ row.path }}</span>
+            <span
+              v-else
+              v-bk-overflow-tips
+              >{{ row.path }}</span
+            >
           </div>
         </bk-table-column>
         <bk-table-column
@@ -87,7 +110,8 @@
           :render-header="$renderHeader"
           min-width="50"
           sortable
-          :sort-by="['mtime', 'path', 'size']">
+          :sort-by="['mtime', 'path', 'size']"
+        >
         </bk-table-column>
         <bk-table-column
           prop="size"
@@ -95,11 +119,17 @@
           :render-header="$renderHeader"
           min-width="40"
           sortable
-          :sort-by="['size', 'mtime', 'path']">
+          :sort-by="['size', 'mtime', 'path']"
+        >
         </bk-table-column>
         <div slot="empty">
-          <empty-status :empty-type="emptyType" @operation="handleOperation">
-            <div v-if="emptyType === 'search-empty'">{{$t('可以尝试{0}或{1}', { 0: $t('调整预览地址'), 1: $t('调整文件日期') })}}</div>
+          <empty-status
+            :empty-type="emptyType"
+            @operation="handleOperation"
+          >
+            <div v-if="emptyType === 'search-empty'">
+              {{ $t('可以尝试{0}或{1}', { 0: $t('调整预览地址'), 1: $t('调整文件日期') }) }}
+            </div>
           </empty-status>
         </div>
       </bk-table>
@@ -115,25 +145,25 @@ import EmptyStatus from '@/components/empty-status';
 export default {
   components: {
     FileDatePicker,
-    EmptyStatus,
+    EmptyStatus
   },
   model: {
     prop: 'downloadFiles',
-    event: 'checked',
+    event: 'checked'
   },
   props: {
     ipList: {
       type: Array,
-      required: true,
+      required: true
     },
     fileOrPath: {
       type: String,
-      required: true,
+      required: true
     },
     ipSelectNewNameList: {
       type: Array,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     // 默认范围一周
@@ -149,13 +179,13 @@ export default {
       isSearchChild: false,
       explorerList: [],
       historyStack: [], // 预览地址历史
-      emptyType: 'empty',
+      emptyType: 'empty'
     };
   },
   computed: {
     timeStringValue() {
       return [formatDate(this.timeValue[0]), formatDate(this.timeValue[1])];
-    },
+    }
   },
   watch: {
     ipList(val) {
@@ -165,17 +195,18 @@ export default {
       }
       this.explorerList.splice(0); // 选择服务器后清空表格
       this.historyStack.splice(0); // 选择服务器后清空历史堆栈
-    },
+    }
   },
   methods: {
     getExplorerList(row) {
       const { path = this.fileOrPath, size } = row;
       const cacheList = {
         exploreList: this.explorerList.splice(0),
-        fileOrPath: path,
+        fileOrPath: path
       };
       this.$emit('checked', []);
-      if (path === '../' && this.historyStack.length) { // 返回上一级
+      if (path === '../' && this.historyStack.length) {
+        // 返回上一级
         const cache = this.historyStack.pop();
         this.explorerList = cache.exploreList;
         const { fileOrPath } = this.historyStack[this.historyStack.length - 1];
@@ -187,32 +218,36 @@ export default {
 
       this.isLoading = true;
       this.emptyType = 'search-empty';
-      this.$http.request('extract/getExplorerList', {
-        data: {
-          bk_biz_id: this.$store.state.bkBizId,
-          ip_list: ipList,
-          path: path || this.fileOrPath,
-          time_range: this.timeRange,
-          start_time: this.timeStringValue[0],
-          end_time: this.timeStringValue[1],
-          is_search_child: this.isSearchChild,
-        },
-      }).then((res) => {
-        if (path) { // 指定目录搜索
-          this.historyStack.push(cacheList);
-          const temp = {
-            ...row,
-            path: '../',
-          };
+      this.$http
+        .request('extract/getExplorerList', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: ipList,
+            path: path || this.fileOrPath,
+            time_range: this.timeRange,
+            start_time: this.timeStringValue[0],
+            end_time: this.timeStringValue[1],
+            is_search_child: this.isSearchChild
+          }
+        })
+        .then(res => {
+          if (path) {
+            // 指定目录搜索
+            this.historyStack.push(cacheList);
+            const temp = {
+              ...row,
+              path: '../'
+            };
 
-          if (size === '0') this.explorerList = [temp, ...res.data];
-          else this.explorerList = [...res.data];
-        } else { // 搜索按钮
-          this.historyStack = [];
-          this.explorerList = res.data;
-        }
-      })
-        .catch((err) => {
+            if (size === '0') this.explorerList = [temp, ...res.data];
+            else this.explorerList = [...res.data];
+          } else {
+            // 搜索按钮
+            this.historyStack = [];
+            this.explorerList = res.data;
+          }
+        })
+        .catch(err => {
           console.warn(err);
           this.emptyType = '500';
         })
@@ -241,7 +276,7 @@ export default {
       preview_start_time: startTime,
       preview_end_time: endTime,
       preview_is_search_child: isSearchChild,
-      file_path: downloadFiles,
+      file_path: downloadFiles
     }) {
       this.timeRange = timeRange;
       this.timeValue = [new Date(startTime), new Date(endTime)];
@@ -251,31 +286,33 @@ export default {
 
       this.isLoading = true;
       this.emptyType = 'search-empty';
-      this.$http.request('extract/getExplorerList', {
-        data: {
-          bk_biz_id: this.$store.state.bkBizId,
-          ip_list: findIpList,
-          path,
-          time_range: timeRange,
-          start_time: startTime,
-          end_time: endTime,
-          is_search_child: isSearchChild,
-        },
-      }).then((res) => {
-        this.historyStack = [];
-        this.explorerList = res.data;
-        this.$nextTick(() => {
-          downloadFiles.forEach((path) => {
-            for (const item of this.explorerList) {
-              if (item.path === path) {
-                this.$refs.previewTable.toggleRowSelection(item, true);
-                break;
+      this.$http
+        .request('extract/getExplorerList', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: findIpList,
+            path,
+            time_range: timeRange,
+            start_time: startTime,
+            end_time: endTime,
+            is_search_child: isSearchChild
+          }
+        })
+        .then(res => {
+          this.historyStack = [];
+          this.explorerList = res.data;
+          this.$nextTick(() => {
+            downloadFiles.forEach(path => {
+              for (const item of this.explorerList) {
+                if (item.path === path) {
+                  this.$refs.previewTable.toggleRowSelection(item, true);
+                  break;
+                }
               }
-            }
+            });
           });
-        });
-      })
-        .catch((e) => {
+        })
+        .catch(e => {
           console.warn(e);
           this.emptyType = '500';
         })
@@ -283,13 +320,14 @@ export default {
           this.isLoading = false;
         });
     },
-    findPreviewIpListValue(previewIpList, ipList) { // 获取previewIpList对应的ipList参数
+    findPreviewIpListValue(previewIpList, ipList) {
+      // 获取previewIpList对应的ipList参数
       if (previewIpList && previewIpList.length) {
-        return previewIpList.map((item) => {
-          return ipList.find((dItem) => {
+        return previewIpList.map(item => {
+          return ipList.find(dItem => {
             const hostMatch = item.bk_host_id === dItem.bk_host_id;
             const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.ip}_${dItem.bk_cloud_id}`;
-            if (item?.bk_host_id) return (hostMatch || ipMatch);
+            if (item?.bk_host_id) return hostMatch || ipMatch;
             return ipMatch;
           });
         });
@@ -310,58 +348,61 @@ export default {
       }
     },
     handleSelect(selection) {
-      this.$emit('checked', selection.map(item => item.path));
-    },
-  },
+      this.$emit(
+        'checked',
+        selection.map(item => item.path)
+      );
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .preview-file-content {
+.preview-file-content {
+  display: flex;
+  flex-flow: column;
+  justify-content: center;
+  width: calc(100% - 140px);
+  max-width: 1000px;
+  min-height: 40px;
+
+  .flex-box {
     display: flex;
-    flex-flow: column;
-    justify-content: center;
-    width: calc(100% - 140px);
-    max-width: 1000px;
-    min-height: 40px;
+    align-items: center;
 
-    .flex-box {
-      display: flex;
-      align-items: center;
+    .download-url-text {
+      color: #3a84ff;
+      cursor: pointer;
 
-      .download-url-text {
-        color: #3a84ff;
-        cursor: pointer;
+      &:hover {
+        color: #699df4;
+      }
 
-        &:hover {
-          color: #699df4;
-        }
+      &:active {
+        color: #2761dd;
+      }
 
-        &:active {
-          color: #2761dd;
-        }
-
-        &.is-disabled {
-          color: #c4c6cc;
-          cursor: not-allowed;
-        }
+      &.is-disabled {
+        color: #c4c6cc;
+        cursor: not-allowed;
       }
     }
-
-    .table-head-text {
-      margin: 18px 0 8px;
-      font-size: 12px;
-    }
   }
 
-  .preview-scroll-table {
-    .bk-table-body-wrapper {
-      overflow-y: auto;
-    }
-
-    .cell {
-      /* stylelint-disable-next-line declaration-no-important */
-      display: flex !important;
-    }
+  .table-head-text {
+    margin: 18px 0 8px;
+    font-size: 12px;
   }
+}
+
+.preview-scroll-table {
+  .bk-table-body-wrapper {
+    overflow-y: auto;
+  }
+
+  .cell {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: flex !important;
+  }
+}
 </style>

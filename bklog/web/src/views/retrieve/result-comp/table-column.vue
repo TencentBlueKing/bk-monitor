@@ -21,20 +21,21 @@
   -->
 
 <template>
-  <div :class="['td-log-container', { 'is-wrap': isWrap }]" @click.stop>
+  <div
+    :class="['td-log-container', { 'is-wrap': isWrap }]"
+    @click.stop
+  >
     <!-- eslint-disable vue/no-v-html -->
     <span
-      :class="[
-        'field-container',
-        'add-to',
-        { 'active': hasClickEvent },
-      ]"
+      v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
+      :class="['field-container', 'add-to', { active: hasClickEvent }]"
       @click.stop="handleClickContent"
-      v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }">
+    >
       <text-segmentation
         :content="content"
         :field-type="fieldType"
-        :menu-click="handleMenuClick" />
+        :menu-click="handleMenuClick"
+      />
     </span>
   </div>
 </template>
@@ -44,33 +45,33 @@ import TextSegmentation from './text-segmentation';
 
 export default {
   components: {
-    TextSegmentation,
+    TextSegmentation
   },
   props: {
     isWrap: {
       type: Boolean,
-      default: false,
+      default: false
     },
     content: {
       type: [String, Number, Boolean],
-      required: true,
+      required: true
     },
     hasClickEvent: {
       type: Boolean,
-      default: false,
+      default: false
     },
     fieldName: {
       type: String,
-      default: '',
+      default: ''
     },
     fieldType: {
       type: String,
-      default: '',
-    },
+      default: ''
+    }
   },
   data() {
     return {
-      isInViewPort: false,
+      isInViewPort: false
     };
   },
   mounted() {
@@ -99,69 +100,69 @@ export default {
       if (this.intersectionObserver) {
         this.unregisterOberver();
       }
-      this.intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
           if (this.intersectionObserver) {
             if (entry.boundingClientRect.height > 72) this.$emit('computedHeight');
           }
         });
       });
       this.intersectionObserver.observe(this.$el);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .td-log-container {
-    position: relative;
-    line-height: 21px;
+.td-log-container {
+  position: relative;
+  line-height: 21px;
 
-    &.is-wrap {
-      padding-bottom: 3px;
-    }
+  &.is-wrap {
+    padding-bottom: 3px;
+  }
 
-    .field-container {
-      &.active:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &.mark {
-        background: #f3e186;
-        color: black;
-      }
-    }
-
-    .icon-search-container {
-      display: none;
-      justify-content: center;
-      align-items: center;
-      vertical-align: bottom;
-      width: 14px;
-      height: 14px;
-      margin-left: 5px;
+  .field-container {
+    &.active:hover {
+      color: #3a84ff;
       cursor: pointer;
-      background: #3a84ff;
-
-      .icon {
-        font-size: 12px;
-        font-weight: bold;
-        color: #fff;
-        background: #3a84ff;
-        transform: scale(.6);
-
-        &.icon-copy {
-          font-size: 14px;
-          transform: scale(1);
-        }
-      }
     }
 
-    &:hover {
-      .icon-search-container {
-        display: inline-flex;
+    &.mark {
+      color: black;
+      background: #f3e186;
+    }
+  }
+
+  .icon-search-container {
+    display: none;
+    width: 14px;
+    height: 14px;
+    margin-left: 5px;
+    vertical-align: bottom;
+    cursor: pointer;
+    background: #3a84ff;
+    justify-content: center;
+    align-items: center;
+
+    .icon {
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      background: #3a84ff;
+      transform: scale(0.6);
+
+      &.icon-copy {
+        font-size: 14px;
+        transform: scale(1);
       }
     }
   }
+
+  &:hover {
+    .icon-search-container {
+      display: inline-flex;
+    }
+  }
+}
 </style>

@@ -40,7 +40,7 @@ export const messageError = (message, delay = 3000, ellipsisLine = 0) => {
     message,
     delay,
     ellipsisLine,
-    theme: 'error',
+    theme: 'error'
   });
 };
 
@@ -49,7 +49,7 @@ export const messageSuccess = (message, delay = 3000, ellipsisLine = 0) => {
     message,
     delay,
     ellipsisLine,
-    theme: 'success',
+    theme: 'success'
   });
 };
 
@@ -58,7 +58,7 @@ export const messageInfo = (message, delay = 3000, ellipsisLine = 0) => {
     message,
     delay,
     ellipsisLine,
-    theme: 'primary',
+    theme: 'primary'
   });
 };
 
@@ -67,7 +67,7 @@ export const messageWarn = (message, delay = 3000, ellipsisLine = 0) => {
     message,
     delay,
     ellipsisLine,
-    theme: 'warning',
+    theme: 'warning'
   });
 };
 

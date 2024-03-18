@@ -22,9 +22,7 @@
 
 const getDocLink = {
   url: '/get_docs_link/',
-  method: 'get',
+  method: 'get'
 };
 
-export {
-  getDocLink,
-};
+export { getDocLink };

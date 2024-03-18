@@ -5,26 +5,26 @@
   padding-top: 24px;
 
   .icon-log-loading {
+    margin-right: 8px;
     font-size: 14px;
     color: #3a84ff;
-    margin-right: 8px;
   }
 
   .right-fix {
-    flex-shrink: 0;
     padding: 4px 6px;
     color: #63656e;
+    cursor: pointer;
     background: #f0f1f5;
     border-radius: 2px;
-    cursor: pointer;
+    flex-shrink: 0;
 
     &:hover {
       background: #e1ecff;
     }
 
     .log-icon {
-      font-size: 14px;
       margin-right: 4px;
+      font-size: 14px;
     }
   }
 
@@ -53,16 +53,16 @@
   //   }
   // }
   .sync-rule-box {
-    margin-top: 24px;
     padding-bottom: 16px;
+    margin-top: 24px;
     align-items: center;
 
     @include flex-justify(start);
 
     > span {
-      color: #ea3636;
-      font-size: 12px;
       margin-left: 20px;
+      font-size: 12px;
+      color: #ea3636;
     }
   }
 
@@ -77,18 +77,17 @@
 
   .drag-right {
     position: absolute;
+    bottom: 53px;
+    left: 0px;
     z-index: 999;
     width: 100%;
     height: 14px;
-    left: 0px;
-    bottom: 53px;
-    background: #fff;
     cursor: row-resize;
+    background: #fff;
     border: 1px solid #dbdce0;
     border-top: none;
 
     &::after {
-      content: ' ';
       position: absolute;
       top: 5px;
       left: calc(50% - 32px);
@@ -97,6 +96,7 @@
       height: 4px;
       background: #dcdee5;
       border-radius: 3px;
+      content: ' ';
     }
 
     &.drag-ing,
@@ -107,11 +107,11 @@
 }
 
 .no-data-tips {
+  height: 0;
   font-size: 12px;
   color: #63656e;
-  height: 0;
-  align-items: center;
   transform: translateY(-26px);
+  align-items: center;
 
   @include flex-justify(center);
 }
