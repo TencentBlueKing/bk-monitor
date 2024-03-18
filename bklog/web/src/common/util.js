@@ -914,6 +914,8 @@ export const calculateTableColsWidth = (field, list) => {
   });
   if (firstLoadList[0]) {
     if (['ip', 'serverIp'].includes(field.field_name)) return 124;
+    if (field.field_name === 'dtEventTimeStamp') return 256;
+    if (field.field_name === 'time') return 175;
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
