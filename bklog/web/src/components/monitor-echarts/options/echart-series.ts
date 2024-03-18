@@ -20,22 +20,22 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { ILegendItem, ChartType } from './type-interface'
+import { ILegendItem, ChartType } from './type-interface';
 export default class EchartsSeries {
-  public chartType: Partial<ChartType>
-  public series = []
-  public colors = []
+  public chartType: Partial<ChartType>;
+  public series = [];
+  public colors = [];
   public constructor(chartType: ChartType, seriesData = [], colors = []) {
-    this.chartType = chartType
-    this.series = seriesData
-    this.colors = colors
+    this.chartType = chartType;
+    this.series = seriesData;
+    this.colors = colors;
   }
 
   public getSeriesOption(plotBands = [], thresholdLine = []) {
-    const hasPlotBand = Array.isArray(plotBands) && plotBands.length > 0
-    const legendData: ILegendItem[] = []
+    const hasPlotBand = Array.isArray(plotBands) && plotBands.length > 0;
+    const legendData: ILegendItem[] = [];
     const series = this.series.map((item: any, index) => {
-      let showSymbol = hasPlotBand
+      let showSymbol = hasPlotBand;
       const legendItem: ILegendItem = {
         name: String(item.name),
         max: 0,
@@ -44,15 +44,15 @@ export default class EchartsSeries {
         total: 0,
         color: this.colors[index % this.colors.length],
         show: true
-      }
+      };
       item.data.forEach((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && seriesItem[1]) {
-          const pre = item.data[seriesIndex - 1]
-          const next = item.data[seriesIndex + 1]
-          const curValue = +seriesItem[1]
-          legendItem.max = Math.max(legendItem.max, curValue)
-          legendItem.min = Math.min(+legendItem.min, curValue)
-          legendItem.total = (legendItem.total + curValue)
+          const pre = item.data[seriesIndex - 1];
+          const next = item.data[seriesIndex + 1];
+          const curValue = +seriesItem[1];
+          legendItem.max = Math.max(legendItem.max, curValue);
+          legendItem.min = Math.min(+legendItem.min, curValue);
+          legendItem.total = legendItem.total + curValue;
           if (hasPlotBand && plotBands.some((set: any) => set.from === seriesItem[0])) {
             item.data[seriesIndex] = {
               symbolSize: 12,
@@ -66,9 +66,9 @@ export default class EchartsSeries {
               label: {
                 show: false
               }
-            }
+            };
           } else {
-            const hasBrother = pre && next && pre.length && next.length && !pre[1] && !next[1]
+            const hasBrother = pre && next && pre.length && next.length && !pre[1] && !next[1];
             item.data[seriesIndex] = {
               symbolSize: hasBrother ? 4 : 1,
               value: [seriesItem[0], seriesItem[1]],
@@ -78,14 +78,14 @@ export default class EchartsSeries {
                 shadowBlur: 0,
                 opacity: 1
               }
-            }
+            };
           }
         } else if (seriesItem.symbolSize) {
-          showSymbol = true
+          showSymbol = true;
         }
-      })
-      legendItem.avg = +(legendItem.total / item.data.length).toFixed(2)
-      legendItem.total = +(legendItem.total).toFixed(2)
+      });
+      legendItem.avg = +(legendItem.total / item.data.length).toFixed(2);
+      legendItem.total = +legendItem.total.toFixed(2);
       const seriesItem = {
         ...item,
         type: this.chartType,
@@ -93,20 +93,20 @@ export default class EchartsSeries {
         symbol: 'circle',
         z: 4,
         smooth: 0.2
-      }
+      };
       if (thresholdLine?.length) {
-        seriesItem.markLine = this.handleSetThresholdLine(thresholdLine)
+        seriesItem.markLine = this.handleSetThresholdLine(thresholdLine);
       }
       if (plotBands?.length) {
-        seriesItem.markArea = this.handleSetThresholdBand(plotBands)
+        seriesItem.markArea = this.handleSetThresholdBand(plotBands);
       }
-      legendData.push(legendItem)
-      return seriesItem
-    })
-    return { legendData, series }
+      legendData.push(legendItem);
+      return seriesItem;
+    });
+    return { legendData, series };
   }
   // 设置阈值线
-  public handleSetThresholdLine(thresholdLine: {value: number, name: string}[]) {
+  public handleSetThresholdLine(thresholdLine: { value: number; name: string }[]) {
     return {
       symbol: [],
       label: {
@@ -123,10 +123,10 @@ export default class EchartsSeries {
         name: item.name,
         yAxis: item.value
       }))
-    }
+    };
   }
   // 设置阈值面板
-  public handleSetThresholdBand(plotBands: {to: number, from: number}[]) {
+  public handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
     return {
       silent: true,
       show: true,
@@ -137,16 +137,17 @@ export default class EchartsSeries {
         shadowColor: '#FFF5EC',
         shadowBlur: 0
       },
-      data: plotBands.map(item => (
-        [{
+      data: plotBands.map(item => [
+        {
           xAxis: item.from,
           yAxis: 0
-        }, {
+        },
+        {
           xAxis: item.to || 'max',
           yAxis: 'max' // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
-        }]
-      )),
+        }
+      ]),
       opacity: 0.1
-    }
+    };
   }
 }

@@ -21,9 +21,15 @@
   -->
 
 <template>
-  <div class="clean-template-container" v-bkloading="{ isLoading: loading }">
+  <div
+    v-bkloading="{ isLoading: loading }"
+    class="clean-template-container"
+  >
     <article class="article">
-      <step-field :is-temp-field="true" @changeSubmit="changeSubmit" />
+      <step-field
+        :is-temp-field="true"
+        @changeSubmit="changeSubmit"
+      />
     </article>
   </div>
 </template>
@@ -38,13 +44,13 @@ export default {
   data() {
     return {
       loading: false,
-      isSubmit: false,
+      isSubmit: false
     };
   },
   computed: {
     ...mapState({
-      showRouterLeaveTip: state => state.showRouterLeaveTip,
-    }),
+      showRouterLeaveTip: state => state.showRouterLeaveTip
+    })
   },
   // eslint-disable-next-line no-unused-vars
   beforeRouteLeave(to, from, next) {
@@ -53,7 +59,7 @@ export default {
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
           next();
-        },
+        }
       });
       return;
     }
@@ -62,26 +68,26 @@ export default {
   methods: {
     changeSubmit(isSubmit) {
       this.isSubmit = isSubmit;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/scroller';
+@import '@/scss/mixins/scroller';
 
-  .clean-template-container {
-    padding: 20px 24px;
-    height: 100%;
-    overflow: auto;
+.clean-template-container {
+  height: 100%;
+  padding: 20px 24px;
+  overflow: auto;
 
-    @include scroller($backgroundColor: #ADADAD, $width: 4px);
+  @include scroller($backgroundColor: #adadad, $width: 4px);
 
-    .article {
-      margin-bottom: 20px;
-      border: 1px solid #dcdee5;
-      border-radius: 3px;
-      background-color: #fff;
-    }
+  .article {
+    margin-bottom: 20px;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 3px;
   }
+}
 </style>

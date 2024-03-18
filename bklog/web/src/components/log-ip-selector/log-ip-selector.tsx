@@ -30,59 +30,59 @@ import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 import { VNode } from 'vue';
 const BkIpSelector = create({
   version: '3',
-  serviceConfigError: false,
+  serviceConfigError: false
 });
 export type CommomParams = Record<string, any>;
 export type IObjectType = 'HOST' | 'SERVICE';
-export type INodeType  = 'TOPO' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE';
+export type INodeType = 'TOPO' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE';
 
 export interface IScopeItme {
-  scope_type: string
-  scope_id: string
+  scope_type: string;
+  scope_id: string;
 }
 
 export interface IMeta {
-  bk_biz_id: number
-  scope_id: string
-  scope_type: 'biz'
+  bk_biz_id: number;
+  scope_id: string;
+  scope_type: 'biz';
 }
 
 export interface INode {
-  id?: number
-  instance_id: number
-  object_id: 'module' | 'set' | 'biz'
-  meta: IMeta
+  id?: number;
+  instance_id: number;
+  object_id: 'module' | 'set' | 'biz';
+  meta: IMeta;
 }
 export interface IHost {
-  host_id: number
-  ip: string
-  cloud_area: ICloudArea
-  meta: IMeta
+  host_id: number;
+  ip: string;
+  cloud_area: ICloudArea;
+  meta: IMeta;
 }
 export interface ITarget {
   // node_type = 'INSTANCE' => bk_host_id  ||  'TOPO' => bk_obj_id && bk_inst_id
-  bk_biz_id: number,
-  bk_obj_id?: 'set' | 'module'
-  bk_inst_id?: number
-  bk_host_id?: number
-  biz_inst_id?: string
-  path?: string
-  children?: ITarget[]
-  meta?: IMeta
-  ip?: string
-  bk_cloud_id?: number
+  bk_biz_id: number;
+  bk_obj_id?: 'set' | 'module';
+  bk_inst_id?: number;
+  bk_host_id?: number;
+  biz_inst_id?: string;
+  path?: string;
+  children?: ITarget[];
+  meta?: IMeta;
+  ip?: string;
+  bk_cloud_id?: number;
 }
 
 export interface ITreeItem extends INode {
-  count: number
-  expanded: boolean
-  object_name: string
-  instance_name: string
-  child: ITreeItem[]
+  count: number;
+  expanded: boolean;
+  object_name: string;
+  instance_name: string;
+  child: ITreeItem[];
 }
 export interface IFetchNode {
-  node_list: INode[]
-  dynamic_group_list?: Record<string, any>[]
+  node_list: INode[];
+  dynamic_group_list?: Record<string, any>[];
 }
 
 export type IStatic = 'alive_count' | 'not_alive_count' | 'total_count';
@@ -90,80 +90,80 @@ export type IStatic = 'alive_count' | 'not_alive_count' | 'total_count';
 export type IStatistics = Record<IStatic, number>;
 
 export interface IQuery {
-  id?: number
-  start?: number
-  page_size?: number
-  search_content?: string
-  node_list: INode[]
-  saveScope?: boolean
+  id?: number;
+  start?: number;
+  page_size?: number;
+  search_content?: string;
+  node_list: INode[];
+  saveScope?: boolean;
   // 以上 IP-selector标准参数
-  all_scope?: boolean
+  all_scope?: boolean;
   search_limit?: {
-    node_list?: INode[]
-    host_ids?: number[]
-  } // 灰度策略的限制范围
+    node_list?: INode[];
+    host_ids?: number[];
+  }; // 灰度策略的限制范围
 }
 export interface ISelectorValue {
-  dynamic_group_list: Record<string, any>[]
-  host_list: IHost[]
-  node_list: INode[]
+  dynamic_group_list: Record<string, any>[];
+  host_list: IHost[];
+  node_list: INode[];
 }
 export interface IScope {
   // object_type?: IObjectType
-  node_type: INodeType
-  nodes: ITarget[]
+  node_type: INodeType;
+  nodes: ITarget[];
 }
 export interface IGroupItem {
   id: string;
-  name: string
-  meta?: IMeta
+  name: string;
+  meta?: IMeta;
 }
 export interface ICloudArea {
-  id: number
-  name: string
+  id: number;
+  name: string;
 }
 export interface IGroupHost {
-  meta?: IMeta
-  ip: string
-  ipv6: string
-  host_name: string
-  alive: number
-  cloud_id: number
-  host_id: number
-  os_name: string
-  cloud_area: ICloudArea
+  meta?: IMeta;
+  ip: string;
+  ipv6: string;
+  host_name: string;
+  alive: number;
+  cloud_id: number;
+  host_id: number;
+  os_name: string;
+  cloud_area: ICloudArea;
 }
 export interface IGroupHostQuery {
-  id: string
-  strart: number
-  page_siza: number
+  id: string;
+  strart: number;
+  page_siza: number;
 }
 export interface ITemplateItem {
-  id: number
-  name: string
-  service_category: string
-  template_type: INodeType
-  meta?: IMeta
+  id: number;
+  name: string;
+  service_category: string;
+  template_type: INodeType;
+  meta?: IMeta;
 }
 export interface ITemplateNodeItem {
-  instance_id: number
-  instance_name: number
-  object_id: string
-  object_name: string
-  template_id: number
-  meta?: IMeta
+  instance_id: number;
+  instance_name: number;
+  object_id: string;
+  object_name: string;
+  template_id: number;
+  meta?: IMeta;
 }
 export interface ITemplateNode {
-  start: number
-  count: number
-  page_size: number
-  data: ITemplateNodeItem[]
+  start: number;
+  count: number;
+  page_size: number;
+  data: ITemplateNodeItem[];
 }
 export interface ITemplateHost {
-  start: number
-  count: number
-  page_size: number
-  data: IHost[]
+  start: number;
+  count: number;
+  page_size: number;
+  data: IHost[];
 }
 
 /**
@@ -174,7 +174,7 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
 
   switch (nodeType) {
     case 'INSTANCE':
-      return nodes.map((item) => {
+      return nodes.map(item => {
         // 增量数据只需使用host_id
         if (item.bk_host_id) return { host_id: item.bk_host_id };
         // 兼容旧数据 没有bk_host_id的情况下 把ip和cloud_id传给组件 提供组件内部定位host_id
@@ -183,12 +183,12 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
     case 'TOPO':
       return nodes.map(item => ({
         object_id: item.bk_obj_id,
-        instance_id: item.bk_inst_id,
+        instance_id: item.bk_inst_id
       }));
     case 'SERVICE_TEMPLATE':
     case 'SET_TEMPLATE':
       return nodes.map(item => ({
-        id: item.bk_inst_id,
+        id: item.bk_inst_id
       }));
     default:
       return [];
@@ -205,11 +205,12 @@ export function toTransformNode(nodes: Array<INode | IHost>, nodeType: INodeType
   switch (nodeType) {
     case 'INSTANCE':
       return nodes.map((item: IHost) => {
-        if (needIpAndCloudArea) { // 部分场景 需要同时返回host_id、ip、cloud_id 其中ip、cloud_id用于展示
+        if (needIpAndCloudArea) {
+          // 部分场景 需要同时返回host_id、ip、cloud_id 其中ip、cloud_id用于展示
           return {
             bk_host_id: item.host_id,
             ip: item.ip,
-            bk_cloud_id: item.cloud_area.id,
+            bk_cloud_id: item.cloud_area.id
           };
         }
         return { bk_host_id: item.host_id };
@@ -217,13 +218,13 @@ export function toTransformNode(nodes: Array<INode | IHost>, nodeType: INodeType
     case 'TOPO':
       return nodes.map((item: INode) => ({
         bk_obj_id: item.object_id,
-        bk_inst_id: item.instance_id,
+        bk_inst_id: item.instance_id
       }));
     case 'SERVICE_TEMPLATE':
     case 'SET_TEMPLATE':
       return nodes.map((item: INode) => ({
         bk_obj_id: nodeType,
-        bk_inst_id: item.id,
+        bk_inst_id: item.id
       }));
     default:
       return [];
@@ -233,56 +234,56 @@ export function toTransformNode(nodes: Array<INode | IHost>, nodeType: INodeType
 export type IpSelectorMode = 'dialog' | 'section';
 export type IpSelectorNameStyle = 'camelCase' | 'kebabCase';
 export type IpSelectorService = {
-  fetchTopologyHostCount?: (params: CommomParams) => Promise<any>
-  fetchTopologyHostsNodes?: (params: CommomParams) => Promise<any>
-  fetchTopologyHostIdsNodes?: (params: CommomParams) => Promise<any>
-  fetchHostsDetails?: (params: CommomParams) => Promise<any>
-  fetchHostCheck?: (params: CommomParams) => Promise<any>
-  fetchNodesQueryPath?: (params: CommomParams) => Promise<any>
-  fetchHostAgentStatisticsNodes?: (params: CommomParams) => Promise<any>
-  fetchDynamicGroups?: (params: CommomParams) => Promise<any>
-  fetchHostsDynamicGroup?: (params: CommomParams) => Promise<any>
-  fetchHostAgentStatisticsDynamicGroups?: (params: CommomParams) => Promise<any>
-  fetchServiceTemplates?: (params: CommomParams) => Promise<any>
-  fetchNodesServiceTemplate?: (params: CommomParams) => Promise<any>
-  fetchHostServiceTemplate?: (params: CommomParams) => Promise<any>
-  fetchHostAgentStatisticsServiceTemplate?: (params: CommomParams) => Promise<any>
-  fetchSetTemplates?: (params: CommomParams) => Promise<any>
-  fetchNodesSetTemplate?: (params: CommomParams) => Promise<any>
-  fetchHostSetTemplate?: (params: CommomParams) => Promise<any>
-  fetchHostAgentStatisticsSetTemplate?: (params: CommomParams) => Promise<any>
-  fetchCustomSettings?: (params: CommomParams) => Promise<any>
-  updateCustomSettings?: (params: CommomParams) => Promise<any>
-  fetchConfig?: (params: CommomParams) => Promise<any>
+  fetchTopologyHostCount?: (params: CommomParams) => Promise<any>;
+  fetchTopologyHostsNodes?: (params: CommomParams) => Promise<any>;
+  fetchTopologyHostIdsNodes?: (params: CommomParams) => Promise<any>;
+  fetchHostsDetails?: (params: CommomParams) => Promise<any>;
+  fetchHostCheck?: (params: CommomParams) => Promise<any>;
+  fetchNodesQueryPath?: (params: CommomParams) => Promise<any>;
+  fetchHostAgentStatisticsNodes?: (params: CommomParams) => Promise<any>;
+  fetchDynamicGroups?: (params: CommomParams) => Promise<any>;
+  fetchHostsDynamicGroup?: (params: CommomParams) => Promise<any>;
+  fetchHostAgentStatisticsDynamicGroups?: (params: CommomParams) => Promise<any>;
+  fetchServiceTemplates?: (params: CommomParams) => Promise<any>;
+  fetchNodesServiceTemplate?: (params: CommomParams) => Promise<any>;
+  fetchHostServiceTemplate?: (params: CommomParams) => Promise<any>;
+  fetchHostAgentStatisticsServiceTemplate?: (params: CommomParams) => Promise<any>;
+  fetchSetTemplates?: (params: CommomParams) => Promise<any>;
+  fetchNodesSetTemplate?: (params: CommomParams) => Promise<any>;
+  fetchHostSetTemplate?: (params: CommomParams) => Promise<any>;
+  fetchHostAgentStatisticsSetTemplate?: (params: CommomParams) => Promise<any>;
+  fetchCustomSettings?: (params: CommomParams) => Promise<any>;
+  updateCustomSettings?: (params: CommomParams) => Promise<any>;
+  fetchConfig?: (params: CommomParams) => Promise<any>;
 };
 export type IpSelectorConfig = {
   // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
   panelList?: string[];
   // 面板选项的值是否唯一
-  unqiuePanelValue?: boolean,
+  unqiuePanelValue?: boolean;
   // 字段命名风格（'camelCase', 'kebabCase'）
   nameStyle?: IpSelectorNameStyle;
   // 自定义主机列表列
-  hostTableCustomColumnList?: IpSelectorHostTableCustomColumn[],
-  hostMemuExtends?: IpSelectorHostMemuExtend[],
+  hostTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  hostMemuExtends?: IpSelectorHostMemuExtend[];
   // 主机列表显示列（默认值：['ip', 'ipv6', 'alive', 'osName']），按配置顺序显示列
   // 内置所有列的 key ['ip', 'ipv6', 'cloudArea', 'alive', 'hostName',
   //  'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
-  hostTableRenderColumnList?: string[],
-  hostViewFieldRender?: Function,
+  hostTableRenderColumnList?: string[];
+  hostViewFieldRender?: Function;
 };
 export type IpSelectorHostTableCustomColumn = {
   key: string;
   index: number;
   width: string;
   label: string;
-  renderHead: (h) => VNode,
-  field: string,
-  renderCell: (h, row) => VNode,
+  renderHead: (h) => VNode;
+  field: string;
+  renderCell: (h, row) => VNode;
 };
 export type IpSelectorHostMemuExtend = {
   name?: string;
-  action?: () => void
+  action?: () => void;
 };
 export interface IMonitorIpSelectorProps {
   panelList?: string[];
@@ -308,12 +309,16 @@ export interface IMonitorIpSelectorProps {
   keepHostFieldOutput?: boolean;
 }
 export interface IMonitorIpSelectorEvents {
-  onChange: (v: Record<string, INode[]>) => void
+  onChange: (v: Record<string, INode[]>) => void;
 }
 @Component
 export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
-  @Prop({ default: () => ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'], type: Array }) panelList: string[];
+  @Prop({
+    default: () => ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'],
+    type: Array
+  })
+  panelList: string[];
   @Prop({ default: () => ({}), type: Object }) value: Record<string, any>;
   // 自定义主机列表列
   @Prop({ type: Array }) hostTableCustomColumnList: IpSelectorHostTableCustomColumn[];
@@ -361,10 +366,12 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   ipSelectorConfig: IpSelectorConfig = {};
 
   get scopeList() {
-    return [{
-      scope_type: 'space',
-      scope_id: this.$store.state.spaceUid,
-    }];
+    return [
+      {
+        scope_type: 'space',
+        scope_id: this.$store.state.spaceUid
+      }
+    ];
   }
 
   created() {
@@ -390,7 +397,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
       fetchCustomSettings: this.fetchCustomSettings,
       updateCustomSettings: this.updateCustomSettings,
       fetchConfig: this.fetchConfig,
-      ...this.service,
+      ...this.service
     };
     this.ipSelectorConfig = {
       // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
@@ -400,7 +407,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
         'dynamicGroup',
         'serviceTemplate',
         'setTemplate',
-        'manualInput',
+        'manualInput'
       ],
       // 面板选项的值是否唯一
       unqiuePanelValue: this.unqiuePanelValue,
@@ -408,11 +415,11 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
       nameStyle: this.nameStyle,
       // 自定义主机列表列
       hostTableCustomColumnList: this.hostTableCustomColumnList ?? [],
-      hostMemuExtends: this.hostMemuExtends ??  [],
+      hostMemuExtends: this.hostMemuExtends ?? [],
       // 主机列表显示列（默认值：['ip', 'ipv6', 'alive', 'osName']），按配置顺序显示列
       // 内置所有列的 key ['ip', 'ipv6', 'cloudArea', 'alive', 'hostName',
       //  'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
-      hostTableRenderColumnList: this.hostTableRenderColumnList ?? [],
+      hostTableRenderColumnList: this.hostTableRenderColumnList ?? []
       // hostViewFieldRender: this.hostViewFieldRender ?? ((host: IHost) => {
       //   if (host.ip) return undefined;
       //   return host[this.priorityList.find(pItem => Boolean(host[pItem]))];
@@ -436,7 +443,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     const { search_content, ...p } = params;
     const data = {
       scope_list: this.scopeList,
-      ...(search_content ? params : p),
+      ...(search_content ? params : p)
     };
     const serviceModule = this.extractScene ? 'extract' : 'ipChooser';
     const res = await $http.request(`${serviceModule}/queryHosts`, { data });
@@ -447,7 +454,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     const { search_content, ...p } = params;
     const data = {
       scope_list: this.scopeList,
-      ...(search_content ? params : p),
+      ...(search_content ? params : p)
     };
     const serviceModule = this.extractScene ? 'extract' : 'ipChooser';
     const res = await $http.request(`${serviceModule}/queryHostIdInfos`, { data });
@@ -458,16 +465,16 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   async fetchNodesQueryPath(node: IFetchNode): Promise<Array<INode>[]> {
     const data = {
       scope_list: this.scopeList,
-      node_list: node.node_list,
+      node_list: node.node_list
     };
     const res = await $http.request('ipChooser/queryPath', { data });
     return res?.data || [];
   }
   // 动态拓扑 - 勾选节点(获取多个拓扑节点的主机 Agent 状态统计信息)
-  async fetchHostAgentStatisticsNodes(node: IFetchNode): Promise<{ agent_statistics: IStatistics, node: INode }[]> {
+  async fetchHostAgentStatisticsNodes(node: IFetchNode): Promise<{ agent_statistics: IStatistics; node: INode }[]> {
     const data = {
       scope_list: this.scopeList,
-      node_list: node.node_list,
+      node_list: node.node_list
     };
     const res = await $http.request('ipChooser/agentStatistics', { data });
     return res?.data || [];
@@ -475,7 +482,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   async fetchHostsDetails(node) {
     const data = {
       scope_list: this.scopeList,
-      host_list: node.host_list,
+      host_list: node.host_list
     };
     const res = await $http.request('ipChooser/details', { data });
     return res?.data || [];
@@ -484,7 +491,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   async fetchHostCheck(node: IFetchNode) {
     const data = {
       scope_list: this.scopeList,
-      ...node,
+      ...node
     };
     const res = await $http.request('ipChooser/check', { data });
     return res?.data || [];
@@ -498,19 +505,21 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   async fetchDynamicGroupHost(query: IGroupHostQuery): Promise<Array<IGroupHost>[]> {
     const data = {
       scope_list: this.scopeList,
-      ...query,
+      ...query
     };
     const res = await $http.request('ipChooser/executeDynamicGroup', { data });
     return res?.data || [];
   }
   // 获取多个动态分组下的主机Agent状态统计信息
-  async fetchBatchGroupAgentStatistics(node: IFetchNode): Promise<{
-    agentStatistics: IStatistics,
-    dynamicGroup: IGroupItem
-  }[]> {
+  async fetchBatchGroupAgentStatistics(node: IFetchNode): Promise<
+    {
+      agentStatistics: IStatistics;
+      dynamicGroup: IGroupItem;
+    }[]
+  > {
     const data = {
       scope_list: this.scopeList,
-      ...node,
+      ...node
     };
     const res = await $http.request('ipChooser/groupAgentStatistics', { data });
     return res?.data || [];
@@ -521,7 +530,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
-      ...serviceTemplateList,
+      ...serviceTemplateList
     };
     const res = await $http.request('ipChooser/templates', { data });
     return res?.data || [];
@@ -531,7 +540,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
-      ...query,
+      ...query
     };
     const res = await $http.request('ipChooser/templateNodes', { data });
     return res?.data || [];
@@ -542,7 +551,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
       template_id: query.id,
-      ...query,
+      ...query
     };
     const res = await $http.request('ipChooser/templateHosts', { data });
     return res?.data || [];
@@ -552,7 +561,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
-      ...query,
+      ...query
     };
     const res = await $http.request('ipChooser/templateAgentStatistics', { data });
     return res?.data || [];
@@ -563,7 +572,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
-      ...setTemplateList,
+      ...setTemplateList
     };
     const res = await $http.request('ipChooser/templates', { data });
     return res?.data || [];
@@ -573,7 +582,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
-      ...query,
+      ...query
     };
     const res = await $http.request('ipChooser/templateNodes', { data });
     return res?.data || [];
@@ -584,7 +593,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
       template_id: query.id,
-      ...query,
+      ...query
     };
     const res = await $http.request('ipChooser/templateHosts', { data });
     return res?.data || [];
@@ -594,7 +603,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
-      ...query,
+      ...query
     };
     const res = await $http.request('ipChooser/templateAgentStatistics', { data });
     return res?.data || [];
@@ -615,7 +624,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
       // CMDB 动态分组链接
       bk_cmdb_dynamic_group_url: `${rootUrl}/#/business/${bizId}/custom-query`,
       // CMDB 拓扑节点链接
-      bk_cmdb_static_topo_url: `${rootUrl}/#/business/${bizId}/custom-query`,
+      bk_cmdb_static_topo_url: `${rootUrl}/#/business/${bizId}/custom-query`
     };
   }
   change(value: Record<string, INode[]>) {
@@ -625,24 +634,26 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     this.$emit('update:showDialog', false);
   }
   render() {
-    return <BkIpSelector
-      mode={this.mode}
-      value={this.value}
-      originalValue={this.originalValue}
-      showView={this.showView}
-      showDialog={this.showDialog}
-      showViewDiff={this.showViewDiff}
-      viewSearchKey={this.viewSearchKey}
-      readonly={this.readonly}
-      disableDialogSubmitMethod={this.disableDialogSubmitMethod}
-      disableHostMethod={this.disableHostMethod}
-      allowHostListMissHostId={this.allowHostListMissHostId}
-      keepHostFieldOutput={this.keepHostFieldOutput}
-      height={this.height ?? '100%'}
-      service={this.ipSelectorServices}
-      config={this.ipSelectorConfig}
-      on-change={this.change}
-      on-close-dialog={this.closeDialog}
-    />;
+    return (
+      <BkIpSelector
+        mode={this.mode}
+        value={this.value}
+        originalValue={this.originalValue}
+        showView={this.showView}
+        showDialog={this.showDialog}
+        showViewDiff={this.showViewDiff}
+        viewSearchKey={this.viewSearchKey}
+        readonly={this.readonly}
+        disableDialogSubmitMethod={this.disableDialogSubmitMethod}
+        disableHostMethod={this.disableHostMethod}
+        allowHostListMissHostId={this.allowHostListMissHostId}
+        keepHostFieldOutput={this.keepHostFieldOutput}
+        height={this.height ?? '100%'}
+        service={this.ipSelectorServices}
+        config={this.ipSelectorConfig}
+        on-change={this.change}
+        on-close-dialog={this.closeDialog}
+      />
+    );
   }
 }

@@ -39,7 +39,7 @@ export default class MaskingList extends tsc<{}> {
   }
   /** 进入路由前判断是否是灰度业务 */
   beforeRouteEnter(from, to, next) {
-    next((vm) => {
+    next(vm => {
       vm.goToCollection(!vm.$store.getters.isShowMaskingTemplate);
     });
   }
@@ -50,14 +50,14 @@ export default class MaskingList extends tsc<{}> {
   goToCollection(isRouteChange: boolean) {
     if (isRouteChange) {
       this.$router.push({
-        name: 'log-collection',
+        name: 'log-collection'
       });
     }
   }
 
   render() {
     return (
-      <div class="masking-list-container">
+      <div class='masking-list-container'>
         <MaskingSetting is-public-list={false} />
       </div>
     );

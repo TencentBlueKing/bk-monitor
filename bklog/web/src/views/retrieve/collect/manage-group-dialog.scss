@@ -46,7 +46,6 @@
 
   .table-top-operate {
     position: relative;
-    transform: translateY(75px);
     z-index: 99;
     width: 100%;
     height: 32px;
@@ -54,6 +53,7 @@
     background: #e2ecff;
     border-top: 1px solid #dfe0e5;
     border-bottom: 1px solid #dfe0e5;
+    transform: translateY(75px);
 
     @include flex-center;
 
@@ -63,9 +63,9 @@
     }
 
     .operate-click {
+      padding-right: 6px;
       color: #3a84ff;
       cursor: pointer;
-      padding-right: 6px;
     }
 
     .dropdown-list {
@@ -76,13 +76,13 @@
       }
 
       .search-li {
-        overflow-y: auto;
         max-height: 180px;
+        overflow-y: auto;
       }
 
       li {
-        color: #63656e;
         padding: 6px 12px;
+        color: #63656e;
         white-space: nowrap;
         cursor: pointer;
 
@@ -118,8 +118,8 @@
       > :first-child {
         display: inline-block;
         min-width: 72px;
-        color: #979ba5;
         margin-right: 4px;
+        color: #979ba5;
       }
     }
   }
@@ -152,8 +152,8 @@
   .group-input,
   .group-select {
     .cell {
-      padding: 0;
       height: 42px;
+      padding: 0;
     }
   }
 
@@ -165,9 +165,9 @@
 
     .bk-select {
       height: 100%;
-      border-radius: 0;
       line-height: 42px;
       border: 1px solid transparent;
+      border-radius: 0;
 
       &.is-focus {
         border-color: #3a84ff;
@@ -222,9 +222,9 @@
   }
 
   .switch-container {
+    display: flex;
     height: 42px;
     margin-left: 20px;
-    display: flex;
     align-items: center;
   }
 
@@ -232,10 +232,10 @@
     @include flex-center;
 
     .delete {
-      height: 42px;
       width: 42px;
-      color: #979ba5;
+      height: 42px;
       font-size: 16px;
+      color: #979ba5;
       cursor: pointer;
       transform: translateY(8px);
     }
@@ -254,18 +254,18 @@
   }
 
   .operate-button {
-    font-size: 16px;
     margin-left: 6px;
-    justify-content: space-between;
+    font-size: 16px;
     color: #979ba5;
+    justify-content: space-between;
 
     span {
       cursor: pointer;
     }
 
     > :first-child {
-      color: #33d05c;
       margin-right: 12px;
+      color: #33d05c;
     }
 
     > :last-child {
@@ -287,19 +287,19 @@
   }
 
   .operate-button {
-    margin-top: 6px;
     display: flex;
+    margin-top: 6px;
+    color: #979ba5;
     align-items: center;
     justify-content: flex-end;
-    color: #979ba5;
 
     span {
       cursor: pointer;
     }
 
     > :first-child {
-      color: #3a84ff;
       margin-right: 12px;
+      color: #3a84ff;
     }
   }
 }

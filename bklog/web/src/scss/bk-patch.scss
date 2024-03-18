@@ -23,43 +23,43 @@
 .bk-table>tbody>tr>th,
 .bk-table>tbody>tr>td {
   height: 68px;
+  padding: 10px;
+  font-size: 14px;
+  color: $fontColor;
   vertical-align: middle;
   border-color: #e9edee;
-  color: $fontColor;
-  font-size: 14px;
-  padding: 10px;
 }
 
 .bk-selector-create-item {
-  cursor: pointer;
   height: 42px;
-  line-height: 42px;
-  font-size: 14px;
-  background: #fafbfd;
   padding-left: 10px;
+  font-size: 14px;
+  line-height: 42px;
+  cursor: pointer;
+  background: #fafbfd;
   border-top: 1px solid #e5e5e5;
 
   .text {
     font-style: normal;
-    text-align: left;
     color: #737987;
+    text-align: left;
   }
 }
 
 .bk-message-content {
-  max-width: 580px;
-  line-height: 20px;
-  margin-top: -4px;
   float: none;
+  max-width: 580px;
+  margin-top: -4px;
   margin-left: 30px;
+  line-height: 20px;
   word-break: break-word;
 }
 
 .bk-table>thead>tr>th {
-  background: none;
-  color: #7b7d8a;
   height: 50px;
+  color: #7b7d8a;
   vertical-align: middle;
+  background: none;
 }
 
 .bk-table.has-table-hover>tbody>tr:hover {
@@ -87,15 +87,15 @@
 }
 
 .bk-form .bk-label {
+  padding-right: 20px;
   font-weight: bold;
   color: #737987;
-  padding-right: 20px;
 }
 
 .bk-tip-text {
   font-size: 12px;
-  color: #c3cdd7;
   font-weight: normal;
+  color: #c3cdd7;
 }
 
 .bk-button + .bk-button {
@@ -132,8 +132,8 @@
 // }
 
 .bk-form-checkbox {
-  color: $fontColor;
   margin-right: 0;
+  color: $fontColor;
 }
 
 .bk-selector.open .bk-selector-icon {
@@ -149,9 +149,9 @@
 .bk-selector {
   &.is-danger {
     .bk-selector-input {
-      border-color: #ff5656;
-      background-color: #fff4f4;
       color: #ff5656;
+      background-color: #fff4f4;
+      border-color: #ff5656;
 
       &:hover:not([disabled='disabled'])+.bk-icon {
         color: #ff5656;
@@ -159,9 +159,9 @@
     }
 
     .bk-selector-icon {
-      border-color: #ff5656;
-      background-color: #fff4f4;
       color: #ff5656;
+      background-color: #fff4f4;
+      border-color: #ff5656;
     }
   }
 }
@@ -169,8 +169,8 @@
 .bk-selector .bk-selector-list>ul::-webkit-scrollbar-thumb,
 .textarea::-webkit-scrollbar-thumb {
   height: 5px;
-  border-radius: 2px;
   background-color: #e6e9ea;
+  border-radius: 2px;
 }
 // .bk-button .bk-icon+span {
 // 	margin-left: 0px;
@@ -180,11 +180,11 @@
 .bk-form-password[readonly],
 .bk-form-select[readonly],
 .bk-form-textarea[readonly] {
-  /* stylelint-disable-next-line declaration-no-important */
-  border-color: #c3cdd7 !important;
 
   /* stylelint-disable-next-line declaration-no-important */
   background-color: #fafafa !important;
+  /* stylelint-disable-next-line declaration-no-important */
+  border-color: #c3cdd7 !important;
 }
 
 .bk-form-tip {
@@ -224,9 +224,9 @@
 }
 
 .bk-mark-corner p {
-  transform: rotate(0);
-  font-size: 14px;
   overflow: visible;
+  font-size: 14px;
+  transform: rotate(0);
 }
 
 .bk-button-group {
@@ -250,13 +250,13 @@
     }
 
     .bk-label:after {
-      content: '*';
-      color: #ff5656;
       position: absolute;
-      margin: 3px -7px 0 2px;
-      display: inline-block;
-      vertical-align: middle;
       right: 18px;
+      display: inline-block;
+      margin: 3px -7px 0 2px;
+      color: #ff5656;
+      vertical-align: middle;
+      content: '*';
     }
   }
 }
@@ -271,13 +271,13 @@
     }
 
     .bk-label:after {
-      content: '*';
-      color: #ff5656;
       position: absolute;
-      margin: 3px -7px 0 2px;
-      display: inline-block;
-      vertical-align: middle;
       right: 18px;
+      display: inline-block;
+      margin: 3px -7px 0 2px;
+      color: #ff5656;
+      vertical-align: middle;
+      content: '*';
     }
   }
 }
@@ -285,8 +285,8 @@
 .bk-form-input-group {
   position: relative;
   display: inline-block;
-  vertical-align: middle;
   font-size: 0;
+  vertical-align: middle;
 
   .bk-number {
     min-width: 55px;
@@ -306,8 +306,8 @@
 
   &.is-addon-left {
     .input-group-addon {
-      border-left: 1px solid #c3cdd7;
       border-right: none;
+      border-left: 1px solid #c3cdd7;
       border-radius: 2px 0 0 2px;
     }
 
@@ -321,19 +321,19 @@
   }
 
   .input-group-addon {
-    min-width: 36px;
-    height: 36px;
-    text-align: center;
-    line-height: 34px;
     display: inline-block;
+    height: 36px;
+    min-width: 36px;
+    padding: 0 7px;
+    font-size: 14px;
+    line-height: 34px;
+    color: #737987;
+    text-align: center;
     vertical-align: middle;
     background: #fafbfd;
     border: 1px solid #c3cdd7;
-    color: #737987;
-    font-size: 14px;
     border-left: none;
     border-radius: 0 2px 2px 0;
-    padding: 0 7px;
 
     > .bk-icon {
       font-size: 18px;
@@ -341,21 +341,21 @@
     }
 
     .bk-selector-input {
-      border: none;
       background-color: transparent;
+      border: none;
     }
   }
 
   button:hover {
+    color: #fff;
     background-color: $primaryColor;
     border-color: $primaryColor;
-    color: #fff;
   }
 }
 
 .bk-dropdown-box {
-  width: 130px;
   display: inline-block;
+  width: 130px;
   // margin-right: 5px;
   vertical-align: middle;
 }
@@ -365,8 +365,8 @@
 // }
 
 .bk-number {
-  vertical-align: middle;
   padding-right: 0;
+  vertical-align: middle;
 }
 
 .bk-number .bk-number-content.bk-number-larger {
@@ -414,8 +414,8 @@
 }
 
 .bk-number .bk-number-content .bk-number-input {
-  vertical-align: middle;
   margin-top: -2px;
+  vertical-align: middle;
 }
 
 .bk-selector .bk-selector-list {
@@ -424,16 +424,16 @@
 
 .bk-button {
   .biz-update-dot {
+    position: absolute;
+    top: 16px;
+    right: 8px;
+    display: inline-block;
     width: 4px;
     height: 4px;
-    display: inline-block;
+    margin-left: 10px;
     vertical-align: middle;
     background: #3c96ff;
     border-radius: 50%;
-    margin-left: 10px;
-    position: absolute;
-    right: 8px;
-    top: 16px;
   }
 
   &.bk-primary {
@@ -455,21 +455,21 @@
 .bk-data-list a:hover:after,
 .bk-data-active a:after,
 .bk-data-avatar {
-  background-size: 100% 100%;
   background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 .bk-data-list a:hover:after,
 .bk-data-active a:after {
-  content: '';
   position: absolute;
-  right: 20px;
   top: 50%;
-  transform: translateY(-50%);
-  transform: translateY(-50%);
-  transform: translateY(-50%);
+  right: 20px;
   width: 10px;
   height: 10px;
+  content: '';
+  transform: translateY(-50%);
+  transform: translateY(-50%);
+  transform: translateY(-50%);
   // background-image: url("../images/icon_enter.png");
 }
 
@@ -479,21 +479,21 @@
 
 .bk-data {
   position: absolute;
-  left: 3px;
   top: 32px;
+  left: 3px;
+  z-index: 999;
 
   /*width: 200px;*/
   background-color: #fafbfb;
   box-shadow: 0 0 3px rgba(0, 0, 0, .2);
-  z-index: 999;
 }
 
 .bk-data-wrapper {
   position: relative;
   min-height: 33px;
   padding: 5px 5px 0 5px;
-  border: 1px solid #ccc;
   cursor: text;
+  border: 1px solid #ccc;
 }
 
 .bk-data-wrapper.active {
@@ -504,8 +504,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  background-color: transparent;
   z-index: 9999;
+  background-color: transparent;
 }
 
 .bk-data-wrapper.disabled {
@@ -522,8 +522,8 @@
 .bk-data-list a {
   position: relative;
   display: block;
-  line-height: 30px;
   padding: 5px 35px 5px 15px;
+  line-height: 30px;
   color: #333;
   text-decoration: none;
 }
@@ -541,10 +541,10 @@
   width: 30px;
   height: 30px;
   margin-right: 15px;
-  border: 1px solid #dcdcdc;
-  border-radius: 50%;
   // background-image: url("../images/avatar.jpg");
   vertical-align: middle;
+  border: 1px solid #dcdcdc;
+  border-radius: 50%;
 }
 
 .bk-data-name em {
@@ -558,23 +558,23 @@
 }
 
 .bk-data-editor input[name='bk-data-input'] {
-  min-width: 10px;
   width: 10px;
   height: 100%;
+  min-width: 10px;
   font-size: 16px;
-  outline: none;
   border: none;
+  outline: none;
 }
 
 .bk-data-item {
   display: inline-block;
   padding: 0 5px;
   margin: 2px 5px 5px;
+  font-size: 14px;
+  color: #2b2b2b;
   background-color: #fafafa;
   border: 1px solid #d9d9d9;
   border-radius: 2px;
-  font-size: 14px;
-  color: #2b2b2b;
 }
 
 .bk-data-highlight {
@@ -609,10 +609,10 @@
 }
 
 .bk-form-checkbox input[type=checkbox][disabled] {
-  border: 1px solid #ebf0f5;
   cursor: not-allowed;
   background-color: #fafbfd;
   background-position: 67px 13px;
+  border: 1px solid #ebf0f5;
 }
 
 .bk-form-checkbox input[type=checkbox][disabled]+.bk-checkbox-text {
@@ -620,10 +620,10 @@
 }
 
 .bk-form-checkbox input[type=checkbox]:checked[disabled] {
-  border: none;
   color: inherit;
   background-color: transparent;
   background-position: -99px -62px;
+  border: none;
 }
 
 .bk-resource-configmap {
@@ -661,16 +661,16 @@
 .biz-back-btn {
   display: inline-block;
   height: 60px;
-  line-height: 60px;
-  font-size: 16px;
   margin-left: 20px;
+  font-size: 16px;
+  line-height: 60px;
   cursor: pointer;
 
   .back {
-    font-size: 16px;
-    font-weight: 700;
     position: relative;
     top: 1px;
+    font-size: 16px;
+    font-weight: 700;
     color: #3c96ff;
   }
 }

@@ -25,54 +25,54 @@
  */
 const type = {
   url: '/meta/msg_type/',
-  method: 'get',
+  method: 'get'
 };
 
 // 支持的语言列表
 const language = {
   url: '/meta/language/',
-  method: 'get',
+  method: 'get'
 };
 
 // 修改语言
 const updateLanguage = {
   url: '/meta/language/',
-  method: 'post',
+  method: 'post'
 };
 
 // 获取接入场景
 const scenario = {
   url: '/meta/scenario/',
-  method: 'get',
+  method: 'get'
 };
 
 // 获取菜单列表吧
 const menu = {
   url: '/meta/menu/',
-  method: 'get',
+  method: 'get'
 };
 
 // 根据业务id获取业务名、运维人员id信息
 const getMaintainerApi = {
   url: '/meta/biz_maintainer/',
-  method: 'get',
+  method: 'get'
 };
 
 // 获取新人指引
 const getUserGuide = {
   url: '/meta/user_guide/',
-  method: 'get',
+  method: 'get'
 };
 
 // 更新新人指引
 const updateUserGuide = {
   url: '/meta/update_user_guide/',
-  method: 'post',
+  method: 'post'
 };
 
 // 环境变量
 const getEnvConstant = {
-  url: '/meta/index_html_environment/',
+  url: '/meta/index_html_environment/'
 };
 
 export {
@@ -84,5 +84,5 @@ export {
   getMaintainerApi,
   getUserGuide,
   updateUserGuide,
-  getEnvConstant,
+  getEnvConstant
 };

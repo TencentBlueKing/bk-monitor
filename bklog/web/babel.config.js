@@ -28,26 +28,26 @@ module.exports = function (api) {
       {
         targets: {
           browsers: ['> 1%', 'last 2 versions', 'not ie <= 8'],
-          node: 'current',
+          node: 'current'
         },
         useBuiltIns: 'usage',
         corejs: 3,
-        debug: false,
-      },
+        debug: false
+      }
     ],
-    '@vue/babel-preset-jsx',
+    '@vue/babel-preset-jsx'
   ];
   const plugins = [
     '@babel/plugin-transform-runtime',
     [
       'babel-plugin-import-bk-magic-vue',
       {
-        baseLibName: 'bk-magic-vue',
-      },
-    ],
+        baseLibName: 'bk-magic-vue'
+      }
+    ]
   ];
   return {
     presets,
-    plugins,
+    plugins
   };
 };

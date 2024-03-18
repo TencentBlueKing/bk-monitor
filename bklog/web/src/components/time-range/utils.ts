@@ -22,7 +22,7 @@
 
 import dayjs from 'dayjs';
 import { TimeRangeType } from './time-range';
-import {DateRange} from '@blueking/date-picker/vue2';
+import { DateRange } from '@blueking/date-picker/vue2';
 import i18n from '../../language/i18n';
 
 /** 相对时间范围格式正则 */

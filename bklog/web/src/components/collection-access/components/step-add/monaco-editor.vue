@@ -24,24 +24,29 @@
   <div class="editor-container">
     <template v-if="isShowTopLabel">
       <div class="editor-title">
-        <div>{{$t('编辑器')}}</div>
+        <div>{{ $t('编辑器') }}</div>
         <div class="right-container">
           <slot name="right"></slot>
           <span v-bk-tooltips="{ distance: 20, content: $t('全屏'), delay: 300 }">
-            <span v-if="!isFull" class="bk-icon icon-full-screen" @click="openFullScreen"></span>
+            <span
+              v-if="!isFull"
+              class="bk-icon icon-full-screen"
+              @click="openFullScreen"
+            ></span>
           </span>
         </div>
       </div>
     </template>
     <div
       ref="editorRefs"
-      :style="{ height: calcSize(renderHeight), width: calcSize(renderWidth), position: 'relative' }">
-
+      :style="{ height: calcSize(renderHeight), width: calcSize(renderWidth), position: 'relative' }"
+    >
       <div
         v-if="placeholder"
         :style="`font-size:${fontSize}px;`"
-        :class="['monaco-placeholder', { 'light-monaco-placeholder': theme === 'vs' }]">
-        {{placeholder}}
+        :class="['monaco-placeholder', { 'light-monaco-placeholder': theme === 'vs' }]"
+      >
+        {{ placeholder }}
       </div>
 
       <span
@@ -55,18 +60,27 @@
         v-if="problemList.length && isShowProblemDrag"
         ref="problemsRef"
         :class="['problems', { 'light-problems': theme === 'vs' }]"
-        :style="`height: ${problemHeight}px; max-height: ${height - 50}px; font-size: ${fontSize}px;`">
-        <div class="problems-drag" @mousedown="handleMouseDown"></div>
-        <template v-for="(item, index) of problemList">
+        :style="`height: ${problemHeight}px; max-height: ${height - 50}px; font-size: ${fontSize}px;`"
+      >
+        <div
+          class="problems-drag"
+          @mousedown="handleMouseDown"
+        ></div>
+        <template>
           <div
-            class="problem"
+            v-for="(item, index) of problemList"
             :key="index"
-            @click="handelClickProblemBtn(item.lineNumber, item.column)">
+            class="problem"
+            @click="handelClickProblemBtn(item.lineNumber, item.column)"
+          >
             <div :class="`bk-icon ${item.codiconClass}`"></div>
             <div class="problem-text">
               <span>{{ item.problemMessage }}</span>
-              <span class="problem-line" v-if="item.lineNumber && item.column">
-                [{{item.lineNumber}}, {{item.column}}]
+              <span
+                v-if="item.lineNumber && item.column"
+                class="problem-line"
+              >
+                [{{ item.lineNumber }}, {{ item.column }}]
               </span>
             </div>
           </div>
@@ -87,78 +101,76 @@ self.MonacoEnvironment = {
     if (label === 'json') {
       return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/json.worker.js` : './json.worker.js';
     }
-    return process.env.NODE_ENV === 'production'
-      ? `${window.BK_STATIC_URL}/editor.worker.js`
-      : './editor.worker.js';
-  },
+    return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/editor.worker.js` : './editor.worker.js';
+  }
 };
 
 export default {
   model: {
     prop: 'value',
-    event: 'change',
+    event: 'change'
   },
   props: {
     options: {
       type: Object,
-      default: () => ({}),
+      default: () => ({})
     },
     value: {
       type: String,
-      default: '',
+      default: ''
     },
     theme: {
       type: String,
-      default: 'vs-dark',
+      default: 'vs-dark'
     },
     language: {
       type: String,
-      require: true,
+      require: true
     },
     fullScreen: {
       type: Boolean,
-      default: false,
+      default: false
     },
     width: {
       type: String,
-      default: '100%',
+      default: '100%'
     },
     height: {
       type: Number,
-      default: 600,
+      default: 600
     },
     isShowProblem: {
       type: Boolean,
-      default: true,
+      default: true
     },
     fontFamily: {
       type: String,
-      default: 'Microsoft YaHei',
+      default: 'Microsoft YaHei'
     },
     warningList: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     isShowTopLabel: {
       type: Boolean,
-      default: true,
+      default: true
     },
     fontSize: {
       type: Number,
-      default: 16,
+      default: 16
     },
     isShowProblemDrag: {
       type: Boolean,
-      default: true,
+      default: true
     },
     placeholder: {
       type: String,
-      default: '',
+      default: ''
     },
     monacoConfig: {
       type: Object,
-      default: () => ({}),
-    },
+      default: () => ({})
+    }
   },
   data() {
     return {
@@ -169,7 +181,7 @@ export default {
       isHaveError: false,
       isFull: false,
       problemHeight: null,
-      range: [20, 500],
+      range: [20, 500]
     };
   },
   watch: {
@@ -184,7 +196,7 @@ export default {
             newValue === '' ? this.showPlaceholder('') : this.hidePlaceholder();
           }
         }
-      },
+      }
     },
     options: {
       deep: true,
@@ -193,7 +205,7 @@ export default {
           this.editor.updateOptions(options);
           this.editor.layout();
         }
-      },
+      }
     },
     language(newVal) {
       this.editor && monaco.editor.setModelLanguage(monaco.editor.getModels()[0], newVal);
@@ -215,7 +227,7 @@ export default {
     'problemList.length'() {
       this.isHaveError = this.problemList.some(item => item.codiconClass === 'icon-close-circle-shape');
       this.$emit('get-problem-state', this.isHaveError);
-    },
+    }
   },
   mounted() {
     this.initWidth = this.width;
@@ -250,9 +262,9 @@ export default {
           fontSize: this.fontSize,
           cursorBlinking: 'solid',
           automaticLayout: true,
-          ...this.monacoConfig,
+          ...this.monacoConfig
         },
-        this.options,
+        this.options
       );
       this.editor = monaco.editor.create(this.$refs.editorRefs, options);
       this.$emit('editorDidMount', this.editor);
@@ -260,13 +272,13 @@ export default {
       this.editor.onDidBlurEditorWidget(() => this.$emit('blur'));
       this.editor.onDidBlurEditorText(() => this.$emit('blurText'));
       this.editor.onDidChangeConfiguration(event => this.$emit('configuration', event));
-      this.editor.onDidChangeCursorPosition((event) => {
+      this.editor.onDidChangeCursorPosition(event => {
         this.$emit('position', event);
       });
-      this.editor.onDidChangeCursorSelection((event) => {
+      this.editor.onDidChangeCursorSelection(event => {
         this.$emit('selection', event);
       });
-      this.editor.onDidChangeModelContent((event) => {
+      this.editor.onDidChangeModelContent(event => {
         const value = this.editor.getValue();
         if (this.value !== value) {
           this.$emit('change', value, event);
@@ -286,7 +298,7 @@ export default {
       this.editor.onMouseLeave(event => this.$emit('mouseLeave', event));
       this.editor.onMouseMove(event => this.$emit('mouseMove', event));
       this.editor.onMouseUp(event => this.$emit('mouseUp', event));
-      this.isShowProblem && (this.markerChange(monaco));
+      this.isShowProblem && this.markerChange(monaco);
       if (this.placeholder) {
         this.value === '' ? this.showPlaceholder('') : this.hidePlaceholder();
         this.editor.onDidBlurEditorWidget(() => {
@@ -318,10 +330,11 @@ export default {
 
     openFullScreen() {
       const element = this.$refs.editorRefs;
-      const fullScreenMethod =        element.requestFullScreen // W3C
-        || element.webkitRequestFullScreen // FireFox
-        || element.webkitExitFullscreen // Chrome等
-        || element.msRequestFullscreen; // IE11
+      const fullScreenMethod =
+        element.requestFullScreen || // W3C
+        element.webkitRequestFullScreen || // FireFox
+        element.webkitExitFullscreen || // Chrome等
+        element.msRequestFullscreen; // IE11
       if (fullScreenMethod) {
         fullScreenMethod.call(element);
         this.renderWidth = window.screen.width;
@@ -333,7 +346,7 @@ export default {
         this.$bkMessage({
           showClose: true,
           message: `${this.$t('此浏览器不支持全屏操作')}, ${this.$t('请使用chrome浏览器')}`,
-          theme: 'warning',
+          theme: 'warning'
         });
       }
     },
@@ -368,12 +381,13 @@ export default {
             continue;
           }
           this.problemList.push({
-            codiconClass: marker.severity === monaco.MarkerSeverity.Warning
-              ? 'icon-exclamation-circle-shape'
-              : 'icon-close-circle-shape',
+            codiconClass:
+              marker.severity === monaco.MarkerSeverity.Warning
+                ? 'icon-exclamation-circle-shape'
+                : 'icon-close-circle-shape',
             lineNumber: marker.startLineNumber,
             column: marker.startColumn,
-            problemMessage: marker.message,
+            problemMessage: marker.message
           });
         }
       });
@@ -389,7 +403,7 @@ export default {
         lineNumber: item.startLineNumber,
         column: item.startColumn,
         problemMessage: item.message,
-        codiconClass: 'icon-exclamation-circle-shape',
+        codiconClass: 'icon-exclamation-circle-shape'
       }));
       this.problemList = waringMarkers;
       // 这是monaco编辑器自带的告警方法 行和列为0的话默认1-1 暂时不显示行列标记
@@ -402,19 +416,19 @@ export default {
       if (!lineNumber || !column) return;
       this.editor.setPosition({
         lineNumber,
-        column,
+        column
       });
       this.editor.focus();
     },
     handleMouseDown(e) {
       const node = e.target;
-      const parentNode = node.parentNode;
+      const { parentNode } = node;
       this.problemHeight = parentNode.offsetHeight;
 
       if (!parentNode) return;
 
       const rect = parentNode.getBoundingClientRect();
-      const handleMouseMove = (event) => {
+      const handleMouseMove = event => {
         const [min, max] = this.range;
         const newHeight = rect.top - event.clientY + rect.height;
         if (newHeight < min) {
@@ -429,26 +443,26 @@ export default {
       };
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .editor-container {
   width: 100%;
 }
 
 .problems {
-  width: 100%;
-  padding: 6px 20px;
   position: absolute;
-  overflow-y: auto;
+  bottom: 0;
   // max-height: 500px;
   z-index: 999;
+  width: 100%;
+  padding: 6px 20px;
+  overflow-y: auto;
   background: #212121;
-  bottom: 0;
 }
 
 .light-problems {
@@ -483,27 +497,27 @@ export default {
 
 .problems-drag {
   position: sticky;
+  left: calc(50% - 13px);
+  z-index: 100;
   width: 26px;
   height: 6px;
   border-radius: 3px;
   transform: translateY(-50%);
-  left: calc(50% - 13px);
-  z-index: 100;
 
   @include flex-center();
 
   &::after {
-    content: ' ';
-    height: 0;
-    width: 100%;
-    border-bottom: 3px dotted #63656e;
     position: absolute;
     left: 2px;
+    width: 100%;
+    height: 0;
+    border-bottom: 3px dotted #63656e;
+    content: ' ';
   }
 
   &:hover {
-    user-select: none;
     cursor: s-resize;
+    user-select: none;
   }
 }
 
@@ -520,12 +534,12 @@ export default {
 }
 
 .editor-title {
+  display: flex;
   width: 100%;
   padding: 14px 18px;
-  display: flex;
   color: #979ba5;
-  justify-content: space-between;
   background: #2e2e2e;
+  justify-content: space-between;
 
   .right-container {
     @include flex-center();

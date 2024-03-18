@@ -42,15 +42,15 @@ module.exports = class LogWebpackPlugin {
   apply(compiler) {
     const hookOption = {
       name: 'LogWebpackPlugin',
-      stage: 'PROCESS_ASSETS_STAGE_ANALYSE',
+      stage: 'PROCESS_ASSETS_STAGE_ANALYSE'
     };
-    compiler.hooks.thisCompilation.tap(hookOption, (compilation) => {
+    compiler.hooks.thisCompilation.tap(hookOption, compilation => {
       compilation.hooks.afterProcessAssets.tap(hookOption, () => {
         if (!this.hasChanged && compilation.assets) {
           try {
             this.hasChanged = true;
             const assetManifestData = [];
-            Object.keys(compilation.assets).forEach((key) => {
+            Object.keys(compilation.assets).forEach(key => {
               const chunkItem = compilation.assets[key];
               const isCahedSource = !!chunkItem._source;
               let chunkSource = isCahedSource ? chunkItem._source._value : chunkItem._value;
@@ -96,22 +96,21 @@ module.exports = class LogWebpackPlugin {
     const urls = chunk.match(/(href|src|content)="([^"]+)"/gim);
     if (urls) {
       let res = chunk;
-      urls.forEach((url) => {
+      urls.forEach(url => {
         let machUrl = url.replace(`${this.staticUrl}${this.modePath}/`, '');
         if (
-          !/(data:|manifest\.json|http|\/\/)|\$\{BK_STATIC_URL\}| \$\{WEIXIN_STATIC_URL\} |\$\{SITE_URL\}/gim.test(machUrl)
-          && /\.(png|css|js)/gim.test(machUrl)
+          !/(data:|manifest\.json|http|\/\/)|\$\{BK_STATIC_URL\}| \$\{WEIXIN_STATIC_URL\} |\$\{SITE_URL\}/gim.test(
+            machUrl
+          ) &&
+          /\.(png|css|js)/gim.test(machUrl)
         ) {
-          machUrl = machUrl.replace(
-            /([^"])"([^"]+)"/gim,
-            `$1"\${${this.staticUrl}}${this.modePath}/$2"`,
-          );
+          machUrl = machUrl.replace(/([^"])"([^"]+)"/gim, `$1"\${${this.staticUrl}}${this.modePath}/$2"`);
         }
         res = res.replace(url, machUrl);
       });
       const scripts = res.match(/<script template>*<\/script>/gim);
       if (scripts) {
-        scripts.forEach((script) => {
+        scripts.forEach(script => {
           res = res.replace(script, this.variates);
         });
       }
@@ -125,7 +124,7 @@ module.exports = class LogWebpackPlugin {
     const urls = chunk.match(/url\((\/fonts\/|img\/)[^)]+\)/gim);
     if (urls) {
       let res = chunk;
-      urls.forEach((url) => {
+      urls.forEach(url => {
         const machUrl = url
           .replace(/url\(((\/fonts\/)[^)]+)\)/gim, 'url("..$1")')
           .replace(/url\(((img\/)[^)]+)\)/gim, 'url("../$1")');
@@ -146,7 +145,7 @@ module.exports = class LogWebpackPlugin {
         },
         size() {
           return res.length;
-        },
+        }
       };
     }
     return null;

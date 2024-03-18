@@ -84,7 +84,7 @@ export default class RequestQueue {
     if (typeof requestIds === 'undefined') {
       cancelQueue = [...this.queue];
     } else if (requestIds instanceof Array) {
-      requestIds.forEach((requestId) => {
+      requestIds.forEach(requestId => {
         const cancelRequest = this.get(requestId);
         if (cancelRequest) {
           cancelQueue = [...cancelQueue, ...cancelRequest];
@@ -98,7 +98,7 @@ export default class RequestQueue {
     }
 
     try {
-      cancelQueue.forEach((request) => {
+      cancelQueue.forEach(request => {
         const { requestId } = request;
         this.delete(requestId);
         // request.cancelExcutor(`${msg}: ${requestId}`);

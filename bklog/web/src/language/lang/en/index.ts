@@ -7,5 +7,5 @@ export const logEnJson = {
   ...routeJson,
   ...buttonJson,
   ...labelJson,
-  ...contentJson,
+  ...contentJson
 };

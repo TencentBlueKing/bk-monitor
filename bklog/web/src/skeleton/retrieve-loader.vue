@@ -22,23 +22,32 @@
 
 <template>
   <bk-table
+    v-if="columnField.length"
     class="skeleton-table"
     :data="renderList"
     :show-header="false"
-    v-if="columnField.length">
+  >
     <bk-table-column width="30"></bk-table-column>
-    <template v-for="(field, index) in columnField">
+    <template>
       <bk-table-column
-        :min-width="(!isLoading || isOriginalField) ? field.minWidth : 0"
-        :width="(!isLoading || isOriginalField) ? field.width : 'auto'"
-        :key="index">
+        v-for="(field, index) in columnField"
+        :key="index"
+        :min-width="!isLoading || isOriginalField ? field.minWidth : 0"
+        :width="!isLoading || isOriginalField ? field.width : 'auto'"
+      >
         <!-- eslint-disable-next-line vue/no-unused-vars -->
         <template slot-scope="props">
-          <div class="cell-bar" :style="`width:${getRandom()}%`"></div>
+          <div
+            class="cell-bar"
+            :style="`width:${getRandom()}%`"
+          ></div>
         </template>
       </bk-table-column>
     </template>
-    <bk-table-column v-if="!isLoading" width="84"></bk-table-column>
+    <bk-table-column
+      v-if="!isLoading"
+      width="84"
+    ></bk-table-column>
   </bk-table>
 </template>
 
@@ -47,27 +56,27 @@ export default {
   props: {
     visibleFields: {
       type: Array,
-      required: true,
+      required: true
     },
     // 用于初次loading
     isLoading: {
       type: Boolean,
-      default: false,
+      default: false
     },
     // 是否原始日志
     isOriginalField: {
       type: Boolean,
-      default: false,
+      default: false
     },
     isPageOver: {
       type: Boolean,
-      required: false,
-    },
+      required: false
+    }
   },
   data() {
     return {
       throttle: false, // 滚动节流
-      loaderLen: 12, // 骨架行数
+      loaderLen: 12 // 骨架行数
     };
   },
   computed: {
@@ -75,11 +84,13 @@ export default {
       return new Array(this.loaderLen).fill('');
     },
     columnField() {
-      return this.isOriginalField ? [
-        { width: 160, minWidth: 0, field_name: 'time' },
-        { width: '', minWidth: 0, field_name: 'log' },
-      ] : this.visibleFields;
-    },
+      return this.isOriginalField
+        ? [
+            { width: 160, minWidth: 0, field_name: 'time' },
+            { width: '', minWidth: 0, field_name: 'log' }
+          ]
+        : this.visibleFields;
+    }
   },
   created() {
     if (this.isLoading) this.loaderLen = 12;
@@ -91,7 +102,8 @@ export default {
     if (ele) ele.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
-    getRandom() { // 骨架占位随机长度
+    getRandom() {
+      // 骨架占位随机长度
       return Math.floor(Math.random() * (20 - 100) + 100);
     },
     handleScroll() {
@@ -108,31 +120,31 @@ export default {
           this.throttle = false;
         }, 100);
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .skeleton-table {
-    &:before {
-      z-index: -1;
-    }
-
-    .cell {
-      padding-top: 14px;
-      width: 100%;
-    }
-
-    .cell-bar {
-      position: relative;
-      height: 12px;
-      background-color: #e9e9e9;
-    }
-
-    :deep(.bk-table-empty-text) {
-      padding: 0;
-      width: 100%;
-    }
+.skeleton-table {
+  &:before {
+    z-index: -1;
   }
+
+  .cell {
+    width: 100%;
+    padding-top: 14px;
+  }
+
+  .cell-bar {
+    position: relative;
+    height: 12px;
+    background-color: #e9e9e9;
+  }
+
+  :deep(.bk-table-empty-text) {
+    width: 100%;
+    padding: 0;
+  }
+}
 </style>

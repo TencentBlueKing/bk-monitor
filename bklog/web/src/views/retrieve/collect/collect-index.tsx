@@ -24,14 +24,7 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Emit,
-  Prop,
-  PropSync,
-  Watch,
-  Ref,
-} from 'vue-property-decorator';
+import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decorator';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
 import CollectContainer from './collect-container';
 import ManageGroupDialog from './manage-group-dialog';
@@ -101,54 +94,54 @@ export default class CollectIndex extends tsc<IProps> {
   editFavoriteID = -1; // 点击编辑时的收藏ID
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
-    private: window.mainComponent.$t('个人收藏'),
+    private: window.mainComponent.$t('个人收藏')
   };
   verifyData = {
-    groupName: '',
+    groupName: ''
   };
   groupSortList = [
     // 排序展示列表
     {
       name: window.mainComponent.$t('按名称 {n} 排序', { n: 'A - Z' }),
-      id: 'NAME_ASC',
+      id: 'NAME_ASC'
     },
     {
       name: window.mainComponent.$t('按名称 {n} 排序', { n: 'Z - A' }),
-      id: 'NAME_DESC',
+      id: 'NAME_DESC'
     },
     {
       name: window.mainComponent.$t('按更新时间排序'),
-      id: 'UPDATED_AT_DESC',
-    },
+      id: 'UPDATED_AT_DESC'
+    }
   ];
   public rules = {
     groupName: [
       {
         validator: this.checkName,
         message: window.mainComponent.$t('{n}不规范, 包含特殊符号', { n: window.mainComponent.$t('组名') }),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         validator: this.checkExistName,
         message: window.mainComponent.$t('组名重复'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         max: 30,
         message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
-        trigger: 'blur',
-      },
-    ],
+        trigger: 'blur'
+      }
+    ]
   };
   tippyOption = {
     trigger: 'click',
     interactive: true,
-    theme: 'light',
+    theme: 'light'
   };
   groupList: IGroupItem[] = []; // 分组列表
   collectList: IGroupItem[] = []; // 收藏列表
@@ -163,7 +156,7 @@ export default class CollectIndex extends tsc<IProps> {
   }
 
   get allFavoriteNumber() {
-    return this.favoriteList.reduce((pre: number, cur) => (pre += cur.favorites.length, pre), 0);
+    return this.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
   }
 
   @Watch('isShowCollect')
@@ -185,7 +178,6 @@ export default class CollectIndex extends tsc<IProps> {
     this.handleInitFavoriteList(value);
   }
 
-
   @Emit('handleClick')
   handleClickFavorite(value) {
     return value;
@@ -200,12 +192,12 @@ export default class CollectIndex extends tsc<IProps> {
   handleSubmitFavoriteData({ isCreate, resValue }) {
     return {
       isCreate,
-      resValue,
+      resValue
     };
   }
 
   @Emit('requestFavoriteList')
-  getFavoriteList() {};
+  getFavoriteList() {}
 
   async handleUserOperate(obj) {
     const { type, value } = obj;
@@ -230,7 +222,7 @@ export default class CollectIndex extends tsc<IProps> {
       case 'remove-group': // 从组中移除收藏（移动至未分组）
         Object.assign(value, {
           visible_type: 'public',
-          group_id: this.unknownGroupID,
+          group_id: this.unknownGroupID
         });
         await this.handleUpdateFavorite(value);
         this.getFavoriteList();
@@ -246,7 +238,7 @@ export default class CollectIndex extends tsc<IProps> {
           confirmFn: async () => {
             await this.deleteFavorite(value.id);
             this.getFavoriteList();
-          },
+          }
         });
         break;
       case 'dismiss-group': // 解散分组
@@ -257,17 +249,18 @@ export default class CollectIndex extends tsc<IProps> {
           confirmFn: async () => {
             await this.deleteGroup(value.group_id);
             this.getFavoriteList();
-          },
+          }
         });
         break;
-      case 'share': {
-        let shareUrl = window.SITE_URL;
-        if (!shareUrl.startsWith('/')) shareUrl = `/${shareUrl}`;
-        if (!shareUrl.endsWith('/')) shareUrl += '/';
-        const params = encodeURIComponent(JSON.stringify({ ...value.params }));
-        shareUrl = `${window.location.origin + shareUrl}#/retrieve/${value.index_set_id}?spaceUid=${value.space_uid}&retrieveParams=${params}`;
-        copyMessage(shareUrl, this.$t('复制成功'));
-      }
+      case 'share':
+        {
+          let shareUrl = window.SITE_URL;
+          if (!shareUrl.startsWith('/')) shareUrl = `/${shareUrl}`;
+          if (!shareUrl.endsWith('/')) shareUrl += '/';
+          const params = encodeURIComponent(JSON.stringify({ ...value.params }));
+          shareUrl = `${window.location.origin + shareUrl}#/retrieve/${value.index_set_id}?spaceUid=${value.space_uid}&retrieveParams=${params}`;
+          copyMessage(shareUrl, this.$t('复制成功'));
+        }
         break;
       case 'drag-move-end':
         // $http.request('favorite/groupUpdateOrder', {
@@ -277,42 +270,38 @@ export default class CollectIndex extends tsc<IProps> {
         //   },
         // });
         break;
-      case 'create-copy': {
-        const {
-          index_set_id,
-          params,
-          name,
-          group_id,
-          display_fields,
-          visible_type,
-          is_enable_display_fields,
-        } = value;
-        const { host_scopes, addition, keyword, search_fields } = params;
-        const data = {
-          name: `${name} ${this.$t('副本')}`,
-          group_id,
-          display_fields,
-          visible_type,
-          host_scopes,
-          addition,
-          keyword,
-          search_fields,
-          is_enable_display_fields,
-          index_set_id,
-          space_uid: this.spaceUid,
-        };
-        $http.request('favorite/createFavorite', { data }).then((res) => {
-          this.showMessagePop(this.$t('创建成功'));
-          this.handleSubmitFavoriteData({ isCreate: true, resValue: res.data });
-        });
-      }
+      case 'create-copy':
+        {
+          const { index_set_id, params, name, group_id, display_fields, visible_type, is_enable_display_fields } =
+            value;
+          const { host_scopes, addition, keyword, search_fields } = params;
+          const data = {
+            name: `${name} ${this.$t('副本')}`,
+            group_id,
+            display_fields,
+            visible_type,
+            host_scopes,
+            addition,
+            keyword,
+            search_fields,
+            is_enable_display_fields,
+            index_set_id,
+            space_uid: this.spaceUid
+          };
+          $http.request('favorite/createFavorite', { data }).then(res => {
+            this.showMessagePop(this.$t('创建成功'));
+            this.handleSubmitFavoriteData({ isCreate: true, resValue: res.data });
+          });
+        }
         break;
       default:
     }
   }
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(this.verifyData.groupName.trim());
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+      this.verifyData.groupName.trim()
+    );
   }
   checkExistName() {
     return !this.groupList.some(item => item.group_name === this.verifyData.groupName);
@@ -333,7 +322,7 @@ export default class CollectIndex extends tsc<IProps> {
     if (clickType === 'cancel') {
       this.popoverGroupRef.hideHandler();
       this.checkInputFormRef.clearError();
-    };
+    }
   }
 
   /** 排序 */
@@ -363,9 +352,8 @@ export default class CollectIndex extends tsc<IProps> {
       .map(item => ({
         ...item,
         favorites: item.favorites.filter(
-          fItem => fItem.created_by.includes(this.searchVal)
-            || fItem.name.includes(this.searchVal),
-        ),
+          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal)
+        )
       }))
       .filter(item => item.favorites.length);
     setTimeout(() => {
@@ -383,23 +371,25 @@ export default class CollectIndex extends tsc<IProps> {
     const params = { group_id };
     const data = { name: group_new_name, space_uid: this.spaceUid };
     const requestStr = isCreate ? 'createGroup' : 'updateGroupName';
-    await $http.request(`favorite/${requestStr}`, {
-      params,
-      data,
-    }).then(() => {
-      this.showMessagePop(this.$t('操作成功'));
-    });
+    await $http
+      .request(`favorite/${requestStr}`, {
+        params,
+        data
+      })
+      .then(() => {
+        this.showMessagePop(this.$t('操作成功'));
+      });
   }
 
   handleInitFavoriteList(value) {
     this.collectList = value.map(item => ({
       ...item,
-      group_name: this.groupNameMap[item.group_type] ?? item.group_name,
+      group_name: this.groupNameMap[item.group_type] ?? item.group_name
     }));
     this.groupList = value.map(item => ({
       group_id: item.group_id,
       group_name: this.groupNameMap[item.group_type] ?? item.group_name,
-      group_type: item.group_type,
+      group_type: item.group_type
     }));
     this.unknownGroupID = this.groupList[this.groupList.length - 1]?.group_id;
     this.privateGroupID = this.groupList[0]?.group_id;
@@ -409,7 +399,8 @@ export default class CollectIndex extends tsc<IProps> {
       this.collectList = [this.collectList[0]];
     }
     this.filterCollectList = deepClone(this.collectList);
-    if (this.activeFavoriteID >= 0) { // 获取列表后 判断当前是否有点击的活跃收藏 如果有 则进行数据更新
+    if (this.activeFavoriteID >= 0) {
+      // 获取列表后 判断当前是否有点击的活跃收藏 如果有 则进行数据更新
       let isFind = false;
       for (const cItem of this.collectList) {
         if (isFind) break;
@@ -422,43 +413,40 @@ export default class CollectIndex extends tsc<IProps> {
         }
       }
     }
-  };
+  }
 
   /** 解散分组 */
   async deleteGroup(group_id) {
-    await $http.request('favorite/deleteGroup', {
-      params: { group_id },
-    }).then(() => {
-      this.showMessagePop(this.$t('操作成功'));
-    });
+    await $http
+      .request('favorite/deleteGroup', {
+        params: { group_id }
+      })
+      .then(() => {
+        this.showMessagePop(this.$t('操作成功'));
+      });
   }
 
   /** 删除收藏 */
   async deleteFavorite(favorite_id) {
-    await $http.request('favorite/deleteFavorite', {
-      params: { favorite_id },
-    }).then(() => {
-      this.showMessagePop(this.$t('删除成功'));
-    });
+    await $http
+      .request('favorite/deleteFavorite', {
+        params: { favorite_id }
+      })
+      .then(() => {
+        this.showMessagePop(this.$t('删除成功'));
+      });
   }
 
   showMessagePop(message, theme = 'success') {
     this.$bkMessage({
       message,
-      theme,
+      theme
     });
   }
 
   /** 更新收藏 */
   async handleUpdateFavorite(favoriteData) {
-    const {
-      params,
-      name,
-      group_id,
-      display_fields,
-      visible_type,
-      id,
-    } = favoriteData;
+    const { params, name, group_id, display_fields, visible_type, id } = favoriteData;
     const { ip_chooser, addition, keyword, search_fields } = params;
     const data = {
       name,
@@ -468,20 +456,22 @@ export default class CollectIndex extends tsc<IProps> {
       ip_chooser,
       addition,
       keyword,
-      search_fields,
+      search_fields
     };
-    await $http.request('favorite/updateFavorite', {
-      params: { id },
-      data,
-    }).then(() => {
-      this.showMessagePop(this.$t('操作成功'));
-    });
+    await $http
+      .request('favorite/updateFavorite', {
+        params: { id },
+        data
+      })
+      .then(() => {
+        this.showMessagePop(this.$t('操作成功'));
+      });
   }
   handleGroupKeyDown(value: string, event) {
     if (event.code === 'Tab' && !!value) {
       this.handleUserOperate({
         type: 'add-group',
-        value,
+        value
       });
       this.popoverGroupRef.hideHandler();
       setTimeout(() => {
@@ -499,7 +489,7 @@ export default class CollectIndex extends tsc<IProps> {
     window.addEventListener('mouseup', this.dragStop, { passive: true });
   }
   dragMoving(e) {
-    const newTreeBoxWidth =      this.currentTreeBoxWidth + e.screenX - this.currentScreenX;
+    const newTreeBoxWidth = this.currentTreeBoxWidth + e.screenX - this.currentScreenX;
     if (newTreeBoxWidth < this.collectMinWidth) {
       this.collectWidth = 0;
       this.isShowCollect = false;
@@ -520,94 +510,103 @@ export default class CollectIndex extends tsc<IProps> {
   }
   render() {
     return (
-      <div class="retrieve-collect-index">
+      <div class='retrieve-collect-index'>
         <CollectContainer
           dataList={this.filterCollectList}
           groupList={this.groupList}
           activeFavoriteID={this.activeFavoriteID}
           isSearchFilter={this.isSearchFilter}
           collectLoading={this.collectLoading || this.favoriteLoading}
-          on-change={this.handleUserOperate}>
-          <div class="search-container">
-            <div class="fl-jcsb">
-              <span class="search-title fl-jcsb">
+          on-change={this.handleUserOperate}
+        >
+          <div class='search-container'>
+            <div class='fl-jcsb'>
+              <span class='search-title fl-jcsb'>
                 {this.$t('收藏查询')}
-                <span class="favorite-number">{this.allFavoriteNumber}</span>
+                <span class='favorite-number'>{this.allFavoriteNumber}</span>
               </span>
               <span
-                class="bk-icon log-icon icon-wholesale-editor"
+                class='bk-icon log-icon icon-wholesale-editor'
                 onClick={() => (this.isShowManageDialog = true)}
               ></span>
             </div>
-            <div class="search-box fl-jcsb">
+            <div class='search-box fl-jcsb'>
               <Input
-                right-icon="bk-icon icon-search"
+                right-icon='bk-icon icon-search'
                 vModel={this.searchVal}
                 placeholder={this.$t('搜索收藏名')}
                 on-enter={this.handleSearchFavorite}
                 onKeyup={this.handleInputSearchFavorite}
                 on-right-icon-click={this.handleSearchFavorite}
               ></Input>
-              <div class="fl-jcsb operate-box">
+              <div class='fl-jcsb operate-box'>
                 <Popover
-                  ref="popoverGroup"
+                  ref='popoverGroup'
                   tippy-options={this.tippyOption}
-                  placement="bottom-start"
-                  ext-cls="new-group-popover">
-                  <span class="bk-icon icon-plus-circle"></span>
-                  <div slot="content">
+                  placement='bottom-start'
+                  ext-cls='new-group-popover'
+                >
+                  <span class='bk-icon icon-plus-circle'></span>
+                  <div slot='content'>
                     <Form
                       labelWidth={0}
                       style={{ width: '100%' }}
-                      ref="checkInputForm"
+                      ref='checkInputForm'
                       {...{
                         props: {
                           model: this.verifyData,
-                          rules: this.rules,
-                        },
-                      }}>
-                      <FormItem property="groupName">
+                          rules: this.rules
+                        }
+                      }}
+                    >
+                      <FormItem property='groupName'>
                         <Input
                           clearable
                           placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                           vModel={this.verifyData.groupName}
                           onKeydown={this.handleGroupKeyDown}
-                          onEnter={() => this.handleClickGroupBtn('add')}>
-                        </Input>
+                          onEnter={() => this.handleClickGroupBtn('add')}
+                        ></Input>
                       </FormItem>
                     </Form>
-                    <div class="operate-button">
-                      <Button text onClick={() => this.handleClickGroupBtn('add')}>
+                    <div class='operate-button'>
+                      <Button
+                        text
+                        onClick={() => this.handleClickGroupBtn('add')}
+                      >
                         {this.$t('确定')}
                       </Button>
-                      <span onClick={() => this.handleClickGroupBtn('cancel')}>
-                        {this.$t('取消')}
-                      </span>
+                      <span onClick={() => this.handleClickGroupBtn('cancel')}>{this.$t('取消')}</span>
                     </div>
                   </div>
                 </Popover>
                 <Popover
-                  ref="popoverSort"
+                  ref='popoverSort'
                   tippy-options={this.tippyOption}
-                  placement="bottom-start"
-                  ext-cls="sort-group-popover">
-                  <div class="icon-box">
-                    <span class="bk-icon icon-sort"></span>
+                  placement='bottom-start'
+                  ext-cls='sort-group-popover'
+                >
+                  <div class='icon-box'>
+                    <span class='bk-icon icon-sort'></span>
                   </div>
-                  <div slot="content">
+                  <div slot='content'>
                     <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏名排序')}</span>
-                    <RadioGroup vModel={this.sortType} class="sort-group-container">
+                    <RadioGroup
+                      vModel={this.sortType}
+                      class='sort-group-container'
+                    >
                       {this.groupSortList.map(item => (
                         <Radio value={item.id}>{item.name}</Radio>
                       ))}
                     </RadioGroup>
-                    <div class="operate-button">
-                      <Button theme="primary" onClick={() => this.handleClickSortBtn('sort')}>
+                    <div class='operate-button'>
+                      <Button
+                        theme='primary'
+                        onClick={() => this.handleClickSortBtn('sort')}
+                      >
                         {this.$t('确定')}
                       </Button>
-                      <Button onClick={() => this.handleClickSortBtn('cancel')}>
-                        {this.$t('取消')}
-                      </Button>
+                      <Button onClick={() => this.handleClickSortBtn('cancel')}>{this.$t('取消')}</Button>
                     </div>
                   </div>
                 </Popover>
@@ -616,8 +615,9 @@ export default class CollectIndex extends tsc<IProps> {
           </div>
           <div
             class={`new-search ${this.activeFavoriteID === -1 && 'active'}`}
-            onClick={() => this.handleClickFavorite(undefined)}>
-            <span class="bk-icon icon-enlarge-line"></span>
+            onClick={() => this.handleClickFavorite(undefined)}
+          >
+            <span class='bk-icon icon-enlarge-line'></span>
             <span>{this.$t('新检索')}</span>
           </div>
         </CollectContainer>
@@ -627,14 +627,16 @@ export default class CollectIndex extends tsc<IProps> {
         ></div>
         <ManageGroupDialog
           vModel={this.isShowManageDialog}
-          onSubmit={value => value && this.getFavoriteList()} />
+          onSubmit={value => value && this.getFavoriteList()}
+        />
         <AddCollectDialog
           vModel={this.isShowAddNewFavoriteDialog}
           favoriteID={this.editFavoriteID}
           favoriteList={this.favoriteList}
           isClickFavoriteEdit={this.isClickFavoriteEdit}
           visibleFields={this.visibleFields}
-          onSubmit={this.handleSubmitFavoriteData} />
+          onSubmit={this.handleSubmitFavoriteData}
+        />
       </div>
     );
   }

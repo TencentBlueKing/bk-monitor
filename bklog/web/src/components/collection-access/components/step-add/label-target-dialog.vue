@@ -29,21 +29,26 @@
     :title="$t('选择标签')"
     :value="isShowDialog"
     :mask-close="false"
-    @cancel="handelCancelDialog">
-    <div class="log-target-container" v-bkloading="{ isLoading: treeLoading, zIndex: 10 }">
+    @cancel="handelCancelDialog"
+  >
+    <div
+      v-bkloading="{ isLoading: treeLoading, zIndex: 10 }"
+      class="log-target-container"
+    >
       <div
         :class="['label-tree', activeStretchBtn === 'left' && 'right-border-light']"
-        :style="`width : ${leftPreWidth}px`">
+        :style="`width : ${leftPreWidth}px`"
+      >
         <bk-input
+          v-model="filterStr"
           class="tree-search"
           right-icon="bk-icon icon-search"
-          v-model="filterStr"
           clearable
           @change="search"
         ></bk-input>
         <bk-big-tree
-          class="big-tree"
           ref="labelTreeRef"
+          class="big-tree"
           size="small"
           selectable
           has-border
@@ -52,61 +57,97 @@
           :data="treeList"
           :default-expanded-nodes="defaultExpandList"
           :filter-method="filterMethod"
-          @select-change="handleSelectTreeItem">
+          @select-change="handleSelectTreeItem"
+        >
           <div slot-scope="{ data }">
             <div class="item-slot">
-              <span class="item-name" v-bk-overflow-tips>{{data.name}}</span>
-              <span v-if="data.children" class="item-number">{{data.children.length}}</span>
+              <span
+                v-bk-overflow-tips
+                class="item-name"
+                >{{ data.name }}</span
+              >
+              <span
+                v-if="data.children"
+                class="item-number"
+                >{{ data.children.length }}</span
+              >
             </div>
           </div>
         </bk-big-tree>
         <div class="empty-box">
-          <empty-status v-if="treeIsEmpty" empty-type="search-empty" @operation="handleOperation" />
+          <empty-status
+            v-if="treeIsEmpty"
+            empty-type="search-empty"
+            @operation="handleOperation"
+          />
         </div>
-        <div class="left-drag bk-log-drag-simple" @mousedown="(e) => handleMouseDown(e, 'left')"></div>
+        <div
+          class="left-drag bk-log-drag-simple"
+          @mousedown="e => handleMouseDown(e, 'left')"
+        ></div>
       </div>
-      <div class="label-operate" v-bkloading="{ isLoading: labelLoading, zIndex: 10 }">
-        <div class="label-config" v-if="!isEmpty">
-          <div class="select-container" v-if="matchCheckedItemList.length">
-            <div class="select-title">{{$t('已选择')}}</div>
+      <div
+        v-bkloading="{ isLoading: labelLoading, zIndex: 10 }"
+        class="label-operate"
+      >
+        <div
+          v-if="!isEmpty"
+          class="label-config"
+        >
+          <div
+            v-if="matchCheckedItemList.length"
+            class="select-container"
+          >
+            <div class="select-title">{{ $t('已选择') }}</div>
             <!-- 标签生成已选择里挑选的 -->
             <div class="select-list">
               <bk-checkbox-group v-model="matchCheckedList">
                 <bk-checkbox
                   v-for="labItem in matchCheckedItemList"
-                  ext-cls="select-item"
                   :key="labItem.id"
-                  :value="labItem.id">
+                  ext-cls="select-item"
+                  :value="labItem.id"
+                >
                   <match-label-item
                     is-dialog-item
                     :class="{ 'is-checked': isSelectItem('matchCheckedList', labItem.id) }"
-                    :match-item="labItem" />
+                    :match-item="labItem"
+                  />
                 </bk-checkbox>
               </bk-checkbox-group>
             </div>
           </div>
           <div
             class="no-choice-container select-list"
-            :style="`max-height: ${getNoChoiceMaxHeight}px;`">
+            :style="`max-height: ${getNoChoiceMaxHeight}px;`"
+          >
             <!-- 标签生成备选的 -->
             <bk-checkbox-group v-model="matchSelectList">
               <bk-checkbox
                 v-for="labItem in matchSelectItemList"
-                ext-cls="select-item"
                 :key="labItem.id"
-                :value="labItem.id">
+                ext-cls="select-item"
+                :value="labItem.id"
+              >
                 <match-label-item
                   is-dialog-item
                   :class="{ 'is-checked': isSelectItem('matchSelectList', labItem.id) }"
-                  :match-item="labItem" />
+                  :match-item="labItem"
+                />
               </bk-checkbox>
             </bk-checkbox-group>
           </div>
         </div>
-        <div class="match-empty" v-else>
-          <empty-status empty-type="empty" :show-text="false">
-            <p>{{$t('暂无标签')}}</p>
-            <span>{{$t('请先在左侧列表进行选择')}}</span>
+        <div
+          v-else
+          class="match-empty"
+        >
+          <empty-status
+            empty-type="empty"
+            :show-text="false"
+          >
+            <p>{{ $t('暂无标签') }}</p>
+            <span>{{ $t('请先在左侧列表进行选择') }}</span>
           </empty-status>
         </div>
       </div>
@@ -115,14 +156,14 @@
       <bk-button
         theme="primary"
         type="submit"
-        style="margin-right: 10px;"
+        style="margin-right: 10px"
         :disabled="!isHaveSelectItem"
         @click="handelConfirmLabel"
       >
-        {{$t('确定')}}
+        {{ $t('确定') }}
       </bk-button>
       <bk-button @click="handelCancelDialog">
-        {{$t('取消')}}
+        {{ $t('取消') }}
       </bk-button>
     </div>
   </bk-dialog>
@@ -135,21 +176,21 @@ import EmptyStatus from '@/components/empty-status';
 export default {
   components: {
     matchLabelItem,
-    EmptyStatus,
+    EmptyStatus
   },
   props: {
     isShowDialog: {
       type: Boolean,
-      default: false,
+      default: false
     },
     labelParams: {
       type: Object,
-      default: () => ({}),
+      default: () => ({})
     },
     clusterList: {
       type: Array,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
@@ -166,12 +207,13 @@ export default {
       labelLoading: false, // 标签loading
       activeStretchBtn: '',
       treeIsEmpty: false, // 树结构是否搜索为空
-      cacheRequestParams: { // 缓存树结构传参
+      cacheRequestParams: {
+        // 缓存树结构传参
         bk_biz_id: null,
         bcs_cluster_id: null,
         type: null,
-        namespace: null,
-      },
+        namespace: null
+      }
     };
   },
   computed: {
@@ -190,7 +232,7 @@ export default {
     },
     isHaveSelectItem() {
       return !!(this.matchSelectList.length + this.matchCheckedList.length);
-    },
+    }
   },
   watch: {
     isShowDialog(val) {
@@ -204,7 +246,7 @@ export default {
         if (this.labelParams.labelSelector.length) {
           this.matchCheckedItemList = this.labelParams.labelSelector.map(item => ({
             ...item,
-            id: random(10),
+            id: random(10)
           }));
           this.matchCheckedList = this.matchCheckedItemList.map(item => item.id);
         }
@@ -212,7 +254,7 @@ export default {
         this.resetSelect();
         this.filterStr = '';
       }
-    },
+    }
   },
   methods: {
     handleSelectTreeItem(treeItem) {
@@ -229,20 +271,24 @@ export default {
       if (type === 'node') delete query.namespace;
       this.labelLoading = true;
       this.catchCheckedItemList();
-      this.$http.request('container/getNodeLabelList', { query }).then((res) => {
-        if (res.code === 0) {
-          this.matchSelectItemList = res.data.filter((item) => {
-            // 先生成已选列表和主页已选列表 若为没有 则全返回
-            const allCheckedItemList = [...this.matchCheckedItemList, ...this.labelParams.labelSelector];
-            if (!allCheckedItemList.length) return true;
-            // 判断当前备选是否在已选和主页已选有重复 若有重复则不返回
-            return !allCheckedItemList.some(mItem => item.key === mItem.key
-             && item.value === mItem.value
-             && mItem.operator === '=');
-          }).map(item => ({ ...item, operator: '=', id: random(10) }));
-        }
-      })
-        .catch((err) => {
+      this.$http
+        .request('container/getNodeLabelList', { query })
+        .then(res => {
+          if (res.code === 0) {
+            this.matchSelectItemList = res.data
+              .filter(item => {
+                // 先生成已选列表和主页已选列表 若为没有 则全返回
+                const allCheckedItemList = [...this.matchCheckedItemList, ...this.labelParams.labelSelector];
+                if (!allCheckedItemList.length) return true;
+                // 判断当前备选是否在已选和主页已选有重复 若有重复则不返回
+                return !allCheckedItemList.some(
+                  mItem => item.key === mItem.key && item.value === mItem.value && mItem.operator === '='
+                );
+              })
+              .map(item => ({ ...item, operator: '=', id: random(10) }));
+          }
+        })
+        .catch(err => {
           console.warn(err);
         })
         .finally(() => {
@@ -252,12 +298,13 @@ export default {
     // 切换树选项时缓存备选列表里的值
     catchCheckedItemList() {
       if (!this.matchSelectList.length) return; // 备选没有选择
-      const checkedItemList = this.matchSelectItemList.filter((item) => {
-        if (this.matchSelectList.includes(item.id)) { // 包含了id 过滤已选择里有过的值
-          return !this.matchCheckedItemList.some(mItem => item.key === mItem.key
-           && item.value === mItem.value
-           && item.operator === mItem.operator);
-        };
+      const checkedItemList = this.matchSelectItemList.filter(item => {
+        if (this.matchSelectList.includes(item.id)) {
+          // 包含了id 过滤已选择里有过的值
+          return !this.matchCheckedItemList.some(
+            mItem => item.key === mItem.key && item.value === mItem.value && item.operator === mItem.operator
+          );
+        }
         return false;
       });
       this.matchCheckedItemList = [...this.matchCheckedItemList, ...checkedItemList];
@@ -273,8 +320,10 @@ export default {
     },
     handelConfirmLabel() {
       const allCheckedKey = [...this.matchSelectList, ...this.matchCheckedList];
-      const allCheckedValue = [...this.matchSelectItemList, ...this.matchCheckedItemList]
-        .map(item => ({ ...item, type: item.operator === '=' ? 'match_labels' : 'match_expressions' }));
+      const allCheckedValue = [...this.matchSelectItemList, ...this.matchCheckedItemList].map(item => ({
+        ...item,
+        type: item.operator === '=' ? 'match_labels' : 'match_expressions'
+      }));
       const matchLabels = allCheckedValue.filter(item => allCheckedKey.includes(item.id));
       const labelObj = { labelSelector: [...matchLabels] };
       this.resetSelect();
@@ -289,16 +338,18 @@ export default {
       const query = { namespace: namespaceStr, bcs_cluster_id, type, bk_biz_id };
       if (type === 'node') delete query.namespace;
       this.treeLoading = true;
-      this.$http.request('container/getPodTree', { query }).then((res) => {
-        if (res.code === 0) {
-          // 树列表
-          this.treeList = this.initTreeList(typeof res.data === 'object' ? [res.data] : res.data);
-          const expandList = this.getResultStrList(this.treeList);
-          // 默认展开列表
-          this.defaultExpandList = expandList;
-        }
-      })
-        .catch((err) => {
+      this.$http
+        .request('container/getPodTree', { query })
+        .then(res => {
+          if (res.code === 0) {
+            // 树列表
+            this.treeList = this.initTreeList(typeof res.data === 'object' ? [res.data] : res.data);
+            const expandList = this.getResultStrList(this.treeList);
+            // 默认展开列表
+            this.defaultExpandList = expandList;
+          }
+        })
+        .catch(err => {
           console.warn(err);
         })
         .finally(() => {
@@ -323,7 +374,7 @@ export default {
             } else {
               absoluteNameList.push({
                 index,
-                name: currentItem.name,
+                name: currentItem.name
               });
             }
             for (const child of currentItem.children) {
@@ -331,13 +382,13 @@ export default {
             }
             expandList.push(currentItem.id);
           }
-        }(item)); // 自执行函数保存递归函数
+        })(item); // 自执行函数保存递归函数
       });
       return expandList;
     },
     // 给集群赋值名字
     initTreeList(treeList) {
-      return treeList.map((item) => {
+      return treeList.map(item => {
         if (item.type === 'cluster') {
           const cluster = this.clusterList.find(cItem => cItem.id === item.id);
           if (!!cluster) item.name = `${cluster.name} (${item.id})`;
@@ -365,21 +416,21 @@ export default {
           strList.push(currentItem.data.id);
           return;
         }
-      }(treeList)); // 自执行函数保存递归函数
+      })(treeList); // 自执行函数保存递归函数
       const nameStr = strList.join(',');
       const nameSpaceStr = [...namespaceSetList].join(',');
       return [nameSpaceStr, nameStr];
     },
     handleMouseDown(e, direction = 'left') {
       const node = e.target;
-      const parentNode = node.parentNode;
+      const { parentNode } = node;
 
       if (!parentNode) return;
 
       const nodeRect = node.getBoundingClientRect();
       const rect = parentNode.getBoundingClientRect();
       this.activeStretchBtn = direction;
-      const handleMouseMove = (event) => {
+      const handleMouseMove = event => {
         const [min, max] = this.leftRange;
         const newWidth = event.clientX - rect.left - nodeRect.width;
         this.leftPreWidth = newWidth < min ? min : Math.min(newWidth, max);
@@ -408,27 +459,27 @@ export default {
     handleOperation() {
       this.filterStr = '';
       this.search();
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss">
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .log-target-container {
+  display: flex;
   width: 100%;
   height: 585px;
+  overflow: hidden;
   background: #fff;
   border: 1px solid #dcdee5;
   border-radius: 2px;
-  display: flex;
-  overflow: hidden;
 
   .label-tree {
-    min-width: 290px;
-    padding: 14px 24px;
     position: relative;
     z-index: 99;
+    min-width: 290px;
+    padding: 14px 24px;
     background: #fff;
     border-right: 1px solid #dcdee5;
 
@@ -461,14 +512,14 @@ export default {
 
       .item-number {
         display: inline-block;
-        font-size: 12px;
-        min-width: 20px;
         height: 16px;
+        min-width: 20px;
         padding: 2px 0;
         margin: 0 6px;
+        font-size: 12px;
         line-height: 12px;
-        text-align: center;
         color: #979ba5;
+        text-align: center;
         background: #f0f1f5;
         border-radius: 2px;
       }
@@ -481,32 +532,32 @@ export default {
 
       &.is-selected {
         .item-number {
-          background: #a3c5fd;
           color: #fff;
+          background: #a3c5fd;
         }
       }
     }
   }
 
   .label-operate {
-    width: calc( 100% - 300px );
+    width: calc(100% - 300px);
 
     .label-config {
-      height: 100%;
       width: 100%;
+      height: 100%;
       min-width: 600px;
       padding: 14px 24px;
     }
 
     .select-title {
+      margin-bottom: 12px;
       font-size: 14px;
       color: #313238;
-      margin-bottom: 12px;
     }
 
     .select-container {
-      border-bottom: 1px solid #dcdee5;
       padding-bottom: 22px;
+      border-bottom: 1px solid #dcdee5;
 
       & + .no-choice-container {
         margin-top: 22px;
@@ -528,10 +579,9 @@ export default {
       overflow-y: auto;
     }
 
-
     .disabled {
-      opacity: .6;
       cursor: no-drop;
+      opacity: 0.6;
 
       .operator {
         color: #979ba5;
@@ -552,24 +602,24 @@ export default {
   }
 
   .left-drag {
-    right: -5px
+    right: -5px;
   }
 
   .bk-log-drag-simple {
     position: absolute;
+    top: 50%;
+    z-index: 100;
+    display: flex;
     width: 10px;
     height: 100%;
-    display: flex;
+    border-radius: 3px;
+    transform: translateY(-50%);
     align-items: center;
     justify-items: center;
-    border-radius: 3px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 100;
 
     &:hover {
-      user-select: none;
       cursor: col-resize;
+      user-select: none;
     }
   }
 
@@ -584,8 +634,8 @@ export default {
     @include flex-center();
 
     p {
-      font-size: 14px;
       margin-bottom: 12px;
+      font-size: 14px;
     }
 
     span {
@@ -594,10 +644,9 @@ export default {
     }
 
     .icon-empty {
-      color: #c3cdd7;
       font-size: 50px;
+      color: #c3cdd7;
     }
   }
-
 }
 </style>

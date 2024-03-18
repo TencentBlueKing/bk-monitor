@@ -23,25 +23,32 @@
 <template>
   <div class="sub-nav-container">
     <div
-      class="back-container"
       v-if="$route.meta.needBack"
-      @click="handleBack">
+      class="back-container"
+      @click="handleBack"
+    >
       <span class="bk-icon icon-arrows-left"></span>
     </div>
     <div class="main-title">{{ $route.meta.needBack ? getTitleName() : activeManageNav.name }}</div>
-    <div v-if="isShowDetailName" class="collect-link">
+    <div
+      v-if="isShowDetailName"
+      class="collect-link"
+    >
       <span class="bk-icon log-icon icon-position"></span>
       {{ getBaseName() }}
     </div>
     <ul
-      class="sub-nav-list"
       v-if="activeManageNav.children && !$route.meta.needBack"
-      data-test-id="logCollection_ul_logCollectionNavBox">
+      class="sub-nav-list"
+      data-test-id="logCollection_ul_logCollectionNavBox"
+    >
       <template v-for="navItem in activeManageNav.children">
         <li
-          :class="{ 'sub-nav-item': true, 'active': navItem.id === activeManageSubNav.id }"
-          :key="navItem.id" @click="handleClickSubNav(navItem.id)"
-          :data-test-id="`logCollectionNavBox_li_${navItem.id}`">
+          :key="navItem.id"
+          :class="{ 'sub-nav-item': true, active: navItem.id === activeManageSubNav.id }"
+          :data-test-id="`logCollectionNavBox_li_${navItem.id}`"
+          @click="handleClickSubNav(navItem.id)"
+        >
           {{ navItem.name }}
         </li>
       </template>
@@ -56,16 +63,17 @@ export default {
   props: {
     name: {
       type: String,
-      default: '',
+      default: ''
     },
     subNavList: {
       type: Array,
-      default: null,
-    },
+      default: null
+    }
   },
   data() {
     return {
-      baseRouteNameList: [ // 展示详情名称的路由列表
+      baseRouteNameList: [
+        // 展示详情名称的路由列表
         'log-index-set-manage',
         'manage-collection',
         'bkdata-index-set-manage',
@@ -89,15 +97,16 @@ export default {
         'bkdata-track-edit',
         'extract-link-edit',
         'clean-edit',
-        'clean-template-edit',
-      ],
+        'clean-template-edit'
+      ]
     };
   },
   computed: {
     ...mapState(['activeManageNav', 'activeManageSubNav']),
-    isShowDetailName() { // 是否需要展示详情名称
+    isShowDetailName() {
+      // 是否需要展示详情名称
       return this.baseRouteNameList.includes(this.$route.name);
-    },
+    }
   },
   methods: {
     handleClickSubNav(id) {
@@ -105,19 +114,21 @@ export default {
         this.$router.push({
           name: id,
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
       }
     },
     handleBack() {
       if (this.$route.meta.backName) {
-        const { query: { backRoute } } = this.$route;
+        const {
+          query: { backRoute }
+        } = this.$route;
         this.$router.push({
           name: !!backRoute ? backRoute : this.$route.meta.backName,
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
       }
     },
@@ -158,7 +169,7 @@ export default {
         'custom-report-create': this.$t('route-新建自定义上报').replace('route-', ''),
         'custom-report-edit': this.$t('route-编辑自定义上报').replace('route-', ''),
         'custom-report-detail': this.$t('route-采集详情').replace('route-', ''),
-        'custom-report-masking': this.$t('route-日志脱敏').replace('route-', ''),
+        'custom-report-masking': this.$t('route-日志脱敏').replace('route-', '')
       };
       return map[this.$route.name];
     },
@@ -190,81 +201,85 @@ export default {
         collectStorage: collectionName,
         collectMasking: collectionName,
         collectStart: collectionName,
-        collectStop: collectionName,
+        collectStop: collectionName
       };
       return map[this.$route.name] ?? '';
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .sub-nav-container {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    height: 48px;
-    padding: 0 20px;
-    line-height: 24px;
-    background-color: #fff;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .10);
-    position: fixed;
-    top: 51px;
-    z-index: 9;
+.sub-nav-container {
+  position: fixed;
+  top: 51px;
+  z-index: 9;
+  display: flex;
+  width: 100%;
+  height: 48px;
+  padding: 0 20px;
+  line-height: 24px;
+  background-color: #fff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  align-items: center;
 
-    .main-title {
-      font-size: 16px;
-      color: #313238;
-    }
+  .main-title {
+    font-size: 16px;
+    color: #313238;
+  }
 
-    .back-container {
-      .icon-arrows-left {
-        font-size: 30px;
-        color: #3a84ff;
-        cursor: pointer;
+  .back-container {
+    .icon-arrows-left {
+      font-size: 30px;
+      color: #3a84ff;
+      cursor: pointer;
 
-        &:hover {
-          color: #699df4;
-        }
-      }
-    }
-
-    .sub-nav-list {
-      display: flex;
-      font-size: 14px;
-      color: #63656e;
-      margin-left: 35px;
-
-      .sub-nav-item {
-        height: 52px;
-        line-height: 52px;
-        padding: 0 10px;
-        margin: 0 25px;
-        cursor: pointer;
-        border-bottom: 3px solid transparent;
-        transition: color, border-color .3s;
-
-        &:hover,
-        &.active {
-          color: #3a84ff;
-          border-bottom: 3px solid #3a84ff;
-          transition: color, border-color .3s;
-        }
-      }
-    }
-
-    .collect-link {
-      margin-left: 12px;
-      font-size: 12px;
-      border-radius: 2px;
-      padding: 0 9px;
-      color: #63656e;
-      background: #f0f1f5;
-
-      .icon-position {
-        font-size: 14px;
-        color: #c4c6cc;
+      &:hover {
+        color: #699df4;
       }
     }
   }
+
+  .sub-nav-list {
+    display: flex;
+    margin-left: 35px;
+    font-size: 14px;
+    color: #63656e;
+
+    .sub-nav-item {
+      height: 52px;
+      padding: 0 10px;
+      margin: 0 25px;
+      line-height: 52px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition:
+        color,
+        border-color 0.3s;
+
+      &:hover,
+      &.active {
+        color: #3a84ff;
+        border-bottom: 3px solid #3a84ff;
+        transition:
+          color,
+          border-color 0.3s;
+      }
+    }
+  }
+
+  .collect-link {
+    padding: 0 9px;
+    margin-left: 12px;
+    font-size: 12px;
+    color: #63656e;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    .icon-position {
+      font-size: 14px;
+      color: #c4c6cc;
+    }
+  }
+}
 </style>

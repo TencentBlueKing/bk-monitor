@@ -21,26 +21,42 @@
   -->
 
 <template>
-  <div v-if="statusData && statusData.length" class="list-box-container">
+  <div
+    v-if="statusData && statusData.length"
+    class="list-box-container"
+  >
     <div class="list-title">
       <span class="bk-icon icon-exclamation-circle"></span>
       <h2 class="text">{{ $t('任务状态') }}</h2>
     </div>
     <bk-table :data="statusData">
-      <bk-table-column :label="$t('步骤')" prop="name_display"></bk-table-column>
-      <bk-table-column :label="$t('开始时间')" prop="start_time" width="150"></bk-table-column>
-      <bk-table-column :label="$t('耗时(s)')" width="100">
+      <bk-table-column
+        :label="$t('步骤')"
+        prop="name_display"
+      ></bk-table-column>
+      <bk-table-column
+        :label="$t('开始时间')"
+        prop="start_time"
+        width="150"
+      ></bk-table-column>
+      <bk-table-column
+        :label="$t('耗时(s)')"
+        width="100"
+      >
         <template slot-scope="{ row }">
           <span>
-            {{ row.finish_time ?
-              ((new Date(row.finish_time).getTime() - new Date(row.start_time).getTime()) / 1000) : '--' }}
+            {{
+              row.finish_time ? (new Date(row.finish_time).getTime() - new Date(row.start_time).getTime()) / 1000 : '--'
+            }}
           </span>
         </template>
       </bk-table-column>
-      <bk-table-column :label="$t('执行情况')" prop="state_display">
+      <bk-table-column
+        :label="$t('执行情况')"
+        prop="state_display"
+      >
         <template slot-scope="{ row }">
-          <span
-            :class="['bk-icon', successState.includes(row.state) ? 'icon-check-circle' : 'icon-close-circle']">
+          <span :class="['bk-icon', successState.includes(row.state) ? 'icon-check-circle' : 'icon-close-circle']">
           </span>
           <span>{{ row.state_display }}</span>
         </template>
@@ -56,25 +72,25 @@ export default {
       type: Array,
       default() {
         return [];
-      },
-    },
+      }
+    }
   },
   data() {
     return {
-      successState: ['CREATED', 'RUNNING', 'FINISHED'],
+      successState: ['CREATED', 'RUNNING', 'FINISHED']
     };
-  },
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .list-box-container {
-    .icon-check-circle {
-      color: #2dcb56;
-    }
-
-    .icon-close-circle {
-      color: #ea3636;
-    }
+.list-box-container {
+  .icon-check-circle {
+    color: #2dcb56;
   }
+
+  .icon-close-circle {
+    color: #ea3636;
+  }
+}
 </style>

@@ -413,11 +413,13 @@ export default class AppList extends tsc<{}> {
                 .then(serviceData => {
                   const dataMap = {};
                   serviceData?.forEach(item => {
-                    dataMap[String(item.field)] = item[field];
+                    if (item.service_name) {
+                      dataMap[String(item.service_name)] = item[field];
+                    }
                   });
                   item.tableData.data = item.tableData.data.map(d => ({
                     ...d,
-                    [field]: d[field] || dataMap[String(d.field)] || null
+                    [field]: d[field] || dataMap[String(d.service_name.value || '')] || null
                   }));
                 })
                 .finally(() => {
