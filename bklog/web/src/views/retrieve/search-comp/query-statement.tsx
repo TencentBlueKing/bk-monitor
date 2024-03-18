@@ -25,12 +25,10 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Popover } from 'bk-magic-vue';
 import './query-statement.scss';
 
-interface IProps {}
-
 const searchTypeList = ['Lucene', 'UI'];
 
 @Component
-export default class QueryStatement extends tsc<IProps> {
+export default class QueryStatement extends tsc<{}> {
   @Prop({ type: Array, default: () => [] }) historyRecords;
   @Prop({ type: Boolean, required: true }) isSqlSearchType: boolean;
   @Prop({ type: Boolean, required: true }) isShowUiType: boolean;

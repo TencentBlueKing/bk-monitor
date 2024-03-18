@@ -68,8 +68,9 @@
           :active.sync="activeConfigTab"
           :tab-position="'left'"
         >
-          <template v-for="(panel, index) in configTabPanels">
+          <template>
             <bk-tab-panel
+              v-for="(panel, index) in configTabPanels"
               :key="panel.name"
               :name="panel.name"
               :render-label="e => renderHeader(e, panel, index)"
@@ -686,15 +687,15 @@ export default {
     .fields-config-container {
       .add-fields-config {
         height: 40px;
-        border-right: 1px solid #dcdee5;
         color: #3a84ff;
         cursor: pointer;
+        border-right: 1px solid #dcdee5;
 
         .config-btn {
           width: 100%;
           height: 100%;
-          line-height: 100%;
           padding-left: 24px;
+          line-height: 100%;
           text-align: left;
 
           .bk-icon {
@@ -710,10 +711,10 @@ export default {
       }
 
       .config-tab-item {
+        display: flex;
         width: 100%;
         height: 40px;
         padding: 0 12px 0 4px;
-        display: flex;
         align-items: center;
         justify-content: space-between;
 
@@ -731,14 +732,14 @@ export default {
           max-width: 100px;
           padding-left: 20px;
           overflow: hidden;
-          white-space: nowrap;
           text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .panel-operate {
-          color: #979ba5;
           margin-left: 10px;
           font-size: 14px;
+          color: #979ba5;
           cursor: pointer;
 
           .edit-icon:hover {
@@ -760,12 +761,12 @@ export default {
       }
 
       :deep(.bk-tab-label-item) {
-        text-align: left;
+        padding: 0;
 
         /* stylelint-disable-next-line declaration-no-important */
         line-height: 40px !important;
-        padding: 0;
         color: #63656e;
+        text-align: left;
 
         &:hover {
           background: #f0f1f5;
@@ -773,9 +774,9 @@ export default {
       }
 
       :deep(.bk-tab-header) {
-        padding: 0 0 10px;
-        min-width: 160px;
         width: 100%;
+        min-width: 160px;
+        padding: 0 0 10px;
         // &::after {
         //   display: none;
         // }
@@ -824,12 +825,12 @@ export default {
       .title {
         position: relative;
         display: flex;
-        align-items: center;
         height: 41px;
-        line-height: 40px;
         padding: 0 16px;
-        border-bottom: 1px solid #dcdee5;
+        line-height: 40px;
         color: #313238;
+        border-bottom: 1px solid #dcdee5;
+        align-items: center;
 
         .icon-info-fill {
           margin-left: 8px;
@@ -855,16 +856,16 @@ export default {
 
         .select-item {
           display: flex;
-          align-items: center;
           padding: 0 16px;
-          line-height: 32px;
           font-size: 12px;
+          line-height: 32px;
+          align-items: center;
 
           .icon-drag-dots {
             width: 16px;
-            text-align: left;
             font-size: 14px;
             color: #979ba5;
+            text-align: left;
             cursor: move;
             opacity: 0;
             transition: opacity 0.2s linear;
@@ -888,6 +889,7 @@ export default {
       }
     }
 
+    /* stylelint-disable-next-line no-descending-specificity */
     .total-fields-list .select-list .select-item {
       .field-name {
         width: calc(100% - 24px);
@@ -898,14 +900,14 @@ export default {
 
       .icon-filled-right-arrow {
         width: 24px;
-        text-align: right;
         font-size: 16px;
-        transform: scale(0.5);
-        transform-origin: right center;
         color: #3a84ff;
+        text-align: right;
         cursor: pointer;
         opacity: 0;
+        transform: scale(0.5);
         transition: opacity 0.2s linear;
+        transform-origin: right center;
       }
 
       &:hover .icon-filled-right-arrow {
@@ -914,6 +916,7 @@ export default {
       }
     }
 
+    /* stylelint-disable-next-line no-descending-specificity */
     .visible-fields-list .select-list .select-item {
       .field-name {
         // 16 38
@@ -924,9 +927,9 @@ export default {
       }
 
       .delete {
-        text-align: right;
-        color: #c4c6cc;
         font-size: 16px;
+        color: #c4c6cc;
+        text-align: right;
         cursor: pointer;
       }
     }
@@ -936,14 +939,15 @@ export default {
 
       .sort-list-header {
         display: flex;
-        align-items: center;
         height: 31px;
-        line-height: 30px;
         font-size: 12px;
+        line-height: 30px;
         background: rgba(250, 251, 253, 1);
         border-bottom: 1px solid rgba(221, 228, 235, 1);
+        align-items: center;
       }
 
+      /* stylelint-disable-next-line no-descending-specificity */
       .select-list .select-item {
         .field-name {
           // 16 42 50 38
@@ -966,15 +970,15 @@ export default {
         }
 
         .option {
-          margin: 0 8px;
           width: 50px;
+          margin: 0 8px;
           color: #3a84ff;
         }
 
         .delete {
-          text-align: right;
-          color: #c4c6cc;
           font-size: 16px;
+          color: #c4c6cc;
+          text-align: right;
           cursor: pointer;
         }
       }

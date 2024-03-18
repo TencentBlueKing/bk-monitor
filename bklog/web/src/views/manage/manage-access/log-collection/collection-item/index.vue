@@ -708,11 +708,11 @@ export default {
       return authorityMap;
     },
     scenarioFilters() {
-      const { collector_scenario } = this.globalsData;
+      const { collector_scenario: collectorScenario } = this.globalsData;
       const target = [];
       // eslint-disable-next-line camelcase
-      collector_scenario &&
-        collector_scenario.forEach(data => {
+      collectorScenario &&
+        collectorScenario.forEach(data => {
           if (data.is_active) {
             target.push({
               text: data.name,
@@ -891,11 +891,11 @@ export default {
       clearTimeout(this.timer);
     },
     scenarioFiltersMethod(value, row, column) {
-      const property = column.property;
+      const { property } = column;
       return row[property] === value;
     },
     categoryFiltersMethod(value, row, column) {
-      const property = column.property;
+      const { property } = column;
       return row[property] === value;
     },
     requestData() {
@@ -1141,6 +1141,7 @@ export default {
     overflow-x: auto;
   }
 
+  /* stylelint-disable-next-line no-descending-specificity */
   .operate-column .cell {
     overflow: visible;
   }
@@ -1150,15 +1151,15 @@ export default {
   }
 
   .table-mark {
-    margin-left: 4px;
     display: inline-block;
-    padding: 0 2px;
     height: 17px;
-    line-height: 17px;
-    border-radius: 2px;
+    padding: 0 2px;
+    margin-left: 4px;
     font-size: 10px;
-    background: #979ba5;
+    line-height: 17px;
     color: #fff;
+    background: #979ba5;
+    border-radius: 2px;
   }
 
   .icon-masking {
@@ -1169,9 +1170,9 @@ export default {
     cursor: pointer;
 
     .icon-circle {
+      display: inline-block;
       width: 5px;
       height: 5px;
-      display: inline-block;
       border-radius: 50%;
       transform: translateY(-2px);
 
@@ -1224,10 +1225,10 @@ export default {
 }
 
 .collection-operation-list {
-  margin: 0;
-  min-width: 50px;
-  list-style: none;
   display: flex;
+  min-width: 50px;
+  margin: 0;
+  list-style: none;
   flex-direction: column;
   justify-content: center;
 
@@ -1238,8 +1239,8 @@ export default {
     cursor: pointer;
 
     &:hover {
-      background-color: #eaf3ff;
       color: #3a84ff;
+      background-color: #eaf3ff;
     }
   }
 
@@ -1250,6 +1251,7 @@ export default {
     color: #63656e;
   }
 
+  /* stylelint-disable-next-line no-descending-specificity */
   .text-disabled {
     color: #c4c6cc;
 

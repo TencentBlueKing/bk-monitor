@@ -63,8 +63,12 @@
             <i class="conflict-icon bk-icon icon-exclamation-triangle-shape"></i>
             <div slot="content">
               <p>{{ $t('该字段在以下索引集存在冲突') }}</p>
-              <template v-for="(item, index) in unionConflictFieldsName">
-                <bk-tag :key="index">{{ item }}</bk-tag>
+              <template>
+                <bk-tag
+                  v-for="(item, index) in unionConflictFieldsName"
+                  :key="index"
+                  >{{ item }}</bk-tag
+                >
               </template>
             </div>
           </bk-popover>
@@ -203,11 +207,11 @@ export default {
   }
 
   .icon-drag-dots {
-    padding-left: 4px;
     width: 16px;
-    text-align: left;
+    padding-left: 4px;
     font-size: 14px;
     color: #979ba5;
+    text-align: left;
     cursor: move;
     opacity: 0;
     transition: opacity 0.2s linear;
@@ -224,20 +228,20 @@ export default {
   }
 
   .filed-title {
-    flex: 1;
-    flex-shrink: 0;
     position: relative;
     display: flex;
-    align-items: center;
     height: 26px;
     padding-right: 50px;
-    border-radius: 2px;
     cursor: pointer;
+    border-radius: 2px;
+    flex: 1;
+    flex-shrink: 0;
+    align-items: center;
 
     .bk-icon {
       width: 12px;
-      font-size: 12px;
       margin: 0 5px;
+      font-size: 12px;
       transition: transform 0.3s;
     }
 
@@ -258,8 +262,8 @@ export default {
     }
 
     .conflict-icon {
-      color: #ff9c01;
       font-size: 14px;
+      color: #ff9c01;
     }
 
     .icon-ext {
@@ -268,9 +272,9 @@ export default {
     }
 
     .field-count {
-      text-align: center;
       padding: 0 4px;
       margin-left: 4px;
+      text-align: center;
     }
 
     .operation-text {
@@ -319,9 +323,9 @@ export default {
 
 .conflict-popover {
   p {
+    margin: 0 0 4px 6px;
     font-size: 12px;
     color: #63656e;
-    margin: 0 0 4px 6px;
   }
 }
 </style>

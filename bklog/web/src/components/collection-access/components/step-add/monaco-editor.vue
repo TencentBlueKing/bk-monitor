@@ -436,7 +436,7 @@ export default {
     },
     handleMouseDown(e) {
       const node = e.target;
-      const parentNode = node.parentNode;
+      const { parentNode } = node;
       this.problemHeight = parentNode.offsetHeight;
 
       if (!parentNode) return;
@@ -463,20 +463,20 @@ export default {
 </script>
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .editor-container {
   width: 100%;
 }
 
 .problems {
-  width: 100%;
-  padding: 6px 20px;
   position: absolute;
-  overflow-y: auto;
+  bottom: 0;
   // max-height: 500px;
   z-index: 999;
+  width: 100%;
+  padding: 6px 20px;
+  overflow-y: auto;
   background: #212121;
-  bottom: 0;
 }
 
 .light-problems {
@@ -511,27 +511,27 @@ export default {
 
 .problems-drag {
   position: sticky;
+  left: calc(50% - 13px);
+  z-index: 100;
   width: 26px;
   height: 6px;
   border-radius: 3px;
   transform: translateY(-50%);
-  left: calc(50% - 13px);
-  z-index: 100;
 
   @include flex-center();
 
   &::after {
-    content: ' ';
-    height: 0;
-    width: 100%;
-    border-bottom: 3px dotted #63656e;
     position: absolute;
     left: 2px;
+    width: 100%;
+    height: 0;
+    border-bottom: 3px dotted #63656e;
+    content: ' ';
   }
 
   &:hover {
-    user-select: none;
     cursor: s-resize;
+    user-select: none;
   }
 }
 
@@ -548,12 +548,12 @@ export default {
 }
 
 .editor-title {
+  display: flex;
   width: 100%;
   padding: 14px 18px;
-  display: flex;
   color: #979ba5;
-  justify-content: space-between;
   background: #2e2e2e;
+  justify-content: space-between;
 
   .right-container {
     @include flex-center();

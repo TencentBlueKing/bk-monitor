@@ -84,8 +84,9 @@
           @end="handleVisibleMoveEnd"
         >
           <transition-group>
-            <template v-for="item in visibleFields">
+            <template>
               <field-item
+                v-for="item in visibleFields"
                 v-show="item.filterVisible"
                 :key="item.field_name"
                 type="visible"
@@ -112,8 +113,9 @@
     >
       <div class="title">{{ $t('索引字段') }}</div>
       <ul class="filed-list">
-        <template v-for="item in indexSetFields">
+        <template>
           <field-item
+            v-for="item in indexSetFields"
             v-show="item.filterVisible"
             :key="item.field_name"
             type="hidden"
@@ -133,8 +135,9 @@
     >
       <div class="title">{{ $t('label-内置字段').replace('label-', '') }}</div>
       <ul class="filed-list">
-        <template v-for="item in builtInFields">
+        <template>
           <field-item
+            v-for="item in builtInFields"
             v-show="item.filterVisible"
             :key="item.field_name"
             type="hidden"
@@ -400,8 +403,8 @@ export default {
 <style lang="scss" scoped>
 .field-filter-container {
   font-size: 12px;
-  color: #63656e;
   line-height: 20px;
+  color: #63656e;
 
   .is-selected {
     border-bottom: 1px solid #e1ecff;
@@ -409,20 +412,20 @@ export default {
 
   .form-container {
     display: flex;
-    align-items: center;
-    margin-top: 15px;
     height: 32px;
+    margin-top: 15px;
+    align-items: center;
 
     .king-input {
       width: 100%;
     }
 
     .gap {
-      flex-shrink: 0;
       width: 1px;
       height: 100%;
-      background-color: #f0f1f5;
       margin: 0 16px;
+      background-color: #f0f1f5;
+      flex-shrink: 0;
     }
 
     :deep(.bk-tooltip) {
@@ -431,13 +434,13 @@ export default {
 
     .filter-popover-trigger {
       display: flex;
-      align-items: center;
       height: 32px;
       margin-left: 16px;
+      font-size: 12px;
       line-height: 18px;
       color: #3a84ff;
-      font-size: 12px;
       cursor: pointer;
+      align-items: center;
 
       &:active {
         color: #2761dd;
@@ -452,11 +455,11 @@ export default {
       }
 
       .count {
-        text-align: center;
-        min-width: 18px;
         height: 18px;
-        border-radius: 50%;
+        min-width: 18px;
+        text-align: center;
         background-color: #e1ecff;
+        border-radius: 50%;
       }
     }
   }
@@ -469,11 +472,11 @@ export default {
     }
 
     .all-field-item {
-      color: #63656e;
-      height: 26px;
-      line-height: 26px;
       display: inline-block;
+      height: 26px;
       margin: 0 0 7px 20px;
+      line-height: 26px;
+      color: #63656e;
     }
   }
 }

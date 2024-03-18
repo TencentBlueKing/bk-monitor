@@ -370,12 +370,7 @@ export default class CollectDialog extends tsc<IProps> {
   async handleUpdateFavorite(subData) {
     const { index_set_id, params, name, group_id, display_fields, visible_type, id, is_enable_display_fields } =
       subData;
-    const {
-      ip_chooser,
-      addition,
-      keyword,
-      search_fields
-    } = params;
+    const { ip_chooser, addition, keyword, search_fields } = params;
     const data = {
       name,
       group_id,
@@ -396,7 +391,7 @@ export default class CollectDialog extends tsc<IProps> {
     if (this.isUnionSearch) {
       Object.assign(data, {
         index_set_ids: this.unionIndexList,
-        index_set_type: 'union',
+        index_set_type: 'union'
       });
     }
     const requestStr = this.isCreateFavorite ? 'createFavorite' : 'updateFavorite';
@@ -456,7 +451,7 @@ export default class CollectDialog extends tsc<IProps> {
   render() {
     const indexSetName = () => {
       const { index_set_name: indexSetName, index_set_names: indexSetNames } = this.favoriteData;
-      return !this.isUnionSearch ? indexSetName : (indexSetNames?.map(item => (<Tag>{item}</Tag>)) || '');
+      return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
     };
     return (
       <Dialog

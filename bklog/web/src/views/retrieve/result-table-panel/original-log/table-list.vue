@@ -51,8 +51,9 @@
       </template>
     </bk-table-column>
     <!-- 显示字段 -->
-    <template v-for="(field, index) in getShowTableVisibleFields">
+    <template>
       <bk-table-column
+        v-for="(field, index) in getShowTableVisibleFields"
         :key="field.field_name"
         align="left"
         :sortable="field.es_doc_values && field.tag !== 'union-source'"

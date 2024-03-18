@@ -238,45 +238,43 @@ export default {
 
   .tag-card {
     display: inline-block;
-    font-size: 12px;
-    padding: 0 10px;
     height: 22px;
-    line-height: 22px;
-    margin-left: 6px;
-    cursor: default;
-    border-width: 1px;
-    border-style: solid;
     padding: 0 9px;
+    margin-left: 6px;
+    font-size: 12px;
     line-height: 20px;
+    cursor: default;
+    border-style: solid;
+    border-width: 1px;
 
     &-gray {
-      border-color: #dcdee5;
       color: #63656e;
       background-color: rgba(151, 155, 165, 0.1);
+      border-color: #dcdee5;
     }
 
     &-blue {
-      border-color: #3a84ff;
       color: #3a84ff;
       background-color: rgba(58, 132, 255, 0.1);
+      border-color: #3a84ff;
     }
 
     &-yellow {
+      color: #fe9c00;
       background-color: rgba(254, 156, 0, 0.1);
       border-color: #fe9c00;
-      color: #fe9c00;
     }
 
     &-green {
+      color: #63656e;
       background-color: #f0f1f5;
       border: none;
-      color: #63656e;
     }
 
     &-red {
+      color: #ea3536;
       background-color: rgba(234, 53, 54, 0.1);
       border-color: #ea3536;
-      color: #ea3536;
     }
   }
 
@@ -297,9 +295,9 @@ export default {
     }
 
     .lighten-name {
-      color: #979ba5;
       min-width: 100px;
       margin-left: 4px;
+      color: #979ba5;
 
       @include ellipsis();
     }
@@ -324,6 +322,7 @@ export default {
         }
       }
 
+      /* stylelint-disable-next-line no-descending-specificity */
       .bk-option-group-name {
         margin: 0 10px;
         border: none;

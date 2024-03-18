@@ -651,7 +651,6 @@ export default {
     'Divide results according to dimensions and set fields to dimension results.',
   '修改字段会影响当前聚类结果，请勿随意修改':
     'Modifying fields will affect the current results, feel free to modify them.',
-  '分组模式下，暂不支持添加{n}': 'In group mode, adding {n} is not supported for the time being.',
   大于: 'more than',
   小于: 'less than',
   大于或等于: 'greater than or equal',

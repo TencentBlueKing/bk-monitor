@@ -66,8 +66,9 @@
                 :key="groupItem.id"
                 :group-name="isExpand ? groupItem.name : groupItem.keyword"
               >
-                <template v-for="navItem in getGroupChildren(groupItem.children)">
+                <template>
                   <a
+                    v-for="navItem in getGroupChildren(groupItem.children)"
                     :key="navItem.id"
                     class="nav-item"
                     :href="getRouteHref(navItem.id)"
@@ -350,8 +351,8 @@ export default {
 @import './scss/mixins/scroller.scss';
 
 #app {
-  min-width: 1280px;
   height: 100%;
+  min-width: 1280px;
   min-height: 730px;
   background: #f4f7fa;
 }
@@ -383,24 +384,6 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.button-text {
-  color: #3a84ff;
-  cursor: pointer;
-
-  &:hover {
-    color: #699df4;
-  }
-
-  &:active {
-    color: #2761dd;
-  }
-
-  &.is-disabled {
-    color: #c4c6cc;
-    cursor: not-allowed;
-  }
 }
 
 .log-search-container {
@@ -442,13 +425,13 @@ export default {
   @include clearfix;
 
   .tab-button-item {
-    margin-left: -1px;
     padding: 0 15px;
-    border: 1px solid #c4c6cc;
-    border-left-color: transparent;
+    margin-left: -1px;
     font-size: 0;
     color: #63656e;
     cursor: pointer;
+    border: 1px solid #c4c6cc;
+    border-left-color: transparent;
 
     &:first-child {
       margin-left: 0;
@@ -461,111 +444,19 @@ export default {
     }
 
     &.active {
-      border: 1px solid #3a84ff;
+      z-index: 10;
       color: #3a84ff;
       background: #e1ecff;
-      z-index: 10;
+      border: 1px solid #3a84ff;
     }
   }
 
   .tab-button-text {
     display: inline-block;
     width: 100%;
-    line-height: 32px;
+    overflow: hidden;
     font-size: 12px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-  }
-}
-// hack 组件样式
-.bk-dialog.bk-info-box .bk-dialog-header-inner {
-  /* stylelint-disable-next-line declaration-no-important */
-  white-space: normal !important;
-}
-
-.bk-date-picker-dropdown .bk-picker-confirm-time {
-  color: #3a84ff;
-}
-
-.tippy-tooltip .tippy-content {
-  padding: 0;
-  word-break: break-all;
-}
-
-.bk-form-control.is-error .bk-form-input {
-  border-color: #ff5656;
-}
-// 导航
-.bk-log-navigation.bk-navigation,
-.hack-king-navigation.bk-navigation {
-  /* stylelint-disable-next-line declaration-no-important */
-  width: 100% !important;
-
-  /* stylelint-disable-next-line declaration-no-important */
-  height: 100% !important;
-
-  .container-header {
-    /* stylelint-disable-next-line declaration-no-important */
-    display: none !important;
-  }
-
-  .bk-navigation-wrapper {
-    height: 100%;
-
-    .navigation-container {
-      /* stylelint-disable-next-line declaration-no-important */
-      max-width: calc(100% - 60px) !important;
-      z-index: 100;
-
-      .container-content {
-        /* stylelint-disable-next-line declaration-no-important */
-        height: 100% !important;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        max-height: 100% !important;
-        padding: 0;
-
-        .navigation-content {
-          height: 100%;
-        }
-      }
-    }
-
-    .bk-navigation-menu-group {
-      .group-name-wrap .group-name {
-        margin-right: 0;
-      }
-    }
-
-    .navigation-menu-item-icon.bk-icon {
-      min-width: 28px;
-    }
-
-    .nav-item {
-      width: 100%;
-      display: inline-block;
-    }
-  }
-
-  .nav-slider-list {
-    /* stylelint-disable-next-line declaration-no-important */
-    height: calc(100% - 56px) !important;
-  }
-}
-
-.biz-menu {
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-// 表格单元 v-bk-overflow-tips
-.bk-table .bk-table-body-wrapper .table-ceil-container {
-  width: 100%;
-
-  > span {
-    display: block;
-    overflow: hidden;
+    line-height: 32px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -578,9 +469,14 @@ export default {
 .custom-no-padding-option.bk-option > .bk-option-content {
   padding: 0;
 
+  &.is-selected {
+    color: #3a84ff;
+    background-color: #e1ecff;
+  }
+
   > .option-slot-container {
-    padding: 9px 16px;
     min-height: 32px;
+    padding: 9px 16px;
     line-height: 14px;
 
     &.no-authority {
@@ -619,12 +515,12 @@ export default {
     // position: fixed;
     position: absolute;
     right: 0;
-    font-size: 12px;
     z-index: 999;
+    font-size: 12px;
 
     .icon-info {
-      color: #979ba5;
       font-size: 14px;
+      color: #979ba5;
     }
 
     .search-button {
@@ -635,53 +531,53 @@ export default {
 
     .search-text {
       height: 32px;
+      padding: 0 9px;
       line-height: 32px;
       background: #fff;
-      box-shadow: 0 2px 4px 0 #1919290d;
       border-radius: 2px;
-      padding: 0 9px;
+      box-shadow: 0 2px 4px 0 #1919290d;
     }
   }
 
   .tab-content {
     height: calc(100% - 50px);
-    overflow: auto;
     padding: 20px;
+    overflow: auto;
     background-color: #fff;
-    box-shadow: 0 2px 4px 0 #1919290d;
     border-top: none;
+    box-shadow: 0 2px 4px 0 #1919290d;
 
     @include scroller($backgroundColor: #c4c6cc, $width: 4px);
 
     .main-title {
       display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
+      padding: 0 0 8px 0;
+      margin-bottom: 20px;
       font-size: 14px;
       font-weight: 700;
-      color: #63656e;
       line-height: 20px;
-      padding: 0 0 8px 0;
+      color: #63656e;
       border-bottom: 1px solid #dcdee5;
-      margin-bottom: 20px;
+      align-items: flex-end;
+      justify-content: space-between;
     }
 
     .refresh-button {
       display: flex;
-      align-items: center;
+      margin-left: 8px;
       font-size: 12px;
       font-weight: normal;
       color: #3a84ff;
-      margin-left: 8px;
       cursor: pointer;
+      align-items: center;
 
       &:hover {
         color: #699df4;
       }
 
       .bk-icon {
-        font-size: 13px;
         margin-right: 4px;
+        font-size: 13px;
       }
     }
 
@@ -707,8 +603,8 @@ export default {
           .title {
             font-size: 12px;
             font-weight: bold;
-            color: #63656e;
             line-height: 16px;
+            color: #63656e;
           }
 
           .date-picker {
@@ -743,9 +639,9 @@ export default {
 }
 
 .beta-class {
-  color: #ffa228;
-  margin-left: 2px;
   padding-top: 3px;
+  margin-left: 2px;
+  color: #ffa228;
 }
 
 .bk-dialog-type-header .header {
@@ -757,11 +653,6 @@ export default {
   &:hover {
     color: #63656e;
     background-color: #f5f7fa;
-  }
-
-  &.is-selected {
-    color: #3a84ff;
-    background-color: #e1ecff;
   }
 }
 

@@ -1041,7 +1041,7 @@ export default {
       if (nodeType) {
         ipChooserValue[nodeType] = value[nodeType];
       }
-      const ipChooserIsOpen = this.$refs.searchCompRef.ipChooserIsOpen; // 当前添加条件是否打开状态
+      const { ipChooserIsOpen } = this.$refs.searchCompRef; // 当前添加条件是否打开状态
       this.retrieveParams.ip_chooser = ipChooserIsOpen ? ipChooserValue : {}; // 判断条件开关来 赋值ip的值
       const catchValueStr = JSON.stringify(this.catchIpChooser);
       const chooserValueStr = JSON.stringify(ipChooserValue);
@@ -1959,40 +1959,37 @@ export default {
 @import '../../scss/mixins/scroller.scss';
 
 .retrieve-container {
-  min-width: 1280px;
   height: 100%;
+  min-width: 1280px;
 
   .page-loading-wrap {
     position: absolute;
     top: 0;
+    z-index: 2400;
     width: 100%;
     height: 4px;
-    z-index: 2400;
     overflow: hidden;
     background: pink;
 
     @keyframes animate-loading-bar {
       0% {
         transform: translateX(0);
-        transform: translateX(0);
       }
 
       to {
-        transform: translateX(-50%);
         transform: translateX(-50%);
       }
     }
 
     .page-loading-bar {
+      position: absolute;
       top: 0;
-      left: 0;
       right: 0;
       bottom: 0;
-      position: absolute;
+      left: 0;
       z-index: 10;
-      visibility: visible;
       display: block;
-      animation: animate-loading-bar 2s linear infinite;
+      width: 200%;
       background-color: transparent;
       background-image: linear-gradient(
         to right,
@@ -2005,7 +2002,8 @@ export default {
       );
       background-repeat: repeat-x;
       background-size: 50%;
-      width: 200%;
+      visibility: visible;
+      animation: animate-loading-bar 2s linear infinite;
     }
   }
 
@@ -2023,8 +2021,8 @@ export default {
     .retrieve-condition {
       display: flow-root;
       width: 450px;
-      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
       background: #fff;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
 
       .bk-button-group {
         display: flex;
@@ -2032,22 +2030,19 @@ export default {
         height: 52px;
 
         .bk-button {
-          flex: 1;
           height: 100%;
-          border-top: 0;
           background: #fafbfd;
           border-color: #dcdee5;
+          border-top: 0;
           box-sizing: content-box;
+          flex: 1;
 
           &.is-selected {
+            color: #3a84ff;
             background: #fff;
+            border-color: #dcdee5;
             border-top: none;
             border-bottom: none;
-          }
-
-          &.is-selected {
-            border-color: #dcdee5;
-            color: #3a84ff;
           }
 
           &:hover {
@@ -2094,11 +2089,11 @@ export default {
 
         .tab-header {
           display: flex;
+          padding: 10px 24px 18px;
+          font-size: 16px;
+          color: #313238;
           justify-content: space-between;
           align-items: center;
-          padding: 10px 24px 18px;
-          color: #313238;
-          font-size: 16px;
 
           .tab-title {
             font-size: 14px;
@@ -2117,19 +2112,19 @@ export default {
 
           .icon-angle-double-left-line {
             margin-left: 8px;
-            color: #979ba5;
             font-size: 16px;
+            color: #979ba5;
             cursor: pointer;
           }
         }
 
         .tab-item-title {
           display: flex;
-          align-items: center;
           margin: 16px 0 6px;
-          line-height: 20px;
           font-size: 12px;
+          line-height: 20px;
           color: #63656e;
+          align-items: center;
 
           &.ip-quick-title {
             margin-top: 13px;
@@ -2141,8 +2136,8 @@ export default {
         }
 
         .field-filter-title {
-          margin-bottom: 0;
           padding-top: 18px;
+          margin-bottom: 0;
           font-size: 14px;
           font-weight: 500;
           color: #313238;
@@ -2169,27 +2164,27 @@ export default {
         }
 
         .cut-line {
-          margin: 0 8px 0 4px;
           width: 1px;
           height: 32px;
-          opacity: 1;
+          margin: 0 8px 0 4px;
           background: #eceef5;
+          opacity: 1;
         }
       }
     }
 
     .retrieve-result {
       position: relative;
+      z-index: 1;
       width: calc(100% - 450px);
       height: 100%;
       background: #f5f6fa;
-      z-index: 1;
     }
 
     .drag-bar {
       position: absolute;
-      left: 449px;
       top: 52px;
+      left: 449px;
       width: 1px;
       height: 100%;
       background: #dcdee5;
@@ -2198,10 +2193,10 @@ export default {
         position: absolute;
         top: 50%;
         left: -3px;
+        z-index: 50;
         width: 7px;
         cursor: col-resize;
         transform: translateY(-50%);
-        z-index: 50;
       }
 
       &.dragging {

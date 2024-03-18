@@ -146,8 +146,9 @@
           </div>
         </li>
         <template v-if="showOperator">
-          <template v-for="(item, key) in operatorSelectList">
+          <template>
             <li
+              v-for="(item, key) in operatorSelectList"
               :key="key"
               class="list-item continue-list-item"
               @click="handleClickColon(item.operator)"
@@ -697,8 +698,8 @@ export default {
 
     .refresh-btn,
     .icon-refresh-icon {
-      cursor: pointer;
       color: #3a84ff;
+      cursor: pointer;
     }
   }
 
@@ -707,12 +708,12 @@ export default {
     z-index: 99;
     width: 100%;
     max-height: 360px;
-    overflow: auto;
     margin-top: 4px;
+    overflow: auto;
     background: #fff;
-    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
     border: 1px solid #dcdee5;
     border-radius: 2px;
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
 
     @include scroller(#ccc);
 
@@ -724,9 +725,9 @@ export default {
       background-color: #fff;
 
       .item-type-icon {
+        display: flex;
         width: 32px;
         height: 32px;
-        display: flex;
         justify-content: center;
         align-items: center;
 
@@ -736,23 +737,23 @@ export default {
       }
 
       .item-text {
-        flex: 1;
         min-width: 150px;
         padding: 0 8px;
-        color: #63656e;
         font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+        color: #63656e;
+        flex: 1;
       }
 
       .item-description {
-        flex: 2;
-        color: #979ba5;
         margin-left: 24px;
+        color: #979ba5;
+        flex: 2;
 
         .item-callout {
           padding: 0 4px;
+          font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
           color: #313238;
           background-color: #f4f6fa;
-          font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
         }
       }
 
@@ -793,6 +794,7 @@ export default {
 
     /* 值 icon 样式 */
     .value-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
       .item-type-icon {
         color: #02776e;
         background-color: #e6f2f1;
@@ -809,6 +811,7 @@ export default {
 
     /* AND OR icon 样式 */
     .continue-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
       .item-type-icon {
         color: #7800a6;
         background-color: #f2e6f6;
@@ -825,6 +828,7 @@ export default {
 
     /* : :* icon 样式 */
     .colon-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
       .item-type-icon {
         color: #006bb4;
         background-color: #e6f0f8;
@@ -840,9 +844,9 @@ export default {
     }
 
     .history-title-item.list-item {
-      border-top: 1px solid #dcdee5;
-      background-color: #fff;
       cursor: default;
+      background-color: #fff;
+      border-top: 1px solid #dcdee5;
 
       .item-text {
         color: #979ba5;

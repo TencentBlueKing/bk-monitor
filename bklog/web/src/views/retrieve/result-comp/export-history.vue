@@ -454,7 +454,7 @@ export default {
       return formatDate(new Date(time).getTime());
     },
     handleRetrieve($row) {
-      const spaceUid = this.$store.state.spaceUid;
+      const { spaceUid } = this.$store.state;
       const { log_index_set_id: indexSetID, search_dict: dict } = $row;
       // 检索数据回填
       const queryParamsStr = {};
@@ -593,8 +593,8 @@ export default {
 
 .search-history {
   width: 100%;
-  text-align: right;
   margin: 10px 0 20px 0;
+  text-align: right;
 }
 
 .export-table {
@@ -614,18 +614,18 @@ export default {
 
 .parameter-search {
   max-width: 170px;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .file-name {
+  width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
-  width: 140px;
 }
 
 .status {

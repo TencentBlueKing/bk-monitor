@@ -316,39 +316,6 @@ export default {
         this.isFiledQuery = false;
         this.requestFiledConfig();
       }
-    },
-    /** 请求字段 */
-    async routerAndUnionRequestFields() {
-      if (this.isFiledQuery) return;
-      this.isFiledQuery = true;
-      if (this.isUnionSearch) {
-        try {
-          const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
-          const queryData = {
-            start_time: this.retrieveParams.start_time,
-            end_time: this.retrieveParams.end_time,
-            is_realtime: 'True'
-          };
-          if (this.isUnionSearch) {
-            Object.assign(queryData, {
-              index_set_ids: this.unionIndexList
-            });
-          }
-          return await this.$http.request(urlStr, {
-            params: { index_set_id: this.$route.params.indexId },
-            query: !this.isUnionSearch ? queryData : undefined,
-            data: this.isUnionSearch ? queryData : undefined
-          });
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.requestFiledConfig();
-          this.isFiledQuery = false;
-        }
-      } else {
-        this.isFiledQuery = false;
-        this.requestFiledConfig();
-      }
     }
   }
 };
@@ -368,8 +335,8 @@ export default {
 
     .switch-label {
       margin-right: 2px;
-      color: #63656e;
       font-size: 12px;
+      color: #63656e;
     }
   }
 
@@ -381,16 +348,16 @@ export default {
 
     .operation-icon {
       display: flex;
-      justify-content: center;
-      align-items: center;
       width: 32px;
       height: 32px;
       margin-left: 10px;
       cursor: pointer;
       border: 1px solid #c4c6cc;
-      transition: boder-color 0.2s;
       border-radius: 2px;
       outline: none;
+      transition: boder-color 0.2s;
+      justify-content: center;
+      align-items: center;
 
       &:hover {
         border-color: #979ba5;
@@ -410,14 +377,14 @@ export default {
     }
 
     .disabled-icon {
+      cursor: not-allowed;
       background-color: #fff;
       border-color: #dcdee5;
-      cursor: not-allowed;
 
       &:hover,
       .log-icon {
-        border-color: #dcdee5;
         color: #c4c6cc;
+        border-color: #dcdee5;
       }
     }
   }
@@ -434,15 +401,15 @@ export default {
   }
 
   .field-select {
+    position: relative;
     width: 120px;
     margin-left: 16px;
-    position: relative;
 
     .icon-field-config {
-      width: 18px;
       position: absolute;
       top: 4px;
       left: 4px;
+      width: 18px;
     }
 
     :deep(.bk-select .bk-select-name) {
@@ -457,8 +424,8 @@ export default {
   @include flex-center();
 
   :last-child {
-    color: #63656e;
     margin-left: 4px;
+    color: #63656e;
   }
 
   .icon-close-circle {

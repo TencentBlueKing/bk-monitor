@@ -366,8 +366,8 @@ export default {
 .monitor-echarts-container {
   position: relative;
   height: 160px;
-  background-color: #fff;
   overflow: hidden;
+  background-color: #fff;
 
   &.is-fold {
     height: 60px;
@@ -382,10 +382,10 @@ export default {
     position: absolute;
     top: 17px;
     left: 80px;
-    font-size: 12px;
-    color: #63656e;
     display: inline-block;
     margin-left: 24px;
+    font-size: 12px;
+    color: #63656e;
 
     .select-custom {
       display: inline-block;
@@ -397,13 +397,13 @@ export default {
   .chart-empty {
     position: absolute;
     top: 0;
+    display: flex;
     width: 100%;
     height: 100%;
-    display: flex;
+    background: #fff;
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    background: #fff;
 
     .icon-chart {
       width: 38px;
@@ -412,8 +412,8 @@ export default {
     }
 
     .text {
-      color: #979ba5;
       font-size: 14px;
+      color: #979ba5;
     }
   }
 
@@ -428,10 +428,9 @@ export default {
 
     .chart-wrapper {
       /* stylelint-disable-next-line declaration-no-important */
-      min-height: 116px !important;
-
-      /* stylelint-disable-next-line declaration-no-important */
       max-height: 116px !important;
+      /* stylelint-disable-next-line declaration-no-important */
+      min-height: 116px !important;
     }
   }
 }
