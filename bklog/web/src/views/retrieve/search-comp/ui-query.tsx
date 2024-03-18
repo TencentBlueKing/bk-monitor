@@ -21,21 +21,14 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Prop,
-  Watch,
-} from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Input } from 'bk-magic-vue';
 import { deepClone } from '../../../components/monitor-echarts/utils';
 import './ui-query.scss';
 import $http from '../../../api';
 
-interface IProps {
-}
-
 @Component
-export default class UiQuery extends tsc<IProps> {
+export default class UiQuery extends tsc<{}> {
   @Prop({ type: Object, required: true }) activeFavorite: object;
   @Prop({ type: Boolean, required: true }) isFavoriteSearch: boolean;
   @Prop({ type: String, required: true }) keyword: string;
@@ -59,14 +52,16 @@ export default class UiQuery extends tsc<IProps> {
     this.loading = true;
     try {
       const res = await $http.request('favorite/getSearchFields', {
-        data: { keyword },
+        data: { keyword }
       });
       this.searchFieldsList = res.data
         .filter(item => fieldsList.includes(item.name))
         .map(item => ({
           ...item,
-          name: item.is_full_text_field ? `${window.mainComponent.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}` : item.name,
-          chName: item.name,
+          name: item.is_full_text_field
+            ? `${window.mainComponent.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
+            : item.name,
+          chName: item.name
         }));
       this.cacheFieldsList = deepClone(this.searchFieldsList); // 赋值缓存的展示字段
     } finally {
@@ -75,7 +70,7 @@ export default class UiQuery extends tsc<IProps> {
   }
 
   clearCondition() {
-    this.searchFieldsList.forEach(item => item.value = '');
+    this.searchFieldsList.forEach(item => (item.value = ''));
     this.handleChangeValue();
   }
 
@@ -88,24 +83,26 @@ export default class UiQuery extends tsc<IProps> {
       .filter(item => Boolean(item.value))
       .map(item => ({
         value: item.value,
-        pos: item.pos,
+        pos: item.pos
       }));
-    $http.request('favorite/getGenerateQuery', {
-      data: {
-        keyword: this.isUpdateFavorite ? this.favoriteKeyword : this.keyword,
-        params,
-      },
-    }).then(async (res) => {
-      try {
-        const { data } = await $http.request('favorite/checkKeywords', {
-          data: { keyword: res.data },
-        });
-        this.$emit('updateKeyWords', res.data);
-        this.$emit('isCanSearch', data.is_legal);
-      } catch (error) {
-        this.$emit('isCanSearch', false);
-      }
-    })
+    $http
+      .request('favorite/getGenerateQuery', {
+        data: {
+          keyword: this.isUpdateFavorite ? this.favoriteKeyword : this.keyword,
+          params
+        }
+      })
+      .then(async res => {
+        try {
+          const { data } = await $http.request('favorite/checkKeywords', {
+            data: { keyword: res.data }
+          });
+          this.$emit('updateKeyWords', res.data);
+          this.$emit('isCanSearch', data.is_legal);
+        } catch (error) {
+          this.$emit('isCanSearch', false);
+        }
+      })
       .catch(() => {
         this.$emit('isCanSearch', false);
       })
@@ -116,18 +113,22 @@ export default class UiQuery extends tsc<IProps> {
 
   render() {
     return (
-      <div class="ui-query-container" v-bkloading={{ isLoading: this.loading }}>
-        {
-          this.searchFieldsList.map(item => (
-            <div class="query-item-box">
-              <div class="query-title">
-                <span>{item.name}</span>
-                <span>{item.operator}</span>
-              </div>
-              <Input v-model={item.value} onBlur={this.handleChangeValue}></Input>
+      <div
+        class='ui-query-container'
+        v-bkloading={{ isLoading: this.loading }}
+      >
+        {this.searchFieldsList.map(item => (
+          <div class='query-item-box'>
+            <div class='query-title'>
+              <span>{item.name}</span>
+              <span>{item.operator}</span>
             </div>
-          ))
-        }
+            <Input
+              v-model={item.value}
+              onBlur={this.handleChangeValue}
+            ></Input>
+          </div>
+        ))}
       </div>
     );
   }

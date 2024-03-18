@@ -22,47 +22,66 @@
 
 <template>
   <bk-popover
-    class="bk-select-dropdown"
     ref="selectDropdown"
+    class="bk-select-dropdown"
     trigger="click"
     placement="bottom-start"
     theme="light bk-select-dropdown"
     animation="slide-toggle"
     :offset="-1"
-    :distance="16">
+    :distance="16"
+  >
     <slot name="trigger">
       <bk-input
-        style="width: 669px;"
+        v-model="showValue"
+        style="width: 669px"
         data-test-id="addNewExtraction_input_specifyFolder"
         :class="isError && 'is-error'"
-        v-model="showValue"
-        @change="handleChange">
+        @change="handleChange"
+      >
       </bk-input>
     </slot>
     <div
       slot="content"
       class="bk-select-dropdown-content"
-      style="width: 671px;height: 224px;">
-      <div class="bk-select-search-wrapper" style="height: 32px;">
+      style="width: 671px; height: 224px"
+    >
+      <div
+        class="bk-select-search-wrapper"
+        style="height: 32px"
+      >
         <i class="left-icon bk-icon icon-search"></i>
         <input
+          v-model="searchValue"
           class="bk-select-search-input"
           type="text"
           :placeholder="$t('输入关键字搜索')"
-          v-model="searchValue">
+        />
       </div>
-      <div class="bk-options-wrapper" style="max-height: 190px;">
-        <ul class="bk-options bk-options-single" style="max-height: 190px;">
+      <div
+        class="bk-options-wrapper"
+        style="max-height: 190px"
+      >
+        <ul
+          class="bk-options bk-options-single"
+          style="max-height: 190px"
+        >
           <li
-            class="bk-option"
             v-for="option in filesSearchedPath"
             :key="option"
-            @click="handleSelectOption(option)">
-            <div class="bk-option-content">{{option}}</div>
+            class="bk-option"
+            @click="handleSelectOption(option)"
+          >
+            <div class="bk-option-content">{{ option }}</div>
           </li>
         </ul>
       </div>
-      <div class="bk-select-empty" v-if="!filesSearchedPath.length">{{$t('暂无选项')}}</div>
+      <div
+        v-if="!filesSearchedPath.length"
+        class="bk-select-empty"
+      >
+        {{ $t('暂无选项') }}
+      </div>
     </div>
   </bk-popover>
 </template>
@@ -70,29 +89,29 @@
 <script>
 export default {
   model: {
-    event: 'change',
+    event: 'change'
   },
   props: {
     value: {
       type: String,
-      required: true,
+      required: true
     },
     availablePaths: {
       type: Array,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
       isError: false,
       showValue: '',
-      searchValue: '',
+      searchValue: ''
     };
   },
   computed: {
     filesSearchedPath() {
       return this.availablePaths.filter(item => item.toLowerCase().includes(this.searchValue.toLowerCase()));
-    },
+    }
   },
   watch: {
     availablePaths() {
@@ -100,7 +119,7 @@ export default {
     },
     value(val) {
       this.showValue = val;
-    },
+    }
   },
   methods: {
     handleChange(val) {
@@ -128,7 +147,7 @@ export default {
       const isValidated = isAvailable && !/\.\//.test(val);
       this.isError = !isValidated;
       return isValidated;
-    },
-  },
+    }
+  }
 };
 </script>

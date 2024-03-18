@@ -20,38 +20,40 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-export default  {
+export default {
   name: '', // 图表名称
   series: [
     {
       dimensions: {
-        bk_target_ip: '127.0.0.1',
+        bk_target_ip: '127.0.0.1'
       },
       target: 'MEAN(used)[bk_target_ip: 127.0.0.1]',
-      threshold: { // 阈值
+      threshold: {
+        // 阈值
         value: 100,
-        name: '阈值',
+        name: '阈值'
       },
       unit: '%', // 单位
       datapoints: [
         [622, 1450754160000],
-        [365, 1450754220000],
-      ],
+        [365, 1450754220000]
+      ]
     },
     {
       dimensions: {
-        bk_target_ip: '127.0.0.1',
+        bk_target_ip: '127.0.0.1'
       },
       target: 'MEAN(used)[bk_target_ip: 127.0.0.1]',
-      threshold: { // 阈值
+      threshold: {
+        // 阈值
         value: 100,
-        name: '阈值',
+        name: '阈值'
       },
       unit: '%', // 单位
       datapoints: [
         [622, 1450754160000],
-        [365, 1450754220000],
-      ],
-    },
-  ],
+        [365, 1450754220000]
+      ]
+    }
+  ]
 };

@@ -44,11 +44,11 @@ const list = {
         updated_at: '2019-10-10 11:11:11',
         updated_by: 'user',
         policy_status: 1,
-        policy_status_name: '运行中',
-      },
-    ],
+        policy_status_name: '运行中'
+      }
+    ]
   },
-  result: true,
+  result: true
 };
 
 // 监控创建
@@ -56,7 +56,7 @@ const create = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 监控删除
@@ -64,7 +64,7 @@ const remove = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 监控启动
@@ -72,7 +72,7 @@ const start = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 监控策略-停止
@@ -80,7 +80,7 @@ const stop = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 监控更新
@@ -88,7 +88,7 @@ const updata = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 监控更新
@@ -107,7 +107,7 @@ const particulars = {
       notice_type: ['weixin', 'mail'],
       alarm_begin_time: '2019-01-01 11:11:11',
       alarm_end_time: '2019-01-02 11:11:11',
-      notice_roles: [1, 2, 3],
+      notice_roles: [1, 2, 3]
     },
     monitor_config: {
       config_method: 'gte',
@@ -115,11 +115,11 @@ const particulars = {
       config_range: 5,
       converge_check_window: 6,
       converge_count: 1,
-      converge_alarm_window: 6,
+      converge_alarm_window: 6
     },
-    is_active: false,
+    is_active: false
   },
-  result: true,
+  result: true
 };
 
 // 获取类型
@@ -145,8 +145,8 @@ const type = {
             [8, 8],
             [9, 9],
             [10, 10],
-            [20, 20],
-          ],
+            [20, 20]
+          ]
         },
         converge_count: {
           field_alias: '算法',
@@ -156,8 +156,8 @@ const type = {
             [2, 2],
             [3, 3],
             [4, 4],
-            [5, 5],
-          ],
+            [5, 5]
+          ]
         },
         converge_alarm_window: {
           field_alias: '收敛',
@@ -167,28 +167,26 @@ const type = {
             [1, 1],
             [6, 6],
             [12, 12],
-            [24, 24],
-          ],
+            [24, 24]
+          ]
         },
         model_id: {
           field_alias: '监控模型',
           field_type: 'string',
-          choices: [
-            ['anomaly_detection', '异常检测场景'],
-          ],
-        },
+          choices: [['anomaly_detection', '异常检测场景']]
+        }
       },
       created_at: '2019-10-10 11:11:11',
       created_by: 'user',
       updated_at: '2019-10-10 11:11:11',
-      updated_by: 'user',
+      updated_by: 'user'
     },
     {
       monitor_id: 'aa',
-      monitor_name: 'yuzhi监控',
-    },
+      monitor_name: 'yuzhi监控'
+    }
   ],
-  result: true,
+  result: true
 };
 
 // 获取告警级别
@@ -199,20 +197,20 @@ const levels = {
     {
       id: 1,
       name: '致命',
-      color: '#EA3636',
+      color: '#EA3636'
     },
     {
       id: 2,
       name: '预警',
-      color: '#FF9C01',
+      color: '#FF9C01'
     },
     {
       id: 3,
       name: '提醒',
-      color: '#FFD000',
-    },
+      color: '#FFD000'
+    }
   ],
-  result: true,
+  result: true
 };
 
 // 获取告警记录
@@ -234,11 +232,11 @@ const alarm = {
         created_at: '2019-10-10 11:11:11',
         created_by: 'user',
         updated_at: '2019-10-10 11:11:11',
-        updated_by: 'user',
-      },
-    ],
+        updated_by: 'user'
+      }
+    ]
   },
-  result: true,
+  result: true
 };
 
 // 屏蔽策略列表
@@ -260,11 +258,11 @@ const shields = {
         created_at: '2019-10-10 11:11:11',
         created_by: 'user',
         updated_at: '2019-10-10 11:11:11',
-        updated_by: 'user',
-      },
-    ],
+        updated_by: 'user'
+      }
+    ]
   },
-  result: true,
+  result: true
 };
 
 // 屏蔽类型
@@ -274,22 +272,22 @@ const shieldsType = {
   data: [
     {
       id: 1,
-      name: '单次',
+      name: '单次'
     },
     {
       id: 2,
-      name: '每天',
+      name: '每天'
     },
     {
       id: 3,
-      name: '每周',
+      name: '每周'
     },
     {
       id: 4,
-      name: '每月',
-    },
+      name: '每月'
+    }
   ],
-  result: true,
+  result: true
 };
 
 // 新增屏蔽策略
@@ -297,7 +295,7 @@ const addShields = {
   message: 'success',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 删除屏蔽策略
@@ -305,7 +303,7 @@ const removeShields = {
   message: 'success',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 获取屏蔽策略详情
@@ -323,15 +321,15 @@ const shieldsInfo = {
     policies: [
       {
         policy_id: 1,
-        policy_name: '策略名称',
-      },
+        policy_name: '策略名称'
+      }
     ],
     created_at: '2019-10-10 11:11:11',
     created_by: 'user',
     updated_at: '2019-10-10 11:11:11',
-    updated_by: 'user',
+    updated_by: 'user'
   },
-  result: true,
+  result: true
 };
 
 // 更新屏蔽策略
@@ -339,7 +337,7 @@ const updateShields = {
   message: 'success',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 export default {
@@ -358,5 +356,5 @@ export default {
   addShields,
   removeShields,
   shieldsInfo,
-  updateShields,
+  updateShields
 };

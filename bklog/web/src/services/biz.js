@@ -27,9 +27,7 @@
 // 业务列表
 const list = {
   url: '/bizs/',
-  method: 'get',
+  method: 'get'
 };
 
-export {
-  list,
-};
+export { list };

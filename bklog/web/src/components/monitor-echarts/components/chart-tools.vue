@@ -22,28 +22,42 @@
 
 <template>
   <div class="chart-tools">
-    <i class="icon-monitor icon-mc-mark tools-icon" @click.self="handleCollectChart"></i>
-    <i class="icon-monitor icon-mc-camera tools-icon" @click.self="handleStoreImage"></i>
+    <i
+      class="icon-monitor icon-mc-mark tools-icon"
+      @click.self="handleCollectChart"
+    ></i>
+    <i
+      class="icon-monitor icon-mc-camera tools-icon"
+      @click.self="handleStoreImage"
+    ></i>
     <i
       v-if="needFullScreen"
       class="icon-monitor icon-fullscreen tools-icon"
       :class="[isFullScreen ? 'icon-unfull-screen' : 'icon-fullscreen']"
-      @click.self="handleFullScreen">
+      @click.self="handleFullScreen"
+    >
     </i>
     <i
       v-if="moreList.length"
       style="margin-right: 0"
       class="icon-monitor icon-mc-more tools-icon"
-      @click="handleMoreClick">
+      @click="handleMoreClick"
+    >
     </i>
     <div v-show="false">
-      <ul class="tool-list" ref="moreTools">
-        <template v-for="item in moreToolsList">
+      <ul
+        class="tool-list"
+        ref="moreTools"
+      >
+        <template>
           <li
+            v-for="item in moreToolsList"
             class="tool-list-item"
             v-show="moreList.indexOf(item.id) > -1"
             :key="item.name"
-            @click="handleMoreItemClick(item)">{{!item.checked ? item.name : item.nextName || item.name}}
+            @click="handleMoreItemClick(item)"
+          >
+            {{ !item.checked ? item.name : item.nextName || item.name }}
           </li>
         </template>
       </ul>
@@ -55,38 +69,38 @@
 import { Vue, Component, Prop, Emit } from 'vue-property-decorator';
 import { IMoreToolItem, MoreChartToolItem } from '../options/type-interface';
 @Component({
-  name: 'ChartTools',
+  name: 'ChartTools'
 })
 export default class ChartTools extends Vue {
-  @Prop({ default: false }) needFullScreen: boolean
-  @Prop({ default: false }) isFullScreen: boolean
-  @Prop({ default: () => [] }) moreList: MoreChartToolItem[]
-  moreToolInstance: any = null
-  moreToolsList: IMoreToolItem[] = []
+  @Prop({ default: false }) needFullScreen: boolean;
+  @Prop({ default: false }) isFullScreen: boolean;
+  @Prop({ default: () => [] }) moreList: MoreChartToolItem[];
+  moreToolInstance: any = null;
+  moreToolsList: IMoreToolItem[] = [];
   created() {
     this.moreToolsList = [
       {
         name: '检索',
         checked: false,
-        id: 'explore',
+        id: 'explore'
       },
       {
         name: 'Y轴固定最小值0',
         checked: false,
         id: 'set',
-        nextName: 'Y轴自适应',
+        nextName: 'Y轴自适应'
       },
       {
         name: '添加策略',
         checked: false,
-        id: 'strategy',
+        id: 'strategy'
       },
       {
         name: '面积图',
         checked: false,
         id: 'area',
-        nextName: '线性图',
-      },
+        nextName: '线性图'
+      }
     ];
   }
   beforeDestroy() {
@@ -117,7 +131,7 @@ export default class ChartTools extends Vue {
       offset: '50, -6',
       sticky: true,
       duration: [275, 0],
-      interactive: true,
+      interactive: true
     });
     this.moreToolInstance && this.moreToolInstance.show(100);
   }
@@ -138,44 +152,44 @@ export default class ChartTools extends Vue {
 </script>
 
 <style lang="scss" scoped>
-  .chart-tools {
-    display: flex;
+.chart-tools {
+  display: flex;
 
-    .tools-icon {
-      margin-right: 8px;
+  .tools-icon {
+    margin-right: 8px;
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}
+
+.monitor-chart-theme {
+  z-index: 999;
+  /* stylelint-disable-next-line declaration-no-important */
+  background: white !important;
+
+  .tool-list {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    overflow: auto;
+    background-color: white;
+
+    &-item {
+      flex: 0 0 32px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px 0 15px;
+      color: #63656e;
 
       &:hover {
-        cursor: pointer;
         color: #3a84ff;
+        cursor: pointer;
+        background-color: #eaf3ff;
       }
     }
   }
-
-  .monitor-chart-theme {
-    /* stylelint-disable-next-line declaration-no-important */
-    background: white !important;
-    z-index: 999;
-
-    .tool-list {
-      display: flex;
-      flex-direction: column;
-      padding: 6px 0;
-      overflow: auto;
-      background-color: white;
-
-      &-item {
-        flex: 0 0 32px;
-        display: flex;
-        align-items: center;
-        padding: 0 10px 0 15px;
-        color: #63656e;
-
-        &:hover {
-          cursor: pointer;
-          color: #3a84ff;
-          background-color: #eaf3ff;
-        }
-      }
-    }
-  }
+}
 </style>

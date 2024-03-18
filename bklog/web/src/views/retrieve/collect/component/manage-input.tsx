@@ -39,9 +39,7 @@ export default class ManageInput extends tsc<IProps> {
 
   /** 是否展示失效 */
   isFailFavorite(item) {
-    return item.index_set_type === 'single'
-      ? !item.is_active
-      : !item.is_actives.every(Boolean);
+    return item.index_set_type === 'single' ? !item.is_active : !item.is_actives.every(Boolean);
   }
 
   @Watch('favoriteData.name', { immediate: true })
@@ -71,52 +69,29 @@ export default class ManageInput extends tsc<IProps> {
   }
   render() {
     return (
-      <div class="manage-input" onClick={this.handleClickInput}>
+      <div
+        class='manage-input'
+        onClick={this.handleClickInput}
+      >
         {this.isClick ? (
           <Input
             vModel={this.inputStr}
-            ref="inputRef"
+            ref='inputRef'
             onBlur={this.blurInput}
             maxlength={30}
           ></Input>
         ) : (
-          <div class="collect-box">
-            <span class="collect-name" v-bk-overflow-tips>
+          <div class='collect-box'>
+            <span
+              class='collect-name'
+              v-bk-overflow-tips
+            >
               {this.inputStr}
             </span>
-            {this.isFailFavorite(this.favoriteData) ? (
-              <Popover
-                theme="light"
-                placement="right"
-                ext-cls="favorite-data-source"
-              >
-                <span class="bk-icon log-icon icon-shixiao"></span>
-                <div slot="content">
-                  {this.isMultiIndex(this.favoriteData) ? (
-                    <ul>
-                      {this.favoriteData.index_set_names.map(
-                        (setItem, setIndex) => (
-                          <li
-                            class={{
-                              'index-fail':
-                                !this.favoriteData.is_actives[setIndex],
-                            }}
-                          >
-                            <span>
-                              <span>{setItem}</span>
-                              {!this.favoriteData.is_actives[setIndex] ? (
-                                <span>({this.$t('已失效')})</span>
-                              ) : undefined}
-                            </span>
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  ) : (
-                    <p>{this.$t('数据源不存在')}</p>
-                  )}
-                </div>
-              </Popover>
+            {!this.favoriteData.is_active ? (
+              <span v-bk-tooltips={{ content: this.$t('数据源不存在'), placement: 'right' }}>
+                <span class='bk-icon log-icon icon-shixiao'></span>
+              </span>
             ) : undefined}
           </div>
         )}

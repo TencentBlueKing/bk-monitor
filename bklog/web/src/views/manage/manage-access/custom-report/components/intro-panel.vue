@@ -23,12 +23,21 @@
 <template>
   <div class="intro-panel">
     <div :class="`right-window ${isOpenWindow ? 'window-active' : ''}`">
-      <div class="create-btn details" @click="handleActiveDetails(null)">
-        <span class="bk-icon icon-text-file" :style="`color:${isOpenWindow ? '#3A84FF;' : ''}`"></span>
+      <div
+        class="create-btn details"
+        @click="handleActiveDetails(null)"
+      >
+        <span
+          class="bk-icon icon-text-file"
+          :style="`color:${isOpenWindow ? '#3A84FF;' : ''}`"
+        ></span>
       </div>
       <div class="top-title">
-        <p> {{$t('帮助文档')}}</p>
-        <div class="create-btn close" @click="handleActiveDetails(false)">
+        <p>{{ $t('帮助文档') }}</p>
+        <div
+          class="create-btn close"
+          @click="handleActiveDetails(false)"
+        >
           <span class="bk-icon icon-minus-line"></span>
         </div>
       </div>
@@ -47,20 +56,19 @@ export default {
   props: {
     data: {
       type: Object,
-      required: true,
+      required: true
     },
     isOpenWindow: {
       type: Boolean,
-      default: true,
-    },
+      default: true
+    }
   },
   data() {
-    return {
-    };
+    return {};
   },
   computed: {
     ...mapGetters({
-      globalsData: 'globals/globalsData',
+      globalsData: 'globals/globalsData'
     }),
     dataTypeList() {
       const { databus_custom: databusCustom } = this.globalsData;
@@ -69,129 +77,130 @@ export default {
     customTypeIntro() {
       const curType = this.dataTypeList.find(type => type.id === this.data.custom_type);
       return curType ? this.replaceVaribles(curType.introduction) : '';
-    },
+    }
   },
   methods: {
     replaceVaribles(intro) {
       let str = intro;
       const varibleList = intro.match(/\{\{([^)]*)\}\}/g);
-      varibleList && varibleList.forEach((item) => {
-        const val = item.match(/\{\{([^)]*)\}\}/)[1];
-        str = this.data[val] ? str.replace(item, this.data[val]) : str;
-      });
+      varibleList &&
+        varibleList.forEach(item => {
+          const val = item.match(/\{\{([^)]*)\}\}/)[1];
+          str = this.data[val] ? str.replace(item, this.data[val]) : str;
+        });
 
       return str;
     },
     handleActiveDetails(state) {
       this.$emit('handleActiveDetails', state ? state : !this.isOpenWindow);
       this.$store.commit('updateChartSize');
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/flex';
-  @import '@/scss/mixins/scroller';
+@import '@/scss/mixins/flex';
+@import '@/scss/mixins/scroller';
 
-  .intro-panel {
+.intro-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+
+  .right-window {
+    position: absolute;
+    z-index: 99;
     width: 100%;
     height: 100%;
-    position: relative;
+    padding: 16px 0 0 24px;
+    color: #63656e;
+    background: #fff;
+    border: 1px solid #dcdee5;
 
-    .right-window {
-      width: 100%;
-      height: 100%;
-      background: #fff;
-      border: 1px solid #dcdee5;
-      position: absolute;
-      z-index: 99;
-      color: #63656e;
-      padding: 16px 0 0 24px;
+    .html-container {
+      max-height: calc(100vh - 200px);
+      padding-right: 24px;
+      overflow-y: auto;
+    }
 
-      .html-container {
-        max-height: calc(100vh - 200px);
-        overflow-y: auto;
-        padding-right: 24px;
-      }
+    .top-title {
+      height: 48px;
+    }
 
-      .top-title {
-        height: 48px;
-      }
+    &.window-active {
+      right: 0;
+    }
 
-      &.window-active {
-        right: 0;
-      }
+    h1 {
+      margin: 26px 0 10px;
+      font-size: 12px;
+      font-weight: 700;
 
-      h1 {
-        font-size: 12px;
-        font-weight: 700;
-        margin: 26px 0 10px;
-
-        &:first-child {
-          margin-top: 0;
-        }
-      }
-
-      ul {
-        margin-left: 10px;
-
-        li {
-          margin-top: 8px;
-          list-style: inside;
-          font-size: 12px;
-        }
-      }
-
-      p {
-        font-size: 12px;
-      }
-
-      pre {
-        margin: 0;
-        margin-top: 6px;
-        padding: 10px 14px;
-        background: #f4f4f7;
-        overflow-x: auto;
-
-        @include scroller;
-      }
-
-      a {
-        display: inline-block;
-        margin: 10px 0;
-        color: #3a84ff;
+      &:first-child {
+        margin-top: 0;
       }
     }
 
-    .create-btn {
-      width: 24px;
-      height: 24px;
-      position: absolute;
-      z-index: 999;
+    ul {
+      margin-left: 10px;
 
-      @include flex-center;
-
-      &.details {
-        top: 64px;
-        right: 16px;
-        position: fixed;
-        transform: rotateZ(360deg) rotateX(180deg);
-
-        @include flex-center;
+      li {
+        margin-top: 8px;
+        font-size: 12px;
+        list-style: inside;
       }
+    }
 
-      &.close {
-        top: 10px;
-        right: 16px;
-      }
+    p {
+      font-size: 12px;
+    }
 
-      &:hover {
-        cursor: pointer;
-        background: #f0f1f5;
-        color: #3a84ff;
-        border-radius: 2px;
-      }
+    pre {
+      padding: 10px 14px;
+      margin: 0;
+      margin-top: 6px;
+      overflow-x: auto;
+      background: #f4f4f7;
+
+      @include scroller;
+    }
+
+    a {
+      display: inline-block;
+      margin: 10px 0;
+      color: #3a84ff;
     }
   }
+
+  .create-btn {
+    position: absolute;
+    z-index: 999;
+    width: 24px;
+    height: 24px;
+
+    @include flex-center;
+
+    &.details {
+      position: fixed;
+      top: 64px;
+      right: 16px;
+      transform: rotateZ(360deg) rotateX(180deg);
+
+      @include flex-center;
+    }
+
+    &.close {
+      top: 10px;
+      right: 16px;
+    }
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      background: #f0f1f5;
+      border-radius: 2px;
+    }
+  }
+}
 </style>

@@ -23,7 +23,7 @@
 const DEFAULT_OPTIONS = {
   active: true,
   offset: [15, 0],
-  cls: 'cursor-element',
+  cls: 'cursor-element'
 };
 
 function init(el, binding) {
@@ -76,5 +76,5 @@ export default {
   },
   unbind(el) {
     destroy(el);
-  },
+  }
 };

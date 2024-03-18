@@ -28,23 +28,33 @@
       :class="[
         'list-item',
         {
-          'is-select': item.space_uid === spaceUid,
-        },
+          'is-select': item.space_uid === spaceUid
+        }
       ]"
       @mousedown="handleProjectChange(item)"
     >
       <span class="list-item-left">
-        <span class="list-item-name" v-bk-overflow-tips>{{ item.space_name }}</span>
-        <span :class="`list-item-id ${theme}-item-code`" v-bk-overflow-tips>
+        <span
+          v-bk-overflow-tips
+          class="list-item-name"
+          >{{ item.space_name }}</span
+        >
+        <span
+          v-bk-overflow-tips
+          :class="`list-item-id ${theme}-item-code`"
+        >
           <!-- ({{ item.space_type_id === eTagsType.biz ? `#${item.id}` : (item.space_id || item.space_code)}}) -->
           ({{ `#${item.space_id || item.space_code}` }})
         </span>
       </span>
-      <span class="list-item-right" v-if="showTag">
+      <span
+        v-if="showTag"
+        class="list-item-right"
+      >
         <span
-          v-for="(tag) in item.tags"
-          class="list-item-tag"
+          v-for="tag in item.tags"
           :key="tag.id"
+          class="list-item-tag"
           :style="{
             ...spaceTypeMap[tag.id][theme]
           }"
@@ -67,28 +77,26 @@ export default {
   props: {
     spaceList: {
       type: Array,
-      require: true,
+      require: true
     },
     theme: {
       type: String,
-      default: 'dark',
-    },
+      default: 'dark'
+    }
   },
   data() {
     return {
       eTagsType: {
-        biz: 'bkcc', /** 业务 */
-        paas: 'paas', /** 蓝鲸应用 */
-        container: 'bcs', /** 蓝鲸容器平台 */
-        research: 'bkci', /** 研发项目 */
-        monitor: 'monitor', /** 监控空间 */
-      },
+        biz: 'bkcc', // 业务,
+        paas: 'paas', // 蓝鲸应用
+        container: 'bcs', // 蓝鲸容器平台
+        research: 'bkci', // 研发项目
+        monitor: 'monitor' // 监控空间
+      }
     };
   },
   computed: {
-    ...mapState([
-      'isExternal',
-    ]),
+    ...mapState(['isExternal']),
     authorityMap() {
       return authorityMap;
     },
@@ -97,7 +105,7 @@ export default {
     },
     showTag() {
       return !this.isExternal;
-    },
+    }
   },
   watch: {},
   mounted() {},
@@ -105,19 +113,19 @@ export default {
     handleProjectChange(space) {
       if (!(space.permission && space.permission[authorityMap.VIEW_BUSINESS])) return;
       this.$emit('click-menu-item', space);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped lang="scss">
-  @import '@/scss/space-tag-option';
+@import '@/scss/space-tag-option';
 
-  .light-item-code {
-    color: #c4c6cc;
-  }
+.light-item-code {
+  color: #c4c6cc;
+}
 
-  .dark-item-code {
-    color: #66768e;
-  }
+.dark-item-code {
+  color: #66768e;
+}
 </style>

@@ -28,15 +28,16 @@ import reportLogStore from '@/store/modules/report-log';
 export default {
   data() {
     return {
-      routeMap: { // 后端返回的导航id映射
+      routeMap: {
+        // 后端返回的导航id映射
         search: 'retrieve',
         manage_access: 'manage',
         manage_index_set: 'indexSet',
         manage_data_link: 'linkConfiguration',
         manage_user_group: 'permissionGroup',
         manage_migrate: 'migrate',
-        manage_extract: 'manageExtract',
-      },
+        manage_extract: 'manageExtract'
+      }
     };
   },
   computed: {
@@ -48,8 +49,8 @@ export default {
       bkBizId: state => state.bkBizId,
       mySpaceList: state => state.mySpaceList,
       isExternal: state => state.isExternal,
-      externalMenu: state => state.externalMenu,
-    }),
+      externalMenu: state => state.externalMenu
+    })
   },
   watch: {
     '$route.query'(val) {
@@ -58,7 +59,7 @@ export default {
         this.$store.commit('updateAsIframe', queryObj.from);
         this.$store.commit('updateIframeQuery', queryObj);
       }
-    },
+    }
   },
   methods: {
     async requestMySpaceList() {
@@ -72,7 +73,7 @@ export default {
 
         const spaceList = res.data;
 
-        spaceList.forEach((item) => {
+        spaceList.forEach(item => {
           item.bk_biz_id = `${item.bk_biz_id}`;
           item.space_uid = `${item.space_uid}`;
           item.space_full_code_name = `${item.space_name}(#${item.space_code})`;
@@ -83,10 +84,11 @@ export default {
         const demoProjectUrl = demoProject ? this.getDemoProjectUrl(demoProject.space_uid) : '';
         this.$store.commit('setDemoUid', demoProject ? demoProject.space_uid : '');
         const isOnlyDemo = demoProject && spaceList.length === 1;
-        if (!spaceList.length || isOnlyDemo) { // 没有一个业务或只有一个demo业务显示欢迎页面
+        if (!spaceList.length || isOnlyDemo) {
+          // 没有一个业务或只有一个demo业务显示欢迎页面
           const args = {
             newBusiness: { url: window.BIZ_ACCESS_URL },
-            getAccess: {},
+            getAccess: {}
           };
           if (isOnlyDemo) {
             this.$store.commit('updateMySpaceList', spaceList);
@@ -95,31 +97,33 @@ export default {
               return this.checkSpaceChange(demoProject.space_uid);
             }
             args.demoBusiness = {
-              url: demoProjectUrl,
+              url: demoProjectUrl
             };
           }
-          if (spaceUid || bizId) { // 查询参数带非 demo 业务 id，获取业务名和权限链接
+          if (spaceUid || bizId) {
+            // 查询参数带非 demo 业务 id，获取业务名和权限链接
             const query = spaceUid ? { space_uid: spaceUid } : { bk_biz_id: bizId };
             const [betaRes, authRes] = await Promise.all([
               this.$http.request('/meta/getMaintainerApi', { query }),
               this.$store.dispatch('getApplyData', {
                 action_ids: [authorityMap.VIEW_BUSINESS],
-                resources: [], // todo 需要将 url query 改成 bizId
-              }),
+                resources: [] // todo 需要将 url query 改成 bizId
+              })
             ]);
             args.getAccess.businessName = betaRes.data.bk_biz_name;
             args.getAccess.url = authRes.data.apply_url;
           } else {
             const authRes = await this.$store.dispatch('getApplyData', {
               action_ids: [authorityMap.VIEW_BUSINESS],
-              resources: [],
+              resources: []
             });
             args.getAccess.url = authRes.data.apply_url;
           }
           this.$store.commit('setPageLoading', false);
           this.checkSpaceChange();
           this.$emit('welcome', args);
-        } else { // 正常业务
+        } else {
+          // 正常业务
           this.$store.commit('updateMySpaceList', spaceList);
           // 首先从查询参数找，然后从storage里面找，还找不到就返回第一个不是demo的业务
           // eslint-disable-next-line max-len
@@ -155,7 +159,7 @@ export default {
           },
           cancelFn: () => {
             this.$store.commit('updateRouterLeaveTip', false);
-          },
+          }
         });
         return;
       }
@@ -186,7 +190,7 @@ export default {
         const { name, meta } = this.$route;
         reportLogStore.reportRouteLog({
           route_id: name,
-          nav_id: meta.navId,
+          nav_id: meta.navId
         });
       }
     },
@@ -197,15 +201,17 @@ export default {
         // 有权限 不显示无业务权限的页面
         this.$store.commit('globals/updateAuthContainerInfo', null);
         return;
-      };
+      }
       try {
         this.$store.commit('updateSpace', space.space_uid);
         const res = await this.$store.dispatch('getApplyData', {
           action_ids: [authorityMap.VIEW_BUSINESS],
-          resources: [{
-            type: 'space',
-            id: space.space_uid,
-          }],
+          resources: [
+            {
+              type: 'space',
+              id: space.space_uid
+            }
+          ]
         });
         this.$store.commit('globals/updateAuthContainerInfo', res.data);
       } catch (err) {
@@ -216,7 +222,7 @@ export default {
     updateExternalMenuBySpace(spaceUid) {
       const list = [];
       const curSpace = (this.mySpaceList || []).find(item => item.space_uid === spaceUid);
-      (curSpace.external_permission || []).forEach((permission) => {
+      (curSpace.external_permission || []).forEach(permission => {
         if (permission === 'log_search') {
           list.push('retrieve');
         } else if (permission === 'log_extract') {
@@ -233,7 +239,7 @@ export default {
         const res = await this.$store.dispatch('getMenuList', spaceUid);
         const menuList = this.replaceMenuId(res.data || []);
 
-        menuList.forEach((child) => {
+        menuList.forEach(child => {
           child.id = this.routeMap[child.id] || child.id;
           const menu = menuArr.find(menuItem => menuItem.id === child.id);
           if (menu) {
@@ -245,76 +251,83 @@ export default {
 
         const manageGroupNavList = menuList.find(item => item.id === 'manage')?.children || [];
         const manageNavList = [];
-        manageGroupNavList.forEach((group) => {
+        manageGroupNavList.forEach(group => {
           manageNavList.push(...group.children);
         });
         const logCollectionNav = manageNavList.find(nav => nav.id === 'log-collection');
 
         if (logCollectionNav) {
           // 增加日志采集导航子菜单
-          logCollectionNav.children = [{
-            id: 'collection-item',
-            name: this.$t('采集项'),
-            project_manage: logCollectionNav.project_manage,
-          }, {
-            id: 'log-index-set',
-            name: this.$t('索引集'),
-            project_manage: logCollectionNav.project_manage,
-          }];
+          logCollectionNav.children = [
+            {
+              id: 'collection-item',
+              name: this.$t('采集项'),
+              project_manage: logCollectionNav.project_manage
+            },
+            {
+              id: 'log-index-set',
+              name: this.$t('索引集'),
+              project_manage: logCollectionNav.project_manage
+            }
+          ];
         }
 
-        this.$watch('$route.name', () => {
-          const matchedList = this.$route.matched;
-          const activeTopMenu = menuList.find((item) => {
-            return matchedList.some(record => record.name === item.id);
-          }) || {};
-          this.$store.commit('updateActiveTopMenu', activeTopMenu);
+        this.$watch(
+          '$route.name',
+          () => {
+            const matchedList = this.$route.matched;
+            const activeTopMenu =
+              menuList.find(item => {
+                return matchedList.some(record => record.name === item.id);
+              }) || {};
+            this.$store.commit('updateActiveTopMenu', activeTopMenu);
 
-          const topMenuList =  activeTopMenu.children?.length ? activeTopMenu.children : [];
-          const topMenuChildren = topMenuList.reduce((pre, cur) => {
-            if (cur.children?.length) {
-              pre.push(...cur.children);
-            }
-            return pre;
-          }, []);
-          const activeManageNav = topMenuChildren.find((item) => {
-            return matchedList.some(record => record.name === item.id);
-          }) || {};
-          this.$store.commit('updateActiveManageNav', activeManageNav);
+            const topMenuList = activeTopMenu.children?.length ? activeTopMenu.children : [];
+            const topMenuChildren = topMenuList.reduce((pre, cur) => {
+              if (cur.children?.length) {
+                pre.push(...cur.children);
+              }
+              return pre;
+            }, []);
+            const activeManageNav =
+              topMenuChildren.find(item => {
+                return matchedList.some(record => record.name === item.id);
+              }) || {};
+            this.$store.commit('updateActiveManageNav', activeManageNav);
 
-          const activeManageSubNav = activeManageNav.children
-            ? activeManageNav.children.find((item) => {
-              return matchedList.some(record => record.name === item.id);
-            }) : {};
-          this.$store.commit('updateActiveManageSubNav', activeManageSubNav);
-          // // 动态更新title
-          // let headTitle = '';
-          // if (activeTopMenu.id === 'manage') {
-          //   headTitle = activeManageNav.name;
-          // } else if (activeTopMenu.id === 'retrieve') {
-          //   headTitle = this.$t('日志检索');
-          // } else {
-          //   headTitle = activeTopMenu.name;
-          // }
-          // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('腾讯蓝鲸智云')}`;
-        }, {
-          immediate: true,
-        });
+            const activeManageSubNav = activeManageNav.children
+              ? activeManageNav.children.find(item => {
+                  return matchedList.some(record => record.name === item.id);
+                })
+              : {};
+            this.$store.commit('updateActiveManageSubNav', activeManageSubNav);
+            // // 动态更新title
+            // let headTitle = '';
+            // if (activeTopMenu.id === 'manage') {
+            //   headTitle = activeManageNav.name;
+            // } else if (activeTopMenu.id === 'retrieve') {
+            //   headTitle = this.$t('日志检索');
+            // } else {
+            //   headTitle = activeTopMenu.name;
+            // }
+            // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('腾讯蓝鲸智云')}`;
+          },
+          {
+            immediate: true
+          }
+        );
 
         return menuList;
       } catch (e) {
         console.warn(e);
       } finally {
-        if (this.isExternal
-          && this.$route.name === 'retrieve'
-          && !this.externalMenu.includes('retrieve')
-        ) {
+        if (this.isExternal && this.$route.name === 'retrieve' && !this.externalMenu.includes('retrieve')) {
           // 当前在检索页 如果该空间没有日志检索授权 则跳转管理页
           this.$router.push({ name: 'extract-home' });
         } else if (
-          this.isExternal
-           && ['extract-home', 'extract-create', 'extract-clone'].includes(this.$route.name)
-           && !this.externalMenu.includes('manage')
+          this.isExternal &&
+          ['extract-home', 'extract-create', 'extract-clone'].includes(this.$route.name) &&
+          !this.externalMenu.includes('manage')
         ) {
           // 当前在管理页 如果该空间没有日志提取授权 则跳转检索页
           this.$router.push({ name: 'retrieve' });
@@ -324,7 +337,7 @@ export default {
           const RoutingHop = meta.needBack && !this.isFirstLoad ? meta.backName : name ? name : 'retrieve';
           const newQuery = {
             ...query,
-            spaceUid,
+            spaceUid
           };
           if (query.bizId) {
             newQuery.spaceUid = spaceUid;
@@ -335,9 +348,9 @@ export default {
           this.$router.push({
             name: RoutingHop,
             params: {
-              ...params,
+              ...params
             },
-            query: newQuery,
+            query: newQuery
           });
         }
         setTimeout(() => {
@@ -347,7 +360,8 @@ export default {
         }, 0);
       }
     },
-    deepUpdateMenu(oldMenu, resMenu) { // resMenu结果返回的menu子级
+    deepUpdateMenu(oldMenu, resMenu) {
+      // resMenu结果返回的menu子级
       resMenu.name = oldMenu.name;
       resMenu.dropDown = oldMenu.dropDown;
       resMenu.dropDown = oldMenu.dropDown;
@@ -355,7 +369,7 @@ export default {
       resMenu.isDashboard = oldMenu.isDashboard;
       if (resMenu.children) {
         if (oldMenu.children) {
-          resMenu.children.forEach((item) => {
+          resMenu.children.forEach(item => {
             item.id = this.routeMap[item.id] || item.id;
             const menu = oldMenu.children.find(menuItem => menuItem.id === item.id);
             if (menu) {
@@ -370,7 +384,7 @@ export default {
       }
     },
     replaceMenuId(list) {
-      list.forEach((item) => {
+      list.forEach(item => {
         if (item.id === 'search') {
           item.id = 'retrieve';
         }
@@ -380,6 +394,6 @@ export default {
         }
       });
       return list;
-    },
-  },
+    }
+  }
 };

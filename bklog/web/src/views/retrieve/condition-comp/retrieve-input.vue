@@ -21,15 +21,18 @@
   -->
 
 <template>
-  <div class="retrieve-input" v-bk-clickoutside="hiddenHistory">
+  <div
+    v-bk-clickoutside="hiddenHistory"
+    class="retrieve-input"
+  >
     <bk-input
       class="king-input-retrieve"
       :value="value"
       type="text"
+      data-test-id="frontPageSearch_input_phrasesSearch"
       @change="handleChange"
       @focus="handleFocus"
       @enter="handleEnter"
-      data-test-id="frontPageSearch_input_phrasesSearch"
     ></bk-input>
     <!-- 首页搜索ICON -->
     <span
@@ -39,14 +42,19 @@
     ></span>
     <!-- 历史搜索记录 -->
     <ul
-      class="retrieve-history"
       v-show="showHistory && historyList.length"
-      @click.stop>
-      <li v-for="item in historyList" :key="item.id">
+      class="retrieve-history"
+      @click.stop
+    >
+      <li
+        v-for="item in historyList"
+        :key="item.id"
+      >
         <span
           v-bk-overflow-tips="{ placement: 'right' }"
           class="text text-overflow-hidden"
-          @click="retrieveHistory(item)">
+          @click="retrieveHistory(item)"
+        >
           {{ item.query_string.slice(8) }}
         </span>
       </li>
@@ -57,25 +65,25 @@
 <script>
 export default {
   model: {
-    event: 'change',
+    event: 'change'
   },
   props: {
     value: {
       type: String,
-      required: true,
+      required: true
     },
     showHistory: {
       type: Boolean,
-      required: true,
+      required: true
     },
     historyList: {
       type: Array,
-      required: true,
+      required: true
     },
     isSearchAllowed: {
       type: Boolean,
-      default: null,
-    },
+      default: null
+    }
   },
   methods: {
     hiddenHistory() {
@@ -92,75 +100,79 @@ export default {
     },
     retrieveHistory(item) {
       this.$emit('retrieve', item.params);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/scroller';
 
-  .retrieve-input {
-    position: relative;
-    margin-top: 18px;
+.retrieve-input {
+  position: relative;
+  margin-top: 18px;
 
-    .king-input-retrieve {
-      :deep(.bk-form-input) {
-        height: 48px;
-        border-color: #fff;
-      }
+  .king-input-retrieve {
+    :deep(.bk-form-input) {
+      height: 48px;
+      border-color: #fff;
     }
+  }
 
-    .icon-search {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      z-index: 1;
-      color: #979ba5;
-      cursor: pointer;
-      font-size: 20px;
+  .icon-search {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 1;
+    font-size: 20px;
+    color: #979ba5;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .retrieve-history {
+    position: absolute;
+    z-index: 1;
+    width: 100%;
+    max-height: 268px;
+    padding: 6px 0;
+    margin-top: 4px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
+
+    @include scroller(#ccc);
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #63656e;
+      transition:
+        color,
+        background 0.2s;
+
+      .text {
+        flex-grow: 1;
+      }
 
       &:hover {
         color: #3a84ff;
-      }
-    }
-
-    .retrieve-history {
-      position: absolute;
-      z-index: 1;
-      width: 100%;
-      max-height: 268px;
-      overflow: auto;
-      margin-top: 4px;
-      padding: 6px 0;
-      background: #fff;
-      box-shadow: 0 2px 6px 0 rgba(0, 0, 0, .1);
-      border-radius: 2px;
-      border: 1px solid #dcdee5;
-
-      @include scroller(#CCC);
-
-      li {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 10px;
-        font-size: 12px;
-        line-height: 32px;
-        color: #63656e;
-        transition: color, background .2s;
-
-        .text {
-          flex-grow: 1;
-        }
-
-        &:hover {
-          cursor: pointer;
-          color: #3a84ff;
-          background: #eaf3ff;
-          transition: color, background .2s;
-        }
+        cursor: pointer;
+        background: #eaf3ff;
+        transition:
+          color,
+          background 0.2s;
       }
     }
   }
+}
 </style>

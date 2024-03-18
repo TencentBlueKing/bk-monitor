@@ -21,25 +21,27 @@
   -->
 
 <template>
-  <div class="log-extract-container" v-bkloading="{ isLoading }">
+  <div
+    v-bkloading="{ isLoading }"
+    class="log-extract-container"
+  >
     <router-view></router-view>
   </div>
 </template>
 
 <script>
-
 export default {
   name: 'Extract',
   data() {
     return {
       isRender: true,
-      isLoading: false,
+      isLoading: false
     };
   },
   computed: {
     bkBizId() {
       return this.$store.state.bkBizId;
-    },
+    }
   },
   watch: {
     // 切换业务销毁实例
@@ -52,68 +54,68 @@ export default {
           this.isLoading = false;
         }
       }, 400);
-    },
+    }
   },
   methods: {
     backHome() {
       this.$router.push({
         name: 'extract',
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
     },
     handleLoading(bool) {
       this.isLoading = bool;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../scss/mixins/scroller';
+@import '../../scss/mixins/scroller';
 
-  .log-extract-container {
-    padding: 0 24px 20px;
-    color: #313238;
-    font-size: 14px;
+.log-extract-container {
+  padding: 0 24px 20px;
+  font-size: 14px;
+  color: #313238;
 
-    .top-title-container {
-      height: 60px;
-      padding: 20px 0;
-      margin: 0 60px;
-      border-bottom: 1px solid #dde4eb;
+  .top-title-container {
+    height: 60px;
+    padding: 20px 0;
+    margin: 0 60px;
+    border-bottom: 1px solid #dde4eb;
 
-      .top-title {
-        display: flex;
-        align-items: center;
-        margin: 0;
-        padding-left: 10px;
-        border-left: 2px solid #a3c5fd;
-        line-height: 20px;
-        font-size: 14px;
-        font-weight: bold;
+    .top-title {
+      display: flex;
+      padding-left: 10px;
+      margin: 0;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 20px;
+      border-left: 2px solid #a3c5fd;
+      align-items: center;
 
-        .icon-arrows-left-shape {
-          color: #979ba5;
-          cursor: pointer;
-          padding: 2px 8px 2px 2px;
-          transition: color .2s;
+      .icon-arrows-left-shape {
+        padding: 2px 8px 2px 2px;
+        color: #979ba5;
+        cursor: pointer;
+        transition: color 0.2s;
 
-          &:hover {
-            color: #3a84ff;
-            transition: color .2s;
-          }
+        &:hover {
+          color: #3a84ff;
+          transition: color 0.2s;
         }
       }
     }
-
-    :deep(.main-container) {
-      position: relative;
-      padding-bottom: 60px;
-      overflow: auto;
-
-      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
-    }
   }
+
+  :deep(.main-container) {
+    position: relative;
+    padding-bottom: 60px;
+    overflow: auto;
+
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+  }
+}
 </style>

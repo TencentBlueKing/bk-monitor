@@ -16,7 +16,7 @@
     "pretty": true,
     "jsx": "preserve",
     "jsxFactory": "VueTsxSupport",
-    "lib": ["es2018", "esnext", "dom", "dom.iterable","scripthost"],
+    "lib": ["es2018", "esnext", "dom", "dom.iterable", "scripthost"]
     // "strict": true,
     // "esModuleInterop": true,
     // "baseUrl": ".",
@@ -28,4 +28,3 @@
     // ],
   }
 }
-
