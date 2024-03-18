@@ -430,9 +430,7 @@ class GetGraphQueryConfig(Resource):
         # 取出所有的维度组合
         dimensions_set: Set[Tuple] = set()
         for point in points:
-            dimensions = tuple((field, point[field]) for field in dimension_fields if field in point)
-            if len(dimensions) < len(dimension_fields):
-                continue
+            dimensions = tuple((field, point[field]) for field in point if field not in ["_result_", "_time_"])
             dimensions_set.add(tuple(dimensions))
 
         # 有监控目标的，按目标实例补全空图
