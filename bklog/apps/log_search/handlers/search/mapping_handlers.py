@@ -26,6 +26,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List
 
+import arrow
 from django.conf import settings
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -403,28 +404,26 @@ class MappingHandlers(object):
         # 当没有指定时间范围时，默认获取最近一天的mapping
         if not self.start_time and not self.end_time:
             start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
-            start_time = start_time.timestamp
-            end_time = end_time.timestamp
         else:
-            start_time = int(self.start_time)
-            end_time = int(self.end_time)
-        # 时间戳取整, 开始时间上取整, 结束时间下取整
-        start_time = start_time // 3600 * 3600
-        end_time = ((end_time // 3600) + 1) * 3600
-        return self._get_latest_mapping(index_set_id=self.index_set_id, start_time=start_time, end_time=end_time)
+            start_time = arrow.get(self.start_time, tzinfo=self.time_zone)
+            end_time = arrow.get(self.end_time, tzinfo=self.time_zone)
+
+        start_time_format = start_time.ceil('hour').strftime("%Y-%m-%d %H:%M:%S")
+        end_time_format = end_time.floor('hour').strftime("%Y-%m-%d %H:%M:%S")
+
+        return self._get_latest_mapping(index_set_id=self.index_set_id,
+                                        start_time=start_time_format, end_time=end_time_format)
 
     @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
     def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
-        start_time = datetime.fromtimestamp(start_time)
-        end_time = datetime.fromtimestamp(end_time)
         latest_mapping = BkLogApi.mapping(
             {
                 "indices": self.indices,
                 "scenario_id": self.scenario_id,
                 "storage_cluster_id": self.storage_cluster_id,
                 "time_zone": self.time_zone,
-                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "start_time": start_time,
+                "end_time": end_time,
             }
         )
         return latest_mapping
