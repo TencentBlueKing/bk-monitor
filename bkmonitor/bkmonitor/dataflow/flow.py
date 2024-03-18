@@ -127,10 +127,11 @@ class DataFlow(object):
         return cls(flow_id=result["flow_id"], project_id=result["project_id"], flow_name=result["flow_name"])
 
     @classmethod
-    def ensure_data_flow_exists(cls, flow_name, rebuild=False, project_id=None):
+    def ensure_data_flow_exists(cls, flow_name, rebuild=False, project_id=None, node_len=None):
         try:
             flow = DataFlow.from_bkdata_by_flow_name(flow_name, project_id)
-            if rebuild:
+            # 传入node_len后，判断节点数是否和flow对应，如果不对应，则rebuild
+            if rebuild or len(flow.flow_graph_info) != node_len:
                 return flow.rebuild()
             return flow
         except DataFlowNotExists:
