@@ -23,29 +23,32 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Model, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 
-interface IProps {
-}
+interface IProps {}
 
 @Component({
   name: 'ReportManagement'
 })
 class ReportManagement extends tsc<IProps> {
-
   get src() {
     const bizId = this.$store.state.bkBizId;
     // @ts-ignore
-    const targetSrc = `${window.MONITOR_URL}/?bizId=${bizId}&needMenu=false#/report`;
+    const targetSrc = `${window.MONITOR_URL}/?bizId=${bizId}&needMenu=false#/trace/report`;
     return targetSrc;
   }
 
   render() {
-    return <div>
-      {/* <iframe src={'http://dev.bkmdev.woa.com:7002/?bizId=100605&needMenu=false#/report'} style='width: 100%;height: calc(100vh - 106px);border: none;'></iframe> */}
-      <iframe src={this.src} style='width: 100%;height: calc(100vh - 106px);border: none;'></iframe>
-    </div>;
+    return (
+      <div>
+        {/* <iframe src={'http://dev.bkmdev.woa.com:7002/?bizId=100605&needMenu=false#/report'} style='width: 100%;height: calc(100vh - 106px);border: none;'></iframe> */}
+        <iframe
+          src={this.src}
+          style='width: 100%;height: calc(100vh - 106px);border: none;'
+        ></iframe>
+      </div>
+    );
   }
 }
 export default ofType().convert(ReportManagement);
