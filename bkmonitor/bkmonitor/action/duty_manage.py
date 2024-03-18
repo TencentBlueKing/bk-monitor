@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import calendar
 import logging
+import typing
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -495,6 +496,30 @@ class DutyRuleManager:
         )
         return duty_work_time
 
+    @classmethod
+    def refresh_duty_rule_from_any_begin_time(
+        cls, duty_rule: typing.Dict[str, typing.Any], begin_time: str
+    ) -> typing.Optional["DutyRuleManager"]:
+        """
+        从任何起点刷新 duty_rule 排班
+
+        背景：新创建的轮值快照以「创建/任务时间」作为起始时间进行排班，和规则「生效时间」脱钩
+        导致问题：告警组关联轮值在新建、轮值规则变更等场景下，基于「创建/任务时间（begin_time）」重新排班会导致
+        思路：交替排班是基于「生效时间」生成的连续排班规则，
+             每次新建排班快照，都要预计算生效时间到 begin_time，把 duty_rule_snap 的 index 和 begin_time 刷对
+
+        :param duty_rule:
+        :param begin_time:
+        :return:
+        """
+        is_handoff: bool = duty_rule.get("category") == "handoff"
+        if begin_time > duty_rule["effective_time"] and is_handoff:
+            duty_manager = cls(duty_rule, end_time=begin_time)
+            # 排班会刷新 rule_snap 中 duty_time["begin_time"] 和 duty_arrange["last_user_index"]
+            duty_manager.get_duty_plan()
+            return duty_manager
+        return None
+
 
 class GroupDutyRuleManager:
     """
@@ -582,6 +607,21 @@ class GroupDutyRuleManager:
 
         # step1 先创建一波新的snap
         if new_group_rule_snaps:
+            # Q：为什么不在上方 DutyRuleSnap 初始化时就执行 effective_time ~ task_time 的刷新？
+            # A：只有「新建 / 快照变更」场景需要根据 effective_time 刷对顺序，如果 DutyRuleSnap 已存在，排班顺序是有保障的
+            # Q：为什么 DutyRuleSnap 存在时，排班顺序有保障？
+            # A：DutyRuleManager.get_duty_plan 每次都会迭代 snap 里的 begin_time 和 user_index
+            for new_group_rule_snap in new_group_rule_snaps:
+                refresh_duty_manager: typing.Optional[
+                    DutyRuleManager
+                ] = DutyRuleManager.refresh_duty_rule_from_any_begin_time(
+                    new_group_rule_snap.rule_snap, begin_time=task_time
+                )
+                if refresh_duty_manager:
+                    # 更新对应的rule_snap的下一次管理计划任务时间
+                    new_group_rule_snap.next_plan_time = refresh_duty_manager.end_time
+                    new_group_rule_snap.next_user_index = refresh_duty_manager.last_user_index
+
             DutyRuleSnap.objects.bulk_create(new_group_rule_snaps)
 
         # step2 然后再来一波更新

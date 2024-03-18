@@ -28,6 +28,10 @@ def now_str(_format="%Y-%m-%d %H:%M:%S"):
     return timezone.now().strftime(_format)
 
 
+def datetime_today():
+    return datetime.datetime.today()
+
+
 def localtime(value):
     """
     to local time

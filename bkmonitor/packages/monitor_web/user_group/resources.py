@@ -114,14 +114,10 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
         origin_duty_plans = user_group.duty_plans if user_group else []
         for duty_rule in validated_request_data["duty_rules"]:
             # step1 找到当前规则的最后一次plan_time
-            effective_time = begin_time
             if not user_group:
                 # 如果不是通过内部保存内容预览，直接生成
-                duty_manager = DutyRuleManager(
-                    duty_rule=duty_rule,
-                    begin_time=effective_time,
-                    end_time=end_time,
-                )
+                DutyRuleManager.refresh_duty_rule_from_any_begin_time(duty_rule, begin_time)
+                duty_manager = DutyRuleManager(duty_rule=duty_rule, begin_time=begin_time, end_time=end_time)
                 duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
                 continue
             if DutyRuleSnap.objects.filter(
@@ -137,18 +133,20 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 .order_by("next_plan_time")
                 .first()
             )
-            last_user_index = 0
             if latest_snap:
                 # 如果最后一个存在，则开始生效时间为最后一次的排班时间，生成这段时间内的即可
                 # 如果存在，则需要使用snap已有的快照生成，因为快照里存了上下文信息
-                effective_time = latest_snap.next_plan_time
-                duty_rule = latest_snap.rule_snap
-                last_user_index = latest_snap.next_user_index
-
-            duty_manager = DutyRuleManager(
-                duty_rule=duty_rule, begin_time=effective_time, end_time=end_time, last_user_index=last_user_index
-            )
-            duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
+                duty_manager = DutyRuleManager(
+                    duty_rule=latest_snap.rule_snap,
+                    begin_time=latest_snap.next_plan_time,
+                    end_time=end_time,
+                    last_user_index=latest_snap.next_user_index,
+                )
+                duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
+            else:
+                DutyRuleManager.refresh_duty_rule_from_any_begin_time(duty_rule, begin_time)
+                duty_manager = DutyRuleManager(duty_rule=duty_rule, begin_time=begin_time, end_time=end_time)
+                duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
 
         for duty_plan in origin_duty_plans:
             duty_plans[duty_plan.duty_rule_id].append(
@@ -201,6 +199,10 @@ class PreviewDutyRulePlanResource(DutyPlanUserTranslaterResource):
         return validated_data
 
     def perform_request(self, validated_request_data):
+
+        DutyRuleManager.refresh_duty_rule_from_any_begin_time(
+            validated_request_data, validated_request_data["begin_time"]
+        )
         duty_manager = DutyRuleManager(
             duty_rule=validated_request_data,
             begin_time=validated_request_data["begin_time"],

@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 from datetime import timedelta, timezone
 
 import mock
@@ -20,6 +21,59 @@ from monitor_web.user_group.resources import (
     PreviewDutyRulePlanResource,
     PreviewUserGroupPlanResource,
 )
+
+DUTY_RULE_DATA = {
+    "name": "duty rule",
+    "bk_biz_id": 2,
+    "effective_time": "2024-02-22 00:00:00",
+    "end_time": "",
+    "labels": ["mysql", "redis", "business"],
+    "enabled": True,
+    "category": "handoff",
+    "duty_arranges": [
+        {
+            "duty_time": [
+                {"work_type": "daily", "work_days": [], "work_time_type": "time_range", "work_time": ["00:00--23:59"]}
+            ],
+            "duty_users": [
+                [{"id": "admin", "display_name": "admin", "type": "user"}],
+                [{"id": "admin1", "display_name": "admin1", "type": "user"}],
+                [{"id": "admin2", "display_name": "admin2", "type": "user"}],
+                [{"id": "admin3", "display_name": "admin3", "type": "user"}],
+            ],
+            "group_type": DutyGroupType.SPECIFIED,
+            "group_number": 0,
+        }
+    ],
+}
+
+USER_GROUP_DATA = {
+    "name": "轮值用户组测试",
+    "desc": "按照轮值的格式",
+    "duty_rules": [],
+    "alert_notice": [
+        {
+            "time_range": "00:00:00--23:59:59",
+            "notify_config": [
+                {"level": 3, "type": ["weixin"]},
+                {"level": 2, "type": ["weixin"]},
+                {"level": 1, "type": ["weixin"]},
+            ],
+        }
+    ],
+    "action_notice": [
+        {
+            "time_range": "00:00:00--23:59:59",
+            "notify_config": [
+                {"level": 3, "type": ["weixin"], "phase": 3},
+                {"level": 2, "type": ["weixin"], "phase": 2},
+                {"level": 1, "type": ["weixin"], "phase": 1},
+            ],
+        }
+    ],
+    "need_duty": True,
+    "bk_biz_id": 2,
+}
 
 
 class BaseTestCase(TestCase):
@@ -148,33 +202,10 @@ class BaseTestCase(TestCase):
             },
         ]
 
-        user_group_data = {
-            "name": "轮值用户组测试",
-            "desc": "按照轮值的格式",
-            "duty_arranges": duty_arranges,
-            "alert_notice": [
-                {
-                    "time_range": "00:00:00--23:59:59",
-                    "notify_config": [
-                        {"level": 3, "type": ["weixin"]},
-                        {"level": 2, "type": ["weixin"]},
-                        {"level": 1, "type": ["weixin"]},
-                    ],
-                }
-            ],
-            "action_notice": [
-                {
-                    "time_range": "00:00:00--23:59:59",
-                    "notify_config": [
-                        {"level": 3, "type": ["weixin"], "phase": 3},
-                        {"level": 2, "type": ["weixin"], "phase": 2},
-                        {"level": 1, "type": ["weixin"], "phase": 1},
-                    ],
-                }
-            ],
-            "need_duty": True,
-            "bk_biz_id": 2,
-        }
+        user_group_data = copy.deepcopy(USER_GROUP_DATA)
+        user_group_data.pop("duty_rules")
+        user_group_data["duty_arranges"] = duty_arranges
+        user_group_data["need_duty"] = False
 
         slz = UserGroupDetailSlz(data=user_group_data)
         slz.is_valid(raise_exception=True)
@@ -466,7 +497,7 @@ class TestDutyArrangeSlzResource(BaseTestCase):
                 "need_rotation": False,
                 "effective_time": "2022-03-11 00:00:00",
                 "handoff_time": {"rotation_type": "weekly", "date": 1, "time": "08:00"},
-                "duty_time": [{"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": ["08:00--18:00"]}],
+                "duty_time": [{"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": ["19:00--23:00"]}],
                 "backups": [
                     {
                         "users": [
@@ -508,33 +539,10 @@ class TestDutyArrangeSlzResource(BaseTestCase):
             },
         ]
 
-        user_group_data = {
-            "name": "轮值用户组测试",
-            "desc": "按照轮值的格式",
-            "duty_arranges": duty_arranges,
-            "alert_notice": [
-                {
-                    "time_range": "00:00:00--23:59:59",
-                    "notify_config": [
-                        {"level": 3, "type": ["weixin"]},
-                        {"level": 2, "type": ["weixin"]},
-                        {"level": 1, "type": ["weixin"]},
-                    ],
-                }
-            ],
-            "action_notice": [
-                {
-                    "time_range": "00:00:00--23:59:59",
-                    "notify_config": [
-                        {"level": 3, "type": ["weixin"], "phase": 3},
-                        {"level": 2, "type": ["weixin"], "phase": 2},
-                        {"level": 1, "type": ["weixin"], "phase": 1},
-                    ],
-                }
-            ],
-            "need_duty": True,
-            "bk_biz_id": 2,
-        }
+        user_group_data = copy.deepcopy(USER_GROUP_DATA)
+        user_group_data.pop("duty_rules")
+        user_group_data["need_duty"] = False
+        user_group_data["duty_arranges"] = duty_arranges
 
         slz = UserGroupDetailSlz(data=user_group_data)
         slz.is_valid(raise_exception=True)
@@ -909,33 +917,9 @@ class TestDutyRuleResource(BaseTestCase):
         same_duty_arrange = DutyArrange.objects.get(duty_rule_id=new_data["id"], order=2)
         self.assertTrue(same_duty_arrange.id == duty_arrange.id)
 
-        user_group_data = {
-            "name": "轮值用户组测试",
-            "desc": "按照轮值的格式",
-            "duty_rules": [new_data["id"]],
-            "alert_notice": [
-                {
-                    "time_range": "00:00:00--23:59:59",
-                    "notify_config": [
-                        {"level": 3, "type": ["weixin"]},
-                        {"level": 2, "type": ["weixin"]},
-                        {"level": 1, "type": ["weixin"]},
-                    ],
-                }
-            ],
-            "action_notice": [
-                {
-                    "time_range": "00:00:00--23:59:59",
-                    "notify_config": [
-                        {"level": 3, "type": ["weixin"], "phase": 3},
-                        {"level": 2, "type": ["weixin"], "phase": 2},
-                        {"level": 1, "type": ["weixin"], "phase": 1},
-                    ],
-                }
-            ],
-            "need_duty": True,
-            "bk_biz_id": 2,
-        }
+        user_group_data = copy.deepcopy(USER_GROUP_DATA)
+        user_group_data["need_duty"] = True
+        user_group_data["duty_rules"] = [new_data["id"]]
         UserGroup.objects.create(**user_group_data)
 
         self.assertEqual(UserGroup.objects.filter(duty_rules__contains=new_data["id"]).count(), 1)
@@ -1084,3 +1068,113 @@ class TestDutyRuleResource(BaseTestCase):
         self.assertEqual(len(data), 60)
         # 每天轮一次产生了30天的排班
         self.assertEqual(len(data[0]["work_times"]), 1)
+
+
+class TestPreviewDutyRulePlanResource(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.users_representation_mock = mock.patch(
+            "bkmonitor.action.serializers.strategy.DutyBaseInfoSlz.users_representation", side_effect=lambda x: x
+        )
+        self.users_representation_mock.start()
+
+    def test_db(self):
+        duty_rule_data = copy.deepcopy(DUTY_RULE_DATA)
+        slz = DutyRuleDetailSlz(data=duty_rule_data)
+        slz.is_valid(raise_exception=True)
+        duty_rule = slz.save()
+
+        query_params = {
+            "bk_biz_id": duty_rule_data["bk_biz_id"],
+            "begin_time": "2024-02-23 00:00:00",
+            "days": 35,
+            "id": duty_rule.id,
+            "source_type": "DB",
+        }
+
+        duty_plans = PreviewDutyRulePlanResource().request(query_params)
+        self.assertEqual(len(duty_plans), query_params["days"])
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin1")
+
+        duty_plans = PreviewDutyRulePlanResource().request({**query_params, "begin_time": "2024-06-23 00:00:00"})
+        self.assertEqual(len(duty_plans), query_params["days"])
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin2")
+
+        duty_plans = PreviewDutyRulePlanResource().request({**query_params, "begin_time": "2024-02-22 00:00:00"})
+        self.assertEqual(len(duty_plans), query_params["days"])
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin")
+
+
+class TestPreviewUserGroupPlanResource(TestPreviewDutyRulePlanResource):
+    def setUp(self):
+        super().setUp()
+        self.users_representation_mock = mock.patch(
+            "bkmonitor.action.serializers.strategy.DutyBaseInfoSlz.users_representation", side_effect=lambda x: x
+        )
+        self.users_representation_mock.start()
+
+    def test_db(self):
+        duty_rule_data = copy.deepcopy(DUTY_RULE_DATA)
+        slz = DutyRuleDetailSlz(data=duty_rule_data)
+        slz.is_valid(raise_exception=True)
+        duty_rule = slz.save()
+
+        user_group_data = copy.deepcopy(USER_GROUP_DATA)
+        user_group_data["need_duty"] = True
+        user_group_data["duty_rules"] = [duty_rule.id]
+
+        with mock.patch(
+            "bkmonitor.action.serializers.strategy.time_tools.datetime_today",
+            return_value=time_tools.str2datetime(duty_rule_data["effective_time"]),
+        ):
+            # 创建会提前排好一个月的数据
+            g_slz = UserGroupDetailSlz(data=user_group_data)
+            g_slz.is_valid(raise_exception=True)
+            g_slz.save()
+
+        query_params = {
+            "bk_biz_id": duty_rule_data["bk_biz_id"],
+            "begin_time": "2024-02-22 00:00:00",
+            "days": 7,
+            "id": g_slz.instance.id,
+            "source_type": "DB",
+        }
+
+        duty_plans = PreviewUserGroupPlanResource().request(query_params)[0]["duty_plans"]
+        self.assertEqual(len(duty_plans), 30)
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin")
+
+        duty_plans = PreviewUserGroupPlanResource().request({**query_params, "begin_time": "2024-06-23 00:00:00"})[0][
+            "duty_plans"
+        ]
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin2")
+
+    def test_api(self):
+        duty_rule_data = copy.deepcopy(DUTY_RULE_DATA)
+        slz = DutyRuleDetailSlz(data=duty_rule_data)
+        slz.is_valid(raise_exception=True)
+        duty_rule = slz.save()
+
+        query_params = {
+            "source_type": "API",
+            "days": 7,
+            "begin_time": "2024-2-22 00:00:00",
+            "config": {"duty_rules": [duty_rule.id]},
+            "bk_biz_id": duty_rule_data["bk_biz_id"],
+        }
+
+        duty_plans = PreviewUserGroupPlanResource().request(query_params)[0]["duty_plans"]
+        self.assertEqual(len(duty_plans), 7)
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin")
+
+        duty_plans = PreviewUserGroupPlanResource().request({**query_params, "begin_time": "2024-2-23 00:00:00"})[0][
+            "duty_plans"
+        ]
+        self.assertEqual(len(duty_plans), 7)
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin1")
+
+        duty_plans = PreviewUserGroupPlanResource().request({**query_params, "begin_time": "2024-06-23 00:00:00"})[0][
+            "duty_plans"
+        ]
+        self.assertEqual(len(duty_plans), 7)
+        self.assertEqual(duty_plans[0]["users"][0]["id"], "admin2")
