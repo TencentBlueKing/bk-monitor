@@ -30,23 +30,34 @@
     :tippy-options="tippyOptions"
     :on-show="handlePopoverShow"
     :on-hide="handlePopoverHide"
-    theme="light">
+    theme="light"
+  >
     <slot />
-    <div slot="content" class="event-icons">
+    <div
+      slot="content"
+      class="event-icons"
+    >
       <div class="event-box">
-        <span class="event-btn" @click="handleClick('show original')">
+        <span
+          class="event-btn"
+          @click="handleClick('show original')"
+        >
           <i class="icon bk-icon icon-eye"></i>
           <span>{{ $t('查询命中pattern的日志') }}</span>
         </span>
         <div
-          class="new-link"
           v-bk-tooltips="$t('新开标签页')"
-          @click.stop="handleClick('show original', true)">
+          class="new-link"
+          @click.stop="handleClick('show original', true)"
+        >
           <i class="log-icon icon-jump"></i>
         </div>
       </div>
       <div class="event-box">
-        <span class="event-btn" @click="handleClick('copy')">
+        <span
+          class="event-btn"
+          @click="handleClick('copy')"
+        >
           <i class="icon log-icon icon-copy"></i>
           <span>{{ $t('复制') }}</span>
         </span>
@@ -60,29 +71,29 @@ export default {
   props: {
     placement: {
       type: String,
-      default: 'bottom',
+      default: 'bottom'
     },
     trigger: {
       type: String,
-      default: 'click',
+      default: 'click'
     },
     isCluster: {
       type: Boolean,
-      default: true,
+      default: true
     },
     tippyOptions: {
       type: Object,
-      default: () => {},
+      default: () => {}
     },
     context: {
       type: String,
-      require: true,
-    },
+      require: true
+    }
   },
   computed: {
     isHavePattern() {
       return this.context !== '';
-    },
+    }
   },
   methods: {
     handleClick(id, isLink = false) {
@@ -100,8 +111,8 @@ export default {
       if (this.intersectionObserver) {
         this.unregisterOberver();
       }
-      this.intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
           if (this.intersectionObserver) {
             if (entry.intersectionRatio <= 0) {
               this.$refs.eventPopover.instance.hide();
@@ -116,8 +127,8 @@ export default {
     },
     handlePopoverHide() {
       this.unregisterOberver();
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -134,8 +145,8 @@ export default {
   .event-box {
     height: 32px;
     min-width: 240px;
-    font-size: 12px;
     padding: 0 10px;
+    font-size: 12px;
     cursor: pointer;
 
     @include flex-center();

@@ -89,7 +89,8 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
       bk_cloud_id: this.$t('管控区域ID'),
       strategy_id: this.$t('策略ID'),
       assignee: this.$t('通知人'),
-      bk_service_instance_id: this.$t('服务实例ID')
+      bk_service_instance_id: this.$t('服务实例ID'),
+      plugin_id: this.$t('告警来源')
     };
   }
   get actionFieldMap(): Record<ActionAnlyzeField, VueI18n.TranslateResult> {

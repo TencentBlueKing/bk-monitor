@@ -163,7 +163,7 @@ def get_cookies_filter() -> Optional[Dict]:
 def remove_all_conditions(where_list: list) -> list:
     """删除全选条件"""
     # 全选标签
-    select_all_tag = "__ALL__"
+    select_all_tag = "__BKMONITOR_ALL__"
 
     if not where_list:
         return []

@@ -73,5 +73,5 @@ export default {
   stopCollection,
   detailCollection,
   getIssuedClusterList,
-  issuedRetry,
+  issuedRetry
 };

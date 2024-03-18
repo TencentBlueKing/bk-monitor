@@ -23,29 +23,38 @@
 <template>
   <div class="match-container justify-sb">
     <template>
-      <div class="customize-box" v-if="isEdit || onlyShowSelectEdit">
+      <div
+        v-if="isEdit || onlyShowSelectEdit"
+        class="customize-box"
+      >
         <div class="customize-left justify-sb">
           <bk-form
             ref="keyRef"
             ext-cls="fill-key"
             :model="verifyData"
             :rules="rules"
-            :label-width="0">
+            :label-width="0"
+          >
             <bk-form-item property="matchKey">
-              <bk-input v-model="verifyData.matchKey" clearable></bk-input>
+              <bk-input
+                v-model="verifyData.matchKey"
+                clearable
+              ></bk-input>
             </bk-form-item>
           </bk-form>
           <bk-select
+            v-model="matchOperator"
             ext-cls="fill-operate"
             :clearable="false"
             :popover-min-width="116"
-            v-model="matchOperator"
-            @selected="() => handleOperateChange(false)">
+            @selected="() => handleOperateChange(false)"
+          >
             <bk-option
               v-for="item of expressOperatorList"
+              :id="item.id"
               :key="item.id"
               :name="item.name"
-              :id="item.id">
+            >
             </bk-option>
           </bk-select>
         </div>
@@ -54,7 +63,8 @@
             v-show="!expressInputIsDisabled && !isHaveCompared"
             v-model.trim="matchValue"
             clearable
-            :ext-cls="`fill-value ${isValueError && 'input-error'}`">
+            :ext-cls="`fill-value ${isValueError && 'input-error'}`"
+          >
           </bk-input>
           <bk-tag-input
             v-show="isHaveCompared"
@@ -63,22 +73,34 @@
             free-paste
             has-delete-icon
             :ext-cls="`fill-value ${isValueError && 'tag-input-error'}`"
-            @blur="handleValueBlur">
+            @blur="handleValueBlur"
+          >
           </bk-tag-input>
           <div class="add-operate flex-ac">
-            <span class="bk-icon icon-check-line" @click="handleAddMatch"></span>
-            <span class="bk-icon icon-close-line-2" @click="handleCancelMatch"></span>
+            <span
+              class="bk-icon icon-check-line"
+              @click="handleAddMatch"
+            ></span>
+            <span
+              class="bk-icon icon-close-line-2"
+              @click="handleCancelMatch"
+            ></span>
           </div>
         </div>
       </div>
     </template>
     <template v-if="!onlyShowSelectEdit">
       <div
+        v-show="!isEdit"
         class="specify-main match-container justify-sb"
-        v-show="!isEdit">
+      >
         <div :class="['specify-box', { 'is-edit': showEdit }]">
           <div class="specify-container">
-            <span class="title-overflow" v-bk-overflow-tips>{{matchItem.key}}</span>
+            <span
+              v-bk-overflow-tips
+              class="title-overflow"
+              >{{ matchItem.key }}</span
+            >
           </div>
           <div class="specify-container">
             <bk-select
@@ -87,107 +109,127 @@
               ext-cls="select-operator"
               :clearable="false"
               :popover-min-width="116"
-              @selected="() => handleOperateChange(true)">
+              @selected="() => handleOperateChange(true)"
+            >
               <bk-option
                 v-for="item of expressOperatorList"
+                :id="item.id"
                 :key="item.id"
                 :name="item.name"
-                :id="item.id"
-                :disabled="checkOperatorDisabled(item.id)">
+                :disabled="checkOperatorDisabled(item.id)"
+              >
               </bk-option>
             </bk-select>
-            <div v-else class="operator">{{matchItem.operator}}</div>
-            <span class="title-overflow" v-bk-overflow-tips>{{matchItem.value || '-'}}</span>
+            <div
+              v-else
+              class="operator"
+            >
+              {{ matchItem.operator }}
+            </div>
+            <span
+              v-bk-overflow-tips
+              class="title-overflow"
+              >{{ matchItem.value || '-' }}</span
+            >
           </div>
         </div>
-        <div class="edit flex-ac" v-if="showEdit">
-          <span class="bk-icon icon-edit-line" @click="handleEditItem"></span>
-          <span class="bk-icon icon-close-line-2" @click="handleDeleteItem"></span>
+        <div
+          v-if="showEdit"
+          class="edit flex-ac"
+        >
+          <span
+            class="bk-icon icon-edit-line"
+            @click="handleEditItem"
+          ></span>
+          <span
+            class="bk-icon icon-close-line-2"
+            @click="handleDeleteItem"
+          ></span>
         </div>
       </div>
     </template>
   </div>
 </template>
 <script>
-
 export default {
   props: {
     matchItem: {
       type: Object,
-      require: true,
+      require: true
     },
     onlyShowSelectEdit: {
       type: Boolean,
-      default: false,
+      default: false
     },
     showEdit: {
       type: Boolean,
-      default: false,
+      default: false
     },
     submitEdit: {
-      type: Function,
+      type: Function
     },
     activeLabelEditID: {
       type: String,
-      default: '',
+      default: ''
     },
     labelSelector: {
       type: Array,
-      require: true,
+      require: true
     },
     isDialogItem: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   data() {
     return {
       verifyData: {
-        matchKey: '',
+        matchKey: ''
       },
       rules: {
         matchKey: [
           {
             validator: this.checkName,
             message: this.$t('标签名称不符合正则{n}', { n: '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]' }),
-            trigger: 'blur',
+            trigger: 'blur'
           },
           {
             required: true,
             message: this.$t('必填项'),
-            trigger: 'blur',
-          },
-        ],
+            trigger: 'blur'
+          }
+        ]
       },
       matchValue: '', // 自定义匹配值
       matchValueArr: [],
       matchOperator: 'In', // 自定义匹配操作
       catchOperator: 'In',
       expressOperatorList: [
-        { // 表达式操作选项
+        {
+          // 表达式操作选项
           id: '=',
-          name: '=',
+          name: '='
         },
         {
           id: 'In',
-          name: 'In',
+          name: 'In'
         },
         {
           id: 'NotIn',
-          name: 'NotIn',
+          name: 'NotIn'
         },
         {
           id: 'Exists',
-          name: 'Exists',
+          name: 'Exists'
         },
         {
           id: 'DoesNotExist',
-          name: 'DoesNotExist',
-        },
+          name: 'DoesNotExist'
+        }
       ],
       isValueError: false,
       matchExpressOption: [],
-      isEdit: false, // select编辑
+      isEdit: false // select编辑
     };
   },
   computed: {
@@ -208,18 +250,18 @@ export default {
           matchValueError && (this.isValueError = true);
           return false;
         }
-      };
+      }
       return true;
-    },
+    }
   },
   watch: {
     matchValue() {
-      return this.isValueError = false;
+      return (this.isValueError = false);
     },
     'matchValueArr.length': {
       handler() {
-        return this.isValueError = false;
-      },
+        return (this.isValueError = false);
+      }
     },
     activeLabelEditID(val) {
       if (val !== this.matchItem?.id) this.isEdit = false;
@@ -230,8 +272,8 @@ export default {
         if (val.operator) {
           this.matchOperator = val.operator || 'In';
         }
-      },
-    },
+      }
+    }
   },
   created() {},
   methods: {
@@ -242,11 +284,15 @@ export default {
         let goodJob = true;
 
         if (typeof this.submitEdit === 'function') {
-          const value = this.expressInputIsDisabled ? '' : (this.isHaveCompared ? this.matchValueArr.join(',') : this.matchValue);
+          const value = this.expressInputIsDisabled
+            ? ''
+            : this.isHaveCompared
+              ? this.matchValueArr.join(',')
+              : this.matchValue;
           goodJob = this.submitEdit({
             key: this.verifyData.matchKey,
             operator: this.matchOperator,
-            value,
+            value
           });
           if (typeof goodJob.then === 'function') {
             return goodJob.then(() => {
@@ -276,7 +322,7 @@ export default {
         this.matchValueArr = splitValue.length ? splitValue : [];
       } else {
         this.matchValue = value;
-      };
+      }
       this.isEdit = true;
     },
     handleDeleteItem() {
@@ -309,12 +355,12 @@ export default {
           this.matchValueArr = !!splitValue[0] ? splitValue : [];
         } else {
           this.matchValue = value;
-        };
+        }
         this.submitEdit({
           key,
           operator: this.matchOperator,
           value: this.expressInputIsDisabled ? '' : value,
-          isExternal: true,
+          isExternal: true
         });
       } else {
         if (this.isHaveCompared) {
@@ -328,19 +374,19 @@ export default {
           }
         }
       }
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .match-container {
   width: 100%;
 
   .is-disabled {
-    opacity: .6;
     cursor: no-drop;
+    opacity: 0.6;
 
     .operator,
     .select-operator {
@@ -355,9 +401,9 @@ export default {
 }
 
 .customize-box {
-  padding: 4px 0;
-  width: 100%;
   display: flex;
+  width: 100%;
+  padding: 4px 0;
   align-items: center;
 
   .customize-left {
@@ -371,9 +417,9 @@ export default {
   }
 
   .fill-key {
-    width: 100%;
     position: relative;
     z-index: 999;
+    width: 100%;
     margin-right: -1px;
 
     :deep(.bk-form-input) {
@@ -383,9 +429,9 @@ export default {
   }
 
   .fill-operate {
-    border-radius: 0;
-    margin-right: -1px;
     min-width: 100px;
+    margin-right: -1px;
+    border-radius: 0;
 
     &.is-focus {
       z-index: 999;
@@ -401,8 +447,8 @@ export default {
     }
 
     :deep(.bk-form-input) {
-      border-top-left-radius: 0;
       border-bottom-left-radius: 0;
+      border-top-left-radius: 0;
     }
   }
 
@@ -414,13 +460,13 @@ export default {
     }
 
     .icon-check-line {
-      color: #2dcb56;
       margin: 0 7px;
+      color: #2dcb56;
     }
 
     .icon-close-line-2 {
-      color: #c4c6cc;
       margin-right: 8px;
+      color: #c4c6cc;
     }
   }
 }
@@ -444,39 +490,39 @@ export default {
 }
 
 .specify-box {
-  width: 100%;
   display: flex;
-  flex-flow: wrap;
+  width: 100%;
   padding: 2px 8px;
+  font-size: 12px;
   background: #f5f7fa;
   border-radius: 2px;
-  font-size: 12px;
+  flex-flow: wrap;
 
   .specify-container {
+    display: flex;
     width: 50%;
     padding: 0 6px;
-    line-height: 30px;
     overflow: hidden;
-    display: flex;
+    line-height: 30px;
     justify-content: start;
     align-items: center;
 
     .operator,
     %operator {
-      margin-right: 10px;
-      padding: 0 6px;
       height: 24px;
-      line-height: 24px;
-      text-align: center;
+      padding: 0 6px;
+      margin-right: 10px;
       font-weight: 700;
+      line-height: 24px;
       color: #ff9c01;
+      text-align: center;
       background: #fff;
       border-radius: 2px;
     }
 
     .select-operator {
-      padding: 0;
       height: 24px;
+      padding: 0;
       line-height: 24px;
       border: none;
 
@@ -494,21 +540,21 @@ export default {
 }
 
 .is-edit {
-  width: calc( 100% - 60px );
+  width: calc(100% - 60px);
 }
 
 .edit {
-  visibility: hidden;
-  color: #979ba5;
   font-size: 18px;
+  color: #979ba5;
+  visibility: hidden;
 
   .bk-icon {
     cursor: pointer;
   }
 
   .icon-edit-line {
-    font-size: 16px;
     margin: 0 8px;
+    font-size: 16px;
   }
 
   .icon-close-line-2 {

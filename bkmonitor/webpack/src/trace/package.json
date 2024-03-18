@@ -15,7 +15,7 @@
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
     "apm": "workspace:*",
-    "bkui-vue": "1.0.3-beta.3",
+    "bkui-vue": "^1.0.3-beta.4",
     "d3-array": "^3.2.4",
     "d3-dispatch": "^3.0.1",
     "d3-ease": "^3.0.1",

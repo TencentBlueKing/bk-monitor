@@ -21,25 +21,51 @@
   -->
 
 <template>
-  <div class="retrieve-favorite-container" v-bkloading="{ isLoading }">
-    <ul v-if="computedFavoriteList.length" class="favorite-list">
-      <template v-for="item in computedFavoriteList">
-        <li class="favorite-item" :key="item.id">
+  <div
+    v-bkloading="{ isLoading }"
+    class="retrieve-favorite-container"
+  >
+    <ul
+      v-if="computedFavoriteList.length"
+      class="favorite-list"
+    >
+      <template>
+        <li
+          v-for="item in computedFavoriteList"
+          :key="item.id"
+          class="favorite-item"
+        >
           <div class="title">
-            <div class="left-title title-container" @click="expandItem(item)">
+            <div
+              class="left-title title-container"
+              @click="expandItem(item)"
+            >
               <span :class="['bk-icon icon-angle-right', item.expanded && 'expanded']"></span>
-              <span v-bk-overflow-tips class="text">{{ item.title }}</span>
+              <span
+                v-bk-overflow-tips
+                class="text"
+                >{{ item.title }}</span
+              >
             </div>
             <div class="right-title title-container">
-              <div class="icon-container" @click="$emit('shouldRetrieve', item)">
+              <div
+                class="icon-container"
+                @click="$emit('shouldRetrieve', item)"
+              >
                 <span class="bk-icon icon-play"></span>
               </div>
-              <div class="icon-container" @click="$emit('remove', item.id)">
+              <div
+                class="icon-container"
+                @click="$emit('remove', item.id)"
+              >
                 <span class="bk-icon icon-delete"></span>
               </div>
             </div>
           </div>
-          <div :class="item.expanded && 'expanded'" class="detail">
+          <div
+            :class="item.expanded && 'expanded'"
+            class="detail"
+          >
             <div class="text">{{ item.detail }}</div>
           </div>
         </li>
@@ -48,7 +74,9 @@
     <bk-exception
       v-else
       class="exception-wrap-item exception-part"
-      type="empty" scene="part">
+      type="empty"
+      scene="part"
+    >
     </bk-exception>
   </div>
 </template>
@@ -58,16 +86,16 @@ export default {
   props: {
     isLoading: {
       type: Boolean,
-      required: true,
+      required: true
     },
     favoriteList: {
       type: Array,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
-      computedFavoriteList: [],
+      computedFavoriteList: []
     };
   },
   watch: {
@@ -79,129 +107,130 @@ export default {
           detail: item.query_string,
           params: item.params,
           indexId: String(item.index_set_id),
-          expanded: false,
+          expanded: false
         }));
       },
-      immediate: true,
-    },
+      immediate: true
+    }
   },
   methods: {
     expandItem(item) {
       item.expanded = !item.expanded;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller.scss';
+@import '../../../scss/mixins/scroller.scss';
+/* stylelint-disable no-descending-specificity */
+.retrieve-favorite-container {
+  height: 100%;
 
-  .retrieve-favorite-container {
+  .favorite-list {
     height: 100%;
+    overflow-y: auto;
 
-    .favorite-list {
-      height: 100%;
-      overflow-y: auto;
+    @include scroller;
 
-      @include scroller;
+    .favorite-item {
+      padding: 8px 14px;
+      font-size: 12px;
+      border-bottom: 1px solid #f0f1f5;
 
-      .favorite-item {
-        padding: 8px 14px;
-        border-bottom: 1px solid #f0f1f5;
-        font-size: 12px;
+      .title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #63656e;
 
-        .title {
+        .title-container {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          color: #63656e;
 
-          .title-container {
-            display: flex;
-            align-items: center;
+          &.left-title {
+            width: calc(100% - 58px);
+            cursor: pointer;
 
-            &.left-title {
-              width: calc(100% - 58px);
-              cursor: pointer;
+            .bk-icon {
+              flex-shrink: 0;
+              margin-right: 6px;
+              font-size: 24px;
+              transition: transform 0.3s;
 
-              .bk-icon {
-                flex-shrink: 0;
-                margin-right: 6px;
-                font-size: 24px;
-                transition: transform .3s;
-
-                &.expanded {
-                  transform: rotate(90deg);
-                  transition: transform .3s;
-                }
+              &.expanded {
+                transform: rotate(90deg);
+                transition: transform 0.3s;
               }
+            }
+
+            .text {
+              overflow: hidden;
+              line-height: 24px;
+              color: #313238;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            &:hover {
+              color: #3a84ff;
 
               .text {
-                line-height: 24px;
-                color: #313238;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
+                color: #3a84ff;
               }
+            }
+          }
+
+          &.right-title {
+            flex-shrink: 0;
+            margin-left: 10px;
+            font-size: 14px;
+
+            .icon-container {
+              display: flex;
+              width: 24px;
+              height: 24px;
+              cursor: pointer;
+              border-radius: 12px;
+              justify-content: center;
+              align-items: center;
 
               &:hover {
                 color: #3a84ff;
-
-                .text {
-                  color: #3a84ff;
-                }
+                background: #e1ecff;
               }
             }
-
-            &.right-title {
-              flex-shrink: 0;
-              margin-left: 10px;
-              font-size: 14px;
-
-              .icon-container {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                width: 24px;
-                height: 24px;
-                border-radius: 12px;
-                cursor: pointer;
-
-                &:hover {
-                  color: #3a84ff;
-                  background: #e1ecff;
-                }
-              }
-            }
-          }
-        }
-
-        .detail {
-          max-height: 0;
-          overflow: hidden;
-          transition: max-height .3s;
-
-          .text {
-            max-height: 100px;
-            line-height: 20px;
-            margin: 8px 30px 12px;
-            color: #63656e;
-            overflow: hidden;
-            display: box;
-            -webkit-line-clamp: 5;
-            box-orient: vertical;
-          }
-
-          &.expanded {
-            max-height: 120px;
-            transition: max-height .3s;
           }
         }
       }
-    }
 
-    .exception-part {
-      margin-top: 100px;
+      .detail {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s;
+
+        .text {
+          display: box;
+          max-height: 100px;
+          margin: 8px 30px 12px;
+          overflow: hidden;
+          line-height: 20px;
+          color: #63656e;
+          /* stylelint-disable-next-line property-no-unknown */
+          box-orient: vertical;
+          -webkit-line-clamp: 5;
+        }
+
+        &.expanded {
+          max-height: 120px;
+          transition: max-height 0.3s;
+        }
+      }
     }
   }
+
+  .exception-part {
+    margin-top: 100px;
+  }
+}
 </style>

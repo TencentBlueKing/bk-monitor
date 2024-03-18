@@ -34,8 +34,6 @@ import * as biz from './biz';
 import * as collect from './collect';
 import * as particulars from './particulars';
 import * as migrate from './migrate';
-import * as traceDetail from './trace-detail';
-import * as trace from './trace';
 import * as extract from './extract';
 import * as extractManage from './extract-manage';
 import * as linkConfiguration from './link-configuration';
@@ -53,27 +51,27 @@ import * as newReport from './new-report';
 
 const getMyProjectList = {
   url: '/meta/projects/mine/',
-  method: 'get',
+  method: 'get'
 };
 
 const getMySpaceList = {
   url: '/meta/spaces/mine/',
-  method: 'get',
+  method: 'get'
 };
 const frontendEventReport = {
   url: '/frontend_event/report/',
-  method: 'post',
+  method: 'post'
 };
 
 export default {
   project: {
-    getMyProjectList,
+    getMyProjectList
   },
   space: {
-    getMySpaceList,
+    getMySpaceList
   },
   report: {
-    frontendEventReport,
+    frontendEventReport
   },
   userInfo,
   example,
@@ -89,8 +87,6 @@ export default {
   particulars,
   collect,
   migrate,
-  traceDetail,
-  trace,
   extract,
   extractManage,
   linkConfiguration,

@@ -282,7 +282,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       },
       {
         id: 'plugin_id',
-        name: this.$t('告警源')
+        name: this.$t('告警来源')
       }
     ];
     // 事件建议字段列表
