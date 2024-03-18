@@ -34,3 +34,75 @@ export function getOperatorDisabled(follower: string[], assignee: string[]) {
   const hasAssignee = (assignee || []).some(u => u === username);
   return hasAssignee ? false : hasFollower;
 }
+
+/**
+ * @description 给表格组件增加一个自定义的横向滚动条
+ * @param target
+ * @returns
+ */
+export function addHoverScroll(target: HTMLDivElement) {
+  const id = '------add-hover-scroll-class----';
+  if (!target) {
+    return;
+  }
+  function init(scrollWidth, clientWidth) {
+    let customScrollbarWrap: HTMLDivElement = target.querySelector(`#${id}`);
+    if (scrollWidth === clientWidth) {
+      if (customScrollbarWrap) target.removeChild(customScrollbarWrap);
+      return;
+    }
+    if (customScrollbarWrap && scrollWidth > clientWidth) {
+      customScrollbarWrap.style.maxWidth = `${clientWidth}px`;
+      const barEl = customScrollbarWrap.firstElementChild as any;
+      if (barEl) barEl.style.width = `${scrollWidth}px`;
+      return;
+    }
+    const style = {
+      'max-width': `${clientWidth}px`,
+      position: 'sticky',
+      left: '0',
+      bottom: '1px',
+      background: '#fff',
+      'overflow-x': 'scroll',
+      'overflow-y': 'hidden',
+      'z-index': '999'
+    };
+    if (!customScrollbarWrap) {
+      customScrollbarWrap = document.createElement('div');
+    }
+    Object.keys(style).forEach(key => {
+      customScrollbarWrap.style[key] = style[key];
+    });
+    customScrollbarWrap.id = id;
+    customScrollbarWrap.addEventListener('mouseenter', () => {
+      customScrollbarWrap.className = 'hover-scroll';
+    });
+    customScrollbarWrap.addEventListener('mouseleave', () => {
+      customScrollbarWrap.className = '';
+    });
+    customScrollbarWrap.addEventListener('scroll', e => {
+      const { scrollLeft } = e.target as HTMLDivElement;
+      target.scrollLeft = scrollLeft;
+    });
+    const customScrollbar = document.createElement('div');
+    const barStyle = {
+      height: '4px',
+      width: `${scrollWidth}px`
+    };
+    Object.keys(barStyle).forEach(key => {
+      customScrollbar.style[key] = barStyle[key];
+    });
+    customScrollbarWrap.appendChild(customScrollbar);
+    target.appendChild(customScrollbarWrap);
+    customScrollbarWrap.style.maxWidth = `${clientWidth}px`;
+    customScrollbar.style.width = `${scrollWidth}px`;
+  }
+  const resizeObserver = new ResizeObserver(entries => {
+    for (const entry of entries) {
+      const { target } = entry;
+      const { scrollWidth, clientWidth } = target;
+      init(scrollWidth, clientWidth);
+    }
+  });
+  resizeObserver.observe(target);
+}
