@@ -25,10 +25,8 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Sideslider } from 'bk-magic-vue';
-
-import { copyText } from '../../../../monitor-common/utils/utils';
-import TemporaryShare from '../../../../monitor-pc/components/temporary-share/temporary-share';
+import { copyText } from 'monitor-common/utils/utils';
+import TemporaryShare from 'monitor-pc/components/temporary-share/temporary-share';
 
 import ActionDetail from './action-detail';
 import EventDetail from './event-detail';
@@ -163,14 +161,19 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           onInfo={this.handleInfo}
         ></EventDetail>
       ),
-      handleDetail: () => <ActionDetail id={this.eventId}></ActionDetail>
+      handleDetail: () => (
+        <ActionDetail
+          id={this.eventId}
+          bizId={this.bizId}
+        ></ActionDetail>
+      )
     };
     return tplMap[this.type]();
   }
 
   render() {
     return (
-      <Sideslider
+      <bk-sideslider
         ext-cls='event-detail-sideslider'
         // transfer={true}
         isShow={this.isShow}
@@ -191,7 +194,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         >
           {this.tplContent()}
         </div>
-      </Sideslider>
+      </bk-sideslider>
     );
   }
 }

@@ -1,12 +1,14 @@
+/* stylelint-disable comment-empty-line-before */
+/* stylelint-disable declaration-no-important */
+/* stylelint-disable indentation */
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1699927188028') format('woff2'),
-    url('monitor-icons.woff?t=1699927188028') format('woff'),
-    url('monitor-icons.ttf?t=1699927188028') format('truetype');
+  src: url('monitor-icons.woff2?t=1705908796951') format('woff2'),
+       url('monitor-icons.woff?t=1705908796951') format('woff'),
+       url('monitor-icons.ttf?t=1705908796951') format('truetype');
 }
 
 .icon-monitor {
-  /* stylelint-disable-next-line declaration-no-important */
   font-family: 'icon-monitor' !important;
   font-size: 1em;
   font-style: normal;
@@ -14,39 +16,167 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-lunliu:before {
+.icon-profiling:before {
+  content: '\e7a5';
+}
+
+.icon-dingwei1:before {
+  content: '\e7a4';
+}
+
+.icon-fuwumokuai:before {
+  content: '\e7a3';
+}
+
+.icon-yingjian:before {
+  content: '\e79f';
+}
+
+.icon-fuwuzujian:before {
+  content: '\e7a0';
+}
+
+.icon-OS:before {
+  content: '\e7a1';
+}
+
+.icon-jincheng:before {
+  content: '\e7a2';
+}
+
+.icon-mc-flame:before {
+  content: '\e79d';
+}
+
+.icon-mc-fenping:before {
+  content: '\e79e';
+}
+
+.icon-mc-arrow-down:before {
+  content: '\e79c';
+}
+
+.icon-mc-arrow-right:before {
+  content: '\e79b';
+}
+
+.icon-mc-note:before {
+  content: '\e79a';
+}
+
+.icon-mc-bcs-namespace:before {
+  content: '\e799';
+}
+
+.icon-mc-bcs-workload:before {
+  content: '\e794';
+}
+
+.icon-mc-bcs-node:before {
+  content: '\e795';
+}
+
+.icon-mc-bcs-service:before {
+  content: '\e796';
+}
+
+.icon-mc-bcs-ingress:before {
+  content: '\e797';
+}
+
+.icon-mc-bcs-cluster:before {
+  content: '\e798';
+}
+
+.icon-mc-mac-os:before {
+  content: '\e791';
+}
+
+.icon-mc-load-balancer:before {
+  content: '\e792';
+}
+
+.icon-mc-rack:before {
+  content: '\e793';
+}
+
+.icon-mc-container:before {
+  content: '\e790';
+}
+
+.icon-mc-pod:before {
+  content: '\e78d';
+}
+
+.icon-mc-endpoint:before {
+  content: '\e78e';
+}
+
+.icon-mc-cmdb-process:before {
+  content: '\e787';
+}
+
+.icon-mc-user-experience:before {
+  content: '\e788';
+}
+
+.icon-mc-data-center:before {
+  content: '\e789';
+}
+
+.icon-mc-target-cloud:before {
+  content: '\e78a';
+}
+
+.icon-mc-relate-alert:before {
+  content: '\e78b';
+}
+
+.icon-mc-intelligent-detection:before {
+  content: '\e78c';
+}
+
+.icon-mc-not-assigned:before {
+  content: '\e785';
+}
+
+.icon-mc-all:before {
+  content: '\e786';
+}
+
+.icon-mc-lunliu:before {
   content: '\e784';
 }
 
-.icon-tongjifenxi:before {
+.icon-mc-statistical:before {
   content: '\e783';
 }
 
-.icon-guzhangliebiao:before {
+.icon-mc-fault-list:before {
   content: '\e77a';
 }
 
-.icon-qiyeweixin:before {
+.icon-mc-enterprise-wechat:before {
   content: '\e77b';
 }
 
-.icon-yishixiao:before {
+.icon-mc-expired:before {
   content: '\e77c';
 }
 
-.icon-quxiaofankui:before {
+.icon-mc-cancel-feedback:before {
   content: '\e77d';
 }
 
-.icon-huanyuanbili:before {
+.icon-mc-restoration-ratio:before {
   content: '\e77e';
 }
 
-.icon-guzhang:before {
+.icon-mc-fault:before {
   content: '\e77f';
 }
 
-.icon-yijiejue:before {
+.icon-mc-solved:before {
   content: '\e780';
 }
 

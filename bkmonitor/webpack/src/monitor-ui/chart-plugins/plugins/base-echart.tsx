@@ -60,9 +60,9 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   // 视图宽度 默认撑满父级
   @Prop() width: number;
   // 当前图表配置
-  curChartOption: echarts.EChartOption = null;
-  // echarts 实例
-  instance: echarts.ECharts = null;
+  // curChartOption: echarts.EChartOption = null;
+  // // echarts 实例
+  // instance: echarts.ECharts = null;
   // 当前图表配置取消监听函数
   unwatchOptions: () => void = null;
   // dblclick模拟 间隔
@@ -73,26 +73,26 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Watch('height')
   handleHeightChange() {
     if (this.height < 200) {
-      this.instance?.setOption({
+      (this as any).instance?.setOption({
         yAxis: {
           splitNumber: 2,
           scale: false
         }
       });
     }
-    this.instance?.resize({
+    (this as any).instance?.resize({
       silent: true
     });
   }
   @Watch('width')
   handleWidthChange() {
-    this.instance?.setOption({
+    (this as any).instance?.setOption({
       xAxis: {
         splitNumber: Math.ceil(this.width / 150),
         min: 'dataMin'
       }
     });
-    this.instance?.resize({
+    (this as any).instance?.resize({
       silent: true
     });
   }
@@ -108,9 +108,9 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
 
   // 初始化视图
   initChart() {
-    if (!this.instance) {
-      this.instance = echarts.init(this.chartRef);
-      this.instance.setOption(this.options);
+    if (!(this as any).instance) {
+      (this as any).instance = echarts.init(this.chartRef);
+      (this as any).instance.setOption(this.options);
       this.initPropsWatcher();
       this.initChartAction();
     }
@@ -125,11 +125,11 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   }
   // 派发method
   delegateMethod(name: string, ...args) {
-    return this.instance?.[name]?.(...args);
+    return (this as any).instance?.[name]?.(...args);
   }
   // 派发get
   delegateGet(methodName: string) {
-    return this.instance[methodName]();
+    return (this as any).instance[methodName]();
   }
   // 初始化Props监听
   initPropsWatcher() {
@@ -137,8 +137,8 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
       'options',
       v => {
         this.initChart();
-        this.instance.setOption(v, { notMerge: true, lazyUpdate: false, silent: true });
-        this.curChartOption = this.instance.getOption();
+        (this as any).instance.setOption(v, { notMerge: true, lazyUpdate: false, silent: true });
+        (this as any).curChartOption = (this as any).instance.getOption();
       },
       { deep: false }
     );
@@ -153,7 +153,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   }
   initChartEvent() {
     MOUSE_EVENTS.forEach(event => {
-      this.instance.on(event, params => {
+      (this as any).instance.on(event, params => {
         this.$emit(event, params);
       });
     });
@@ -161,7 +161,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   // echarts 实例销毁
   destroy() {
     this.delegateMethod('dispose');
-    this.instance = null;
+    (this as any).instance = null;
     this.isMouseOver = false;
   }
   handleDblClick(e: MouseEvent) {

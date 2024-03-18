@@ -20,53 +20,51 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-const getStrategyList = [{
-  strategy_id: 1,
-  strategy_name: '105业务',
-  created_by: 'ADMIN',
-  created_at: '2020-06-21 03:09:43',
-  user_list: ['48568920'],
-  visible_dir: [
-    '/data/log/cc/',
-    '/data/cc/',
-  ],
-  file_type: [
-    '.log',
-  ],
-  select_type: 'topo',
-  modules: [{
-    bk_inst_id: 2,
-    bk_inst_name: '蓝鲸',
-    bk_obj_id: 'biz',
-    bk_obj_name: '业务',
-  }],
-}, {
-  strategy_id: 2,
-  strategy_name: '10fd业务',
-  created_by: 'ADMIN',
-  created_at: '2020-06-21 03:09:43',
-  user_list: ['48568920', '4894869'],
-  visible_dir: [
-    '/data/log/cc/',
-    '/data/cc/',
-  ],
-  file_type: [
-    '.log', '.vue',
-  ],
-  select_type: 'topo',
-  modules: [{
-    bk_inst_id: 3,
-    bk_inst_name: '作业平台',
-    bk_obj_id: 'set',
-    bk_obj_name: '集群',
-  }, {
-    bk_inst_id: 50,
-    bk_inst_name: 'appengine',
-    bk_obj_id: 'module',
-    bk_obj_name: '模块',
-  }],
-}];
+const getStrategyList = [
+  {
+    strategy_id: 1,
+    strategy_name: '105业务',
+    created_by: 'ADMIN',
+    created_at: '2020-06-21 03:09:43',
+    user_list: ['48568920'],
+    visible_dir: ['/data/log/cc/', '/data/cc/'],
+    file_type: ['.log'],
+    select_type: 'topo',
+    modules: [
+      {
+        bk_inst_id: 2,
+        bk_inst_name: '蓝鲸',
+        bk_obj_id: 'biz',
+        bk_obj_name: '业务'
+      }
+    ]
+  },
+  {
+    strategy_id: 2,
+    strategy_name: '10fd业务',
+    created_by: 'ADMIN',
+    created_at: '2020-06-21 03:09:43',
+    user_list: ['48568920', '4894869'],
+    visible_dir: ['/data/log/cc/', '/data/cc/'],
+    file_type: ['.log', '.vue'],
+    select_type: 'topo',
+    modules: [
+      {
+        bk_inst_id: 3,
+        bk_inst_name: '作业平台',
+        bk_obj_id: 'set',
+        bk_obj_name: '集群'
+      },
+      {
+        bk_inst_id: 50,
+        bk_inst_name: 'appengine',
+        bk_obj_id: 'module',
+        bk_obj_name: '模块'
+      }
+    ]
+  }
+];
 
 export default {
-  getStrategyList,
+  getStrategyList
 };

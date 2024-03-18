@@ -129,17 +129,6 @@ CONVERGE_DIMENSION = {
 }
 
 ALL_CONVERGE_DIMENSION = {
-    # "bk_set_ids": _lazy("集群"),
-    # "bk_module_ids": _lazy("模块"),
-    # "bk_host_id": _lazy("主机"),
-    # "rack_id": _lazy("机架"),
-    # "net_device_id": _lazy("交换机"),
-    # "idc_unit_name": _lazy("机房"),
-    # "process": _lazy("进程名称"),
-    # "port": _lazy("端口"),
-    # "alarm_attr_id": _lazy("告警特性"),
-    # "target": _lazy("目标"),
-    # "action_id": _lazy("自愈套餐"),
     "dimensions": _lazy("维度"),
     "strategy_id": _lazy("策略"),
     "alert_name": _lazy("告警名称"),
@@ -148,6 +137,7 @@ ALL_CONVERGE_DIMENSION = {
     "signal": _lazy("告警信号"),
     "notice_receiver": _lazy("通知人员"),
     "notice_way": _lazy("通知方式"),
+    "group_notice_way": _lazy("带组员类型的通知方式"),
     "alert_info": _lazy("告警信息"),
     "notice_info": _lazy("通知信息"),
     "action_info": _lazy("告警套餐信息"),
@@ -165,6 +155,7 @@ SUB_CONVERGE_DIMENSION = {
     "signal": _lazy("告警信号"),
     "notice_receiver": _lazy("通知人员"),
     "notice_way": _lazy("通知方式"),
+    "group_notice_way": _lazy("带组员类型的通知方式"),
 }
 
 # 默认的通知关联关系
@@ -301,7 +292,6 @@ VARIABLES = [
             {"name": "target.host.bk_bak_operator_string", "desc": _lazy("备份负责人"), "example": "admin,user1"},
             {"name": "target.host.bk_comment", "desc": _lazy("备注信息"), "example": "comment"},
             {"name": "target.host.bk_host_name", "desc": _lazy("主机名"), "example": "VM_1,VM_2"},
-            {"name": "target.host.bk_host_innerip", "desc": _lazy("内网IP"), "example": "127.0.0.1,127.0.0.2"},
             {"name": "target.service_instance.service_instance_id", "desc": _lazy("服务实例ID"), "example": "1"},
             {"name": "target.service_instance.name", "desc": _lazy("服务实例名"), "example": "xxx_127.0.1.11"},
             {"name": "target.service_instances.service_instance_id", "desc": _lazy("服务实例ID"), "example": "1,2"},
@@ -709,6 +699,17 @@ class NoticeType:
     ACTION_NOTICE = "action_notice"
 
 
+class UserGroupType:
+    """
+    通知组用户的类型
+    """
+
+    MAIN = "main"
+    FOLLOWER = "follower"
+
+    CHOICE = [(MAIN, "负责人"), (FOLLOWER, "关注人")]
+
+
 class MessageQueueSignal:
     ANOMALY_PUSH = "ANOMALY_PUSH"
     RECOVERY_PUSH = "RECOVERY_PUSH"
@@ -824,8 +825,9 @@ ASSIGN_CONDITION_KEYS = {
     "alert.strategy_id": _lazy("策略"),
     "alert.name": _lazy("告警名称"),
     "alert.metric": _lazy("指标"),
+    "labels": _lazy("策略标签"),
     "is_empty_users": _lazy("通知人员为空"),
-    "tags": _lazy("告警标签"),
+    "notice_users": _lazy("通知人员"),
     "dimensions": _lazy("维度"),
     "ip": _lazy("告警IP"),
     "bk_cloud_id": _lazy("云区域ID"),

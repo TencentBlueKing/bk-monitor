@@ -30,16 +30,18 @@
       <bk-button
         ref="button"
         theme="primary"
-        style="margin-left: 20px;"
+        style="margin-left: 20px"
         :loading="loading"
-        @click="handleClick">
+        @click="handleClick"
+      >
         {{ $t('点击获取') }}
       </bk-button>
     </div>
     <bk-alert
       type="info"
       :title="$t('链接可重复获取，每个链接只能下载一次。')"
-      style="margin-top: 10px;">
+      style="margin-top: 10px"
+    >
     </bk-alert>
   </div>
 </template>
@@ -51,12 +53,12 @@ export default {
   props: {
     taskId: {
       type: Number,
-      default: undefined,
-    },
+      default: undefined
+    }
   },
   data() {
     return {
-      loading: false,
+      loading: false
     };
   },
   methods: {
@@ -67,8 +69,8 @@ export default {
           query: {
             bk_biz_id: this.$store.state.bkBizId,
             task_id: this.taskId,
-            is_url: true,
-          },
+            is_url: true
+          }
         });
 
         const input = document.createElement('input');
@@ -86,7 +88,7 @@ export default {
             trigger: 'manual',
             arrow: true,
             size: 'small',
-            extCls: 'copy-successfully-tippy',
+            extCls: 'copy-successfully-tippy'
           });
         }
         el._tippy.show();
@@ -95,7 +97,7 @@ export default {
       } finally {
         this.loading = false;
       }
-    },
-  },
+    }
+  }
 };
 </script>

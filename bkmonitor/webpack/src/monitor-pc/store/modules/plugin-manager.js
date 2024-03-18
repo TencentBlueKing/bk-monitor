@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getLabel } from '../../../monitor-api/modules/commons';
-import { operatorSystemCollectorPlugin } from '../../../monitor-api/modules/model';
-import { getReservedWord } from '../../../monitor-api/modules/plugin';
+import { getLabel } from 'monitor-api/modules/commons';
+import { operatorSystemCollectorPlugin } from 'monitor-api/modules/model';
+import { getReservedWord } from 'monitor-api/modules/plugin';
 
 export const SET_PLUGIN_DATA = 'SET_PLUGIN_DATA';
 export const SET_PLUGIN_ID = 'SET_PLUGIN_ID';

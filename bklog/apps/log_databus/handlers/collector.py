@@ -2685,12 +2685,13 @@ class CollectorHandler(object):
             else:
                 # 效验共享集群命名空间是否在允许的范围
                 for config in data["configs"]:
-                    self.check_cluster_config(
-                        bk_biz_id=data["bk_biz_id"],
-                        collector_type=config["collector_type"],
-                        bcs_cluster_id=data["bcs_cluster_id"],
-                        namespace_list=config["namespaces"],
-                    )
+                    if config.get("namespaces"):
+                        self.check_cluster_config(
+                            bk_biz_id=data["bk_biz_id"],
+                            collector_type=config["collector_type"],
+                            bcs_cluster_id=data["bcs_cluster_id"],
+                            namespace_list=config["namespaces"],
+                        )
 
                 # 原生模式，直接通过结构化数据生成
                 container_configs = data["configs"]
@@ -2700,12 +2701,14 @@ class CollectorHandler(object):
                     collector_config_id=self.data.collector_config_id,
                     collector_type=config["collector_type"],
                     namespaces=config["namespaces"],
-                    any_namespace=not config["namespaces"],
+                    namespaces_exclude=config["namespaces_exclude"],
+                    any_namespace=not any([config["namespaces"], config["namespaces_exclude"]]),
                     data_encoding=config["data_encoding"],
                     params=config["params"],
                     workload_type=config["container"]["workload_type"],
                     workload_name=config["container"]["workload_name"],
                     container_name=config["container"]["container_name"],
+                    container_name_exclude=config["container"]["container_name_exclude"],
                     match_labels=config["label_selector"]["match_labels"],
                     match_expressions=config["label_selector"]["match_expressions"],
                     all_container=not any(
@@ -2713,6 +2716,7 @@ class CollectorHandler(object):
                             config["container"]["workload_type"],
                             config["container"]["workload_name"],
                             config["container"]["container_name"],
+                            config["container"]["container_name_exclude"],
                             config["label_selector"]["match_labels"],
                             config["label_selector"]["match_expressions"],
                         ]
@@ -2791,12 +2795,13 @@ class CollectorHandler(object):
 
         # 效验共享集群命名空间是否在允许的范围
         for config in data["configs"]:
-            self.check_cluster_config(
-                bk_biz_id=bk_biz_id,
-                collector_type=config["collector_type"],
-                bcs_cluster_id=data["bcs_cluster_id"],
-                namespace_list=config["namespaces"],
-            )
+            if config.get("namespaces"):
+                self.check_cluster_config(
+                    bk_biz_id=bk_biz_id,
+                    collector_type=config["collector_type"],
+                    bcs_cluster_id=data["bcs_cluster_id"],
+                    namespace_list=config["namespaces"],
+                )
 
         for key, value in collector_config_update.items():
             setattr(self.data, key, value)
@@ -2967,7 +2972,11 @@ class CollectorHandler(object):
         result = []
         for rule_id, collector in rule_dict.items():
             collector_config_name_en = collector["path_collector_config"].collector_config_name_en
-            if collector_config_name_en.startswith("bcs_k8s_"):
+            collector_config_name = collector["path_collector_config"].collector_config_name
+            if not collector_config_name_en:
+                collector_config_name_en = collector["std_collector_config"].collector_config_name_en
+                collector_config_name = collector["std_collector_config"].collector_config_name
+            elif collector_config_name_en.startswith("bcs_k8s_"):
                 # 模式: bcs_k8s_12345_your_name_std
                 collector_config_name_en = collector_config_name_en.rsplit("_", 1)[0].split("_", 3)[3]
             else:
@@ -2976,9 +2985,9 @@ class CollectorHandler(object):
 
             rule = {
                 "rule_id": rule_id,
-                "collector_config_name": collector["path_collector_config"]
-                .collector_config_name.rsplit("_", 1)[0]
-                .split("_", 1)[1],
+                "collector_config_name": collector_config_name.rsplit("_", 1)[0].split("_", 1)[1]
+                if collector_config_name
+                else "",
                 "bk_biz_id": collector["path_collector_config"].bk_biz_id,
                 "description": collector["path_collector_config"].description,
                 "collector_config_name_en": collector_config_name_en,
@@ -2990,6 +2999,8 @@ class CollectorHandler(object):
                 "rule_std_index_set_id": collector["std_collector_config"].index_set_id,
                 "file_index_set_id": bcs_path_index_set.index_set_id if bcs_path_index_set else None,
                 "std_index_set_id": bcs_std_index_set.index_set_id if bcs_std_index_set else None,
+                "is_std_deleted": False if collector["std_collector_config"].index_set_id else True,
+                "is_file_deleted": False if collector["path_collector_config"].index_set_id else True,
                 "container_config": [],
             }
 
@@ -3032,6 +3043,24 @@ class CollectorHandler(object):
                 )
             result.append(rule)
         return result
+
+    def get_bcs_collector_storage(self, bcs_cluster_id, bk_biz_id=None):
+        bcs_storage_config = BcsStorageClusterConfig.objects.filter(
+            bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id
+        ).first()
+        toggle = FeatureToggleObject.toggle(BCS_COLLECTOR)
+        conf = toggle.feature_config if toggle else {}
+        # 优先使用传的集群ID, 传的集群ID和bcs业务指定存储集群都不存在时, 使用第一个默认集群
+        storage_cluster_id = (
+            bcs_storage_config.storage_cluster_id if bcs_storage_config else conf.get("storage_cluster_id")
+        )
+        if not storage_cluster_id:
+            es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
+            for es in es_clusters:
+                if es["cluster_config"]["is_default_cluster"]:
+                    storage_cluster_id = es["cluster_config"]["cluster_id"]
+
+        return storage_cluster_id
 
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
@@ -3119,6 +3148,7 @@ class CollectorHandler(object):
                             "conditions": config["conditions"]
                             if config.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
+                            **config.get("multiline", {}),
                         },
                         workload_type=workload_type,
                         workload_name=workload_name,
@@ -3143,6 +3173,7 @@ class CollectorHandler(object):
                             "conditions": config["conditions"]
                             if config.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
+                            **config.get("multiline", {}),
                         },
                         workload_type=workload_type,
                         workload_name=workload_name,
@@ -3427,6 +3458,7 @@ class CollectorHandler(object):
                 path_container_config.append(
                     {
                         "namespaces": conf["namespaces"],
+                        "namespaces_exclude": conf["namespaces_exclude"],
                         "any_namespace": not conf["namespaces"],
                         "data_encoding": conf["data_encoding"],
                         "params": {
@@ -3434,11 +3466,13 @@ class CollectorHandler(object):
                             "conditions": conf["conditions"]
                             if conf.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
+                            **conf.get("multiline", {}),
                         },
                         "container": {
                             "workload_type": conf["container"].get("workload_type", ""),
                             "workload_name": conf["container"].get("workload_name", ""),
                             "container_name": conf["container"].get("container_name", ""),
+                            "container_name_exclude": conf["container"].get("container_name_exclude", ""),
                         },
                         "label_selector": {
                             "match_labels": conf["label_selector"].get("match_labels", []),
@@ -3454,6 +3488,7 @@ class CollectorHandler(object):
                 std_container_config.append(
                     {
                         "namespaces": conf["namespaces"],
+                        "namespaces_exclude": conf["namespaces_exclude"],
                         "any_namespace": not conf["namespaces"],
                         "data_encoding": conf["data_encoding"],
                         "params": {
@@ -3461,11 +3496,13 @@ class CollectorHandler(object):
                             "conditions": conf["conditions"]
                             if conf.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
+                            **conf.get("multiline", {}),
                         },
                         "container": {
                             "workload_type": conf["container"].get("workload_type", ""),
                             "workload_name": conf["container"].get("workload_name", ""),
                             "container_name": conf["container"].get("container_name", ""),
+                            "container_name_exclude": conf["container"].get("container_name_exclude", ""),
                         },
                         "label_selector": {
                             "match_labels": conf["label_selector"].get("match_labels", []),
@@ -3496,8 +3533,6 @@ class CollectorHandler(object):
             return {"rule_id": rule_id}
 
         collectors = CollectorConfig.objects.filter(rule_id=bcs_rule.id)
-        if len(collectors) != DEFAULT_COLLECTOR_LENGTH:
-            raise RuleCollectorException(RuleCollectorException.MESSAGE.format(rule_id=rule_id))
         for collector in collectors:
             self.deal_self_call(
                 collector_config_id=collector.collector_config_id, collector=collector, func=self.destroy
@@ -3557,13 +3592,17 @@ class CollectorHandler(object):
                     data["configs"][x]["container"]["workload_type"],
                     data["configs"][x]["container"]["workload_name"],
                     data["configs"][x]["container"]["container_name"],
+                    data["configs"][x]["container"]["container_name_exclude"],
                     data["configs"][x]["label_selector"]["match_labels"],
                     data["configs"][x]["label_selector"]["match_expressions"],
                 ]
             )
             if x < len(container_configs):
                 container_configs[x].namespaces = data["configs"][x]["namespaces"]
-                container_configs[x].any_namespace = not data["configs"][x]["namespaces"]
+                container_configs[x].namespaces_exclude = data["configs"][x]["namespaces_exclude"]
+                container_configs[x].any_namespace = not any(
+                    [data["configs"][x]["namespaces"], data["configs"][x]["namespaces_exclude"]]
+                )
                 container_configs[x].data_encoding = data["configs"][x]["data_encoding"]
                 container_configs[x].params = (
                     {
@@ -3576,6 +3615,7 @@ class CollectorHandler(object):
                 container_configs[x].workload_type = data["configs"][x]["container"]["workload_type"]
                 container_configs[x].workload_name = data["configs"][x]["container"]["workload_name"]
                 container_configs[x].container_name = data["configs"][x]["container"]["container_name"]
+                container_configs[x].container_name_exclude = data["configs"][x]["container"]["container_name_exclude"]
                 container_configs[x].match_labels = data["configs"][x]["label_selector"]["match_labels"]
                 container_configs[x].match_expressions = data["configs"][x]["label_selector"]["match_expressions"]
                 container_configs[x].collector_type = data["configs"][x]["collector_type"]
@@ -3591,7 +3631,8 @@ class CollectorHandler(object):
                 container_config = ContainerCollectorConfig(
                     collector_config_id=collector_config_id,
                     namespaces=data["configs"][x]["namespaces"],
-                    any_namespace=not data["configs"][x]["namespaces"],
+                    namespaces_exclude=data["configs"][x]["namespaces_exclude"],
+                    any_namespace=not any([data["configs"][x]["namespaces"], data["configs"][x]["namespaces_exclude"]]),
                     data_encoding=data["configs"][x]["data_encoding"],
                     params={
                         "paths": data["configs"][x]["paths"],
@@ -3602,6 +3643,7 @@ class CollectorHandler(object):
                     workload_type=data["configs"][x]["container"]["workload_type"],
                     workload_name=data["configs"][x]["container"]["workload_name"],
                     container_name=data["configs"][x]["container"]["container_name"],
+                    container_name_exclude=data["configs"][x]["container"]["container_name_exclude"],
                     match_labels=data["configs"][x]["label_selector"]["match_labels"],
                     match_expressions=data["configs"][x]["label_selector"]["match_expressions"],
                     collector_type=data["configs"][x]["collector_type"],
@@ -3632,6 +3674,17 @@ class CollectorHandler(object):
         else:
             deal_collector_scenario_param(container_config.params)
             request_params = self.collector_container_config_to_raw_config(self.data, container_config)
+
+        # 如果是边缘存查配置，还需要追加 output 配置
+        data_link_id = CollectorConfig.objects.get(
+            collector_config_id=container_config.collector_config_id
+        ).data_link_id
+        edge_transport_params = CollectorScenario.get_edge_transport_output_params(data_link_id)
+        if edge_transport_params:
+            ext_options = request_params.get("extOptions") or {}
+            ext_options["output.kafka"] = edge_transport_params
+            request_params["extOptions"] = ext_options
+
         name = self.generate_bklog_config_name(container_config.id)
 
         container_config.status = ContainerCollectStatus.PENDING.value
@@ -3693,30 +3746,44 @@ class CollectorHandler(object):
             raise BcsClusterIdNotValidException()
         return cluster_info
 
+    def _get_shared_cluster_namespace(self, bk_biz_id: int, bcs_cluster_id: int) -> List[Any]:
+        """
+        获取共享集群有权限的namespace
+        """
+        if not bk_biz_id or not bcs_cluster_id:
+            return []
+
+        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
+        if not cluster_info.get("is_shared"):
+            return []
+
+        space = Space.objects.get(bk_biz_id=bk_biz_id)
+
+        if space.space_type_id == SpaceTypeEnum.BCS.value:
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
+        elif space.space_type_id == SpaceTypeEnum.BKCC.value:
+            # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
+            bcs_projects = BcsCcApi.list_project()
+            project_ids = {p["project_id"] for p in bcs_projects if str(p["cc_app_id"]) == str(bk_biz_id)}
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            namespaces = set()
+            for project_id, ns_list in project_id_to_ns.items():
+                if project_id not in project_ids:
+                    continue
+                for ns in ns_list:
+                    namespaces.add(ns)
+            return [{"id": n, "name": n} for n in namespaces]
+        elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_code, [])]
+        else:
+            return []
+
     def list_namespace(self, bk_biz_id, bcs_cluster_id):
         cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
-        space = Space.objects.get(bk_biz_id=bk_biz_id)
         if cluster_info["is_shared"]:
-            if space.space_type_id == SpaceTypeEnum.BCS.value:
-                project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-                return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
-            elif space.space_type_id == SpaceTypeEnum.BKCC.value:
-                # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
-                bcs_projects = BcsCcApi.list_project()
-                project_ids = {p["project_id"] for p in bcs_projects if str(p["cc_app_id"]) == str(bk_biz_id)}
-                project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-                namespaces = set()
-                for project_id, ns_list in project_id_to_ns.items():
-                    if project_id not in project_ids:
-                        continue
-                    for ns in ns_list:
-                        namespaces.add(ns)
-                return [{"id": n, "name": n} for n in namespaces]
-            elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
-                project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-                return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_code, [])]
-            else:
-                return []
+            return self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
 
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         try:
@@ -3801,33 +3868,54 @@ class CollectorHandler(object):
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
         ]
 
-    @classmethod
-    def filter_pods(cls, pods, namespaces=None, workload_type="", workload_name="", container_name=""):
+    def filter_pods(
+        self,
+        pods,
+        namespaces=None,
+        namespaces_exclude=None,
+        workload_type="",
+        workload_name="",
+        container_name="",
+        container_name_exclude="",
+        is_shared_cluster=False,
+        shared_cluster_namespace=None,
+    ):
+        namespaces_exclude = namespaces_exclude or []
         container_names = container_name.split(",") if container_name else []
+        container_names_exclude = container_name_exclude.split(",") if container_name_exclude else []
         pattern = re.compile(workload_name)
         filtered_pods = []
+        shared_cluster_namespace = shared_cluster_namespace or []
         for pod in pods.items:
             # 命名空间匹配
             if namespaces and pod.metadata.namespace not in namespaces:
                 continue
 
+            if namespaces_exclude and pod.metadata.namespace in namespaces_exclude:
+                continue
+
+            # 共享集群命名空间匹配
+            if is_shared_cluster and pod.metadata.namespace not in shared_cluster_namespace:
+                continue
+
             # 工作负载匹配
-            if not pod.metadata.owner_references:
+            if workload_type and not pod.metadata.owner_references:
                 continue
 
-            pod_workload_type = pod.metadata.owner_references[0].kind
-            pod_workload_name = pod.metadata.owner_references[0].name
+            if pod.metadata.owner_references:
+                pod_workload_type = pod.metadata.owner_references[0].kind
+                pod_workload_name = pod.metadata.owner_references[0].name
 
-            if pod_workload_type == "ReplicaSet":
-                # ReplicaSet 需要做特殊处理
-                pod_workload_name = pod_workload_name.rsplit("-", 1)[0]
-                pod_workload_type = "Deployment"
+                if pod_workload_type == "ReplicaSet":
+                    # ReplicaSet 需要做特殊处理
+                    pod_workload_name = pod_workload_name.rsplit("-", 1)[0]
+                    pod_workload_type = "Deployment"
 
-            if workload_type and workload_type != pod_workload_type:
-                continue
+                if workload_type and workload_type != pod_workload_type:
+                    continue
 
-            if workload_name and not pattern.match(pod_workload_name):
-                continue
+                if workload_name and not pattern.match(pod_workload_name):
+                    continue
 
             # 容器名匹配
             if container_names:
@@ -3837,17 +3925,36 @@ class CollectorHandler(object):
                 else:
                     continue
 
+            if container_names_exclude:
+                is_break = True
+                for container in pod.spec.containers:
+                    if container.name not in container_names_exclude:
+                        is_break = False
+                        break
+
+                if is_break:
+                    break
+
             filtered_pods.append(pod)
 
         return [(pod.metadata.namespace, pod.metadata.name) for pod in filtered_pods]
 
-    @classmethod
-    def preview_containers(cls, bcs_cluster_id, topo_type, label_selector=None, namespaces=None, container=None):
+    def preview_containers(
+        self,
+        topo_type,
+        bk_biz_id,
+        bcs_cluster_id,
+        namespaces=None,
+        namespaces_exclude=None,
+        label_selector=None,
+        container=None,
+    ):
         """
         预览匹配到的 nodes 或 pods
         """
         container = container or {}
         namespaces = namespaces or []
+        namespaces_exclude = namespaces_exclude or []
         label_selector = label_selector or {}
 
         # 将标签匹配条件转换为表达式
@@ -3890,17 +3997,32 @@ class CollectorHandler(object):
         # 当存在标签表达式时，以标签表达式维度展示
         # 当不存在标签表达式时，以namespace维度展示
         if selector_expression:
-            if not namespaces or len(namespaces) > 1:
+            if not namespaces or len(namespaces) > 1 or namespaces_exclude:
                 pods = api_instance.list_pod_for_all_namespaces(label_selector=selector_expression)
             else:
                 pods = api_instance.list_namespaced_pod(label_selector=selector_expression, namespace=namespaces[0])
         else:
-            if not namespaces or len(namespaces) > 1:
+            if not namespaces or len(namespaces) > 1 or namespaces_exclude:
                 pods = api_instance.list_pod_for_all_namespaces()
             else:
                 pods = api_instance.list_namespaced_pod(namespace=namespaces[0])
 
-        pods = cls.filter_pods(pods, namespaces=namespaces, **container)
+        is_shared_cluster = False
+        shared_cluster_namespace = list()
+        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
+        if cluster_info.get("is_shared"):
+            is_shared_cluster = True
+            namespace_info = self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
+            shared_cluster_namespace = [info["name"] for info in namespace_info]
+
+        pods = self.filter_pods(
+            pods,
+            namespaces=namespaces,
+            namespaces_exclude=namespaces_exclude,
+            is_shared_cluster=is_shared_cluster,
+            shared_cluster_namespace=shared_cluster_namespace,
+            **container,
+        )
 
         # 按 namespace进行分组
         namespace_pods = defaultdict(list)
@@ -4041,12 +4163,14 @@ class CollectorHandler(object):
 
             # 校验配置
             try:
-                self.check_cluster_config(
-                    bk_biz_id=bk_biz_id,
-                    collector_type=log_config_type,
-                    bcs_cluster_id=bcs_cluster_id,
-                    namespace_list=config.get("namespaceSelector", {}).get("matchNames", []),
-                )
+                namespace_list = config.get("namespaceSelector", {}).get("matchNames", [])
+                if namespace_list:
+                    self.check_cluster_config(
+                        bk_biz_id=bk_biz_id,
+                        collector_type=log_config_type,
+                        bcs_cluster_id=bcs_cluster_id,
+                        namespace_list=namespace_list,
+                    )
             except AllNamespaceNotAllowedException:
                 return {
                     "origin_text": yaml_config,
@@ -4080,11 +4204,15 @@ class CollectorHandler(object):
             container_configs.append(
                 {
                     "namespaces": config.get("namespaceSelector", {}).get("matchNames", []),
+                    "namespaces_exclude": config.get("namespaceSelector", {}).get("excludeNames", []),
                     "container": {
                         "workload_type": config.get("workloadType", ""),
                         "workload_name": config.get("workloadName", ""),
                         "container_name": ",".join(config["containerNameMatch"])
                         if config.get("containerNameMatch")
+                        else "",
+                        "container_name_exclude": ",".join(config["containerNameExclude"])
+                        if config.get("containerNameExclude")
                         else "",
                     },
                     "label_selector": {
@@ -4307,10 +4435,17 @@ class CollectorHandler(object):
             "encoding": container_config.data_encoding,
             "logConfigType": container_config.collector_type,
             "allContainer": container_config.all_container,
-            "namespaceSelector": {"any": container_config.any_namespace, "matchNames": container_config.namespaces},
+            "namespaceSelector": {
+                "any": container_config.any_namespace,
+                "matchNames": container_config.namespaces,
+                "excludeNames": container_config.namespaces_exclude,
+            },
             "workloadType": container_config.workload_type,
             "workloadName": container_config.workload_name,
             "containerNameMatch": container_config.container_name.split(",") if container_config.container_name else [],
+            "containerNameExclude": container_config.container_name_exclude.split(",")
+            if container_config.container_name_exclude
+            else [],
             "labelSelector": {
                 "matchLabels": {label["key"]: label["value"] for label in container_config.match_labels}
                 if container_config.match_labels
@@ -4373,11 +4508,12 @@ class CollectorHandler(object):
                         container_config["workload_type"],
                         container_config["workload_name"],
                         container_config["container_name"],
+                        container_config["container_name_exclude"],
                         container_config["match_labels"],
                         container_config["match_expressions"],
                     ]
                 ),
-                "any_namespace": not container_config["namespaces"],
+                "any_namespace": not any([container_config["namespaces"], container_config["namespaces_exclude"]]),
             }
             container_config.update(computed_fields)
 

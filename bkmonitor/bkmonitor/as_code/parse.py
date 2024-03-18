@@ -652,6 +652,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
         return errors
 
     for record in rule_records:
+        record["obj"].convert()
         record["obj"].save()
         StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id=record["obj"].id).update(
             app=app, snippet=record["snippet"], hash=record["hash"], path=record["path"]

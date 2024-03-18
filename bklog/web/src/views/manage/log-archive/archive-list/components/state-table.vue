@@ -22,21 +22,29 @@
 
 <template>
   <section
-    class="archive-state-list"
     ref="scrollContainer"
-    @scroll.passive="handleScroll">
+    class="archive-state-list"
+    @scroll.passive="handleScroll"
+  >
     <section>
       <bk-table
+        v-bkloading="{ isLoading: isTableLoading }"
         class="state-table"
         :data="dataList"
-        v-bkloading="{ isLoading: isTableLoading }"
-        :outer-border="false">
-        <bk-table-column :label="$t('索引名')" min-width="300">
+        :outer-border="false"
+      >
+        <bk-table-column
+          :label="$t('索引名')"
+          min-width="300"
+        >
           <template slot-scope="props">
             {{ props.row.index_name }}
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('数据起止时间')" min-width="200">
+        <bk-table-column
+          :label="$t('数据起止时间')"
+          min-width="200"
+        >
           <template slot-scope="props">
             {{ `${props.row.start_time} - ${props.row.end_time}` }}
           </template>
@@ -60,7 +68,10 @@
           </template>
         </bk-table-column>
         <!-- 添加操作列后可去掉此列宽度 -->
-        <bk-table-column :label="$t('是否已回溯')" width="200">
+        <bk-table-column
+          :label="$t('是否已回溯')"
+          width="200"
+        >
           <template slot-scope="props">
             {{ props.row.is_stored ? $t('是') : $t('否') }}
           </template>
@@ -81,8 +92,8 @@
         <div
           v-show="!isPageOver"
           v-bkloading="{ isLoading: true }"
-          style="height: 40px;">
-        </div>
+          style="height: 40px"
+        ></div>
       </template>
     </section>
   </section>
@@ -95,9 +106,8 @@ export default {
   name: 'ArchiveState',
   props: {
     archiveConfigId: {
-      type: Number,
-      default: '',
-    },
+      type: Number
+    }
   },
   data() {
     return {
@@ -109,10 +119,10 @@ export default {
         SUCCESS: this.$t('成功'),
         FAIL: this.$t('失败'),
         PARTIAL: this.$t('失败'),
-        IN_PROGRESS: this.$t('回溯中'),
+        IN_PROGRESS: this.$t('回溯中')
       },
       curPage: 0,
-      pageSize: 20,
+      pageSize: 20
     };
   },
   created() {
@@ -138,34 +148,35 @@ export default {
     },
     init() {
       this.isTableLoading = true;
-      Promise.all([this.requestData()])
-        .finally(() => {
-          this.isTableLoading = false;
-        });
+      Promise.all([this.requestData()]).finally(() => {
+        this.isTableLoading = false;
+      });
     },
     requestData() {
       return new Promise(() => {
-        this.$http.request('archive/archiveConfig', {
-          query: {
-            page: this.curPage,
-            pagesize: this.pageSize,
-          },
-          params: {
-            archive_config_id: this.archiveConfigId,
-          },
-        }).then((res) => {
-          const { data } = res;
-          this.isPageOver = data.indices.length < this.pageSize;
-          if (data.indices.length) {
-            const list = [];
-            data.indices.forEach((item) => {
-              list.push({
-                ...item,
+        this.$http
+          .request('archive/archiveConfig', {
+            query: {
+              page: this.curPage,
+              pagesize: this.pageSize
+            },
+            params: {
+              archive_config_id: this.archiveConfigId
+            }
+          })
+          .then(res => {
+            const { data } = res;
+            this.isPageOver = data.indices.length < this.pageSize;
+            if (data.indices.length) {
+              const list = [];
+              data.indices.forEach(item => {
+                list.push({
+                  ...item
+                });
               });
-            });
-            this.dataList.splice(this.dataList.length, 0, ...list);
-          }
-        })
+              this.dataList.splice(this.dataList.length, 0, ...list);
+            }
+          })
           .finally(() => {
             this.isTableLoading = false;
           });
@@ -174,58 +185,57 @@ export default {
     operateHandler() {},
     getFileSize(size) {
       return formatFileSize(size);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/devops-common.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
 
-  .archive-state-list {
-    max-height: 500px;
-    overflow: auto;
+.archive-state-list {
+  max-height: 500px;
+  overflow: auto;
 
-    .state-table {
-      th.is-first,
-      td.is-first {
-        padding-left: 80px;
-      }
+  .state-table {
+    th.is-first,
+    td.is-first {
+      padding-left: 80px;
+    }
 
-      .filter-column {
-        .cell {
-          display: flex;
-        }
-      }
-
-      .restore-status {
+    .filter-column {
+      .cell {
         display: flex;
-        align-items: center;
+      }
+    }
+
+    .restore-status {
+      display: flex;
+      align-items: center;
+    }
+
+    .status-icon {
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      margin-right: 6px;
+      border-radius: 50%;
+
+      &.is-SUCCESS {
+        background: #6dd400;
       }
 
-      .status-icon {
-        display: inline-block;
-        margin-right: 6px;
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
+      &.is-FAIL,
+      &.is-PARTIAL {
+        background: #e02020;
+      }
 
-        &.is-SUCCESS {
-          background: #6dd400;
-        }
-
-        &.is-FAIL,
-        &.is-PARTIAL {
-          background: #e02020;
-
-        }
-
-        &.is-IN_PROGRESS {
-          background: #fe9c00;
-        }
+      &.is-IN_PROGRESS {
+        background: #fe9c00;
       }
     }
   }
+}
 </style>

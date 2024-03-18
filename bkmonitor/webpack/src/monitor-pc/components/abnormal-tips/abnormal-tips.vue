@@ -48,9 +48,9 @@
 </template>
 <script lang="ts">
 import { Component, Mixins, Prop } from 'vue-property-decorator';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
 
-import { LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils/constant';
-import { docCookies } from '../../../monitor-common/utils/utils';
 import documentLinkMixin from '../../mixins/documentLinkMixin';
 
 // zh-cn
@@ -81,8 +81,8 @@ export default class AbnormalTips extends Mixins(documentLinkMixin) {
     }
 
     .link {
-      white-space: nowrap;
       color: #3a84ff;
+      white-space: nowrap;
       cursor: pointer;
 
       .icon-mc-link {

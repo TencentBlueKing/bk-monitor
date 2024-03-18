@@ -33,10 +33,9 @@
 import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import Schema from 'async-validator';
-import { OptionGroup } from 'bk-magic-vue';
+import { strategyLabelList } from 'monitor-api/modules/strategies';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
-import { strategyLabelList } from '../../../../../monitor-api/modules/strategies';
-import { transformDataKey } from '../../../../../monitor-common/utils/utils';
 import ErrorMsg from '../../../../components/error-msg/error-msg';
 import MultiLabelSelect from '../../../../components/multi-label-select/multi-label-select';
 import { labelListToTreeData } from '../../../../components/multi-label-select/utils';
@@ -229,7 +228,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
             on-change={this.handleBaseConfigChange}
           >
             {this.scenarioList.map((group, index) => (
-              <OptionGroup
+              <bk-option-group
                 name={group.name}
                 key={index}
               >
@@ -240,7 +239,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
                     name={option.name}
                   ></bk-option>
                 ))}
-              </OptionGroup>
+              </bk-option-group>
             ))}
           </bk-select>
         </CommonItem>

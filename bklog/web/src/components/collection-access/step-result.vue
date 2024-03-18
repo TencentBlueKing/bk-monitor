@@ -21,8 +21,14 @@
   -->
 
 <template>
-  <div class="step-result-wrapper" v-if="isNotApplyPage">
-    <div class="step-result-container" data-test-id="finish_div_finishBox">
+  <div
+    v-if="isNotApplyPage"
+    class="step-result-wrapper"
+  >
+    <div
+      class="step-result-container"
+      data-test-id="finish_div_finishBox"
+    >
       <i class="bk-icon icon-check-circle"></i>
       <h3 class="title">{{ finishText }}</h3>
       <!-- <p v-if="host.count"> -->
@@ -37,27 +43,35 @@
       </p> -->
       <div class="result-button-group">
         <bk-button
-          @click="routeChange('complete')"
           data-test-id="finishBox_button_backToList"
-        >{{ $t('返回列表') }}</bk-button>
+          @click="routeChange('complete')"
+          >{{ $t('返回列表') }}</bk-button
+        >
         <bk-button
-          theme="primary" @click="routeChange('search')"
+          theme="primary"
           data-test-id="finishBox_button_goToSearch"
-        >{{ $t('日志检索') }}</bk-button>
+          @click="routeChange('search')"
+          >{{ $t('日志检索') }}</bk-button
+        >
       </div>
     </div>
   </div>
   <div
     v-else
-    class="approval-detail-container">
-    <bk-exception v-if="applyData" type="building">
+    class="approval-detail-container"
+  >
+    <bk-exception
+      v-if="applyData"
+      type="building"
+    >
       <div class="approval-text">
         <span>{{ $t('容量评估进行中') }}</span>
         <a
           :href="applyData.iframe_ticket_url"
           class="button-text"
           target="_blank"
-          data-test-id="capacityContaineBox_a_viewApprovalDetails">
+          data-test-id="capacityContaineBox_a_viewApprovalDetails"
+        >
           {{ $t('点击查看审批详情') }}
           <span class="log-icon icon-lianjie"></span>
         </a>
@@ -74,22 +88,22 @@ export default {
     isSwitch: Boolean,
     indexSetId: {
       type: [String, Number],
-      default: '',
+      default: ''
     },
     type: {
       type: String,
-      default: 'create',
+      default: 'create'
     },
     host: {
       type: Object,
       default() {
         return {};
-      },
+      }
     },
     applyData: {
       type: Object,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
@@ -102,8 +116,8 @@ export default {
         stop: this.$t('采集项停用完成'),
         storage: this.$t('采集项修改完成'),
         container: this.$t('采集项修改完成'),
-        masking: this.$t('采集项修改完成'),
-      },
+        masking: this.$t('采集项修改完成')
+      }
     };
   },
   computed: {
@@ -121,7 +135,7 @@ export default {
     },
     isNotApplyPage() {
       return this.applyData.itsm_ticket_status !== 'applying';
-    },
+    }
   },
   methods: {
     routeChange(type) {
@@ -132,87 +146,87 @@ export default {
       this.$router.replace({
         name: routeName,
         params: {
-          indexId: type === 'search' && this.indexSetId ? this.indexSetId : '',
+          indexId: type === 'search' && this.indexSetId ? this.indexSetId : ''
         },
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '@/scss/conf';
+@import '@/scss/conf';
 
-  .step-result-wrapper {
-    position: relative;
-    padding-top: 105px;
+.step-result-wrapper {
+  position: relative;
+  padding-top: 105px;
 
-    .step-result-container {
-      width: 500px;
-      margin: 0 auto;
-      text-align: center;
+  .step-result-container {
+    width: 500px;
+    margin: 0 auto;
+    text-align: center;
 
-      .icon-check-circle {
-        font-size: 56px;
-        color: $successColor;
-      }
-
-      .title {
-        margin: 21px 0 0 0;
-        padding: 0;
-        font-size: 16px;
-        color: #000;
-      }
-
-      .info {
-        margin-top: 10px;
-        font-size: 12px;
-        color: #6e7079;
-      }
-
-      .host-number {
-        margin: 0 3px;
-      }
-
-      .text-primary {
-        color: $primaryColor;
-      }
-
-      .text-success {
-        color: $successColor;
-      }
-
-      .text-failed {
-        color: $failColor;
-      }
+    .icon-check-circle {
+      font-size: 56px;
+      color: $successColor;
     }
 
-    .result-button-group {
-      margin-top: 36px;
-      font-size: 0;
-
-      .bk-button + .bk-button {
-        margin-left: 10px;
-      }
-    }
-  }
-
-  .approval-detail-container {
-    height: 100%;
-    padding-top: 100px;
-    font-size: 14px;
-
-    .approval-text {
-      display: flex;
-      flex-flow: column;
+    .title {
+      padding: 0;
+      margin: 21px 0 0 0;
       font-size: 16px;
+      color: #000;
+    }
 
-      .button-text {
-        margin-top: 16px;
-      }
+    .info {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #6e7079;
+    }
+
+    .host-number {
+      margin: 0 3px;
+    }
+
+    .text-primary {
+      color: $primaryColor;
+    }
+
+    .text-success {
+      color: $successColor;
+    }
+
+    .text-failed {
+      color: $failColor;
     }
   }
+
+  .result-button-group {
+    margin-top: 36px;
+    font-size: 0;
+
+    .bk-button + .bk-button {
+      margin-left: 10px;
+    }
+  }
+}
+
+.approval-detail-container {
+  height: 100%;
+  padding-top: 100px;
+  font-size: 14px;
+
+  .approval-text {
+    display: flex;
+    flex-flow: column;
+    font-size: 16px;
+
+    .button-text {
+      margin-top: 16px;
+    }
+  }
+}
 </style>

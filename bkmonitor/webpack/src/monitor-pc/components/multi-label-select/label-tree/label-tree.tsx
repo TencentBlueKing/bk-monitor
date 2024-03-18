@@ -27,10 +27,9 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tree } from 'bk-magic-vue';
+import { deleteStrategyLabel, strategyLabel } from 'monitor-api/modules/strategies';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deleteStrategyLabel, strategyLabel } from '../../../../monitor-api/modules/strategies';
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import { ITreeItem, TMode } from '../types';
 
 import './label-tree.scss';
@@ -499,12 +498,12 @@ export default class LabelTree extends tsc<IContainerProps> {
   protected render(): VNode {
     return (
       <div class='label-tree-wrap'>
-        <Tree
+        <bk-tree
           show-icon={false}
           tpl={this.tpl}
           data={this.localTreeList}
           node-key='id'
-        ></Tree>
+        ></bk-tree>
       </div>
     );
   }

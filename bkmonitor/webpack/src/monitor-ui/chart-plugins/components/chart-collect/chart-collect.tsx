@@ -26,13 +26,13 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
+import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import ViewDetail from 'monitor-pc/pages/view-detail/index';
+import { isEnFn } from 'monitor-pc/utils';
 
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import CollectionDialog from '../../../../monitor-pc/pages/data-retrieval/components/collection-view-dialog';
-import { PanelToolsType } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import ViewDetail from '../../../../monitor-pc/pages/view-detail/index';
-import { isEnFn } from '../../../../monitor-pc/utils';
-import { IPanelModel, IViewOptions, PanelModel } from '../../typings';
+import { IPanelModel, IViewOptions, ObservablePanelField, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 
@@ -47,6 +47,7 @@ export interface ICheckPanel {
 
 interface IChartCollectProps {
   localPanels?: ICheckPanel[]; // 已选中的视图
+  observablePanelsField?: ObservablePanelField; // 视图响应式数据
   showCollect?: boolean; // 展示收藏弹窗
   isCollectSingle?: boolean; // 是否为收藏指定视图
 }
@@ -64,6 +65,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
   @Prop({ type: Array, default: () => [] }) localPanels: PanelModel[];
   @Prop({ type: Boolean, default: false }) showCollect: boolean;
   @Prop({ type: Boolean, default: false }) isCollectSingle: boolean;
+  @Prop({ type: Object, default: undefined }) observablePanelsField: boolean;
 
   @InjectReactive('timeRange') readonly timeRange!: number;
   @InjectReactive('timeOffset') readonly timeOffset: string[];
@@ -103,7 +105,8 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
     };
     const checkList = [];
     this.localPanels?.forEach(item => {
-      if (item.type !== 'row' && item.canSetGrafana && item.checked) {
+      const { checked } = this.observablePanelsField?.[item.id] || item;
+      if (item.type !== 'row' && item.canSetGrafana && checked) {
         checkList.push(transformVariables(JSON.parse(JSON.stringify({ ...item }))));
       }
       item.panels?.forEach(panel => {

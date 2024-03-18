@@ -22,17 +22,20 @@
 
 <template>
   <bk-select
-    style="width: 520px;"
+    style="width: 520px"
     searchable
     :clearable="false"
     :value="selectedId"
+    data-test-id="newlogIndexSetBox_select_selectIndex"
     @selected="handleSelected"
-    data-test-id="newlogIndexSetBox_select_selectIndex">
-    <template v-for="item in collectionList">
+  >
+    <template>
       <bk-option
-        :key="item.result_table_id"
+        v-for="item in collectionList"
         :id="item.result_table_id"
-        :name="item.result_table_name_alias">
+        :key="item.result_table_id"
+        :name="item.result_table_name_alias"
+      >
       </bk-option>
     </template>
   </bk-select>
@@ -45,30 +48,30 @@ export default {
   props: {
     value: {
       type: Array,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     const scenarioId = this.$route.name.split('-')[0];
     return {
       scenarioId,
       selectedId: '',
-      collectionList: [],
+      collectionList: []
     };
   },
   computed: {
-    ...mapState(['spaceUid', 'bkBizId']),
+    ...mapState(['spaceUid', 'bkBizId'])
   },
   watch: {
     value: {
       handler(val) {
         const item = val[0];
-        if (item && (item.result_table_id !== this.selectedId)) {
+        if (item && item.result_table_id !== this.selectedId) {
           this.selectedId = item.result_table_id;
         }
       },
-      immediate: true,
-    },
+      immediate: true
+    }
   },
   created() {
     this.fetchCollectionList();
@@ -81,10 +84,10 @@ export default {
         const res = await this.$http.request('/resultTables/list', {
           query: {
             scenario_id: this.scenarioId,
-            bk_biz_id: this.bkBizId,
-          },
+            bk_biz_id: this.bkBizId
+          }
         });
-        this.collectionList = res.data.map((item) => {
+        this.collectionList = res.data.map(item => {
           item.bk_biz_id = this.bkBizId;
           return item;
         });
@@ -97,7 +100,7 @@ export default {
     handleSelected(id) {
       this.selectedId = id;
       this.$emit('update:value', [this.collectionList.find(item => item.result_table_id === id)]);
-    },
-  },
+    }
+  }
 };
 </script>

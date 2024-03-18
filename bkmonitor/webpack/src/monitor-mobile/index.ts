@@ -31,14 +31,14 @@ import Vue from 'vue';
 import i18n from './i18n/i18n';
 
 import { setVue } from '../monitor-api/utils/index';
-import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
-import { getUrlParam } from '../monitor-common/utils/utils';
+import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { getUrlParam } from 'monitor-common/utils/utils';
 
 import App from './pages/app.vue';
 import router from './router/router';
 import store from './store/store';
 
-import '../monitor-static/icons/monitor-icons.css';
+import 'monitor-static/icons/monitor-icons.css';
 import 'vant/lib/icon/local.css';
 import './static/scss/global.scss';
 import 'vant/lib/index.css';

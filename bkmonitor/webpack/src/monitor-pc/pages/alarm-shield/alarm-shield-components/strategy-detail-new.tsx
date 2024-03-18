@@ -54,8 +54,8 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
             {item.data_type_label === 'event'
               ? this.getEventContent(item)
               : item.data_type_label === 'alert'
-              ? this.getAlertContent(item)
-              : this.getTimeSeriesContent(item)}
+                ? this.getAlertContent(item)
+                : this.getTimeSeriesContent(item)}
           </div>
         ))}
       </div>

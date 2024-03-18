@@ -32,7 +32,7 @@ export default {
   提交: 'Submit',
   高级: 'Advance',
   归档: 'Archive',
-  确定: 'Confirm',  // 确定语境的位置,确定和确认，保留确认
+  确定: 'Confirm', // 确定语境的位置,确定和确认，保留确认
   确认: 'Confirm',
   停用: 'Disable',
   检索: 'Explore',
@@ -154,6 +154,7 @@ export default {
   新增采样: 'New sample',
   钉住: 'Nail sample',
   取消钉住: 'Cancel nail sample',
+  升级: 'Upgrade',
   新增备注: 'Add New Label',
   新增标签: 'Add New Label',
   多选: 'Multiple',

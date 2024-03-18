@@ -28,9 +28,9 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
+import { deepClone } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import PieLegend from '../../components/chart-legend/pie-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_PIE_OPTIONS } from '../../constants';

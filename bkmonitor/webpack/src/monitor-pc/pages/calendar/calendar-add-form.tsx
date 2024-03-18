@@ -26,8 +26,7 @@
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { editItem, saveItem } from '../../../monitor-api/modules/calendar';
+import { editItem, saveItem } from 'monitor-api/modules/calendar';
 
 import CalendarInfo, { IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
 import DaysSelect from './components/days-select/days-select';

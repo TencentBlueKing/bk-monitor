@@ -20,6 +20,7 @@ from alarm_backends.core.cache.key import LAST_CHECKPOINTS_CACHE_KEY
 from alarm_backends.core.detect_result import ANOMALY_LABEL, CheckResult
 from bkmonitor.utils.common_utils import chunks
 from bkmonitor.utils.text import camel_to_underscore
+from constants.data_source import DataTypeLabel
 
 logger = logging.getLogger("core.control")
 
@@ -64,9 +65,15 @@ class DetectMixin(object):
                 algorithm_unit = detect_config.get("unit_prefix", "")
                 detector_cls = load_detector_cls(algorithm_type)
                 detector = detector_cls(detect_config["config"], algorithm_unit)
+
+                # 判断算法是否需要查询历史数据
                 if hasattr(detector, "history_point_fetcher"):
-                    # query history point
                     detector.query_history_points(data_points)
+
+                    # 如果是事件类数据，历史数据需要补充0值
+                    if {DataTypeLabel.LOG, DataTypeLabel.EVENT} & self.data_type_labels:
+                        detector.set_default(0)
+
                 detector_list.append(detector)
 
             if len(detector_list) == 1:

@@ -408,3 +408,12 @@ export const debounce = function (func, wait, immediate = true) {
     }
   };
 };
+
+/* 删除字符串末尾的空格或指定的字符 */
+export const rstrip = (str, char) => {
+  if (char === undefined) {
+    return str.replace(/\s+$/, '');
+  }
+  const reg = new RegExp(`${char}$`);
+  return str.replace(reg, '');
+};

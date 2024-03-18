@@ -18,7 +18,6 @@ from django.conf import settings
 from django.db.models import Q
 
 from core.drf_resource import api
-from metadata.models.space.constants import EtlConfigs
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
 from metadata.models.vm.config import BkDataStorageWithDataID
 from metadata.models.vm.constants import BKDATA_NS_TIMESTAMP_DATA_ID_LIST, TimestampLen
@@ -132,6 +131,45 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
 
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s access vm successfully", bk_biz_id, table_id, data_id)
 
+    # NOTE: 针对 bcs 添加合流流程
+    # 1. 当前环境允许合流操作
+    # 2. 合流的目的rt存在
+    # 3. 当出现异常时，记录对应日志
+    if (
+        settings.BCS_DATA_CONVERGENCE_CONFIG.get("is_enabled")
+        and settings.BCS_DATA_CONVERGENCE_CONFIG.get("k8s_metric_rt")
+        and settings.BCS_DATA_CONVERGENCE_CONFIG.get("custom_metric_rt")
+        and bcs_cluster_id
+    ):
+        try:
+            data_name_and_dp_id = get_bcs_convergence_data_name_and_dp_id(table_id)
+            clean_data = BkDataAccessor(
+                bk_table_id=data_name_and_dp_id["data_name"],
+                data_hub_name=data_name_and_dp_id["data_name"],
+                timestamp_len=timestamp_len,
+            ).clean
+            clean_data["result_table_id"] = (
+                settings.BCS_DATA_CONVERGENCE_CONFIG["k8s_metric_rt"]
+                if data_type == AccessVMRecord.BCS_CLUSTER_K8S
+                else settings.BCS_DATA_CONVERGENCE_CONFIG["custom_metric_rt"]
+            )
+            clean_data["processing_id"] = data_name_and_dp_id["dp_id"]
+            # 创建清洗
+            api.bkdata.databus_cleans(**clean_data)
+            # 启动
+            api.bkdata.start_databus_cleans(
+                result_table_id=clean_data["result_table_id"],
+                storages=["kafka"],
+                processing_id=data_name_and_dp_id["dp_id"],
+            )
+        except Exception as e:
+            logger.error(
+                "bcs convergence create or start data clean error, table_id: %s, params: %s, error: %s",
+                table_id,
+                json.dumps(clean_data),
+                e,
+            )
+
 
 def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, timestamp_len: int) -> Dict:
     """通过 kafka 配置接入 vm"""
@@ -150,7 +188,7 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
         try:
             kafka_data = refine_bkdata_kafka_info()
         except Exception as e:
-            logger.error("get bkdata kafka host error: %s", e)
+            logger.error("get bkdata kafka host error, table_id: %s, error: %s", table_id, e)
             return {"err_msg": f"request vm api error, {e}"}
         storage_cluster_id = kafka_data["cluster_id"]
         try:
@@ -162,7 +200,7 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
             vm_data["cluster_id"] = storage_cluster_id
             return vm_data
         except Exception as e:
-            logger.error("request vm api error, %s", e)
+            logger.error("request vm api error, table_id: %s, error: %s", table_id, e)
             return {"err_msg": f"request vm api error, {e}"}
     # 创建清洗和入库 vm
     bk_base_data = BkDataStorage.objects.filter(table_id=table_id).first()
@@ -191,7 +229,9 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
         # 启动
         api.bkdata.start_databus_cleans(result_table_id=bkbase_result_table_id, storages=["kafka"])
     except Exception as e:
-        logger.error("create or start data clean error, params: %s, error: %s", json.dumps(clean_data), e)
+        logger.error(
+            "create or start data clean error, table_id: %s, params: %s, error: %s", table_id, json.dumps(clean_data), e
+        )
         return {"err_msg": f"request clean api error, {e}"}
     # 接入 vm
     try:
@@ -284,36 +324,22 @@ def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
     return {"data_name": vm_name, "topic_name": f"{vm_name}{settings.DEFAULT_BKDATA_BIZ_ID}"}
 
 
+def get_bcs_convergence_data_name_and_dp_id(table_id: str) -> Dict:
+    """获取 bcs 合流对应的结果表及数据处理 ID"""
+    if table_id.endswith("__default__"):
+        table_id = table_id.split(".__default__")[0]
+    name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
+    # NOTE: 清洗结果表不能出现双下划线
+    return {"data_name": f"dp_{name}", "dp_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{name}_dp_metric_all"}
+
+
 def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] = None) -> int:
     """通过 data id 或者 etl config 获取接入 vm 是清洗时间的长度
 
     1. 如果 data id 在指定的白名单中，则为 纳米
-    2. 如果 etl_config 为bk_exporter, 则为 秒
-    3. 其它，则为 毫秒
+    2. 其它，则为 毫秒
     """
-    # 如果都不存在，则默认
-    if not (data_id or etl_config):
-        return TimestampLen.MILLISECOND_LEN.value
-
     if data_id and data_id in BKDATA_NS_TIMESTAMP_DATA_ID_LIST:
         return TimestampLen.NANOSECOND_LEN.value
-
-    second_etl_config = [EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value]
-
-    # TODO: 暂时不放到 admin 管理
-    # NOTE: 以实际传入的值为准
-    if etl_config and etl_config in second_etl_config:
-        return TimestampLen.SECOND_LEN.value
-    # 如果数据源 ID 存在，则查询出对应的 etl_config
-    if data_id:
-        from metadata.models import DataSource
-
-        try:
-            ds = DataSource.objects.get(bk_data_id=data_id)
-            if ds.etl_config in second_etl_config:
-                return TimestampLen.SECOND_LEN.value
-
-        except DataSource.DoesNotExist:
-            logger.error("query ds error, bk_data_id: %s", data_id)
 
     return TimestampLen.MILLISECOND_LEN.value

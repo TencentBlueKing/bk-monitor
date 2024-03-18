@@ -9,21 +9,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-"""
-测试检测算法连接符
-"""
 import pytest
 
 from alarm_backends.core.control.item import Item
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.tests.service.detect import DataPoint
-from bkmonitor.models import CacheNode, CacheRouter
+from bkmonitor.models import CacheNode
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture()
 def item():
-    CacheRouter.get_node_by_strategy_id(0)
+    get_node_by_strategy_id(0)
     CacheNode.refresh_from_settings()
 
     class Strategy:

@@ -44,6 +44,8 @@ export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) rowData: any;
   @Prop({ type: Array, required: true }) selectLabelList: Array<IPropLabelList>;
   @Ref('checkInputForm') private readonly checkInputFormRef: Form;
+  @Ref('tagSelect') private readonly tagSelectRef: Select;
+  @Ref('labelEditInput') private readonly labelEditInputRef: HTMLElement;
 
   /** 是否展示添加标签 */
   isShowNewGroupInput = false;
@@ -162,6 +164,7 @@ export default class QueryStatement extends tsc<IProps> {
             .finally(() => {
               this.verifyData.labelEditName = '';
               this.isShowNewGroupInput = false;
+              this.tagSelectRef.close();
             });
         },
         () => {},
@@ -216,17 +219,19 @@ export default class QueryStatement extends tsc<IProps> {
               .join(', ')}`,
           }}
         >
-          {this.showLabelList.map(item => (
-            <Tag>
-              <span class="label-tag">
-                <span>{item.name}</span>
-                <i
-                  class="bk-icon icon-close"
-                  onClick={() => this.handleDeleteTag(item.tag_id)}
-                ></i>
-              </span>
-            </Tag>
-          ))}
+          <span>
+            {this.showLabelList.map(item => (
+              <Tag>
+                <span class="label-tag">
+                  <span v-bk-overflow-tips class="title-overflow">{item.name}</span>
+                  <i
+                    class="bk-icon icon-close"
+                    onClick={() => this.handleDeleteTag(item.tag_id)}
+                  ></i>
+                </span>
+              </Tag>
+            ))}
+          </span>
           <Select
             searchable
             popover-min-width={240}
@@ -234,6 +239,7 @@ export default class QueryStatement extends tsc<IProps> {
             disabled={this.isDisabledAddNewTag}
             onSelected={this.addLabelToIndexSet}
             onToggle={this.toggleSelect}
+            ref="tagSelect"
             scopedSlots={{
               trigger: () => (
                 <div
@@ -271,6 +277,7 @@ export default class QueryStatement extends tsc<IProps> {
                     <FormItem property="labelEditName">
                       <Input
                         clearable
+                        ref="labelEditInput"
                         vModel={this.verifyData.labelEditName}
                         onEnter={v => this.handleLabelKeyDown(v)}
                       ></Input>
@@ -290,7 +297,12 @@ export default class QueryStatement extends tsc<IProps> {
               ) : (
                 <div
                   class="add-new-label"
-                  onClick={() => (this.isShowNewGroupInput = true)}
+                  onClick={() => {
+                    this.isShowNewGroupInput = true;
+                    this.$nextTick(() => {
+                      this.labelEditInputRef.focus();
+                    });
+                  }}
                 >
                   <i class="bk-icon icon-plus-circle"></i>
                   <span>{this.$t('新增标签')}</span>

@@ -51,7 +51,8 @@ export default class SelectIndexSetInput extends tsc<{}> {
   // 计算第二行第一个的index，在其前方插入overflow tag
   calcOverflow() {
     this.reomveOverflowTagNode();
-    if (this.isShowSelectPopover || this.selectedItemList.length < 2) {
+    // this.isShowSelectPopover ||
+    if (this.selectedItemList.length < 2) {
       return false;
     }
     setTimeout(() => {

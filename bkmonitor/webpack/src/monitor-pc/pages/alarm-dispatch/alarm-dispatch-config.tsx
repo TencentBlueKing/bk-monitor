@@ -25,14 +25,13 @@
  */
 import { Component, Inject, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Checkbox, Option, Popconfirm, Select, Switcher } from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import { listActionConfig, listAssignGroup, listAssignRule, listUserGroup } from 'monitor-api/modules/model';
+import { getCookie, random, transformDataKey } from 'monitor-common/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { listActionConfig, listAssignGroup, listAssignRule, listUserGroup } from '../../../monitor-api/modules/model';
-import { getCookie, random, transformDataKey } from '../../../monitor-common/utils';
-import { deepClone } from '../../../monitor-common/utils/utils';
-import MonitorImport from '../../../monitor-pc/components/monitor-import/monitor-import.vue';
 import { Debounce } from '../../components/ip-selector/common/util';
+import MonitorImport from '../../components/monitor-import/monitor-import.vue';
 import { getEventPaths } from '../../utils';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
 import { csvToArr } from '../custom-escalation/utils';
@@ -193,6 +192,8 @@ export default class AlarmDispatchConfig extends tsc<{}> {
   /* 批量删除、撤回tips disabled */
   batchTipsDisabled = false;
 
+  editAllowed = true;
+
   /* 是否可调试 */
   get canDebug() {
     return (
@@ -301,6 +302,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
     this.priorityList = list.map(item => item.priority);
     if (targetRuleGroup) {
       this.ruleGroupData = targetRuleGroup;
+      this.editAllowed = !!targetRuleGroup?.edit_allowed;
     }
   }
 
@@ -376,11 +378,11 @@ export default class AlarmDispatchConfig extends tsc<{}> {
   tableColumnsInit() {
     const selectDom = () => (
       <div class='table-column-item select-all'>
-        <Checkbox
+        <bk-checkbox
           v-model={this.isCheckAll}
           indeterminate={this.indeterminate}
           onChange={this.handleCheckAllChange}
-        ></Checkbox>
+        ></bk-checkbox>
       </div>
     );
     const alarmGroupDom = () => <div class='table-column-item'>{this.$t('告警组')}</div>;
@@ -1283,19 +1285,19 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                         base64={false}
                         onChange={this.handleImportChange}
                       >
-                        <Button
+                        <bk-button
                           size='small'
                           class='mr10'
                         >
                           {this.$t('导入')}
-                        </Button>
+                        </bk-button>
                       </MonitorImport>
-                      <Button
+                      <bk-button
                         size='small'
                         onClick={this.handleExportChange}
                       >
                         {this.$t('导出')}
-                      </Button>
+                      </bk-button>
                     </div>
                   </div>
                 </td>
@@ -1380,7 +1382,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                         {/* 批量删除、批量撤回 */}
                         {item.id === 'operate' && (
                           <div class='batch-operate-warp'>
-                            <Popconfirm
+                            <bk-popconfirm
                               content={this.$t('是否批量删除勾选规则？')}
                               ext-popover-cls='alarm-dispatch-rule-operate'
                               onConfirm={() => this.handleOperateAction('batchDelete')}
@@ -1397,8 +1399,8 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                                 onClick={() => (this.batchTipsDisabled = true)}
                                 v-bk-tooltips={{ content: this.$t('批量删除'), disabled: this.batchTipsDisabled }}
                               ></span>
-                            </Popconfirm>
-                            <Popconfirm
+                            </bk-popconfirm>
+                            <bk-popconfirm
                               content={this.$t('是否批量撤回勾选规则上一次生效的配置？')}
                               ext-popover-cls='alarm-dispatch-rule-operate'
                               onConfirm={() => this.handleOperateAction('batchReset')}
@@ -1415,7 +1417,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                                 onClick={() => (this.batchTipsDisabled = true)}
                                 v-bk-tooltips={{ content: this.$t('批量撤回'), disabled: this.batchTipsDisabled }}
                               ></span>
-                            </Popconfirm>
+                            </bk-popconfirm>
                             <span class='icon-monitor icon-jian icon-hidden'></span>
                             <span class='icon-monitor icon-jian icon-hidden'></span>
                           </div>
@@ -1457,14 +1459,23 @@ export default class AlarmDispatchConfig extends tsc<{}> {
             <div class='opreate-warp'></div>
           </div>
           <div class='config-footer'>
-            <Button
-              theme='primary'
-              onClick={() => this.handleStartDebug()}
-              class='mr10'
+            <span
+              v-bk-tooltips={{
+                placements: ['top'],
+                content: this.$t('内置的分派规则组不允许修改'),
+                disabled: this.editAllowed
+              }}
             >
-              {this.$t('调试并生效')}
-            </Button>
-            <Button onClick={this.handleCancel}>{this.$t('取消')}</Button>
+              <bk-button
+                theme='primary'
+                onClick={() => this.handleStartDebug()}
+                class='mr10'
+                disabled={!this.editAllowed}
+              >
+                {this.$t('调试并生效')}
+              </bk-button>
+            </span>
+            <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
           </div>
         </div>
         <AlarmGroupDetail
@@ -1551,20 +1562,20 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                 ></CommonCondition>
               </div>
               <div class='bottom-opreate'>
-                <Button
+                <bk-button
                   size='small'
                   class='mr8'
                   theme='primary'
                   onClick={this.handleConfirmUnifiedSettings}
                 >
                   {this.$t('确定')}
-                </Button>
-                <Button
+                </bk-button>
+                <bk-button
                   size='small'
                   onClick={this.handleCancelUnifiedSettings}
                 >
                   {this.$t('取消')}
-                </Button>
+                </bk-button>
               </div>
             </div>
           </div>
@@ -1579,10 +1590,10 @@ export default class AlarmDispatchConfig extends tsc<{}> {
       case EColumn.select:
         return (
           <div class='table-data-row-item'>
-            <Checkbox
+            <bk-checkbox
               v-model={row.isCheck}
               onChange={this.handleCheckChange}
-            ></Checkbox>
+            ></bk-checkbox>
           </div>
         );
 
@@ -1650,7 +1661,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               { 'is-change': row.config[id] }
             ]}
           >
-            <Select
+            <bk-select
               v-model={row.actionId}
               class='alarm-group-select'
               ext-popover-cls={'alarm-group-select-process-component-pop'}
@@ -1660,7 +1671,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               }}
             >
               {this.processPackage.map(option => (
-                <Option
+                <bk-option
                   key={option.id}
                   id={option.id}
                   name={option.name}
@@ -1683,6 +1694,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                 >
                   {this.processLoading ? (
                     <img
+                      alt=''
                       // eslint-disable-next-line @typescript-eslint/no-require-imports
                       src={require('../../static/images/svg/spinner.svg')}
                       class='status-loading'
@@ -1692,7 +1704,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                   )}
                 </div>
               </div>
-            </Select>
+            </bk-select>
           </div>
         );
       // 通知升级
@@ -1749,7 +1761,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
       case EColumn.isEnabled:
         return (
           <div class={['table-data-row-item', { 'is-change': row.config[id] }]}>
-            <Switcher
+            <bk-switcher
               v-model={row.isEnabled}
               theme='primary'
               size='small'
@@ -1813,7 +1825,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               onClick={() => this.handleOperateAction('add', index)}
               v-bk-tooltips={{ content: this.$t('增加'), disabled: row.tooltipsDisabled }}
             ></span>
-            <Popconfirm
+            <bk-popconfirm
               content={this.$t('是否删除当前规则?')}
               ext-popover-cls='alarm-dispatch-rule-operate'
               onConfirm={() => {
@@ -1831,10 +1843,10 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                 onClick={() => row.setTooltipsDisabled(true)}
                 v-bk-tooltips={{ content: this.$t('删除'), disabled: row.tooltipsDisabled }}
               />
-            </Popconfirm>
+            </bk-popconfirm>
             {/* 复制和新增的规则不支持撤回 */}
             {!this.resetConfig[index]?.disabled && !row.addId && !row.copyId ? (
-              <Popconfirm
+              <bk-popconfirm
                 content={this.$t('是否撤销当前编辑内容？')}
                 ext-popover-cls='alarm-dispatch-rule-operate'
                 onConfirm={() => this.handleOperateAction('reset', index)}
@@ -1853,7 +1865,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                     disabled: row.tooltipsDisabled
                   }}
                 />
-              </Popconfirm>
+              </bk-popconfirm>
             ) : (
               <span
                 class='icon-monitor icon-chehui1 disabled'

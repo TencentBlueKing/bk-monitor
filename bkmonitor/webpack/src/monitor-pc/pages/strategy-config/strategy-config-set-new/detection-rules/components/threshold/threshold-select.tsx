@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
 
 import SelectMenu from '../../../components/select-menu';
 
@@ -232,7 +231,7 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
           if (item.value) {
             return (
               <span key={`value-${index}`}>
-                <Input
+                <bk-input
                   class={[
                     'num-input',
                     {
@@ -250,7 +249,7 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
                   <template slot='append'>
                     <div class='right-unit'>{this.unit}</div>
                   </template>
-                </Input>
+                </bk-input>
               </span>
             );
           }

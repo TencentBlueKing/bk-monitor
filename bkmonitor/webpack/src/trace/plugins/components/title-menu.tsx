@@ -34,7 +34,6 @@ import './title-menu.scss';
 
 export default defineComponent({
   name: 'TitleMenu',
-  emits: ['select', 'metricSelect', 'selectChild', 'childMenuToggle'],
   props: {
     list: {
       type: Array as PropType<ChartTitleMenuType[]>,
@@ -53,6 +52,7 @@ export default defineComponent({
       default: true
     }
   },
+  emits: ['select', 'metricSelect', 'selectChild', 'childMenuToggle'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const instance = getCurrentInstance();

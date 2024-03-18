@@ -87,7 +87,7 @@ export interface ITopoNode {
   collapsed: boolean;
   spans: string[];
   bgColor: string;
-  diff_info?: Record<string, IDiffInfo>
+  diff_info?: Record<string, IDiffInfo>;
 }
 
 export interface IDiffInfo {
@@ -322,4 +322,20 @@ export interface ISpanDetail {
       [key: string]: Object;
     };
   };
+}
+
+export interface IQueryParams {
+  bk_biz_id?: number;
+  app_name?: string;
+  start?: number;
+  end?: number;
+  data_type?: string;
+  profile_id?: string;
+  diff_profile_id?: string;
+  offset?: number;
+  diagram_types?: string[];
+  sort?: string;
+  filter_labels?: Record<string, string>;
+  diff_filter_labels?: any;
+  is_compared?: boolean;
 }

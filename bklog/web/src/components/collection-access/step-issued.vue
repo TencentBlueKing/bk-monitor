@@ -23,28 +23,37 @@
 
 <template>
   <div
-    class="step-issued-wrapper"
     v-bkloading="{ isLoading: loading | (hasRunning && !tableList.length) }"
-    data-test-id="addNewCollectionItem_div_collectionDistribution">
+    class="step-issued-wrapper"
+    data-test-id="addNewCollectionItem_div_collectionDistribution"
+  >
     <!-- 容器日志显示状态页信息 -->
     <template v-if="isContainer">
       <container-status :is-loading.sync="loading" />
     </template>
     <!-- 物理环境显示下发页信息 -->
     <template v-else>
-      <div class="step-issued-notice notice-primary" v-if="!curCollect.table_id">
+      <div
+        v-if="!curCollect.table_id"
+        class="step-issued-notice notice-primary"
+      >
         <i class="bk-icon icon-info-circle-shape notice-icon"></i>
         <span class="notice-text">{{ $t('采集完成后24小时内，没有配置第4步“存储”，任务会被强制停用。') }}</span>
       </div>
       <template v-if="!isShowStepInfo">
         <div class="step-issued-header">
           <div class="tab-only-compact fl">
-            <template v-for="(tabItem) in tabList">
-              <li :class="['tab-item', { 'cur-tab': tabItem.type === curTab }]" :key="tabItem.type">
+            <template>
+              <li
+                v-for="tabItem in tabList"
+                :key="tabItem.type"
+                :class="['tab-item', { 'cur-tab': tabItem.type === curTab }]"
+              >
                 <a
                   href="javascript:void(0);"
                   class="tab-button"
-                  @click="tabHandler(tabItem)">
+                  @click="tabHandler(tabItem)"
+                >
                   {{ `${tabItem.name}(${tabItem.num})` }}
                 </a>
               </li>
@@ -57,38 +66,52 @@
             data-test-id="collectionDistribution_button_refresh"
             :title="$t('失败批量重试')"
             :disabled="hasRunning"
-            @click="issuedRetry">{{ $t('失败批量重试') }}
+            @click="issuedRetry"
+            >{{ $t('失败批量重试') }}
           </bk-button>
         </div>
-        <section class="cluster-collaspse" v-if="tableList.length">
+        <section
+          v-if="tableList.length"
+          class="cluster-collaspse"
+        >
           <template v-for="cluster in tableList">
             <right-panel
               v-if="cluster.child.length"
-              :class="['cluster-menu', { 'has-title-sign': cluster.is_label && isEdit }]"
               :key="cluster.id"
+              :class="['cluster-menu', { 'has-title-sign': cluster.is_label && isEdit }]"
               :need-border="true"
               :collapse-color="'#313238'"
               :title-bg-color="'#F0F1F5'"
               :collapse.sync="cluster.collapse"
               :title="getRightPanelTitle(cluster)"
-              @change="cluster.collapse = !cluster.collapse">
+              @change="cluster.collapse = !cluster.collapse"
+            >
               <div
-                :class="`heder-title-sign sign-${cluster.label_name}`"
                 v-if="cluster.is_label && isEdit"
-                slot="pre-panel">
-                {{ cluster.label_name === 'add' ?
-                  $t('新增') :
-                  (cluster.label_name === 'modify' ?
-                    $t('修改') : $t('删除')) }}
+                slot="pre-panel"
+                :class="`heder-title-sign sign-${cluster.label_name}`"
+              >
+                {{
+                  cluster.label_name === 'add' ? $t('新增') : cluster.label_name === 'modify' ? $t('修改') : $t('删除')
+                }}
               </div>
-              <div class="header-info" slot="title">
+              <div
+                slot="title"
+                class="header-info"
+              >
                 <div class="header-title fl">{{ cluster.node_path }}</div>
                 <!-- eslint-disable-next-line vue/no-v-html -->
-                <p class="fl" v-html="collaspseHeadInfo(cluster)"></p>
-              <!-- <span class="success">{{ cluster.success }}</span> 个成功
+                <p
+                  class="fl"
+                  v-html="collaspseHeadInfo(cluster)"
+                ></p>
+                <!-- <span class="success">{{ cluster.success }}</span> 个成功
                 <span v-if="cluster.failed" class="failed">，{{ cluster.failed }}</span> 个失败 -->
               </div>
-              <div class="cluster-table-wrapper" slot>
+              <div
+                slot
+                class="cluster-table-wrapper"
+              >
                 <bk-table
                   v-bkloading="{ isLoading: loading }"
                   class="cluster-table"
@@ -96,34 +119,54 @@
                   :empty-text="$t('暂无内容')"
                   :data="cluster.child"
                   :size="size"
-                  :pagination="pagination">
-                  <bk-table-column :label="$t('目标')" width="180">
+                  :pagination="pagination"
+                >
+                  <bk-table-column
+                    :label="$t('目标')"
+                    width="180"
+                  >
                     <template slot-scope="props">
-                      <span>{{getShowIp(props.row)}}</span>
+                      <span>{{ getShowIp(props.row) }}</span>
                     </template>
                   </bk-table-column>
-                  <bk-table-column :label="$t('运行状态')" width="140">
+                  <bk-table-column
+                    :label="$t('运行状态')"
+                    width="140"
+                  >
                     <template slot-scope="props">
                       <span :class="['status', 'status-' + props.row.status]">
                         <i
+                          v-if="props.row.status !== 'success' && props.row.status !== 'failed'"
                           class="bk-icon icon-refresh"
-                          style="display: inline-block; animation: button-icon-loading 1s linear infinite;"
-                          v-if="props.row.status !== 'success' && props.row.status !== 'failed'">
+                          style="display: inline-block; animation: button-icon-loading 1s linear infinite"
+                        >
                         </i>
-                        {{ props.row.status === 'success' ?
-                          $t('成功') :
-                          props.row.status === 'failed' ?
-                            $t('失败') : $t('执行中') }}
+                        {{
+                          props.row.status === 'success'
+                            ? $t('成功')
+                            : props.row.status === 'failed'
+                              ? $t('失败')
+                              : $t('执行中')
+                        }}
                       </span>
                     </template>
                   </bk-table-column>
                   <bk-table-column
                     :class-name="'row-detail'"
-                    :label="$t('详情')">
+                    :label="$t('详情')"
+                  >
                     <template slot-scope="props">
                       <p>
-                        <span class="overflow-tips" v-bk-overflow-tips>{{ props.row.log }}</span>
-                        <a href="javascript: ;" class="more" @click.stop="viewDetail(props.row)">
+                        <span
+                          v-bk-overflow-tips
+                          class="overflow-tips"
+                          >{{ props.row.log }}</span
+                        >
+                        <a
+                          href="javascript: ;"
+                          class="more"
+                          @click.stop="viewDetail(props.row)"
+                        >
                           {{ $t('更多') }}
                         </a>
                       </p>
@@ -132,9 +175,11 @@
                   <bk-table-column width="80">
                     <template slot-scope="props">
                       <a
-                        href="javascript: ;" class="retry"
                         v-if="props.row.status === 'failed'"
-                        @click.stop="issuedRetry(props.row, cluster)">
+                        href="javascript: ;"
+                        class="retry"
+                        @click.stop="issuedRetry(props.row, cluster)"
+                      >
                         {{ $t('重试') }}
                       </a>
                     </template>
@@ -158,7 +203,8 @@
         theme="primary"
         :loading="isHandle"
         :disabled="hasRunning"
-        @click="nextHandler">
+        @click="nextHandler"
+      >
         {{ getNextPageStr }}
       </bk-button>
       <template v-else>
@@ -166,17 +212,20 @@
           data-test-id="collectionDistribution_button_previous"
           :disabled="hasRunning"
           @click="prevHandler"
-        >{{ $t('上一步') }}</bk-button>
+          >{{ $t('上一步') }}</bk-button
+        >
         <bk-button
           theme="primary"
           data-test-id="collectionDistribution_button_nextStep"
           :disabled="hasRunning"
           @click="nextHandler"
-        >{{ $t('下一步') }}</bk-button>
+          >{{ $t('下一步') }}</bk-button
+        >
       </template>
       <bk-button
+        data-test-id="collectionDistribution_button_cancel"
         @click="cancel"
-        data-test-id="collectionDistribution_button_cancel">
+      >
         {{ $t('返回列表') }}
       </bk-button>
     </div>
@@ -186,22 +235,28 @@
       :quick-close="true"
       :ext-cls="'issued-detail'"
       :is-show.sync="detail.isShow"
-      @animation-end="closeSlider">
-      <div class="header" slot="header">
+      @animation-end="closeSlider"
+    >
+      <div
+        slot="header"
+        class="header"
+      >
         <span>{{ detail.title }}</span>
         <bk-button
           class="header-refresh"
           theme="primary"
           :loading="detail.loading"
-          @click="handleRefreshDetail">
-          {{$t('刷新')}}
+          @click="handleRefreshDetail"
+        >
+          {{ $t('刷新') }}
         </bk-button>
       </div>
       <div
-        v-html="detail.content"
-        class="p20 detail-content"
         slot="content"
-        v-bkloading="{ isLoading: detail.loading }"></div>
+        v-bkloading="{ isLoading: detail.loading }"
+        class="p20 detail-content"
+        v-html="detail.content"
+      ></div>
     </bk-sideslider>
   </div>
 </template>
@@ -215,11 +270,11 @@ export default {
   name: 'StepIssued',
   components: {
     rightPanel,
-    containerStatus,
+    containerStatus
   },
   props: {
     operateType: String,
-    isSwitch: Boolean,
+    isSwitch: Boolean
   },
   data() {
     return {
@@ -230,7 +285,7 @@ export default {
         title: this.$t('详情'),
         loading: false,
         content: '',
-        log: '',
+        log: ''
       },
       currentRow: null,
       timer: null,
@@ -243,34 +298,34 @@ export default {
         {
           type: 'all',
           name: this.$t('全部'),
-          num: 0,
+          num: 0
         },
         {
           type: 'success',
           name: this.$t('成功'),
-          num: 0,
+          num: 0
         },
         {
           type: 'failed',
           name: this.$t('失败'),
-          num: 0,
+          num: 0
         },
         {
           type: 'running',
           name: this.$t('执行中'),
-          num: 0,
-        },
+          num: 0
+        }
       ],
       count: 0,
       size: 'small',
       pagination: {
         current: 1,
         count: 0,
-        limit: 100,
+        limit: 100
       },
       isLeavePage: false,
       isShowStepInfo: false,
-      isHandle: false,
+      isHandle: false
       // operateInfo: {}
     };
   },
@@ -295,7 +350,7 @@ export default {
     },
     hostIdentifierPriority() {
       return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
-    },
+    }
   },
   watch: {
     hasRunning(newVal, val) {
@@ -311,7 +366,7 @@ export default {
         const len = this.tableList.length;
         this.isShowStepInfo = this.tableList.filter(item => item.child.length === 0).length === len;
       }
-    },
+    }
   },
   created() {
     if (this.isContainer) return; // 容器日志展示容器日志的内容
@@ -331,7 +386,7 @@ export default {
     getRightPanelTitle(cluster) {
       return {
         type: cluster.bk_obj_name,
-        number: cluster.success,
+        number: cluster.success
       };
     },
     tabHandler(tab, manual) {
@@ -343,7 +398,7 @@ export default {
         this.tableList = JSON.parse(JSON.stringify(this.tableListAll));
       } else {
         const child = [];
-        this.tableListAll.forEach((item) => {
+        this.tableListAll.forEach(item => {
           const copyItem = JSON.parse(JSON.stringify(item));
           copyItem.child = copyItem.child.filter(row => row.status === this.curTab);
           if (copyItem.child.length) {
@@ -353,7 +408,7 @@ export default {
         const data = child.map((val, index) => {
           return {
             ...val,
-            collapse: index < 5,
+            collapse: index < 5
           };
         });
         this.tableList.splice(0, this.tableList.length, ...data);
@@ -366,28 +421,31 @@ export default {
           name: 'collectEdit',
           params: {
             collectorId: this.curCollect.collector_config_id,
-            notAdd: true,
+            notAdd: true
           },
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
       }
       this.$emit('stepChange', 1);
     },
     nextHandler() {
-      if (this.operateType === 'stop') { // 停用操作
+      if (this.operateType === 'stop') {
+        // 停用操作
         this.isHandle = true;
-        this.$http.request('collect/stopCollect', {
-          params: {
-            collector_config_id: this.curCollect.collector_config_id,
-          },
-        }).then((res) => {
-          if (res.result) {
-            this.$emit('stepChange');
-          }
-        })
-          .catch((error) => {
+        this.$http
+          .request('collect/stopCollect', {
+            params: {
+              collector_config_id: this.curCollect.collector_config_id
+            }
+          })
+          .then(res => {
+            if (res.result) {
+              this.$emit('stepChange');
+            }
+          })
+          .catch(error => {
             console.warn(error);
           })
           .finally(() => {
@@ -401,8 +459,8 @@ export default {
       this.$router.push({
         name: 'collection-item',
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
     },
     viewDetail(row) {
@@ -422,15 +480,16 @@ export default {
         all: 0,
         success: 0,
         failed: 0,
-        running: 0,
+        running: 0
       };
-      this.tableListAll.forEach((cluster) => {
+      this.tableListAll.forEach(cluster => {
         num.all += cluster.child.length;
-        cluster.child.length && cluster.child.forEach((row) => {
-          num[row.status] = num[row.status] + 1;
-        });
+        cluster.child.length &&
+          cluster.child.forEach(row => {
+            num[row.status] = num[row.status] + 1;
+          });
       });
-      this.tabList.forEach((tab) => {
+      this.tabList.forEach(tab => {
         tab.num = num[tab.type];
       });
     },
@@ -438,7 +497,7 @@ export default {
       const list = cluster.child;
       let success = 0;
       let failed = 0;
-      list.forEach((row) => {
+      list.forEach(row => {
         if (row.status === 'success') {
           success = success + 1;
         }
@@ -473,55 +532,57 @@ export default {
         this.loading = true;
       }
       const params = {
-        collector_config_id: this.curCollect.collector_config_id,
+        collector_config_id: this.curCollect.collector_config_id
       };
-      const timerNum = this.timerNum;
-      this.$http.request('collect/getIssuedClusterList', {
-        params,
-        query: { task_id_list: [...this.curTaskIdList.keys()].join(',') },
-      }).then((res) => {
-        const data = res.data.contents || [];
-        this.notReady = res.data.task_ready === false; // 如果没有该字段，默认准备好了
-        if (isPolling === 'polling') {
-          if (timerNum === this.timerNum) {
-            // 之前返回的 contents 为空
-            if (!this.tableListAll.length) {
-              let collapseCount = 0; // 展开前5个状态表格信息
-              data.forEach((cluster) => {
-                cluster.collapse = cluster.child.length && collapseCount < 5;
-                if (cluster.child.length) collapseCount += 1;
-                cluster.child.forEach((host) => {
-                  host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
+      const { timerNum } = this;
+      this.$http
+        .request('collect/getIssuedClusterList', {
+          params,
+          query: { task_id_list: [...this.curTaskIdList.keys()].join(',') }
+        })
+        .then(res => {
+          const data = res.data.contents || [];
+          this.notReady = res.data.task_ready === false; // 如果没有该字段，默认准备好了
+          if (isPolling === 'polling') {
+            if (timerNum === this.timerNum) {
+              // 之前返回的 contents 为空
+              if (!this.tableListAll.length) {
+                let collapseCount = 0; // 展开前5个状态表格信息
+                data.forEach(cluster => {
+                  cluster.collapse = cluster.child.length && collapseCount < 5;
+                  if (cluster.child.length) collapseCount += 1;
+                  cluster.child.forEach(host => {
+                    host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
+                  });
                 });
+                this.tableListAll.splice(0, 0, ...data);
+                this.tableList.splice(0, 0, ...data);
+              }
+              this.syncHostStatus(data);
+              this.tabHandler({ type: this.curTab }, true);
+              this.calcTabNum();
+              if (this.hasRunning) {
+                this.startStatusPolling();
+              }
+            }
+          } else {
+            let collapseCount = 0; // 展开前5个状态表格信息
+            data.forEach(cluster => {
+              cluster.collapse = cluster.child.length && collapseCount < 5;
+              if (cluster.child.length) collapseCount += 1;
+              cluster.child.forEach(host => {
+                host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
               });
-              this.tableListAll.splice(0, 0, ...data);
-              this.tableList.splice(0, 0, ...data);
-            }
-            this.syncHostStatus(data);
-            this.tabHandler({ type: this.curTab }, true);
-            this.calcTabNum();
-            if (this.hasRunning) {
-              this.startStatusPolling();
-            }
-          }
-        } else {
-          let collapseCount = 0; // 展开前5个状态表格信息
-          data.forEach((cluster) => {
-            cluster.collapse = cluster.child.length && collapseCount < 5;
-            if (cluster.child.length) collapseCount += 1;
-            cluster.child.forEach((host) => {
-              host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
             });
-          });
-          this.tableListAll.splice(0, 0, ...data);
-          this.tableList.splice(0, 0, ...data);
-          this.calcTabNum();
-        }
-      })
-        .catch((err) => {
+            this.tableListAll.splice(0, 0, ...data);
+            this.tableList.splice(0, 0, ...data);
+            this.calcTabNum();
+          }
+        })
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message,
+            message: err.message
           });
         })
         .finally(() => {
@@ -538,62 +599,66 @@ export default {
       if (cluster) {
         // 单条重试
         row.status = 'running';
-        this.tableListAll.forEach((item) => {
+        this.tableListAll.forEach(item => {
           if (cluster.bk_inst_id === item.bk_inst_id && cluster.bk_obj_name === item.bk_obj_name) {
-            item.child && item.child.forEach((itemRow) => {
-              if (itemRow.ip === row.ip && itemRow.bk_cloud_id === row.bk_cloud_id) {
-                itemRow.status = 'running';
-              }
-            });
+            item.child &&
+              item.child.forEach(itemRow => {
+                if (itemRow.ip === row.ip && itemRow.bk_cloud_id === row.bk_cloud_id) {
+                  itemRow.status = 'running';
+                }
+              });
           }
         });
         instanceIDList.push(row.instance_id);
       } else {
         // 失败批量重试
-        this.tableListAll.forEach((item) => {
-          item.child && item.child.forEach((itemRow) => {
-            if (itemRow.status === 'failed') {
-              itemRow.status = 'running';
-              instanceIDList.push(itemRow.instance_id);
-            }
-          });
+        this.tableListAll.forEach(item => {
+          item.child &&
+            item.child.forEach(itemRow => {
+              if (itemRow.status === 'failed') {
+                itemRow.status = 'running';
+                instanceIDList.push(itemRow.instance_id);
+              }
+            });
         });
       }
       this.tabHandler({ type: this.curTab }, true);
       this.calcTabNum();
-      this.$http.request('collect/retry', {
-        // mock: true,
-        // manualSchema: true,
-        params: { collector_config_id: this.curCollect.collector_config_id },
-        data: {
-          instance_id_list: instanceIDList,
-        },
-      }).then((res) => {
-        if (res.data) {
-          res.data.forEach(item => this.curTaskIdList.add(item));
-          this.startStatusPolling();
-        }
-      })
-        .catch((err) => {
+      this.$http
+        .request('collect/retry', {
+          // mock: true,
+          // manualSchema: true,
+          params: { collector_config_id: this.curCollect.collector_config_id },
+          data: {
+            instance_id_list: instanceIDList
+          }
+        })
+        .then(res => {
+          if (res.data) {
+            res.data.forEach(item => this.curTaskIdList.add(item));
+            this.startStatusPolling();
+          }
+        })
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message,
+            message: err.message
           });
         });
     },
     // 同步机器状态信息
     syncHostStatus(data) {
-      this.tableListAll.forEach((table) => {
-        const cluster = data.find((item) => {
+      this.tableListAll.forEach(table => {
+        const cluster = data.find(item => {
           return item.bk_inst_id === table.bk_inst_id && item.bk_obj_name === table.bk_obj_name;
         });
         if (cluster && cluster.child && cluster.child.length && table.child && table.child.length) {
-          table.child.forEach((row) => {
-            const tarHost = cluster.child.find((item) => {
+          table.child.forEach(row => {
+            const tarHost = cluster.child.find(item => {
               // 优先判断host_id 若没找到对应的host_id则对比ip_host_name_ipv6的组成的字符串
               const tableStrKey = `${item.ip}_${item.host_name}_${item.ipv6}`;
               const childStrKey = `${row.ip}_${row.host_name}_${row.ipv6}`;
-              if (item?.host_id) return (item.host_id === row.host_id || tableStrKey === childStrKey);
+              if (item?.host_id) return item.host_id === row.host_id || tableStrKey === childStrKey;
               return tableStrKey === childStrKey;
             });
             if (tarHost) {
@@ -606,24 +671,26 @@ export default {
     },
     requestDetail(row) {
       this.detail.loading = true;
-      this.$http.request('collect/executDetails', {
-        params: {
-          collector_id: this.curCollect.collector_config_id,
-        },
-        query: {
-          instance_id: row.instance_id,
-          task_id: row.task_id,
-        },
-      }).then((res) => {
-        if (res.result) {
-          this.detail.log = res.data.log_detail;
-          this.detail.content = res.data.log_detail;
-        }
-      })
-        .catch((err) => {
+      this.$http
+        .request('collect/executDetails', {
+          params: {
+            collector_id: this.curCollect.collector_config_id
+          },
+          query: {
+            instance_id: row.instance_id,
+            task_id: row.task_id
+          }
+        })
+        .then(res => {
+          if (res.result) {
+            this.detail.log = res.data.log_detail;
+            this.detail.content = res.data.log_detail;
+          }
+        })
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message || err,
+            message: err.message || err
           });
         })
         .finally(() => {
@@ -632,279 +699,279 @@ export default {
     },
     getShowIp(row) {
       return row[this.hostIdentifierPriority.find(pItem => Boolean(row[pItem]))] ?? row.ip;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped lang="scss">
-  @import '@/scss/mixins/scroller.scss';
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/mixins/overflow-tips.scss';
+@import '@/scss/mixins/scroller.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/mixins/overflow-tips.scss';
+/* stylelint-disable no-descending-specificity */
+.step-issued-wrapper {
+  position: relative;
+  max-height: 100%;
+  padding: 30px 60px;
+  overflow-x: hidden;
+  overflow-y: auto;
 
-  .step-issued-wrapper {
-    position: relative;
-    padding: 30px 60px;
-    max-height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
+  .step-issued-notice {
+    height: 36px;
+    padding: 9px 12px;
+    margin-bottom: 20px;
+    font-size: 12px;
+    line-height: 16px;
+    color: #63656e;
+    border-radius: 2px;
 
-    .step-issued-notice {
-      margin-bottom: 20px;
-      padding: 9px 12px;
-      height: 36px;
-      line-height: 16px;
-      border-radius: 2px;
-      font-size: 12px;
-      color: #63656e;
+    .notice-text {
+      margin-left: 10px;
+    }
 
-      .notice-text {
-        margin-left: 10px;
-      }
+    .notice-icon {
+      font-size: 14px;
+      vertical-align: text-bottom;
+    }
+
+    &.notice-primary {
+      background: #f0f8ff;
+      border: 1px solid #a3c5fd;
 
       .notice-icon {
-        vertical-align: text-bottom;
-        font-size: 14px;
-      }
-
-      &.notice-primary {
-        border: 1px solid #a3c5fd;
-        background: #f0f8ff;
-
-        .notice-icon {
-          color: #3a84ff;
-        }
-      }
-    }
-
-    .step-issued-header {
-      margin-bottom: 20px;
-
-      @include clearfix;
-    }
-
-    .cur-tab {
-      background: #3a84ff;
-    }
-
-    .cluster-collaspse {
-      max-width: 100%;
-    }
-
-    .cluster-menu {
-      margin-bottom: 10px;
-      max-width: 100%;
-
-      &.has-title-sign .right-panel-title {
-        padding-left: 0;
-      }
-    }
-
-    .header-title {
-      margin-right: 20px;
-      font-weight: bold;
-      color: #63656e;
-    }
-
-    .heder-title-sign {
-      position: relative;
-      margin-left: -1px;
-      margin-right: 16px;
-      padding: 0 12px 0 7px;
-      height: 24px;
-      line-height: 23px;
-      font-size: 12px;
-      color: #fff;
-      background: #3a84ff;
-
-      &.sign-add {
-        background: #3a84ff;
-      }
-
-      &.sign-modify {
-        background: #414871;
-      }
-
-      &.sign-delete {
-        background: #6c3aff;
-      }
-
-      &:after {
-        position: absolute;
-        right: 0;
-        top: 0;
-        display: block;
-        content: '';
-        border-top: 12px solid transparent;
-        border-bottom: 12px solid transparent;
-        border-left: 6px solid transparent;
-        border-right: 6px solid #f0f1f5;
-      }
-    }
-
-    .header-info {
-      font-size: 12px;
-      color: #979ba5;
-
-      .success {
-        color: $successColor;
-      }
-
-      .failed {
-        color: $failColor;
-      }
-    }
-
-    .cluster-table {
-      &.bk-table th :hover {
-        background: #fff;
-      }
-
-      &::before {
-        display: none;
-      }
-
-      tr:last-child td {
-        border-bottom: none;
-      }
-
-      .status-running {
-        color: $primaryColor;
-      }
-
-      .status-success {
-        color: $successColor;
-      }
-
-      .status-failed {
-        color: $failColor;
-      }
-
-      .retry {
         color: #3a84ff;
       }
+    }
+  }
 
-      .row-detail {
-        .more {
-          display: inline;
-        }
+  .step-issued-header {
+    margin-bottom: 20px;
 
-        p {
-          position: relative;
+    @include clearfix;
+  }
+
+  .cur-tab {
+    background: #3a84ff;
+  }
+
+  .cluster-collaspse {
+    max-width: 100%;
+  }
+
+  .cluster-menu {
+    max-width: 100%;
+    margin-bottom: 10px;
+
+    &.has-title-sign .right-panel-title {
+      padding-left: 0;
+    }
+  }
+
+  .header-title {
+    margin-right: 20px;
+    font-weight: bold;
+    color: #63656e;
+  }
+
+  .heder-title-sign {
+    position: relative;
+    height: 24px;
+    padding: 0 12px 0 7px;
+    margin-right: 16px;
+    margin-left: -1px;
+    font-size: 12px;
+    line-height: 23px;
+    color: #fff;
+    background: #3a84ff;
+
+    &.sign-add {
+      background: #3a84ff;
+    }
+
+    &.sign-modify {
+      background: #414871;
+    }
+
+    &.sign-delete {
+      background: #6c3aff;
+    }
+
+    &:after {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: block;
+      border-top: 12px solid transparent;
+      border-right: 6px solid #f0f1f5;
+      border-bottom: 12px solid transparent;
+      border-left: 6px solid transparent;
+      content: '';
+    }
+  }
+
+  .header-info {
+    font-size: 12px;
+    color: #979ba5;
+
+    .success {
+      color: $successColor;
+    }
+
+    .failed {
+      color: $failColor;
+    }
+  }
+
+  .cluster-table {
+    &.bk-table th :hover {
+      background: #fff;
+    }
+
+    &::before {
+      display: none;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-running {
+      color: $primaryColor;
+    }
+
+    .status-success {
+      color: $successColor;
+    }
+
+    .status-failed {
+      color: $failColor;
+    }
+
+    .retry {
+      color: #3a84ff;
+    }
+
+    .row-detail {
+      .more {
+        display: inline;
+      }
+
+      p {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        padding-right: 30px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .detail-text {
           display: inline-block;
-          padding-right: 30px;
-          max-width: 100%;
-          white-space: nowrap;
+          width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
-
-          .detail-text {
-            display: inline-block;
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
         }
       }
+    }
 
-      .more {
-        position: absolute;
-        right: 0;
-        top: 0;
-        color: #3a84ff;
-        display: none;
+    .more {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: none;
+      color: #3a84ff;
+    }
+  }
+
+  .tab-only-compact {
+    overflow: visible;
+
+    @include clearfix;
+
+    .tab-item {
+      .tab-button {
+        height: 32px;
+        line-height: 30px;
       }
-    }
 
-    .step-issued-footer {
-      margin-top: 20px;
-    }
-
-    .tab-only-compact {
-      overflow: visible;
-
-      @include clearfix;
-
-      .tab-item {
+      &.cur-tab {
         .tab-button {
-          height: 32px;
-          line-height: 30px;
+          color: #fff;
+          background: #3a84ff;
         }
-
-        &.cur-tab {
-          .tab-button {
-            color: #fff;
-            background: #3a84ff;
-          }
-        }
-      }
-    }
-
-    .step-issued-footer {
-      button {
-        margin-right: 10px;
-      }
-    }
-
-    .empty-view {
-      height: 452px;
-      background: #fff;
-      border-radius: 2px;
-      border: 1px dashed #dcdee5;
-      position: relative;
-      display: flexbox;
-      display: flex;
-      box-pack: center;
-      flex-pack: center;
-      justify-content: center;
-
-      .hint-text {
-        min-width: 144px;
-        height: 16px;
-        line-height: 16px;
-        position: absolute;
-        top: 186px;
-        font-size: 12px;
-        color: #979ba5;
-      }
-
-      .icon-info-circle-shape {
-        position: absolute;
-        top: 142px;
-        left: calc(50% - 16px);
-        font-size: 32px;
-        color: #dcdee5;
       }
     }
   }
 
-  :deep(.bk-sideslider-wrapper) {
-    padding-bottom: 0;
+  .step-issued-footer {
+    margin-top: 20px;
 
-    .bk-sideslider-content {
-      background-color: #313238;
-      color: #c4c6cc;
+    button {
+      margin-right: 10px;
     }
+  }
 
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+  .empty-view {
+    position: relative;
+    display: flexbox;
+    display: flex;
+    height: 452px;
+    background: #fff;
+    border: 1px dashed #dcdee5;
+    border-radius: 2px;
+    /* stylelint-disable-next-line property-no-unknown */
+    box-pack: center;
+    /* stylelint-disable-next-line property-no-unknown */
+    flex-pack: center;
+    justify-content: center;
 
-    .header-refresh {
-      margin-right: 8px;
-    }
-
-    .detail-content {
-      min-height: calc(100vh - 60px);
-      white-space: pre-wrap;
+    .hint-text {
+      position: absolute;
+      top: 186px;
+      height: 16px;
+      min-width: 144px;
       font-size: 12px;
+      line-height: 16px;
+      color: #979ba5;
+    }
 
-      a {
-        color: #3a84ff;
-      }
+    .icon-info-circle-shape {
+      position: absolute;
+      top: 142px;
+      left: calc(50% - 16px);
+      font-size: 32px;
+      color: #dcdee5;
     }
   }
+}
+
+:deep(.bk-sideslider-wrapper) {
+  padding-bottom: 0;
+
+  .bk-sideslider-content {
+    color: #c4c6cc;
+    background-color: #313238;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .header-refresh {
+    margin-right: 8px;
+  }
+
+  .detail-content {
+    min-height: calc(100vh - 60px);
+    font-size: 12px;
+    white-space: pre-wrap;
+
+    a {
+      color: #3a84ff;
+    }
+  }
+}
 </style>

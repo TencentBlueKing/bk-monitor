@@ -25,8 +25,8 @@
  */
 
 import dayjs from 'dayjs';
+import { xssFilter } from 'monitor-common/utils/xss';
 
-import { xssFilter } from '../../monitor-common/utils/xss';
 import { IExtendMetricData } from '../plugins/typings';
 
 export const specialEqual = (v: any, o: any) => {
@@ -202,4 +202,27 @@ export const getSpanKindIcon = (kind: number) => {
     default:
       return '';
   }
+};
+
+/**
+ * 把Byte数值转换成最适合的单位数值
+ * @param size 大小
+ * @returns 最终结果
+ */
+export const transformByte = (size: number) => {
+  const units = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  let index = 0;
+  let number = size;
+
+  if (isNaN(size) || size < 0) {
+    return '-';
+  }
+
+  while (number > 1024 && index < units.length - 1) {
+    number /= 1024;
+    index += 1;
+  }
+
+  number = Math.round(number * 100) / 100;
+  return `${number}${units[index]}`;
 };

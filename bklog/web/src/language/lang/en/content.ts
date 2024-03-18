@@ -299,7 +299,7 @@ export default {
   自动转换成正确的数据名格式: 'Automatically converted to the correct english name format',
   '当前已选择 {0} 条数据': 'Currently selected {0} data entries',
   检索收藏功能支持分组和管理: 'The search collection function supports grouping and management',
-  可输入SQL语句进行快速查询: 'Sql statements can be entered for quick query',
+  可输入DSL语句进行快速查询: 'Dsl statements can be entered for quick query',
   '字段名匹配(*代表通配符)：': 'Field name matching (* stands for wildcard):',
   '当前业务没有接入调用链日志，': 'The current business has not accessed the trace logs,',
   '文本类型不支持 {n} 操作': 'Text type does not support {n} operation',
@@ -311,7 +311,7 @@ export default {
   '只能输入英文、数字或者下划线': 'Can only enter english, numbers or underscores',
   '搜索ES源名称，地址，创建人': 'Search for ES source name, address, and creator',
   '包含属性 {n} 的节点列表': 'Node list containing property {n}',
-  您当前想快速体验下平台的功能: 'You currently want to quickly experience the platform\'s functions',
+  您当前想快速体验下平台的功能: "You currently want to quickly experience the platform's functions",
   '只支持输入字母，数字，下划线': 'Only supports entering letters, numbers, and underscores',
   '{n}, （长度30个字符）': '{n}, (30 characters)',
   '精确匹配(支持AND、OR)：': 'Exact match (supports AND, OR):',
@@ -319,7 +319,7 @@ export default {
   您可以按照以下方式优化检索结果: 'You can optimize search results in the following ways',
   '当前日志聚类未启用，请前往设置': 'The current log clustering is not enabled, please go to settings',
   '当前数据指纹未启用，请前往设置': 'Current data fingerprint is not enabled, please go to settings',
-  '私有的只支持默认的“个人收藏”': 'Private only supports default \'personal collection\'',
+  '私有的只支持默认的“个人收藏”': "Private only supports default 'personal collection'",
   '{n}不规范, 包含特殊符号.': '{n} is not standard, contains special characters.',
   '需要采集日志，请先创建采集任务': 'Log collection is required, please create a collection task first',
   切换集群将导致历史数据无法查询: 'Switching clusters will result in inability to query historical data',
@@ -365,93 +365,164 @@ export default {
   '当前收藏名为 {n}，确认是否删除？': 'The current collection name is {n}. confirm to delete it?',
   '当前分组名为 {n}，确认是否解散？': 'The current group name is {n}. confirm to dissolve it?',
   '当前无可用字段，请前往日志清洗进行设置': 'No available fields currently, please go to log parsing to configure',
-  '当前索引集为非采集项,无法设置数据指纹': 'The current index set is not a collection item, and data fingerprints cannot be set',
+  '当前索引集为非采集项,无法设置数据指纹':
+    'The current index set is not a collection item, and data fingerprints cannot be set',
   '可见类型为业务属性时，业务标签不能为空': 'When visibility type is business attribute, business tags cannot be empty',
-  'COS的自动创建和关联，只能用于腾讯云': 'The automatic creation and association of COS can only be used in tencent cloud',
+  'COS的自动创建和关联，只能用于腾讯云':
+    'The automatic creation and association of COS can only be used in tencent cloud',
   '链接可重复获取，每个链接只能下载一次。': 'Links can be repeatedly retrieved, each link can only be downloaded once.',
   选择Service以获取Label列表: 'Select Service to get Label list',
   '配置项{n}未选择指定容器或指定标签。': 'Configuration {n} has not selected a specified container or tag.',
-  '支持数字、字母、下划线，长短5～50字符': 'Supports numbers, letters, and underscores, with a length of 5-50 characters',
-  '复杂的过滤条件（超过5个）会影响机器性能': 'Complex filtering conditions (more than 5) will affect machine performance',
-  '当前还没有共享集群，请联系平台管理员提供': 'There is currently no shared cluster, please contact the platform administrator to provide.',
-  '可见类型为多业务时，可见业务范围不能为空': 'When visibility type is multiple businesses, visibility business scope cannot be empty',
-  '字段名与系统字段重复，必须修改正则表达式': 'Field name conflicts with system fields, regular expressions must be modified',
+  '支持数字、字母、下划线，长短5～50字符':
+    'Supports numbers, letters, and underscores, with a length of 5-50 characters',
+  '复杂的过滤条件（超过5个）会影响机器性能':
+    'Complex filtering conditions (more than 5) will affect machine performance',
+  '当前还没有共享集群，请联系平台管理员提供':
+    'There is currently no shared cluster, please contact the platform administrator to provide.',
+  '可见类型为多业务时，可见业务范围不能为空':
+    'When visibility type is multiple businesses, visibility business scope cannot be empty',
+  '字段名与系统字段重复，必须修改正则表达式':
+    'Field name conflicts with system fields, regular expressions must be modified',
   '从匹配{0}开始到匹配{1}之间的所有行': 'All lines between matching {0} and matching {1}',
   '当前已选择{0}条数据, 共有{1}条数据': 'Currently selected {0} data entries, total {1} data entries',
   '请输入QQ并按Enter结束（可多次添加）': 'Please enter QQ and press Enter to end (can be added multiple times)',
   '搜索文件名、创建人，按 enter 键搜索': 'Search for file name and creator, press enter to search',
-  '解散分组后，原分组内的收藏将移至未分组中。': 'After the group is dissolved, the collections within the original group will be moved to the ungrouped group.',
-  '索引集允许用户可以跨多个采集的索引查看日志。': 'Index sets allow users to view logs across multiple collection indexes.',
-  '选中分词,适用于分词检索,不能用于指标和维度': 'Selected segmentation, suitable for segmentation search, cannot be used for metrics and dimensions',
-  '注：如果清洗后存储成其他类型，将无法关联上。': 'Note: if stored as another type after parsing, it will not be associated.',
-  '不能跨集群添加多个索引，切换集群请先清空索引': 'Multiple indexes cannot be added across clusters, please clear the indexes before switching clusters',
+  '解散分组后，原分组内的收藏将移至未分组中。':
+    'After the group is dissolved, the collections within the original group will be moved to the ungrouped group.',
+  '索引集允许用户可以跨多个采集的索引查看日志。':
+    'Index sets allow users to view logs across multiple collection indexes.',
+  '选中分词,适用于分词检索,不能用于指标和维度':
+    'Selected segmentation, suitable for segmentation search, cannot be used for metrics and dimensions',
+  '注：如果清洗后存储成其他类型，将无法关联上。':
+    'Note: if stored as another type after parsing, it will not be associated.',
+  '不能跨集群添加多个索引，切换集群请先清空索引':
+    'Multiple indexes cannot be added across clusters, please clear the indexes before switching clusters',
   '{0}/{1}条记录中数量排名前 5 的数据值': 'Top 5 data values with the highest quantity ranking in {0}/{1} records',
   '自定义输入格式: 如 1h 代表一小时 h小时': 'Custom input format: e.g. 1h represents one hour, h for hours',
-  '支持拖拽更改顺序，排在上面的拥有更高的排序权重': 'Supports drag and drop to change order, those above have a higher sorting weight',
-  '只能设置一个数据时间，如果要更改请先取消原来的': 'Only one data time can be set, if you want to change it, please cancel the previous one first',
-  '您当前没有业务--${n}的权限，请先申请吧！': 'You currently do not have permission for business--${n}, please apply first!',
-  '平台默认的集群不允许编辑和删除，请联系管理员。': 'Editing and deletion are not allowed for default clusters, please contact the administrator',
-  '支持拖拽更改顺序，从上向下对应列表列从左到右顺序': 'Supports drag and drop to change order, corresponding to the list columns from top to bottom and from left to right',
-  '调试需要等待1分钟以上，在此区间不可进行其余操作': 'Debugging takes more than 1 minute, and no other operations can be performed during this period',
-  '前端忽略数字和所有的常见符号，只保留日志具体内容': 'The front-end ignores numbers and all common symbols, only retaining the specific contents of the log',
-  '已加载完全部数据，如需查看更多查询条件可以{0}': 'All data has been loaded, if more query conditions are needed, please {0}',
+  '支持拖拽更改顺序，排在上面的拥有更高的排序权重':
+    'Supports drag and drop to change order, those above have a higher sorting weight',
+  '只能设置一个数据时间，如果要更改请先取消原来的':
+    'Only one data time can be set, if you want to change it, please cancel the previous one first',
+  '您当前没有业务--${n}的权限，请先申请吧！':
+    'You currently do not have permission for business--${n}, please apply first!',
+  '平台默认的集群不允许编辑和删除，请联系管理员。':
+    'Editing and deletion are not allowed for default clusters, please contact the administrator',
+  '支持拖拽更改顺序，从上向下对应列表列从左到右顺序':
+    'Supports drag and drop to change order, corresponding to the list columns from top to bottom and from left to right',
+  '调试需要等待1分钟以上，在此区间不可进行其余操作':
+    'Debugging takes more than 1 minute, and no other operations can be performed during this period',
+  '前端忽略数字和所有的常见符号，只保留日志具体内容':
+    'The front-end ignores numbers and all common symbols, only retaining the specific contents of the log',
+  '已加载完全部数据，如需查看更多查询条件可以{0}':
+    'All data has been loaded, if more query conditions are needed, please {0}',
   '2. 将keytab放es每个节点对应的目录中去': '2. Put the keytab in the directory corresponding to each node of ES',
-  每15分钟按照CMDB最新拓扑自动部署或取消采集: 'Automatically deploy or cancel collection every 15 minutes based on the latest topology in CMDB',
-  '方法名，函数名或者一个大型计算中的某个阶段或子任务': 'Method name, function name, or a certain stage or subtask in a large computation.',
+  每15分钟按照CMDB最新拓扑自动部署或取消采集:
+    'Automatically deploy or cancel collection every 15 minutes based on the latest topology in CMDB',
+  '方法名，函数名或者一个大型计算中的某个阶段或子任务':
+    'Method name, function name, or a certain stage or subtask in a large computation.',
   '开启后将表格内的 UNIX 时间戳格式化为可读时间': 'Format UNIX timestamp in the table to readable time',
-  '异步下载可打包下载所有数据，请注意查收下载通知邮件': 'Asynchronous download can package and download all data. please check the download notification email.',
-  '不同类别的授权用户，通过用户组名区分，单业务下唯一': 'Different types of authorized users are distinguished by user group names, and are unique under a single business.',
-  '未找到相关的应用，请确认是否有Trace数据的接入。': 'No relevant applications found, please confirm if Trace data is accessible.',
-  '将此列设置为时间，会将取消已设为时间的列，是否继续？': 'Setting this column as time will cancel the column that has already been set as time. do you want to continue?',
-  '别名只支持【英文、数字、下划线】，并且不能以数字开头': 'Aliases only support [english, numbers, underscores], and cannot start with a number.',
-  '勾选需要审批后需等待审批通过后，才会继续进行存储流程': 'Checking requires approval and storage process will continue only after approval is passed.',
-  '暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员': 'The clustering shutdown function has not been opened temporarily. if there is a demand for shutdown, please contact the platform administrator.',
-  可以通过企业微信将需求的相关人员邀请到一个群里进行讨论: 'You can invite relevant personnel to a group for discussion through enterprise wechat.',
-  '通过字段清洗，可以格式化日志内容方便检索、告警和分析。': 'By field parsing, log content can be formatted for easy search, alarm and analysis.',
+  '异步下载可打包下载所有数据，请注意查收下载通知邮件':
+    'Asynchronous download can package and download all data. please check the download notification email.',
+  '不同类别的授权用户，通过用户组名区分，单业务下唯一':
+    'Different types of authorized users are distinguished by user group names, and are unique under a single business.',
+  '未找到相关的应用，请确认是否有Trace数据的接入。':
+    'No relevant applications found, please confirm if Trace data is accessible.',
+  '将此列设置为时间，会将取消已设为时间的列，是否继续？':
+    'Setting this column as time will cancel the column that has already been set as time. do you want to continue?',
+  '别名只支持【英文、数字、下划线】，并且不能以数字开头':
+    'Aliases only support [english, numbers, underscores], and cannot start with a number.',
+  '勾选需要审批后需等待审批通过后，才会继续进行存储流程':
+    'Checking requires approval and storage process will continue only after approval is passed.',
+  '暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员':
+    'The clustering shutdown function has not been opened temporarily. if there is a demand for shutdown, please contact the platform administrator.',
+  可以通过企业微信将需求的相关人员邀请到一个群里进行讨论:
+    'You can invite relevant personnel to a group for discussion through enterprise wechat.',
+  '通过字段清洗，可以格式化日志内容方便检索、告警和分析。':
+    'By field parsing, log content can be formatted for easy search, alarm and analysis.',
   '关键字范围: 从匹配{0}开始到匹配{1}之间的所有行': 'Keyword range: all rows from matching {0} to matching {1}',
   '检索结果（找到 {0} 条结果，用时{1}毫秒) {2}': 'Search results (found {0} results, took {1} milliseconds) {2}',
-  '只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾': 'Can only contain a-z, a-z, 0-9 and _, and cannot start or end with _',
-  '请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)': 'Please enter a suffix without a dot (.), and an asterisk (*) can be filled in to match any file',
-  '仅展示检索结果的前2000条，如果要查看更多请优化查询条件': 'Only the first 2000 search results are displayed. to view more, please optimize the search conditions.',
-  '当前因{n}导致无法进行异步下载， 可直接下载前1万条数据': 'Cannot perform asynchronous download due to current {n}, can directly download the first 10,000 data',
-  '建议缩小查询范围，异步下载只能下载前200w条，注意查看邮件': 'It is recommended to narrow the query scope, asynchronous download can only download the first 2 million lines, pay attention to check emails',
-  '高级清洗需要跳转到计算平台并终止当前流程，请确认是否继续跳转': 'Advanced parsing requires jumping to the BK-Base and terminating the current process. please confirm whether to continue the jump.',
-  '结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件': 'Query the contents under the specified directory at the end, otherwise query all files under the directory and its subdirectories by default.',
-  '当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。': 'When opened, the collection will display the following fields at the same time, without affecting the user field display settings.',
-  '接入前请查看 {0} ，尤其是在日志量大的情况下请务必提前沟通。': 'Please check {0} before access, especially in case of large log volume, please communicate in advance.',
-  '采集完成后24小时内，没有配置第4步“存储”，任务会被强制停用。': 'If the fourth step \'storage\' is not configured within 24 hours after collection is completed, the task will be forcibly stopped.',
-  '确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加': 'Confirm to retain original logs, which will be stored in the log field. other extracted content will be appended.',
-  '重置将丢失当前的配置信息，重置为上一次保存的配置内容。确认请继续。': 'Resetting will lose the current configuration information and reset it to the last saved configuration content. please confirm to continue.',
-  '以业务ID+bklog_开头,补充字母、数字或下划线，5~50长度': 'Starts with business ID+bklog_, supplemented with letters, numbers or underscores, 5-50 in length',
-  '当前流程已跳转至计算平台进行清洗，若清洗完成可及时刷新页面更新状态': 'The current process has been redirected to the BK-Base for parsing. if the parsing is completed, please refresh the page to update the status in time.',
-  '字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效': 'Field extraction methods or conditions have changed, the \'debug & setting\' button needs to be clicked for the changes to take effect',
-  '目录以 / 结尾，windows 服务器以 /cygdrive/ 开头': 'Directories end with /, and windows servers start with /cygdrive/',
-  '分片数（{x}）：1个主分片+{n}个副本数，避免节点故障导致数据丢失': 'Shards ({x}): 1 primary shard + {n} replica shards to prevent data loss caused by node failures',
-  '您当前没有业务--${0}的权限，请先联系运维同学{1}进行角色的添加': 'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
-  '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源': 'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
-  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成': 'To reduce transmission and storage costs, some content can be filtered out, more complex filtering can be done in the \'parsing\' function',
-  '非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。': 'Non-required fields, after filling in, will replace the field name; when the field name conflicts with the built-in field, it must be renamed.',
-  '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段': 'Clustering can only be based on one field, and the field must be of text tokenization type, defaulting to \'log\' field',
+  '只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾':
+    'Can only contain a-z, a-z, 0-9 and _, and cannot start or end with _',
+  '请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)':
+    'Please enter a suffix without a dot (.), and an asterisk (*) can be filled in to match any file',
+  '仅展示检索结果的前2000条，如果要查看更多请优化查询条件':
+    'Only the first 2000 search results are displayed. to view more, please optimize the search conditions.',
+  '当前因{n}导致无法进行异步下载， 可直接下载前1万条数据':
+    'Cannot perform asynchronous download due to current {n}, can directly download the first 10,000 data',
+  '建议缩小查询范围，异步下载只能下载前200w条，注意查看邮件':
+    'It is recommended to narrow the query scope, asynchronous download can only download the first 2 million lines, pay attention to check emails',
+  '高级清洗需要跳转到计算平台并终止当前流程，请确认是否继续跳转':
+    'Advanced parsing requires jumping to the BK-Base and terminating the current process. please confirm whether to continue the jump.',
+  '结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件':
+    'Query the contents under the specified directory at the end, otherwise query all files under the directory and its subdirectories by default.',
+  '当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。':
+    'When opened, the collection will display the following fields at the same time, without affecting the user field display settings.',
+  '接入前请查看 {0} ，尤其是在日志量大的情况下请务必提前沟通。':
+    'Please check {0} before access, especially in case of large log volume, please communicate in advance.',
+  '采集完成后24小时内，没有配置第4步“存储”，任务会被强制停用。':
+    "If the fourth step 'storage' is not configured within 24 hours after collection is completed, the task will be forcibly stopped.",
+  '确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加':
+    'Confirm to retain original logs, which will be stored in the log field. other extracted content will be appended.',
+  '重置将丢失当前的配置信息，重置为上一次保存的配置内容。确认请继续。':
+    'Resetting will lose the current configuration information and reset it to the last saved configuration content. please confirm to continue.',
+  '以业务ID+bklog_开头,补充字母、数字或下划线，5~50长度':
+    'Starts with business ID+bklog_, supplemented with letters, numbers or underscores, 5-50 in length',
+  '当前流程已跳转至计算平台进行清洗，若清洗完成可及时刷新页面更新状态':
+    'The current process has been redirected to the BK-Base for parsing. if the parsing is completed, please refresh the page to update the status in time.',
+  '字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效':
+    "Field extraction methods or conditions have changed, the 'debug & setting' button needs to be clicked for the changes to take effect",
+  '目录以 / 结尾，windows 服务器以 /cygdrive/ 开头':
+    'Directories end with /, and windows servers start with /cygdrive/',
+  '分片数（{x}）：1个主分片+{n}个副本数，避免节点故障导致数据丢失':
+    'Shards ({x}): 1 primary shard + {n} replica shards to prevent data loss caused by node failures',
+  '您当前没有业务--${0}的权限，请先联系运维同学{1}进行角色的添加':
+    'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
+  '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源':
+    'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
+  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
+    "To reduce transmission and storage costs, some content can be filtered out, more complex filtering can be done in the 'parsing' function",
+  '非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。':
+    'Non-required fields, after filling in, will replace the field name; when the field name conflicts with the built-in field, it must be renamed.',
+  '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
+    "Clustering can only be based on one field, and the field must be of text tokenization type, defaulting to 'log' field",
   ' - 日志内容：[2006-01-02 15:04:05] content': ' - Log content: [2006-01-02 15:04:05] content',
-  '容量计算公式：单机日志增量主机数量存储转化率分片数（日志保留天数 + 1）': 'Capacity calculation formula: single machine log incremental host number storage conversion rate number of shards (log retention days + 1)',
-  '将过滤后的日志采集上来后，日志检索模块可进行日志内容格式化，方便检索和分析。': 'After collecting the filtered logs, the log retrieval module can format the log content for easy search and analysis.',
+  '容量计算公式：单机日志增量主机数量存储转化率分片数（日志保留天数 + 1）':
+    'Capacity calculation formula: single machine log incremental host number storage conversion rate number of shards (log retention days + 1)',
+  '将过滤后的日志采集上来后，日志检索模块可进行日志内容格式化，方便检索和分析。':
+    'After collecting the filtered logs, the log retrieval module can format the log content for easy search and analysis.',
   '快捷键 Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页': 'Shortcut key Esc: exit; PageUp: page up; PageDn: page down',
-  '存储转化率（1.5）：即原始日志增加日志采集元数据并存储到ES到实际占有的空间': 'Storage conversion rate (1.5): that is, the original log increases the log collection metadata and stores it in es to the actual occupied space',
-  '全局设置，下载过程中需使用job传输，将以执行人身份进行，请确保执行人拥有业务权限': 'Global settings, job transfer is required during the download process, and will be performed as the executor. please ensure that the executor has business permissions.',
-  '日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。': 'Log clustering requires at least one field of type text, which is currently not available. please go to log parsing to set it up.',
-  '高级清洗只能应用于日志平台采集的日志，会在链路上分发给计算平台进行更复杂的数据处理。': 'Advanced parsing can only be applied to logs collected by the log platform, and will be distributed to the BK-Base for more complex data processing on the chain.',
-  '多个QQ号粘贴请使用英文分号 “ ; ” 分隔 ，手动输入QQ号请键入 Enter 保存': 'Multiple QQ numbers should be separated by an english semicolon \';\'. press Enter to save when manually entering QQ numbers.',
-  '多个用户名粘贴请使用英文分号 “ ; ” 分隔 ，手动输入用户名请键入 Enter 保存': 'If pasting multiple usernames, please use the english semicolon \' ; \' to separate. to manually enter a username, press Enter to save',
-  '通过AI学习能力，提取日志的数据指纹实现日志聚类，注意训练时间越久效果越好，存储将增加10%': 'By using AI learning capabilities, extract the data fingerprint of the log to achieve log clustering. note that the longer the training time, the better the effect and the storage will increase by 10%.',
-  '正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容': 'Regex expression (golang syntax) needs to match the entire log. for example, the following DEMO extracts request time and content from the log content',
-  '清洗完并且存储到ES后，日志平台会识别到对应的索引创建日志平台的索引集，后续可以直接在检索和监控中使用。': 'After parsing and storing in elasticsearch, the log platform will recognize the corresponding index and create a log platform index set, which can be used directly in search and monitoring in the future.',
-  '通过新建索引集添加计算平台中的Elasticsearch的索引，就可以在日志平台中进行检索、告警、可视化等。': 'By creating a new index set and adding Elasticsearch indexes in the BK-Base, you can search, alert, and visualize in the log platform.',
-  '选择了高级字段提取能力后，会跳转到计算平台进行更多的字段处理，计算平台提供13种清洗算法。具体的使用方法可查看{0}': 'After selecting advanced field extraction capabilities, you will be redirected to the BK-Base for more field processing. the computing platform provides 13 parsing algorithms. for specific usage methods, please refer to {0}.',
-  '1. 用户需要在hdfs设置的kerberos中创建给es使用的principal, 然后导出对应的keytab文件': '1. The user needs to create a principal for es in the kerberos set by hdfs, and then export the corresponding keytab file',
-  '自定义上报数据，可以通过采集器，或者指定协议例如otlp等方式进行上报，自定义上报有一定的使用要求，具体可以查看使用说明': 'Custom reporting data, which can be reported through collectors or specified protocols such as otlp. custom reporting has certain usage requirements. for details, please refer to the usage instructions.',
-  '您当前没有业务权限，请先联系对应的业务运维同学进行添加!\': \'您当前没有业务权限，请先联系对应的业务运维同学进行添加!': 'You currently do not have business permissions, please contact the corresponding business operation and maintenance students to add!\': \'you currently do not have business permissions, please contact the corresponding business operation and maintenance students to add!',
-  '如果日志已经存储在Elasticsearch，可以在“集群管理”中添加Elasticsearch集群，就可以通过创建索引集来使用存储中的日志数据。': 'If the logs are already stored in Elasticsearch, you can add an Elasticsearch cluster in "Cluster management", and then use the log data in storage by creating an index set.',
-  '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)': 'This function refers to getting the corresponding fields from the query statement. when the corresponding fields are checked, they will be displayed to the collector users in the form of form filling. (field description: when there is no field, it is a full-text search; duplicate fields increase the display sequence number (n), and no fields are selected by default).',
+  '存储转化率（1.5）：即原始日志增加日志采集元数据并存储到ES到实际占有的空间':
+    'Storage conversion rate (1.5): that is, the original log increases the log collection metadata and stores it in es to the actual occupied space',
+  '全局设置，下载过程中需使用job传输，将以执行人身份进行，请确保执行人拥有业务权限':
+    'Global settings, job transfer is required during the download process, and will be performed as the executor. please ensure that the executor has business permissions.',
+  '日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。':
+    'Log clustering requires at least one field of type text, which is currently not available. please go to log parsing to set it up.',
+  '高级清洗只能应用于日志平台采集的日志，会在链路上分发给计算平台进行更复杂的数据处理。':
+    'Advanced parsing can only be applied to logs collected by the log platform, and will be distributed to the BK-Base for more complex data processing on the chain.',
+  '多个QQ号粘贴请使用英文分号 “ ; ” 分隔 ，手动输入QQ号请键入 Enter 保存':
+    "Multiple QQ numbers should be separated by an english semicolon ';'. press Enter to save when manually entering QQ numbers.",
+  '多个用户名粘贴请使用英文分号 “ ; ” 分隔 ，手动输入用户名请键入 Enter 保存':
+    "If pasting multiple usernames, please use the english semicolon ' ; ' to separate. to manually enter a username, press Enter to save",
+  '通过AI学习能力，提取日志的数据指纹实现日志聚类，注意训练时间越久效果越好，存储将增加10%':
+    'By using AI learning capabilities, extract the data fingerprint of the log to achieve log clustering. note that the longer the training time, the better the effect and the storage will increase by 10%.',
+  '正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容':
+    'Regex expression (golang syntax) needs to match the entire log. for example, the following DEMO extracts request time and content from the log content',
+  '清洗完并且存储到ES后，日志平台会识别到对应的索引创建日志平台的索引集，后续可以直接在检索和监控中使用。':
+    'After parsing and storing in elasticsearch, the log platform will recognize the corresponding index and create a log platform index set, which can be used directly in search and monitoring in the future.',
+  '通过新建索引集添加计算平台中的Elasticsearch的索引，就可以在日志平台中进行检索、告警、可视化等。':
+    'By creating a new index set and adding Elasticsearch indexes in the BK-Base, you can search, alert, and visualize in the log platform.',
+  '选择了高级字段提取能力后，会跳转到计算平台进行更多的字段处理，计算平台提供13种清洗算法。具体的使用方法可查看{0}':
+    'After selecting advanced field extraction capabilities, you will be redirected to the BK-Base for more field processing. the computing platform provides 13 parsing algorithms. for specific usage methods, please refer to {0}.',
+  '1. 用户需要在hdfs设置的kerberos中创建给es使用的principal, 然后导出对应的keytab文件':
+    '1. The user needs to create a principal for es in the kerberos set by hdfs, and then export the corresponding keytab file',
+  '自定义上报数据，可以通过采集器，或者指定协议例如otlp等方式进行上报，自定义上报有一定的使用要求，具体可以查看使用说明':
+    'Custom reporting data, which can be reported through collectors or specified protocols such as otlp. custom reporting has certain usage requirements. for details, please refer to the usage instructions.',
+  "您当前没有业务权限，请先联系对应的业务运维同学进行添加!': '您当前没有业务权限，请先联系对应的业务运维同学进行添加!":
+    "You currently do not have business permissions, please contact the corresponding business operation and maintenance students to add!': 'you currently do not have business permissions, please contact the corresponding business operation and maintenance students to add!",
+  '如果日志已经存储在Elasticsearch，可以在“集群管理”中添加Elasticsearch集群，就可以通过创建索引集来使用存储中的日志数据。':
+    'If the logs are already stored in Elasticsearch, you can add an Elasticsearch cluster in "Cluster management", and then use the log data in storage by creating an index set.',
+  '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)':
+    'This function refers to getting the corresponding fields from the query statement. when the corresponding fields are checked, they will be displayed to the collector users in the form of form filling. (field description: when there is no field, it is a full-text search; duplicate fields increase the display sequence number (n), and no fields are selected by default).',
   '选择{n}范围': 'Select {n} scope',
   所有选择范围可相互叠加并作用: 'All selection ranges can be stacked and act on each other',
   按命名空间选择: 'Select by NameSpace',
@@ -473,10 +544,10 @@ export default {
   离开将会导致未保存信息丢失: 'Leaving will result in loss of unsaved information',
   '确定要删除清洗：{n}？': 'Are you sure to delete parsing: {n}?',
   '请注意！删除后不能恢复。': 'Caution! lt cannot be restored after deletion.',
-  已有同名标签: 'Already has a tag with the same name',
   '点击可进行{0}': 'Click for {0}',
   无匹配人员: 'No match',
-  '快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页': 'Shortcut key--  Esc: exit; PageUp: page up; PageDn: page down',
+  '快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页':
+    'Shortcut key--  Esc: exit; PageUp: page up; PageDn: page down',
   请选择用户: 'Select user',
   请选择集群负责人: 'Select cluster leader',
   移至分组: 'move to another group',
@@ -494,7 +565,7 @@ export default {
   '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; ':
     'It is necessary to comply with company regulations and prohibit the disclosure of user or internal sensitive information (such as user PII information, account passwords, cloud AKSK, internal system authentication/Token, confidential documents, etc.). If data leakage is caused by improper authorization, corresponding responsibilities must be borne;',
   '授权人的空间权限会影响被授权人，被授权人的权限范围<=授权人的权限范围，请谨慎变更。':
-    'The spatial permissions of the authorizer will affect the authorized person. The authorized person\'s permission range is less than or equal to the authorized person\'s permission range. Please change it carefully.',
+    "The spatial permissions of the authorizer will affect the authorized person. The authorized person's permission range is less than or equal to the authorized person's permission range. Please change it carefully.",
   '批量粘贴请使用;进行分隔': 'Please use bulk pasting; Separate',
   已提交审批: 'Submitted for approval',
   不是有效的json文件: 'Not a valid json file.',
@@ -503,11 +574,15 @@ export default {
   修改: 'revise',
   '确认{n}该规则？': 'Confirm {n} this rule?',
   '保留前{0}位, 后{1}位': 'Keep the first {0} digits and the last {1} digits',
-  '当前脱敏规则被应用{n}次，如停用/删除，将无法选用该规则，请确认是否{v}。': 'The current desensitization rule has been applied {n} times. If it is stopped/deleted, this rule will not be available. Please confirm whether to {v}.',
+  '当前脱敏规则被应用{n}次，如停用/删除，将无法选用该规则，请确认是否{v}。':
+    'The current desensitization rule has been applied {n} times. If it is stopped/deleted, this rule will not be available. Please confirm whether to {v}.',
   '已同步 {0} 个脱敏结果': 'Synchronized {0} desensitization results',
-  '当前脱敏规则被应用{n}次，修改规则后，现有脱敏配置需同步后生效，请确认是否保存编辑。': 'The current desensitization rule has been applied {n} times. After modifying the rule, the existing desensitization configuration needs to be synchronized to take effect. Please confirm whether to save the edit.',
-  '当前规则【{n}】已进行了变更，同步该规则可能会导致命中结果变更，请确认是否需要同步该变更或忽略，也可重新选择规则': 'The current rule [{n}] has been changed. Synchronizing this rule may cause changes in the hit results. Please confirm whether to synchronize the change or ignore it, or you can choose a new rule.',
-  '当前规则【{n}】已被删除，请确认是否需要更换为新规则或忽略变更': 'The current rule [{n}] has been deleted. Please confirm whether to replace it with a new rule or ignore the change.',
+  '当前脱敏规则被应用{n}次，修改规则后，现有脱敏配置需同步后生效，请确认是否保存编辑。':
+    'The current desensitization rule has been applied {n} times. After modifying the rule, the existing desensitization configuration needs to be synchronized to take effect. Please confirm whether to save the edit.',
+  '当前规则【{n}】已进行了变更，同步该规则可能会导致命中结果变更，请确认是否需要同步该变更或忽略，也可重新选择规则':
+    'The current rule [{n}] has been changed. Synchronizing this rule may cause changes in the hit results. Please confirm whether to synchronize the change or ignore it, or you can choose a new rule.',
+  '当前规则【{n}】已被删除，请确认是否需要更换为新规则或忽略变更':
+    'The current rule [{n}] has been deleted. Please confirm whether to replace it with a new rule or ignore the change.',
   '字段名与表达式至少填写 1 个': 'At least one field name and expression should be filled in',
   正则调试: 'Regex debugging',
   调试日志: 'Debug log',
@@ -523,8 +598,10 @@ export default {
   内置字段: 'Built-in field',
   清洗字段: 'Cleaning field',
   '无对应采样日志，无法输出预览': 'No corresponding sample logs, unable to output preview',
-  '该字段为原文字段，为防止脱敏规则遗漏，系统已帮您自动同步其他脱敏结果': 'This field is the original text field. To prevent the omission of desensitization rules, the system has automatically synchronized other desensitization results for you',
-  '日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志': 'Log desensitization will automatically match and use rules based on your sampling collection logs. Without sampling logs, sampling results cannot be displayed. You can also add sampling and build logs manually.',
+  '该字段为原文字段，为防止脱敏规则遗漏，系统已帮您自动同步其他脱敏结果':
+    'This field is the original text field. To prevent the omission of desensitization rules, the system has automatically synchronized other desensitization results for you',
+  '日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志':
+    'Log desensitization will automatically match and use rules based on your sampling collection logs. Without sampling logs, sampling results cannot be displayed. You can also add sampling and build logs manually.',
   '支持输入多条json，以换行区分': 'Supports input of multiple JSONs, separated by line breaks',
   搜索字段: 'Search field',
   结果预览: 'Result preview',
@@ -532,27 +609,49 @@ export default {
   '字段+正则匹配': 'Field + regex matching',
   字段匹配: 'Field matching',
   全局: 'Global',
-  '脱敏规则会应用到本业务全部索引集。为保证脱敏规则效力，配置规则后，需针对计算平台索引集、第三方ES索引集进行手动校准指定，校准后索引集恢复可用状态。': 'The desensitization rules will be applied to all index sets of this business. To ensure the effectiveness of the desensitization rules, after configuring the rules, manual calibration is required for the index sets of the computing platform and third-party ES. After calibration, the index sets will be restored to the available state.',
+  '脱敏规则会应用到本业务全部索引集。为保证脱敏规则效力，配置规则后，需针对计算平台索引集、第三方ES索引集进行手动校准指定，校准后索引集恢复可用状态。':
+    'The desensitization rules will be applied to all index sets of this business. To ensure the effectiveness of the desensitization rules, after configuring the rules, manual calibration is required for the index sets of the computing platform and third-party ES. After calibration, the index sets will be restored to the available state.',
   请输入脱敏规则: 'Please enter the desensitization rule',
   已脱敏: 'Desensitized',
   '已有脱敏规则名, 请重新填写。': 'Existing desensitization rule name, please Re-enter.',
-  '脱敏规则暂未匹配到有效日志，无法预览结果': 'The desensitization rule has not yet matched any valid logs and the results cannot be previewed.',
+  '脱敏规则暂未匹配到有效日志，无法预览结果':
+    'The desensitization rule has not yet matched any valid logs and the results cannot be previewed.',
   是否一键同步规则: 'Whether to sync rules with one click',
   '一键同步所有规则，直接生效': 'Sync all rules with one click and take effect directly',
-  '未检测到字段信息，请确认采集项是否已配置索引': 'No field information was detected, Please confirm whether the collection item has been configured with an index.',
+  '未检测到字段信息，请确认采集项是否已配置索引':
+    'No field information was detected, Please confirm whether the collection item has been configured with an index.',
   '未检测到采样日志内容，无法同步规则': 'Log sampling content was not detected and rules could not be synchronized.',
-  '当前日志不符合JSON格式，请确认后重试': 'The current log does not conform to JSON format, please confirm and try again.',
+  '当前日志不符合JSON格式，请确认后重试':
+    'The current log does not conform to JSON format, please confirm and try again.',
   匹配正则表达式: 'Match Regular Expression',
   脱敏结果: 'Desensitization result',
   脱敏结果预览: 'Desensitization results preview',
-  '正则表达式，脱敏算子，原始日志都填写后才可点击预览。': 'Regular expressions, desensitization operators, and original logs must be filled in before you can click preview.',
+  '正则表达式，脱敏算子，原始日志都填写后才可点击预览。':
+    'Regular expressions, desensitization operators, and original logs must be filled in before you can click preview.',
   '请输入 JSON 格式日志': 'Please enter JSON log format',
-  '支持引用正则表达式中的命名分组。如正则表达式为 ': 'Support for naming named groups in quoted regular expressions. For example, the regular expression is ',
+  '支持引用正则表达式中的命名分组。如正则表达式为 ':
+    'Support for naming named groups in quoted regular expressions. For example, the regular expression is ',
   '，可通过 ${phone} 进行引用': ', which can be referenced through ${phone}',
   暂无采样日志: 'No sampling log',
-  '正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…': 'The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...',
-  '脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。': 'The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results.',
-  '分组模式下，暂不支持添加{n}' : 'In group mode, adding {n} is not supported for the time being.',
+  '正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…':
+    'The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...',
+  '脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。':
+    'The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results.',
+  '分组模式下，暂不支持添加{n}': 'In group mode, adding {n} is not supported for the time being.',
+  添加到本次检索: 'Add to this search',
+  从本次检索中排除: 'Exclude from this search',
+  当前显示全部字段: 'Currently showing all fields',
+  显示全部字段: 'Currently showing all fields',
+  新开标签页: 'New tab',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。':
+    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
+  '输入自定义同比，按 Enter 确认': 'Enter custom year-on-year and press enter to confirm',
+  将分组作为列展示: 'Display groups as columns',
+  '如需根据某些维度拆分聚类结果，可将字段设置为维度。':
+    'Divide results according to dimensions and set fields to dimension results.',
+  '修改字段会影响当前聚类结果，请勿随意修改':
+    'Modifying fields will affect the current results, feel free to modify them.',
+  '分组模式下，暂不支持添加{n}': 'In group mode, adding {n} is not supported for the time being.',
   大于: 'more than',
   小于: 'less than',
   大于或等于: 'greater than or equal',
@@ -566,5 +665,6 @@ export default {
   '{0}日志来源': '{0} log source',
   停用状态下无法添加标签: 'Cannot add label when disabled.',
   '内置标签名，请重新填写': 'Built-in label, please reset fill in',
-  '联合查询无法进行异步下载，可直接下载前1万条数据': 'Joint query cannot be downloaded asynchronously, but the first 10,000 pieces of data can be downloaded directly.',
+  '联合查询无法进行异步下载，可直接下载前1万条数据':
+    'Joint query cannot be downloaded asynchronously, but the first 10,000 pieces of data can be downloaded directly.'
 };

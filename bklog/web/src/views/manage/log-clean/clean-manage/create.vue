@@ -21,24 +21,35 @@
   -->
 
 <template>
-  <div class="log-clean-create-container" v-bkloading="{ isLoading: loading }">
-    <article class="article" v-if="!isCleaning">
+  <div
+    v-bkloading="{ isLoading: loading }"
+    class="log-clean-create-container"
+  >
+    <article
+      v-if="!isCleaning"
+      class="article"
+    >
       <step-field
         v-if="curStep === 1"
         :cur-step="curStep"
         :is-clean-field="true"
         @stepChange="stepChange"
         @changeClean="isCleaning = true"
-        @changeSubmit="changeSubmit" />
+        @changeSubmit="changeSubmit"
+      />
       <step-storage
         v-if="curStep === 2"
         :cur-step="curStep"
         :is-clean-field="true"
         @stepChange="stepChange"
-        @changeSubmit="changeSubmit" />
+        @changeSubmit="changeSubmit"
+      />
     </article>
 
-    <article class="article clean-landing" v-else>
+    <article
+      v-else
+      class="article clean-landing"
+    >
       <advance-clean-land back-router="log-clean-list" />
     </article>
   </div>
@@ -55,7 +66,7 @@ export default {
   components: {
     stepField,
     stepStorage,
-    advanceCleanLand,
+    advanceCleanLand
   },
   data() {
     return {
@@ -63,13 +74,13 @@ export default {
       isCleaning: false,
       loading: false,
       isSubmit: false,
-      collectItem: '',
+      collectItem: ''
     };
   },
   computed: {
     ...mapState({
-      showRouterLeaveTip: state => state.showRouterLeaveTip,
-    }),
+      showRouterLeaveTip: state => state.showRouterLeaveTip
+    })
   },
   // eslint-disable-next-line no-unused-vars
   beforeRouteLeave(to, from, next) {
@@ -78,7 +89,7 @@ export default {
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
           next();
-        },
+        }
       });
       return;
     }
@@ -93,38 +104,38 @@ export default {
         this.$router.push({
           name: 'log-clean-list',
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
         return;
       }
 
       this.curStep = num;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/scroller';
+@import '@/scss/mixins/scroller';
 
-  .log-clean-create-container {
-    padding: 20px 24px;
-    height: 100%;
-    overflow: auto;
+.log-clean-create-container {
+  height: 100%;
+  padding: 20px 24px;
+  overflow: auto;
 
-    @include scroller($backgroundColor: #ADADAD, $width: 4px);
+  @include scroller($backgroundColor: #adadad, $width: 4px);
 
-    .article {
-      margin-bottom: 20px;
-      border: 1px solid #dcdee5;
-      border-radius: 3px;
-      background-color: #fff;
-    }
-
-    .clean-landing {
-      border: 0;
-      height: calc(100% - 24px);
-    }
+  .article {
+    margin-bottom: 20px;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 3px;
   }
+
+  .clean-landing {
+    height: calc(100% - 24px);
+    border: 0;
+  }
+}
 </style>

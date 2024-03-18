@@ -102,18 +102,15 @@
 </template>
 
 <script>
-import { VirtualRender } from 'bk-magic-vue';
+import { hostAgentStatus } from 'monitor-api/modules/commons';
+import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { hostAgentStatus } from '../../../../../../monitor-api/modules/commons';
-import { isFullIpv6, padIPv6 } from '../../../../../../monitor-common/utils/ip-utils';
-import { deepClone } from '../../../../../../monitor-common/utils/utils';
 import EmptyStatus from '../../../../../components/empty-status/empty-status';
 
 export default {
   name: 'SelectHost',
   components: {
-    // eslint-disable-next-line vue/no-unused-components
-    VirtualRender,
     EmptyStatus
   },
   props: {

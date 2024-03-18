@@ -170,6 +170,9 @@ class DimensionCalculator:
             self.converge_ctx.update(related_instance.converge_config["converged_condition"])
 
     def calc_dimension(self):
+        """
+        收敛维度计算
+        """
         score = arrow.get(self.related_instance.create_time).replace(tzinfo="utc").timestamp
         pipeline = FTA_CONVERGE_DIMENSION_KEY.client.pipeline()
         for dimension in COMPARED_CONVERGE_DIMENSION.keys():

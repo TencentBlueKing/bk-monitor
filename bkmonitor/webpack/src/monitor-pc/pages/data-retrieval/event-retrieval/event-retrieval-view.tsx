@@ -27,10 +27,10 @@
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { toPng } from 'html-to-image';
+import { graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
+import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafana';
-import { Debounce, deepClone, random } from '../../../../monitor-common/utils/utils';
-import MonitorEcharts from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import BackTop from '../../../components/back-top/back-top';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';

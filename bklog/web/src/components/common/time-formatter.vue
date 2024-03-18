@@ -24,10 +24,10 @@
   <div class="time-format-container">
     <span class="switch-label">{{ $t('时间') }}</span>
     <bk-switcher
+      v-bk-tooltips="$t('开启后将表格内的 UNIX 时间戳格式化为可读时间')"
       theme="primary"
       :value="isFormatDate"
       @change="handleChange"
-      v-bk-tooltips="$t('开启后将表格内的 UNIX 时间戳格式化为可读时间')"
     ></bk-switcher>
     <!-- <transition name="fade">
       <span class="time-zone-text" v-if="isFormatDate">{{$t('当前时区') + timeZone}}</span>
@@ -41,40 +41,39 @@ import jsCookie from 'js-cookie';
 export default {
   data() {
     return {
-      timeZone: new Date().toString()
-        .slice(24, 33),
+      timeZone: new Date().toString().slice(24, 33)
     };
   },
   computed: {
     // 是否转换日期类型字段格式
     isFormatDate() {
       return this.$store.state.isFormatDate;
-    },
+    }
   },
   methods: {
     handleChange(val) {
       jsCookie.set('operation', String(val));
       this.$store.commit('updateIsFormatDate', val);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .time-format-container {
-    display: flex;
-    align-items: center;
-    font-size: 14px;
+.time-format-container {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #63656e;
+
+  .switch-label {
+    margin-right: 6px;
+    font-size: 12px;
     color: #63656e;
-
-    .switch-label {
-      margin-right: 6px;
-      color: #63656e;
-      font-size: 12px;
-    }
-
-    .time-zone-text {
-      margin-left: 8px;
-    }
   }
+
+  .time-zone-text {
+    margin-left: 8px;
+  }
+}
 </style>

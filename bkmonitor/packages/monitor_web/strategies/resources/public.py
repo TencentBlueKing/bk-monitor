@@ -18,15 +18,15 @@ from elasticsearch_dsl import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import QueryConfigModel, StrategyLabel, StrategyModel
 from bkmonitor.views.serializers import BusinessOnlySerializer
+from constants.aiops import SceneSet
 from constants.alert import EventStatus
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, resource
 from core.unit import UNITS, load_unit
-from monitor_web.aiops.ai_setting.constant import SceneSet
-from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.strategies.constant import ValueableList
 from monitor_web.tasks import parse_scene_metrics
 

@@ -28,20 +28,16 @@ export default class LogTab extends tsc<{}> {
   render() {
     return (
       <bk-tab
-        class="custom-tab"
-        type="unborder-card"
-        tab-position="top"
+        class='custom-tab'
+        type='unborder-card'
+        tab-position='top'
         props={this.$attrs}
         on={this.$listeners}
       >
         {this.$slots.default}
-        {this.$slots.setting && (
-          <template slot="setting">{this.$slots.setting}</template>
-        )}
-        {this.$slots.add && <template slot="add">{this.$slots.add}</template>}
-        {this.$slots.extension && (
-          <template slot="extension">{this.$slots.extension}</template>
-        )}
+        {this.$slots.setting && <template slot='setting'>{this.$slots.setting}</template>}
+        {this.$slots.add && <template slot='add'>{this.$slots.add}</template>}
+        {this.$slots.extension && <template slot='extension'>{this.$slots.extension}</template>}
       </bk-tab>
     );
   }

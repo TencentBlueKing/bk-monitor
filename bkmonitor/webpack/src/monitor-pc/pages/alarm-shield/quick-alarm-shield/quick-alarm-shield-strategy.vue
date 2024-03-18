@@ -107,8 +107,9 @@
 </template>
 
 <script>
-import { addShield } from '../../../../monitor-api/modules/shield';
-import { getStrategyV2 } from '../../../../monitor-api/modules/strategies';
+import { addShield } from 'monitor-api/modules/shield';
+import { getStrategyV2 } from 'monitor-api/modules/strategies';
+
 import { quickAlarmShieldMixin, strategyMapMixin } from '../../../common/mixins';
 import VerifyInput from '../../../components/verify-input/verify-input';
 import StrategyDetail from '../alarm-shield-components/strategy-detail-new.tsx';

@@ -9,7 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Dict
+import json
+from typing import Dict, Optional
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -30,13 +31,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # 查询路由表，忽略掉已经存在数据的记录
-        proxy_storage_list = (
+        proxy_storage_list = list(
             models.InfluxDBStorage.objects.filter(influxdb_proxy_storage_id=None)
-            .values("storage_cluster_id", "proxy_cluster_name")
+            .values("storage_cluster_id", "proxy_cluster_name", "table_id")
             .distinct()
         )
         if not proxy_storage_list:
-            self.stdout.write(" not found null influxdb_proxy_storage_id records!")
+            self.stdout.write("not found null influxdb_proxy_storage_id records!")
             return
         # 查询集群信息
         proxy_cluster_list = models.ClusterInfo.objects.filter(cluster_type="influxdb").values(
@@ -51,14 +52,19 @@ class Command(BaseCommand):
         ]
 
         # 组装数据
-        proxy_storage_map = {}
+        proxy_storage_map, table_id_list = {}, []
         for ps in proxy_storage_list:
             # 如果已经存在，则忽略
             if (ps["storage_cluster_id"], ps["proxy_cluster_name"]) in exist_data:
+                table_id_list.append(ps["table_id"])
                 continue
-            proxy_storage_map.setdefault(ps["storage_cluster_id"], []).append(ps["proxy_cluster_name"])
+            proxy_storage_map.setdefault(ps["storage_cluster_id"], set()).add(ps["proxy_cluster_name"])
 
         if not proxy_storage_map:
+            # 增加一个指定结果表的更新
+            if table_id_list:
+                self.stdout.write(f"table_id_list: {json.dumps(table_id_list)} need update proxy id")
+                self._update_router_by_table_id(table_id_list=table_id_list)
             self.stdout.write("no new influxdb proxy and cluster create!")
             return
 
@@ -142,3 +148,26 @@ class Command(BaseCommand):
                 self.stderr.write(f"proxy_cluster_id: {ps[0]}, instance_cluster: {ps[1]} not found router")
                 continue
             router.update(influxdb_proxy_storage_id=id)
+
+    def _update_router_by_table_id(self, table_id_list: Optional[str] = None):
+        """通过结果表更新路由"""
+        if not table_id_list:
+            return
+        # 组装已经存在的 proxy 和集群实例的关系
+        proxy_storage_map = {
+            (ps["proxy_cluster_id"], ps["instance_cluster_name"]): ps["id"]
+            for ps in models.InfluxDBProxyStorage.objects.values("id", "proxy_cluster_id", "instance_cluster_name")
+        }
+        objs = models.InfluxDBStorage.objects.filter(table_id__in=table_id_list)
+        for obj in objs:
+            key = (obj.storage_cluster_id, obj.proxy_cluster_name)
+            influxdb_proxy_storage_id = proxy_storage_map.get(key)
+            if not influxdb_proxy_storage_id:
+                self.stdout.write(
+                    "table_id: {}, storage_cluster_id: {}, cluster_id: {} not found".format(
+                        obj.table_id, obj.storage_cluster_id, obj.proxy_cluster_name
+                    )
+                )
+                continue
+            obj.influxdb_proxy_storage_id = influxdb_proxy_storage_id
+            obj.save(update_fields=["influxdb_proxy_storage_id"])

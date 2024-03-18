@@ -10,6 +10,18 @@
   font-size: $font-size-base;
   color: $font-color-base;
 
+  .bk-navigation {
+    height: calc(100vh - var(--notice-alert-height)) !important;
+
+    .container-content {
+      max-height: calc(100vh - 52px - var(--notice-alert-height)) !important
+    }
+
+    .nav-slider-list {
+      height: calc(100vh - 108px - var(--notice-alert-height)) !important;
+    }
+  }
+
   @include flex-column;
 
   &-header {
