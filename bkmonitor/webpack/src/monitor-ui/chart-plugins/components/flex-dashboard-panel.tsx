@@ -111,6 +111,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   handleColumnChange() {
     echarts.disConnect(this.id.toString());
     this.handleInitPanelsGridpos((this as any).localPanels);
+    (this as any).localPanels = JSON.parse(JSON.stringify((this as any).localPanels));
     this.handleConentEcharts();
   }
   mounted() {
