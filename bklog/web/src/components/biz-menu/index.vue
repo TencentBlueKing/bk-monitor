@@ -161,8 +161,7 @@ export default {
       default: 'dark'
     },
     handlePropsClick: {
-      type: Function,
-      default: () => {}
+      type: Function
     },
     isExternalAuth: {
       type: Boolean,
