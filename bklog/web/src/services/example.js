@@ -22,7 +22,7 @@
 
 const getTest = {
   url: '/api/test/:id/test/',
-  method: 'post',
+  method: 'post'
 };
 
 export { getTest };

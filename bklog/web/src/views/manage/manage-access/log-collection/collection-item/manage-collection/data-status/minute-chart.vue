@@ -21,7 +21,10 @@
   -->
 
 <template>
-  <div class="chart-container" v-bkloading="{ isLoading: basicLoading, zIndex: 0 }">
+  <div
+    v-bkloading="{ isLoading: basicLoading, zIndex: 0 }"
+    class="chart-container"
+  >
     <div class="chart-header">
       <div class="title">{{ $t('分钟数据量') }}</div>
       <div class="date-picker">
@@ -31,18 +34,25 @@
           @change="handleDateChange"
           @timezoneChange="handleTimezoneChange"
         />
-        <div class="refresh-button" @click="handleRefreshChange">
+        <div
+          class="refresh-button"
+          @click="handleRefreshChange"
+        >
           <span class="bk-icon icon-refresh"></span>
           <span>{{ $t('刷新') }}</span>
         </div>
       </div>
     </div>
-    <div class="chart-canvas-container big-chart" ref="chartRef"></div>
+    <div
+      ref="chartRef"
+      class="chart-canvas-container big-chart"
+    ></div>
     <bk-exception
       v-if="isEmpty"
       class="king-exception"
       type="empty"
-      scene="part">
+      scene="part"
+    >
     </bk-exception>
   </div>
 </template>
@@ -57,11 +67,11 @@ import { updateTimezone } from '@/language/dayjs';
 
 export default {
   components: {
-    TimeRange,
+    TimeRange
   },
   data() {
     const currentTime = Math.floor(new Date().getTime() / 1000);
-    const startTime = (currentTime - 15 * 60);
+    const startTime = currentTime - 15 * 60;
     const endTime = currentTime;
     return {
       isEmpty: false,
@@ -75,26 +85,26 @@ export default {
         end_time: endTime,
         host_scopes: {
           modules: [],
-          ips: '',
+          ips: ''
         },
         addition: [],
         begin: 0,
         size: 500,
-        interval: '1m',
+        interval: '1m'
       },
-      timezone: dayjs.tz.guess(),
+      timezone: dayjs.tz.guess()
     };
   },
   computed: {
     ...mapGetters({
-      chartSizeNum: 'chartSizeNum',
+      chartSizeNum: 'chartSizeNum'
     }),
-    ...mapGetters('collect', ['curCollect']),
+    ...mapGetters('collect', ['curCollect'])
   },
   watch: {
     chartSizeNum() {
       this.resizeChart();
-    },
+    }
   },
   created() {
     this.fetchChartData();
@@ -124,13 +134,10 @@ export default {
         this.basicLoading = true;
         const res = await this.$http.request('retrieve/getLogChartList', {
           params: { index_set_id: this.curCollect.index_set_id },
-          data: this.retrieveParams,
+          data: this.retrieveParams
         });
         const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
-        this.updateChart(originChartData.map(item => ([
-          item.key,
-          item.doc_count,
-        ])));
+        this.updateChart(originChartData.map(item => [item.key, item.doc_count]));
       } catch (e) {
         console.warn(e);
         this.updateChart([]);
@@ -157,45 +164,47 @@ export default {
           type: 'time',
           axisLine: {
             lineStyle: {
-              color: '#DCDEE5',
-            },
+              color: '#DCDEE5'
+            }
           },
           splitLine: {
-            show: false,
+            show: false
           },
           axisLabel: {
             formatter(value) {
               return dayjs.tz(value).format('MM-DD HH:mm');
-            },
-          },
+            }
+          }
         },
         yAxis: {
           type: 'value',
           axisTick: {
-            show: false,
+            show: false
           },
           axisLine: {
-            show: false,
+            show: false
           },
           splitLine: {
             lineStyle: {
               color: '#DCDEE5',
-              type: 'dashed',
-            },
-          },
+              type: 'dashed'
+            }
+          }
         },
-        series: [{
-          data: chartData,
-          type: 'line',
-          symbol: 'none',
-          itemStyle: {
-            color: '#339DFF',
-          },
-        }],
+        series: [
+          {
+            data: chartData,
+            type: 'line',
+            symbol: 'none',
+            itemStyle: {
+              color: '#339DFF'
+            }
+          }
+        ],
         tooltip: {
           trigger: 'axis',
           show: true,
-          formatter: (params) => {
+          formatter: params => {
             if (params[0].value) {
               const time = dayjs.tz(params[0].value[0]).format('MM-DD HH:mm');
               const val = params[0].value[1];
@@ -206,18 +215,18 @@ export default {
                     `;
             }
             return '';
-          },
+          }
         },
         textStyle: {
-          color: '#63656E',
+          color: '#63656E'
         },
         grid: {
           x: 40,
           y: 10,
           x2: 40,
           y2: 40,
-          containLabel: true,
-        },
+          containLabel: true
+        }
       });
     },
     // 检索参数：日期改变
@@ -234,19 +243,19 @@ export default {
       const tempList = handleTransformToTimestamp(this.datePickerValue);
       Object.assign(this.retrieveParams, {
         start_time: tempList[0],
-        end_time: tempList[1],
+        end_time: tempList[1]
       });
       this.fetchChartData();
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .chart-container {
-    .time-range-wrap {
-      font-weight: normal;
-      font-size: 12px;
-    }
+.chart-container {
+  .time-range-wrap {
+    font-size: 12px;
+    font-weight: normal;
   }
+}
 </style>

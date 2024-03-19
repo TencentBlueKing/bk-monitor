@@ -24,30 +24,42 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <van-pull-refresh :value="refresh" @change="handleRefreshChange" @refresh="handleRefresh">
+  <van-pull-refresh
+    :value="refresh"
+    @change="handleRefreshChange"
+    @refresh="handleRefresh"
+  >
     <div style="min-height: 100vh">
       <keep-alive>
         <router-view :route-key="routeKey" />
       </keep-alive>
-      <router-view key="noCache" name="noCache" />
+      <router-view
+        key="noCache"
+        name="noCache"
+      />
       <drag-label
         v-if="['alarm-info', 'alarm-detail', 'quick-alarm-shield'].includes($route.name)"
         :alarm-num="alarmNum"
         @click="handleGoToEventCenter"
       />
-      <van-overlay :show="loading" z-index="9999">
+      <van-overlay
+        :show="loading"
+        z-index="9999"
+      >
         <div class="loading-wrap">
-          <van-loading></van-loading>
+          <van-loading />
         </div>
       </van-overlay>
     </div>
   </van-pull-refresh>
 </template>
 <script lang="ts">
-import { Vue, Component } from 'vue-property-decorator';
+import { Component, Vue } from 'vue-property-decorator';
+import { random } from 'monitor-common/utils/utils';
 import { Loading, Overlay, PullRefresh } from 'vant';
+
 import DragLabel from '../components/drag-label/drag-label.vue';
-import { random } from '../../monitor-common/utils/utils';
+
 @Component({
   name: 'App',
   components: {

@@ -9,7 +9,7 @@ from typing import Tuple
 
 import yaml
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -178,7 +178,7 @@ class ImportGrafanaDashboard(ImportBaseResource):
                         except Exception as e:
                             source = target["expr"]
                             file_dict[name].append(
-                                {"status": "fail", "message": "-".join([panel["title"], target["expr"], str(e.detail)])}
+                                {"status": "fail", "message": "-".join([panel["title"], target["expr"], str(e)])}
                             )
                         if panel["type"] == "table":
                             target_format = "table"
@@ -215,7 +215,7 @@ class ImportGrafanaDashboard(ImportBaseResource):
                     }
                 )
             try:
-                grafana_config.pop("id")
+                grafana_config.pop("id", None)
                 result = self.create_dashboard(grafana_config, validated_request_data["bk_biz_id"])
                 if result["result"]:
                     file_dict[name].append({"status": "success", "message": _("导入仪表盘创建成功"), "json": grafana_config})

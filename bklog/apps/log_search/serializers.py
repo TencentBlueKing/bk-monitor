@@ -21,14 +21,10 @@ the project delivered to anyone in the future.
 """
 
 import datetime
-import json
 import re
 import time
 
 import arrow
-import pytz
-from dateutil.parser import parse
-from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
@@ -388,45 +384,6 @@ class SearchUserIndexSetConfigSerializer(serializers.Serializer):
 
 
 class SearchExportSerializer(serializers.Serializer):
-    export_dict = serializers.CharField(required=False, allow_blank=False, allow_null=False)
-
-    @classmethod
-    def parse_datetime_with_epoch(cls, t):
-        try:
-            datetime_obj = datetime.datetime.fromtimestamp(
-                int(t), pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-            )
-        except Exception:  # pylint: disable=broad-except
-            datetime_obj = parse(t)
-        return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        export_dict_str = attrs["export_dict"]
-        export_dict: dict = json.loads(export_dict_str)
-
-        export_dict.update(
-            {
-                "start_time": self.parse_datetime_with_epoch(export_dict.get("start_time")),
-                "end_time": self.parse_datetime_with_epoch(export_dict.get("end_time")),
-            }
-        )
-
-        if export_dict.get("index_set_ids"):
-            for index_set_id in export_dict.get("index_set_ids"):
-                try:
-                    int(index_set_id)
-                except ValueError:
-                    raise ValidationError(_("索引集ID类型错误"))
-            export_dict["index_set_ids"] = sorted(
-                [int(index_set_id) for index_set_id in export_dict.get("index_set_ids")]
-            )
-
-        attrs["export_dict"] = json.dumps(export_dict)
-        return attrs
-
-
-class SearchAsyncExportSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     keyword = serializers.CharField(label=_("搜索关键字"), required=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
@@ -439,6 +396,15 @@ class SearchAsyncExportSerializer(serializers.Serializer):
     interval = serializers.CharField(label=_("匹配规则"), required=False)
     export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+
+
+class UnionSearchSearchExportSerializer(SearchExportSerializer):
+    index_set_ids = serializers.ListField(label=_("联合检索索引集ID列表"), child=serializers.IntegerField(), required=True)
+
+    def validate(self, attrs):
+        attrs["index_set_ids"] = sorted(attrs["index_set_ids"])
+
+        return attrs
 
 
 class GetExportHistorySerializer(serializers.Serializer):

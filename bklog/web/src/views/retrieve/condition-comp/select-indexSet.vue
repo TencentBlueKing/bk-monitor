@@ -22,7 +22,7 @@
 
 <template>
   <bk-select
-    style="background: #fff;"
+    style="background: #fff"
     ext-popover-cls="retrieve-index-select-popover"
     data-test-id="dataQuery_div_indexSetSelect"
     :searchable="true"
@@ -30,13 +30,15 @@
     :value="indexId"
     :popover-min-width="600"
     :popover-options="{ boundary: 'window' }"
-    @selected="handleSelectIndex">
+    @selected="handleSelectIndex"
+  >
     <div
       slot="trigger"
+      v-bk-overflow-tips="{ placement: 'right' }"
       class="bk-select-name"
-      v-bk-overflow-tips="{ placement: 'right' }">
+    >
       <span>{{ selectedItem.indexName }}</span>
-      <span style="color: #979ba5;">{{ selectedItem.lightenName }}</span>
+      <span style="color: #979ba5">{{ selectedItem.lightenName }}</span>
     </div>
     <!-- <bk-option v-for="item in indexSetList"
             class="custom-no-padding-option"
@@ -59,44 +61,68 @@
     <bk-option-group
       v-for="(group, index) in renderOptionList"
       :id="group.id"
-      :name="group.name"
       :key="index"
-      :show-count="false">
+      :name="group.name"
+      :show-count="false"
+    >
       <bk-option
         v-for="item in group.children"
-        class="custom-no-padding-option"
-        :key="item.index_set_id"
         :id="item.index_set_id"
+        :key="item.index_set_id"
+        class="custom-no-padding-option"
         :name="item.indexName + item.lightenName"
-        :data-test-id="`ul_li_${item.indexName}`">
+        :data-test-id="`ul_li_${item.indexName}`"
+      >
         <div
           v-if="!(item.permission && item.permission[authorityMap.SEARCH_LOG_AUTH])"
-          class="option-slot-container no-authority" @click.stop>
+          class="option-slot-container no-authority"
+          @click.stop
+        >
           <span class="text">{{ item.indexName + item.lightenName }}</span>
-          <span class="apply-text" @click="applySearchAccess(item)">{{$t('申请权限')}}</span>
+          <span
+            class="apply-text"
+            @click="applySearchAccess(item)"
+            >{{ $t('申请权限') }}</span
+          >
         </div>
-        <div v-else class="authority" style="padding: 9px 10px;">
+        <div
+          v-else
+          class="authority"
+          style="padding: 9px 10px"
+        >
           <span class="index-info">
             <span
               :class="[item.is_favorite ? 'log-icon icon-lc-star-shape' : 'bk-icon icon-star']"
-              style="color: #fe9c00;"
-              @click.stop="handleCollection(item)">
+              style="color: #fe9c00"
+              @click.stop="handleCollection(item)"
+            >
             </span>
-            <span class="index-name" v-bk-overflow-tips>{{ item.indexName }}</span>
-            <span class="lighten-name" v-bk-overflow-tips>{{ item.lightenName }}</span>
+            <span
+              v-bk-overflow-tips
+              class="index-name"
+              >{{ item.indexName }}</span
+            >
+            <span
+              v-bk-overflow-tips
+              class="lighten-name"
+              >{{ item.lightenName }}</span
+            >
           </span>
           <div class="index-tags">
             <span
               v-for="(tag, tIndex) in item.tags"
-              :key="tag.tag_id">
+              :key="tag.tag_id"
+            >
               <span
-                :class="['tag-card', `tag-card-${tag.color}`]"
                 v-if="tIndex < 2"
                 v-bk-tooltips.top="{
                   content: `${$t('上次检测时间')}: ${item.no_data_check_time}`,
                   disabled: tag.tag_id !== 4,
                   delay: [300, 0]
-                }">{{ tag.name }}</span>
+                }"
+                :class="['tag-card', `tag-card-${tag.color}`]"
+                >{{ tag.name }}</span
+              >
             </span>
           </div>
         </div>
@@ -112,20 +138,20 @@ export default {
   props: {
     indexId: {
       type: String,
-      required: true,
+      required: true
     },
     indexSetList: {
       type: Array,
-      required: true,
+      required: true
     },
     basicLoading: {
       type: Boolean,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
-      isCollectionLoading: false,
+      isCollectionLoading: false
     };
   },
   computed: {
@@ -138,9 +164,9 @@ export default {
     renderOptionList() {
       let list = [
         { name: this.$t('收藏'), children: [] },
-        { name: '', children: [] },
+        { name: '', children: [] }
       ];
-      this.indexSetList.forEach((item) => {
+      this.indexSetList.forEach(item => {
         if (item.is_favorite) list[0].children.push(item);
         else list[1].children.push(item);
       });
@@ -150,7 +176,7 @@ export default {
       }
 
       return list;
-    },
+    }
   },
   methods: {
     handleSelectIndex(val) {
@@ -163,10 +189,12 @@ export default {
         this.$emit('update:basicLoading', true);
         const res = await this.$store.dispatch('getApplyData', {
           action_ids: [authorityMap.SEARCH_LOG_AUTH],
-          resources: [{
-            type: 'indices',
-            id: item.index_set_id,
-          }],
+          resources: [
+            {
+              type: 'indices',
+              id: item.index_set_id
+            }
+          ]
         });
         window.open(res.data.apply_url);
       } catch (err) {
@@ -182,134 +210,134 @@ export default {
         this.isCollectionLoading = true;
         const url = `/indexSet/${item.is_favorite ? 'cancelMark' : 'mark'}`;
 
-        await this.$http.request(url, {
-          params: {
-            index_set_id: item.index_set_id,
-          },
-        }).then(() => {
-          this.$emit('updateIndexSetList');
-        });
+        await this.$http
+          .request(url, {
+            params: {
+              index_set_id: item.index_set_id
+            }
+          })
+          .then(() => {
+            this.$emit('updateIndexSetList');
+          });
       } finally {
         this.isCollectionLoading = false;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/ellipsis.scss';
+@import '@/scss/mixins/ellipsis.scss';
 
-  .authority {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    max-height: 32px;
+.authority {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-height: 32px;
 
-    .tag-card {
-      display: inline-block;
-      font-size: 12px;
-      padding: 0 10px;
-      height: 22px;
-      line-height: 22px;
-      margin-left: 6px;
-      cursor: default;
-      border-width: 1px;
-      border-style: solid;
-      padding: 0 9px;
-      line-height: 20px;
+  .tag-card {
+    display: inline-block;
+    height: 22px;
+    padding: 0 9px;
+    margin-left: 6px;
+    font-size: 12px;
+    line-height: 20px;
+    cursor: default;
+    border-style: solid;
+    border-width: 1px;
 
-      &-gray {
-        border-color: #dcdee5;
-        color: #63656e;
-        background-color: rgba(151,155,165,.1);
-      }
-
-      &-blue {
-        border-color: #3a84ff;
-        color: #3a84ff;
-        background-color: rgba(58,132,255,.1);
-      }
-
-      &-yellow {
-        background-color: rgba(254,156,0,.1);
-        border-color: #fe9c00;
-        color: #fe9c00;
-      }
-
-      &-green {
-        background-color: #14a5681a;
-        border-color: #14a568;
-        color: #14a568;
-      }
-
-      &-red {
-        background-color: rgba(234,53,54,.1);
-        border-color: #ea3536;
-        color: #ea3536;
-      }
+    &-gray {
+      color: #63656e;
+      background-color: rgba(151, 155, 165, 0.1);
+      border-color: #dcdee5;
     }
 
-    .index-info {
-      flex: 1;
+    &-blue {
+      color: #3a84ff;
+      background-color: rgba(58, 132, 255, 0.1);
+      border-color: #3a84ff;
+    }
 
-      /* stylelint-disable-next-line declaration-no-important */
-      display: inline-flex !important;
-      flex-wrap: nowrap;
-      align-items: center;
+    &-yellow {
+      color: #fe9c00;
+      background-color: rgba(254, 156, 0, 0.1);
+      border-color: #fe9c00;
+    }
 
-      @include ellipsis();
+    &-green {
+      color: #14a568;
+      background-color: #14a5681a;
+      border-color: #14a568;
+    }
 
-      .index-name {
-        margin-left: 4px;
-
-        @include ellipsis();
-      }
-
-      .lighten-name {
-        color: #979ba5;
-        min-width: 100px;
-        margin-left: 4px;
-
-        @include ellipsis();
-      }
+    &-red {
+      color: #ea3536;
+      background-color: rgba(234, 53, 54, 0.1);
+      border-color: #ea3536;
     }
   }
+
+  .index-info {
+    flex: 1;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    display: inline-flex !important;
+    flex-wrap: nowrap;
+    align-items: center;
+
+    @include ellipsis();
+
+    .index-name {
+      margin-left: 4px;
+
+      @include ellipsis();
+    }
+
+    .lighten-name {
+      min-width: 100px;
+      margin-left: 4px;
+      color: #979ba5;
+
+      @include ellipsis();
+    }
+  }
+}
 </style>
 
 <style lang="scss">
-  .retrieve-index-select-popover {
-    .bk-options {
-      .bk-option-group {
-        &:last-child {
-          .bk-option-group-name {
-            height: 0;
-            border-top: 1px solid #f0f1f5;
-          }
-        }
-
-        &:first-child {
-          .bk-option-group-name {
-            border-top: 0;
-          }
-        }
-
+/* stylelint-disable no-descending-specificity */
+.retrieve-index-select-popover {
+  .bk-options {
+    .bk-option-group {
+      &:last-child {
         .bk-option-group-name {
-          margin: 0 10px;
-          border: none;
+          height: 0;
+          border-top: 1px solid #f0f1f5;
         }
       }
 
-      .bk-group-options .bk-option {
-        padding: 0;
-
-        .bk-option-content {
-          .option-slot-container {
-            padding: 9px 10px;
-          }
+      &:first-child {
+        .bk-option-group-name {
+          border-top: 0;
         }
       }
 
+      .bk-option-group-name {
+        margin: 0 10px;
+        border: none;
+      }
+    }
+
+    .bk-group-options .bk-option {
+      padding: 0;
+
+      .bk-option-content {
+        .option-slot-container {
+          padding: 9px 10px;
+        }
+      }
     }
   }
+}
 </style>

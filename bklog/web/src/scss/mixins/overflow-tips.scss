@@ -1,14 +1,14 @@
 @mixin overflow-tips {
-  width: 100%;
   display: block;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .overflow-tips {
-  width: 100%;
   display: block;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

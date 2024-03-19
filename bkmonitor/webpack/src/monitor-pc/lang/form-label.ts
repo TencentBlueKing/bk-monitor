@@ -543,6 +543,7 @@ export default {
   // 枚举列表-状态、候选值 ，标签状态
 
   未启用: 'Not Enabled',
+  未开启: 'Not Enabled',
   启动中: 'Starting',
   停止中: 'Stopping',
   运行中: 'Running',
@@ -573,6 +574,7 @@ export default {
   已选择: 'Selected',
   已失效: 'Expired',
   已启用: 'Enabled',
+  已开启: 'Enabled',
   已过期: 'Expired',
   已认证: 'Authenticated',
   已反馈: 'Feedback',
@@ -778,6 +780,7 @@ export default {
   应用名: 'App Name',
   应用别名: 'App Alias',
   英文名称: 'English Name',
+  'Tracing 的插件': 'Tracing plugin',
   基础信息: 'Basic Information',
   Apdex设置: 'Apdex Setting',
   采样比例: 'Sampling Ratio',
@@ -1505,6 +1508,7 @@ export default {
   未恢复告警: 'Unresolved alerts',
   告警未恢复: 'Unresolved alerts',
   总趋势: 'Total trend',
+  'Trace 数据': 'Trace data',
   执行趋势: 'Execution trend',
   可用率: 'Availability',
   '磁盘I/O利用率': 'Disk I/O Utilization',
@@ -1810,5 +1814,18 @@ export default {
   '共{count}个指标': 'A total of {count} metrics',
   场景智能检测: 'Scene intelligent detection',
   过滤告警级别: 'Filter alarm severity',
-  已选择更低告警级别: 'A lower alarm severity is selected'
+  已选择更低告警级别: 'A lower alarm severity is selected',
+  '应用/服务': 'Application/Service',
+  对比模式: 'Comparative mode',
+  模块名称: 'Module name',
+  所属应用: 'Applications',
+  最近上报时间: 'Last reported time',
+  文件名称: 'File name',
+  文件大小: 'File size',
+  协议类型: 'Protocol type',
+  解析状态: 'Parsing status',
+  文件md5: 'File md5',
+  上传人: 'Uploader',
+  上传时间: 'Upload time',
+  错误信息: 'Error message'
 };

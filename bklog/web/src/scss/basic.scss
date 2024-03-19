@@ -9,16 +9,16 @@
 
     .the-column {
       > div {
-        margin-right: 2px;
-        background-color: #f0f1f5;
+        height: 20px;
         padding: 0 5px;
-        border-radius: 2px;
+        margin-top: 16px;
+        margin-right: 2px;
+        font-size: 14px;
+        line-height: 20px;
         color: #63656e;
         text-align: center;
-        margin-top: 16px;
-        font-size: 14px;
-        height: 20px;
-        line-height: 20px;
+        background-color: #f0f1f5;
+        border-radius: 2px;
       }
 
       :nth-child(1) {
@@ -29,36 +29,36 @@
 
     :nth-child(2) {
       > div {
-        width: 225px;
         position: relative;
+        width: 225px;
         height: 20px;
         margin-top: 16px;
 
         :nth-child(1) {
           position: absolute;
           left: 5px;
-          padding: 0 5px;
           z-index: 100;
+          max-width: 200px;
+          min-width: 50px;
+          padding: 0 5px;
 
           /* stylelint-disable-next-line declaration-no-important */
           margin-right: 0 !important;
-          text-align: center;
-          max-width: 200px;
-          min-width: 50px;
           overflow: hidden;
+          font-size: 14px;
+          text-align: center;
           text-overflow: ellipsis;
           white-space: nowrap;
-          font-size: 14px;
         }
 
         .line-sty {
           position: absolute;
-          bottom: 10px;
           right: 0;
-          height: 36px;
+          bottom: 10px;
           width: 180px;
-          border-bottom: 1px dashed #c4c6cc;
+          height: 36px;
           border-right: 1px dashed #c4c6cc;
+          border-bottom: 1px dashed #c4c6cc;
         }
       }
 
@@ -71,10 +71,10 @@
 
   .line-styy {
     position: absolute;
-    bottom: 10px;
     right: 0;
-    height: 36px;
+    bottom: 10px;
     width: 180px;
+    height: 36px;
     border-bottom: 1px dashed #c4c6cc;
   }
 

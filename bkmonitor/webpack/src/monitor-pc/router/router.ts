@@ -48,6 +48,7 @@ import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 import dashboardRoutes from './dashboard';
 // import spaceData from './space';
 import { isInCommonRoute, setLocalStoreRoute } from './router-config';
+import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 
 const EmailSubscriptionsName = 'email-subscriptions';
 Vue.use(VueRouter);
@@ -122,7 +123,7 @@ router.beforeEach(async (to, from, next) => {
       next();
     } else {
       const { origin, pathname } = location;
-      const bizid = localStorage.getItem('__biz_id__') || -1;
+      const bizid = localStorage.getItem(LOCAL_BIZ_STORE_KEY) || -1;
       location.href = `${origin}${pathname}?bizId=${bizid}#${to.fullPath}`;
       return;
     }

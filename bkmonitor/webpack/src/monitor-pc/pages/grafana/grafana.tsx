@@ -158,7 +158,12 @@ export default class MyComponent extends tsc<{}> {
   handleLoad() {
     this.$nextTick(() => {
       const iframeContent = this.iframeRef?.contentWindow;
-      this.iframeRef?.focus();
+      const isBizSelectFocus =
+        !!document.querySelector('.tippy-popper.biz-select-list-dark') ||
+        !!document.querySelector('.tippy-popper.biz-select-list-light');
+      if (!isBizSelectFocus) {
+        this.iframeRef?.focus();
+      }
       iframeContent?.document.body.addEventListener('keydown', this.handleKeydownGlobalSearch);
     });
   }

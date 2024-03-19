@@ -23,87 +23,140 @@
 <template>
   <div class="match-container">
     <div class="match-title">
-      <span>{{isLabel ? $t('匹配标签') : $t('匹配表达式')}}</span>
-      <div class="flex-ac add-match" v-show="!isShowAdd" @click="isShowAdd = true">
+      <span>{{ isLabel ? $t('匹配标签') : $t('匹配表达式') }}</span>
+      <div
+        v-show="!isShowAdd"
+        class="flex-ac add-match"
+        @click="isShowAdd = true"
+      >
         <span class="bk-icon icon-plus-circle"></span>
-        <span>{{isLabel ? $t('添加标签') : $t('添加表达式')}}</span>
+        <span>{{ isLabel ? $t('添加标签') : $t('添加表达式') }}</span>
       </div>
     </div>
-    <div v-show="isShowAdd" class="add-filling flex-ac">
-      <div class="customize-box" v-if="isLabel">
-        <bk-input :class="`label-input ${isKeyError && 'input-error'}`" v-model.trim="matchKey"></bk-input>
-        <span>=</span>
-        <bk-input :class="`label-input ${isValueError && 'input-error'}`" v-model.trim="matchValue"></bk-input>
-      </div>
-      <div class="customize-box" v-else>
-        <bk-select
-          :class="`fill-first ${isKeyError && 'select-error'}`"
+    <div
+      v-show="isShowAdd"
+      class="add-filling flex-ac"
+    >
+      <div
+        v-if="isLabel"
+        class="customize-box"
+      >
+        <bk-input
           v-model.trim="matchKey"
-          searchable>
+          :class="`label-input ${isKeyError && 'input-error'}`"
+        ></bk-input>
+        <span>=</span>
+        <bk-input
+          v-model.trim="matchValue"
+          :class="`label-input ${isValueError && 'input-error'}`"
+        ></bk-input>
+      </div>
+      <div
+        v-else
+        class="customize-box"
+      >
+        <bk-select
+          v-model.trim="matchKey"
+          :class="`fill-first ${isKeyError && 'select-error'}`"
+          searchable
+        >
           <bk-option
             v-for="item of matchExpressOption"
+            :id="item.key"
             :key="item.id"
             :name="item.key"
-            :id="item.key">
+          >
           </bk-option>
         </bk-select>
         <bk-select
+          v-model="matchOperator"
           class="fill-second"
           :clearable="false"
-          v-model="matchOperator">
+        >
           <bk-option
             v-for="item of expressOperatorList"
+            :id="item.id"
             :key="item.id"
             :name="item.name"
-            :id="item.id">
+          >
           </bk-option>
         </bk-select>
         <bk-input
           v-model.trim="matchValue"
           :class="`fill-input ${isValueError && 'input-error'}`"
-          :disabled="expressInputIsDisabled"></bk-input>
+          :disabled="expressInputIsDisabled"
+        ></bk-input>
       </div>
       <div class="add-operate flex-ac">
-        <span class="bk-icon icon-check-line" @click="handleAddMatch"></span>
-        <span class="bk-icon icon-close-line-2" @click="handleCancelMatch"></span>
+        <span
+          class="bk-icon icon-check-line"
+          @click="handleAddMatch"
+        ></span>
+        <span
+          class="bk-icon icon-close-line-2"
+          @click="handleCancelMatch"
+        ></span>
       </div>
     </div>
-    <div class="list-container" :style="`height: ${isShowAdd ? 170 : 202 }px`">
+    <div
+      class="list-container"
+      :style="`height: ${isShowAdd ? 170 : 202}px`"
+    >
       <template v-if="matchList.length">
         <bk-checkbox-group v-model="matchSelectList">
-          <bk-checkbox v-for="item of matchList" :key="item.id" :value="item.id">
+          <bk-checkbox
+            v-for="item of matchList"
+            :key="item.id"
+            :value="item.id"
+          >
             <div
               class="match-item justify-sb"
               @mouseenter="activeItemID = item.id"
-              @mouseleave="activeItemID = -1">
+              @mouseleave="activeItemID = -1"
+            >
               <div id="content-copy-html">
-                <span class="icon log-icon icon-copy" @click="copyContent(item.key)"></span>
+                <span
+                  class="icon log-icon icon-copy"
+                  @click="copyContent(item.key)"
+                ></span>
               </div>
               <div class="justify-sb">
                 <span
                   v-bk-tooltips.light.click="{ allowHtml: true, content: '#content-copy-html' }"
-                  @click.stop>
-                  {{item.key}}
+                  @click.stop
+                >
+                  {{ item.key }}
                 </span>
-                <span class="match-left">{{getOperateShow(item.operator)}}</span>
+                <span class="match-left">{{ getOperateShow(item.operator) }}</span>
               </div>
               <div class="justify-sb">
-                <span v-bk-overflow-tips>{{item.value}}</span>
+                <span v-bk-overflow-tips>{{ item.value }}</span>
                 <span v-if="item.customize">
                   <span
                     v-show="activeItemID === item.id"
                     class="bk-icon icon-close3-shape"
-                    @click.stop="handleDeleteMatch(item.id)"></span>
-                  <span v-show="activeItemID !== item.id" class="match-right">{{$t('自定义')}}</span>
+                    @click.stop="handleDeleteMatch(item.id)"
+                  ></span>
+                  <span
+                    v-show="activeItemID !== item.id"
+                    class="match-right"
+                    >{{ $t('自定义') }}</span
+                  >
                 </span>
               </div>
             </div>
           </bk-checkbox>
         </bk-checkbox-group>
       </template>
-      <div class="match-empty" v-else>
-        <empty-status empty-type="empty" :show-text="false">
-          <p>{{!isLabel ? $t('请添加表达式') : $t('请添加标签')}}</p>
+      <div
+        v-else
+        class="match-empty"
+      >
+        <empty-status
+          empty-type="empty"
+          :show-text="false"
+        >
+          <p>{{ !isLabel ? $t('请添加表达式') : $t('请添加标签') }}</p>
         </empty-status>
       </div>
     </div>
@@ -115,29 +168,29 @@ import EmptyStatus from '@/components/empty-status';
 
 export default {
   components: {
-    EmptyStatus,
+    EmptyStatus
   },
   props: {
     matchLabelOption: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     matchType: {
       type: String,
-      require: true,
+      require: true
     },
     matchObj: {
       type: Object,
-      default: () => ({}),
+      default: () => ({})
     },
     allMatchList: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     matchSelector: {
       type: Array,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
@@ -149,23 +202,28 @@ export default {
       matchValue: '', // 自定义匹配值
       matchOperator: 'In', // 自定义匹配操作
       activeItemID: -1, // 当前鼠标hover的列表元素ID
-      expressOperatorList: [{ // 表达式操作选项
-        id: 'In',
-        name: 'In',
-      }, {
-        id: 'NotIn',
-        name: 'NotIn',
-      },
-      {
-        id: 'Exists',
-        name: 'Exists',
-      }, {
-        id: 'DoesNotExist',
-        name: 'DoesNotExist',
-      }],
+      expressOperatorList: [
+        {
+          // 表达式操作选项
+          id: 'In',
+          name: 'In'
+        },
+        {
+          id: 'NotIn',
+          name: 'NotIn'
+        },
+        {
+          id: 'Exists',
+          name: 'Exists'
+        },
+        {
+          id: 'DoesNotExist',
+          name: 'DoesNotExist'
+        }
+      ],
       isKeyError: false,
       isValueError: false,
-      matchExpressOption: [],
+      matchExpressOption: []
     };
   },
   computed: {
@@ -174,29 +232,30 @@ export default {
     },
     expressInputIsDisabled() {
       return ['Exists', 'DoesNotExist'].includes(this.matchOperator);
-    },
+    }
   },
   watch: {
     'matchObj.treeList': {
       handler(val) {
         this.handleSelectTreeItem(val);
-      },
+      }
     },
     matchKey() {
-      return this.isKeyError = false;
+      return (this.isKeyError = false);
     },
     matchValue() {
-      return this.isValueError = false;
+      return (this.isValueError = false);
     },
-    matchList: { // 获取label的key数组为表达式下拉框选项赋值
+    matchList: {
+      // 获取label的key数组为表达式下拉框选项赋值
       deep: true,
       handler(val) {
         if (this.isLabel) {
           const setList = new Set();
           const filterList = val.filter(item => !setList.has(item.key) && setList.add(item.key));
-          this.$emit('update:all-match-list',  filterList);
+          this.$emit('update:all-match-list', filterList);
         }
-      },
+      }
     },
     matchLabelOption: {
       deep: true,
@@ -206,17 +265,17 @@ export default {
           const allMatchVal = this.matchList.concat(val);
           this.matchExpressOption = allMatchVal.filter(item => !setList.has(item.key) && setList.add(item.key));
         }
-      },
+      }
     },
     matchSelectList(val) {
       const selectList = [];
-      this.matchList.forEach((item) => {
+      this.matchList.forEach(item => {
         if (val.includes(item.id)) {
           selectList.push({ key: item.key, value: item.value, operator: item.operator });
         }
       });
-      this.$emit('update:matchObj',  Object.assign(this.matchObj, { selectList }));
-    },
+      this.$emit('update:matchObj', Object.assign(this.matchObj, { selectList }));
+    }
   },
   created() {
     this.initMatch();
@@ -251,7 +310,7 @@ export default {
         const customSelectList = []; // 选择的自定义列表
         const customList = []; // 没选择的自定义列表
         // 按照选择的标签  选择的自定义标签  未选择的自定义标签顺序排序
-        this.matchList.forEach((item) => {
+        this.matchList.forEach(item => {
           const isSelect = this.matchSelectList.includes(item.id);
           if (!item.customize && isSelect) {
             notCustomSelectList.push(item);
@@ -283,10 +342,12 @@ export default {
         }
       }
       // 是否有重复
-      const isRepeat = this.matchList.some((item) => {
-        return this.matchKey === item.key
-        && this.matchValue === item.value
-        && (this.isLabel ? true : this.matchOperator === item.operator);
+      const isRepeat = this.matchList.some(item => {
+        return (
+          this.matchKey === item.key &&
+          this.matchValue === item.value &&
+          (this.isLabel ? true : this.matchOperator === item.operator)
+        );
       });
       if (!isRepeat) {
         this.matchList.unshift({
@@ -296,7 +357,7 @@ export default {
           // 匹配标签 操作则永远是等号
           operator: this.isLabel ? '=' : this.matchOperator,
           customize: true,
-          id: random(10),
+          id: random(10)
         });
       }
       this.handleCancelMatch();
@@ -316,8 +377,8 @@ export default {
      * @returns 返回有一种或多种不同的数组
      */
     comparedListItem(firstList = [], secondList = []) {
-      return firstList.filter((fItem) => {
-        return !secondList.find((sItem) => {
+      return firstList.filter(fItem => {
+        return !secondList.find(sItem => {
           const { key: fKey, value: fValue, operator: fOperator } = fItem;
           const { key: sKey, value: sValue, operator: sOperator } = sItem;
           return fKey === sKey && fValue === sValue && fOperator === sOperator;
@@ -332,28 +393,29 @@ export default {
     },
     initMatch() {
       let initMatchList;
-      if (this.matchType === 'express') { // 表达式的所有值都赋值为自定义
+      if (this.matchType === 'express') {
+        // 表达式的所有值都赋值为自定义
         initMatchList = this.matchSelector.map(item => ({ ...item, id: random(10), customize: true }));
       } else {
         initMatchList = this.matchSelector.map(item => ({ ...item, id: random(10) }));
       }
       this.matchList.push(...initMatchList);
       this.matchSelectList.push(...initMatchList.map(item => item.id));
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
 
 .customize-box {
-  width: 100%;
   display: flex;
+  width: 100%;
   align-items: center;
 
   > span {
-    color: #ff9c01;
     padding: 0 8px;
+    color: #ff9c01;
   }
 }
 
@@ -368,17 +430,17 @@ export default {
   @include flex-center();
 
   .icon-empty {
-    color: #c3cdd7;
     font-size: 50px;
+    color: #c3cdd7;
   }
 }
 
 #content-copy-html {
-  height: 20px;
   display: flex;
-  align-items: center;
+  height: 20px;
   font-size: 20px;
   cursor: pointer;
+  align-items: center;
 
   .icon-copy {
     display: inline-block;
@@ -393,10 +455,10 @@ export default {
   @include flex-justify(space-between);
 
   > span:first-child {
+    padding-right: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding-right: 4px;
   }
 }
 
@@ -407,5 +469,4 @@ export default {
 :deep(.input-error .bk-form-input) {
   border-color: #ff5656;
 }
-
 </style>

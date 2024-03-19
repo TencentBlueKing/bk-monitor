@@ -34,9 +34,13 @@
     <head-nav
       v-show="!isAsIframe && !pageLoading"
       @reloadRouter="routerKey += 1"
-      @welcome="welcomePageData = $event" />
+      @welcome="welcomePageData = $event"
+    />
     <div :class="['log-search-container', isAsIframe && 'as-iframe', { 'is-show-notice': showAlert }]">
-      <welcome-page v-if="welcomePageData" :data="welcomePageData" />
+      <welcome-page
+        v-if="welcomePageData"
+        :data="welcomePageData"
+      />
       <!-- 导航改版 -->
       <bk-navigation
         v-else-if="menuList && menuList.length"
@@ -46,26 +50,35 @@
         header-title=""
         default-open
         :theme-color="navThemeColor"
-        @toggle="handleToggle">
+        @toggle="handleToggle"
+      >
         <template slot="menu">
           <div class="biz-menu">
             <biz-menu-select :is-expand="isExpand" />
           </div>
           <bk-navigation-menu
             :item-default-bg-color="navThemeColor"
-            :default-active="activeManageNav.id">
+            :default-active="activeManageNav.id"
+          >
             <template v-for="groupItem in menuList">
               <bk-navigation-menu-group
                 v-if="groupItem.children.length"
                 :key="groupItem.id"
-                :group-name="isExpand ? groupItem.name : groupItem.keyword">
-                <template v-for="navItem in getGroupChildren(groupItem.children)">
-                  <a class="nav-item" :key="navItem.id" :href="getRouteHref(navItem.id)">
+                :group-name="isExpand ? groupItem.name : groupItem.keyword"
+              >
+                <template>
+                  <a
+                    v-for="navItem in getGroupChildren(groupItem.children)"
+                    :key="navItem.id"
+                    class="nav-item"
+                    :href="getRouteHref(navItem.id)"
+                  >
                     <bk-navigation-menu-item
-                      :data-test-id="`navBox_nav_${navItem.id}`"
                       :id="navItem.id"
+                      :data-test-id="`navBox_nav_${navItem.id}`"
                       :icon="getMenuIcon(navItem)"
-                      @click="handleClickNavItem(navItem.id)">
+                      @click="handleClickNavItem(navItem.id)"
+                    >
                       <span>{{ isExpand ? navItem.name : '' }}</span>
                     </bk-navigation-menu-item>
                   </a>
@@ -74,17 +87,32 @@
             </template>
           </bk-navigation-menu>
         </template>
-        <div class="navigation-content" v-if="!pageLoading">
-          <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
-          <router-view v-else class="manage-content" :key="routerKey"></router-view>
+        <div
+          v-if="!pageLoading"
+          class="navigation-content"
+        >
+          <auth-container-page
+            v-if="authPageInfo"
+            :info="authPageInfo"
+          ></auth-container-page>
+          <router-view
+            v-else
+            :key="routerKey"
+            class="manage-content"
+          ></router-view>
         </div>
       </bk-navigation>
       <!-- 无侧边栏页面 -->
-      <router-view v-else-if="!pageLoading && !menuList" class="manage-content" :key="routerKey"></router-view>
+      <router-view
+        v-else-if="!pageLoading && !menuList"
+        :key="routerKey"
+        class="manage-content"
+      ></router-view>
       <novice-guide
         v-if="displayRetrieve"
         :data="guideStep"
-        guide-page="default" />
+        guide-page="default"
+      />
     </div>
     <auth-dialog />
     <bk-paas-login ref="login" />
@@ -92,7 +120,8 @@
       v-model="isShowGlobalDialog"
       :active-menu="globalActiveLabel"
       :menu-list="globalSettingList"
-      @menuChange="handleChangeMenu" />
+      @menuChange="handleChangeMenu"
+    />
     <!-- <login-modal v-if="loginData" :login-data="loginData" /> -->
   </div>
 </template>
@@ -124,7 +153,7 @@ export default {
     NoviceGuide,
     BkPaasLogin,
     GlobalSettingDialog,
-    NoticeComponent,
+    NoticeComponent
   },
   data() {
     return {
@@ -140,9 +169,7 @@ export default {
       top: 0, // 右键菜单定位top
       left: 0, // 右键菜单定位left
       /** 全局设置列表 */
-      dialogSettingList: [
-        { id: 'masking-setting', name: this.$t('全局脱敏') },
-      ],
+      dialogSettingList: [{ id: 'masking-setting', name: this.$t('全局脱敏') }]
     };
   },
   computed: {
@@ -155,20 +182,21 @@ export default {
       'isShowGlobalDialog',
       'globalSettingList',
       'globalActiveLabel',
-      'showAlert',
+      'showAlert'
     ]),
     ...mapGetters({
       pageLoading: 'pageLoading',
       asIframe: 'asIframe',
       authPageInfo: 'globals/authContainerInfo',
-      maskingToggle: 'maskingToggle',
+      maskingToggle: 'maskingToggle'
     }),
     navActive() {
       return '';
     },
     menuList() {
       const list = this.topMenu.find(item => item.id === this.activeTopMenu.id)?.children;
-      if (this.isExternal && this.activeTopMenu.id === 'manage') { // 外部版只保留【日志提取】菜单
+      if (this.isExternal && this.activeTopMenu.id === 'manage') {
+        // 外部版只保留【日志提取】菜单
         return list.filter(menu => menu.id === 'manage-extract-strategy');
       }
       return list;
@@ -178,14 +206,14 @@ export default {
     },
     guideStep() {
       return this.userGuideData?.default || {};
-    },
+    }
   },
   watch: {
     asIframe: {
       immediate: true,
       handler(val) {
         this.isAsIframe = val;
-      },
+      }
     },
     maskingToggle: {
       deep: true,
@@ -193,8 +221,8 @@ export default {
         // 更新全局操作列表
         const isShowSettingList = val.toggleString !== 'off';
         this.$store.commit('updateGlobalSettingList', isShowSettingList ? this.dialogSettingList : []);
-      },
-    },
+      }
+    }
   },
   created() {
     const platform = window.navigator.platform.toLowerCase();
@@ -216,7 +244,7 @@ export default {
     this.initMaskingToggle();
 
     // 弹窗登录
-    window.bus.$on('show-login-modal', (loginData) => {
+    window.bus.$on('show-login-modal', loginData => {
       this.loginData = loginData;
     });
     window.bus.$on('close-login-modal', () => {
@@ -253,7 +281,7 @@ export default {
       }
       this.$store.commit('updateMaskingToggle', {
         toggleString: logDesensitize,
-        toggleList,
+        toggleList
       });
     },
     /** 更新全局弹窗的选项 */
@@ -271,8 +299,8 @@ export default {
       this.$router.push({
         name: id,
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
       if (id === 'default-dashboard') {
         this.routerKey = this.routerKey + 1;
@@ -282,10 +310,12 @@ export default {
       this.isExpand = val;
     },
     getUserGuide() {
-      this.$http.request('meta/getUserGuide').then((res) => {
-        this.$store.commit('setUserGuideData', res.data);
-      })
-        .catch((e) => {
+      this.$http
+        .request('meta/getUserGuide')
+        .then(res => {
+          this.$store.commit('setUserGuideData', res.data);
+        })
+        .catch(e => {
           console.warn(e);
         });
     },
@@ -293,444 +323,426 @@ export default {
       const newUrl = this.$router.resolve({
         name: pageName,
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
       return newUrl.href;
     },
     /** 侧边导航菜单 */
     getGroupChildren(list) {
-      if (this.isExternal && this.activeTopMenu.id === 'manage') { // 外部版只保留【日志提取任务】
+      if (this.isExternal && this.activeTopMenu.id === 'manage') {
+        // 外部版只保留【日志提取任务】
         return list.filter(menu => menu.id === 'log-extract-task');
       }
       return list;
     },
     showAlertChange(v) {
       this.$store.commit('updateNoticeAlert', v);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import './scss/reset.scss';
-  @import './scss/app.scss';
-  @import './scss/animation.scss';
-  @import './scss/mixins/clearfix.scss';
-  @import './scss/mixins/scroller.scss';
+@import './scss/reset.scss';
+@import './scss/app.scss';
+@import './scss/animation.scss';
+@import './scss/mixins/clearfix.scss';
+@import './scss/mixins/scroller.scss';
 
-  #app {
-    min-width: 1280px;
+#app {
+  height: 100%;
+  min-width: 1280px;
+  min-height: 730px;
+  background: #f4f7fa;
+}
+
+.clear-min-height {
+  /* stylelint-disable-next-line declaration-no-important */
+  min-height: 0 !important;
+}
+
+.button-text {
+  color: #3a84ff;
+  cursor: pointer;
+
+  &:hover {
+    color: #699df4;
+  }
+
+  &:active {
+    color: #2761dd;
+  }
+
+  &.is-disabled {
+    color: #c4c6cc;
+    cursor: not-allowed;
+  }
+}
+
+.text-overflow-hidden {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-search-container {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 50px);
+  overflow-y: hidden;
+
+  &.as-iframe {
     height: 100%;
-    min-height: 730px;
-    background: #f4f7fa;
   }
 
-  .clear-min-height {
-    /* stylelint-disable-next-line declaration-no-important */
-    min-height: 0 !important;
-  }
+  &.is-show-notice {
+    height: calc(100% - 90px);
 
-  .button-text {
-    color: #3a84ff;
+    .sub-nav-container {
+      top: 91px;
+    }
+
+    .masking-dialog {
+      .bk-dialog {
+        /* stylelint-disable-next-line declaration-no-important */
+        top: 92px !important;
+      }
+    }
+  }
+}
+
+/*无权限时 v-cursor 样式*/
+.cursor-element {
+  width: 12px;
+  height: 16px;
+  background: url('./images/cursor-lock.svg') no-repeat;
+}
+// 检索里一些公用的样式
+.tab-button {
+  float: left;
+
+  @include clearfix;
+
+  .tab-button-item {
+    padding: 0 15px;
+    margin-left: -1px;
+    font-size: 0;
+    color: #63656e;
     cursor: pointer;
+    border: 1px solid #c4c6cc;
+    border-left-color: transparent;
 
-    &:hover {
-      color: #699df4;
+    &:first-child {
+      margin-left: 0;
+      border-left-color: #c4c6cc;
+      border-radius: 2px 0 0 2px;
     }
 
-    &:active {
-      color: #2761dd;
+    &:last-child {
+      border-radius: 0 2px 2px 0;
     }
 
-    &.is-disabled {
-      color: #c4c6cc;
-      cursor: not-allowed;
+    &.active {
+      z-index: 10;
+      color: #3a84ff;
+      background: #e1ecff;
+      border: 1px solid #3a84ff;
     }
   }
 
-  .text-overflow-hidden {
+  .tab-button-text {
+    display: inline-block;
+    width: 100%;
     overflow: hidden;
+    font-size: 12px;
+    line-height: 32px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+// hack 组件样式
+.bk-dialog.bk-info-box .bk-dialog-header-inner {
+  /* stylelint-disable-next-line declaration-no-important */
+  white-space: normal !important;
+}
 
-  .button-text {
-    color: #3a84ff;
-    cursor: pointer;
+.bk-date-picker-dropdown .bk-picker-confirm-time {
+  color: #3a84ff;
+}
 
-    &:hover {
-      color: #699df4;
-    }
+.tippy-tooltip .tippy-content {
+  padding: 0;
+  word-break: break-all;
+}
 
-    &:active {
-      color: #2761dd;
-    }
+.bk-form-control.is-error .bk-form-input {
+  border-color: #ff5656;
+}
+// 导航
+.bk-log-navigation.bk-navigation,
+.hack-king-navigation.bk-navigation {
+  /* stylelint-disable-next-line declaration-no-important */
+  width: 100% !important;
 
-    &.is-disabled {
-      color: #c4c6cc;
-      cursor: not-allowed;
-    }
+  /* stylelint-disable-next-line declaration-no-important */
+  height: 100% !important;
+
+  .container-header {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: none !important;
   }
 
-  .log-search-container {
-    position: relative;
-    width: 100%;
-    height: calc(100% - 50px);
-    overflow-y: hidden;
+  .bk-navigation-wrapper {
+    height: 100%;
 
-    &.as-iframe {
-      height: 100%;
-    }
+    .navigation-container {
+      z-index: 100;
+      /* stylelint-disable-next-line declaration-no-important */
+      max-width: calc(100% - 60px) !important;
 
-    &.is-show-notice {
-      height: calc(100% - 90px);
+      .container-content {
+        /* stylelint-disable-next-line declaration-no-important */
+        height: 100% !important;
 
-      .sub-nav-container {
-        top: 91px;
-      }
+        /* stylelint-disable-next-line declaration-no-important */
+        max-height: 100% !important;
+        padding: 0;
 
-      .masking-dialog {
-        .bk-dialog {
-          /* stylelint-disable-next-line declaration-no-important */
-          top: 92px !important;
+        .navigation-content {
+          height: 100%;
         }
       }
     }
-  }
 
-  /*无权限时 v-cursor 样式*/
-  .cursor-element {
-    width: 12px;
-    height: 16px;
-    background: url('./images/cursor-lock.svg') no-repeat;
-  }
-  // 检索里一些公用的样式
-  .tab-button {
-    float: left;
-
-    @include clearfix;
-
-    .tab-button-item {
-      margin-left: -1px;
-      padding: 0 15px;
-      border: 1px solid #c4c6cc;
-      border-left-color: transparent;
-      font-size: 0;
-      color: #63656e;
-      cursor: pointer;
-
-      &:first-child {
-        margin-left: 0;
-        border-left-color: #c4c6cc;
-        border-radius: 2px 0 0 2px;
-      }
-
-      &:last-child {
-        border-radius: 0 2px 2px 0;
-      }
-
-      &.active {
-        border: 1px solid #3a84ff;
-        color: #3a84ff;
-        background: #e1ecff;
-        z-index: 10;
+    .bk-navigation-menu-group {
+      .group-name-wrap .group-name {
+        margin-right: 0;
       }
     }
 
-    .tab-button-text {
+    .navigation-menu-item-icon.bk-icon {
+      min-width: 28px;
+    }
+
+    .nav-item {
       display: inline-block;
       width: 100%;
-      line-height: 32px;
-      font-size: 12px;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
     }
   }
-  // hack 组件样式
-  .bk-dialog.bk-info-box .bk-dialog-header-inner {
+
+  .nav-slider-list {
     /* stylelint-disable-next-line declaration-no-important */
-    white-space: normal !important;
+    height: calc(100% - 56px) !important;
   }
+}
 
-  .bk-date-picker-dropdown .bk-picker-confirm-time {
-    color: #3a84ff;
-  }
+.biz-menu {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
 
-  .tippy-tooltip .tippy-content {
-    padding: 0;
-    word-break: break-all;
-  }
+// 表格单元 v-bk-overflow-tips
+.bk-table .bk-table-body-wrapper .table-ceil-container {
+  width: 100%;
 
-  .bk-form-control.is-error .bk-form-input {
-    border-color: #ff5656;
-  }
-  // 导航
-  .bk-log-navigation.bk-navigation,
-  .hack-king-navigation.bk-navigation {
-    /* stylelint-disable-next-line declaration-no-important */
-    width: 100% !important;
-
-    /* stylelint-disable-next-line declaration-no-important */
-    height: 100% !important;
-
-    .container-header {
-      /* stylelint-disable-next-line declaration-no-important */
-      display: none !important;
-    }
-
-    .bk-navigation-wrapper {
-      height: 100%;
-
-      .navigation-container {
-        /* stylelint-disable-next-line declaration-no-important */
-        max-width: calc(100% - 60px) !important;
-        z-index: 100;
-
-        .container-content {
-          /* stylelint-disable-next-line declaration-no-important */
-          height: 100% !important;
-
-          /* stylelint-disable-next-line declaration-no-important */
-          max-height: 100% !important;
-          padding: 0;
-
-          .navigation-content {
-            height: 100%;
-          }
-        }
-      }
-
-      .bk-navigation-menu-group {
-        .group-name-wrap .group-name {
-          margin-right: 0;
-        }
-      }
-
-      .navigation-menu-item-icon.bk-icon {
-        min-width: 28px;
-      }
-
-      .nav-item {
-        width: 100%;
-        display: inline-block;
-      }
-    }
-
-    .nav-slider-list {
-      /* stylelint-disable-next-line declaration-no-important */
-      height: calc(100% - 56px) !important;
-    }
-
-  }
-
-  .biz-menu {
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(255,255,255,.10);
-  }
-
-  // 表格单元 v-bk-overflow-tips
-  .bk-table .bk-table-body-wrapper .table-ceil-container {
-    width: 100%;
-
-    > span {
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-  // hack vue-json-pretty
-  .json-view-wrapper .vjs-value {
-    word-break: break-all;
-  }
-  // hack be-select将下拉宽度全部交给slot以控制宽度和事件传播
-  .custom-no-padding-option.bk-option > .bk-option-content {
-    padding: 0;
-
-    > .option-slot-container {
-      padding: 9px 16px;
-      min-height: 32px;
-      line-height: 14px;
-
-      &.no-authority {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        color: #c4c6cc;
-        cursor: not-allowed;
-
-        .text {
-          width: calc(100% - 56px);
-        }
-
-        .apply-text {
-          flex-shrink: 0;
-          display: none;
-          color: #3a84ff;
-          cursor: pointer;
-        }
-
-        &:hover .apply-text {
-          display: flex;
-        }
-      }
-    }
-  }
-  // 采集项管理、索引集管理通用样式
-  .access-manage-container {
-    padding: 28px 24px;
-
-    .bk-tab-section {
-      display: none;
-    }
-
-    .go-search {
-      // position: fixed;
-      position: absolute;
-      right: 0;
-      font-size: 12px;
-      z-index: 999;
-
-      .icon-info {
-        color: #979ba5;
-        font-size: 14px;
-      }
-
-      .search-button {
-        display: inline-block;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .search-text {
-        height: 32px;
-        line-height: 32px;
-        background: #fff;
-        box-shadow: 0 2px 4px 0 #1919290d;
-        border-radius: 2px;
-        padding: 0 9px;
-      }
-    }
-
-    .tab-content {
-      height: calc(100% - 50px);
-      overflow: auto;
-      padding: 20px;
-      background-color: #fff;
-      box-shadow: 0 2px 4px 0 #1919290d;
-      border-top: none;
-
-      @include scroller($backgroundColor: #C4C6CC, $width: 4px);
-
-      .main-title {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        font-size: 14px;
-        font-weight: 700;
-        color: #63656e;
-        line-height: 20px;
-        padding: 0 0 8px 0;
-        border-bottom: 1px solid #dcdee5;
-        margin-bottom: 20px;
-      }
-
-      .refresh-button {
-        display: flex;
-        align-items: center;
-        font-size: 12px;
-        font-weight: normal;
-        color: #3a84ff;
-        margin-left: 8px;
-        cursor: pointer;
-
-        &:hover {
-          color: #699df4;
-        }
-
-        .bk-icon {
-          font-size: 13px;
-          margin-right: 4px;
-        }
-      }
-
-      .charts-container {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 20px;
-
-        .chart-container {
-          position: relative;
-          width: calc((100% - 16px) / 2);
-          padding: 0 16px;
-          border: 1px solid #f0f1f5;
-          border-radius: 3px;
-          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, .05);
-
-          .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 50px;
-
-            .title {
-              font-size: 12px;
-              font-weight: bold;
-              color: #63656e;
-              line-height: 16px;
-            }
-
-            .date-picker {
-              display: flex;
-              align-items: center;
-            }
-          }
-
-          .chart-canvas-container {
-            position: relative;
-            height: 230px;
-
-            &.big-chart {
-              height: 280px;
-            }
-          }
-
-          .king-exception {
-            position: absolute;
-            top: 80px;
-            left: 0;
-          }
-        }
-      }
-    }
-  }
-
-  .title-overflow {
+  > span {
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+// hack vue-json-pretty
+.json-view-wrapper .vjs-value {
+  word-break: break-all;
+}
+// hack be-select将下拉宽度全部交给slot以控制宽度和事件传播
+.custom-no-padding-option.bk-option > .bk-option-content {
+  padding: 0;
 
-  .beta-class {
-    color: #ffa228;
-    margin-left: 2px;
-    padding-top: 3px;
+  > .option-slot-container {
+    min-height: 32px;
+    padding: 9px 16px;
+    line-height: 14px;
+
+    &.no-authority {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #c4c6cc;
+      cursor: not-allowed;
+
+      .text {
+        width: calc(100% - 56px);
+      }
+
+      .apply-text {
+        flex-shrink: 0;
+        display: none;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      &:hover .apply-text {
+        display: flex;
+      }
+    }
+  }
+}
+// 采集项管理、索引集管理通用样式
+.access-manage-container {
+  padding: 28px 24px;
+
+  .bk-tab-section {
+    display: none;
   }
 
-  .bk-dialog-type-header .header {
-    /* stylelint-disable-next-line declaration-no-important */
-    white-space: normal !important;
+  .go-search {
+    // position: fixed;
+    position: absolute;
+    right: 0;
+    z-index: 999;
+    font-size: 12px;
+
+    .icon-info {
+      font-size: 14px;
+      color: #979ba5;
+    }
+
+    .search-button {
+      display: inline-block;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .search-text {
+      height: 32px;
+      padding: 0 9px;
+      line-height: 32px;
+      background: #fff;
+      border-radius: 2px;
+      box-shadow: 0 2px 4px 0 #1919290d;
+    }
   }
 
-  // .bk-label {
-  //   .bk-label-text {
-  //     font-size: 12px;
-  //   }
+  .tab-content {
+    height: calc(100% - 50px);
+    padding: 20px;
+    overflow: auto;
+    background-color: #fff;
+    border-top: none;
+    box-shadow: 0 2px 4px 0 #1919290d;
 
-  //   &::after {
-  //     top: 54%;
-  //   }
-  // }
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+
+    .main-title {
+      display: flex;
+      padding: 0 0 8px 0;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #63656e;
+      border-bottom: 1px solid #dcdee5;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .refresh-button {
+      display: flex;
+      margin-left: 8px;
+      font-size: 12px;
+      font-weight: normal;
+      color: #3a84ff;
+      cursor: pointer;
+      align-items: center;
+
+      &:hover {
+        color: #699df4;
+      }
+
+      .bk-icon {
+        margin-right: 4px;
+        font-size: 13px;
+      }
+    }
+
+    .charts-container {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+
+      .chart-container {
+        position: relative;
+        width: calc((100% - 16px) / 2);
+        padding: 0 16px;
+        border: 1px solid #f0f1f5;
+        border-radius: 3px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+
+        .chart-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          height: 50px;
+
+          .title {
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 16px;
+            color: #63656e;
+          }
+
+          .date-picker {
+            display: flex;
+            align-items: center;
+          }
+        }
+
+        .chart-canvas-container {
+          position: relative;
+          height: 230px;
+
+          &.big-chart {
+            height: 280px;
+          }
+        }
+
+        .king-exception {
+          position: absolute;
+          top: 80px;
+          left: 0;
+        }
+      }
+    }
+  }
+}
+
+.title-overflow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.beta-class {
+  padding-top: 3px;
+  margin-left: 2px;
+  color: #ffa228;
+}
+
+.bk-dialog-type-header .header {
+  /* stylelint-disable-next-line declaration-no-important */
+  white-space: normal !important;
+}
+
+// .bk-label {
+//   .bk-label-text {
+//     font-size: 12px;
+//   }
+
+//   &::after {
+//     top: 54%;
+//   }
+// }
 </style>

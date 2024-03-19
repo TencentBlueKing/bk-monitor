@@ -21,12 +21,21 @@
   -->
 
 <template>
-  <div
-    class="favorite-popper-content">
-    <div class="title">{{ $t('是否替换当前收藏') }}({{activeFavorite.name}})？</div>
+  <div class="favorite-popper-content">
+    <div class="title">{{ $t('是否替换当前收藏') }}({{ activeFavorite.name }})？</div>
     <div class="content">
-      <bk-button text size="small" @click="handleOperate('replace')">{{ $t('替换当前') }}</bk-button>
-      <bk-button text size="small" @click="handleOperate('add')">{{ $t('新建') }}</bk-button>
+      <bk-button
+        text
+        size="small"
+        @click="handleOperate('replace')"
+        >{{ $t('替换当前') }}</bk-button
+      >
+      <bk-button
+        text
+        size="small"
+        @click="handleOperate('add')"
+        >{{ $t('新建') }}</bk-button
+      >
     </div>
   </div>
 </template>
@@ -36,16 +45,15 @@ export default {
   props: {
     activeFavorite: {
       type: Object,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
-      value: '',
+      value: ''
     };
   },
-  computed: {
-  },
+  computed: {},
   methods: {
     handleOperate(type) {
       if (type === 'add') {
@@ -53,30 +61,30 @@ export default {
       } else {
         this.$emit('favoriteTipsOperate', 'replace');
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .favorite-popper-content {
-    min-width: 200px;
-    padding: 2px;
-    // word-wrap: ;
+.favorite-popper-content {
+  min-width: 200px;
+  padding: 2px;
+  // word-wrap: ;
 
-    .title {
-      margin-bottom: 10px;
-      font-size: 12px;
-      line-height: 20px;
-      color: #63656e;
-    }
+  .title {
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
 
-    .content {
-      text-align: right;
+  .content {
+    text-align: right;
 
-      .bk-button-text {
-        padding: 0 6px;
-      }
+    .bk-button-text {
+      padding: 0 6px;
     }
   }
+}
 </style>

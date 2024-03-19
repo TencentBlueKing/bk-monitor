@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import { ConfigProvider, Navigation } from 'bkui-vue';
 import { en, zhCn } from 'bkui-vue/lib/locale';
+import { getLinkMapping } from 'monitor-api/modules/commons';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { docCookies, getUrlParam } from 'monitor-common/utils/utils';
 
@@ -36,8 +37,6 @@ import { useAppStore } from '../store/modules/app';
 
 import { useAppReadonlyProvider } from './provider';
 
-// 全量引入 bkui-vue 样式
-import 'bkui-vue/dist/style.css';
 import './app.scss';
 
 export default defineComponent({
@@ -71,6 +70,14 @@ export default defineComponent({
           item?.children?.some(child => child.children.some((set: { id: string | number }) => set.id === routeId))
       )?.id;
     });
+    onMounted(() => {
+      getDocsLinkMapping();
+    });
+    /** 获取文档链接 */
+    const getDocsLinkMapping = async () => {
+      const data = await getLinkMapping().catch(() => {});
+      store.updateExtraDocLinkMap(data);
+    };
     const handleHeaderMenuClick = (id: string, routeName: string) => {
       if (route.name !== routeName) {
         router.push({ name: routeName });

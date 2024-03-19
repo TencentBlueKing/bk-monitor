@@ -51,6 +51,7 @@ import PercentageBarChart from '../plugins/percentage-bar/percentage-bar';
 import PerformanceChart from '../plugins/performance-chart/performance-chart';
 import PieEcharts from '../plugins/pie-echart/pie-echart';
 import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
+import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
 import RelationGraph from '../plugins/relation-graph/relation-graph';
@@ -422,6 +423,15 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'api_message':
         return (
           <MessageChart
+            panel={this.panel}
+            onLoading={this.handleChangeLoading}
+            onErrorMsg={this.handleErrorMsgChange}
+            clearErrorMsg={this.handleClearErrorMsg}
+          />
+        );
+      case 'profiling':
+        return (
+          <ProfilinGraph
             panel={this.panel}
             onLoading={this.handleChangeLoading}
             onErrorMsg={this.handleErrorMsgChange}

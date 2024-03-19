@@ -29,9 +29,9 @@ from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.serializers import (
     DeleteRemarkSerializer,
     PatternSearchSerlaizer,
-    SetLabelSerializer,
     SetOwnerSerializer,
     SetRemarkSerializer,
+    UpdateGroupFieldsSerializer,
     UpdateRemarkSerializer,
 )
 from apps.utils.drf import detail_route
@@ -80,7 +80,7 @@ class PatternViewSet(APIViewSet):
                     "bk_inst_id": 4
                 }
             ],
-            "ips": "127.0.0.1, 127.0.0.2"
+            "ips": "x.x.x.x, xx.xx.xx.xx"
             },
             "addition": [
                 {
@@ -123,23 +123,6 @@ class PatternViewSet(APIViewSet):
         query_data = self.params_valid(PatternSearchSerlaizer)
         return Response(PatternHandler(index_set_id, query_data).pattern_search())
 
-    @detail_route(methods=["POST"], url_path="label")
-    def set_label(self, request, index_set_id):
-        """
-        @api {post} /pattern/$index_set_id/label/ 日志聚类-设置标签
-        @apiName set_label
-        @apiGroup log_clustering
-        @apiParam {String} signature 数据指纹
-        @apiParam {String} label 标签内容
-        @apiSuccessExample {json} 成功返回: null
-        """
-        params = self.params_valid(SetLabelSerializer)
-        return Response(
-            PatternHandler(index_set_id, {}).set_signature_config(
-                signature=params["signature"], configs={"label": params["label"]}
-            )
-        )
-
     @detail_route(methods=["POST"], url_path="remark")
     def set_remark(self, request, index_set_id):
         """
@@ -150,8 +133,10 @@ class PatternViewSet(APIViewSet):
         @apiParam {String} remark 备注内容
         @apiParamExample {json} 请求参数
         {
-          "signature": "456",
-          "remark": "备注信息"
+          "signature": "123",
+          "remark": "remark",
+          "origin_pattern": "xxx",
+          "groups": {"a": "xxx", "b": "xxxx"}
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -167,68 +152,14 @@ class PatternViewSet(APIViewSet):
                 "deleted_by": null,
                 "model_id": "xxx_xxx_xxx",
                 "signature": "456",
-                "pattern": "",
+                "origin_pattern": "xxx",
+                "groups": {"a": "xxx", "b": "xxxx"},
+                "group_hash": "xxx",
                 "label": "合并label",
                 "remark": [
                     {
-                        "remark": "合并label",
+                        "remark": "remark",
                         "username": "",
-                        "create_time": 0
-                    },
-                    {
-                        "username": "xxx",
-                        "create_time": 1699497898000,
-                        "remark": "备注信息"
-                    }
-                ],
-                "owners": []
-            },
-            "code": 0,
-            "message": ""
-        }
-        """
-        params = self.params_valid(SetRemarkSerializer)
-        return Response(
-            PatternHandler(index_set_id, {}).set_clustering_remark(
-                signature=params["signature"], configs={"remark": params["remark"]}, method="create"
-            )
-        )
-
-    @detail_route(methods=["PUT"], url_path="update_remark")
-    def update_remark(self, request, index_set_id):
-        """
-        @api {post} /pattern/$index_set_id/remark/edit/ 日志聚类-编辑备注
-        @apiName set_remark
-        @apiGroup log_clustering
-        @apiParam {String} signature 数据指纹
-        @apiParam {String} remark 备注内容
-        @apiParamExample {json} 请求参数
-        {
-          "signature": "456",
-          "old_remark": "备注信息",
-          "new_remark": "新备注信息",
-          "create_time": 1699497898000
-        }
-        @apiSuccessExample {json} 成功返回:
-        {
-            "result": true,
-            "data": {
-                "id": 1,
-                "created_at": "2023-11-03T08:02:44.675115Z",
-                "created_by": "xxx",
-                "updated_at": "2023-11-09T02:44:58.997461Z",
-                "updated_by": "xxx",
-                "is_deleted": false,
-                "deleted_at": null,
-                "deleted_by": null,
-                "model_id": "xxx_xxx_xxx",
-                "signature": "456",
-                "pattern": "",
-                "label": "合并label",
-                "remark": [
-                    {
-                        "remark": "合并label",
-                        "username": "xxx",
                         "create_time": 1699497898000
                     },
                     {
@@ -243,18 +174,62 @@ class PatternViewSet(APIViewSet):
             "message": ""
         }
         """
+        params = self.params_valid(SetRemarkSerializer)
+        return Response(PatternHandler(index_set_id, {}).set_clustering_remark(params=params, method="create"))
+
+    @detail_route(methods=["PUT"], url_path="update_remark")
+    def update_remark(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/remark/edit/ 日志聚类-编辑备注
+        @apiName set_remark
+        @apiGroup log_clustering
+        @apiParam {String} signature 数据指纹
+        @apiParam {String} remark 备注内容
+        @apiParamExample {json} 请求参数
+        {
+          "signature": "xxx",
+          "old_remark": "remark",
+          "new_remark": "new_remark",
+          "create_time": 1709633753000,
+          "origin_pattern": "xxx",
+          "groups": {"a": "xxx", "b": "xxxx"}
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "id": 1,
+                "created_at": "2023-11-03T08:02:44.675115Z",
+                "created_by": "xxx",
+                "updated_at": "2023-11-09T02:44:58.997461Z",
+                "updated_by": "xxx",
+                "is_deleted": false,
+                "deleted_at": null,
+                "deleted_by": null,
+                "model_id": "xxx_xxx_xxx",
+                "signature": "456",
+                "pattern": "",
+                "label": "合并label",
+                "remark": [
+                    {
+                        "remark": "new_remark",
+                        "username": "xxx",
+                        "create_time": 1709633753000
+                    },
+                    {
+                        "username": "xxx",
+                        "create_time": 1699497898000,
+                        "remark": "备注信息"
+                    }
+                ],
+                "owners": []
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
         params = self.params_valid(UpdateRemarkSerializer)
-        return Response(
-            PatternHandler(index_set_id, {}).set_clustering_remark(
-                signature=params["signature"],
-                configs={
-                    "old_remark": params["old_remark"],
-                    "new_remark": params["new_remark"],
-                    "create_time": params["create_time"],
-                },
-                method="update",
-            )
-        )
+        return Response(PatternHandler(index_set_id, {}).set_clustering_remark(params=params, method="update"))
 
     @detail_route(methods=["DELETE"], url_path="delete_remark")
     def delete_remark(self, request, index_set_id):
@@ -264,11 +239,12 @@ class PatternViewSet(APIViewSet):
         @apiGroup log_clustering
         @apiParam {String} signature 数据指纹
         @apiParam {String} remark 备注内容
-        @apiParamExample {json} 请求参数
         {
-          "signature": "456",
-          "remark": "备注信息"
-          "create_time": 1699497898000
+          "signature": "xxx",
+          "remark": "new_remark",
+          "create_time": 1709634004000,
+          "origin_pattern": "xxx",
+          "groups": {"a": "xxx", "b": "xxxx"}
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -305,13 +281,7 @@ class PatternViewSet(APIViewSet):
         }
         """
         params = self.params_valid(DeleteRemarkSerializer)
-        return Response(
-            PatternHandler(index_set_id, {}).set_clustering_remark(
-                signature=params["signature"],
-                configs={"remark": params["remark"], "create_time": params["create_time"]},
-                method="delete",
-            )
-        )
+        return Response(PatternHandler(index_set_id, {}).set_clustering_remark(params=params, method="delete"))
 
     @detail_route(methods=["POST"], url_path="owner")
     def set_owner(self, request, index_set_id):
@@ -320,11 +290,13 @@ class PatternViewSet(APIViewSet):
         @apiName set_owner
         @apiGroup log_clustering
         @apiParam {String} signature 数据指纹
-        @apiParam {String} owner 负责人
+        @apiParam {String} owners 负责人
         @apiParamExample {json} 请求参数
         {
-          "signature": "123",
-          "owners": ["xxx", "xxx"]
+          "signature": "xxx",
+          "owners": ["xx", "a"],
+          "origin_pattern": "xxx",
+          "groups": {"a": "xxx", "b": "xxxx"}
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -343,15 +315,49 @@ class PatternViewSet(APIViewSet):
                 "pattern": "",
                 "label": "",
                 "remark": [],
-                "owners": ["xxx", "xxx"]
+                "owners": ["xxx", "a"]
             },
             "code": 0,
             "message": ""
         }
         """
         params = self.params_valid(SetOwnerSerializer)
-        return Response(
-            PatternHandler(index_set_id, {}).set_signature_config(
-                signature=params["signature"], configs={"owners": params["owners"]}
-            )
-        )
+        return Response(PatternHandler(index_set_id, {}).set_clustering_owner(params=params))
+
+    @detail_route(methods=["GET"], url_path="list_owners")
+    def get_owners(self, request, index_set_id):
+        """
+        @api {get} /pattern/$index_set_id/owner/ 日志聚类-获取当前维度下的负责人列表
+        @apiName get_owner
+        @apiGroup log_clustering
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": ["xxx", "xxx"],
+            "code": 0,
+            "message": ""
+        }
+        """
+        return Response(PatternHandler(index_set_id, {}).get_signature_owners())
+
+    @detail_route(methods=["POST"], url_path="group_fields")
+    def update_group_fields(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/group_fields/ 日志聚类-更新分组字段
+        @apiName update_group_fields
+        @apiGroup log_clustering
+        @apiParam {String} group_fields 分组字段列表
+        @apiParamExample {json} 请求参数
+        {
+          "group_fields": {"a": "b", "c": "d"}
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {"a": "b", "c": "d"},
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(UpdateGroupFieldsSerializer)
+        return Response(PatternHandler(index_set_id, {}).update_group_fields(group_fields=params["group_fields"]))

@@ -29,6 +29,6 @@ export default {
   name: 'SdkTrack',
   data() {
     return {};
-  },
+  }
 };
 </script>

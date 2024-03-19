@@ -299,7 +299,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       });
       hasErr = !!errMsg;
     });
-    if (!hasErr) this.$bkMessage({ theme: 'success', message: this.$t('复制成功') });
+    if (!hasErr) this.$bkMessage({ theme: 'success', zIndex: this.zIndex + 1, message: this.$t('复制成功') });
   }
   /** 点击快捷时间选项 */
   handleShortcutChange(data) {

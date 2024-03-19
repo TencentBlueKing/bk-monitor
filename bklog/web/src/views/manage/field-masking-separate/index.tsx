@@ -21,17 +21,14 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Ref,
-} from 'vue-property-decorator';
+import { Component, Ref } from 'vue-property-decorator';
 import { Button } from 'bk-magic-vue';
 import MaskingField from '../../../components/log-masking/masking-field';
 import $http from '../../../api';
 import './index.scss';
 
 interface IProps {
-  value: Boolean
+  value: Boolean;
 }
 
 Component.registerHooks(['beforeRouteEnter']);
@@ -42,12 +39,12 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
   submitLoading = false;
 
   curCollect = {
-    index_set_id: '',
+    index_set_id: ''
   };
 
   created() {
     this.curCollect = {
-      index_set_id: this.$route.params.indexSetId,
+      index_set_id: this.$route.params.indexSetId
     };
   }
 
@@ -58,11 +55,11 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
 
   /** 进入路由前判断是否是灰度业务 */
   beforeRouteEnter(from, to, next) {
-    next((vm) => {
+    next(vm => {
       const { $store, $router } = vm;
       if (!$store.getters.isShowMaskingTemplate) {
         $router.push({
-          name: 'retrieve',
+          name: 'retrieve'
         });
       }
     });
@@ -81,18 +78,19 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
       this.submitLoading = true;
       const res = await $http.request(`masking/${requestStr}`, {
         params: { index_set_id: this.curCollect?.index_set_id },
-        data,
+        data
       });
       if (res.result && stepChange) {
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('操作成功'),
+          message: this.$t('操作成功')
         });
         this.$router.go(-1);
       }
-    } catch (err) {} finally {
+    } catch (err) {
+    } finally {
       this.submitLoading = false;
-    };
+    }
   }
 
   cancelSelectRule() {
@@ -101,23 +99,30 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
 
   render() {
     return (
-      <div class="filed-masking-container">
-        <div class="masking-field-box">
+      <div class='filed-masking-container'>
+        <div class='masking-field-box'>
           <MaskingField
-            ref="maskingField"
+            ref='maskingField'
             collect-data={this.curCollect}
             is-index-set-masking={false}
             is-hidden-sync-num={this.isHiddenSyncNum}
-            onChangeData={() => this.submitSelectRule()} />
+            onChangeData={() => this.submitSelectRule()}
+          />
         </div>
-        <div class="submit-content">
+        <div class='submit-content'>
           <Button
-            theme="primary"
+            theme='primary'
             loading={this.submitLoading}
-            onClick={() => this.submitSelectRule(true)}>
+            onClick={() => this.submitSelectRule(true)}
+          >
             {this.$t('下一步')}
           </Button>
-          <Button theme="default" onClick={() => this.cancelSelectRule()}>{this.$t('取消')}</Button>
+          <Button
+            theme='default'
+            onClick={() => this.cancelSelectRule()}
+          >
+            {this.$t('取消')}
+          </Button>
         </div>
       </div>
     );

@@ -21,62 +21,92 @@
   -->
 
 <template>
-  <div class="link-configuration-container" data-test-id="linkConfiguration_div_linkConfigBox">
+  <div
+    class="link-configuration-container"
+    data-test-id="linkConfiguration_div_linkConfigBox"
+  >
     <div class="header">
       <bk-button
         theme="primary"
-        style="width: 120px;"
-        @click="createConfig"
+        style="width: 120px"
         data-test-id="linkConfigBox_button_addNewLinkConfig"
-      >{{ $t('新建') }}</bk-button>
+        @click="createConfig"
+        >{{ $t('新建') }}</bk-button
+      >
     </div>
     <bk-table
+      v-bkloading="{ isLoading: tableLoading }"
       :data="tableData"
       :empty-text="$t('暂无内容')"
-      v-bkloading="{ isLoading: tableLoading }"
-      data-test-id="linkConfigBox_table_linkConfigTable">
+      data-test-id="linkConfigBox_table_linkConfigTable"
+    >
       <bk-table-column
         :label="$t('链路名称')"
         :render-header="$renderHeader"
         prop="link_group_name"
-        min-width="20"></bk-table-column>
+        min-width="20"
+      ></bk-table-column>
       <bk-table-column
         :label="$t('允许的空间')"
         :render-header="$renderHeader"
         prop="bk_biz_id"
-        min-width="20">
+        min-width="20"
+      >
         <template slot-scope="{ row }">
-          <div>{{ filterProjectName(row) || '--'}}</div>
+          <div>{{ filterProjectName(row) || '--' }}</div>
         </template>
       </bk-table-column>
-      <bk-table-column :label="$t('链路信息')" :render-header="$renderHeader" min-width="60">
+      <bk-table-column
+        :label="$t('链路信息')"
+        :render-header="$renderHeader"
+        min-width="60"
+      >
         <template slot-scope="{ row }">
           <div>{{ filterLinkInformation(row) || '' }}</div>
         </template>
       </bk-table-column>
-      <bk-table-column :label="$t('备注')" :render-header="$renderHeader" min-width="20">
-        <div style="padding: 10px 0;" slot-scope="{ row }">
+      <bk-table-column
+        :label="$t('备注')"
+        :render-header="$renderHeader"
+        min-width="20"
+      >
+        <div
+          slot-scope="{ row }"
+          style="padding: 10px 0"
+        >
           {{ row.description || '--' }}
         </div>
       </bk-table-column>
-      <bk-table-column :label="$t('是否启用')" :render-header="$renderHeader" min-width="10">
+      <bk-table-column
+        :label="$t('是否启用')"
+        :render-header="$renderHeader"
+        min-width="10"
+      >
         <template slot-scope="{ row }">
           <div>{{ row.is_active ? $t('是') : $t('否') }}</div>
         </template>
       </bk-table-column>
-      <bk-table-column :label="$t('操作')" :render-header="$renderHeader" min-width="10">
+      <bk-table-column
+        :label="$t('操作')"
+        :render-header="$renderHeader"
+        min-width="10"
+      >
         <template slot-scope="props">
           <bk-button
             theme="primary"
             text
-            @click="editConfig(props.row)">
+            @click="editConfig(props.row)"
+          >
             {{ $t('编辑') }}
           </bk-button>
           <!--<bk-button theme="primary" text @click="deleteConfig(props.row)">{{ $t('删除') }}</bk-button>-->
         </template>
       </bk-table-column>
       <div slot="empty">
-        <empty-status :empty-type="emptyType" @operation="handleOperation" />
+        <empty-status
+          :empty-type="emptyType"
+          @operation="handleOperation"
+        />
       </div>
     </bk-table>
     <config-dialog
@@ -85,7 +115,8 @@
       :project-list="projectList"
       :data-source="dialogSetting.dataSource"
       :select-data="selectData"
-      @showUpdateList="getLinkData" />
+      @showUpdateList="getLinkData"
+    />
   </div>
 </template>
 
@@ -97,7 +128,7 @@ export default {
   name: 'LinkConfiguration',
   components: {
     ConfigDialog,
-    EmptyStatus,
+    EmptyStatus
   },
   data() {
     return {
@@ -106,23 +137,20 @@ export default {
       dialogSetting: {
         visible: false,
         type: 'create', // create edit
-        dataSource: {},
+        dataSource: {}
       },
       selectData: {
         kafka: [],
         transfer: [],
-        es: [],
+        es: []
       },
-      emptyType: 'empty',
+      emptyType: 'empty'
     };
   },
   computed: {
     projectList() {
-      return [
-        { bk_biz_id: '0', space_full_code_name: this.$t('全部空间') },
-        ...this.$store.state.mySpaceList,
-      ];
-    },
+      return [{ bk_biz_id: '0', space_full_code_name: this.$t('全部空间') }, ...this.$store.state.mySpaceList];
+    }
   },
   created() {
     this.init();
@@ -135,17 +163,17 @@ export default {
           this.$http.request('linkConfiguration/getLinkList'),
           this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'kafka' } }),
           this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'transfer' } }),
-          this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'es' } }),
+          this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'es' } })
         ]);
 
-        listRes.data.forEach((item) => {
+        listRes.data.forEach(item => {
           item.bk_biz_id += '';
         });
         this.tableData = listRes.data;
         Object.assign(this.selectData, {
           kafka: kafkaRes.data,
           transfer: transferRes.data,
-          es: esRes.data,
+          es: esRes.data
         });
       } catch (e) {
         console.warn(e);
@@ -158,7 +186,7 @@ export default {
       try {
         this.tableLoading = true;
         const res = await this.$http.request('linkConfiguration/getLinkList');
-        res.data.forEach((item) => {
+        res.data.forEach(item => {
           item.bk_biz_id += '';
         });
         this.tableData = res.data;
@@ -173,22 +201,25 @@ export default {
       return this.projectList.find(item => item.bk_biz_id === row.bk_biz_id)?.space_name;
     },
     filterLinkInformation(row) {
-      const kafkaName = this.selectData.kafka.find((item) => {
+      const kafkaName = this.selectData.kafka.find(item => {
         return item.cluster_id === row.kafka_cluster_id;
       })?.cluster_name;
       if (!kafkaName) {
         return '';
       }
-      const transferName = this.selectData.transfer.find((item) => {
+      const transferName = this.selectData.transfer.find(item => {
         return item.cluster_id === row.transfer_cluster_id;
       })?.cluster_name;
       if (!transferName) {
         return '';
       }
-      const esNameList = row.es_cluster_ids.map(id => this.selectData.es.find((item) => {
-        return item.cluster_id === id;
-      // eslint-disable-next-line camelcase
-      })?.cluster_name);
+      const esNameList = row.es_cluster_ids.map(
+        id =>
+          this.selectData.es.find(item => {
+            return item.cluster_id === id;
+            // eslint-disable-next-line camelcase
+          })?.cluster_name
+      );
       if (!esNameList.length || esNameList.includes(undefined)) {
         return '';
       }
@@ -207,15 +238,15 @@ export default {
           transfer_cluster_id: '',
           es_cluster_ids: [],
           is_active: true,
-          description: '',
-        },
+          description: ''
+        }
       };
     },
     editConfig(item) {
       this.dialogSetting = {
         visible: true,
         type: 'edit',
-        dataSource: item,
+        dataSource: item
       };
     },
     handleOperation(type) {
@@ -224,7 +255,7 @@ export default {
         this.init();
         return;
       }
-    },
+    }
     // async deleteConfig (item) {
     //     try {
     //         this.tableLoading = true
@@ -240,16 +271,16 @@ export default {
     //         this.tableLoading = false
     //     }
     // }
-  },
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .link-configuration-container {
-    padding: 20px 24px;
+.link-configuration-container {
+  padding: 20px 24px;
 
-    .header {
-      margin-bottom: 20px;
-    }
+  .header {
+    margin-bottom: 20px;
   }
+}
 </style>
