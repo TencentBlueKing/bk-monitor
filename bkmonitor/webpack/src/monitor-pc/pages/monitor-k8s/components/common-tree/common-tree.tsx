@@ -25,15 +25,21 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers as m } from 'vue-tsx-support';
+import SearchSelect from '@blueking/search-select';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import { ITableFilterItem } from '../../typings';
-import { filterSelectorPanelSearchList, transformConditionValueParams } from '../../utils';
+import {
+  filterSelectorPanelSearchList,
+  transformConditionSearchList,
+  transformConditionValueParams
+} from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './common-tree.scss';
 
 /** 搜索栏的高度 */
@@ -188,7 +194,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       })
       .then(data => {
         const treeData = typeTools.isObject(data) ? data.data : data;
-        this.conditionList = data.condition_list || [];
+        this.conditionList = transformConditionSearchList(data.condition_list || []);
         this.treeData = treeData;
         this.traverseTree(treeData);
         this.$emit('listChange', this.treeData.slice());
@@ -196,7 +202,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       .finally(() => (this.loading = false));
   }
   @Emit('searchChange')
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.getPanelData();
     return deepClone(this.searchCondition);
   }
@@ -304,12 +311,12 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       >
         <div class='list-header'>
           {this.conditionList.length ? (
-            <bk-search-select
+            <SearchSelect
               placeholder={this.$t('搜索')}
-              vModel={this.searchCondition}
+              value={this.searchCondition}
               show-condition={false}
               data={this.currentConditionList}
-              show-popover-tag-change={false}
+              clearable={false}
               onChange={this.handleSearch}
             />
           ) : (

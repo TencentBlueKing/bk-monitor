@@ -4,7 +4,7 @@
 @mixin basecontent {
   background: #fff;
   border-radius: 2px;
-  box-shadow: 0px 1px 2px 0px rgba(0,0,0,.05);
+  box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .05);
 }
 
 .strategy-config {
@@ -115,10 +115,7 @@
       flex: 1;
       width: 360px;
       margin-left: 14px;
-
-      .bk-search-select {
-        background: #fff;
-      }
+      background: #fff;
     }
 
     .header-select {
@@ -549,7 +546,6 @@
 
           i {
             color: #c4c6cc;
-
           }
         }
 
@@ -717,7 +713,7 @@
         flex-shrink: 0;
         max-width: 200px;
         margin: 8px 0;
-  
+
         @include ellipsis;
 
         .bk-form-checkbox {
@@ -731,7 +727,7 @@
 
           .bk-checkbox-text {
             width: 130px;
-  
+
             @include ellipsis;
           }
         }

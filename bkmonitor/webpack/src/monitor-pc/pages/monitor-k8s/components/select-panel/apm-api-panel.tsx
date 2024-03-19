@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import SearchSelect from '@blueking/search-select';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -35,12 +36,14 @@ import { handleTransformToTimestamp } from '../../../../components/time-range/ut
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './apm-api-panel.scss';
 
 interface ICommonListProps {
@@ -204,7 +207,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           this.statusList = data.filter || [];
           this.tabList = data.sort || [];
@@ -237,7 +240,8 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
       (this.$refs.virtualInstance as any)?.setListData?.(this.localList);
     }, 20);
   }
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.getPanelData();
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     if (this.needQueryUpdateUrl) {
@@ -306,12 +310,12 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
       >
         <div class='list-header'>
           {!!this.conditionList.length ? (
-            <bk-search-select
+            <SearchSelect
               placeholder={this.$t('搜索')}
-              vModel={this.searchCondition}
+              value={this.searchCondition}
               show-condition={false}
               data={this.currentConditionList}
-              show-popover-tag-change={false}
+              clearable={false}
               onChange={this.handleSearch}
             />
           ) : (

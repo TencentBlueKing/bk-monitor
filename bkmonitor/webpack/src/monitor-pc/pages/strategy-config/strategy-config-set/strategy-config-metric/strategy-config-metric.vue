@@ -31,7 +31,6 @@
     :width="950"
     :mask-close="false"
     header-position="left"
-    @after-leave="handleAfterLeave"
     @cancel="handleCancel"
     @confirm="handleConfirm"
   >
@@ -50,16 +49,16 @@
           :key="index"
         />
       </bk-tab>
-      <bk-search-select
-        :show-popover-tag-change="false"
-        ref="searchSelect"
-        :popover-zindex="2600"
-        class="metric-search"
-        @change="handleSearch"
-        :data="searchObj.data"
-        v-model="searchObj.keyWord"
-        :placeholder="$t('搜索')"
-      />
+      <div class="metric-search">
+        <search-select
+          :data="searchObj.data"
+          :value="searchObj.keyWord"
+          :placeholder="$t('搜索')"
+          :clearable="false"
+          @change="handleSearch"
+        />
+      </div>
+
       <div class="metric-content">
         <ul class="metric-content-left">
           <template v-for="(item, index) in monitorSource[scenarioType]">
@@ -77,9 +76,9 @@
               <span
                 class="left-item-num"
                 :class="{ 'num-active': item.source_type === left.active }"
-              >{{
-                item.count
-              }}</span>
+              >
+                {{ item.count }}
+              </span>
             </li>
           </template>
         </ul>
@@ -177,7 +176,8 @@
                 <img
                   src="../../../../static/images/svg/spinner.svg"
                   alt=""
-                > {{ $t('正加载更多内容…') }}
+                >
+                {{ $t('正加载更多内容…') }}
               </div>
             </template>
           </bk-table>
@@ -189,7 +189,9 @@
         theme="primary"
         :disabled="!right.value"
         @click="handleConfirm"
-      > {{ $t('添加') }} </bk-button>
+      >
+        {{ $t('添加') }}
+      </bk-button>
       <bk-button @click="handleCancel">
         {{ $t('取消') }}
       </bk-button>
@@ -214,8 +216,11 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
+import SearchSelect from '@blueking/search-select';
 import { getMetricList } from 'monitor-api/modules/strategies';
 import { debounce, throttle } from 'throttle-debounce';
+
+import '@blueking/search-select/dist/vue2-full.css';
 
 const { mapGetters } = createNamespacedHelpers('strategy-config');
 
@@ -229,6 +234,9 @@ const PAGE = {
 };
 export default {
   name: 'StrategyConfigMetric',
+  components: {
+    SearchSelect
+  },
   props: {
     isShow: Boolean,
     id: {
@@ -561,17 +569,6 @@ export default {
         // this.disabledClearSeach = true
       }
     },
-    handleAfterLeave() {
-      if (this.$refs.searchSelect?.popperMenuInstance) {
-        this.$refs.searchSelect.popperMenuInstance.destroy(true);
-      }
-      this.resetCurrentTypePage();
-      // dialog bug需手动销毁popperMenuInstance
-      if (this.$refs.searchSelect.popperMenuInstance) {
-        this.$refs.searchSelect.popperMenuInstance = null;
-      }
-      this.$emit('hide-dialog', false);
-    },
     handleScenarioList() {
       this.scenarioList.forEach((item) => {
         item.children.forEach((source) => {
@@ -791,7 +788,8 @@ export default {
         page_size: 10
       };
     },
-    filterMetric() {
+    filterMetric(v) {
+      this.searchObj.data = v;
       for (const key in this.metricList[this.scenarioType]) {
         this.metricList[this.scenarioType][key] = null;
       }

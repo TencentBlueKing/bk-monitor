@@ -54,15 +54,16 @@
           @change="handleSearch"
         >
         </bk-input> -->
-        <bk-search-select
-          class="right-search"
-          v-model="searchValues"
-          :data="searchData"
-          :show-condition="false"
-          filter
-          :placeholder="$t('输入屏蔽内容、ID')"
-          @change="handleSearchCondition"
-        />
+        <div class="right-search">
+          <search-select
+            :value="searchValues"
+            :data="searchData"
+            :show-condition="false"
+            :clearable="false"
+            :placeholder="$t('输入屏蔽内容、ID')"
+            @change="handleSearchCondition"
+          />
+        </div>
       </div>
     </div>
     <div class="content-wrapper">
@@ -102,7 +103,9 @@
             <span
               class="shield-id"
               @click="handleToDetail(scope.row.id)"
-            >#{{ scope.row.id }}</span>
+            >
+              #{{ scope.row.id }}
+            </span>
           </bk-table-column>
           <bk-table-column
             width="150"
@@ -206,7 +209,9 @@
             <span
               class="shield-id"
               @click="handleToDetail(scope.row.id)"
-            >#{{ scope.row.id }}</span>
+            >
+              #{{ scope.row.id }}
+            </span>
           </bk-table-column>
           <bk-table-column
             width="150"
@@ -329,6 +334,7 @@
   </div>
 </template>
 <script>
+import SearchSelect from '@blueking/search-select';
 import dayjs from 'dayjs';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield.js';
 import { debounce } from 'throttle-debounce';
@@ -337,10 +343,13 @@ import { commonPageSizeMixin } from '../../../common/mixins';
 import EmptyStatus from '../../../components/empty-status/empty-status.tsx';
 import TableStore from '../store.ts';
 
+import '@blueking/search-select/dist/vue2-full.css';
+
 export default {
   name: 'AlarmShield',
   components: {
-    EmptyStatus
+    EmptyStatus,
+    SearchSelect
   },
   mixins: [commonPageSizeMixin],
   inject: ['authority', 'handleShowAuthorityDetail', 'authorityMap'],
@@ -724,7 +733,8 @@ export default {
     },
     renderHeader(h) {
       return h(
-        'span', {
+        'span',
+        {
           class: {
             'dropdown-trigger': true,
             ' plugin-label': true,
@@ -779,14 +789,15 @@ export default {
         res.push({
           name,
           id,
-          multiable: true,
+          multiple: true,
           children: list ? list : []
         });
       });
       this.searchData = res;
       this.getRouterParams();
     },
-    handleSearchCondition() {
+    handleSearchCondition(v) {
+      this.searchValues = v;
       this.searchCondition = this.routerParamsReplace();
       this.emptyType = this.searchCondition.length ? 'search-empty' : 'empty';
       this.handleGetShiledList();
@@ -803,12 +814,14 @@ export default {
         }
       });
       const queryStr = JSON.stringify(query);
-      this.$router.replace({
-        ...this.$route,
-        query: {
-          queryString: query?.length ? queryStr : undefined
-        }
-      }).catch(() => {});
+      this.$router
+        .replace({
+          ...this.$route,
+          query: {
+            queryString: query?.length ? queryStr : undefined
+          }
+        })
+        .catch(() => {});
       return query;
     },
     /* 获取路由参数 */
@@ -820,11 +833,13 @@ export default {
         try {
           queryStringObj = JSON.parse(queryString);
         } catch (err) {
-          this.$router.replace({
-            ...this.$route,
-            query: { queryString: undefined }
-          }).catch(() => {});
-        };
+          this.$router
+            .replace({
+              ...this.$route,
+              query: { queryString: undefined }
+            })
+            .catch(() => {});
+        }
         if (queryStringObj) {
           const ids = Object.keys(this.backDisplayMap);
           const searchValues = [];
@@ -832,7 +847,7 @@ export default {
             if (ids.includes(item.key)) {
               if (item.value?.length) searchValues.push({
                 id: item.key,
-                multiable: true,
+                multiple: true,
                 name: this.backDisplayMap[item.key].name,
                 values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value]
               });
@@ -894,7 +909,7 @@ export default {
       }
 
       .right-search {
-        min-width: 400px;
+        width: 400px;
         background: #fff;
       }
     }

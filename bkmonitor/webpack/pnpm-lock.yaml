@@ -39,7 +39,7 @@ importers:
     dependencies:
       '@blueking/bkmonitor-cli':
         specifier: 2.0.0-beta.17
-        version: 2.0.0-beta.17(@types/node@20.9.0)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.33.0)(prettier@3.2.5)
+        version: 2.0.0-beta.17(@types/node@20.9.0)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.45.0)(prettier@3.2.5)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -525,7 +525,7 @@ importers:
         version: 0.0.2-5.beta.11
       '@blueking/date-picker':
         specifier: ^1.0.0
-        version: 1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@2.7.14)
+        version: 1.0.0(dayjs@1.11.10)(vue@2.7.14)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -538,6 +538,9 @@ importers:
       '@blueking/paas-login':
         specifier: 0.0.6
         version: 0.0.6(bk-magic-vue@2.5.8)(vue@2.7.14)
+      '@blueking/search-select':
+        specifier: 0.0.1-beta.12
+        version: 0.0.1-beta.12(vue@2.7.14)
       '@blueking/user-selector':
         specifier: ^1.0.11
         version: 1.0.11
@@ -735,6 +738,9 @@ importers:
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
+      '@blueking/search-select':
+        specifier: 0.0.1-beta.12
+        version: 0.0.1-beta.12(vue@2.7.14)
       '@codemirror/autocomplete':
         specifier: ^0.19.15
         version: 0.19.15
@@ -2661,7 +2667,7 @@ packages:
     engines: {node: '>=14.18.1'}
     dev: false
 
-  /@blueking/bkmonitor-cli@2.0.0-beta.17(@types/node@20.9.0)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.33.0)(prettier@3.2.5):
+  /@blueking/bkmonitor-cli@2.0.0-beta.17(@types/node@20.9.0)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.45.0)(prettier@3.2.5):
     resolution: {integrity: sha512-FBPxHAT/s+V4lg+FNc1Jzhgb+qszsFOHLGf6o9tJIL1Cccn0eSq92Vz7OvbCclPTlfsIUMBHPlM3AhzQj/yjZA==}
     engines: {node: '>= 18'}
     hasBin: true
@@ -2698,7 +2704,7 @@ packages:
       less: 4.2.0
       less-loader: 12.2.0(less@4.2.0)(webpack@5.90.3)
       mini-css-extract-plugin: 2.8.1(webpack@5.90.3)
-      monaco-editor-webpack-plugin: 7.1.0(monaco-editor@0.33.0)(webpack@5.90.3)
+      monaco-editor-webpack-plugin: 7.1.0(monaco-editor@0.45.0)(webpack@5.90.3)
       ora: 8.0.1
       path-browserify: 1.0.1
       postcss: 8.4.35
@@ -2808,19 +2814,6 @@ packages:
       - whiskers
     dev: false
 
-  /@blueking/date-picker@1.0.0(bkui-vue@1.0.0)(dayjs@1.11.10)(vue@2.7.14):
-    resolution: {integrity: sha512-E42AB4Qt3mCD5Q1S6z925LFmLZQmRw3+iRa9nKAgJZIzYC3rcwOKpFlwkXaSYDNOKko3C2HTOvGQcxmyuPcSYg==}
-    engines: {node: '>=18.16.0'}
-    peerDependencies:
-      bkui-vue: ^1.0.0
-      dayjs: ^1.11.10
-      vue: ^3.2.0
-    dependencies:
-      bkui-vue: 1.0.0(highlight.js@11.5.1)(vue@2.7.14)
-      dayjs: 1.11.10
-      vue: 2.7.14
-    dev: false
-
   /@blueking/date-picker@1.0.0(bkui-vue@1.0.3-beta.4)(dayjs@1.11.10)(vue@3.4.20):
     resolution: {integrity: sha512-E42AB4Qt3mCD5Q1S6z925LFmLZQmRw3+iRa9nKAgJZIzYC3rcwOKpFlwkXaSYDNOKko3C2HTOvGQcxmyuPcSYg==}
     engines: {node: '>=18.16.0'}
@@ -2832,6 +2825,18 @@ packages:
       bkui-vue: 1.0.3-beta.4(highlight.js@11.5.1)(vue@3.4.20)
       dayjs: 1.11.10
       vue: 3.4.20(typescript@4.9.5)
+    dev: false
+
+  /@blueking/date-picker@1.0.0(dayjs@1.11.10)(vue@2.7.14):
+    resolution: {integrity: sha512-E42AB4Qt3mCD5Q1S6z925LFmLZQmRw3+iRa9nKAgJZIzYC3rcwOKpFlwkXaSYDNOKko3C2HTOvGQcxmyuPcSYg==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      bkui-vue: ^1.0.0
+      dayjs: ^1.11.10
+      vue: ^3.2.0
+    dependencies:
+      dayjs: 1.11.10
+      vue: 2.7.14
     dev: false
 
   /@blueking/fork-resize-detector@0.0.2:
@@ -2858,6 +2863,16 @@ packages:
       vue: ^2.5.22
     dependencies:
       bk-magic-vue: 2.5.8(vue@2.7.14)
+      vue: 2.7.14
+    dev: false
+
+  /@blueking/search-select@0.0.1-beta.12(vue@2.7.14):
+    resolution: {integrity: sha512-30Qtm0iOcHOFqADsC1YqtzTLRIxBS7PCOgY0RGpnAmJ5bYTtZo9ouimEkgc+D0RckNXPbrqzMFm6pe8hXMuWwQ==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      bkui-vue: latest
+      vue: ^3.2.0
+    dependencies:
       vue: 2.7.14
     dev: false
 
@@ -2933,7 +2948,7 @@ packages:
       '@codemirror/state': 0.19.9
       '@codemirror/view': 0.19.48
       '@lezer/common': 0.15.12
-      style-mod: 4.1.0
+      style-mod: 4.1.2
     dev: false
 
   /@codemirror/history@0.19.2:
@@ -3027,7 +3042,7 @@ packages:
       '@codemirror/rangeset': 0.19.9
       '@codemirror/state': 0.19.9
       '@codemirror/text': 0.19.6
-      style-mod: 4.1.0
+      style-mod: 4.1.2
       w3c-keyname: 2.2.8
     dev: false
 
@@ -5467,25 +5482,6 @@ packages:
       spark-md5: 3.0.2
       tinycolor2: 1.6.0
       vue: 2.7.14
-
-  /bkui-vue@1.0.0(highlight.js@11.5.1)(vue@2.7.14):
-    resolution: {integrity: sha512-PRH9U+DAesEUdrgdj+uQrISWFeaFZZazjSrpyNteFMPwmPQMynq1ZWrdm/XfowqHXoWx2XlrjEtlgm7YMd0aig==}
-    engines: {node: '>=14.0.0'}
-    peerDependencies:
-      highlight.js: ~11.5.0
-      vue: ^3.3.0
-    dependencies:
-      '@floating-ui/dom': 1.5.3
-      '@popperjs/core': 2.11.8
-      date-fns: 2.30.0
-      highlight.js: 11.5.1
-      js-calendar: 1.2.3
-      json-formatter-js: 2.3.4
-      lodash: 4.17.21
-      tinycolor2: 1.6.0
-      vue: 2.7.14
-      vue-types: 4.1.1(vue@2.7.14)
-    dev: false
 
   /bkui-vue@1.0.3-beta.4(highlight.js@11.5.1)(vue@3.4.20):
     resolution: {integrity: sha512-mqqE6oxZILPgUallM81677a049zwBLk1RMJHLkMhyOvaO3PI0rPJDxuPcm0DNWpWlPIgB1fHvQ1zBJ1R9XJOUQ==}
@@ -9779,19 +9775,19 @@ packages:
       ml-array-rescale: 1.3.7
     dev: false
 
-  /monaco-editor-webpack-plugin@7.1.0(monaco-editor@0.33.0)(webpack@5.90.3):
+  /monaco-editor-webpack-plugin@7.1.0(monaco-editor@0.45.0)(webpack@5.90.3):
     resolution: {integrity: sha512-ZjnGINHN963JQkFqjjcBtn1XBtUATDZBMgNQhDQwd78w2ukRhFXAPNgWuacaQiDZsUr4h1rWv5Mv6eriKuOSzA==}
     peerDependencies:
       monaco-editor: '>= 0.31.0'
       webpack: ^4.5.0 || 5.x
     dependencies:
       loader-utils: 2.0.4
-      monaco-editor: 0.33.0
+      monaco-editor: 0.45.0
       webpack: 5.90.3(webpack-cli@5.1.4)
     dev: false
 
-  /monaco-editor@0.33.0:
-    resolution: {integrity: sha512-VcRWPSLIUEgQJQIE0pVT8FcGBIgFoxz7jtqctE+IiCxWugD0DwgyQBcZBhdSrdMC84eumoqMZsGl2GTreOzwqw==}
+  /monaco-editor@0.45.0:
+    resolution: {integrity: sha512-mjv1G1ZzfEE3k9HZN0dQ2olMdwIfaeAAjFiwNprLfYNRSz7ctv9XuCT7gPtBGrMUeV1/iZzYKj17Khu1hxoHOA==}
     dev: false
 
   /monitor-vue-grid-layout@0.0.1(@interactjs/core@1.10.20)(@interactjs/utils@1.10.20):
@@ -12513,8 +12509,8 @@ packages:
       webpack: 5.90.3(webpack-cli@5.1.4)
     dev: false
 
-  /style-mod@4.1.0:
-    resolution: {integrity: sha512-Ca5ib8HrFn+f+0n4N4ScTIA9iTOQ7MaGS1ylHcoVqW9J7w2w8PzN6g9gKmTYgGEBH8e120+RCmhpje6jC5uGWA==}
+  /style-mod@4.1.2:
+    resolution: {integrity: sha512-wnD1HyVqpJUI2+eKZ+eo1UwghftP6yuFheBqqe+bWCotBjC2K1YnteJILRMs3SM4V/0dLEW1SC27MWP5y+mwmw==}
     dev: false
 
   /style-search@0.1.0:
@@ -13577,16 +13573,6 @@ packages:
     dependencies:
       typescript: 4.9.5
       vue: 2.7.14
-
-  /vue-types@4.1.1(vue@2.7.14):
-    resolution: {integrity: sha512-Jq2GZ/w6rExJbLA/h7nHBFLciu+YNekgox0DB64wN1snZ4IIJMq+qnqp1/vE4fc7vEjZcP5KGhLzkkSjIHLRzw==}
-    engines: {node: '>=12.16.0'}
-    peerDependencies:
-      vue: ^2.0.0 || ^3.0.0
-    dependencies:
-      is-plain-object: 5.0.0
-      vue: 2.7.14
-    dev: false
 
   /vue-types@4.1.1(vue@3.4.20):
     resolution: {integrity: sha512-Jq2GZ/w6rExJbLA/h7nHBFLciu+YNekgox0DB64wN1snZ4IIJMq+qnqp1/vE4fc7vEjZcP5KGhLzkkSjIHLRzw==}

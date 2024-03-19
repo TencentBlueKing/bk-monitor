@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers as m } from 'vue-tsx-support';
+import SearchSelect from '@blueking/search-select';
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
@@ -37,12 +38,14 @@ import { EmptyStatusOperationType, EmptyStatusType } from '../../../../component
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName
 } from '../../../monitor-k8s/utils';
 import { DEFAULT_TAB_LIST } from '../host-list/host-list';
 
+import '@blueking/search-select/dist/vue2-full.css';
 import './host-tree.scss';
 
 /** 搜索栏的高度 */
@@ -368,7 +371,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
       .then(data => {
         this.emptyStatusType = 'empty';
         const treeData = (typeTools.isObject(data) ? data.data : data) as TreeNodeItem[];
-        this.conditionList = data.condition_list || [];
+        this.conditionList = transformConditionSearchList(data.condition_list || []);
         this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
         this.hostTreeData = treeData;
         this.traverseTree(treeData);
@@ -799,12 +802,12 @@ export default class HostTree extends tsc<IProps, IEvents> {
           <div class='host-tree-tool'>
             <div class='host-tree-search-row'>
               {this.conditionList.length ? (
-                <bk-search-select
+                <SearchSelect
                   placeholder={this.$t('搜索')}
-                  vModel={this.searchCondition}
+                  value={this.searchCondition}
                   show-condition={false}
-                  show-popover-tag-change={false}
                   data={this.currentConditionList}
+                  clearable={false}
                   onChange={this.handleSearch}
                 />
               ) : (
@@ -815,17 +818,6 @@ export default class HostTree extends tsc<IProps, IEvents> {
                   onInput={this.handleLocalSearch}
                 ></bk-input>
               )}
-              {/* <bk-input
-              v-model={this.searchKeyword}
-              right-icon="bk-icon icon-search"
-              placeholder={this.$t('搜索IP / 主机名')}
-              onInput={this.handleSearch}></bk-input> */}
-              {/* <bk-search-select
-              placeholder={this.$t('搜索')}
-              vModel={this.searchCondition}
-              show-condition={false}
-              data={this.conditionList}
-              onChange={this.handleSearch} /> */}
               <bk-button
                 class='refresh-btn'
                 onClick={this.handleRefresh}
