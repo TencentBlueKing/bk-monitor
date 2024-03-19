@@ -215,15 +215,16 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
 
         result_json = result.json()
 
+        ret_code = result_json.get("code")
         # 权限中心无权限结构特殊处理
-        if result_json.get("code") in APIPermissionDeniedCodeList:
+        if ret_code in APIPermissionDeniedCodeList:
             raise APIPermissionDeniedError(
                 context={"system_name": self.module_name, "url": self.action},
                 data={"apply_url": settings.BK_IAM_SAAS_HOST},
                 extra={"permission": result_json.get("permission")},
             )
 
-        if not result_json.get("result", True) and result_json.get("code") != 0:
+        if not result_json.get("result", True) and ret_code != 0:
             msg = result_json.get("message", "")
             errors = result_json.get("errors", "")
             if errors:

@@ -19,7 +19,7 @@ from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.utils.request import get_request
 from core.drf_resource.contrib.api import APIResource
 from core.errors.alarm_backends import EmptyAssigneeError
-from core.errors.iam import APIPermissionDeniedError
+from core.errors.api import BKAPIError
 
 
 class SopsBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
@@ -40,10 +40,12 @@ class SopsBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             self.bk_username = username
             try:
                 return super(SopsBaseResource, self).perform_request(params)
-            except APIPermissionDeniedError as error:
-                # 权限不足的时候，继续运行
-                if index < len(assignee) - 1:
-                    continue
+            except BKAPIError as error:
+                code = error.data.get("code")
+                if code == 3599999:
+                    # 标准运维权限不足的时候，继续运行
+                    if index < len(assignee) - 1:
+                        continue
                 raise error
 
     def full_request_data(self, validated_request_data):

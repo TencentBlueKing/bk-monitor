@@ -23,6 +23,8 @@ label {
 }
 
 * {
+  box-sizing: border-box;
+
   /* stylelint-disable-next-line declaration-no-important */
   font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif !important;
 
