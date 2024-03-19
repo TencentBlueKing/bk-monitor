@@ -811,6 +811,8 @@ export default class DataRetrieval extends tsc<{}> {
     } else if (opt === 'delete') {
       if (this.promqlData.length > 1) {
         this.promqlData.splice(index, 1);
+      } else if (this.promqlData.length === 1) {
+        this.promqlData[0].code = '';
       }
     } else if (opt === 'enable') {
       item.enable = !item.enable;
