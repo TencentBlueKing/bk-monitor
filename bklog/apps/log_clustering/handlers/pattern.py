@@ -48,6 +48,7 @@ from apps.log_clustering.models import (
     ClusteringConfig,
     ClusteringRemark,
 )
+from apps.log_clustering.tasks.flow import update_log_count_aggregation_flow
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
@@ -139,6 +140,9 @@ class PatternHandler:
 
             group_hash = ClusteringRemark.convert_groups_to_groups_hash(dict(zip(self._group_by, group)))
 
+            # 用于标识新类的key，包含 签名 + 所有分组字段值的元组
+            new_class_group_key = tuple([signature] + group)
+
             if (signature, group_hash) in signature_map_remark:
                 remark = signature_map_remark[(signature, group_hash)]["remark"]
                 owners = signature_map_remark[(signature, group_hash)]["owners"]
@@ -159,7 +163,7 @@ class PatternHandler:
                     "count": count,
                     "signature": signature,
                     "percentage": self.percentage(count, sum_count),
-                    "is_new_class": signature in new_class,
+                    "is_new_class": new_class_group_key in new_class,
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
                     "group": group,
@@ -281,24 +285,26 @@ class PatternHandler:
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
         if self._clustering_config.log_count_agg_rt:
+            select_fields = NEW_CLASS_QUERY_FIELDS + self._group_by
             # 新类异常检测逻辑适配
             new_classes = (
                 BkData(self._clustering_config.log_count_agg_rt)
-                .select(*NEW_CLASS_QUERY_FIELDS)
+                .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                 .where(IS_NEW_PATTERN_PREFIX, "=", 1)
                 .time_range(start_time.timestamp, end_time.timestamp)
                 .query()
             )
         else:
+            select_fields = NEW_CLASS_QUERY_FIELDS
             new_classes = (
                 BkData(self._clustering_config.new_cls_pattern_rt)
-                .select(*NEW_CLASS_QUERY_FIELDS)
+                .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
                 .time_range(start_time.timestamp, end_time.timestamp)
                 .query()
             )
-        return {new_class["signature"] for new_class in new_classes}
+        return {tuple(new_class[field] for field in select_fields) for new_class in new_classes}
 
     def set_clustering_owner(self, params: dict):
         """
@@ -337,6 +343,7 @@ class PatternHandler:
         """
         self._clustering_config.group_fields = group_fields
         self._clustering_config.save()
+        update_log_count_aggregation_flow.delay(self._clustering_config.index_set_id)
         return model_to_dict(self._clustering_config)
 
     @atomic
