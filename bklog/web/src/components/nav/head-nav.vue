@@ -309,6 +309,12 @@ export default {
       });
     }
   },
+  watch: {
+    $route() {
+      /** 当路由改变时应该把 dialog 关闭掉 */
+      this.showGlobalDialog = false;
+    }
+  },
   async created() {
     this.language = jsCookie.get('blueking_language') || 'zh-cn';
     this.$store.commit('updateMenuList', menuArr);
