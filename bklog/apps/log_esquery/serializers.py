@@ -196,7 +196,7 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 class EsQueryScrollAttrSerializer(serializers.Serializer):
     indices = serializers.CharField(required=False)
     scenario_id = serializers.ChoiceField(choices=Scenario.CHOICES)
-    storage_cluster_id = serializers.IntegerField()
+    storage_cluster_id = serializers.IntegerField(required=False, default=-1, allow_null=True)
     scroll_id = serializers.CharField(required=True)
     scroll = serializers.CharField(required=False, default=SCROLL)
 

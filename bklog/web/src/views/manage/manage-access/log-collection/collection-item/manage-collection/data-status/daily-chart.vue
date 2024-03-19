@@ -21,7 +21,10 @@
   -->
 
 <template>
-  <div class="chart-container" v-bkloading="{ isLoading: basicLoading, zIndex: 0 }">
+  <div
+    v-bkloading="{ isLoading: basicLoading, zIndex: 0 }"
+    class="chart-container"
+  >
     <div class="chart-header">
       <div class="title">{{ $t('日数据量') }}</div>
       <div class="date-picker">
@@ -31,19 +34,27 @@
           :time-range.sync="retrieveParams.time_range"
           :date-picker-value="datePickerValue"
           @update:datePickerValue="handleDateChange"
-          @datePickerChange="fetchChartData" />
-        <div class="refresh-button" @click="fetchChartData">
+          @datePickerChange="fetchChartData"
+        />
+        <div
+          class="refresh-button"
+          @click="fetchChartData"
+        >
           <span class="bk-icon icon-refresh"></span>
           <span>{{ $t('刷新') }}</span>
         </div>
       </div>
     </div>
-    <div class="chart-canvas-container big-chart" ref="chartRef"></div>
+    <div
+      ref="chartRef"
+      class="chart-canvas-container big-chart"
+    ></div>
     <bk-exception
       v-if="isEmpty"
       class="king-exception"
       type="empty"
-      scene="part"></bk-exception>
+      scene="part"
+    ></bk-exception>
   </div>
 </template>
 
@@ -56,7 +67,7 @@ import { mapGetters } from 'vuex';
 
 export default {
   components: {
-    SelectDate,
+    SelectDate
   },
   data() {
     const currentTime = Date.now();
@@ -75,25 +86,25 @@ export default {
         end_time: endTime,
         host_scopes: {
           modules: [],
-          ips: '',
+          ips: ''
         },
         addition: [],
         begin: 0,
         size: 500,
-        interval: '1d',
-      },
+        interval: '1d'
+      }
     };
   },
   computed: {
     ...mapGetters({
-      chartSizeNum: 'chartSizeNum',
+      chartSizeNum: 'chartSizeNum'
     }),
-    ...mapGetters('collect', ['curCollect']),
+    ...mapGetters('collect', ['curCollect'])
   },
   watch: {
     chartSizeNum() {
       this.resizeChart();
-    },
+    }
   },
   created() {
     this.fetchChartData();
@@ -124,15 +135,15 @@ export default {
           params: { index_set_id: this.curCollect.index_set_id },
           data: Object.assign({}, this.retrieveParams, {
             start_time: `${this.retrieveParams.start_time} 00:00:00`,
-            end_time: `${this.retrieveParams.end_time} 23:59:59`,
-          }),
+            end_time: `${this.retrieveParams.end_time} 23:59:59`
+          })
         });
         const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
         const chartData = {
           labels: [],
-          values: [],
+          values: []
         };
-        originChartData.forEach((item) => {
+        originChartData.forEach(item => {
           chartData.labels.push(item.key_as_string);
           chartData.values.push(item.doc_count);
         });
@@ -164,56 +175,58 @@ export default {
           type: 'category',
           data: chartData.labels,
           axisTick: {
-            alignWithLabel: true,
+            alignWithLabel: true
           },
           axisLabel: {
             align: 'center',
             formatter(value) {
               return dayjs.tz(value).format('MM-DD');
-            },
+            }
           },
           axisLine: {
             lineStyle: {
-              color: '#DCDEE5',
-            },
-          },
+              color: '#DCDEE5'
+            }
+          }
         },
         yAxis: {
           type: 'value',
           axisTick: {
-            show: false,
+            show: false
           },
           axisLine: {
-            show: false,
+            show: false
           },
           splitLine: {
             lineStyle: {
               color: '#DCDEE5',
-              type: 'dashed',
-            },
-          },
+              type: 'dashed'
+            }
+          }
         },
-        series: [{
-          data: chartData.values,
-          type: 'bar',
-          barMaxWidth: 24,
-          itemStyle: {
-            color: '#339DFF',
-          },
-        }],
+        series: [
+          {
+            data: chartData.values,
+            type: 'bar',
+            barMaxWidth: 24,
+            itemStyle: {
+              color: '#339DFF'
+            }
+          }
+        ],
         tooltip: {
-          trigger: 'item',
+          trigger: 'item'
         },
         textStyle: {
-          color: '#63656E',
+          color: '#63656E'
         },
         grid: {
           x: 40,
           y: 10,
           x2: 40,
           y2: 40,
-          containLabel: true,
-        },
+          containLabel: true
+        }
       });
     },
 
@@ -222,9 +235,9 @@ export default {
       this.datePickerValue = val;
       Object.assign(this.retrieveParams, {
         start_time: val[0],
-        end_time: val[1],
+        end_time: val[1]
       });
-    },
-  },
+    }
+  }
 };
 </script>

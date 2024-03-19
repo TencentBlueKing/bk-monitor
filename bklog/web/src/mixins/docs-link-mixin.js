@@ -26,7 +26,7 @@ const linkMap = {
   logArchive: '产品白皮书/tools/log_archive.md', // 日志归档
   logCollection: '产品白皮书/integrations-logs/logs_overview.md', // 日志采集接入
   bkBase: '基础计算平台/产品白皮书/intro/intro.md', // 基础计算平台
-  queryString: '产品白皮书/data-visualization/query_string.md', // 查询语句语法
+  queryString: '产品白皮书/data-visualization/query_string.md' // 查询语句语法
 };
 
 export default {
@@ -34,16 +34,17 @@ export default {
     handleGotoLink(id) {
       const link = linkMap[id];
       if (link) {
-        console.log(link);
-        this.$http.request('docs/getDocLink', {
-          query: {
-            md_path: link,
-          },
-        }).then((res) => {
-          window.open(res.data, '_blank');
-        })
+        this.$http
+          .request('docs/getDocLink', {
+            query: {
+              md_path: link
+            }
+          })
+          .then(res => {
+            window.open(res.data, '_blank');
+          })
           .catch(() => false);
       }
-    },
-  },
+    }
+  }
 };

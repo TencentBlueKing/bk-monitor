@@ -128,12 +128,23 @@ export const getRouteConfig = () => {
           canStore: true
         },
         {
-          name: 'Trace检索',
+          name: 'Tracing 检索',
           icon: 'icon-monitor icon-mc-menu-trace menu-icon',
-          navName: 'Trace检索',
+          navName: 'Tracing 检索',
           id: 'trace-retrieval',
           path: '/trace/home',
           href: '#/trace/home',
+          usePath: true,
+          // isBeta: window.platform?.te === false,
+          canStore: true
+        },
+        {
+          name: 'Profiling 检索',
+          icon: 'icon-monitor icon-profiling menu-icon',
+          navName: 'Profiling 检索',
+          id: 'profiling',
+          path: '/trace/profiling',
+          href: '#/trace/profiling',
           usePath: true,
           // isBeta: window.platform?.te === false,
           canStore: true

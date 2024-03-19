@@ -522,7 +522,7 @@ export default {
   是否批量开启告警: 'Enable Batch Alert',
   按照空间属性选择: 'Space attributes',
   '选择采集项/采集插件': 'Select Collection / Plug-in',
-  执行bk_biz_id: 'Execute bk_biz_id',  // 这个是什么？ 看语境位置
+  执行bk_biz_id: 'Execute bk_biz_id', // 这个是什么？ 看语境位置
   'label-预览': 'Preview',
   'label-过滤内容': 'Filter',
   'label-展开': 'expand',
@@ -592,4 +592,8 @@ export default {
   大小写敏感: 'Case sensitive',
   原始日志配置: 'Original log configuration',
   不保留: 'Not retained',
+  维度: 'Dimension',
+  已备注: 'Already Noted',
+  未备注: 'No Remarks',
+  未指定责任人: 'No responsible person specified'
 };

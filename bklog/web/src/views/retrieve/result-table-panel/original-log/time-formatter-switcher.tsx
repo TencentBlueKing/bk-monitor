@@ -32,8 +32,7 @@ export default class TimeFormatterSwitcher extends tsc<{}> {
     return this.$store.state.isFormatDate;
   }
 
-  timeZone = new Date().toString()
-    .slice(24, 33);
+  timeZone = new Date().toString().slice(24, 33);
 
   handleClickSwitcher(val) {
     jsCookie.set('operation', String(val));
@@ -41,7 +40,10 @@ export default class TimeFormatterSwitcher extends tsc<{}> {
   }
   render() {
     return (
-      <div class="switcher-box" onClick={e => e.stopPropagation()}>
+      <div
+        class='switcher-box'
+        onClick={e => e.stopPropagation()}
+      >
         <Switcher
           // v-bk-tooltips={this.$t('开启后将表格内的 UNIX 时间戳格式化为可读时间')}
           show-text
@@ -49,9 +51,9 @@ export default class TimeFormatterSwitcher extends tsc<{}> {
           value={this.isFormatDate}
           onChange={this.handleClickSwitcher}
           props={{
-            'on-text': this.$t('时间'),
-          }}>
-        </Switcher>
+            'on-text': this.$t('时间')
+          }}
+        ></Switcher>
       </div>
     );
   }

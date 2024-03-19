@@ -11,10 +11,10 @@ specific language governing permissions and limitations under the License.
 import datetime
 from urllib.parse import urljoin, urlparse
 
-from apm_web.models import Application
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
+from apm_web.models import Application
 from constants.apm import OtlpKey
 from core.drf_resource import api
 
@@ -71,11 +71,10 @@ class SpanHandler:
     def get_span_urls(cls, app, start_time, end_time, service_name=None):
         """获取100条 span url字段数据"""
         query = {
-            "sort": {"start_time": {"order": "desc"}},
             "size": 0,
             "query": {
                 "bool": {
-                    "must": [
+                    "filter": [
                         {
                             "range": {
                                 "end_time": {
@@ -92,8 +91,8 @@ class SpanHandler:
             },
         }
         if service_name:
-            query["query"]["bool"]["must"].append(
-                {"match": {OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME): service_name}}
+            query["query"]["bool"]["filter"].append(
+                {"term": {OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME): service_name}}
             )
 
         response = api.apm_api.query_es(table_id=app.trace_result_table_id, query_body=query)

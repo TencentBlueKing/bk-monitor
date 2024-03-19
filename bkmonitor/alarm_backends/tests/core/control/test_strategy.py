@@ -40,7 +40,6 @@ STRATEGY = {
 
 
 class TestStrategy(TestCase):
-
     # @classmethod
     # def setUpClass(cls):
     #     cls.StrategyCacheManager = mock.patch("alarm_backends.core.control.strategy.StrategyCacheManager")
@@ -80,20 +79,25 @@ class TestStrategy(TestCase):
             [],
             [
                 {
-                    "id": 2,
-                    "calendar_name": "测试日历",
-                    "name": "放假1",
-                    "start_time": 1649833200,
-                    "end_time": 1649833800,
-                    "update_user": "admin",
-                    "update_time": 1649832487,
-                    "create_time": 1649832487,
-                    "create_user": "admin",
-                    "calendar_id": 2,
-                    "color": "#540ac0",
-                    "repeat": {},
-                    "parent_id": None,
-                    "is_first": True,
+                    'today': 1649833300,
+                    'list': [
+                        {
+                            "id": 2,
+                            "calendar_name": "测试日历",
+                            "name": "放假1",
+                            "start_time": 1649833200,
+                            "end_time": 1649833800,
+                            "update_user": "admin",
+                            "update_time": 1649832487,
+                            "create_time": 1649832487,
+                            "create_user": "admin",
+                            "calendar_id": 2,
+                            "color": "#540ac0",
+                            "repeat": {},
+                            "parent_id": None,
+                            "is_first": True,
+                        }
+                    ],
                 }
             ],
             [],

@@ -23,16 +23,17 @@
   <div>
     <!-- 聚类规则 -->
     <div class="container-item table-container">
-      <p style="height: 32px">{{$t('聚类规则')}}</p>
+      <p style="height: 32px">{{ $t('聚类规则') }}</p>
       <div class="table-operate">
         <bk-button
           size="small"
           class="add-box"
           :class="globalEditable ? 'btn-hover' : ''"
           :disabled="!globalEditable"
-          @click="isShowAddRule = true">
+          @click="isShowAddRule = true"
+        >
           <i class="bk-icon icon-plus push"></i>
-          {{$t('添加')}}
+          {{ $t('添加') }}
         </bk-button>
         <bk-button
           size="small"
@@ -40,16 +41,18 @@
           data-test-id="LogCluster_button_addNewRules"
           :class="globalEditable ? 'btn-hover' : ''"
           :disabled="!globalEditable"
-          @click="handleFastAddRule">
-          {{$t('导入')}}
+          @click="handleFastAddRule"
+        >
+          {{ $t('导入') }}
         </bk-button>
         <bk-button
           size="small"
           style="min-width: 48px"
           :class="globalEditable ? 'btn-hover' : ''"
           :disabled="!globalEditable"
-          @click="() => handleExportRule()">
-          {{$t('导出')}}
+          @click="() => handleExportRule()"
+        >
+          {{ $t('导出') }}
         </bk-button>
         <bk-button
           size="small"
@@ -57,56 +60,90 @@
           data-test-id="LogCluster_button_reductionRules"
           :class="globalEditable ? 'btn-hover' : ''"
           :disabled="!globalEditable"
-          @click="reductionRule">
-          {{$t('恢复默认')}}
+          @click="reductionRule"
+        >
+          {{ $t('恢复默认') }}
         </bk-button>
       </div>
 
-      <div class="cluster-table" data-test-id="LogCluster_div_rulesTable">
+      <div
+        class="cluster-table"
+        data-test-id="LogCluster_div_rulesTable"
+      >
         <div class="table-row flbc">
           <div class="row-left">
-            <div class="row-left-index">{{$t('序号')}}</div>
-            <div class="row-left-regular">{{$t('正则表达式')}}</div>
+            <div class="row-left-index">{{ $t('序号') }}</div>
+            <div class="row-left-regular">{{ $t('正则表达式') }}</div>
           </div>
           <div class="row-right flbc">
-            <div>{{$t('占位符')}}</div>
-            <div>{{$t('操作')}}</div>
+            <div>{{ $t('占位符') }}</div>
+            <div>{{ $t('操作') }}</div>
           </div>
         </div>
 
-        <div v-if="rulesList.length > 0" v-bkloading="{ isLoading: tableLoading }">
-          <vue-draggable v-bind="dragOptions" v-model="rulesList">
+        <div
+          v-if="rulesList.length > 0"
+          v-bkloading="{ isLoading: tableLoading }"
+        >
+          <vue-draggable
+            v-bind="dragOptions"
+            v-model="rulesList"
+          >
             <transition-group>
-              <li class="table-row table-row-li flbc" v-for="(item, index) in rulesList" :key="item.__Index__">
+              <li
+                v-for="(item, index) in rulesList"
+                :key="item.__Index__"
+                class="table-row table-row-li flbc"
+              >
                 <div class="row-left">
                   <div class="row-left-index">
-                    <span class="icon log-icon icon-drag-dots"></span><span>{{index}}</span>
+                    <span class="icon log-icon icon-drag-dots"></span><span>{{ index }}</span>
                   </div>
                   <div class="regular-container">
-                    <register-column :context="Object.values(item)[0]" :root-margin="'-180px 0px 0px 0px'">
+                    <register-column
+                      :context="Object.values(item)[0]"
+                      :root-margin="'-180px 0px 0px 0px'"
+                    >
                       <cluster-event-popover
                         :is-cluster="false"
                         :placement="'top'"
-                        @eventClick="(operation) => handleMenuClick( operation, item )">
-                        <span class="row-left-regular" :style="`color:${item._isHighlight_ ? '#FE5376' : '#63656E'}`">
-                          {{Object.values(item)[0]}}</span>
+                        @eventClick="operation => handleMenuClick(operation, item)"
+                      >
+                        <span
+                          class="row-left-regular"
+                          :style="`color:${item._isHighlight_ ? '#FE5376' : '#63656E'}`"
+                        >
+                          {{ Object.values(item)[0] }}</span
+                        >
                       </cluster-event-popover>
                     </register-column>
                   </div>
                 </div>
                 <div class="row-right flbc">
-                  <div><span class="row-right-item" :ref="`placeholder-${index}`">{{Object.keys(item)[0]}}</span></div>
+                  <div>
+                    <span
+                      :ref="`placeholder-${index}`"
+                      class="row-right-item"
+                      >{{ Object.keys(item)[0] }}</span
+                    >
+                  </div>
                   <div class="rule-btn">
                     <bk-button
-                      style="margin-right: 10px;" theme="primary" text
+                      style="margin-right: 10px"
+                      theme="primary"
+                      text
                       :disabled="!globalEditable"
-                      @click="clusterEdit(index)">
-                      {{$t('编辑')}}
+                      @click="clusterEdit(index)"
+                    >
+                      {{ $t('编辑') }}
                     </bk-button>
                     <bk-button
-                      :disabled="!globalEditable" theme="primary" text
-                      @click="clusterRemove(index)">
-                      {{$t('删除')}}
+                      :disabled="!globalEditable"
+                      theme="primary"
+                      text
+                      @click="clusterRemove(index)"
+                    >
+                      {{ $t('删除') }}
                     </bk-button>
                   </div>
                 </div>
@@ -114,18 +151,27 @@
             </transition-group>
           </vue-draggable>
         </div>
-        <div v-else class="no-cluster-rule">
-          <empty-status empty-type="empty" :show-text="false">
-            <div>{{$t('暂无聚类规则')}}</div>
+        <div
+          v-else
+          class="no-cluster-rule"
+        >
+          <empty-status
+            empty-type="empty"
+            :show-text="false"
+          >
+            <div>{{ $t('暂无聚类规则') }}</div>
           </empty-status>
         </div>
       </div>
     </div>
     <!-- 原始日志 -->
     <div class="container-item debug-container">
-      <div class="debug-tool" @click="handleClickDebugButton">
-        <span>{{$t('调试工具')}}</span>
-        <span :class="['bk-icon','icon-angle-double-down', isClickAlertIcon ? 'bk-icon-rotate' : '']"></span>
+      <div
+        class="debug-tool"
+        @click="handleClickDebugButton"
+      >
+        <span>{{ $t('调试工具') }}</span>
+        <span :class="['bk-icon', 'icon-angle-double-down', isClickAlertIcon ? 'bk-icon-rotate' : '']"></span>
       </div>
 
       <bk-alert
@@ -133,23 +179,32 @@
         class="debug-alert"
         type="warning"
         :title="$t('调试需要等待1分钟以上，在此区间不可进行其余操作')"
-        closable></bk-alert>
+        closable
+      ></bk-alert>
 
-      <div class="fl-jfsb" v-show="isClickAlertIcon">
-        <p style="height: 32px">{{$t('原始日志')}}</p>
+      <div
+        v-show="isClickAlertIcon"
+        class="fl-jfsb"
+      >
+        <p style="height: 32px">{{ $t('原始日志') }}</p>
         <bk-button
           size="small"
           style="min-width: 48px"
-          :class="(logOriginal !== '' && rulesList.length !== 0) ? 'btn-hover' : ''"
+          :class="logOriginal !== '' && rulesList.length !== 0 ? 'btn-hover' : ''"
           :disabled="!globalEditable || logOriginal === '' || rulesList.length === 0"
           :loading="debugRequest"
-          @click="debugging">
-          {{$t('调试')}}
+          @click="debugging"
+        >
+          {{ $t('调试') }}
         </bk-button>
       </div>
 
-      <div class="log-style" v-show="isClickAlertIcon">
+      <div
+        v-show="isClickAlertIcon"
+        class="log-style"
+      >
         <bk-input
+          v-model.trim="logOriginal"
           placeholder=" "
           :disabled="!globalEditable || logOriginalRequest"
           :type="'textarea'"
@@ -161,58 +216,84 @@
             color: '#C4C6CC',
             borderRadius: '2px'
           }"
-          v-model.trim="logOriginal">
+        >
         </bk-input>
       </div>
     </div>
     <!-- 效果 -->
-    <div class="container-item" v-show="isClickAlertIcon">
-      <p style="height: 32px">{{$t('效果')}}</p>
-      <div class="effect-container" v-bkloading="{ isLoading: debugRequest, size: 'mini' }">{{effectOriginal}}</div>
+    <div
+      v-show="isClickAlertIcon"
+      class="container-item"
+    >
+      <p style="height: 32px">{{ $t('效果') }}</p>
+      <div
+        v-bkloading="{ isLoading: debugRequest, size: 'mini' }"
+        class="effect-container"
+      >
+        {{ effectOriginal }}
+      </div>
     </div>
     <!-- 添加规则dialog -->
     <bk-dialog
-      width="640"
       v-model="isShowAddRule"
+      width="640"
       ext-cls="add-rule"
       header-position="left"
       :title="isEditRules ? $t('编辑规则') : $t('添加规则')"
       :mask-close="false"
-      @after-leave="cancelAddRuleContent">
+      @after-leave="cancelAddRuleContent"
+    >
       <bk-form
         ref="addRulesRef"
         form-type="vertical"
         :label-width="200"
-        :model="addRulesData">
+        :model="addRulesData"
+      >
         <bk-form-item
           required
           :label="$t('正则表达式')"
           :property="'regular'"
-          :rules="rules.regular">
-          <bk-input v-model="addRulesData.regular" style="width: 560px"></bk-input>
-          <p>{{$t('样例')}}：\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}</p>
+          :rules="rules.regular"
+        >
+          <bk-input
+            v-model="addRulesData.regular"
+            style="width: 560px"
+          ></bk-input>
+          <p>{{ $t('样例') }}：\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}</p>
         </bk-form-item>
         <bk-form-item
           required
           :label="$t('占位符')"
           :property="'placeholder'"
-          :rules="rules.placeholder">
-          <bk-input v-model="addRulesData.placeholder" style="width: 560px"></bk-input>
-          <p>{{$t('样例')}}：IP</p>
+          :rules="rules.placeholder"
+        >
+          <bk-input
+            v-model="addRulesData.placeholder"
+            style="width: 560px"
+          ></bk-input>
+          <p>{{ $t('样例') }}：IP</p>
         </bk-form-item>
       </bk-form>
       <template slot="footer">
         <div class="flbc">
           <div class="inspection-status">
-            <div class="inspection-status" v-if="isClickSubmit">
+            <div
+              v-if="isClickSubmit"
+              class="inspection-status"
+            >
               <div>
-                <bk-spin v-if="isDetection" class="spin" size="mini"></bk-spin>
+                <bk-spin
+                  v-if="isDetection"
+                  class="spin"
+                  size="mini"
+                ></bk-spin>
                 <span
                   v-else
                   :class="['bk-icon spin', isRuleCorrect ? 'icon-check-circle-shape' : 'icon-close-circle-shape']"
-                  :style="`color:${isRuleCorrect ? '#45E35F' : '#FE5376'}`"></span>
+                  :style="`color:${isRuleCorrect ? '#45E35F' : '#FE5376'}`"
+                ></span>
               </div>
-              <span style="margin-left: 24px;">{{detectionStr}}</span>
+              <span style="margin-left: 24px">{{ detectionStr }}</span>
             </div>
           </div>
 
@@ -220,9 +301,11 @@
             <bk-button
               theme="primary"
               :disabled="isDetection"
-              @click="handleRuleSubmit">
-              {{isRuleCorrect ? $t('保存') : $t('检测语法')}}</bk-button>
-            <bk-button @click="isShowAddRule = false">{{$t('取消')}}</bk-button>
+              @click="handleRuleSubmit"
+            >
+              {{ isRuleCorrect ? $t('保存') : $t('检测语法') }}</bk-button
+            >
+            <bk-button @click="isShowAddRule = false">{{ $t('取消') }}</bk-button>
           </div>
         </div>
       </template>
@@ -241,25 +324,25 @@ export default {
     VueDraggable,
     ClusterEventPopover,
     RegisterColumn,
-    EmptyStatus,
+    EmptyStatus
   },
   props: {
     globalEditable: {
       type: Boolean,
-      default: true,
+      default: true
     },
     defaultData: {
       type: Object,
-      require: true,
+      require: true
     },
     tableStr: {
       type: String,
-      require: true,
+      require: true
     },
     cleanConfig: {
       type: Object,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
@@ -278,19 +361,23 @@ export default {
       isClickAlertIcon: false,
       addRulesData: {
         regular: '', // 添加聚类规则正则
-        placeholder: '', // 添加聚类规则占位符
+        placeholder: '' // 添加聚类规则占位符
       },
       rules: {
-        regular: [{
-          validator: this.checkRegular,
-          required: true,
-          trigger: 'blur',
-        }],
-        placeholder: [{
-          regex: /^(?!.*:)\S+/,
-          required: true,
-          trigger: 'blur',
-        }],
+        regular: [
+          {
+            validator: this.checkRegular,
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        placeholder: [
+          {
+            regex: /^(?!.*:)\S+/,
+            required: true,
+            trigger: 'blur'
+          }
+        ]
       },
       logOriginalRequest: false, // 原始日志是否正在请求
       isFirstInitLogOrigin: false, // 是否第一次点击调试工具按钮
@@ -298,27 +385,27 @@ export default {
         animation: 150,
         tag: 'ul',
         handle: '.icon-drag-dots',
-        'ghost-class': 'sortable-ghost-class',
+        'ghost-class': 'sortable-ghost-class'
       },
       /** 快速导入的dom */
-      inputDocument: null,
+      inputDocument: null
     };
   },
   watch: {
     tableStr: {
       handler(val) {
         this.rulesList = this.base64ToRuleArr(val);
-      },
+      }
     },
     addRulesData: {
       deep: true,
       handler() {
         this.resetDetection();
-      },
+      }
     },
     debugRequest(val) {
       this.$emit('debugRequestChange', val);
-    },
+    }
   },
   mounted() {
     this.initInputType();
@@ -349,7 +436,7 @@ export default {
         confirmFn: () => {
           this.rulesList.splice(index, 1);
           this.showTableLoading();
-        },
+        }
       });
     },
     /**
@@ -379,13 +466,16 @@ export default {
         this.detectionStr = this.$t('检验中');
         setTimeout(() => {
           this.isDetection = false;
-          this.$refs.addRulesRef.validate().then(() => {
-            this.isRuleCorrect = true;
-            this.detectionStr = this.$t('检验成功');
-          }, () => {
-            this.isRuleCorrect = false;
-            this.detectionStr = this.$t('检测失败');
-          });
+          this.$refs.addRulesRef.validate().then(
+            () => {
+              this.isRuleCorrect = true;
+              this.detectionStr = this.$t('检验成功');
+            },
+            () => {
+              this.isRuleCorrect = false;
+              this.detectionStr = this.$t('检测失败');
+            }
+          );
         }, 1000);
       }
     },
@@ -402,7 +492,7 @@ export default {
     base64ToRuleArr(str) {
       try {
         const ruleList = JSON.parse(base64Decode(str));
-        const ruleNewList =  ruleList.reduce((pre, cur, index) => {
+        const ruleNewList = ruleList.reduce((pre, cur, index) => {
           const itemObj = {};
           const key = cur.match(/[^:]*/)[0];
           itemObj[key] = cur.split(`${key}:`)[1];
@@ -438,7 +528,7 @@ export default {
       const inputData = {
         dtEventTimeStamp: Date.parse(new Date()) / 1000,
         log: this.logOriginal,
-        uuid: this.generationUUID(),
+        uuid: this.generationUUID()
       };
       const { min_members, delimeter, max_log_length, is_case_sensitive } = this.defaultData;
       const predefinedVaribles = this.ruleArrToBase64(this.rulesList);
@@ -449,11 +539,12 @@ export default {
         is_case_sensitive,
         input_data: [inputData],
         max_dist_list: 0.5,
-        predefined_varibles: predefinedVaribles,
+        predefined_varibles: predefinedVaribles
       };
-      this.$http.request('/logClustering/preview', { data: { ...query } })
-        .then((res) => {
-          const  { patterns, token_with_regex }  = res.data[0];
+      this.$http
+        .request('/logClustering/preview', { data: { ...query } })
+        .then(res => {
+          const { patterns, token_with_regex } = res.data[0];
           this.effectOriginal = patterns[0].pattern;
           this.highlightPredefined(token_with_regex);
         })
@@ -465,11 +556,11 @@ export default {
      * @desc: 调试返回值占位符和正则都匹配则高亮
      */
     highlightPredefined(tokenRegex = {}) {
-      Object.entries(tokenRegex).forEach((regexItem) => {
-        this.rulesList.forEach((listItem) => {
+      Object.entries(tokenRegex).forEach(regexItem => {
+        this.rulesList.forEach(listItem => {
           listItem._isHighlight_ = false;
           const [regexKey, regexVal] = regexItem;
-          const [listKey, listVal] =  Object.entries(listItem)[0];
+          const [listKey, listVal] = Object.entries(listItem)[0];
           if (regexKey === listKey && regexVal === listVal) {
             listItem._isHighlight_ = true;
           }
@@ -482,9 +573,9 @@ export default {
      * @returns { Boolean }
      */
     isRulesRepeat(newRules = {}) {
-      return this.rulesList.some((listItem) => {
+      return this.rulesList.some(listItem => {
         const [regexKey, regexVal] = Object.entries(newRules)[0];
-        const [listKey, listVal] =  Object.entries(listItem)[0];
+        const [listKey, listVal] = Object.entries(listItem)[0];
         return regexKey === listKey && regexVal === listVal;
       });
     },
@@ -500,21 +591,24 @@ export default {
      * @desc: 获取原始日志内容
      */
     getLogOriginal() {
-      const { extra: { collector_config_id: collectorConfigId } } = this.cleanConfig;
+      const {
+        extra: { collector_config_id: collectorConfigId }
+      } = this.cleanConfig;
       if (!collectorConfigId) return;
       this.logOriginalRequest = true;
-      this.$http.request('source/dataList', {
-        params: {
-          collector_config_id: collectorConfigId,
-        },
-      }).then((res) => {
-        if (res.data && res.data.length) {
-          const data = res.data[0];
-          this.logOriginal = data.etl.data || '';
-        }
-      })
-        .catch(() => {
+      this.$http
+        .request('source/dataList', {
+          params: {
+            collector_config_id: collectorConfigId
+          }
         })
+        .then(res => {
+          if (res.data && res.data.length) {
+            const data = res.data[0];
+            this.logOriginal = data.etl.data || '';
+          }
+        })
+        .catch(() => {})
         .finally(() => {
           this.logOriginalRequest = false;
         });
@@ -526,8 +620,8 @@ export default {
     // 检测数据名是否可用
     async checkRegularRequest(val) {
       try {
-        const res =  await this.$http.request('logClustering/checkRegexp', {
-          data: { regexp: val },
+        const res = await this.$http.request('logClustering/checkRegexp', {
+          data: { regexp: val }
         });
         if (res.data) {
           return res.data;
@@ -561,7 +655,7 @@ export default {
       if (!this.rulesList.length) {
         this.$bkMessage({
           theme: 'error',
-          message: this.$t('聚类规则为空，无法导出规则'),
+          message: this.$t('聚类规则为空，无法导出规则')
         });
         return;
       }
@@ -581,7 +675,7 @@ export default {
         const entriesArr = Object.entries(cur);
         pre[index] = {
           placeholder: entriesArr[0][0],
-          rule: entriesArr[0][1],
+          rule: entriesArr[0][1]
         };
         return pre;
       }, {});
@@ -595,7 +689,7 @@ export default {
     },
     /** 快速添加规则 */
     handleFastAddRule() {
-      this.inputDocument.click();// 本地文件回填
+      this.inputDocument.click(); // 本地文件回填
     },
     initInputType() {
       const inputDocument = document.createElement('input');
@@ -610,256 +704,255 @@ export default {
       const file = this.inputDocument.files[0];
       // 读取文件:
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = e => {
         try {
-          this.rulesList = Object.values(JSON.parse(e.target.result))
-            .map((item, index) => {
-              if (!item.placeholder || !String(item.rule)) throw new Error('无效的json');
-              return {
-                [item.placeholder]: String([item.rule]),
-                _isHighlight_: false,
-                __Index__: index,
-              };
-            });
+          this.rulesList = Object.values(JSON.parse(e.target.result)).map((item, index) => {
+            if (!item.placeholder || !String(item.rule)) throw new Error('无效的json');
+            return {
+              [item.placeholder]: String([item.rule]),
+              _isHighlight_: false,
+              __Index__: index
+            };
+          });
         } catch (err) {
           this.$bkMessage({
             theme: 'error',
-            message: this.$t('不是有效的json文件'),
+            message: this.$t('不是有效的json文件')
           });
         }
       };
       // 以Text的形式读取文件:
       reader.readAsText(file);
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
+/* stylelint-disable no-descending-specificity */
+.container-item {
+  margin-bottom: 40px;
 
-  .container-item {
-    margin-bottom: 40px;
+  .add-box {
+    min-width: 48px;
 
-    .add-box {
-      min-width: 48px;
-
-      .bk-icon {
-        width: 10px;
-        left: -3px;
-      }
-    }
-
-    &.table-container {
-      position: relative;
-    }
-
-    .cluster-table {
-      border: 1px solid #dcdee5;
-      border-bottom: none;
-      border-radius: 2px;
-    }
-
-    .effect-container {
-      height: 100px;
-      padding: 5px 10px;
-      font-size: 12px;
-      background: #fafbfd;
-      line-height: 24px;
-      color: #000;
-      border: 1px solid#DCDEE5;
-      border-radius: 2px;
-    }
-
-    &.debug-container {
-      margin-top: -24px;
-
-      .debug-tool {
-        display: flex;
-        align-items: center;
-        font-size: 14px;
-        margin-bottom: 4px;
-        color: #3a84ff;
-        cursor: pointer;
-
-        .bk-icon {
-          display: inline-block;
-          font-size: 24px;
-        }
-
-        .bk-icon-rotate {
-          transform: rotateZ(180deg);
-        }
-      }
-
-      .debug-alert {
-        margin-bottom: 8px;
-      }
+    .bk-icon {
+      left: -3px;
+      width: 10px;
     }
   }
 
-  .table-row {
-    min-height: 44px;
-    border-bottom: 1px solid #dcdee5;
-    background-color: #fafbfd;
+  &.table-container {
+    position: relative;
+  }
+
+  .cluster-table {
+    border: 1px solid #dcdee5;
+    border-bottom: none;
+    border-radius: 2px;
+  }
+
+  .effect-container {
+    height: 100px;
+    padding: 5px 10px;
     font-size: 12px;
+    line-height: 24px;
+    color: #000;
+    background: #fafbfd;
+    border: 1px solid#DCDEE5;
+    border-radius: 2px;
+  }
 
-    .icon {
-      margin: 0 10px 0 4px;
-    }
+  &.debug-container {
+    margin-top: -24px;
 
-    .icon-drag-dots {
-      width: 16px;
-      text-align: left;
-      font-size: 14px;
-      color: #979ba5;
-      cursor: move;
-      opacity: 0;
-      transition: opacity .2s linear;
-    }
-
-    &.sortable-ghost-class {
-      background: #eaf3ff;
-      transition: background .2s linear;
-    }
-
-    &:hover {
-      background: #eaf3ff;
-      transition: background .2s linear;
-
-      .icon-drag-dots {
-        opacity: 1;
-        transition: opacity .2s linear;
-      }
-    }
-
-    &.table-row-li {
-      background-color: #fff;
-      transition: background .3s;
-
-      &:hover {
-        background-color: #f0f1f5;
-      }
-    }
-
-    .row-left {
+    .debug-tool {
       display: flex;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #3a84ff;
+      cursor: pointer;
       align-items: center;
 
-      .row-left-index {
-        width: 80px;
-        margin-left: 14px;
-      }
-
-      .regular-container {
-        width: 600px;
-        padding: 2px 10px 2px 2px;
-        word-break: break-all;
-
-        .row-left-regular {
-          cursor: pointer;
-        }
-      }
-    }
-
-    .row-right > div {
-      width: 100px;
-
-      .row-right-item {
-        display: inline-block;
-        word-break: break-all;
-      }
-
-      .bk-button-text {
-        font-size: 12px;
-      }
-    }
-  }
-
-  .table-operate {
-    position: absolute;
-    right: 0;
-    top: 0;
-
-    .bk-button {
-      border-radius: 3px;
-      margin-left: 2px;
-    }
-
-    .btn-hover {
-      &:hover {
-        color: #3a84ff;
-        border: 1px solid #3a84ff;
-      }
-    }
-  }
-
-  .no-cluster-rule {
-    height: 200px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    border-bottom: 1px solid #dcdee5;
-
-    .icon-empty {
-      color: #c3cdd7;
-      font-size: 80px;
-    }
-  }
-
-  .log-style {
-    height: 100px;
-
-    :deep(.bk-form-textarea:focus) {
-      /* stylelint-disable-next-line declaration-no-important */
-      background-color: #313238 !important;
-      border-radius: 2px;
-    }
-
-    :deep(.bk-form-textarea[disabled]) {
-      /* stylelint-disable-next-line declaration-no-important */
-      background-color: #313238 !important;
-      border-radius: 2px;
-    }
-
-    :deep(.bk-textarea-wrapper) {
-      border: none;
-    }
-  }
-
-  .add-rule {
-    .bk-form {
-      margin-left: 15px;
-      width: 560px;
-
-      :deep(.bk-label) {
-        text-align: left;
-      }
-    }
-
-    .inspection-status {
-      display: flex;
-      position: relative;
-      font-size: 14px;
-
       .bk-icon {
-        font-size: 18px;
+        display: inline-block;
+        font-size: 24px;
       }
 
-      .spin {
-        top: 2px;
-        position: absolute;
+      .bk-icon-rotate {
+        transform: rotateZ(180deg);
+      }
+    }
+
+    .debug-alert {
+      margin-bottom: 8px;
+    }
+  }
+}
+
+.table-row {
+  min-height: 44px;
+  font-size: 12px;
+  background-color: #fafbfd;
+  border-bottom: 1px solid #dcdee5;
+
+  .icon {
+    margin: 0 10px 0 4px;
+  }
+
+  .icon-drag-dots {
+    width: 16px;
+    font-size: 14px;
+    color: #979ba5;
+    text-align: left;
+    cursor: move;
+    opacity: 0;
+    transition: opacity 0.2s linear;
+  }
+
+  &.sortable-ghost-class {
+    background: #eaf3ff;
+    transition: background 0.2s linear;
+  }
+
+  &:hover {
+    background: #eaf3ff;
+    transition: background 0.2s linear;
+
+    .icon-drag-dots {
+      opacity: 1;
+      transition: opacity 0.2s linear;
+    }
+  }
+
+  &.table-row-li {
+    background-color: #fff;
+    transition: background 0.3s;
+
+    &:hover {
+      background-color: #f0f1f5;
+    }
+  }
+
+  .row-left {
+    display: flex;
+    align-items: center;
+
+    .row-left-index {
+      width: 80px;
+      margin-left: 14px;
+    }
+
+    .regular-container {
+      width: 600px;
+      padding: 2px 10px 2px 2px;
+      word-break: break-all;
+
+      .row-left-regular {
+        cursor: pointer;
       }
     }
   }
 
-  .flbc {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .row-right > div {
+    width: 100px;
+
+    .row-right-item {
+      display: inline-block;
+      word-break: break-all;
+    }
+
+    .bk-button-text {
+      font-size: 12px;
+    }
+  }
+}
+
+.table-operate {
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  .bk-button {
+    margin-left: 2px;
+    border-radius: 3px;
   }
 
-  .fl-jfsb {
-    @include flex-justify(space-between);
+  .btn-hover {
+    &:hover {
+      color: #3a84ff;
+      border: 1px solid #3a84ff;
+    }
   }
+}
+
+.no-cluster-rule {
+  display: flex;
+  height: 200px;
+  border-bottom: 1px solid #dcdee5;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  .icon-empty {
+    font-size: 80px;
+    color: #c3cdd7;
+  }
+}
+
+.log-style {
+  height: 100px;
+
+  :deep(.bk-form-textarea:focus) {
+    /* stylelint-disable-next-line declaration-no-important */
+    background-color: #313238 !important;
+    border-radius: 2px;
+  }
+
+  :deep(.bk-form-textarea[disabled]) {
+    /* stylelint-disable-next-line declaration-no-important */
+    background-color: #313238 !important;
+    border-radius: 2px;
+  }
+
+  :deep(.bk-textarea-wrapper) {
+    border: none;
+  }
+}
+
+.add-rule {
+  .bk-form {
+    width: 560px;
+    margin-left: 15px;
+
+    :deep(.bk-label) {
+      text-align: left;
+    }
+  }
+
+  .inspection-status {
+    position: relative;
+    display: flex;
+    font-size: 14px;
+
+    .bk-icon {
+      font-size: 18px;
+    }
+
+    .spin {
+      position: absolute;
+      top: 2px;
+    }
+  }
+}
+
+.flbc {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fl-jfsb {
+  @include flex-justify(space-between);
+}
 </style>

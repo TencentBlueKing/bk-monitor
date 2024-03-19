@@ -26,7 +26,7 @@ class ApmApiConfig(AppConfig):
     label = "apm"
 
     def ready(self):
-
+        # 注册APM发现器
         from apm.core.discover.base import DiscoverBase
         from apm.core.discover.endpoint import EndpointDiscover
         from apm.core.discover.host import HostDiscover
@@ -45,6 +45,12 @@ class ApmApiConfig(AppConfig):
         DiscoverBase.register(RelationDiscover)
         DiscoverBase.register(RemoteServiceRelationDiscover)
         DiscoverBase.register(RootEndpointDiscover)
+
+        # 注册Profile发现器
+        from apm.core.discover.profile.base import DiscoverContainers
+        from apm.core.discover.profile.service import ServiceDiscover
+
+        DiscoverContainers.register(ServiceDiscover)
 
         if "migrate" in sys.argv:
             post_migrate.connect(migrate_apm_metric_dimension, sender=self)

@@ -32,7 +32,8 @@
       :set-id="configID"
       :set-disabled="!globalEditable"
       @reset-page="resetPage"
-      @updateLogFields="updateLogFields" />
+      @updateLogFields="updateLogFields"
+    />
   </div>
 </template>
 
@@ -41,27 +42,27 @@ import StepField from '@/components/collection-access/step-field';
 
 export default {
   components: {
-    StepField,
+    StepField
   },
   props: {
     globalEditable: {
       type: Boolean,
-      default: true,
+      default: true
     },
     cleanConfig: {
       type: Object,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
-      isShowFieldPage: true,
+      isShowFieldPage: true
     };
   },
   computed: {
     configID() {
       return this.cleanConfig?.extra?.collector_config_id;
-    },
+    }
   },
   methods: {
     resetPage() {
@@ -72,10 +73,7 @@ export default {
     },
     updateLogFields() {
       this.$emit('updateLogFields');
-    },
-  },
+    }
+  }
 };
 </script>
-
-<style lang="scss" scoped>
-</style>

@@ -1,0 +1,88 @@
+.profiling-detail-sideslider {
+  .profiling-detail-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding-right: 26px;
+
+    .title {
+      font-size: 16px;
+      color: #313238;
+    }
+  }
+
+  .jump-link {
+    font-size: 12px;
+    color: #3a84ff;
+
+    cursor: pointer;
+
+    .link {
+      color: #3a84ff;
+    }
+
+    .icon-fenxiang {
+      margin-left: 6px;
+    }
+  }
+
+  .profiling-detail-content {
+    min-height: 400px;
+    padding-top: 24px;
+
+    .bk-form-item {
+      margin-bottom: 12px;
+
+      .bk-form-label,
+      .bk-form-content {
+        line-height: 20px;
+        font-size: 12px;
+      }
+
+      .bk-form-label {
+        color: #63656e;
+      }
+
+      .bk-form-content {
+        color: #313238;
+      }
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      width: 68px;
+
+      .loading {
+        font-size: 14px;
+        color: #3a84ff;
+      }
+
+      .circle {
+        width: 8px;
+        height: 8px;
+        margin-left: 3px;
+        border-radius: 50%;
+
+        &.success {
+          background: #e5f6ea;
+          border: 1px solid #3fc06d;
+        }
+
+        &.error {
+          background: #ffe6e6;
+          border: 1px solid #ea3636;
+        }
+      }
+
+      .label {
+        margin-left: 5px;
+        color: #63656e;
+      }
+    }
+
+    .jump-link {
+      margin-left: 9px;
+    }
+  }
+}

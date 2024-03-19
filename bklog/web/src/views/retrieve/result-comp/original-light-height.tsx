@@ -50,7 +50,7 @@ export default class QueryStatement extends tsc<IProps> {
   get fieldMapDataObj() {
     const { newObject } = getFlatObjValues(this.originJson || {});
     const visibleObject = {};
-    Object.keys(newObject).forEach((el) => {
+    Object.keys(newObject).forEach(el => {
       if (this.visibleFieldsNameList.includes(el)) {
         visibleObject[el] = newObject[el];
       }
@@ -73,15 +73,17 @@ export default class QueryStatement extends tsc<IProps> {
     return this.visibleFields.find(item => item.field_name === fieldName);
   }
 
-
   render() {
     return (
-      <span class="origin-content" title={this.isWrap ? '' : this.strOriginJson}>
+      <span
+        class='origin-content'
+        title={this.isWrap ? '' : this.strOriginJson}
+      >
         {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>
-              <span class="black-mark">&nbsp;{key}:&nbsp;</span>
-              <span class="origin-value">
+              <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
+              <span class='origin-value'>
                 <TextSegmentation
                   content={value}
                   field={this.getField(key)}

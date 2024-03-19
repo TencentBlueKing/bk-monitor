@@ -2711,3 +2711,25 @@
   name: metadata_stop_or_enable_datasource
   path: /v2/monitor_v3/metadata_stop_or_enable_datasource/
   method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_vm_cluster/
+  is_hidden: false
+  label: 创建 vm 集群
+  label_en: create vm cluster
+  name: metadata_create_vm_cluster
+  path: /v2/monitor_v3/metadata_create_vm_cluster/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_vm_datalink/
+  is_hidden: false
+  label: 查询接入 vm 的链路
+  label_en: query vm datalink
+  name: metadata_query_vm_datalink
+  path: /v2/monitor_v3/metadata_query_vm_datalink/
+  method: GET

@@ -29,12 +29,14 @@
       :show-header="false"
       :outer-border="false"
       @row-click="tableRowClick"
-      @header-dragend="handleHeaderDragend">
+      @header-dragend="handleHeaderDragend"
+    >
       <!-- 展开详情 -->
       <bk-table-column
         type="expand"
         width="30"
-        align="center">
+        align="center"
+      >
         <template slot-scope="{ $index }">
           <expand-view
             v-bind="$attrs"
@@ -43,41 +45,50 @@
             :total-fields="totalFields"
             :visible-fields="visibleFields"
             :retrieve-params="retrieveParams"
-            @menuClick="handleMenuClick">
+            @menuClick="handleMenuClick"
+          >
           </expand-view>
         </template>
       </bk-table-column>
       <!-- 显示字段 -->
       <template>
-        <bk-table-column class-name="original-time" width="130">
+        <bk-table-column
+          class-name="original-time"
+          width="130"
+        >
           <template slot-scope="{ row }">
-            <span class="time-field" :title="isWrap ? '' : formatDate(Number(row[timeField]))">
+            <span
+              class="time-field"
+              :title="isWrap ? '' : formatDate(Number(row[timeField]))"
+            >
               {{ formatDate(Number(row[timeField]) || '') }}
             </span>
           </template>
         </bk-table-column>
         <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`">
           <!-- eslint-disable-next-line -->
-        <template slot-scope="{ row, column, $index }">
-            <div
-              :class="['str-content', 'origin-str', { 'is-limit': !cacheExpandStr.includes($index) }]">
+          <template slot-scope="{ row, column, $index }">
+            <div :class="['str-content', 'origin-str', { 'is-limit': !cacheExpandStr.includes($index) }]">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
               <original-light-height
                 :is-wrap="isWrap"
                 :visible-fields="getShowTableVisibleFields"
                 :origin-json="row"
-                @menuClick="({ option, isLink }) => handleMenuClick(option, isLink)" />
+                @menuClick="({ option, isLink }) => handleMenuClick(option, isLink)"
+              />
               <p
                 v-if="!cacheExpandStr.includes($index)"
                 class="show-whole-btn"
-                @click.stop="handleShowWhole($index)">
+                @click.stop="handleShowWhole($index)"
+              >
                 {{ $t('展开全部') }}
               </p>
               <p
                 v-else
                 class="hide-whole-btn"
-                @click.stop="handleHideWhole($index)">
+                @click.stop="handleHideWhole($index)"
+              >
                 {{ $t('收起') }}
               </p>
             </div>
@@ -91,34 +102,50 @@
         fixed="right"
         :label="$t('操作')"
         :width="getOperatorToolsWidth"
-        :resizable="false">
+        :resizable="false"
+      >
         <!-- eslint-disable-next-line -->
-      <template slot-scope="{ row, column, $index }">
+        <template slot-scope="{ row, column, $index }">
           <operator-tools
             :index="$index"
             log-type="origin"
             :row-data="row"
             :operator-config="operatorConfig"
-            :handle-click="(event) => handleClickTools(event, row, operatorConfig)" />
+            :handle-click="event => handleClickTools(event, row, operatorConfig)"
+          />
         </template>
       </bk-table-column>
       <!-- 初次加载骨架屏loading -->
-      <bk-table-column v-if="tableLoading" slot="empty">
+      <bk-table-column
+        v-if="tableLoading"
+        slot="empty"
+      >
         <retrieve-loader
           is-loading
           :is-original-field="true"
-          :visible-fields="getShowTableVisibleFields">
+          :visible-fields="getShowTableVisibleFields"
+        >
         </retrieve-loader>
       </bk-table-column>
-      <template v-else slot="empty">
-        <empty-view v-bind="$attrs" v-on="$listeners" />
+      <template
+        v-else
+        slot="empty"
+      >
+        <empty-view
+          v-bind="$attrs"
+          v-on="$listeners"
+        />
       </template>
       <!-- 下拉刷新骨架屏loading -->
-      <template slot="append" v-if="tableList.length && getShowTableVisibleFields.length && isPageOver">
+      <template
+        v-if="tableList.length && getShowTableVisibleFields.length && isPageOver"
+        slot="append"
+      >
         <retrieve-loader
           :is-page-over="isPageOver"
           :is-original-field="true"
-          :visible-fields="getShowTableVisibleFields">
+          :visible-fields="getShowTableVisibleFields"
+        >
         </retrieve-loader>
       </template>
     </bk-table>
@@ -134,10 +161,7 @@ export default {
   computed: {
     scrollContent() {
       return document.querySelector('.result-scroll-container');
-    },
-  },
+    }
+  }
 };
 </script>
-
-<style lang="scss">
-</style>

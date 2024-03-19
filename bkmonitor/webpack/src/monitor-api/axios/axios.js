@@ -26,9 +26,9 @@
  */
 /* eslint-disable no-param-reassign */
 import axios from 'axios';
+import { getCookie } from 'monitor-common/utils/utils';
 import qs from 'qs';
 
-import { getCookie } from '../../monitor-common/utils/utils';
 import { authorityStore, bkMessage, makeMessage } from '../utils/index';
 // 错误请求处理 3314001(名称重复)
 const noMessageCode = [3314001, 3310003];

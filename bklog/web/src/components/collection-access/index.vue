@@ -22,25 +22,44 @@
 
 <template>
   <section
-    :class="['access-wrapper',itsmTicketIsApplying && 'iframe-container']"
-    v-bkloading="{ isLoading: basicLoading }">
-    <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
-    <div class="access-container" v-else-if="!basicLoading && !isCleaning">
-      <section class="access-step-wrapper" v-if="isShowStepDom">
-        <div class="fixed-steps" :style="{ height: (stepList.length * 76) + 'px' }">
+    v-bkloading="{ isLoading: basicLoading }"
+    :class="['access-wrapper', itsmTicketIsApplying && 'iframe-container']"
+  >
+    <auth-container-page
+      v-if="authPageInfo"
+      :info="authPageInfo"
+    ></auth-container-page>
+    <div
+      v-else-if="!basicLoading && !isCleaning"
+      class="access-container"
+    >
+      <section
+        v-if="isShowStepDom"
+        class="access-step-wrapper"
+      >
+        <div
+          class="fixed-steps"
+          :style="{ height: stepList.length * 76 + 'px' }"
+        >
           <bk-steps
             v-if="stepList.length"
             theme="primary"
             direction="vertical"
             :cur-step.sync="showSteps"
-            :steps="stepList">
+            :steps="stepList"
+          >
           </bk-steps>
-          <div class="step-arrow" :style="{ top: (curStep * 76 - 38) + 'px' }"></div>
+          <div
+            class="step-arrow"
+            :style="{ top: curStep * 76 - 38 + 'px' }"
+          ></div>
         </div>
       </section>
       <section
+        v-if="operateType"
         v-bkloading="{ isLoading: containerLoading, zIndex: 10 }"
-        class="access-step-container" v-if="operateType">
+        class="access-step-container"
+      >
         <template v-if="isItsmAndNotStartOrStop">
           <step-add
             v-if="curStep === 1"
@@ -48,19 +67,22 @@
             :operate-type="operateType"
             :is-physics.sync="isPhysics"
             :is-update.sync="isUpdate"
-            @stepChange="(num) => stepChange(num, 'add')" />
+            @stepChange="num => stepChange(num, 'add')"
+          />
           <step-issued
             v-if="curStep === 2"
             :operate-type="operateType"
             :is-switch="isSwitch"
-            @stepChange="stepChange" />
+            @stepChange="stepChange"
+          />
           <step-field
             v-if="curStep === 3"
             :cur-step="curStep"
             :operate-type="operateType"
             @changeIndexSetId="updateIndexSetId"
             @stepChange="stepChange"
-            @changeClean="isCleaning = true" />
+            @changeClean="isCleaning = true"
+          />
           <step-storage
             v-if="curStep === 4"
             :cur-step="curStep"
@@ -68,7 +90,8 @@
             @changeIndexSetId="updateIndexSetId"
             @stepChange="stepChange"
             @setAssessmentItem="setAssessmentItem"
-            @changeSubmit="changeSubmit" />
+            @changeSubmit="changeSubmit"
+          />
           <step-masking
             v-if="curStep === 5 && isShowMaskingTemplate"
             :cur-step="curStep"
@@ -76,14 +99,16 @@
             :cur-collect="curCollect"
             @stepChange="stepChange"
             @changeIndexSetId="updateIndexSetId"
-            @changeSubmit="changeSubmit" />
+            @changeSubmit="changeSubmit"
+          />
           <step-result
             v-if="isFinish"
             :operate-type="operateType"
             :is-switch="isSwitch"
             :index-set-id="indexSetId"
             :apply-data="applyData"
-            @stepChange="stepChange" />
+            @stepChange="stepChange"
+          />
         </template>
         <template v-else>
           <step-add
@@ -92,19 +117,22 @@
             :container-loading.sync="containerLoading"
             :is-physics.sync="isPhysics"
             :is-update.sync="isUpdate"
-            @stepChange="(num) => stepChange(num, 'add')" />
+            @stepChange="num => stepChange(num, 'add')"
+          />
           <step-issued
             v-if="(curStep === 2 && !isSwitch) || (curStep === 1 && isSwitch)"
             :operate-type="operateType"
             :is-switch="isSwitch"
-            @stepChange="stepChange" />
+            @stepChange="stepChange"
+          />
           <step-field
             v-if="curStep === 3"
             :cur-step="curStep"
             :operate-type="operateType"
             @changeIndexSetId="updateIndexSetId"
             @stepChange="stepChange"
-            @changeClean="isCleaning = true" />
+            @changeClean="isCleaning = true"
+          />
           <step-storage
             v-if="curStep === 4"
             :cur-step="curStep"
@@ -112,7 +140,8 @@
             @changeIndexSetId="updateIndexSetId"
             @stepChange="stepChange"
             @setAssessmentItem="setAssessmentItem"
-            @changeSubmit="changeSubmit" />
+            @changeSubmit="changeSubmit"
+          />
           <step-masking
             v-if="curStep === 5 && isShowMaskingTemplate"
             :cur-step="curStep"
@@ -120,18 +149,23 @@
             :cur-collect="curCollect"
             @stepChange="stepChange"
             @changeIndexSetId="updateIndexSetId"
-            @changeSubmit="changeSubmit" />
+            @changeSubmit="changeSubmit"
+          />
           <step-result
             v-if="isFinish"
             :operate-type="operateType"
             :is-switch="isSwitch"
             :index-set-id="indexSetId"
             :apply-data="applyData"
-            @stepChange="stepChange" />
+            @stepChange="stepChange"
+          />
         </template>
       </section>
     </div>
-    <advance-clean-land v-else-if="!basicLoading && isCleaning" back-router="collection-item" />
+    <advance-clean-land
+      v-else-if="!basicLoading && isCleaning"
+      back-router="collection-item"
+    />
   </section>
 </template>
 
@@ -158,7 +192,7 @@ export default {
     stepStorage,
     stepResult,
     advanceCleanLand,
-    stepMasking,
+    stepMasking
   },
   data() {
     return {
@@ -178,12 +212,12 @@ export default {
       itsmTicketIsApplying: false,
       applyData: {},
       containerLoading: false, // 容器日志提交loading
-      isShowStepDom: true,
+      isShowStepDom: true
     };
   },
   computed: {
     ...mapState({
-      showRouterLeaveTip: state => state.showRouterLeaveTip,
+      showRouterLeaveTip: state => state.showRouterLeaveTip
     }),
     ...mapGetters('collect', ['curCollect']),
     ...mapGetters(['bkBizId']),
@@ -192,7 +226,8 @@ export default {
     isCommon() {
       return ['add', 'edit'].some(item => item === this.operateType);
     },
-    isCommonFinish() { // 存储操作完成的情况 table_id
+    isCommonFinish() {
+      // 存储操作完成的情况 table_id
       return ['add', 'edit'].some(item => this.operateType.search(item) !== -1);
     },
     isSwitch() {
@@ -207,17 +242,17 @@ export default {
       }
       // 非开关步骤下需要判断当前是否是日志脱敏步骤 如果不是 则当前step + 1 与stepFinish结束步骤保持同步
       const isMaskingStep = this.isSwitch || this.isShowMaskingTemplate;
-      return finishRefer[this.operateType] === (isMaskingStep ? this.curStep : (this.curStep + 1));
+      return finishRefer[this.operateType] === (isMaskingStep ? this.curStep : this.curStep + 1);
     },
     /** 根据是否开启脱敏功能确定完成的步骤 */
     finishStepNum() {
       return this.isShowMaskingTemplate ? 6 : 5;
-    },
+    }
   },
   watch: {
     curStep() {
       this.setSteps();
-    },
+    }
   },
   created() {
     this.initPage();
@@ -229,7 +264,7 @@ export default {
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
           next();
-        },
+        }
       });
       return;
     }
@@ -239,19 +274,26 @@ export default {
     // 先校验页面权限再初始化
     async initPage() {
       try {
-        const paramData = this.$route.name === 'collectAdd' ? {
-          action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
-          resources: [{
-            type: 'space',
-            id: this.spaceUid,
-          }],
-        } : {
-          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-          resources: [{
-            type: 'collection',
-            id: this.$route.params.collectorId,
-          }],
-        };
+        const paramData =
+          this.$route.name === 'collectAdd'
+            ? {
+                action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
+                resources: [
+                  {
+                    type: 'space',
+                    id: this.spaceUid
+                  }
+                ]
+              }
+            : {
+                action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+                resources: [
+                  {
+                    type: 'collection',
+                    id: this.$route.params.collectorId
+                  }
+                ]
+              };
         const res = await this.$store.dispatch('checkAndGetData', paramData);
         if (res.isAllowed === false) {
           this.authPageInfo = res.data;
@@ -265,9 +307,13 @@ export default {
       }
 
       const routeType = this.$route.name.toLowerCase().replace('collect', '');
-      const { query: { type }, name: routeName } = this.$route;
+      const {
+        query: { type },
+        name: routeName
+      } = this.$route;
       this.isUpdate = routeName !== 'collectAdd'; // 判断是否是更新
-      if ((routeType !== 'add' && !this.$route.params.notAdd) || type === 'clone') { // 克隆时 请求初始数据
+      if ((routeType !== 'add' && !this.$route.params.notAdd) || type === 'clone') {
+        // 克隆时 请求初始数据
         try {
           const detailRes = await this.getDetail();
           this.operateType = routeType === 'edit' && detailRes.table_id ? 'editFinish' : routeType; // 若存在table_id则只有三步
@@ -278,8 +324,8 @@ export default {
         try {
           const statusRes = await this.$http.request('collect/getCollectStatus', {
             query: {
-              collector_id_list: this.$route.params.collectorId,
-            },
+              collector_id_list: this.$route.params.collectorId
+            }
           });
           if (statusRes.data[0].status === 'PREPARE') {
             // 准备中编辑时跳到第一步，所以不用修改步骤
@@ -287,7 +333,7 @@ export default {
             const finishPag = this.finishStepNum;
             let jumpPage = 1;
             switch (this.operateType) {
-              case 'edit', 'editFinish': // 未完成编辑
+              case ('edit', 'editFinish'): // 未完成编辑
                 jumpPage = 1;
                 break;
               case 'field':
@@ -303,7 +349,7 @@ export default {
                 break;
             }
             // 审批通过后编辑直接进入第三步字段提取，否则进入第二步容量评估
-            this.curStep = (this.isItsm && this.applyData.itsm_ticket_status === 'applying') ? finishPag : jumpPage;
+            this.curStep = this.isItsm && this.applyData.itsm_ticket_status === 'applying' ? finishPag : jumpPage;
           }
           // 容器环境  非启用停用 非克隆状态则展示容器日志步骤
           if (!this.isPhysics && !this.isSwitch && type !== 'clone') {
@@ -328,7 +374,7 @@ export default {
         this.showSteps = this.curStep;
       } else {
         // 容器环境 非启用 停用情况 当前页若是采集配置则跳过采集下发直接进入字段提取步骤展示
-        this.showSteps = this.curStep === 1  ?  1 : this.curStep - 1;
+        this.showSteps = this.curStep === 1 ? 1 : this.curStep - 1;
       }
       // 新增  并且为容器环境则步骤变为容器步骤 步骤为第一步时不判断
       if (this.operateType === 'add' && !this.isPhysics && this.curStep !== 1) {
@@ -354,8 +400,8 @@ export default {
         this.$router.push({
           name: 'log-collection',
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
         return;
       }
@@ -373,31 +419,33 @@ export default {
     // 获取详情
     getDetail() {
       return new Promise((resolve, reject) => {
-        this.$http.request('collect/details', {
-          // mock: true,
-          // manualSchema: true,
-          params: {
-            collector_config_id: this.$route.params.collectorId,
-          },
-        }).then(async (res) => {
-          if (res.data) {
-            const collect = res.data;
-            this.isPhysics = collect.environment !== 'container';
-            if (collect.collector_scenario_id !== 'wineventlog' && this.isPhysics && collect?.params.paths) {
-              collect.params.paths = collect.params.paths.map(item => ({ value: item }));
+        this.$http
+          .request('collect/details', {
+            // mock: true,
+            // manualSchema: true,
+            params: {
+              collector_config_id: this.$route.params.collectorId
             }
-            // 如果当前页面采集流程未完成 则展示流程服务页面
-            const applyDataItem = {
-              iframe_ticket_url: collect.ticket_url,
-              itsm_ticket_status: collect.itsm_ticket_status,
-            };
-            this.applyData = collect.itsm_ticket_status === 'applying' ? applyDataItem : {};
-            this.itsmTicketIsApplying = false;
-            this.$store.commit('collect/setCurCollect', collect);
-            resolve(res.data);
-          }
-        })
-          .catch((err) => {
+          })
+          .then(async res => {
+            if (res.data) {
+              const collect = res.data;
+              this.isPhysics = collect.environment !== 'container';
+              if (collect.collector_scenario_id !== 'wineventlog' && this.isPhysics && collect?.params.paths) {
+                collect.params.paths = collect.params.paths.map(item => ({ value: item }));
+              }
+              // 如果当前页面采集流程未完成 则展示流程服务页面
+              const applyDataItem = {
+                iframe_ticket_url: collect.ticket_url,
+                itsm_ticket_status: collect.itsm_ticket_status
+              };
+              this.applyData = collect.itsm_ticket_status === 'applying' ? applyDataItem : {};
+              this.itsmTicketIsApplying = false;
+              this.$store.commit('collect/setCurCollect', collect);
+              resolve(res.data);
+            }
+          })
+          .catch(err => {
             reject(err);
           });
       });
@@ -406,8 +454,8 @@ export default {
     getCollectStatus(idStr) {
       return this.$http.request('collect/getCollectStatus', {
         query: {
-          collector_id_list: idStr,
-        },
+          collector_id_list: idStr
+        }
       });
     },
     changeSubmit(isSubmit) {
@@ -415,167 +463,164 @@ export default {
     },
     setAssessmentItem(item) {
       this.applyData = item;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
 
-  .access-wrapper {
-    padding: 20px 24px;
-  }
+.access-wrapper {
+  padding: 20px 24px;
+}
 
-  .iframe-container {
-    padding: 0;
-  }
+.iframe-container {
+  padding: 0;
+}
 
-  .access-container {
+.access-container {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid $borderWeightColor;
+}
+
+.access-step-wrapper {
+  width: 200px;
+  padding-left: 30px;
+  background: $bgHoverColor;
+  border-right: 1px solid $borderWeightColor;
+
+  .fixed-steps {
     position: relative;
-    display: flex;
-    width: 100%;
-    height: 100%;
-    border: 1px solid $borderWeightColor;
-    overflow: hidden;
-  }
+    max-height: 100%;
+    margin-top: 40px;
 
-  .access-step-wrapper {
-    padding-left: 30px;
-    width: 200px;
-    border-right: 1px solid $borderWeightColor;
-    background: $bgHoverColor;
-
-    .fixed-steps {
-      position: relative;
-      max-height: 100%;
-      margin-top: 40px;
-
-      .bk-steps {
-        :last-child {
-          &::after {
-            display: none;
-          }
-        }
-      }
-
-      .bk-step {
-        color: #7a7c85;
-        height: 70px;
-        display: flex;
-        white-space: normal;
-
+    .bk-steps {
+      :last-child {
         &::after {
-          width: 1px;
-          left: 14px;
-          background: none;
-          border-left: 1px dashed #e5e6ec;
+          display: none;
         }
+      }
+    }
 
-        .bk-step-number {
-          display: inline-block;
-          width: 28px;
-          height: 28px;
-          line-height: 28px;
-          font-size: 12px;
-          color: #858790;
-          text-align: center;
+    .bk-step {
+      display: flex;
+      height: 70px;
+      color: #7a7c85;
+      white-space: normal;
+
+      &::after {
+        left: 14px;
+        width: 1px;
+        background: none;
+        border-left: 1px dashed #e5e6ec;
+      }
+
+      .bk-step-number {
+        display: inline-block;
+        width: 28px;
+        height: 28px;
+        margin-right: 10px;
+        font-size: 12px;
+        line-height: 28px;
+        color: #858790;
+        text-align: center;
+        border: 1px solid #c4c6cc;
+        border-radius: 50%;
+        box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
+      }
+
+      .bk-step-content {
+        display: inline-block;
+        width: 78%;
+        overflow: hidden;
+        hyphens: auto;
+      }
+
+      .bk-step-title {
+        display: inline;
+        color: #6e7079;
+      }
+
+      .bk-step-indicator {
+        width: 28px;
+        height: 28px;
+        line-height: 26px;
+      }
+    }
+
+    .current {
+      .bk-step-number {
+        color: #fff;
+        background: #3a84ff;
+        border: 1px solid #3a84ff;
+        box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
+      }
+
+      .bk-step-title {
+        color: #448fff;
+      }
+    }
+
+    .done {
+      .bk-step-icon {
+        color: #fff;
+        border: 1px solid #dcdee5;
+      }
+
+      .bk-step-number {
+        position: relative;
+        color: #fafbfd;
+        background: #fafbfd;
+        box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
+
+        &::before {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 16px;
+          height: 16px;
+          background-color: #fafbfd;
+          background-image: url('../../images/icons/finish.svg');
+          background-size: 100% 100%;
           border-radius: 50%;
-          border: 1px solid #c4c6cc;
-          margin-right: 10px;
-          box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, .15);
-        }
-
-        .bk-step-content {
-          width: 78%;
-          overflow: hidden;
-          display: inline-block;
-          hyphens: auto;
-        }
-
-        .bk-step-title {
-          display: inline;
-          color: #6e7079;
-        }
-
-        .bk-step-indicator {
-          width: 28px;
-          height: 28px;
-          line-height: 26px;
+          content: '';
+          transform: translate(-50%, -50%);
         }
       }
 
-      .current {
-        .bk-step-number {
-          color: #fff;
-          background: #3a84ff;
-          border: 1px solid #3a84ff;
-          box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, .15);
-        }
+      // .bk-step-indicator {
+      //   background-color: #dcdee5;
+      // }
 
-        .bk-step-title {
-          color: #448fff;
-        }
+      .bk-step-title {
+        color: #63656e;
       }
-
-      .done {
-        .bk-step-icon {
-          color: #fff;
-          border: 1px solid #dcdee5;
-        }
-
-        .bk-step-number {
-          color: #fafbfd;
-          box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, .15);
-          position: relative;
-          background: #fafbfd;
-
-          &::before {
-            content: '';
-            width: 16px;
-            height: 16px;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            transform: translate(-50%, -50%);
-            transform: translate(-50%, -50%);
-            background-color: #fafbfd;
-            border-radius: 50%;
-            background-image: url('../../images/icons/finish.svg');
-            background-size: 100% 100%;
-          }
-        }
-
-        // .bk-step-indicator {
-        //   background-color: #dcdee5;
-        // }
-
-        .bk-step-title {
-          color: #63656e;
-        }
-      }
-    }
-
-    .step-arrow {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      border-top: 1px solid $borderWeightColor;
-      border-right: 1px solid $borderWeightColor;
-      border-left: 1px solid transparent;
-      border-left: 1px solid transparent;
-      right: 1px;
-      background: #fff;
-      transform-origin: 62% 0;
-      transform: rotate(-135deg);
     }
   }
 
-  .access-step-container {
-    flex: 1;
-    width: calc(100% - 200px);
+  .step-arrow {
+    position: absolute;
+    right: 1px;
+    width: 10px;
+    height: 10px;
     background: #fff;
+    border-top: 1px solid $borderWeightColor;
+    border-right: 1px solid $borderWeightColor;
+    border-left: 1px solid transparent;
+    transform: rotate(-135deg);
+    transform-origin: 62% 0;
   }
+}
+
+.access-step-container {
+  flex: 1;
+  width: calc(100% - 200px);
+  background: #fff;
+}
 </style>

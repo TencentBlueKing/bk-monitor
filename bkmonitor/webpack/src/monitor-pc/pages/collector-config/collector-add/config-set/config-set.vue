@@ -37,7 +37,9 @@
         <div
           class="item-label"
           v-en-style="'min-width: 100px'"
-        >ID</div>
+        >
+          ID
+        </div>
         <div class="item-container">
           {{ info.id }}
         </div>
@@ -46,7 +48,9 @@
         <div
           class="item-label label-required"
           v-en-style="'min-width: 100px'"
-        >{{ $t('所属') }}</div>
+        >
+          {{ $t('所属') }}
+        </div>
         <div class="item-container">
           <verify-input
             :show-validate.sync="rules.bizId.validate"
@@ -73,7 +77,9 @@
         <div
           class="item-label label-required"
           v-en-style="'min-width: 100px'"
-        >{{ $t('名称') }}</div>
+        >
+          {{ $t('名称') }}
+        </div>
         <div class="item-container">
           <verify-input
             :show-validate.sync="rules.name.validate"
@@ -92,7 +98,9 @@
         <div
           class="item-label label-required"
           v-en-style="'min-width: 100px'"
-        >{{ $t('插件') }}</div>
+        >
+          {{ $t('插件') }}
+        </div>
         <div class="item-container">
           <plugin-selector
             :list="pluginSelectorObj.list"
@@ -107,7 +115,9 @@
         <div
           class="item-label label-required"
           v-en-style="'min-width: 100px'"
-        >{{ $t('采集对象') }}</div>
+        >
+          {{ $t('采集对象') }}
+        </div>
         <div class="item-container">
           <bk-select
             class="reset-big-width"
@@ -135,7 +145,9 @@
         <div
           class="item-label"
           v-en-style="'min-width: 100px'"
-        >{{ $t('采集周期') }}</div>
+        >
+          {{ $t('采集周期') }}
+        </div>
         <div class="item-container">
           <verify-input
             :show-validate.sync="rules.period.validate"
@@ -163,7 +175,9 @@
         <div
           class="item-label label-required"
           v-en-style="'min-width: 100px'"
-        >{{ $t('采集超时') }}</div>
+        >
+          {{ $t('采集超时') }}
+        </div>
         <div class="item-container">
           <verify-input
             :show-validate.sync="rules.timeout.validate"
@@ -180,7 +194,8 @@
                 <span
                   class="timeout-unit"
                   v-en-style="'min-width: 58px'"
-                >{{ $t('秒') }}</span>
+                  >{{ $t('秒') }}</span
+                >
               </template>
             </bk-input>
           </verify-input>
@@ -330,7 +345,9 @@
           <div
             class="item-label label-required label-param"
             v-en-style="'min-width: 100px'"
-          >{{ $t('绑定主机') }}</div>
+          >
+            {{ $t('绑定主机') }}
+          </div>
           <div class="item-container">
             <div class="param-container">
               <verify-input
@@ -349,9 +366,7 @@
                       placement="top"
                       :tippy-options="tippyOptions"
                     >
-                      <div class="prepend-text">
-                        ${host}=
-                      </div>
+                      <div class="prepend-text">${host}=</div>
                       <div slot="content">
                         <div>{{ $t('参数名称') }} : {{ info.host.name }}</div>
                         <div>{{ $t('参数类型') }} : {{ paramType[info.host.mode] }}</div>
@@ -371,7 +386,9 @@
           <div
             class="item-label label-param"
             v-en-style="'min-width: 100px'"
-          >{{ $t('绑定端口') }}</div>
+          >
+            {{ $t('绑定端口') }}
+          </div>
           <div class="item-container">
             <div class="param-container">
               <verify-input
@@ -390,9 +407,7 @@
                       placement="top"
                       :tippy-options="tippyOptions"
                     >
-                      <div class="prepend-text">
-                        ${port}=
-                      </div>
+                      <div class="prepend-text">${port}=</div>
                       <div slot="content">
                         <div>{{ $t('参数名称') }} : {{ info.port.name }}</div>
                         <div>{{ $t('参数类型') }} : {{ paramType[info.port.mode] }}</div>
@@ -413,7 +428,9 @@
         <div
           class="item-label label-param"
           v-en-style="'min-width: 100px'"
-        >{{ $t('运行参数') }}</div>
+        >
+          {{ $t('运行参数') }}
+        </div>
         <div
           class="item-container"
           v-if="info.plugin.configJson.length"
@@ -496,8 +513,8 @@
                     v-model.trim="item.default"
                     :cur-auth-priv="curAuthPriv"
                     @passwordInputName="handlePasswordInputName"
-                    @error-message="(msg) => handleErrorMessage(msg, item)"
-                    @file-change="(file) => configJsonFileChange(file, item)"
+                    @error-message="msg => handleErrorMessage(msg, item)"
+                    @file-change="file => configJsonFileChange(file, item)"
                     @curAuthPriv="handleAuthPriv"
                     @blur="handleParamValidate(item)"
                   >
@@ -539,7 +556,9 @@
         <div
           class="item-label label-param"
           v-en-style="'min-width: 100px'"
-        >{{ $t('维度注入') }}</div>
+        >
+          {{ $t('维度注入') }}
+        </div>
         <div class="item-container">
           <template v-for="(item, index) in info.plugin.configJson">
             <template v-if="item.type === 'service'">
@@ -552,18 +571,19 @@
                 </div>
                 <div class="param-container">
                   <tag-switch
-                    v-for="(value,key) in item.default"
+                    v-for="(value, key) in item.default"
                     :value="item.default[key]"
                     :key="key"
                     :tag-label="key"
                     :show-validate="item.validate.isValidate"
-                    @input="(val) => handleTagInput(item, key, val)"
+                    @input="val => handleTagInput(item, key, val)"
                   />
                 </div>
                 <span
                   v-show="item.validate.isValidate"
                   style="color: #ff5656"
-                >{{ item.validate.content }}</span>
+                  >{{ item.validate.content }}</span
+                >
               </div>
             </template>
             <template v-else-if="item.type === 'host'">
@@ -576,24 +596,23 @@
                 </div>
                 <div class="param-container">
                   <tag-switch
-                    v-for="(value,key) in item.default"
+                    v-for="(value, key) in item.default"
                     :value="item.default[key]"
                     :key="key"
                     :tag-label="key"
                     :show-validate="item.validate.isValidate"
-                    @input="(val) => handleTagInput(item, key, val)"
+                    @input="val => handleTagInput(item, key, val)"
                   />
                 </div>
                 <span
                   v-show="item.validate.isValidate"
                   style="color: #ff5656"
-                >{{ item.validate.content }}</span>
+                  >{{ item.validate.content }}</span
+                >
               </div>
             </template>
           </template>
-
         </div>
-
       </div>
       <div class="edit-item">
         <div
@@ -638,7 +657,9 @@
         <div
           class="icon"
           :class="{ 'icon-show': !btn.show }"
-        ><i class="icon-monitor icon-double-up" /></div>
+        >
+          <i class="icon-monitor icon-double-up" />
+        </div>
         <!-- <div class="text"> {{ $t('插件说明') }} </div> -->
       </div>
       <div
@@ -862,25 +883,25 @@ export default {
         introduction: true
       },
       methodMd:
-        `${this.$t('插件类型是蓝鲸监控丰富支持采集能力的一种表现，插件的类型将越来越丰富。 往下具体介绍当前每种类型特点')}。\n\n`
-        + '### Exporter\n\n'
+        `${this.$t('插件类型是蓝鲸监控丰富支持采集能力的一种表现，插件的类型将越来越丰富。 往下具体介绍当前每种类型特点')}。\n\n` +
+        '### Exporter\n\n' +
         // eslint-disable-next-line vue/max-len
-        + `${this.$t('Exporter是用于暴露第三方服务的metrics给Prometheus。是Prometheus中重要的一个组件。按蓝鲸监控插件的规范就可以将开源的Exporter插件变成蓝鲸监控的采集能力。 运行的Exporter是go的二进制程序，需要启动进程和占用端口')}。\n\n`
-        + '### Script\n\n'
-        + `${this.$t('Script就是由用户自定义脚本进行Metrics采集。只要符合监控的标准格式就可以把数据采集上来。 支持的脚本有：')}\n\n`
-        + `* Linux Shell，Python，${this.$t('自定义')}\n\n`
-        + `* Windows Shell，Python，VBS，PowerShell,${this.$t('自定义')}\n\n`
-        + `${this.$t('自定义是直接执行，不用解释器进行执行。 如 ./脚本')}\n\n`
-        + '### DataDog\n\n'
+        `${this.$t('Exporter是用于暴露第三方服务的metrics给Prometheus。是Prometheus中重要的一个组件。按蓝鲸监控插件的规范就可以将开源的Exporter插件变成蓝鲸监控的采集能力。 运行的Exporter是go的二进制程序，需要启动进程和占用端口')}。\n\n` +
+        '### Script\n\n' +
+        `${this.$t('Script就是由用户自定义脚本进行Metrics采集。只要符合监控的标准格式就可以把数据采集上来。 支持的脚本有：')}\n\n` +
+        `* Linux Shell，Python，${this.$t('自定义')}\n\n` +
+        `* Windows Shell，Python，VBS，PowerShell,${this.$t('自定义')}\n\n` +
+        `${this.$t('自定义是直接执行，不用解释器进行执行。 如 ./脚本')}\n\n` +
+        '### DataDog\n\n' +
         // eslint-disable-next-line vue/max-len
-        + `${this.$t('Datadog是一个一站式云端性能监控平台，拥有丰富的采集能力。蓝鲸监控兼容了Datadog的采集能力，当前用户不能自定义插件。因为Datadog是由python编写，需要有python可运行环境，不需要占用端口')}。\n\n`
-        + '### JMX\n\n'
+        `${this.$t('Datadog是一个一站式云端性能监控平台，拥有丰富的采集能力。蓝鲸监控兼容了Datadog的采集能力，当前用户不能自定义插件。因为Datadog是由python编写，需要有python可运行环境，不需要占用端口')}。\n\n` +
+        '### JMX\n\n' +
         // eslint-disable-next-line vue/max-len
-        + `${this.$t('JMX可以采集任何开启了JMX服务端口的java进程的服务状态，通过jmx采集java进程的jvm信息，包括gc耗时、gc次数、gc吞吐、老年代使用率、新生代晋升大小、活跃线程数等信息')}。\n\n`
-        + '### BK-pull\n\n'
-        + `${this.$t('BK-pull主要是解决那些只暴露了端口服务的数据源。 通过pull拉取目标的数据')}。\n\n`
-        + '### Log\n\n'
-        + `${this.$t('Log主要是围绕日志相关的内容进行数据的采集，比如日志关键字等')}。`,
+        `${this.$t('JMX可以采集任何开启了JMX服务端口的java进程的服务状态，通过jmx采集java进程的jvm信息，包括gc耗时、gc次数、gc吞吐、老年代使用率、新生代晋升大小、活跃线程数等信息')}。\n\n` +
+        '### BK-pull\n\n' +
+        `${this.$t('BK-pull主要是解决那些只暴露了端口服务的数据源。 通过pull拉取目标的数据')}。\n\n` +
+        '### Log\n\n' +
+        `${this.$t('Log主要是围绕日志相关的内容进行数据的采集，比如日志关键字等')}。`,
       resizeState: {
         show: false,
         ready: false,
@@ -961,9 +982,9 @@ export default {
         return introduction;
       }
       if (
-        this.info.collectType === 'SNMP_Trap'
-        && this.info.plugin.snmpv !== ''
-        && this.info.plugin.snmpv !== undefined
+        this.info.collectType === 'SNMP_Trap' &&
+        this.info.plugin.snmpv !== '' &&
+        this.info.plugin.snmpv !== undefined
       ) {
         introduction = this.getSnmpIntroduction();
         return introduction;
@@ -996,7 +1017,7 @@ export default {
   async created() {
     this.infoData && (this.info = deepClone(this.infoData));
     if (this.objectTypeOptions.length === 0) {
-      await this.$store.dispatch('collector-config/getCollectorObject').then((data) => {
+      await this.$store.dispatch('collector-config/getCollectorObject').then(data => {
         this.info.objectTypeList = data;
         this.objectTypeOptions = data;
         const { objectId } = this.$route.params;
@@ -1038,7 +1059,7 @@ export default {
     },
     triggerAuthData(v) {
       if (this.info.plugin.configJson) {
-        this.info.plugin.configJson.forEach((item) => {
+        this.info.plugin.configJson.forEach(item => {
           if (item.auth_json) {
             return (item.auth_json = v);
           }
@@ -1077,14 +1098,14 @@ export default {
       if (plugin.configJson.length !== 0) {
         if (plugin.snmpv === 'snmp_v1' || plugin.snmpv === 'snmp_v2c') {
           // eslint-disable-next-line arrow-body-style
-          result = plugin.configJson.every((item) => {
+          result = plugin.configJson.every(item => {
             if (item.key !== snmp.community) {
               return item.type === 'file' ? item.default.value !== '' : item.default !== '';
             }
             return true;
           });
         } else {
-          result = plugin.configJson.every((item) => {
+          result = plugin.configJson.every(item => {
             if (item.auth_json === undefined && item.key !== snmp.community) {
               return item.type === 'file' ? item.default.value !== '' : item.default !== '';
             }
@@ -1136,68 +1157,68 @@ export default {
         isSafety: true,
         osTypeList: ['linux', 'windows'],
         content:
-          `## ${this.$t('功能介绍')}\n\n`
-          + `${this.$t('日志关键字插件，通过对于日志文件的关键匹配进行计数，并且存储最近一条原始日志内容。')}\n\n`
-          + `${this.$t('采集后的日志关键字数据可以在视图中查看变化趋势，也可以在策略里面配置告警规则。')}\n\n`
-          + `## ${this.$t('关键字规则配置方法')}\n\n`
-          + `### ${this.$t('参考例子:')}\n\n`
-          + `### ${this.$t('原始日志:')}\n\n`
-          + '```\nm=de4x5 init_module: Input/output error\n```\n\n'
-          + `### ${this.$t('关键字规则:')}\n\n`
-          + '```\nm=(?P<moudle>.*) init_module: Input/output error\n```\n\n'
-          + `${this.$t('就会得到关键字并和 moudle=de4x5 匹配的次数。')}\n\n`
+          `## ${this.$t('功能介绍')}\n\n` +
+          `${this.$t('日志关键字插件，通过对于日志文件的关键匹配进行计数，并且存储最近一条原始日志内容。')}\n\n` +
+          `${this.$t('采集后的日志关键字数据可以在视图中查看变化趋势，也可以在策略里面配置告警规则。')}\n\n` +
+          `## ${this.$t('关键字规则配置方法')}\n\n` +
+          `### ${this.$t('参考例子:')}\n\n` +
+          `### ${this.$t('原始日志:')}\n\n` +
+          '```\nm=de4x5 init_module: Input/output error\n```\n\n' +
+          `### ${this.$t('关键字规则:')}\n\n` +
+          '```\nm=(?P<moudle>.*) init_module: Input/output error\n```\n\n' +
+          `${this.$t('就会得到关键字并和 moudle=de4x5 匹配的次数。')}\n\n`
       };
     },
     getSnmpIntroduction() {
       const snmpIntroduction = {
         snmp_v1:
-          '## SNMP Trap V1\n\n'
-          + `### ${this.$t('功能介绍')}\n\n`
+          '## SNMP Trap V1\n\n' +
+          `### ${this.$t('功能介绍')}\n\n` +
           // eslint-disable-next-line vue/max-len
-          + `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本,本版本为 V1。')}\n\n`
-          + `### ${this.$t('参数说明')}\n\n`
-          + `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n\n`
+          `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本,本版本为 V1。')}\n\n` +
+          `### ${this.$t('参数说明')}\n\n` +
+          `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n\n` +
           // eslint-disable-next-line vue/max-len
-          + `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}`
-          + '```{{ target.host.bk_host_innerip }}```\n\n'
-          + `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n\n`
-          + `* ${this.$t('团体名')}： Community\n\n`
-          + `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
+          `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}` +
+          '```{{ target.host.bk_host_innerip }}```\n\n' +
+          `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n\n` +
+          `* ${this.$t('团体名')}： Community\n\n` +
+          `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
         snmp_v2c:
-          '## SNMP Trap V2c\n\n'
-          + `### ${this.$t('功能介绍')}\n\n`
+          '## SNMP Trap V2c\n\n' +
+          `### ${this.$t('功能介绍')}\n\n` +
           // eslint-disable-next-line vue/max-len
-          + `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V2c。')}\n\n`
-          + `### ${this.$t('参数说明')}\n\n`
-          + `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n\n`
+          `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V2c。')}\n\n` +
+          `### ${this.$t('参数说明')}\n\n` +
+          `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n\n` +
           // eslint-disable-next-line vue/max-len
-          + `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}`
-          + '```{{ target.host.bk_host_innerip }}```\n\n'
-          + `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n`
-          + `* ${this.$t('团体名')}： Community \n`
-          + `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
+          `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}` +
+          '```{{ target.host.bk_host_innerip }}```\n\n' +
+          `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n` +
+          `* ${this.$t('团体名')}： Community \n` +
+          `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
         snmp_v3:
-          `## ${this.$t('SNMP Trap V3')}\n\n`
-          + `### ${this.$t('功能介绍')}\n\n`
+          `## ${this.$t('SNMP Trap V3')}\n\n` +
+          `### ${this.$t('功能介绍')}\n\n` +
           // eslint-disable-next-line vue/max-len
-          + `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V3。')}\n\n`
-          + `### ${this.$t('参数说明')}\n\n`
-          + `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n`
+          `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V3。')}\n\n` +
+          `### ${this.$t('参数说明')}\n\n` +
+          `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n` +
           // eslint-disable-next-line vue/max-len
-          + `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}`
-          + '```{{ target.host.bk_host_innerip }}```\n'
-          + `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n`
-          + `* ${this.$t('上下文名称')} Context name\n`
-          + `* ${this.$t('安全名')} Security name\n`
+          `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}` +
+          '```{{ target.host.bk_host_innerip }}```\n' +
+          `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n` +
+          `* ${this.$t('上下文名称')} Context name\n` +
+          `* ${this.$t('安全名')} Security name\n` +
           // eslint-disable-next-line vue/max-len
-          + `* ${this.$t('安全级别')} Security level ， ${this.$t('选项有')} noAuthNoPriv， authNoPriv ， authPriv\n`
+          `* ${this.$t('安全级别')} Security level ， ${this.$t('选项有')} noAuthNoPriv， authNoPriv ， authPriv\n` +
           // eslint-disable-next-line vue/max-len
-          + `* ${this.$t('验证协议')} Authentication protocol， ${this.$t('选项有')} MD5，SHA，DES，AES\n`
-          + `* ${this.$t('验证口令')} Authentication passphrase\n`
-          + `* ${this.$t('隐私协议')} Privacy protocol ,${this.$t('选项有')} DES ， AES\n`
-          + `* ${this.$t('私钥')} Privacy paasphrase\n`
-          + `* ${this.$t('设备ID')} Engine ID}\n`
-          + `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n`
+          `* ${this.$t('验证协议')} Authentication protocol， ${this.$t('选项有')} MD5，SHA，DES，AES\n` +
+          `* ${this.$t('验证口令')} Authentication passphrase\n` +
+          `* ${this.$t('隐私协议')} Privacy protocol ,${this.$t('选项有')} DES ， AES\n` +
+          `* ${this.$t('私钥')} Privacy paasphrase\n` +
+          `* ${this.$t('设备ID')} Engine ID}\n` +
+          `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n`
       };
       return {
         pluginId: this.$t('snmp trap'),
@@ -1228,14 +1249,14 @@ export default {
         document.ondragstart = function () {
           return false;
         };
-        const handleMouseMove = (event) => {
+        const handleMouseMove = event => {
           this.resizeState.dragging = true;
           this.resizeState.left = rect.right - event.clientX;
         };
         const handleMouseUp = () => {
           if (this.resizeState.dragging) {
-            this.resizeState.left = this.resizeState.left < this.resizeState.minWidth
-              ? this.resizeState.minWidth : this.resizeState.left;
+            const { minWidth, left } = this.resizeState;
+            this.resizeState.left = left < minWidth ? minWidth : left;
             this.resizeState.left = Math.min(this.resizeState.left, this.$refs.configSet.clientWidth);
             this.descWidth = this.resizeState.left;
           }
@@ -1325,7 +1346,7 @@ export default {
       const { rules } = this;
       const includeFields = ['bizId', 'name', 'objectType', 'period', 'collectType', 'timeout'];
       const keys = Object.keys(rules);
-      keys.forEach((item) => {
+      keys.forEach(item => {
         // validate=false 时需要重新触发校验，不校验运行参数部分
         !rules[item].validate && includeFields.includes(item) && this.validateField(info[item], rules[item]);
       });
@@ -1337,7 +1358,7 @@ export default {
         //   }
         // })
         const configValidateList = [];
-        this.info.plugin.configJson.forEach((item) => {
+        this.info.plugin.configJson.forEach(item => {
           if (!(item.auth_json === undefined)) {
             configValidateList.push(this.handleParamValidate(item));
           }
@@ -1438,8 +1459,9 @@ export default {
         }
       }
       // 筛选插件列表
-      this.filterPluginList = this.allPluginList.filter(item => item.pluginType === newV
-      && item.labelInfo.second_label === this.info.objectId);
+      this.filterPluginList = this.allPluginList.filter(
+        item => item.pluginType === newV && item.labelInfo.second_label === this.info.objectId
+      );
       this.pluginList = this.filterPluginList.slice();
       this.handleSnmpPugin();
       // process类型插件后端内置
@@ -1501,12 +1523,12 @@ export default {
     async pluginTypeInfo(val, loading, needSetConfig) {
       // 获取提示输入数据
       this.loading = true;
-      await getCollectVariables().then((data) => {
+      await getCollectVariables().then(data => {
         this.tipsData = data;
       });
       // 先去获取有关的所有插件，并处理数据
       await this.getPluginInfo(val)
-        .then((data) => {
+        .then(data => {
           const { plugin } = this.info;
           const { configJson, host, port, isShowHost, isShowPort } = this.handlePluginConfigJson(
             data.plugin_type,
@@ -1521,25 +1543,31 @@ export default {
           plugin.metricJson = data.metric_json || [];
           if (needSetConfig) {
             if (data.plugin_type === 'SNMP_Trap') {
-              plugin.configJson = (configJson || []).map((item) => {
+              plugin.configJson = (configJson || []).map(item => {
                 if (item.auth_json !== undefined) {
                   if (this.config.mode === 'edit' || this.isClone) {
-                    this.SnmpAuthTemplate = deepClone(item.template_auth_json[0].map(item => ({
-                      ...item,
-                      validate: { isValidate: false, content: '' }
-                    })));
+                    this.SnmpAuthTemplate = deepClone(
+                      item.template_auth_json[0].map(item => ({
+                        ...item,
+                        validate: { isValidate: false, content: '' }
+                      }))
+                    );
                   } else {
-                    this.SnmpAuthTemplate = deepClone(item.auth_json[0].map(item => ({ ...item, validate: { isValidate: false, content: '' } })));
+                    this.SnmpAuthTemplate = deepClone(
+                      item.auth_json[0].map(item => ({ ...item, validate: { isValidate: false, content: '' } }))
+                    );
                   }
                   plugin.SnmpAuthTemplate = this.SnmpAuthTemplate;
                   return {
-                    auth_json: item.auth_json.map(items => items.map(item => ({
-                      ...item,
-                      validate: {
-                        isValidate: false,
-                        content: ''
-                      }
-                    })))
+                    auth_json: item.auth_json.map(items =>
+                      items.map(item => ({
+                        ...item,
+                        validate: {
+                          isValidate: false,
+                          content: ''
+                        }
+                      }))
+                    )
                   };
                 }
                 return {
@@ -1552,13 +1580,13 @@ export default {
               });
             } else if (data.plugin_type === 'SNMP') {
               this.info.plugin.collectorJson = data.collector_json;
-              plugin.configJson = (configJson || []).map((item) => {
+              plugin.configJson = (configJson || []).map(item => {
                 this.SnmpAuthTemplate = [];
                 if (item.auth_json !== undefined) {
                   if (this.config.mode === 'edit' || this.isClone) {
                     const authJson = item.auth_json;
-                    authJson.forEach((set) => {
-                      set.forEach((p) => {
+                    authJson.forEach(set => {
+                      set.forEach(p => {
                         const mode = p.mode === 'collector' ? 'collector' : 'plugin';
                         const paramDefault = this.info.params[mode][p.key];
                         p.default = paramDefault;
@@ -1567,13 +1595,15 @@ export default {
                     return item;
                   }
                   return {
-                    auth_json: [item.auth_json].map(items => items.map(item => ({
-                      ...item,
-                      validate: {
-                        isValidate: false,
-                        content: ''
-                      }
-                    })))
+                    auth_json: [item.auth_json].map(items =>
+                      items.map(item => ({
+                        ...item,
+                        validate: {
+                          isValidate: false,
+                          content: ''
+                        }
+                      }))
+                    )
                   };
                 }
                 if (this.config.mode === 'edit' || this.isClone) {
@@ -1591,7 +1621,7 @@ export default {
                 };
               });
             } else {
-              plugin.configJson = (configJson || []).map((item) => {
+              plugin.configJson = (configJson || []).map(item => {
                 try {
                   if (this.config.mode === 'edit' || this.isClone) {
                     const mode = item.mode === 'collector' ? 'collector' : 'plugin';
@@ -1619,13 +1649,15 @@ export default {
             }
           }
           plugin.osTypeList = data.os_type_list || [];
-          this.info.isShowHost = isShowHost;
-          this.info.isShowPort = isShowPort;
-          this.info.host = host;
-          this.info.port = port;
-          this.info.plugin.supportRemote = data.is_support_remote;
+          if (this.config.mode !== 'edit') {
+            this.info.isShowHost = isShowHost;
+            this.info.isShowPort = isShowPort;
+            this.info.host = host;
+            this.info.port = port;
+            this.info.plugin.supportRemote = data.is_support_remote;
+          }
         })
-        .catch((err) => {
+        .catch(err => {
           console.log(err);
         })
         .finally(() => (this.loading = false));
@@ -1692,7 +1724,7 @@ export default {
           this.info.plugin.id = plugin.id;
           if (plugin.snmpv === this.SnmpVersion[2].id) {
             this.SnmpAuthTemplate = plugin.SnmpAuthTemplate;
-            plugin.configJson.map((item) => {
+            plugin.configJson.map(item => {
               if (item.key === 'security_level') {
                 this.curAuthPriv = item.default;
               }
@@ -1734,7 +1766,7 @@ export default {
       const { collector, plugin } = data.params;
       const tmpConfigJson = pluginInfo.config_json;
       // 将插件信息中 configJson 的值，改为 data.params 中对应的值
-      tmpConfigJson.forEach((item) => {
+      tmpConfigJson.forEach(item => {
         if (item.mode === 'collector') {
           item.default = collector[item.name];
         } else {
@@ -1809,13 +1841,13 @@ export default {
       };
       return new Promise((resolve, reject) => {
         listCollectorPlugin(params)
-          .then((data) => {
+          .then(data => {
             resolve(data);
             const { count } = data;
             const { list } = data;
             if (count) {
               const collectTypeList = [];
-              Object.keys(count).forEach((item) => {
+              Object.keys(count).forEach(item => {
                 const set = this.pluginTypeMap[item];
                 if (set) {
                   collectTypeList.push({
@@ -1830,7 +1862,7 @@ export default {
             this.pluginSelectorObj.key = random(8);
             this.allPluginList = this.handlePluginList(list);
           })
-          .catch((err) => {
+          .catch(err => {
             this.loading = false;
             reject(err);
           });
@@ -1840,7 +1872,7 @@ export default {
     handlePluginList(data) {
       const res = [];
       if (data.length) {
-        data.forEach((item) => {
+        data.forEach(item => {
           res.push({
             pluginId: item.plugin_id,
             pluginDisplayName: item.plugin_display_name,
@@ -1860,10 +1892,10 @@ export default {
       this.loading = true;
       return new Promise((resolve, reject) => {
         retrieveCollectorPlugin(id)
-          .then((data) => {
+          .then(data => {
             resolve(data);
           })
-          .catch((err) => {
+          .catch(err => {
             this.loading = false;
             reject(err);
           });
@@ -1886,9 +1918,9 @@ export default {
     //  获取采集配置信息（编辑）
     getConfigInfo(id) {
       this.loading = true;
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         collectConfigDetail({ id })
-          .then((data) => {
+          .then(data => {
             this.setNavTitle(data);
             const { info, others } = this.handleConfigInfo(data);
             this.updateNav(this.isClone ? this.$t('新建采集') : `${this.$t('编辑')} ${data.name}`);
@@ -1915,7 +1947,7 @@ export default {
       let host = null;
       let port = null;
       // 如果是插件类型为 'Exporter'，则显示绑定主机和绑定端口
-      data = data.map((item) => {
+      data = data.map(item => {
         if (item.type === 'file' && typeof item.default === 'object' && item.key !== 'yaml') {
           const temp = deepClone(item.default);
           item.default = temp.filename;
@@ -1924,7 +1956,7 @@ export default {
         return item;
       });
       if (type === 'Exporter') {
-        data.forEach((item) => {
+        data.forEach(item => {
           if (item.mode === 'collector' && item.name === 'host') {
             host = item;
           } else if (item.mode === 'collector' && item.name === 'port') {
@@ -1943,12 +1975,14 @@ export default {
         //   }
         // })
       } else if (type === 'SNMP' && this.config.mode === 'edit') {
-        configJson = data.map((item) => {
-          if (item.auth_json) item.auth_json = [
-            item.auth_json.map(set =>
+        configJson = data.map(item => {
+          if (item.auth_json)
+            item.auth_json = [
+              item.auth_json.map(set =>
                 // eslint-disable-line
-              ({ ...set, validate: { isValidate: false, content: '' } }))
-          ];
+                ({ ...set, validate: { isValidate: false, content: '' } })
+              )
+            ];
           return item;
         });
         // configJson.push(...data)
@@ -1966,8 +2000,11 @@ export default {
     },
     handleFilterPlugin(v) {
       const keyword = (v || '').toLowerCase();
-      this.filterPluginList = this.pluginList.filter(item => item.pluginId.toLowerCase().indexOf(keyword) > -1
-          || (item.pluginDisplayName || '').toLowerCase().indexOf(keyword) > -1);
+      this.filterPluginList = this.pluginList.filter(
+        item =>
+          item.pluginId.toLowerCase().indexOf(keyword) > -1 ||
+          (item.pluginDisplayName || '').toLowerCase().indexOf(keyword) > -1
+      );
     },
     handleToAddPlugin() {
       this[SET_INFO_DATA](this.info);
@@ -1992,8 +2029,9 @@ export default {
     },
     handleObjectIdChange(val) {
       // 获取选中的采集对象组的类型
-      const groupObj = this.objectTypeOptions.find(item => item.children.length
-      && item.children.findIndex(child => child.id === val) > -1);
+      const groupObj = this.objectTypeOptions.find(
+        item => item.children.length && item.children.findIndex(child => child.id === val) > -1
+      );
       // 更新采集对象组类型
       this.handleUpdateObjectType(groupObj.id);
       if (this.info.collectType && this.info.collectType !== 'SNMP_Trap') {
@@ -2005,8 +2043,9 @@ export default {
           // Process采集方式只有在采集对象为host_process(进程)时生效
           this.info.collectType = '';
         }
-        this.filterPluginList = this.allPluginList.filter(item => item.pluginType === this.info.collectType
-        && item.labelInfo.second_label === val);
+        this.filterPluginList = this.allPluginList.filter(
+          item => item.pluginType === this.info.collectType && item.labelInfo.second_label === val
+        );
         this.pluginList = this.filterPluginList.slice();
       } else {
         this.handleSnmpPugin();
@@ -2014,7 +2053,9 @@ export default {
       this.handleSetObjTypeById(val);
     },
     handleSetObjTypeById(val) {
-      this.info.objectType = this.objectTypeOptions.some(item => item.id === 'services' && item.children.some(set => set.id === val))
+      this.info.objectType = this.objectTypeOptions.some(
+        item => item.id === 'services' && item.children.some(set => set.id === val)
+      )
         ? 'SERVICE'
         : 'HOST';
     },
@@ -2087,8 +2128,9 @@ export default {
         if (pluginInfo.plugin_type === 'SNMP_Trap') {
           this.$set(this.info.plugin, 'snmpv', '');
         }
-        this.filterPluginList = this.allPluginList.filter(item => item.pluginType === pluginInfo.plugin_type
-        && item.labelInfo.second_label === this.info.objectId);
+        this.filterPluginList = this.allPluginList.filter(
+          item => item.pluginType === pluginInfo.plugin_type && item.labelInfo.second_label === this.info.objectId
+        );
         this.pluginList = this.filterPluginList.slice();
         // process类型插件后端内置
         if (pluginInfo.plugin_type === 'Process') {
@@ -2216,7 +2258,7 @@ export default {
 
               &.unit-active {
                 border-color: #3a84ff;
-                box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+                box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
               }
             }
           }
@@ -2402,7 +2444,7 @@ export default {
     flex-wrap: wrap;
     align-items: center;
     border-right: 1px solid #dcdee5;
-    transition: right .3s;
+    transition: right 0.3s;
 
     &-box {
       position: relative;

@@ -25,9 +25,9 @@
     <pre id="log-content">
       <div
       v-for="(item, index) in escapedReverseLogList"
-      :key="item.replace(/\s/g, '') + index"
-        class="line"
-        v-show="checkLineShow(item, index, 'reverse')">
+      v-show="checkLineShow(item, index, 'reverse')"
+        :key="item.replace(/\s/g, '') + index"
+        class="line">
         <span class="line-num">{{ index - reverseLogList.length }}</span>
         <highlight-html
           v-if="showHighlight(item)"
@@ -39,15 +39,15 @@
     </div>
     <div
       v-for="(item, index) in escapedLogList"
+      v-show="checkLineShow(item, index, 'normal')"
       :key="item.replace(/\s/g, '') + index"
-      :class="['line', { 'log-init': index === 0, 'new-log-line': newIndex && index >= newIndex }]"
-      v-show="checkLineShow(item, index, 'normal')">
+      :class="['line', { 'log-init': index === 0, 'new-log-line': newIndex && index >= newIndex }]">
       <span class="line-num">{{ index }}</span>
       <highlight-html
         v-if="showHighlight(item)"
         :item="item"
         :filter-key="filterKey" />
-      <span class="line-text" v-show="checkTextShow(item, index, 'normal')">{{ item }}</span>
+      <span v-show="checkTextShow(item, index, 'normal')" class="line-text">{{ item }}</span>
     </div>
   </pre>
   </section>
@@ -59,49 +59,49 @@ import HighlightHtml from './highlight-html';
 export default {
   name: 'LogView',
   components: {
-    HighlightHtml,
+    HighlightHtml
   },
   props: {
     reverseLogList: {
       type: Array,
       default() {
         return [];
-      },
+      }
     },
     logList: {
       type: Array,
       default() {
         return [];
-      },
+      }
     },
     filterKey: {
       type: String,
-      default: '',
+      default: ''
     },
     isRealTimeLog: {
       type: Boolean,
-      default: false,
+      default: false
     },
     maxLength: {
       type: Number,
-      default: 0,
+      default: 0
     },
     shiftLength: {
       type: Number,
-      default: 0,
+      default: 0
     },
     interval: {
       type: Object,
-      default: () => ({}),
+      default: () => ({})
     },
     filterType: {
       type: String,
-      default: '',
+      default: ''
     },
     ignoreCase: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   data() {
     return {
@@ -109,7 +109,7 @@ export default {
       newIndex: null,
       intervalTime: null,
       resRangeIndexs: [],
-      reverseResRangeIndexs: [],
+      reverseResRangeIndexs: []
     };
   },
   computed: {
@@ -121,7 +121,7 @@ export default {
     },
     isIncludeFilter() {
       return this.filterType === 'include';
-    },
+    }
   },
   watch: {
     logList(val) {
@@ -161,11 +161,11 @@ export default {
             this.setResRange();
           }
         }, 500);
-      },
+      }
     },
     ignoreCase() {
       this.setResRange();
-    },
+    }
   },
   methods: {
     checkLineShow(item, index, field) {
@@ -199,7 +199,7 @@ export default {
         '&lt;': '<',
         '&gt;': '>',
         '&quot;': '"',
-        '&#x27;': '\'',
+        '&#x27;': "'"
       };
       return val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
     },
@@ -217,7 +217,7 @@ export default {
           const min = index - Number(this.interval.prev);
           const max = index + Number(this.interval.next);
           const minVal = min < 0 ? 0 : min;
-          const maxVal = max >= reverListLen ? (reverListLen - 1) : max;
+          const maxVal = max >= reverListLen ? reverListLen - 1 : max;
 
           if (max >= reverListLen) resExtra = Math.abs(max - index);
 
@@ -233,7 +233,7 @@ export default {
           const min = index - Number(this.interval.prev);
           const max = index + Number(this.interval.next);
           const minVal = min < 0 ? 0 : min;
-          const maxVal = max >= listLen ? (listLen - 1) : max;
+          const maxVal = max >= listLen ? listLen - 1 : max;
 
           if (min < 0) reverseResExtra = Math.abs(min);
 
@@ -259,62 +259,62 @@ export default {
           }
         }
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '../../scss/mixins/clearfix';
+@import '../../scss/mixins/clearfix';
 
-  .log-view {
-    min-height: 100%;
-    color: #979ba5;
-    background: #222;
+.log-view {
+  min-height: 100%;
+  color: #979ba5;
+  background: #222;
 
-    #log-content {
-      box-sizing: border-box;
+  #log-content {
+    margin: 0;
+    font-size: 0;
+    box-sizing: border-box;
+
+    .line {
+      display: flex;
+      min-height: 16px;
+      padding: 0 15px 0 55px;
       margin: 0;
-      font-size: 0;
+      font-size: 12px;
+      flex-direction: row;
 
-      .line {
-        display: flex;
-        flex-direction: row;
-        margin: 0;
-        padding: 0 15px 0 55px;
-        min-height: 16px;
-        font-size: 12px;
-
-        &.log-init {
-          background: #5f3a3a;
-        }
-
-        &.new-log-line {
-          background: #5f3a3a;
-        }
-
-        &:hover {
-          background-color: #383838;
-        }
+      &.log-init {
+        background: #5f3a3a;
       }
 
-      .line-num {
-        display: inline-block;
-        margin-left: -37px;
-        padding-right: 12px;
-        min-width: 32px;
-        line-height: 24px;
-        text-align: right;
-        color: #5f697d;
-        user-select: none;
+      &.new-log-line {
+        background: #5f3a3a;
       }
 
-      .line-text {
-        line-height: 24px;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        word-break: break-all;
+      &:hover {
+        background-color: #383838;
       }
     }
+
+    .line-num {
+      display: inline-block;
+      min-width: 32px;
+      padding-right: 12px;
+      margin-left: -37px;
+      line-height: 24px;
+      color: #5f697d;
+      text-align: right;
+      user-select: none;
+    }
+
+    .line-text {
+      line-height: 24px;
+      word-break: break-all;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
   }
+}
 </style>

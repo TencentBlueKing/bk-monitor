@@ -22,7 +22,10 @@
 
 <template>
   <div class="basic-info-container">
-    <div class="deploy-sub" v-en-class="'en-deploy'">
+    <div
+      v-en-class="'en-deploy'"
+      class="deploy-sub"
+    >
       <!-- 数据ID -->
       <div>
         <span>{{ $t('数据ID') }}</span>
@@ -65,13 +68,14 @@
       </div>
       <!-- 配置项 -->
       <div>
-        <span>{{$t('配置项')}}</span>
+        <span>{{ $t('配置项') }}</span>
         <div>
           <div
-            v-for="( configItem, configIndex) in collectorConfigs"
+            v-for="(configItem, configIndex) in collectorConfigs"
             :key="configIndex"
-            class="config-box">
-            <div class="config-title">{{getFromCharCode(configIndex)}}</div>
+            class="config-box"
+          >
+            <div class="config-title">{{ getFromCharCode(configIndex) }}</div>
             <div class="deploy-sub">
               <!-- 容器环境 -->
               <div>
@@ -81,44 +85,63 @@
               <!-- Namespace -->
               <div>
                 <span>Namespace</span>
-                <span v-if="configItem.namespaces.length" class="span-warp">
+                <span
+                  v-if="configItem.namespaces.length"
+                  class="span-warp"
+                >
                   <span
                     v-for="(spaceItem, spaceIndex) in configItem.namespaces"
-                    :key="spaceIndex">
-                    <span>{{spaceItem}}{{(spaceIndex + 1) !== configItem.namespaces.length ? ',' : ''}}&nbsp;</span>
+                    :key="spaceIndex"
+                  >
+                    <span>{{ spaceItem }}{{ spaceIndex + 1 !== configItem.namespaces.length ? ',' : '' }}&nbsp;</span>
                   </span>
                 </span>
-                <span v-else>{{$t('所有')}}</span>
+                <span v-else>{{ $t('所有') }}</span>
               </div>
               <!-- 关联标签 -->
               <div>
-                <span :class="{ 'label-title': isSelectorHaveValue(configItem.label_selector) }">{{$t('关联标签')}}</span>
+                <span :class="{ 'label-title': isSelectorHaveValue(configItem.label_selector) }">{{
+                  $t('关联标签')
+                }}</span>
                 <div v-if="isSelectorHaveValue(configItem.label_selector)">
                   <template v-for="(labItem, labKey) in configItem.label_selector">
                     <div
-                      class="specify-box"
                       v-for="(matchItem, matchKey) of labItem"
-                      :key="`${labKey}_${matchKey}`">
-                      <div class="specify-container justify-bt" v-bk-overflow-tips>
-                        <span>{{matchItem.key}}</span>
-                        <div class="operator">{{matchItem.operator}}</div>
+                      :key="`${labKey}_${matchKey}`"
+                      class="specify-box"
+                    >
+                      <div
+                        v-bk-overflow-tips
+                        class="specify-container justify-bt"
+                      >
+                        <span>{{ matchItem.key }}</span>
+                        <div class="operator">{{ matchItem.operator }}</div>
                       </div>
-                      <div class="specify-container" v-bk-overflow-tips>
-                        <span>{{matchItem.value}}</span>
+                      <div
+                        v-bk-overflow-tips
+                        class="specify-container"
+                      >
+                        <span>{{ matchItem.value }}</span>
                       </div>
                     </div>
                   </template>
                 </div>
-                <span v-else>{{$t('所有')}}</span>
+                <span v-else>{{ $t('所有') }}</span>
               </div>
               <!-- 工作负载 -->
               <div class="content-style">
-                <span>{{$t('工作负载')}}</span>
-                <div class="container justify-bt" v-if="isSelectorHaveValue(configItem.container)">
-                  <template
-                    v-for="([speKey, speValue], speIndex) in Object.entries(configItem.container)">
-                    <div class="container-item" v-if="speValue" :key="speIndex">
-                      {{specifyName[speKey]}} : {{speValue}}
+                <span>{{ $t('工作负载') }}</span>
+                <div
+                  v-if="isSelectorHaveValue(configItem.container)"
+                  class="container justify-bt"
+                >
+                  <template v-for="([speKey, speValue], speIndex) in Object.entries(configItem.container)">
+                    <div
+                      v-if="speValue"
+                      :key="speIndex"
+                      class="container-item"
+                    >
+                      {{ specifyName[speKey] }} : {{ speValue }}
                     </div>
                   </template>
                 </div>
@@ -126,11 +149,19 @@
               </div>
               <!-- 容器名 -->
               <div class="content-style">
-                <span>{{$t('容器名')}}</span>
-                <div class="container justify-bt" v-if="isContainerHaveValue(configItem.containerName)">
-                  <template
-                    v-for="(conItem, conIndex) in configItem.containerName">
-                    <div class="container-item" :key="conIndex">{{conItem}}</div>
+                <span>{{ $t('容器名') }}</span>
+                <div
+                  v-if="isContainerHaveValue(configItem.containerName)"
+                  class="container justify-bt"
+                >
+                  <template>
+                    <div
+                      v-for="(conItem, conIndex) in configItem.containerName"
+                      :key="conIndex"
+                      class="container-item"
+                    >
+                      {{ conItem }}
+                    </div>
                   </template>
                 </div>
                 <span v-else>--</span>
@@ -138,8 +169,16 @@
               <!-- 日志路径 -->
               <div>
                 <span>{{ $t('日志路径') }}</span>
-                <div v-if=" configItem.params.paths.length" class="deploy-path">
-                  <p v-for="(val, key) in configItem.params.paths" :key="key">{{ val }}</p>
+                <div
+                  v-if="configItem.params.paths.length"
+                  class="deploy-path"
+                >
+                  <p
+                    v-for="(val, key) in configItem.params.paths"
+                    :key="key"
+                  >
+                    {{ val }}
+                  </p>
                 </div>
                 <span v-else>--</span>
               </div>
@@ -150,10 +189,13 @@
               </div>
               <!-- 过滤内容 -->
               <div
-                class="content-style"
-                v-if="configItem.params.conditions &&
+                v-if="
+                  configItem.params.conditions &&
                   configItem.params.conditions.type === 'match' &&
-                  configItem.params.conditions.match_content !== ''">
+                  configItem.params.conditions.match_content !== ''
+                "
+                class="content-style"
+              >
                 <span>{{ $t('过滤内容') }}</span>
                 <div>
                   <p>{{ $t('字符串匹配') }}</p>
@@ -162,16 +204,21 @@
                   </p>
                   <p>
                     {{ configItem.params.conditions.match_type }}/{{
-                      configItem.params.conditions.match_type === 'include' ?
-                        $t('保留匹配字符串') : $t('过滤匹配字符串') }}
+                      configItem.params.conditions.match_type === 'include'
+                        ? $t('保留匹配字符串')
+                        : $t('过滤匹配字符串')
+                    }}
                   </p>
                 </div>
               </div>
               <div
-                class="content-style"
-                v-else-if="configItem.params.conditions &&
+                v-else-if="
+                  configItem.params.conditions &&
                   configItem.params.conditions.type === 'separator' &&
-                  configItem.params.conditions.separator_filters !== []">
+                  configItem.params.conditions.separator_filters !== []
+                "
+                class="content-style"
+              >
                 <span>{{ $t('过滤内容') }}</span>
                 <div>
                   <p>{{ $t('分隔符匹配') }}</p>
@@ -181,31 +228,45 @@
                       <div class="the-column">
                         <div
                           v-for="(val, key) in configItem.params.conditions.separator_filters"
-                          :key="key">
-                          {{ $t('第 {n} 列', { n: val.fieldindex })}}
+                          :key="key"
+                        >
+                          {{ $t('第 {n} 列', { n: val.fieldindex }) }}
                         </div>
                       </div>
                       <div>
-                        <div v-for="(val, key) in configItem.params.conditions.separator_filters" :key="key">
-                          <p @mouseenter="handleEnter" @mouseleave="handleLeave">{{ val.word }}</p>
+                        <div
+                          v-for="(val, key) in configItem.params.conditions.separator_filters"
+                          :key="key"
+                        >
+                          <p
+                            @mouseenter="handleEnter"
+                            @mouseleave="handleLeave"
+                          >
+                            {{ val.word }}
+                          </p>
                           <div
+                            v-if="configItem.params.conditions.separator_filters.length > 1"
                             :class="key === 0 ? 'line-styy' : 'line-sty'"
-                            v-if="configItem.params.conditions.separator_filters.length > 1">
-                          </div>
+                          ></div>
                         </div>
                       </div>
                     </div>
-                    <div class="con-text" v-if="configItem.params.conditions.separator_filters.length > 1">
+                    <div
+                      v-if="configItem.params.conditions.separator_filters.length > 1"
+                      class="con-text"
+                    >
                       <div class="line-styx"></div>
                       <p>
-                        {{ configItem.params.conditions.separator_filters[0].logic_op === 'and' ?
-                          $t('并') : $t('或') }}
+                        {{ configItem.params.conditions.separator_filters[0].logic_op === 'and' ? $t('并') : $t('或') }}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
-              <div class="content-style" v-else>
+              <div
+                v-else
+                class="content-style"
+              >
                 <span>{{ $t('过滤内容') }}</span>
                 <div>--</div>
               </div>
@@ -214,11 +275,14 @@
                 <div class="content-style">
                   <span>{{ $t('段日志参数') }}</span>
                   <div class="section-box">
-                    <p>{{$t('行首正则')}}: <span>{{configItem.params.multiline_pattern}}</span></p> <br>
+                    <p>
+                      {{ $t('行首正则') }}: <span>{{ configItem.params.multiline_pattern }}</span>
+                    </p>
+                    <br />
                     <p>
                       <i18n path="最多匹配{0}行，最大耗时{1}秒">
-                        <span>{{configItem.params.multiline_max_lines}}</span>
-                        <span>{{configItem.params.multiline_timeout}}</span>
+                        <span>{{ configItem.params.multiline_max_lines }}</span>
+                        <span>{{ configItem.params.multiline_timeout }}</span>
                       </i18n>
                     </p>
                   </div>
@@ -230,29 +294,36 @@
       </div>
       <!-- 附加日志标签 -->
       <div>
-        <span>{{$t('附加日志标签')}}</span>
+        <span>{{ $t('附加日志标签') }}</span>
         <template v-if="extraLabelList.length">
           <div>
-            <div v-for="(extraItem, extraIndex) in extraLabelList" :key="extraIndex">
+            <div
+              v-for="(extraItem, extraIndex) in extraLabelList"
+              :key="extraIndex"
+            >
               <div class="specify-box">
-                <div class="specify-container justify-bt" v-bk-overflow-tips>
-                  <span>{{extraItem.key}}</span>
+                <div
+                  v-bk-overflow-tips
+                  class="specify-container justify-bt"
+                >
+                  <span>{{ extraItem.key }}</span>
                   <div class="operator">=</div>
                 </div>
-                <div class="specify-container" v-bk-overflow-tips>
-                  <span>{{extraItem.value}}</span>
+                <div
+                  v-bk-overflow-tips
+                  class="specify-container"
+                >
+                  <span>{{ extraItem.value }}</span>
                 </div>
               </div>
             </div>
           </div>
         </template>
-        <span v-else>
-          --
-        </span>
+        <span v-else> -- </span>
       </div>
       <!-- 上报链路 -->
       <div>
-        <span>{{$t('上报链路')}}</span>
+        <span>{{ $t('上报链路') }}</span>
         <span>{{ dataLinkName || '-' }}</span>
       </div>
     </div>
@@ -260,37 +331,36 @@
 </template>
 
 <script>
-
 export default {
   props: {
     collectorData: {
       type: Object,
-      required: true,
+      required: true
     },
     isLoading: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   data() {
     return {
       collectorConfigs: [], // config
       extraLabelList: [], // 附加日志标签
-      specifyName: { // 指定容器中文名
+      specifyName: {
+        // 指定容器中文名
         workload_type: this.$t('应用类型'),
-        workload_name: this.$t('应用名称'),
+        workload_name: this.$t('应用名称')
       },
       collectorNameMap: {
         container_log_config: 'Container',
         node_log_config: 'Node',
-        std_log_config: this.$t('标准输出'),
+        std_log_config: this.$t('标准输出')
       },
       dataLinkName: '--',
-      bcsClusterName: '--', // 容器环境集群名
+      bcsClusterName: '--' // 容器环境集群名
     };
   },
-  computed: {
-  },
+  computed: {},
   async created() {
     this.$emit('update:is-loading', true);
     try {
@@ -311,7 +381,7 @@ export default {
         this.instance = this.$bkPopover(e.target, {
           content: e.path[0].childNodes[0].data,
           arrow: true,
-          placement: 'right',
+          placement: 'right'
         });
         this.instance.show(1000);
       }
@@ -326,7 +396,7 @@ export default {
         this.bcsClusterName = await this.getBcsClusterName(data.bcs_cluster_id);
         const showData = data.yaml_config_enabled ? await this.getYamlConfigData(data.yaml_config) : data;
         this.extraLabelList = showData.extra_labels;
-        this.collectorConfigs = showData.configs.map((item) => {
+        this.collectorConfigs = showData.configs.map(item => {
           const {
             workload_name,
             workload_type,
@@ -338,7 +408,7 @@ export default {
             container: yamlContainer,
             label_selector: yamlSelector,
             namespaces,
-            collector_type: collectorType,
+            collector_type: collectorType
           } = item;
           let container;
           let labelSelector;
@@ -349,13 +419,13 @@ export default {
             containerName = this.getContainerNameList(yamlContainerName);
             labelSelector = yamlSelector;
           } else {
-            container =  {
+            container = {
               workload_type,
-              workload_name,
+              workload_name
             };
             labelSelector = {
               match_labels,
-              match_expressions,
+              match_expressions
             };
           }
           const collectorName = this.collectorNameMap[collectorType] || '--';
@@ -366,7 +436,7 @@ export default {
             collectorName,
             containerName,
             label_selector: labelSelector,
-            params,
+            params
           };
         });
       } catch (error) {
@@ -382,10 +452,11 @@ export default {
       try {
         const res = await this.$http.request('linkConfiguration/getLinkList', {
           query: {
-            bk_biz_id: this.$store.state.bkBizId,
-          },
+            bk_biz_id: this.$store.state.bkBizId
+          }
         });
-        this.dataLinkName = res.data.find(item => (item.data_link_id === collectorData.data_link_id))?.link_group_name || '--';
+        this.dataLinkName =
+          res.data.find(item => item.data_link_id === collectorData.data_link_id)?.link_group_name || '--';
       } catch (e) {
         console.warn(e);
       }
@@ -396,22 +467,23 @@ export default {
     async getYamlConfigData(yamlConfig) {
       const defaultConfigData = {
         configs: [],
-        extra_labels: [],
+        extra_labels: []
       };
       try {
         const res = await this.$http.request('container/yamlJudgement', {
           data: {
             bk_biz_id: this.$store.state.bkBizId,
             bcs_cluster_id: this.collectorData.bcs_cluster_id,
-            yaml_config: yamlConfig,
-          },
+            yaml_config: yamlConfig
+          }
         });
         const { parse_result: parseResult, parse_status: parseStatus } = res.data;
         if (Array.isArray(parseResult) && !parseStatus) return defaultConfigData; // 返回值若是数组则表示yaml解析出错
-        if (parseStatus) return {
-          configs: parseResult.configs,
-          extra_labels: parseResult.extra_labels,
-        };
+        if (parseStatus)
+          return {
+            configs: parseResult.configs,
+            extra_labels: parseResult.extra_labels
+          };
       } catch (error) {
         console.warn(error);
         return defaultConfigData;
@@ -437,15 +509,15 @@ export default {
       } catch (error) {
         return '--';
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
 @import '@/scss/basic.scss';
-
+/* stylelint-disable no-descending-specificity */
 .basic-info-container {
   display: flex;
   justify-content: space-between;
@@ -465,24 +537,23 @@ export default {
     > span:nth-child(1) {
       display: block;
       width: 98px;
+      font-size: 14px;
       color: #979ba5;
       text-align: right;
-      font-size: 14px;
     }
 
     > span:nth-child(2) {
       margin-left: 24px;
-      color: #63656e;
       font-size: 14px;
+      color: #63656e;
     }
 
     .deploy-path {
       margin-left: 24px;
-      color: #63656e;
       font-size: 14px;
       line-height: 22px;
+      color: #63656e;
     }
-
   }
 
   .label-title {
@@ -494,8 +565,8 @@ export default {
     align-items: center;
 
     .win-log {
-      height: 60px;
       display: flex;
+      height: 60px;
       flex-direction: column;
       justify-content: space-between;
     }
@@ -507,19 +578,19 @@ export default {
     }
 
     > div {
-      font-size: 14px;
       margin-left: 24px;
+      font-size: 14px;
 
       p {
         display: inline-block;
-        margin-right: 2px;
-        background-color: #f0f1f5;
-        padding: 0 5px;
-        border-radius: 2px;
-        color: #63656e;
         height: 20px;
-        text-align: center;
+        padding: 0 5px;
+        margin-right: 2px;
         line-height: 20px;
+        color: #63656e;
+        text-align: center;
+        background-color: #f0f1f5;
+        border-radius: 2px;
       }
     }
 
@@ -528,19 +599,19 @@ export default {
 
       .container-item {
         padding: 4px 10px;
+        margin-right: 8px;
         color: #63656e;
         background: #f0f1f5;
-        margin-right: 8px;
         border-radius: 2px;
       }
     }
   }
 
   .config-box {
+    margin-bottom: 20px;
     margin-left: 24px;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    margin-bottom: 20px;
 
     .deploy-sub {
       padding: 12px 43px 0 0;
@@ -553,29 +624,29 @@ export default {
     .config-title {
       width: 100%;
       height: 30px;
-      line-height: 30px;
       padding-left: 11px;
-      background: #f0f1f5;
+      line-height: 30px;
       color: #63656e;
+      background: #f0f1f5;
       border-bottom: 1px solid #dcdee5;
     }
   }
 
   .specify-box {
-    min-width: 700px;
-    margin-left: 24px;
     display: flex;
-    flex-flow: wrap;
+    min-width: 700px;
     padding: 2px 16px;
     margin-bottom: 8px;
+    margin-left: 24px;
     background: #f5f7fa;
     border-radius: 2px;
+    flex-flow: wrap;
 
     .specify-container {
       width: 50%;
       height: 30px;
-      line-height: 28px;
       overflow: hidden;
+      line-height: 28px;
       text-overflow: ellipsis;
       white-space: nowrap;
 
@@ -585,15 +656,15 @@ export default {
       }
 
       .operator {
-        padding: 0 6px;
         height: 24px;
-        line-height: 24px;
-        text-align: center;
-        color: #ff9c01;
-        background: #fff;
-        border-radius: 2px;
+        padding: 0 6px;
         font-size: 14px;
         font-weight: 700;
+        line-height: 24px;
+        color: #ff9c01;
+        text-align: center;
+        background: #fff;
+        border-radius: 2px;
       }
 
       :last-child {

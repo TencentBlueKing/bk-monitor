@@ -1,13 +1,25 @@
 <template>
   <div class="empty-status-container">
-    <bk-exception :type="emptyType" :scene="scene">
+    <bk-exception
+      :type="emptyType"
+      :scene="scene"
+    >
       <div class="empty-text-content">
-        <p v-if="showText" class="empty-text">{{ typeText }}</p>
+        <p
+          v-if="showText"
+          class="empty-text"
+        >
+          {{ typeText }}
+        </p>
         <template v-if="$slots.default">
           <slot />
         </template>
         <template v-else>
-          <i18n class="operation-text" path="可以尝试{0}或{1}" v-if="emptyType === 'search-empty'">
+          <i18n
+            v-if="emptyType === 'search-empty'"
+            class="operation-text"
+            path="可以尝试{0}或{1}"
+          >
             <span style="margin: 0 3px">{{ $t('调整关键词') }}</span>
             <span
               class="operation-btn"
@@ -35,20 +47,20 @@ export default {
   props: {
     emptyType: {
       type: String,
-      default: 'empty',
+      default: 'empty'
     },
     scene: {
       type: String,
-      default: 'part',
+      default: 'part'
     },
     showOperation: {
       type: Boolean,
-      default: true,
+      default: true
     },
     showText: {
       type: Boolean,
-      default: true,
-    },
+      default: true
+    }
   },
   data() {
     return {
@@ -56,20 +68,20 @@ export default {
         empty: this.$t('暂无数据'),
         'search-empty': this.$t('搜索结果为空'),
         500: this.$t('数据获取异常'),
-        403: this.$t('无业务权限'),
-      },
+        403: this.$t('无业务权限')
+      }
     };
   },
   computed: {
     typeText() {
       return this.defaultTextMap[this.emptyType];
-    },
+    }
   },
   methods: {
     handleOperation(type) {
       this.$emit('operation', type);
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -80,9 +92,8 @@ export default {
   .exception-image {
     height: 180px;
     user-select: none;
-    user-select: none;
-    user-select: none;
-    onselectstart: none
+    /* stylelint-disable-next-line property-no-unknown */
+    onselectstart: none;
   }
 
   .empty-text-content {
@@ -92,14 +103,14 @@ export default {
   .empty-text {
     margin: 8px 0;
     font-size: 14px;
-    color: #63656e;
     line-height: 22px;
+    color: #63656e;
   }
 
   .operation-text {
     font-size: 12px;
-    color: #63656e;
     line-height: 20px;
+    color: #63656e;
   }
 
   .operation-btn {
