@@ -26,18 +26,39 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './event-table-skeleton.scss';
+import './advanced-filter-skeleton.scss';
 
 @Component
-export default class EventTableSkeleton extends tsc<{}> {
+export default class AdvancedFilterSkeleton extends tsc<{}> {
   render() {
     return (
-      <div class='event-table-skeleton'>
-        <div class='h-20 w--100 skeleton-element'></div>
+      <div class='advanced-filter-skeleton'>
+        <div class='h-25 w--100 mt-16 skeleton-element'></div>
+        {new Array(3).fill(null).map((_item, index) => (
+          <div
+            class='h-16 w--100 mt-10 ml-12 mr-12 skeleton-element'
+            key={`a_${index}`}
+          ></div>
+        ))}
+        <div class='h-25 w--100 mt-16 skeleton-element'></div>
+        {new Array(4).fill(null).map((_item, index) => (
+          <div
+            class='h-16 w--100 mt-10 ml-12 mr-12 skeleton-element'
+            key={`b_${index}`}
+          ></div>
+        ))}
+        <div class='h-25 w--100 mt-16 skeleton-element'></div>
+        {new Array(3).fill(null).map((_item, index) => (
+          <div
+            class='h-16 w--100 mt-10 ml-12 mr-12 skeleton-element'
+            key={`c_${index}`}
+          ></div>
+        ))}
+        <div class='h-25 w--100 mt-16 skeleton-element'></div>
         {new Array(10).fill(null).map((_item, index) => (
           <div
-            class='h-36 w--100 mt-22 skeleton-element'
-            key={index}
+            class='h-16 w--100 mt-10 ml-12 mr-12 skeleton-element'
+            key={`d_${index}`}
           ></div>
         ))}
       </div>

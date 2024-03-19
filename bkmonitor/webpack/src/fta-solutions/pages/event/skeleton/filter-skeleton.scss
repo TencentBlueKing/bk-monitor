@@ -1,0 +1,22 @@
+.event-filter-skeleton {
+  display: flex;
+  flex-direction: column;
+  .h-24 {
+    height: 24px;
+  }
+  .w--100 {
+    width: auto;
+  }
+  .mt-12 {
+    margin-top: 12px;
+  }
+  .ml-24 {
+    margin-left: 24px;
+  }
+  .ml-16 {
+    margin-left: 16px;
+  }
+  .mr-24 {
+    margin-right: 24px;
+  }
+}
