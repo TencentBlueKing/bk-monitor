@@ -12,7 +12,6 @@ import datetime
 import json
 import logging
 import traceback
-from typing import Union
 
 import pytz
 from django.conf import settings
@@ -643,7 +642,7 @@ class QueryTopoRelationResource(Resource):
 class QueryTopoInstanceResource(PageListResource):
     UNIQUE_UPDATED_AT = "updated_at"
 
-    BATCH_SIZE = 1000
+    default_fields = ["updated_at", "id", "instance_id"]
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
@@ -653,30 +652,9 @@ class QueryTopoInstanceResource(PageListResource):
         page = serializers.IntegerField(required=False, label="页码", min_value=1)
         page_size = serializers.IntegerField(required=False, label="每页条数", min_value=1)
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        fields = serializers.ListField(label="系列化字段", required=False, default=[])
+        fields = serializers.ListField(required=False, label="返回字段", default=[])
 
     class TopoInstanceSerializer(serializers.ModelSerializer):
-        default_serializer_fields = ("topo_node_key", )
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-
-            context = kwargs.get("context", {})
-            fields = context.get("fields", [])
-            use_default_serializer_fields = context.get("use_default_serializer_fields", False)
-
-            if fields and use_default_serializer_fields:
-                # 合并 fields 和默认字段
-                fields = set(fields) | set(self.default_serializer_fields)
-            elif use_default_serializer_fields:
-                fields = self.default_serializer_fields
-
-            if fields:
-                self.fields = self.get_serializer_fields(fields)
-
-        def get_serializer_fields(self, fields: Union[tuple, set, list] = None):
-            return {field_name: self.fields[field_name] for field_name in fields}
-
         class Meta:
             model = TopoInstance
             fields = "__all__"
@@ -700,15 +678,15 @@ class QueryTopoInstanceResource(PageListResource):
         :return:
         """
         if "updated_at__gte" in filter_flag:
-            queryset = [i for i in queryset if i.updated_at >= filter_flag.get("updated_at__gte")]
+            queryset = [i for i in queryset if i["updated_at"] >= filter_flag.get("updated_at__gte")]
         if "updated_at__gt" in filter_flag:
-            queryset = [i for i in queryset if i.updated_at > filter_flag.get("updated_at__gt")]
+            queryset = [i for i in queryset if i["updated_at"] > filter_flag.get("updated_at__gt")]
         if "updated_at__lte" in filter_flag:
-            queryset = [i for i in queryset if i.updated_at <= filter_flag.get("updated_at__lte")]
+            queryset = [i for i in queryset if i["updated_at"] <= filter_flag.get("updated_at__lte")]
         if "updated_at__lt" in filter_flag:
-            queryset = [i for i in queryset if i.updated_at < filter_flag.get("updated_at__lt")]
+            queryset = [i for i in queryset if i["updated_at"] < filter_flag.get("updated_at__lt")]
         if self.UNIQUE_UPDATED_AT in filter_flag:
-            queryset = [i for i in queryset if i.updated_at == filter_flag.get("updated_at")]
+            queryset = [i for i in queryset if i["updated_at"] == filter_flag.get("updated_at")]
         return queryset
 
     def pre_process(self, filter_params, validated_request_data):
@@ -739,26 +717,11 @@ class QueryTopoInstanceResource(PageListResource):
         cache_data = InstanceHandler().get_cache_data(name)
         # 更新 updated_at 字段
         for instance in instance_list:
-            key = str(instance.id) + ":" + instance.instance_id
+            key = str(instance["id"]) + ":" + instance["instance_id"]
             if key in cache_data:
-                instance.updated_at = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
+                instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
             merge_data.append(instance)
         return merge_data
-
-    def serialize_data(self, batch_data, fields: list = None):
-        return self.TopoInstanceSerializer(
-            batch_data,
-            many=True,
-            context={"use_default_serializer_fields": True, "fields": fields}  # 在这里使用默认字段
-        ).data
-
-    def batch_serialize_data(self, data, fields: list = None):
-
-        params = [(data[i:i + self.BATCH_SIZE], fields) for i in range(0, len(data), self.BATCH_SIZE)]
-        pool = ThreadPool()
-        results = pool.map_ignore_exception(self.serialize_data, params)
-        serialized_data = [i for result in results if result for i in result]
-        return serialized_data
 
     def perform_request(self, validated_request_data):
         filter_params = DiscoverHandler.get_retention_utc_filter_params(
@@ -780,21 +743,36 @@ class QueryTopoInstanceResource(PageListResource):
 
         total = queryset.count()
 
-        data = [obj for obj in queryset.iterator()]
+        fields = validated_request_data.get("fields")
+        # 新功能，包含字段 updated_at 时，从缓存中读取数据并更新 updated_at
+        # 不含 updated_at 时，按需返回
+        data = None
+        if self.UNIQUE_UPDATED_AT in fields:
+            # 补充字段，防止 merge_data 报错
+            tem_fields = set(fields) | set(self.default_fields)
+            data = [obj for obj in queryset.values(*tem_fields)]
+            merge_data = self.merge_data(data, validated_request_data)
+            data = self.post_process(unique_params, merge_data)
+            # 去除补充的字段
+            data = [{field: i[field] for field in fields} for i in data]
+        elif not fields:  # 维持原有逻辑
+            data = [obj for obj in queryset.values()]
+            merge_data = self.merge_data(data, validated_request_data)
+            data = self.post_process(unique_params, merge_data)
 
-        merge_data = self.merge_data(data, validated_request_data)
-
-        data = self.post_process(unique_params, merge_data)
-
+        # 分页
         if validated_request_data.get("page") and validated_request_data.get("page_size"):
-            # 分页
-            page_data = self.handle_pagination(data=data, params=validated_request_data)
-            res = self.TopoInstanceSerializer(
-                page_data, many=True, context={"fields": validated_request_data.get("fields")}
-            ).data
+            if data is None:
+                page_data = self.handle_pagination(data=queryset, params=validated_request_data)
+                res = list(page_data.values(*fields))
+            else:
+                res = self.handle_pagination(data=data, params=validated_request_data)
             return {"total": total, "data": res}
 
-        return {"total": total, "data": self.batch_serialize_data(data, validated_request_data.get("fields"))}
+        if data is None:
+            data = [obj for obj in queryset.values(*fields)]
+
+        return {"total": total, "data": data}
 
 
 class QueryRootEndpointResource(Resource):
