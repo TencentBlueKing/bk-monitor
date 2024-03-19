@@ -284,7 +284,7 @@ export default {
   插件版本: 'Plugin version',
   采集时间: 'Collection time',
   数据时间: 'Data time',
-  时间精度: 'Time accuracy',
+  时间格式: 'Time format',
   时区选择: 'Time zone selection',
   重置确认: 'Reset confirmation',
   '(选填)': '(optional)',
@@ -596,4 +596,5 @@ export default {
   字段设置: 'Field Settings',
   目标字段: 'Target Field',
   排序字段: 'Sort Field',
+  时间精度: 'Time accuracy',
 };
