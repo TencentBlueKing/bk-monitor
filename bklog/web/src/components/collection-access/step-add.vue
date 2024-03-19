@@ -2297,7 +2297,7 @@ export default {
   }
 
   .original-title {
-    @include flex-justify(start);
+    @include flex-justify(flex-start);
 
     > div {
       margin-left: 40px;

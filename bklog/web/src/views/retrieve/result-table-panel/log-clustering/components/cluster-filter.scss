@@ -53,6 +53,6 @@
   .extension-box {
     padding: 12px 0;
 
-    @include flex-justify(start);
+    @include flex-justify(flex-start);
   }
 }
