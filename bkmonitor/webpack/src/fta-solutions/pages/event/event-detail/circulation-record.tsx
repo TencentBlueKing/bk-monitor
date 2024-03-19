@@ -228,6 +228,17 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`
           };
         }
+      } else if (!!item?.url) {
+        if (typeof item.url === 'string') {
+          const match = item.url.match(/\/alarm-shield-detail\/(\d+)/);
+          const id = match?.[1];
+          if (!!id) {
+            return {
+              ...item,
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`
+            };
+          }
+        }
       }
       return item;
     });
