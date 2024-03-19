@@ -222,8 +222,7 @@
       </template>
     </div>
   </div> -->
-  <div
-    class="approval-detail-container">
+  <div class="approval-detail-container">
     <bk-exception type="building">
       <div class="approval-text">
         <span>{{ applyData.collect_itsm_status_display }}</span>
@@ -231,7 +230,8 @@
           :href="applyData.ticket_url"
           class="button-text"
           target="_blank"
-          data-test-id="capacityContaineBox_a_viewApprovalDetails">
+          data-test-id="capacityContaineBox_a_viewApprovalDetails"
+        >
           {{ $t('点击查看审批详情') }}
           <span class="log-icon icon-lianjie"></span>
         </a>
@@ -256,63 +256,77 @@ export default {
         expect_host_size: '', // 预计接入的主机数量
         log_keep_days: '', // 日志保留天数
         hot_data_days: '', // 热数据天数
-        apply_reason: '', // 申请原因
+        apply_reason: '' // 申请原因
       },
       rules: {
-        expect_access_data: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        single_log_size: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        single_host_peak: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        single_host_log_volume: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        expect_host_size: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        log_keep_days: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        hot_data_days: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
-        apply_reason: [{
-          required: true,
-          message: this.$t('必填项'),
-          trigger: 'blur',
-        }],
+        expect_access_data: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        single_log_size: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        single_host_peak: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        single_host_log_volume: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        expect_host_size: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        log_keep_days: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        hot_data_days: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ],
+        apply_reason: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur'
+          }
+        ]
       },
       showApplyResult: false, // 显示审批详情/结果页面
       isApplySuccess: false, // 单据申请成功
       applyData: null, // 单据申请状态、数据
       applyLoading: false, // 获取单据申请数据 loading
-      submitLoading: false, // 提交表单 loading
+      submitLoading: false // 提交表单 loading
     };
   },
   computed: {
     ...mapGetters('collect', ['curCollect']),
     showComputedCapacity() {
-      return this.formData.single_host_log_volume
-              && this.formData.expect_host_size
-              && this.formData.log_keep_days;
+      return this.formData.single_host_log_volume && this.formData.expect_host_size && this.formData.log_keep_days;
     },
     computedCapacity() {
       const logVolume = Number(this.formData.single_host_log_volume) || 0;
@@ -320,7 +334,7 @@ export default {
       const keepDays = Number(this.formData.log_keep_days) || 0;
       const result = logVolume * hostCount * 3 * (keepDays + 1);
       return result.toFixed(0);
-    },
+    }
   },
   created() {
     if (this.operateType === 'add') {
@@ -354,8 +368,8 @@ export default {
         this.applyLoading = true;
         const res = await this.$http.request('collect/queryItsmTicket', {
           params: {
-            collector_config_id: this.curCollect.collector_config_id,
-          },
+            collector_config_id: this.curCollect.collector_config_id
+          }
         });
         if (this.isApplySuccess) {
           this.formDataCache = {
@@ -366,7 +380,7 @@ export default {
             expect_host_size: res.data.expect_host_size,
             log_keep_days: res.data.log_keep_days,
             hot_data_days: res.data.hot_data_days,
-            apply_reason: res.data.apply_reason,
+            apply_reason: res.data.apply_reason
           };
           Object.assign(this.formData, this.formDataCache);
         } else {
@@ -384,12 +398,12 @@ export default {
         await this.$refs.formRef.validate();
         const res = await this.$http.request('collect/applyItsmTicket', {
           params: {
-            collector_config_id: this.curCollect.collector_config_id,
+            collector_config_id: this.curCollect.collector_config_id
           },
           data: {
             ...this.formData,
-            expect_access_data: this.formatDate(this.formData.expect_access_data),
-          },
+            expect_access_data: this.formatDate(this.formData.expect_access_data)
+          }
         });
         this.applyData = res.data;
         this.showApplyResult = true;
@@ -402,8 +416,8 @@ export default {
     formatDate(date) {
       try {
         const yyyy = date.getFullYear();
-        const mm = (`0${date.getMonth() + 1}`).slice(-2);
-        const dd = (`0${date.getDate()}`).slice(-2);
+        const mm = `0${date.getMonth() + 1}`.slice(-2);
+        const dd = `0${date.getDate()}`.slice(-2);
         return `${yyyy}-${mm}-${dd}`;
       } catch (e) {
         console.warn('无效的时间', e);
@@ -411,13 +425,17 @@ export default {
       }
     },
     async handleNext() {
-      if (this.judgeIsModified()) { // 修改了表单，重新提交
+      if (this.judgeIsModified()) {
+        // 修改了表单，重新提交
         return this.handleSubmit();
       }
       // 没有修改，第一步调用了 only_update，这里需要调用 update，再进入下一步采集接入
       try {
         this.submitLoading = true;
-        await this.$http.request('collect/updateCollection', JSON.parse(sessionStorage.getItem('collectionUpdateData')));
+        await this.$http.request(
+          'collect/updateCollection',
+          JSON.parse(sessionStorage.getItem('collectionUpdateData'))
+        );
         this.$emit('stepChange', 3);
       } catch (e) {
         console.warn(e);
@@ -429,7 +447,7 @@ export default {
     judgeIsModified() {
       const newFormData = {
         ...this.formData,
-        expect_access_data: this.formatDate(this.formData.expect_access_data),
+        expect_access_data: this.formatDate(this.formData.expect_access_data)
       };
       for (const key of Object.keys(newFormData)) {
         if (newFormData[key] !== this.formDataCache[key]) {
@@ -442,94 +460,94 @@ export default {
       this.$router.push({
         name: 'collection-item',
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .step-capacity-container {
-    height: 100%;
+.step-capacity-container {
+  height: 100%;
 
-    .king-form {
-      padding: 24px 60px;
+  .king-form {
+    padding: 24px 60px;
 
-      .form-double-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 800px;
-
-        .bk-form-item {
-          width: 350px;
-          margin: 0;
-        }
-
-        :deep(.bk-date-picker) {
-          width: 100%;
-        }
-      }
-
-      .text-form-item {
-        width: 800px;
-
-        .capacity-description-container {
-          padding: 5px 10px;
-          line-height: 18px;
-          color: #63656e;
-          background-color: #fafbfd;
-          border: 1px solid #c4c6cc;
-          border-radius: 2px;
-          font-size: 12px;
-
-          .content {
-            margin-left: 24px;
-          }
-
-          .red {
-            color: #ea3636;
-          }
-
-          .formula {
-            display: flex;
-
-            .column {
-              display: flex;
-              flex-flow: column;
-              white-space: pre-wrap;
-              text-align: center;
-            }
-          }
-        }
-      }
-    }
-
-    .button-container {
-      padding: 0 60px 100px;
-
-      .king-submit-button {
-        min-width: 86px;
-        margin-right: 10px;
-      }
-    }
-  }
-
-  .approval-detail-container {
-    height: 100%;
-    padding-top: 100px;
-    font-size: 14px;
-
-    .approval-text {
+    .form-double-container {
       display: flex;
-      flex-flow: column;
-      font-size: 16px;
+      justify-content: space-between;
+      align-items: center;
+      width: 800px;
 
-      .button-text {
-        margin-top: 16px;
+      .bk-form-item {
+        width: 350px;
+        margin: 0;
+      }
+
+      :deep(.bk-date-picker) {
+        width: 100%;
+      }
+    }
+
+    .text-form-item {
+      width: 800px;
+
+      .capacity-description-container {
+        padding: 5px 10px;
+        font-size: 12px;
+        line-height: 18px;
+        color: #63656e;
+        background-color: #fafbfd;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
+
+        .content {
+          margin-left: 24px;
+        }
+
+        .red {
+          color: #ea3636;
+        }
+
+        .formula {
+          display: flex;
+
+          .column {
+            display: flex;
+            text-align: center;
+            white-space: pre-wrap;
+            flex-flow: column;
+          }
+        }
       }
     }
   }
+
+  .button-container {
+    padding: 0 60px 100px;
+
+    .king-submit-button {
+      min-width: 86px;
+      margin-right: 10px;
+    }
+  }
+}
+
+.approval-detail-container {
+  height: 100%;
+  padding-top: 100px;
+  font-size: 14px;
+
+  .approval-text {
+    display: flex;
+    flex-flow: column;
+    font-size: 16px;
+
+    .button-text {
+      margin-top: 16px;
+    }
+  }
+}
 </style>

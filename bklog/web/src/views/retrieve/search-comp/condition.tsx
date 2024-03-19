@@ -21,19 +21,10 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Emit,
-  Prop,
-  Watch,
-  Ref,
-} from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Switcher, Select, Option, DropdownMenu, TagInput, Button, Checkbox } from 'bk-magic-vue';
 import './condition.scss';
 import { Debounce } from '../../../common/util';
-
-interface IProps {
-}
 
 const INTEGER_MIN_NUMBER = -Math.pow(2, 31) + 1;
 const INTEGER_MAX_NUMBER = Math.pow(2, 31) - 1;
@@ -41,7 +32,7 @@ const LONG_MIN_NUMBER = -Math.pow(2, 63) + 1;
 const LONG_MAX_NUMBER = Math.pow(2, 63) - 1;
 
 @Component
-export default class Condition extends tsc<IProps> {
+export default class Condition extends tsc<{}> {
   @Prop({ type: Array, required: true }) operatorList; // 操作列表
   @Prop({ type: Object, required: true }) operatorItem; // 当前操作元素
   @Prop({ type: Boolean, required: true }) isInclude: boolean; // 是否包含
@@ -69,15 +60,16 @@ export default class Condition extends tsc<IProps> {
   matchSwitch = false; // 模糊匹配开关
   catchValue = []; // 切换exists时缓存的值
   catchTagInputStr = '';
-  valueScopeMap = { // number类型最大值
+  valueScopeMap = {
+    // number类型最大值
     long: {
       max: LONG_MAX_NUMBER,
-      min: LONG_MIN_NUMBER,
+      min: LONG_MIN_NUMBER
     },
     integer: {
       max: INTEGER_MAX_NUMBER,
-      min: INTEGER_MIN_NUMBER,
-    },
+      min: INTEGER_MIN_NUMBER
+    }
   };
   tips = {
     trigger: 'mouseenter',
@@ -85,28 +77,32 @@ export default class Condition extends tsc<IProps> {
     allowHtml: true,
     content: '#match-tips-content',
     placement: 'top',
-    distance: 9,
+    distance: 9
   };
 
-  get ipSelectLength() { // 是否有选择ip
+  get ipSelectLength() {
+    // 是否有选择ip
     return Object.keys(this.catchIpChooser).length;
   }
 
-  get nodeType() { // 当前选择的ip类型
-    return  Object.keys(this.catchIpChooser || [])?.[0] ?? '';
+  get nodeType() {
+    // 当前选择的ip类型
+    return Object.keys(this.catchIpChooser || [])?.[0] ?? '';
   }
 
-  get nodeCount() { // ip选择的数量
+  get nodeCount() {
+    // ip选择的数量
     return this.catchIpChooser[this.nodeType]?.length ?? 0;
   }
 
-  get nodeUnit() { // ip单位
+  get nodeUnit() {
+    // ip单位
     const nodeTypeTextMap = {
       node_list: window.mainComponent.$t('节点'),
       host_list: window.mainComponent.$t('IP'),
       service_template_list: window.mainComponent.$t('服务模板'),
       set_template_list: window.mainComponent.$t('集群模板'),
-      dynamic_group_list: window.mainComponent.$t('动态分组'),
+      dynamic_group_list: window.mainComponent.$t('动态分组')
     };
     return nodeTypeTextMap[this.nodeType] || '';
   }
@@ -115,19 +111,23 @@ export default class Condition extends tsc<IProps> {
     return this.operatorItem?.placeholder ?? window.mainComponent.$t('请输入');
   }
 
-  get isHiddenInput() { // 是否隐藏输入框
+  get isHiddenInput() {
+    // 是否隐藏输入框
     return this.getIsExists(this.localOperatorValue);
   }
 
-  get isHaveCompared() { // 是否有对比操作
+  get isHaveCompared() {
+    // 是否有对比操作
     return ['<', '<=', '>', '>='].includes(this.localOperatorValue);
   }
 
-  get getInputLength() { // 是否是对比的操作 如果是 则值限制只能输入1个
+  get getInputLength() {
+    // 是否是对比的操作 如果是 则值限制只能输入1个
     return this.isHaveCompared ? 1 : -1;
   }
 
-  get isShowMatchSwitcher() { // 是否展示模糊匹配
+  get isShowMatchSwitcher() {
+    // 是否展示模糊匹配
     return Boolean(this.operatorItem?.wildcard_operator);
   }
 
@@ -153,7 +153,7 @@ export default class Condition extends tsc<IProps> {
 
     this.tagInputValueList = val.map(item => ({
       id: item.toString(),
-      name: item.toString(),
+      name: item.toString()
     }));
   }
 
@@ -192,22 +192,23 @@ export default class Condition extends tsc<IProps> {
   }
 
   @Emit('ipChange')
-  handleIpChange() {};
+  handleIpChange() {}
 
   mounted() {
     // tagInput组件没有监听input keydown的事件只能从ref里监听
     // enter时 如果有输入的值 则不进行检索 如果无改变值 enter则进行检索
-    !!this.tagInputRef && (this.tagInputRef.$refs.input.onkeyup = (v) => {
-      if (v.code === 'Enter' || v.code === 'NumpadEnter') {
-        if (this.localValue.length && !this.isValueChange) {
-          this.handleAdditionChange({ value: this.localValue });
+    !!this.tagInputRef &&
+      (this.tagInputRef.$refs.input.onkeyup = v => {
+        if (v.code === 'Enter' || v.code === 'NumpadEnter') {
+          if (this.localValue.length && !this.isValueChange) {
+            this.handleAdditionChange({ value: this.localValue });
+          }
         }
-      }
-    });
+      });
   }
 
-
-  handleFiledChange() { // 字段改变
+  handleFiledChange() {
+    // 字段改变
     this.emitFiledChange(this.localFiledID);
   }
 
@@ -224,7 +225,6 @@ export default class Condition extends tsc<IProps> {
     this.labelHoverStatus = status;
   }
 
-
   handleValueChange(val: Array<string>) {
     this.isValueChange = true;
     clearTimeout(this.valueChangeTimer);
@@ -238,12 +238,13 @@ export default class Condition extends tsc<IProps> {
     const newVal = val[val.length - 1];
     if (['integer', 'long'].includes(this.fieldType)) {
       const matchList = newVal.match(/[-+]?[0-9]*\.?[0-9]+/g); // 获取有效的数字
-      if (!matchList) { // 没有数字 直接不改值
+      if (!matchList) {
+        // 没有数字 直接不改值
         this.localValue.splice(this.localValue.length - 1, 1);
         return;
       }
       const matchVal = Number(matchList.join(',')); // 拿到数字的值进行一个大小对比
-      this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType);  // 判断数字最大值 超出则使用最大值
+      this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType); // 判断数字最大值 超出则使用最大值
     }
 
     this.handleAdditionChange({ value: this.localValue });
@@ -297,11 +298,11 @@ export default class Condition extends tsc<IProps> {
     const isQuery = !!this.localValue.length || isExists; // 值不为空 或 存在与不存在 的情况下才自动检索请求
     this.handleAdditionChange(
       {
-        value: isExists ? [''] : queryValue,  // 更新值
-        operatorItem,  // 更新操作元素
-        operator: operatorItem.operator,  // 更新操作符
+        value: isExists ? [''] : queryValue, // 更新值
+        operatorItem, // 更新操作元素
+        operator: operatorItem.operator // 更新操作符
       },
-      isQuery,
+      isQuery
     );
   }
 
@@ -312,7 +313,7 @@ export default class Condition extends tsc<IProps> {
   handleMatchChange(matchStatus: boolean) {
     const { wildcard_operator: wildcardOperator, operator } = this.operatorItem;
     const newOperator = matchStatus ? wildcardOperator : operator;
-    this.handleAdditionChange({ operator: newOperator }, false);  // 更新操作符
+    this.handleAdditionChange({ operator: newOperator }, false); // 更新操作符
   }
 
   getIsExists(operator: string) {
@@ -333,9 +334,15 @@ export default class Condition extends tsc<IProps> {
     const textClass = 'text';
     const innerHtml = `${highlightKeyword(node.id)}`;
     return (
-        <div class={parentClass} title={node.id}>
-            <span class={textClass} domPropsInnerHTML={innerHtml}></span>
-        </div>
+      <div
+        class={parentClass}
+        title={node.id}
+      >
+        <span
+          class={textClass}
+          domPropsInnerHTML={innerHtml}
+        ></span>
+      </div>
     );
   }
 
@@ -343,20 +350,23 @@ export default class Condition extends tsc<IProps> {
     return (
       <div>
         {/* 字段名称、条件、删除、是否参与 */}
-        <div class="head-row">
+        <div class='head-row'>
           <div class='cascader'>
             <span
               class={{
                 label: true,
                 'label-hover': this.labelHoverStatus,
                 'label-active': this.labelActiveStatus,
-                'label-disabled': !this.isInclude,
+                'label-disabled': !this.isInclude
               }}
-              >{this.name}</span>
+            >
+              {this.name}
+            </span>
             {
               <div
                 onMouseover={() => this.setLabelHoverStatus(true)}
-                onMouseout={() => this.setLabelHoverStatus(false)}>
+                onMouseout={() => this.setLabelHoverStatus(false)}
+              >
                 <Select
                   searchable
                   v-model={this.localFiledID}
@@ -365,48 +375,51 @@ export default class Condition extends tsc<IProps> {
                   popover-min-width={400}
                   onToggle={this.handleFiledSelectChange}
                 >
-                {
-                  this.filterFields.map(option => (
+                  {this.filterFields.map(option => (
                     <Option
                       v-bk-tooltips={{
                         content: option.disabledContent,
                         placement: 'right',
-                        disabled: !option.disabled,
+                        disabled: !option.disabled
                       }}
                       key={option.id}
                       id={option.id}
                       name={option.fullName}
-                      disabled={option.disabled}>
-                    </Option>
-                  ))
-                }
+                      disabled={option.disabled}
+                    ></Option>
+                  ))}
                 </Select>
               </div>
             }
           </div>
           <DropdownMenu
             disabled={!this.isInclude}
-            trigger="click"
-            placement="bottom-start"
-            style="margin-right: 4px;"
-            onShow={() => this.conditionTypeActiveStatus = true}
-            onHide={() => this.conditionTypeActiveStatus = false}
+            trigger='click'
+            placement='bottom-start'
+            style='margin-right: 4px;'
+            onShow={() => (this.conditionTypeActiveStatus = true)}
+            onHide={() => (this.conditionTypeActiveStatus = false)}
           >
-            <div slot="dropdown-trigger">
-            {/* 这里是 操作符 选择器 */}
-            {
-              this.conditionType === 'filed' && <span class={{
-                'condition-type': true,
-                'condition-type-active': this.conditionTypeActiveStatus,
-                'condition-type-disabled': !this.isInclude,
-              }}>{this.operatorItem.label}</span>
-            }
+            <div slot='dropdown-trigger'>
+              {/* 这里是 操作符 选择器 */}
+              {this.conditionType === 'filed' && (
+                <span
+                  class={{
+                    'condition-type': true,
+                    'condition-type-active': this.conditionTypeActiveStatus,
+                    'condition-type-disabled': !this.isInclude
+                  }}
+                >
+                  {this.operatorItem.label}
+                </span>
+              )}
             </div>
-            <ul class="bk-dropdown-list"  slot="dropdown-content">
+            <ul
+              class='bk-dropdown-list'
+              slot='dropdown-content'
+            >
               {this.operatorList.map(item => (
-                <li onClick={() => this.handleOperateChange(item)}>
-                  {item.label}
-                </li>
+                <li onClick={() => this.handleOperateChange(item)}>{item.label}</li>
               ))}
             </ul>
           </DropdownMenu>
@@ -414,37 +427,48 @@ export default class Condition extends tsc<IProps> {
             <span
               class={{
                 'vague-match': true,
-                'show-checkbox': this.isShowMatchSwitcher,
-              }}>
+                'show-checkbox': this.isShowMatchSwitcher
+              }}
+            >
               <Checkbox
                 value={this.matchSwitch}
-                size="small"
-                theme="primary"
+                size='small'
+                theme='primary'
                 disabled={!this.isInclude}
-                onChange={() => this.handleMatchChange(!this.matchSwitch)}>
-                  <span v-bk-tooltips={this.tips} class="match-title">{this.$t('使用通配符')}</span>
+                onChange={() => this.handleMatchChange(!this.matchSwitch)}
+              >
+                <span
+                  v-bk-tooltips={this.tips}
+                  class='match-title'
+                >
+                  {this.$t('使用通配符')}
+                </span>
               </Checkbox>
             </span>
           }
-          <i class='bk-icon icon-delete' onClick={() => this.handleDelete(this.conditionType)}></i>
+          <i
+            class='bk-icon icon-delete'
+            onClick={() => this.handleDelete(this.conditionType)}
+          ></i>
           <Switcher
             v-bk-tooltips={{
               content: !this.isInclude ? this.$t('点击后，参与查询') : this.$t('点击后，不参与查询'),
-              delay: 200,
+              delay: 200
             }}
             value={this.isInclude}
-            size="small"
-            theme="primary"
-            onChange={() => this.handleIsIncludeChange(!this.isInclude)}></Switcher>
+            size='small'
+            theme='primary'
+            onChange={() => this.handleIsIncludeChange(!this.isInclude)}
+          ></Switcher>
         </div>
-        {
-          (this.conditionType === 'filed' && !this.isHiddenInput) && <TagInput
-            style="margin-top: 4px;"
-            ref="tagInput"
+        {this.conditionType === 'filed' && !this.isHiddenInput && (
+          <TagInput
+            style='margin-top: 4px;'
+            ref='tagInput'
             free-paste
             content-width={340}
             v-model={this.localValue}
-            data-test-id="addConditions_input_valueFilter"
+            data-test-id='addConditions_input_valueFilter'
             allow-create
             allow-auto-match
             tpl={this.tpl}
@@ -454,34 +478,42 @@ export default class Condition extends tsc<IProps> {
             onChange={this.handleValueChange}
             onBlur={this.handleValueBlur}
             onRemoveAll={this.handleValueRemoveAll}
-            onInputchange={v => this.catchTagInputStr = v}
-            trigger="focus">
-          </TagInput>
-        }
-        {
-          this.conditionType === 'ip-select' && <div class="ip-filter-container">
-            {
-              !this.ipSelectLength
-                ? <Button text class="add-ip-button" onClick={() => this.handleIpChange()}>
+            onInputchange={v => (this.catchTagInputStr = v)}
+            trigger='focus'
+          ></TagInput>
+        )}
+        {this.conditionType === 'ip-select' && (
+          <div class='ip-filter-container'>
+            {!this.ipSelectLength ? (
+              <Button
+                text
+                class='add-ip-button'
+                onClick={() => this.handleIpChange()}
+              >
                 <i class='bk-icon icon-plus'></i>
                 <span>{this.$t('添加目标')}</span>
               </Button>
-                : <Button text class="add-ip-button" onClick={() => this.handleIpChange()}>
-                <i18n path="已选择 {0} 个{1}">
-                  <span>{ this.nodeCount }</span>
-                  <span>{ this.nodeUnit }</span>
+            ) : (
+              <Button
+                text
+                class='add-ip-button'
+                onClick={() => this.handleIpChange()}
+              >
+                <i18n path='已选择 {0} 个{1}'>
+                  <span>{this.nodeCount}</span>
+                  <span>{this.nodeUnit}</span>
                 </i18n>
-            </Button>
-            }
+              </Button>
+            )}
           </div>
-        }
+        )}
         <div v-show={false}>
-          <div id="match-tips-content">
-            <div class="detail">{this.$t('支持使用通配符 * 和 ? 进行匹配：')}</div>
-            <div class="title">{this.$t('* 表示匹配多个（包括 0 个）任意字符')}</div>
-            <div class="detail">{this.$t('例：a*d 可匹配 ad、abcd、a123d')}</div>
-            <div class="title">{this.$t('? 表示匹配单个任意字符')}</div>
-            <div class="detail">{this.$t('例：a?d 可匹配 abd、a1d')}</div>
+          <div id='match-tips-content'>
+            <div class='detail'>{this.$t('支持使用通配符 * 和 ? 进行匹配：')}</div>
+            <div class='title'>{this.$t('* 表示匹配多个（包括 0 个）任意字符')}</div>
+            <div class='detail'>{this.$t('例：a*d 可匹配 ad、abcd、a123d')}</div>
+            <div class='title'>{this.$t('? 表示匹配单个任意字符')}</div>
+            <div class='detail'>{this.$t('例：a?d 可匹配 abd、a1d')}</div>
           </div>
         </div>
       </div>

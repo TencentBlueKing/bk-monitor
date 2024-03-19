@@ -130,7 +130,7 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         sql = serializers.CharField(required=True, label="查询SQL语句")
-        prefer_storage = serializers.CharField(required=False, label="查询引擎")
+        prefer_storage = serializers.CharField(required=False, label="查询引擎", allow_blank=True)
         _user_request = serializers.BooleanField(required=False, label="是否指定使用 user 鉴权请求接口", default=False)
 
     def perform_request(self, params):

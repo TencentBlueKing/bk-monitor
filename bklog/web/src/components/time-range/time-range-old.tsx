@@ -23,7 +23,13 @@
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import './time-range.scss';
-import { DEFAULT_TIME_RANGE, handleTransformTime, handleTransformToTimestamp, intTimestampStr, shortcuts } from './utils';
+import {
+  DEFAULT_TIME_RANGE,
+  handleTransformTime,
+  handleTransformToTimestamp,
+  intTimestampStr,
+  shortcuts
+} from './utils';
 import dayjs from 'dayjs';
 
 export type TimeRangeType = [string, string];
@@ -108,7 +114,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   /** 格式化绝对时间点 */
   formatTime(value: TimeRangeType) {
-    return value.map((item) => {
+    return value.map(item => {
       const m = dayjs.tz(intTimestampStr(item));
       return m.isValid() ? m.format('YYYY-MM-DD HH:mm:ss') : item;
     });
@@ -165,67 +171,94 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   render() {
     return (
-      <div class="time-range-wrap">
+      <div class='time-range-wrap'>
         <bk-date-picker
-          class="date-picker"
-          v-en-class="is-en-timer-list"
-          ext-popover-cls="time-range-popover"
+          class='date-picker'
+          v-en-class='is-en-timer-list'
+          ext-popover-cls='time-range-popover'
           value={this.timestamp}
           open={this.isShow}
-          type="daterange"
+          type='daterange'
           disabled
           // transfer
           placement={this.placement}
           on-change={this.dateTimeChange}
           on-pick-click={val => console.log(1111, val)}
-          on-open-change={this.handlePanelShowChange}>
+          on-open-change={this.handlePanelShowChange}
+        >
           <bk-popover
-            slot="trigger"
+            slot='trigger'
             zIndex={2500}
-            placement="bottom"
+            placement='bottom'
             tippy-options={{
               onShow: () => {
                 /** 防止代码自动格式化 */
                 this.handleTransformTime();
-              },
+              }
             }}
-            theme="light time-range-tips">
+            theme='light time-range-tips'
+          >
             <div
-              class={['time-range-trigger', { active: this.isShow, simple: this.type === 'simple', border: this.type === 'border' }]}
-              onClick={() => this.isShow = true}>
-              <span class="bk-icon icon-clock"></span>
-              {
-                this.type !== 'simple' && <span class="time-range-text">{this.timeDisplay}</span>
-              }
-              {
-                this.type !== 'normal' && <i class="bk-icon icon-angle-down"></i>
-              }
+              class={[
+                'time-range-trigger',
+                { active: this.isShow, simple: this.type === 'simple', border: this.type === 'border' }
+              ]}
+              onClick={() => (this.isShow = true)}
+            >
+              <span class='bk-icon icon-clock'></span>
+              {this.type !== 'simple' && <span class='time-range-text'>{this.timeDisplay}</span>}
+              {this.type !== 'normal' && <i class='bk-icon icon-angle-down'></i>}
             </div>
-            <div slot="content" class="time-range-tips-content">
+            <div
+              slot='content'
+              class='time-range-tips-content'
+            >
               <div>{this.timestamp[0]}</div>
               <div>to</div>
               <div>{this.timestamp[1]}</div>
             </div>
           </bk-popover>
           <div
-            slot="header"
-            class="time-range-custom">
+            slot='header'
+            class='time-range-custom'
+          >
             <span>{this.$t('从')}</span>
-            <bk-input class="custom-input" v-model={this.localValue[0]} onInput={() => this.isPanelTimeRange = false}/>
+            <bk-input
+              class='custom-input'
+              v-model={this.localValue[0]}
+              onInput={() => (this.isPanelTimeRange = false)}
+            />
             <span>{this.$t('至')}</span>
-            <bk-input class="custom-input" v-model={this.localValue[1]} onInput={() => this.isPanelTimeRange = false}/>
+            <bk-input
+              class='custom-input'
+              v-model={this.localValue[1]}
+              onInput={() => (this.isPanelTimeRange = false)}
+            />
           </div>
-          <div slot="footer" class="time-range-footer">
-            <bk-button theme="primary" onClick={this.handleConfirm}>{this.$t('确定')}</bk-button>
+          <div
+            slot='footer'
+            class='time-range-footer'
+          >
+            <bk-button
+              theme='primary'
+              onClick={this.handleConfirm}
+            >
+              {this.$t('确定')}
+            </bk-button>
           </div>
           <ul
-            slot="shortcuts"
-            class="shortcuts-list">
-            {
-              this.shortcuts.map(item => (
-                <li class="shortcuts-item title-overflow" v-bk-overflow-tips onClick={() => this.handleShortcutChange(item)}>{item.text}</li>
-              ))
-            }
+            slot='shortcuts'
+            class='shortcuts-list'
+          >
+            {this.shortcuts.map(item => (
+              <li
+                class='shortcuts-item title-overflow'
+                v-bk-overflow-tips
+                onClick={() => this.handleShortcutChange(item)}
+              >
+                {item.text}
+              </li>
+            ))}
           </ul>
         </bk-date-picker>
       </div>

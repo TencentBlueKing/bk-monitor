@@ -2983,11 +2983,18 @@ class CollectorHandler(object):
                 # 模式: bcs_your_name_std
                 collector_config_name_en = collector_config_name_en.rsplit("_", 1)[0].split("_", 1)[1]
 
+            # 解析采集中文名称，若不符合BCS默认格式，则传递原采集名
+            if collector_config_name:
+                try:
+                    collector_config_name = collector_config_name.rsplit("_", 1)[0].split("_", 1)[1]
+                except Exception:  # pylint: disable=broad-except
+                    collector_config_name = collector_config_name
+            else:
+                collector_config_name = ""
+
             rule = {
                 "rule_id": rule_id,
-                "collector_config_name": collector_config_name.rsplit("_", 1)[0].split("_", 1)[1]
-                if collector_config_name
-                else "",
+                "collector_config_name": collector_config_name,
                 "bk_biz_id": collector["path_collector_config"].bk_biz_id,
                 "description": collector["path_collector_config"].description,
                 "collector_config_name_en": collector_config_name_en,

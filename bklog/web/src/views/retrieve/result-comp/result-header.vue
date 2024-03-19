@@ -28,32 +28,40 @@
         <bk-popover
           ref="showFavoriteBtnRef"
           :disabled="showCollectIntroGuide"
-          :tippy-options="expandTips">
+          :tippy-options="expandTips"
+        >
           <div
             :class="[
               'result-icon-box',
               {
                 'light-icon': !isShowCollect,
-                'disabled': showCollectIntroGuide
+                disabled: showCollectIntroGuide
               }
             ]"
-            @click="handleClickResultIcon('collect')">
+            @click="handleClickResultIcon('collect')"
+          >
             <span class="bk-icon icon-star"></span>
           </div>
-          <div slot="content">{{iconFavoriteStr}}</div>
+          <div slot="content">{{ iconFavoriteStr }}</div>
         </bk-popover>
         <bk-popover
           ref="showSearchBtnRef"
-          :tippy-options="expandTips">
+          :tippy-options="expandTips"
+        >
           <div
-            :class="['result-icon-box',{ 'light-icon': !showRetrieveCondition }]"
-            @click="handleClickResultIcon('search')">
+            :class="['result-icon-box', { 'light-icon': !showRetrieveCondition }]"
+            @click="handleClickResultIcon('search')"
+          >
             <span class="bk-icon log-icon icon-jiansuo"></span>
           </div>
-          <div slot="content">{{iconSearchStr}}</div>
+          <div slot="content">{{ iconSearchStr }}</div>
         </bk-popover>
       </div>
-      <div class="biz-menu-box" id="bizSelectorGuide" v-if="!isAsIframe">
+      <div
+        v-if="!isAsIframe"
+        id="bizSelectorGuide"
+        class="biz-menu-box"
+      >
         <biz-menu-select theme="light"></biz-menu-select>
       </div>
     </div>
@@ -77,26 +85,35 @@
         :offset="0"
         :distance="15"
         :on-show="handleDropdownShow"
-        :on-hide="handleDropdownHide">
+        :on-hide="handleDropdownHide"
+      >
         <slot name="trigger">
           <div class="auto-refresh-trigger">
             <span
               :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
               data-test-id="retrieve_span_periodicRefresh"
-              @click.stop="handleRefreshDebounce"></span>
-            <span :class="isAutoRefresh && 'active-text'">{{refreshTimeText}}</span>
-            <span class="bk-icon icon-angle-down" :class="refreshActive && 'active'"></span>
+              @click.stop="handleRefreshDebounce"
+            ></span>
+            <span :class="isAutoRefresh && 'active-text'">{{ refreshTimeText }}</span>
+            <span
+              class="bk-icon icon-angle-down"
+              :class="refreshActive && 'active'"
+            ></span>
           </div>
         </slot>
-        <div slot="content" class="bk-select-dropdown-content auto-refresh-content">
+        <div
+          slot="content"
+          class="bk-select-dropdown-content auto-refresh-content"
+        >
           <div class="bk-options-wrapper">
             <ul class="bk-options bk-options-single">
               <li
                 v-for="item in refreshTimeList"
                 :key="item.id"
                 :class="['bk-option', refreshTimeout === item.id && 'is-selected']"
-                @click="handleSelectRefreshTimeout(item.id)">
-                <div class="bk-option-content">{{item.name}}</div>
+                @click="handleSelectRefreshTimeout(item.id)"
+              >
+                <div class="bk-option-content">{{ item.name }}</div>
               </li>
             </ul>
           </div>
@@ -109,19 +126,27 @@
         theme="light bk-select-dropdown"
         animation="slide-toggle"
         :offset="0"
-        :distance="11">
+        :distance="11"
+      >
         <slot name="trigger">
           <div class="more-operation">
             <i class="bk-icon log-icon icon-ellipsis-more"></i>
           </div>
         </slot>
-        <div slot="content" class="retrieve-setting-container">
-          <ul class="list-menu" ref="menu">
+        <div
+          slot="content"
+          class="retrieve-setting-container"
+        >
+          <ul
+            ref="menu"
+            class="list-menu"
+          >
             <li
               v-for="menu in showSettingMenuList"
-              class="list-menu-item"
               :key="menu.id"
-              @click="handleMenuClick(menu.id)">
+              class="list-menu-item"
+              @click="handleMenuClick(menu.id)"
+            >
               {{ menu.name }}
             </li>
           </ul>
@@ -134,12 +159,17 @@
       :has-border="true"
       :tip-styles="{
         top: '50px',
-        left: '14px',
+        left: '14px'
       }"
     >
       <div slot="title">{{ $t('检索收藏功能支持分组和管理') }}</div>
       <template slot="action">
-        <div class="action-text" @click="handleCloseGuide">{{ $t('知道了') }}</div>
+        <div
+          class="action-text"
+          @click="handleCloseGuide"
+        >
+          {{ $t('知道了') }}
+        </div>
       </template>
     </step-box>
   </div>
@@ -156,89 +186,107 @@ export default {
   components: {
     BizMenuSelect,
     TimeRange,
-    StepBox,
+    StepBox
   },
   props: {
     showRetrieveCondition: {
       type: Boolean,
-      required: true,
+      required: true
     },
     retrieveParams: {
       type: Object,
-      required: true,
+      required: true
     },
     datePickerValue: {
       type: Array,
-      required: true,
+      required: true
     },
     latestFavoriteId: {
       type: [Number, String],
-      default: '',
+      default: ''
     },
     indexSetItem: {
       type: Object,
-      required: true,
+      required: true
     },
     isAsIframe: {
       type: Boolean,
-      required: true,
+      required: true
     },
     isShowCollect: {
       type: Boolean,
-      required: true,
+      required: true
     },
     timezone: {
       type: String,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
       expandTips: {
         placement: 'bottom',
-        trigger: 'mouseenter',
+        trigger: 'mouseenter'
       },
       expandText: '',
       refreshActive: false, // 自动刷新下拉激活
       refreshTimer: null, // 自动刷新定时器
       refreshTimeout: 0, // 0 这里表示关闭自动刷新
-      refreshTimeList: [{
-        id: 0, name: `off ${this.$t('关闭')}`,
-      }, {
-        id: 60000, name: '1m',
-      }, {
-        id: 300000, name: '5m',
-      }, {
-        id: 900000, name: '15m',
-      }, {
-        id: 1800000, name: '30m',
-      }, {
-        id: 3600000, name: '1h',
-      }, {
-        id: 7200000, name: '2h',
-      }, {
-        id: 86400000, name: '1d',
-      }],
+      refreshTimeList: [
+        {
+          id: 0,
+          name: `off ${this.$t('关闭')}`
+        },
+        {
+          id: 60000,
+          name: '1m'
+        },
+        {
+          id: 300000,
+          name: '5m'
+        },
+        {
+          id: 900000,
+          name: '15m'
+        },
+        {
+          id: 1800000,
+          name: '30m'
+        },
+        {
+          id: 3600000,
+          name: '1h'
+        },
+        {
+          id: 7200000,
+          name: '2h'
+        },
+        {
+          id: 86400000,
+          name: '1d'
+        }
+      ],
       settingMenuList: [
         // { id: 'index', name: '全文索引' },
         { id: 'extract', name: this.$t('button-字段清洗').replace('button-', '') },
-        { id: 'clustering', name: this.$t('日志聚类') },
+        { id: 'clustering', name: this.$t('日志聚类') }
       ],
       accessList: [
         {
           id: 'logMasking',
-          name: this.$t('日志脱敏'),
+          name: this.$t('日志脱敏')
         },
         {
           id: 'logInfo',
-          name: this.$t('采集详情'),
-        },
+          name: this.$t('采集详情')
+        }
       ],
-      routeNameList: { // 路由跳转name
+      routeNameList: {
+        // 路由跳转name
         log: 'manage-collection',
         custom: 'custom-report-detail',
         manage: 'bkdata-index-set-manage',
-        indexManage: 'log-index-set-manage',
+        indexManage: 'log-index-set-manage'
       },
       /** 日志脱敏路由跳转key */
       maskingRouteKey: 'log',
@@ -248,25 +296,25 @@ export default {
         es: 'es-index-set-masking',
         custom: 'custom-report-masking',
         bkdata: 'bkdata-index-set-masking',
-        setIndex: 'log-index-set-masking',
+        setIndex: 'log-index-set-masking'
       },
       detailJumpRouteKey: 'log', // 路由key log采集列表 custom自定义上报 es、bkdata、setIndex 第三方ED or 计算平台 or 索引集
       isFirstCloseCollect: false,
       showSettingMenuList: [],
-      showCollectIntroGuide: false,
+      showCollectIntroGuide: false
     };
   },
   computed: {
     ...mapState({
       bkBizId: state => state.bkBizId,
       userGuideData: state => state.userGuideData,
-      isExternal: state => state.isExternal,
+      isExternal: state => state.isExternal
     }),
     ...mapGetters({
-      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      isShowMaskingTemplate: 'isShowMaskingTemplate'
     }),
     ...mapGetters({
-      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      isShowMaskingTemplate: 'isShowMaskingTemplate'
     }),
     refreshTimeText() {
       if (!this.refreshTimeout) return 'off';
@@ -275,7 +323,8 @@ export default {
     isAutoRefresh() {
       return this.refreshTimeout !== 0;
     },
-    isAiopsToggle() { // 日志聚类总开关
+    isAiopsToggle() {
+      // 日志聚类总开关
       const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
       const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 
@@ -292,24 +341,24 @@ export default {
       return this.$t('点击{n}收藏', {
         n: !this.isShowCollect
           ? this.$t('label-展开').replace('label-', '')
-          : this.$t('label-收起').replace('label-', ''),
+          : this.$t('label-收起').replace('label-', '')
       });
     },
     iconSearchStr() {
       return this.$t('点击{n}检索', {
         n: !this.showRetrieveCondition
           ? this.$t('label-展开').replace('label-', '')
-          : this.$t('label-收起').replace('label-', ''),
+          : this.$t('label-收起').replace('label-', '')
       });
-    },
+    }
   },
   watch: {
     indexSetItem: {
       immediate: true,
       handler(val) {
         this.setShowLiList(val);
-      },
-    },
+      }
+    }
   },
   created() {
     this.showCollectIntroGuide = this.userGuideData?.function_guide?.search_favorite ?? false;
@@ -369,7 +418,8 @@ export default {
         }, timeout);
       }
     },
-    handleVisibilityChange() { // 窗口隐藏时取消轮询，恢复时恢复轮询（原来是自动刷新就恢复自动刷新，原来不刷新就不会刷新）
+    handleVisibilityChange() {
+      // 窗口隐藏时取消轮询，恢复时恢复轮询（原来是自动刷新就恢复自动刷新，原来不刷新就不会刷新）
       document.hidden ? clearTimeout(this.refreshTimer) : this.setRefreshTime();
     },
     handleMenuClick(val) {
@@ -377,30 +427,33 @@ export default {
       if (['index', 'extract', 'clustering'].includes(val)) {
         this.$emit('settingMenuClick', val);
         return;
-      };
+      }
       const params = {
         indexSetId: this.indexSetItem?.index_set_id,
-        collectorId: this.indexSetItem?.collector_config_id,
+        collectorId: this.indexSetItem?.collector_config_id
       };
       // 判断当前是否是脱敏配置 分别跳不同的路由
-      const routeName = val === 'logMasking'
-        ? this.maskingConfigRoute[this.maskingRouteKey]
-        : this.routeNameList[this.detailJumpRouteKey];
+      const routeName =
+        val === 'logMasking'
+          ? this.maskingConfigRoute[this.maskingRouteKey]
+          : this.routeNameList[this.detailJumpRouteKey];
       // 不同的路由跳转 传参不同
       const { href } = this.$router.resolve({
         name: routeName,
         params,
         query: {
           spaceUid: this.$store.state.spaceUid,
-          type: val === 'logMasking' ? 'masking' : undefined,
-        },
+          type: val === 'logMasking' ? 'masking' : undefined
+        }
       });
       window.open(href, '_blank');
     },
     setShowLiList(setItem) {
       if (JSON.stringify(setItem) === '{}') return;
-      if (setItem.scenario_id === 'log') { // 索引集类型为采集项或自定义上报
-        if (setItem.collector_scenario_id === null) { // 若无日志类型 则类型为索引集
+      if (setItem.scenario_id === 'log') {
+        // 索引集类型为采集项或自定义上报
+        if (setItem.collector_scenario_id === null) {
+          // 若无日志类型 则类型为索引集
           this.initJumpRouteList('setIndex');
           return;
         }
@@ -420,7 +473,7 @@ export default {
       if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
         this.showSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
         return;
-      };
+      }
       // 赋值详情路由的key
       if (['es', 'bkdata'].includes(detailStr)) {
         this.detailJumpRouteKey = 'manage';
@@ -428,11 +481,13 @@ export default {
         this.detailJumpRouteKey = 'indexManage';
       } else {
         this.detailJumpRouteKey = detailStr;
-      };
+      }
       // 日志脱敏的路由key
       this.maskingRouteKey = detailStr;
       // 判断是否展示字段设置
-      const filterMenuList = this.isAiopsToggle ? this.settingMenuList.filter(item => (isFilterExtract ? item.id !== 'extract' : true)) : [];
+      const filterMenuList = this.isAiopsToggle
+        ? this.settingMenuList.filter(item => (isFilterExtract ? item.id !== 'extract' : true))
+        : [];
       const accessList = this.accessList.filter(item => (this.isShowMaskingTemplate ? true : item.id !== 'logMasking'));
       // 合并其他
       this.showSettingMenuList = filterMenuList.concat(accessList);
@@ -445,287 +500,287 @@ export default {
       }
     },
     handleCloseGuide() {
-      this.$http.request('meta/updateUserGuide', {
-        data: { function_guide: 'search_favorite' },
-      })
+      this.$http
+        .request('meta/updateUserGuide', {
+          data: { function_guide: 'search_favorite' }
+        })
         .then(() => {
           this.showCollectIntroGuide = false;
           this.updateUserGuide();
         })
-        .catch((e) => {
+        .catch(e => {
           console.warn(e);
         });
     },
     /** 更新用户指引 */
     updateUserGuide() {
-      this.$http.request('meta/getUserGuide').then((res) => {
+      this.$http.request('meta/getUserGuide').then(res => {
         this.$store.commit('setUserGuideData', res.data);
       });
     },
     handleRefresh() {
       this.$emit('shouldRetrieve');
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .result-header {
-    display: flex;
-    justify-content: space-between;
-    // align-items: center;
+.result-header {
+  position: relative;
+  display: flex;
+  // align-items: center;
+  width: 100%;
+  height: 48px;
+  font-size: 12px;
+  color: #63656e;
+  background: #fff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  justify-content: space-between;
+
+  &:after {
+    position: absolute;
+    bottom: 0;
+    z-index: 800;
     width: 100%;
-    height: 48px;
-    color: #63656e;
-    background: #fff;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
-    font-size: 12px;
-    position: relative;
+    height: 4px;
+    content: '';
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  }
 
-    &:after {
-      position: absolute;
-      bottom: 0;
-      width: 100%;
-      height: 4px;
-      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
-      content: '';
-      z-index: 800;
-    }
+  .result-left {
+    display: flex;
+    align-items: center;
 
-    .result-left {
+    .icon-container {
+      position: relative;
       display: flex;
-      align-items: center;
+      margin: 17px 25px 17px 14px;
+      background: #f0f1f5;
+      border-radius: 2px;
 
-      .icon-container {
-        position: relative;
-        margin: 17px 25px 17px 14px;
-        background: #f0f1f5;
+      > :first-child {
+        margin-right: 2px;
+      }
+
+      &::after {
+        position: absolute;
+        top: 6px;
+        right: -25px;
+        width: 1px;
+        height: 14px;
+        background-color: #dcdee5;
+        content: '';
+      }
+
+      .result-icon-box {
+        width: 32px;
+        height: 24px;
+        font-size: 14px;
+        line-height: 20px;
+        color: #fff;
+        text-align: center;
+        cursor: pointer;
+        background: #699df4;
         border-radius: 2px;
-        display: flex;
 
-        > :first-child {
-          margin-right: 2px;
+        &.light-icon {
+          color: #63656e;
+          background: #f0f1f5;
         }
 
-        &::after {
-          content: '';
-          width: 1px;
-          height: 14px;
-          background-color: #dcdee5;
-          position: absolute;
-          right: -25px;
-          top: 6px;
+        .icon-jiansuo {
+          display: inline-block;
+          font-size: 18px;
+          transform: translateY(2px);
         }
 
-        .result-icon-box {
-          width: 32px;
-          height: 24px;
-          line-height: 20px;
-          text-align: center;
-          font-size: 14px;
-          color: #fff;
-          background: #699df4;
-          border-radius: 2px;
-          cursor: pointer;
-
-          &.light-icon {
-            background: #f0f1f5;
-            color: #63656e;
-          }
-
-          .icon-jiansuo {
-            display: inline-block;
-            transform: translateY(2px);
-            font-size: 18px;
-          }
-
-          &.disabled {
-            cursor: not-allowed;
-
-            /* stylelint-disable-next-line declaration-no-important */
-            pointer-events: none !important;
-          }
-
-          &.light-icon:hover {
-            background: #dcdee5;
-          }
+        &.disabled {
+          /* stylelint-disable-next-line declaration-no-important */
+          pointer-events: none !important;
+          cursor: not-allowed;
         }
-      }
 
-      .biz-menu-box {
-        position: relative;
+        &.light-icon:hover {
+          background: #dcdee5;
+        }
       }
     }
 
-    .result-right {
-      display: flex;
-      align-items: center;
+    .biz-menu-box {
+      position: relative;
+    }
+  }
+
+  .result-right {
+    display: flex;
+    align-items: center;
+  }
+
+  .open-condition {
+    display: flex;
+    width: 49px;
+    height: 100%;
+    font-size: 24px;
+    color: #979ba5;
+    cursor: pointer;
+    border-right: 1px solid #f0f1f5;
+    flex-shrink: 0;
+    justify-content: center;
+    align-items: center;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .result-text {
+    width: 100%;
+  }
+
+  .time-range-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    &::before {
+      position: absolute;
+      top: 8px;
+      left: 0;
+      width: 1px;
+      height: 14px;
+      background-color: #dcdee5;
+      content: '';
+    }
+  }
+
+  .auto-refresh-trigger {
+    display: flex;
+    height: 52px;
+    line-height: 22px;
+    white-space: nowrap;
+    cursor: pointer;
+    align-items: center;
+
+    .log-icon {
+      padding: 0 5px 0 17px;
+      font-size: 14px;
+      color: #63656e;
     }
 
-    .open-condition {
-      flex-shrink: 0;
+    .active-text {
+      color: #3a84ff;
+    }
+
+    .icon-angle-down {
+      margin: 0 10px;
+      font-size: 22px;
+      color: #63656e;
+      transition: transform 0.3s;
+
+      &.active {
+        transform: rotate(-180deg);
+        transition: transform 0.3s;
+      }
+    }
+
+    &:hover > span {
+      color: #3a84ff;
+    }
+
+    &::before {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      width: 1px;
+      height: 14px;
+      background-color: #dcdee5;
+      content: '';
+    }
+  }
+
+  .more-operation {
+    display: flex;
+    height: 52px;
+    padding: 0 16px 0 12px;
+    line-height: 22px;
+    white-space: nowrap;
+    cursor: pointer;
+    align-items: center;
+
+    .icon-ellipsis-more {
       display: flex;
       justify-content: center;
       align-items: center;
-      width: 49px;
-      height: 100%;
-      border-right: 1px solid #f0f1f5;
-      font-size: 24px;
-      cursor: pointer;
-      color: #979ba5;
+      width: 30px;
+      height: 30px;
+      overflow: hidden;
+      font-size: 18px;
+
+      &:hover {
+        color: #0083ff;
+        cursor: pointer;
+        background-color: #e1ecff;
+        border-radius: 2px;
+      }
+    }
+
+    &::before {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      width: 1px;
+      height: 14px;
+      background-color: #dcdee5;
+      content: '';
+    }
+  }
+
+  .step-box {
+    z-index: 1001;
+    min-height: 60px;
+
+    .target-arrow {
+      /* stylelint-disable-next-line declaration-no-important */
+      top: -5px !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      left: 10px !important;
+      border-top: 1px solid #dcdee5;
+      border-left: 1px solid #dcdee5;
+    }
+  }
+}
+
+.auto-refresh-content {
+  width: 84px;
+
+  .bk-options .bk-option-content {
+    padding: 0 13px;
+  }
+}
+
+.retrieve-setting-container {
+  .list-menu {
+    display: flex;
+    padding: 6px 0;
+    color: #63656e;
+    background-color: white;
+    flex-direction: column;
+
+    &-item {
+      display: flex;
+      height: 32px;
+      min-width: 150px;
+      padding: 0 10px;
+      align-items: center;
 
       &:hover {
         color: #3a84ff;
-      }
-    }
-
-    .result-text {
-      width: 100%;
-    }
-
-    .time-range-wrap {
-      display: flex;
-      align-items: center;
-      position: relative;
-
-      &::before {
-        content: '';
-        width: 1px;
-        height: 14px;
-        background-color: #dcdee5;
-        position: absolute;
-        left: 0;
-        top: 8px;
-      }
-    }
-
-    .auto-refresh-trigger {
-      display: flex;
-      align-items: center;
-      height: 52px;
-      white-space: nowrap;
-      line-height: 22px;
-      cursor: pointer;
-
-      .log-icon {
-        padding: 0 5px 0 17px;
-        font-size: 14px;
-        color: #63656e;;
-      }
-
-      .active-text {
-        color: #3a84ff;
-      }
-
-      .icon-angle-down {
-        margin: 0 10px;
-        font-size: 22px;
-        color: #63656e;
-        transition: transform .3s;
-
-        &.active {
-          transform: rotate(-180deg);
-          transition: transform .3s;
-        }
-      }
-
-      &:hover > span {
-        color: #3a84ff;
-      }
-
-      &::before {
-        content: '';
-        width: 1px;
-        height: 14px;
-        background-color: #dcdee5;
-        position: absolute;
-        left: 0;
-        top: 20px;
-      }
-    }
-
-    .more-operation {
-      display: flex;
-      align-items: center;
-      padding: 0 16px 0 12px;
-      height: 52px;
-      white-space: nowrap;
-      line-height: 22px;
-      cursor: pointer;
-
-      .icon-ellipsis-more {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 30px;
-        height: 30px;
-        overflow: hidden;
-        font-size: 18px;
-
-        &:hover {
-          color: #0083ff;
-          cursor: pointer;
-          border-radius: 2px;
-          background-color: #e1ecff;
-        }
-      }
-
-      &::before {
-        content: '';
-        width: 1px;
-        height: 14px;
-        background-color: #dcdee5;
-        position: absolute;
-        left: 0;
-        top: 20px;
-      }
-    }
-
-    .step-box {
-      min-height: 60px;
-      z-index: 1001;
-
-      .target-arrow {
-        /* stylelint-disable-next-line declaration-no-important */
-        top: -5px !important;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        left: 10px !important;
-        border-top: 1px solid #dcdee5;
-        border-left: 1px solid #dcdee5;
+        cursor: pointer;
+        background-color: #eaf3ff;
       }
     }
   }
-
-  .auto-refresh-content {
-    width: 84px;
-
-    .bk-options .bk-option-content {
-      padding: 0 13px;
-    }
-  }
-
-  .retrieve-setting-container {
-    .list-menu {
-      display: flex;
-      flex-direction: column;
-      padding: 6px 0;
-      background-color: white;
-      color: #63656e;
-
-      &-item {
-        display: flex;
-        align-items: center;
-        padding: 0 10px;
-        height: 32px;
-        min-width: 150px;
-
-        &:hover {
-          cursor: pointer;
-          background-color: #eaf3ff;
-          color: #3a84ff;
-        }
-      }
-    }
-  }
+}
 </style>

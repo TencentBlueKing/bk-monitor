@@ -279,6 +279,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("ENABLE_BCS_CC_PROJECT_API", slz.BooleanField(label="是否启用BCS-CC的项目相关接口", default=False)),
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
+        ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
     ]
 )
 

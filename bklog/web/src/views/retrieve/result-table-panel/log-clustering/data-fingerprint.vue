@@ -22,51 +22,75 @@
 
 <template>
   <div class="finger-container">
-    <div class="top-operate" v-if="allFingerList.length">
+    <div
+      v-if="allFingerList.length"
+      class="top-operate"
+    >
       <p class="operate-message">
-        <i18n v-if="selectList.length" path="当前已选择{0}条数据, 共有{1}条数据">
-          <span>{{selectSize}}</span>
-          <span>{{allFingerList.length}}</span>
+        <i18n
+          v-if="selectList.length"
+          path="当前已选择{0}条数据, 共有{1}条数据"
+        >
+          <span>{{ selectSize }}</span>
+          <span>{{ allFingerList.length }}</span>
         </i18n>
-        <i18n v-else path="共有{0}条数据">
-          <span>{{allFingerList.length}}</span>
+        <i18n
+          v-else
+          path="共有{0}条数据"
+        >
+          <span>{{ allFingerList.length }}</span>
         </i18n>
       </p>
       <span
         v-if="selectList.length"
         class="operate-click"
-        @click="handleBatchUseAlarm(true)">{{$t('批量使用告警')}}</span>
+        @click="handleBatchUseAlarm(true)"
+        >{{ $t('批量使用告警') }}</span
+      >
       <span
         v-if="selectList.length"
         class="operate-click"
-        @click="handleBatchUseAlarm(false)">{{$t('批量停用告警')}}</span>
+        @click="handleBatchUseAlarm(false)"
+        >{{ $t('批量停用告警') }}</span
+      >
     </div>
     <bk-table
+      ref="fingerTableRef"
       data-test-id="cluster_div_fingerTable"
       class="finger-cluster-table table-no-data"
       row-key="$index"
-      ref="fingerTableRef"
       reserve-selection
       :data="fingerList"
-      :outer-border="false">
-
+      :outer-border="false"
+    >
       <bk-table-column
         width="50"
-        :render-header="renderHeader">
+        :render-header="renderHeader"
+      >
         <template slot-scope="{ row }">
           <bk-checkbox
             :checked="getCheckedStatus(row)"
             :disabled="isRequestAlarm"
-            @change="handleRowCheckChange(row, $event)">
+            @change="handleRowCheckChange(row, $event)"
+          >
           </bk-checkbox>
         </template>
       </bk-table-column>
 
-      <bk-table-column :label="$t('数据指纹')" :render-header="$renderHeader" width="150">
+      <bk-table-column
+        :label="$t('数据指纹')"
+        :render-header="$renderHeader"
+        width="150"
+      >
         <template slot-scope="{ row }">
           <div class="fl-ac signature-box">
-            <span v-bk-overflow-tips>{{row.signature}}</span>
-            <div v-show="row.is_new_class" class="new-finger">New</div>
+            <span v-bk-overflow-tips>{{ row.signature }}</span>
+            <div
+              v-show="row.is_new_class"
+              class="new-finger"
+            >
+              New
+            </div>
           </div>
         </template>
       </bk-table-column>
@@ -76,12 +100,15 @@
         :render-header="$renderHeader"
         :width="getTableWidth.number"
         sortable
-        prop="number">
+        prop="number"
+      >
         <template slot-scope="{ row }">
           <span
             class="link-color"
-            @click="handleMenuClick('show original', row)">
-            {{row.count}}</span>
+            @click="handleMenuClick('show original', row)"
+          >
+            {{ row.count }}</span
+          >
         </template>
       </bk-table-column>
 
@@ -90,17 +117,19 @@
         :render-header="$renderHeader"
         :width="getTableWidth.percentage"
         sortable
-        prop="percentage">
+        prop="percentage"
+      >
         <template slot-scope="{ row }">
           <span
             class="link-color"
-            @click="handleMenuClick('show original', row)">
-            {{`${toFixedNumber(row.percentage, 2)}%`}}
+            @click="handleMenuClick('show original', row)"
+          >
+            {{ `${toFixedNumber(row.percentage, 2)}%` }}
           </span>
         </template>
       </bk-table-column>
 
-      <template v-if="requestData.year_on_year_hour >= 1 ">
+      <template v-if="requestData.year_on_year_hour >= 1">
         <bk-table-column
           sortable
           align="center"
@@ -108,9 +137,10 @@
           :width="getTableWidth.year_on_year_count"
           :label="$t('同比数量')"
           :render-header="$renderHeader"
-          :sort-by="'year_on_year_count'">
+          :sort-by="'year_on_year_count'"
+        >
           <template slot-scope="{ row }">
-            <span>{{row.year_on_year_count}}</span>
+            <span>{{ row.year_on_year_count }}</span>
           </template>
         </bk-table-column>
 
@@ -121,17 +151,22 @@
           :width="getTableWidth.year_on_year_percentage"
           :label="$t('同比变化')"
           :render-header="$renderHeader"
-          :sort-by="'year_on_year_percentage'">
+          :sort-by="'year_on_year_percentage'"
+        >
           <template slot-scope="{ row }">
             <div class="fl-ac compared-change">
-              <span>{{`${toFixedNumber(row.year_on_year_percentage, 2)}%`}}</span>
+              <span>{{ `${toFixedNumber(row.year_on_year_percentage, 2)}%` }}</span>
               <span :class="['bk-icon', showArrowsClass(row)]"></span>
             </div>
           </template>
         </bk-table-column>
       </template>
 
-      <bk-table-column label="Pattern" min-width="350" class-name="symbol-column">
+      <bk-table-column
+        label="Pattern"
+        min-width="350"
+        class-name="symbol-column"
+      >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, $index }">
           <div class="pattern">
@@ -139,23 +174,27 @@
               <cluster-event-popover
                 :context="row.pattern"
                 :tippy-options="{ distance: 10, placement: 'bottom', boundary: scrollContent }"
-                @eventClick="(option, isLink) => handleMenuClick(option, row, isLink)">
+                @eventClick="(option, isLink) => handleMenuClick(option, row, isLink)"
+              >
                 <text-highlight
-                  style="word-break: break-all; white-space: pre-line;"
-                  :queries="getHeightLightList(row.pattern)">
-                  {{getHeightLightStr(row.pattern)}}
+                  style="word-break: break-all; white-space: pre-line"
+                  :queries="getHeightLightList(row.pattern)"
+                >
+                  {{ getHeightLightStr(row.pattern) }}
                 </text-highlight>
               </cluster-event-popover>
               <p
                 v-if="!cacheExpandStr.includes($index)"
                 class="show-whole-btn"
-                @click.stop="handleShowWhole($index)">
+                @click.stop="handleShowWhole($index)"
+              >
                 {{ $t('展开全部') }}
               </p>
               <p
                 v-else
                 class="hide-whole-btn"
-                @click.stop="handleHideWhole($index)">
+                @click.stop="handleHideWhole($index)"
+              >
                 {{ $t('收起') }}
               </p>
             </div>
@@ -165,15 +204,16 @@
 
       <template v-if="isGroupSearch">
         <bk-table-column
-          v-for="(item,index) of requestData.group_by"
+          v-for="(item, index) of requestData.group_by"
           :key="index"
           :label="item"
           :render-header="$renderHeader"
           width="130"
-          class-name="symbol-column">
+          class-name="symbol-column"
+        >
           <template slot-scope="{ row }">
             <div v-bk-overflow-tips>
-              <span>{{row.group[index]}}</span>
+              <span>{{ row.group[index] }}</span>
             </div>
           </template>
         </bk-table-column>
@@ -182,23 +222,26 @@
       <bk-table-column
         width="200"
         :label="$t('责任人')"
-        :render-header="renderUserHeader">
+        :render-header="renderUserHeader"
+      >
         <template slot-scope="{ row, $index }">
-          <div 
-            v-bk-tooltips.top="{ 
-              content: row.owners.join(', '), 
+          <div
+            v-bk-tooltips.top="{
+              content: row.owners.join(', '),
               delay: 300,
               disabled: !row.owners.length
-            }">
+            }"
+          >
             <bk-user-selector
               class="principal-input"
               placeholder=" "
               multiple
-              style="margin-top: 4px;"
+              style="margin-top: 4px"
               :value="row.owners"
               :api="userApi"
               :empty-text="$t('无匹配人员')"
-              @change="(val) => handleChangePrincipal(val, $index)">
+              @change="val => handleChangePrincipal(val, $index)"
+            >
             </bk-user-selector>
           </div>
         </template>
@@ -208,9 +251,13 @@
         width="260"
         align="center"
         :label="$t('备注')"
-        :render-header="renderRemarkHeader">
+        :render-header="renderRemarkHeader"
+      >
         <template slot-scope="{ row, $index }">
-          <div class="auto-height-container" @mouseenter="e => handleHoverRemarkIcon(e, row, $index)">
+          <div
+            class="auto-height-container"
+            @mouseenter="e => handleHoverRemarkIcon(e, row, $index)"
+          >
             <span class="auto-height">
               {{ remarkContent(row.remark) }}
             </span>
@@ -218,48 +265,90 @@
         </template>
       </bk-table-column>
 
-      <template slot="append" v-if="fingerList.length && isPageOver">
+      <template
+        v-if="fingerList.length && isPageOver"
+        slot="append"
+      >
         <clustering-loader :width-list="loaderWidthList" />
       </template>
 
-      <template slot="append" v-if="isShowBottomTips">
+      <template
+        v-if="isShowBottomTips"
+        slot="append"
+      >
         <div class="bottom-tips">
           <i18n path="已加载完全部数据，如需查看更多查询条件可以{0}">
-            <span @click="handleReturnTop">{{$t('返回顶部')}}</span>
+            <span @click="handleReturnTop">{{ $t('返回顶部') }}</span>
           </i18n>
         </div>
       </template>
 
       <div slot="empty">
-        <empty-status empty-type="empty" :show-text="false">
-          <div class="empty-text" v-if="!clusterSwitch || !configData.extra.signature_switch">
-            <p>{{getLeaveText}}</p>
-            <span class="empty-leave" @click="handleLeaveCurrent">{{$t('去设置')}}</span>
+        <empty-status
+          empty-type="empty"
+          :show-text="false"
+        >
+          <div
+            v-if="!clusterSwitch || !configData.extra.signature_switch"
+            class="empty-text"
+          >
+            <p>{{ getLeaveText }}</p>
+            <span
+              class="empty-leave"
+              @click="handleLeaveCurrent"
+              >{{ $t('去设置') }}</span
+            >
           </div>
-          <p v-if="!fingerList.length && configData.extra.signature_switch">{{$t('暂无数据')}}</p>
+          <p v-if="!fingerList.length && configData.extra.signature_switch">{{ $t('暂无数据') }}</p>
         </empty-status>
       </div>
     </bk-table>
 
     <div v-show="false">
-      <div id="remark-tips" ref="remarkTips">
-        <div v-show="currentRemarkList.length" class="remark-list">
-          <div v-for="(remark, index) in currentRemarkList" :key="index">
-            <div class="user" v-if="remark.username">{{ remark.username }}</div>
+      <div
+        id="remark-tips"
+        ref="remarkTips"
+      >
+        <div
+          v-show="currentRemarkList.length"
+          class="remark-list"
+        >
+          <div
+            v-for="(remark, index) in currentRemarkList"
+            :key="index"
+          >
+            <div
+              v-if="remark.username"
+              class="user"
+            >
+              {{ remark.username }}
+            </div>
             <div class="content">{{ remark.remark }}</div>
             <div class="tools">
               <span>{{ remark.showTime }}</span>
-              <div v-if="remark.username === username" class="icon">
-                <i class="bk-icon icon-edit-line" @click="handleEditRemark(remark)"></i>
-                <i class="bk-icon icon-delete" @click="handleDeleteRemark(remark)"></i>
+              <div
+                v-if="remark.username === username"
+                class="icon"
+              >
+                <i
+                  class="bk-icon icon-edit-line"
+                  @click="handleEditRemark(remark)"
+                ></i>
+                <i
+                  class="bk-icon icon-delete"
+                  @click="handleDeleteRemark(remark)"
+                ></i>
               </div>
             </div>
           </div>
         </div>
         <div class="add-new-remark">
-          <div class="text-btn" @click="handleClickAddNewRemark">
+          <div
+            class="text-btn"
+            @click="handleClickAddNewRemark"
+          >
             <i class="icon bk-icon icon-plus push"></i>
-            <span class="text">{{$t('新增备注')}}</span>
+            <span class="text">{{ $t('新增备注') }}</span>
           </div>
         </div>
       </div>
@@ -270,20 +359,23 @@
       header-position="left"
       :title="$t('备注')"
       :width="480"
-      :confirm-fn="confirmDialogStr">
+      :confirm-fn="confirmDialogStr"
+    >
       <bk-form
         ref="labelRef"
         style="width: 100%"
         :model="verifyData"
         :rules="rules"
-        :label-width="0">
+        :label-width="0"
+      >
         <bk-form-item property="labelRuels">
           <bk-input
-            type="textarea"
             v-model="verifyData.textInputStr"
+            type="textarea"
             :placeholder="$t('请输入')"
             :maxlength="100"
-            :rows="5">
+            :rows="5"
+          >
           </bk-input>
         </bk-form-item>
       </bk-form>
@@ -307,37 +399,38 @@ export default {
     ClusteringLoader,
     TextHighlight,
     EmptyStatus,
-    BkUserSelector,
+    BkUserSelector
   },
+  inject: ['addFilterCondition'],
   props: {
     fingerList: {
       type: Array,
-      require: true,
+      require: true
     },
     clusterSwitch: {
       type: Boolean,
-      require: true,
+      require: true
     },
     requestData: {
       type: Object,
-      require: true,
+      require: true
     },
     configData: {
       type: Object,
-      require: true,
+      require: true
     },
     loaderWidthList: {
       type: Array,
-      default: [''],
+      default: () => ['']
     },
     isPageOver: {
       type: Boolean,
-      default: false,
+      default: false
     },
     allFingerList: {
       type: Array,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
@@ -352,33 +445,33 @@ export default {
       hoverLabelIndex: -1,
       /** 输入框弹窗的字符串 */
       verifyData: {
-        textInputStr: '',
+        textInputStr: ''
       },
       rules: {
         labelRuels: [
           {
             validator: this.checkName,
             message: this.$t('{n}不规范, 包含特殊符号.', { n: this.$t('备注') }),
-            trigger: 'blur',
+            trigger: 'blur'
           },
           {
             max: 100,
             message: this.$t('不能多于{n}个字符', { n: 100 }),
-            trigger: 'blur',
-          },
-        ],
+            trigger: 'blur'
+          }
+        ]
       },
       enTableWidth: {
         number: '110',
         percentage: '116',
         year_on_year_count: '171',
-        year_on_year_percentage: '171',
+        year_on_year_percentage: '171'
       },
       cnTableWidth: {
         number: '91',
         percentage: '96',
         year_on_year_count: '101',
-        year_on_year_percentage: '101',
+        year_on_year_percentage: '101'
       },
       /** 编辑标签或备注的弹窗 */
       isShowStrInputDialog: false,
@@ -390,34 +483,33 @@ export default {
       ownerBaseList: [
         {
           id: 'all',
-          name: this.$t('全部'),
+          name: this.$t('全部')
         },
         {
           id: 'no_owner',
-          name: this.$t('未指定责任人'),
-        },
+          name: this.$t('未指定责任人')
+        }
       ],
       remarkSelect: ['all'],
       ownerSelect: ['all'],
       remarkList: [
         {
           id: 'all',
-          name: this.$t('全部'),
+          name: this.$t('全部')
         },
         {
           id: 'remarked',
-          name: this.$t('已备注'),
+          name: this.$t('已备注')
         },
         {
           id: 'no_remark',
-          name: this.$t('未备注'),
-        },
+          name: this.$t('未备注')
+        }
       ],
-      ownerList: [],
+      ownerList: []
       // ownerLoading: false,
     };
   },
-  inject: ['addFilterCondition'],
   computed: {
     bkBizId() {
       return this.$store.state.bkBizId;
@@ -426,7 +518,9 @@ export default {
       return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
     },
     getLeaveText() {
-      return !this.clusterSwitch ? this.$t('当前日志聚类未启用，请前往设置') : this.$t('当前数据指纹未启用，请前往设置');
+      return !this.clusterSwitch
+        ? this.$t('当前日志聚类未启用，请前往设置')
+        : this.$t('当前数据指纹未启用，请前往设置');
     },
     getTableWidth() {
       return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
@@ -451,7 +545,7 @@ export default {
     },
     username() {
       return this.$store.state.userMeta?.username;
-    },
+    }
   },
   watch: {
     'fingerList.length': {
@@ -462,7 +556,7 @@ export default {
             this.selectList.push(...this.fingerList.slice(oldLength, newLength));
           });
         }
-      },
+      }
     },
     'selectList.length'(newLength) {
       // 选择列表数据大小计算
@@ -480,8 +574,8 @@ export default {
         this.checkValue = 1;
       } else {
         this.checkValue = 2;
-      };
-    },
+      }
+    }
   },
   mounted() {
     this.handleToggleUserSelect();
@@ -550,7 +644,7 @@ export default {
     handleBatchUseAlarm(option = true) {
       if (this.isRequestAlarm) {
         return;
-      };
+      }
       const title = option ? this.$t('是否批量开启告警') : this.$t('是否批量关闭告警');
       this.$bkInfo({
         title,
@@ -575,12 +669,12 @@ export default {
             // 批量成功后刷新数据指纹请求
             this.$emit('updateRequest');
           });
-        },
+        }
       });
     },
     getSetList(list = []) {
       const setIDList = new Set();
-      const returnList = list.filter((el) => {
+      const returnList = list.filter(el => {
         if (!setIDList.has(el.signature)) {
           setIDList.add(el.signature);
           return true;
@@ -598,7 +692,7 @@ export default {
       if (!alarmList.length) {
         this.$bkMessage({
           theme: 'success',
-          message: state ? this.$t('已全部开启告警') : this.$t('已全部关闭告警'),
+          message: state ? this.$t('已全部开启告警') : this.$t('已全部关闭告警')
         });
         return;
       }
@@ -606,28 +700,33 @@ export default {
       const action = state ? 'create' : 'delete';
       // 组合告警请求数组
       const actions = alarmList.reduce((pre, cur) => {
-        const { signature, pattern, monitor: { strategy_id } } = cur;
+        const {
+          signature,
+          pattern,
+          monitor: { strategy_id }
+        } = cur;
         const queryObj = {
           signature,
           pattern,
           strategy_id,
-          action,
+          action
         };
         !queryObj.strategy_id && delete queryObj.strategy_id;
         pre.push(queryObj);
         return pre;
       }, []);
       this.isRequestAlarm = true;
-      this.$http.request('/logClustering/updateStrategies', {
-        params: {
-          index_set_id: this.$route.params.indexId,
-        },
-        data: {
-          bk_biz_id: this.bkBizId,
-          pattern_level: this.requestData.pattern_level,
-          actions,
-        },
-      })
+      this.$http
+        .request('/logClustering/updateStrategies', {
+          params: {
+            index_set_id: this.$route.params.indexId
+          },
+          data: {
+            bk_biz_id: this.bkBizId,
+            pattern_level: this.requestData.pattern_level,
+            actions
+          }
+        })
         .then(({ data: { operators, result } }) => {
           /**
            * 当操作成功时 统一提示操作成功
@@ -646,7 +745,7 @@ export default {
           this.$bkMessage({
             theme,
             message,
-            ellipsisLine: 0,
+            ellipsisLine: 0
           });
           callback(result, operators[0].strategy_id);
         })
@@ -674,11 +773,11 @@ export default {
       return h(fingerSelectColumn, {
         props: {
           value: this.checkValue,
-          disabled: !this.fingerList.length,
+          disabled: !this.fingerList.length
         },
         on: {
-          change: this.handleSelectionChange,
-        },
+          change: this.handleSelectionChange
+        }
       });
     },
     /**
@@ -721,26 +820,28 @@ export default {
     /** 设置负责人 */
     handleChangePrincipal(val, index) {
       this.editDialogIndex = index;
-      this.$http.request('/logClustering/setOwner', {
-        params: {
-          index_set_id: this.$route.params.indexId,
-        },
-        data: {
-          signature: this.getHoverRowValue.signature,
-          owners: val,
-          origin_pattern: this.getHoverRowValue.origin_pattern,
-          groups: this.getHoverRowGroupsValue,
-        },
-      }).then((res) => {
-        if (res.result) {
-          this.getHoverRowValue.owners = res.data.owners;
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('操作成功'),
-          });
-          this.editDialogIndex = -1;
-        }
-      });
+      this.$http
+        .request('/logClustering/setOwner', {
+          params: {
+            index_set_id: this.$route.params.indexId
+          },
+          data: {
+            signature: this.getHoverRowValue.signature,
+            owners: val,
+            origin_pattern: this.getHoverRowValue.origin_pattern,
+            groups: this.getHoverRowGroupsValue
+          }
+        })
+        .then(res => {
+          if (res.result) {
+            this.getHoverRowValue.owners = res.data.owners;
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('操作成功')
+            });
+            this.editDialogIndex = -1;
+          }
+        });
     },
     /** 设置备注  */
     remarkQuery(markType = 'add') {
@@ -751,43 +852,45 @@ export default {
           queryStr = 'updateRemark';
           additionData = {
             new_remark: this.verifyData.textInputStr.trim(),
-            ...this.catchOperatorVal,
+            ...this.catchOperatorVal
           };
           break;
         case 'delete':
           queryStr = 'deleteRemark';
           additionData = {
             remark: this.verifyData.textInputStr.trim(),
-            ...this.catchOperatorVal,
+            ...this.catchOperatorVal
           };
           break;
         case 'add':
           queryStr = 'setRemark';
           additionData = {
-            remark: this.verifyData.textInputStr.trim(),
+            remark: this.verifyData.textInputStr.trim()
           };
           break;
       }
-      this.$http.request(`/logClustering/${queryStr}`, {
-        params: {
-          index_set_id: this.$route.params.indexId,
-        },
-        data: {
-          signature: this.getHoverRowValue.signature,
-          ...additionData,
-          origin_pattern: this.getHoverRowValue.origin_pattern,
-          groups: this.getHoverRowGroupsValue,
-        },
-      }).then((res) => {
-        if (res.result) {
-          this.getHoverRowValue.remark = res.data.remark;
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('操作成功'),
-          });
-          this.editDialogIndex = -1;
-        }
-      })
+      this.$http
+        .request(`/logClustering/${queryStr}`, {
+          params: {
+            index_set_id: this.$route.params.indexId
+          },
+          data: {
+            signature: this.getHoverRowValue.signature,
+            ...additionData,
+            origin_pattern: this.getHoverRowValue.origin_pattern,
+            groups: this.getHoverRowGroupsValue
+          }
+        })
+        .then(res => {
+          if (res.result) {
+            this.getHoverRowValue.remark = res.data.remark;
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('操作成功')
+            });
+            this.editDialogIndex = -1;
+          }
+        })
         .finally(() => {
           this.verifyData.textInputStr = '';
           this.catchOperatorVal = {};
@@ -796,16 +899,18 @@ export default {
     checkName() {
       if (this.verifyData.textInputStr.trim() === '') return true;
       // eslint-disable-next-line no-useless-escape
-      return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(this.verifyData.textInputStr.trim());
+      return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+        this.verifyData.textInputStr.trim()
+      );
     },
     handleHoverRemarkIcon(e, row, index) {
       if (!this.popoverInstance) {
         this.currentRemarkList = row.remark
           .map(item => ({
             ...item,
-            showTime: item.create_time > 0 ? formatDate(item.create_time) : '',
+            showTime: item.create_time > 0 ? formatDate(item.create_time) : ''
           }))
-          .sort((a, b) => (b.create_time - a.create_time));
+          .sort((a, b) => b.create_time - a.create_time);
         this.popoverInstance = this.$bkPopover(event.target, {
           content: this.$refs.remarkTips,
           allowHTML: true,
@@ -820,7 +925,7 @@ export default {
           onHidden: () => {
             this.popoverInstance && this.popoverInstance.destroy();
             this.popoverInstance = null;
-          },
+          }
         });
       }
       this.editDialogIndex = index;
@@ -848,7 +953,7 @@ export default {
       this.verifyData.textInputStr = row.remark;
       this.catchOperatorVal = {
         old_remark: row.remark,
-        create_time: row.create_time,
+        create_time: row.create_time
       };
       this.isShowStrInputDialog = true;
     },
@@ -856,7 +961,7 @@ export default {
       this.popoverInstance.hide();
       this.catchOperatorVal = {
         remark: row.remark,
-        create_time: row.create_time,
+        create_time: row.create_time
       };
       this.remarkQuery('delete');
     },
@@ -873,15 +978,17 @@ export default {
     getUserList() {
       // this.ownerLoading = true;
       const cloneOwnerBase = deepClone(this.ownerBaseList);
-      this.$http.request('/logClustering/getOwnerList', {
-        params: {
-          index_set_id: this.$route.params.indexId,
-        } })
-        .then((res) => {
+      this.$http
+        .request('/logClustering/getOwnerList', {
+          params: {
+            index_set_id: this.$route.params.indexId
+          }
+        })
+        .then(res => {
           this.ownerList = res.data.reduce((acc, cur) => {
             acc.push({
               id: cur,
-              name: cur,
+              name: cur
             });
             return acc;
           }, cloneOwnerBase);
@@ -914,13 +1021,13 @@ export default {
       const lastSelect = v[v.length - 1];
       const ownerData = ['no_owner', 'all'].includes(lastSelect)
         ? {
-          owner_config: lastSelect,
-          owners: [],
-        }
+            owner_config: lastSelect,
+            owners: []
+          }
         : {
-          owner_config: 'owner',
-          owners: v,
-        };
+            owner_config: 'owner',
+            owners: v
+          };
       this.$emit('handleFingerOperate', 'requestData', ownerData, true);
     },
     /**
@@ -933,9 +1040,7 @@ export default {
      * @desc: 初始化责任人选择的数据和初始化责任人列表
      */
     handleToggleUserSelect(v) {
-      this.ownerSelect = !!this.requestData.owners.length
-        ? this.requestData.owners
-        : [this.requestData.owner_config];
+      this.ownerSelect = !!this.requestData.owners.length ? this.requestData.owners : [this.requestData.owner_config];
       if (v) this.getUserList();
     },
     /**
@@ -954,12 +1059,12 @@ export default {
           selectList: this.ownerList,
           // loading: this.ownerLoading,
           toggle: this.handleToggleUserSelect,
-          isActive,
+          isActive
         },
         on: {
           selected: this.handleUserSelectChange,
-          submit: this.handleUserSubmit,
-        },
+          submit: this.handleUserSubmit
+        }
       });
     },
     renderRemarkHeader(h, { column }) {
@@ -974,21 +1079,21 @@ export default {
           selectList: this.remarkList,
           // loading: this.ownerLoading,
           toggle: this.handleToggleRemarkSelect,
-          isActive,
+          isActive
         },
         on: {
           selected: this.handleRemarkSelectChange,
-          submit: this.handleRemarkSubmit,
-        },
+          submit: this.handleRemarkSubmit
+        }
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-
+/* stylelint-disable no-descending-specificity */
 .finger-container {
   position: relative;
 
@@ -997,18 +1102,17 @@ export default {
   }
 
   .auto-height {
-    padding: 2px;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    display: box;
     height: auto; /* 设置元素高度为自动 */
     min-height: 20px; /* 根据需要设置最小高度 */
+    padding: 2px;
     overflow: hidden;
-
-    /* stylelint-disable-next-line property-no-vendor-prefix */
-    display: -webkit-box;
+    text-overflow: ellipsis;
 
     /* stylelint-disable-next-line property-no-vendor-prefix */
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
-    text-overflow: ellipsis;
   }
 
   .top-operate {
@@ -1030,9 +1134,9 @@ export default {
     }
 
     .operate-click {
+      padding-right: 6px;
       color: #3a84ff;
       cursor: pointer;
-      padding-right: 6px;
     }
   }
 
@@ -1040,8 +1144,8 @@ export default {
     color: #313238;
 
     :deep(.bk-table-body-wrapper) {
-      margin-top: 32px;
       min-height: calc(100vh - 570px);
+      margin-top: 32px;
 
       .bk-table-empty-block {
         min-height: calc(100vh - 570px);
@@ -1065,9 +1169,9 @@ export default {
 
       span {
         overflow: hidden;
+        line-height: 24px;
         text-overflow: ellipsis;
         white-space: nowrap;
-        line-height: 24px;
       }
     }
 
@@ -1091,8 +1195,8 @@ export default {
       }
 
       .empty-leave {
-        color: #3a84ff;
         margin-top: 8px;
+        color: #3a84ff;
         cursor: pointer;
       }
     }
@@ -1104,10 +1208,10 @@ export default {
 
     .pattern-content {
       position: relative;
+      display: inline-block;
       padding: 0 6px;
       margin-bottom: 15px;
       overflow: hidden;
-      display: inline-block;
 
       &.is-limit {
         max-height: 96px;
@@ -1134,16 +1238,16 @@ export default {
       top: 80px;
       width: 100%;
       height: 24px;
-      color: #3a84ff;
       font-size: 12px;
-      background: #fff;
+      color: #3a84ff;
       cursor: pointer;
-      transition: background-color .25s ease;
+      background: #fff;
+      transition: background-color 0.25s ease;
     }
 
     .hide-whole-btn {
-      line-height: 14px;
       margin-top: 2px;
+      line-height: 14px;
       color: #3a84ff;
       cursor: pointer;
     }
@@ -1164,8 +1268,8 @@ export default {
 .bottom-tips {
   height: 43px;
   line-height: 43px;
-  text-align: center;
   color: #979ba5;
+  text-align: center;
 
   span {
     color: #3a84ff;
@@ -1174,13 +1278,13 @@ export default {
 }
 
 .new-finger {
-  margin-left: 6px;
   width: 40px;
   height: 16px;
+  margin-left: 6px;
   font-size: 12px;
   line-height: 14px;
-  text-align: center;
   color: #ea3636;
+  text-align: center;
   background: #fee;
   border: 1px solid #fd9c9c;
   border-radius: 9px;
@@ -1211,10 +1315,9 @@ export default {
 
   :deep(.user-selector-container) {
     /* stylelint-disable-next-line declaration-no-important */
-    border: none !important;
-
-    /* stylelint-disable-next-line declaration-no-important */
     background: transparent !important;
+    /* stylelint-disable-next-line declaration-no-important */
+    border: none !important;
 
     &.disabled {
       /* stylelint-disable-next-line declaration-no-important */
@@ -1225,11 +1328,11 @@ export default {
 
 #remark-tips {
   .remark-list {
+    max-height: 120px;
+    margin-bottom: 6px;
+    overflow-y: auto;
     font-size: 12px;
     color: #63656e;
-    max-height: 120px;
-    overflow-y: auto;
-    margin-bottom: 6px;
     border-bottom: 1px solid #eaebf0;
 
     .user {
@@ -1237,8 +1340,8 @@ export default {
     }
 
     .content {
-      white-space: pre-wrap;
       padding: 6px 0;
+      white-space: pre-wrap;
     }
 
     .tools {
@@ -1250,8 +1353,8 @@ export default {
 
     .icon {
       display: inline-block;
-      font-size: 14px;
       margin-right: 8px;
+      font-size: 14px;
 
       .bk-icon:hover {
         cursor: pointer;

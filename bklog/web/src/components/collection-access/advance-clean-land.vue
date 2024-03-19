@@ -21,7 +21,10 @@
   -->
 
 <template>
-  <div class="advance-clean-land" v-bkloading="{ isLoading: loading }">
+  <div
+    v-bkloading="{ isLoading: loading }"
+    class="advance-clean-land"
+  >
     <span class="log-icon icon-shijian"></span>
     <p class="title">{{ $t('高级清洗中') }}</p>
     <p class="remark">
@@ -35,7 +38,11 @@
       <span class="bk-icon icon-refresh-line"></span>
       <span @click="handleRefresh">{{ $t('刷新') }}</span>
     </div>
-    <bk-button class="back-list" @click="backToList">{{ $t('返回列表') }}</bk-button>
+    <bk-button
+      class="back-list"
+      @click="backToList"
+      >{{ $t('返回列表') }}</bk-button
+    >
   </div>
 </template>
 
@@ -46,88 +53,90 @@ export default {
   props: {
     collectorId: {
       type: String,
-      dafault: '',
+      dafault: ''
     },
     backRouter: {
       type: String,
-      dafault: '',
-    },
+      dafault: ''
+    }
   },
   data() {
     return {
       loading: false,
       isInit: false,
-      resultList: [], // 清洗结果
+      resultList: [] // 清洗结果
     };
   },
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
-      curCollect: 'collect/curCollect',
-    }),
+      curCollect: 'collect/curCollect'
+    })
   },
   methods: {
     backToList() {
       this.$router.push({
         name: this.backRouter,
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
     },
     handleRefresh() {
       const { collector_config_id, bkdata_data_id: bkdataDataId } = this.curCollect;
       this.loading = true;
-      this.$http.request('clean/refreshClean', {
-        params: {
-          collector_config_id,
-        },
-        query: {
-          bk_biz_id: this.bkBizId,
-          bk_data_id: bkdataDataId,
-        },
-      }).then((res) => {
-        this.isInit = true;
-        this.resultList = res.data;
-      })
+      this.$http
+        .request('clean/refreshClean', {
+          params: {
+            collector_config_id
+          },
+          query: {
+            bk_biz_id: this.bkBizId,
+            bk_data_id: bkdataDataId
+          }
+        })
+        .then(res => {
+          this.isInit = true;
+          this.resultList = res.data;
+        })
         .finally(() => {
           this.loading = false;
         });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .advance-clean-land {
-    padding-top: 210px;
-    height: 100%;
-    text-align: center;
-    background: #fff;
-    border: 1px solid #dcdee5;
+.advance-clean-land {
+  height: 100%;
+  padding-top: 210px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #dcdee5;
 
-    .icon-shijian {
-      font-size: 64px;
-      color: #c4c6cc;
-    }
-
-    .title {
-      margin-top: 18px;
-      font-size: 16px;
-      color: #000;
-    }
-
-    .remark {
-      margin-top: 10px;
-      font-size: 12px;
-      color: #63656e;
-    }
-
-    .refresh-button {
-      margin: 18px 0 20px;
-      color: #3a84ff;
-      font-size: 12px;
-      cursor: pointer;
-    }
+  .icon-shijian {
+    font-size: 64px;
+    color: #c4c6cc;
   }
+
+  .title {
+    margin-top: 18px;
+    font-size: 16px;
+    color: #000;
+  }
+
+  .remark {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #63656e;
+  }
+
+  .refresh-button {
+    margin: 18px 0 20px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
 </style>

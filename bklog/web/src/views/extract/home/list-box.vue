@@ -21,13 +21,20 @@
   -->
 
 <template>
-  <div v-if="listData.length || (mark && title)" class="list-box-container">
+  <div
+    v-if="listData.length || (mark && title)"
+    class="list-box-container"
+  >
     <div :class="['list-title', mark && 'mark']">
       <span :class="icon"></span>
       <h2 class="text">{{ title }}</h2>
     </div>
     <ul class="list-box">
-      <li class="list-item" v-for="item in listData" :key="item">
+      <li
+        v-for="item in listData"
+        :key="item"
+        class="list-item"
+      >
         {{ item }}
       </li>
     </ul>
@@ -39,30 +46,31 @@ export default {
   props: {
     icon: {
       type: String,
-      required: true,
+      required: true
     },
     title: {
       type: String,
-      default: '',
+      default: ''
     },
     mark: {
       type: Boolean,
-      default: false,
+      default: false
     },
     list: {
       type: [String, Array],
-      default: '',
-    },
+      default: ''
+    }
   },
   computed: {
     listData() {
-      if (this.list && (typeof this.list === 'string')) {
+      if (this.list && typeof this.list === 'string') {
         return [this.list];
-      } if (Array.isArray(this.list)) {
+      }
+      if (Array.isArray(this.list)) {
         return this.list;
       }
       return [];
-    },
-  },
+    }
+  }
 };
 </script>

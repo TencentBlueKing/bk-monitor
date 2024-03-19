@@ -1,30 +1,30 @@
 .masking-container {
   height: calc(100vh - 52px);
-  background: #f4f7fa;
   overflow: auto;
+  background: #f4f7fa;
 
   .masking-title {
-    display: flex;
-    height: 52px;
-    width: 100%;
-    min-width: 1366px;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 16px;
-    padding: 0 30px;
     position: relative;
     z-index: 999;
-    box-shadow: 0 1px 6px 0 rgb(0 0 0 / 10%);
+    display: flex;
+    width: 100%;
+    height: 52px;
+    min-width: 1366px;
+    padding: 0 30px;
+    font-size: 16px;
     background: #fff;
+    box-shadow: 0 1px 6px 0 rgb(0 0 0 / 10%);
+    justify-content: space-between;
+    align-items: center;
 
     :first-child {
       width: 32px;
     }
 
     .icon-close {
+      position: relative;
       display: inline-block;
       font-size: 32px;
-      position: relative;
       cursor: pointer;
 
       &::before {
@@ -33,71 +33,71 @@
       }
 
       &:hover::after {
-        content: '';
         position: absolute;
         bottom: 5px;
         left: 50%;
-        transform: translateX(-50%);
+        z-index: 1;
         width: 24px;
         height: 24px;
-        border-radius: 50%;
         background: #f0f1f5;
-        z-index: 1;
+        border-radius: 50%;
+        content: '';
+        transform: translateX(-50%);
       }
     }
   }
 
   .center-box {
-    margin-top: 20px;
-    width: 100%;
-    min-height: calc(100vh - 128px);
-    min-width: 1366px;
-    display: flex;
-    justify-content: center;
     position: relative;
+    display: flex;
+    width: 100%;
+    min-width: 1366px;
+    min-height: calc(100vh - 128px);
+    margin-top: 20px;
     overflow: auto;
+    justify-content: center;
 
     .content-panel {
-      font-size: 12px;
       display: flex;
       width: 1312px;
       max-height: calc(100vh - 200px);
-      min-height: 365px;
-      background: #fff;
-      box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05); 
+      min-height: 365px; 
       overflow: hidden;
+      font-size: 12px;
+      background: #fff;
       transform: rotateX(0deg);
+      box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
     }
 
     .left-panel {
       display: flex;
-      flex-direction: column;
       width: 240px;
       height: 365px;
+      padding: 6px 0;
+      margin-right: 20px;
       background-color: white;
       border-radius: 2px;
       box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
-      margin-right: 20px;
-      padding: 6px 0;
+      flex-direction: column;
 
       .menu-item {
         display: flex;
-        align-items: center;
-        padding: 0 10px 0 20px;
-        height: 40px;
         width: 100%;
+        height: 40px;
+        padding: 0 10px 0 20px;
         margin: 2px 0;
         font-size: 14px;
+        align-items: center;
 
         &:hover {
+          color: #3a84ff;
           cursor: pointer;
           background: #e1ecff;
-          color: #3a84ff;
         }
 
         &.active-menu {
-          background: #e1ecff;
           color: #3a84ff;
+          background: #e1ecff;
         }
       }
     }

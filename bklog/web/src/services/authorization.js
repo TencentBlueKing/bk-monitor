@@ -27,55 +27,55 @@
 // 获取运维人员列表呢
 const getAuthorizerList = {
   url: '/external_permission/get_maintainer/',
-  method: 'get',
+  method: 'get'
 };
 
 // 修改授权人
 const createOrUpdateAuthorizer = {
   url: '/external_permission/maintainer/',
-  method: 'post',
+  method: 'post'
 };
 
 // 获取授权人
 const getAuthorizer = {
   url: '/external_permission/authorizer/',
-  method: 'get',
+  method: 'get'
 };
 
 // 获取审批记录
 const getApplyRecordList = {
   url: '/external_permission/apply_record/',
-  method: 'get',
+  method: 'get'
 };
 
 // 获取授权列表
 const getExternalPermissionList = {
   url: '/external_permission/',
-  method: 'get',
+  method: 'get'
 };
 
 // 删除外部权限
 const deleteExternalPermission = {
   url: '/external_permission/drop/',
-  method: 'post',
+  method: 'post'
 };
 
 // 创建或更新外部权限
 const createOrUpdateExternalPermission = {
   url: '/external_permission/create_or_update/',
-  method: 'post',
+  method: 'post'
 };
 
 // 获取操作类型对应的资源列表
 const getByAction = {
   url: '/external_permission/resource_by_action/',
-  method: 'get',
+  method: 'get'
 };
 
 // 获取操作类型
 const getActionList = {
   url: '/external_permission/action/',
-  method: 'get',
+  method: 'get'
 };
 
 export {
@@ -87,5 +87,5 @@ export {
   deleteExternalPermission,
   createOrUpdateExternalPermission,
   getByAction,
-  getActionList,
+  getActionList
 };

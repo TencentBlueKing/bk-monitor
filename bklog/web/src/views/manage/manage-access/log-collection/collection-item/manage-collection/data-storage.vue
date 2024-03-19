@@ -37,21 +37,40 @@
         <dd class="description-definition">{{ collectorData.index_split_rule || '--' }}</dd>
       </dl>
     </section>
-    <section class="partial-content" style="margin-bottom: 20px;">
+    <section
+      class="partial-content"
+      style="margin-bottom: 20px"
+    >
       <div class="main-title">
         {{ $t('物理索引') }}
       </div>
-      <bk-table v-bkloading="{ isLoading: tableLoading1 }" :data="indexesData">
-        <bk-table-column :label="$t('索引')" prop="index" min-width="180"></bk-table-column>
-        <bk-table-column :label="$t('状态')" prop="health">
+      <bk-table
+        v-bkloading="{ isLoading: tableLoading1 }"
+        :data="indexesData"
+      >
+        <bk-table-column
+          :label="$t('索引')"
+          prop="index"
+          min-width="180"
+        ></bk-table-column>
+        <bk-table-column
+          :label="$t('状态')"
+          prop="health"
+        >
           <template slot-scope="{ row }">
             <div :class="['status-text', row.health]">
               {{ healthMap[row.health] }}
             </div>
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('主分片')" prop="pri"></bk-table-column>
-        <bk-table-column :label="$t('副本分片')" prop="rep"></bk-table-column>
+        <bk-table-column
+          :label="$t('主分片')"
+          prop="pri"
+        ></bk-table-column>
+        <bk-table-column
+          :label="$t('副本分片')"
+          prop="rep"
+        ></bk-table-column>
         <bk-table-column :label="$t('文档计数')">
           <template slot-scope="{ row }">
             {{ row['docs.count'] }}
@@ -75,13 +94,13 @@ import { formatFileSize } from '@/common/util';
 import EmptyStatus from '@/components/empty-status';
 export default {
   components: {
-    EmptyStatus,
+    EmptyStatus
   },
   props: {
     collectorData: {
       type: Object,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
@@ -91,11 +110,11 @@ export default {
       healthMap: {
         green: this.$t('健康'),
         yellow: this.$t('部分故障'),
-        red: this.$t('严重故障'),
+        red: this.$t('严重故障')
       },
       tableLoading2: true,
       timeField: '',
-      fieldsData: [],
+      fieldsData: []
     };
   },
   created() {
@@ -109,8 +128,8 @@ export default {
       try {
         const res = await this.$http.request('source/getIndexes', {
           params: {
-            collector_config_id: this.collectorData.collector_config_id,
-          },
+            collector_config_id: this.collectorData.collector_config_id
+          }
         });
         this.indexesData = res.data;
       } catch (e) {
@@ -118,49 +137,49 @@ export default {
       } finally {
         this.tableLoading1 = false;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .description-list {
-    display: flex;
-    flex-flow: wrap;
-    font-size: 12px;
-    line-height: 16px;
+.description-list {
+  display: flex;
+  flex-flow: wrap;
+  font-size: 12px;
+  line-height: 16px;
 
-    .description-term {
-      width: 120px;
-      height: 40px;
-      padding-right: 20px;
-      text-align: right;
-      color: #979ba5;
-    }
-
-    .description-definition {
-      width: calc(100% - 200px);
-      height: 40px;
-      color: #63656e;
-    }
-  }
-
-  .status-text {
-    &.green {
-      color: #2dcb56;;
-    }
-
-    &.yellow {
-      color: #ff9c01;;
-    }
-
-    &.red {
-      color: #ea3636;;
-    }
-  }
-
-  .icon-date-picker {
-    font-size: 16px;
+  .description-term {
+    width: 120px;
+    height: 40px;
+    padding-right: 20px;
     color: #979ba5;
+    text-align: right;
   }
+
+  .description-definition {
+    width: calc(100% - 200px);
+    height: 40px;
+    color: #63656e;
+  }
+}
+
+.status-text {
+  &.green {
+    color: #2dcb56;
+  }
+
+  &.yellow {
+    color: #ff9c01;
+  }
+
+  &.red {
+    color: #ea3636;
+  }
+}
+
+.icon-date-picker {
+  font-size: 16px;
+  color: #979ba5;
+}
 </style>

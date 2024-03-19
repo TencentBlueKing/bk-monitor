@@ -22,45 +22,58 @@
 
 <template>
   <div
-    class="create-index-container"
     v-bkloading="{ isLoading: basicLoading }"
-    data-test-id="logIndexSetBox_div_newlogIndexSetBox">
-    <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
+    class="create-index-container"
+    data-test-id="logIndexSetBox_div_newlogIndexSetBox"
+  >
+    <auth-container-page
+      v-if="authPageInfo"
+      :info="authPageInfo"
+    ></auth-container-page>
     <template v-else>
       <article class="article">
         <h3 class="title">{{ $t('基础信息') }}</h3>
         <bk-form
-          class="king-form"
           ref="formRef"
+          class="king-form"
           :label-width="160"
           :model="formData"
-          :rules="formRules">
+          :rules="formRules"
+        >
           <bk-form-item
             :label="$t('索引集名称')"
             required
-            property="index_set_name">
+            property="index_set_name"
+          >
             <bk-input
               v-model="formData.index_set_name"
-              data-test-id="newlogIndexSetBox_input_indexSetName">
+              data-test-id="newlogIndexSetBox_input_indexSetName"
+            >
             </bk-input>
           </bk-form-item>
           <bk-form-item
             :label="$t('数据分类')"
             required
-            property="category_id">
+            property="category_id"
+          >
             <bk-select
               v-model="formData.category_id"
               :clearable="false"
-              data-test-id="newlogIndexSetBox_select_dataClassification">
-              <template v-for="item in globalsData.category">
+              data-test-id="newlogIndexSetBox_select_dataClassification"
+            >
+              <template>
                 <bk-option-group
+                  v-for="item in globalsData.category"
                   :id="item.id"
+                  :key="item.id"
                   :name="item.name"
-                  :key="item.id">
+                >
                   <bk-option
                     v-for="option in item.children"
-                    :key="option.id" :id="option.id"
-                    :name="`${item.name}-${option.name}`">
+                    :id="option.id"
+                    :key="option.id"
+                    :name="`${item.name}-${option.name}`"
+                  >
                     {{ option.name }}
                   </bk-option>
                 </bk-option-group>
@@ -72,35 +85,48 @@
       <article class="article">
         <h3 class="title">{{ subTitle }}</h3>
         <template>
-          <div class="collection-form" v-if="scenarioId !== 'bkdata'">
+          <div
+            v-if="scenarioId !== 'bkdata'"
+            class="collection-form"
+          >
             <div class="collection-label">{{ $t('集群') }}</div>
             <div class="collection-select">
               <bk-select
-                data-test-id="newlogIndexSetBox_select_selectCluster"
                 v-model="formData.storage_cluster_id"
                 v-bk-tooltips.top="{
                   content: $t('不能跨集群添加多个索引，切换集群请先清空索引'),
                   delay: 300,
                   disabled: !formData.indexes.length
                 }"
+                data-test-id="newlogIndexSetBox_select_selectCluster"
                 :clearable="false"
                 :disabled="!!formData.indexes.length"
-                searchable>
+                searchable
+              >
                 <bk-option
                   v-for="option in clusterList"
                   v-show="option.storage_cluster_id"
-                  class="custom-no-padding-option"
-                  :key="option.storage_cluster_id"
                   :id="option.storage_cluster_id"
-                  :name="option.storage_cluster_name">
+                  :key="option.storage_cluster_id"
+                  class="custom-no-padding-option"
+                  :name="option.storage_cluster_name"
+                >
                   <div
                     v-if="!(option.permission && option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH])"
                     class="option-slot-container no-authority"
-                    @click.stop>
+                    @click.stop
+                  >
                     <span class="text">{{ option.storage_cluster_name }}</span>
-                    <span class="apply-text" @click="applyClusterAccess(option)">{{ $t('申请权限') }}</span>
+                    <span
+                      class="apply-text"
+                      @click="applyClusterAccess(option)"
+                      >{{ $t('申请权限') }}</span
+                    >
                   </div>
-                  <div v-else class="option-slot-container">
+                  <div
+                    v-else
+                    class="option-slot-container"
+                  >
                     {{ option.storage_cluster_name }}
                   </div>
                 </bk-option>
@@ -110,18 +136,21 @@
           <div class="collection-form">
             <div class="collection-label">{{ $t('已选索引') }}</div>
             <div class="selected-collection">
-              <template v-for="(item, index) in formData.indexes">
+              <template>
                 <bk-tag
+                  v-for="(item, index) in formData.indexes"
+                  :key="item.result_table_id"
                   closable
                   :class="{ 'selected-tag': scenarioId === 'es' }"
-                  :key="item.result_table_id"
                   :theme="getIndexActive(item.result_table_id)"
                   @click="handleClickTag(item.result_table_id)"
-                  @close="removeCollection(index, item.result_table_id)">
+                  @close="removeCollection(index, item.result_table_id)"
+                >
                   <span
-                    style="max-width: 360px;"
+                    v-bk-overflow-tips
+                    style="max-width: 360px"
                     class="title-overflow"
-                    v-bk-overflow-tips>
+                  >
                     {{ item.result_table_id }}
                   </span>
                 </bk-tag>
@@ -129,26 +158,49 @@
               <bk-button
                 class="king-button"
                 icon="plus"
-                @click="openDialog"
                 data-test-id="newlogIndexSetBox_button_addNewIndex"
+                @click="openDialog"
               ></bk-button>
             </div>
           </div>
-          <div class="collection-form" v-if="scenarioId !== 'es'">
+          <div
+            v-if="scenarioId !== 'es'"
+            class="collection-form"
+          >
             <div class="collection-label not-required"></div>
-            <div class="selected-collection" style="width: 500px;">
+            <div
+              class="selected-collection"
+              style="width: 500px"
+            >
               <bk-table
                 v-bkloading="{ isLoading: tableLoading }"
                 :data="collectionTableData"
-                max-height="400">
-                <bk-table-column :label="$t('字段')" prop="field_name" min-width="240">
+                max-height="400"
+              >
+                <bk-table-column
+                  :label="$t('字段')"
+                  prop="field_name"
+                  min-width="240"
+                >
                   <template slot-scope="props">
-                    <span v-bk-overflow-tips class="title-overflow">{{props.row.field_name}}</span>
+                    <span
+                      v-bk-overflow-tips
+                      class="title-overflow"
+                      >{{ props.row.field_name }}</span
+                    >
                   </template>
                 </bk-table-column>
-                <bk-table-column :label="$t('类型')" prop="field_type" min-width="250">
+                <bk-table-column
+                  :label="$t('类型')"
+                  prop="field_type"
+                  min-width="250"
+                >
                   <template slot-scope="props">
-                    <span v-bk-overflow-tips class="title-overflow">{{props.row.field_type}}</span>
+                    <span
+                      v-bk-overflow-tips
+                      class="title-overflow"
+                      >{{ props.row.field_type }}</span
+                    >
                   </template>
                 </bk-table-column>
                 <div slot="empty">
@@ -157,17 +209,25 @@
               </bk-table>
             </div>
           </div>
-          <div class="collection-form" v-else>
+          <div
+            v-else
+            class="collection-form"
+          >
             <div class="collection-label not-required"></div>
-            <div class="selected-collection" style="width: 500px;">
+            <div
+              class="selected-collection"
+              style="width: 500px"
+            >
               <bk-table
                 v-bkloading="{ isLoading: tableLoading }"
                 :data="currentMatchedTableIds"
-                max-height="400">
+                max-height="400"
+              >
                 <bk-table-column
                   :label="$t('匹配到的索引')"
                   property="result_table_id"
-                  max-width="490">
+                  max-width="490"
+                >
                 </bk-table-column>
                 <div slot="empty">
                   <span>{{ $t('暂无数据') }}</span>
@@ -177,7 +237,10 @@
           </div>
         </template>
       </article>
-      <article class="article" v-if="scenarioId !== 'log'">
+      <article
+        v-if="scenarioId !== 'log'"
+        class="article"
+      >
         <div class="title">
           <span>{{ $t('字段设置') }}</span>
           <span class="title-tips">
@@ -188,24 +251,27 @@
         <div class="collection-form">
           <div class="collection-label not-required">
             <span
+              v-bk-tooltips="$t('用于标识日志文件来源及唯一性')"
               class="dotted-line"
-              v-bk-tooltips="$t('用于标识日志文件来源及唯一性')">
+            >
               {{ $t('目标字段') }}
             </span>
           </div>
           <div class="collection-select">
             <bk-select
+              v-model="formData.target_fields"
               searchable
               multiple
               display-tag
               :is-tag-width-limit="false"
               :collapse-tag="false"
-              v-model="formData.target_fields">
+            >
               <bk-option
                 v-for="option in targetFieldSelectList"
-                :key="option.id"
                 :id="option.id"
-                :name="option.name">
+                :key="option.id"
+                :name="option.name"
+              >
               </bk-option>
             </bk-select>
           </div>
@@ -213,8 +279,9 @@
         <div class="collection-form">
           <div class="collection-label not-required">
             <span
+              v-bk-tooltips="$t('用于控制日志排序的字段')"
               class="dotted-line"
-              v-bk-tooltips="$t('用于控制日志排序的字段')">
+            >
               {{ $t('排序字段') }}
             </span>
           </div>
@@ -222,14 +289,16 @@
             <vue-draggable
               v-model="formData.sort_fields"
               animation="150"
-              handle=".icon-grag-fill">
+              handle=".icon-grag-fill"
+            >
               <transition-group>
                 <bk-tag
                   v-for="item in formData.sort_fields"
                   :key="item"
                   ext-cls="tag-items"
                   closable
-                  @close="handleCloseSortFiled(item)">
+                  @close="handleCloseSortFiled(item)"
+                >
                   <i class="bk-icon icon-grag-fill"></i>
                   {{ item }}
                 </bk-tag>
@@ -239,7 +308,8 @@
               searchable
               :ext-cls="`add-sort-btn ${!formData.sort_fields.length && 'not-sort'}`"
               :popover-min-width="240"
-              @selected="handleAddSortFields">
+              @selected="handleAddSortFields"
+            >
               <bk-button
                 slot="trigger"
                 class="king-button"
@@ -247,10 +317,11 @@
               ></bk-button>
               <bk-option
                 v-for="option in targetFieldSelectList"
-                :key="option.id"
                 :id="option.id"
+                :key="option.id"
                 :name="option.name"
-                :disabled="getSortDisabledState(option.id)">
+                :disabled="getSortDisabledState(option.id)"
+              >
               </bk-option>
             </bk-select>
           </div>
@@ -258,18 +329,21 @@
       </article>
       <bk-button
         theme="primary"
-        style="width: 86px;"
+        style="width: 86px"
         :loading="submitLoading"
         data-test-id="newlogIndexSetBox_button_submit"
-        @click="submitForm">
+        @click="submitForm"
+      >
         {{ $t('提交') }}
       </bk-button>
       <component
-        ref="selectCollectionRef"
         :is="scenarioId === 'es' ? 'SelectEs' : 'SelectCollection'"
+        v-if="!isShowTrace"
+        ref="selectCollectionRef"
         :parent-data="formData"
         :time-index.sync="timeIndex"
-        @selected="addCollection" />
+        @selected="addCollection"
+      />
     </template>
   </div>
 </template>
@@ -289,7 +363,7 @@ export default {
     SelectCollection,
     SelectEs,
     AuthContainerPage,
-    VueDraggable,
+    VueDraggable
   },
   data() {
     const scenarioId = this.$route.name.split('-')[0];
@@ -309,27 +383,33 @@ export default {
         storage_cluster_id: '', // 集群
         indexes: [], // 采集项
         target_fields: [],
-        sort_fields: [],
+        sort_fields: []
       },
       formRules: {
-        index_set_name: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        category_id: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        storage_cluster_id: [{
-          required: true,
-          trigger: 'blur',
-        }],
+        index_set_name: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        category_id: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        storage_cluster_id: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ]
       },
       tableLoading: false,
       currentActiveShowID: '',
       currentMatchedTableIds: [], // 匹配到的索引 id，result table id list
       collectionTableData: [],
-      targetFieldSelectList: [],
+      targetFieldSelectList: []
     };
   },
   computed: {
@@ -346,10 +426,10 @@ export default {
       const textMap = {
         log: this.$t('采集项'),
         es: this.$t('索引'),
-        bkdata: this.$t('数据源'),
+        bkdata: this.$t('数据源')
       };
       return textMap[this.scenarioId];
-    },
+    }
   },
   created() {
     this.checkAuth();
@@ -363,7 +443,7 @@ export default {
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
           next();
-        },
+        }
       });
       return;
     }
@@ -376,19 +456,25 @@ export default {
         this.basicLoading = true;
         const isEdit = this.$route.name.endsWith('edit');
         this.isEdit = isEdit;
-        const paramData = isEdit ? {
-          action_ids: [authorityMap.MANAGE_INDICES_AUTH],
-          resources: [{
-            type: 'indices',
-            id: this.$route.params.indexSetId,
-          }],
-        } : {
-          action_ids: [authorityMap.CREATE_INDICES_AUTH],
-          resources: [{
-            type: 'space',
-            id: this.spaceUid,
-          }],
-        };
+        const paramData = isEdit
+          ? {
+              action_ids: [authorityMap.MANAGE_INDICES_AUTH],
+              resources: [
+                {
+                  type: 'indices',
+                  id: this.$route.params.indexSetId
+                }
+              ]
+            }
+          : {
+              action_ids: [authorityMap.CREATE_INDICES_AUTH],
+              resources: [
+                {
+                  type: 'space',
+                  id: this.spaceUid
+                }
+              ]
+            };
         const res = await this.$store.dispatch('checkAndGetData', paramData);
         if (res.isAllowed === false) {
           this.authPageInfo = res.data;
@@ -402,12 +488,12 @@ export default {
             storage_cluster_id: data.storage_cluster_id,
             indexes: data.indexes,
             target_fields: data.target_fields ?? [],
-            sort_fields: data.sort_fields ?? [],
+            sort_fields: data.sort_fields ?? []
           });
           this.timeIndex = {
             time_field: data.time_field,
             time_field_type: data.time_field_type,
-            time_field_unit: data.time_field_unit,
+            time_field_unit: data.time_field_unit
           };
           await this.handleChangeShowTableList(data.indexes[0].result_table_id, true);
         }
@@ -424,8 +510,8 @@ export default {
       if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
         const { data: indexSetData } = await this.$http.request('indexSet/info', {
           params: {
-            index_set_id: indexSetId,
-          },
+            index_set_id: indexSetId
+          }
         });
         this.$store.commit('collect/updateCurIndexSet', indexSetData);
       }
@@ -437,8 +523,8 @@ export default {
         const clusterRes = await this.$http.request('/source/logList', {
           query: {
             bk_biz_id: this.bkBizId,
-            scenario_id: 'es',
-          },
+            scenario_id: 'es'
+          }
         });
         // 有权限的优先展示
         const s1 = [];
@@ -461,15 +547,16 @@ export default {
         console.warn(e);
       }
     },
-    async getIndexStorage() { // 索引集列表的集群
+    async getIndexStorage() {
+      // 索引集列表的集群
       try {
         if (this.scenarioId !== 'log') return;
         const queryData = { bk_biz_id: this.bkBizId };
-        const res = await  this.$http.request('collect/getStorage', {
-          query: queryData,
+        const res = await this.$http.request('collect/getStorage', {
+          query: queryData
         });
         if (res.data) {
-        // 根据权限排序
+          // 根据权限排序
           const s1 = [];
           const s2 = [];
           for (const item of res.data) {
@@ -492,10 +579,12 @@ export default {
         this.basicLoading = true;
         const res = await this.$store.dispatch('getApplyData', {
           action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
-          resources: [{
-            type: 'es_source',
-            id: option.storage_cluster_id,
-          }],
+          resources: [
+            {
+              type: 'es_source',
+              id: option.storage_cluster_id
+            }
+          ]
         });
         window.open(res.data.apply_url);
       } catch (err) {
@@ -528,7 +617,7 @@ export default {
       }
       if (this.currentActiveShowID === closeID || this.scenarioId !== 'es') {
         this.handleChangeShowTableList(this.formData.indexes[0].result_table_id, true);
-      };
+      }
     },
     // 新建索引集提交
     async submitForm() {
@@ -538,21 +627,26 @@ export default {
           return this.messageError(this.$t('请选择索引'));
         }
         this.submitLoading = true;
-        const requestBody = Object.assign({
-          view_roles: [], // 兼容后端历史遗留代码
-          space_uid: this.spaceUid,
-        }, this.formData);
+        const requestBody = Object.assign(
+          {
+            view_roles: [], // 兼容后端历史遗留代码
+            space_uid: this.spaceUid
+          },
+          this.formData
+        );
         if (this.scenarioId === 'es') {
           Object.assign(requestBody, this.timeIndex);
         } else {
           delete requestBody.storage_cluster_id;
         }
-        const res = this.isEdit ? await this.$http.request('/indexSet/update', {
-          params: {
-            index_set_id: this.$route.params.indexSetId,
-          },
-          data: requestBody,
-        }) : await this.$http.request('/indexSet/create', { data: requestBody });
+        const res = this.isEdit
+          ? await this.$http.request('/indexSet/update', {
+              params: {
+                index_set_id: this.$route.params.indexSetId
+              },
+              data: requestBody
+            })
+          : await this.$http.request('/indexSet/create', { data: requestBody });
         this.isSubmit = true;
         this.handleCreatSuccess(res.data);
       } catch (e) {
@@ -580,7 +674,7 @@ export default {
         // auth.html 返回索引集管理的路径
         let indexSetPath = '';
         const { href } = this.$router.resolve({
-          name: `${this.scenarioId}-index-set-list`,
+          name: `${this.scenarioId}-index-set-list`
         });
         let siteUrl = window.SITE_URL;
         if (siteUrl.startsWith('http')) {
@@ -594,7 +688,8 @@ export default {
         // auth.html 需要使用的数据
         const urlComponent = `?indexSetId=${id}&ajaxUrl=${window.AJAX_URL_PREFIX}&redirectUrl=${indexSetPath}`;
         redirectUrl += encodeURIComponent(urlComponent);
-        if (self !== top) { // 当前页面是 iframe
+        if (self !== top) {
+          // 当前页面是 iframe
           window.open(redirectUrl);
           this.returnIndexList();
         } else {
@@ -608,7 +703,7 @@ export default {
     returnIndexList() {
       this.$router.push({
         name: this.$route.name.replace(/create|edit/, 'list'),
-        query: { ...this.$route.query },
+        query: { ...this.$route.query }
       });
     },
     getIndexActive(resultTableId) {
@@ -637,8 +732,8 @@ export default {
             scenario_id: this.scenarioId,
             bk_biz_id: this.bkBizId,
             storage_cluster_id: this.formData.storage_cluster_id,
-            result_table_id: resultTableId,
-          },
+            result_table_id: resultTableId
+          }
         });
         return res.data;
       } catch (e) {
@@ -654,18 +749,18 @@ export default {
         const resultTableID = this.formData.indexes.map(item => item.result_table_id);
         const queryData = resultTableID.map(item => ({
           params: {
-            result_table_id: item,
+            result_table_id: item
           },
           query: {
             scenario_id: this.scenarioId,
-            bk_biz_id: this.bkBizId,
-          },
+            bk_biz_id: this.bkBizId
+          }
         }));
         const promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.handleCollectionSelected(null, item));
         const res = await Promise.all(promiseQuery);
         const collectionMap = new Map();
-        res.forEach((item) => {
-          item.data.fields.forEach((el) => {
+        res.forEach(item => {
+          item.data.fields.forEach(el => {
             if (!collectionMap.has(el.field_name)) {
               collectionMap.set(el.field_name, el);
             }
@@ -686,13 +781,13 @@ export default {
       const resultTableID = this.formData.indexes.map(item => item.result_table_id);
       const queryData = resultTableID.map(item => ({
         params: {
-          result_table_id: item,
+          result_table_id: item
         },
         query: {
           scenario_id: this.scenarioId,
           bk_biz_id: this.bkBizId,
-          storage_cluster_id: this.scenarioId === 'es' ? this.formData.storage_cluster_id : undefined,
-        },
+          storage_cluster_id: this.scenarioId === 'es' ? this.formData.storage_cluster_id : undefined
+        }
       }));
       let promiseQuery = [];
       if (this.scenarioId === 'es') {
@@ -703,8 +798,8 @@ export default {
       const res = await Promise.all(promiseQuery);
       const { target_fields: targetField, sort_fields: sortFields } = this.formData;
       const targetFieldSet = new Set([...(sortFields ?? []), ...(targetField ?? [])]);
-      res.forEach((item) => {
-        item.data.fields.forEach((el) => {
+      res.forEach(item => {
+        item.data.fields.forEach(el => {
           if (!targetFieldSet.has(el.field_name)) {
             targetFieldSet.add(el.field_name);
           }
@@ -712,7 +807,7 @@ export default {
       });
       this.targetFieldSelectList = [...targetFieldSet].map(item => ({
         id: item,
-        name: item,
+        name: item
       }));
     },
     handleAddSortFields(val) {
@@ -720,8 +815,8 @@ export default {
     },
     getSortDisabledState(id) {
       return this.formData.sort_fields.includes(id);
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -734,8 +829,8 @@ export default {
   align-items: center;
 
   .add-sort-btn {
-    margin-left: 6px;
     display: inline-block;
+    margin-left: 6px;
     border: none;
     box-shadow: none;
   }
@@ -745,23 +840,22 @@ export default {
   }
 }
 
-
 .create-index-container {
   padding: 20px 24px;
 
   .article {
     padding: 22px 24px;
     margin-bottom: 20px;
+    background-color: #fff;
     border: 1px solid #dcdee5;
     border-radius: 3px;
-    background-color: #fff;
 
     .title {
       margin: 0 0 10px;
       font-size: 14px;
       font-weight: bold;
-      color: #63656e;
       line-height: 20px;
+      color: #63656e;
     }
 
     .title-tips {
@@ -793,18 +887,18 @@ export default {
         position: relative;
         width: 160px;
         padding: 10px 24px 10px 0;
+        font-size: 12px;
         line-height: 32px;
         text-align: right;
-        font-size: 12px;
 
         &:after {
-          content: '*';
-          color: #ea3636;
-          font-size: 12px;
-          display: inline-block;
           position: absolute;
           top: 12px;
           right: 16px;
+          display: inline-block;
+          font-size: 12px;
+          color: #ea3636;
+          content: '*';
         }
       }
 
@@ -825,8 +919,8 @@ export default {
 
           .icon-grag-fill {
             display: inline-block;
-            transform: translateY(-1px);
             cursor: move;
+            transform: translateY(-1px);
           }
         }
       }
@@ -842,16 +936,17 @@ export default {
 
         :deep(.bk-tag) {
           display: inline-flex;
-          align-items: center;
           height: 32px;
-          line-height: 32px;
-          background: #f0f1f5;
           padding: 0 4px 0 10px;
           margin: 0 10px 10px 0;
+          line-height: 32px;
+          background: #f0f1f5;
+          background-color: #f0f1f5;
+          align-items: center;
 
           .bk-tag-close {
-            color: #63656e;
             font-size: 18px;
+            color: #63656e;
           }
 
           &.bk-tag-info {
@@ -864,14 +959,12 @@ export default {
           cursor: pointer;
         }
       }
-
     }
   }
 
   .king-button {
     &.no-slot {
       padding: 0 5px;
-
     }
   }
 }

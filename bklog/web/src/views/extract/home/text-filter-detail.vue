@@ -24,26 +24,38 @@
   <div class="text-filter-detail">
     <div class="title">
       <span class="bk-icon icon-work-manage"></span>
-      <h2 class="text">{{$t('文本过滤')}}</h2>
+      <h2 class="text">{{ $t('文本过滤') }}</h2>
     </div>
-    <div class="content" v-if="data.filter_type === 'match_word'">
-      <span>{{$t('关键字过滤')}}：</span>
-      <span class="match">{{data.filter_content.keyword}}</span>
+    <div
+      v-if="data.filter_type === 'match_word'"
+      class="content"
+    >
+      <span>{{ $t('关键字过滤') }}：</span>
+      <span class="match">{{ data.filter_content.keyword }}</span>
     </div>
-    <div class="content" v-else-if="data.filter_type === 'match_range'">
+    <div
+      v-else-if="data.filter_type === 'match_range'"
+      class="content"
+    >
       <i18n path="关键字范围: 从匹配{0}开始到匹配{1}之间的所有行">
-        <span class="match">{{data.filter_content.start}}</span>
-        <span class="match">{{data.filter_content.end}}</span>
+        <span class="match">{{ data.filter_content.start }}</span>
+        <span class="match">{{ data.filter_content.end }}</span>
       </i18n>
     </div>
-    <div class="content" v-else-if="data.filter_type === 'tail_line'">
-      <span>{{$t('最新行数')}}：</span>
-      <span class="match">{{data.filter_content.line_num}}</span>
+    <div
+      v-else-if="data.filter_type === 'tail_line'"
+      class="content"
+    >
+      <span>{{ $t('最新行数') }}：</span>
+      <span class="match">{{ data.filter_content.line_num }}</span>
     </div>
-    <div class="content" v-else-if="data.filter_type === 'line_range'">
+    <div
+      v-else-if="data.filter_type === 'line_range'"
+      class="content"
+    >
       <i18n path="按行过滤: 从第{0}行到第{1}行">
-        <span class="match"> {{data.filter_content.start_line}} </span>
-        <span class="match"> {{data.filter_content.end_line}} </span>
+        <span class="match"> {{ data.filter_content.start_line }} </span>
+        <span class="match"> {{ data.filter_content.end_line }} </span>
       </i18n>
     </div>
   </div>
@@ -54,44 +66,44 @@ export default {
   props: {
     data: {
       type: Object,
-      required: true,
-    },
-  },
+      required: true
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .text-filter-detail {
-    padding: 14px 20px 10px;
-    font-size: 15px;
-    line-height: 40px;
-    color: #63656e;
+.text-filter-detail {
+  padding: 14px 20px 10px;
+  font-size: 15px;
+  line-height: 40px;
+  color: #63656e;
 
-    .title {
-      display: flex;
-      align-items: center;
+  .title {
+    display: flex;
+    align-items: center;
 
-      .bk-icon {
-        margin-right: 6px;
-        font-size: 14px;
-      }
-
-      .text {
-        color: #313238;
-        margin: 0;
-        font-size: 16px;
-        font-weight: 500;
-        line-height: 20px;
-        padding: 10px 0;
-      }
+    .bk-icon {
+      margin-right: 6px;
+      font-size: 14px;
     }
 
-    .content {
-      border-top: 1px solid #dcdee5;
-
-      .match {
-        color: #2dcb56;
-      }
+    .text {
+      padding: 10px 0;
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #313238;
     }
   }
+
+  .content {
+    border-top: 1px solid #dcdee5;
+
+    .match {
+      color: #2dcb56;
+    }
+  }
+}
 </style>

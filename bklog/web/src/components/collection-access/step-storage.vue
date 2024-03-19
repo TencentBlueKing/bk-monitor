@@ -21,20 +21,30 @@
   -->
 
 <template>
-  <div class="step-storage" v-bkloading="{ isLoading: basicLoading }">
-    <bk-form :label-width="150" :model="formData" ref="validateForm" data-test-id="storage_form_storageBox">
+  <div
+    v-bkloading="{ isLoading: basicLoading }"
+    class="step-storage"
+  >
+    <bk-form
+      ref="validateForm"
+      :label-width="150"
+      :model="formData"
+      data-test-id="storage_form_storageBox"
+    >
       <div class="add-collection-title">{{ $t('集群选择') }}</div>
       <cluster-table
         :table-list="clusterList"
         :is-change-select.sync="isChangeSelect"
-        :storage-cluster-id.sync="formData.storage_cluster_id" />
+        :storage-cluster-id.sync="formData.storage_cluster_id"
+      />
 
       <cluster-table
         table-type="exclusive"
-        style="margin-top: 20px;"
+        style="margin-top: 20px"
         :table-list="exclusiveList"
         :is-change-select.sync="isChangeSelect"
-        :storage-cluster-id.sync="formData.storage_cluster_id" />
+        :storage-cluster-id.sync="formData.storage_cluster_id"
+      />
 
       <div class="add-collection-title">{{ $t('存储信息') }}</div>
       <!-- 存储索索引名 -->
@@ -43,17 +53,19 @@
           :label="$t('索引名')"
           class="form-inline-div"
           :rules="rules.table_id"
-          :property="'table_id'">
+          :property="'table_id'"
+        >
           <!-- <div class="prefix">{{formData.table_id_prefix}}</div> -->
           <bk-input
+            v-model="formData.table_id"
             style="width: 320px"
             :placeholder="$t('英文或者数字，5～50长度')"
             :disabled="isUnmodfyIndexName"
-            v-model="formData.table_id"
             maxlength="50"
-            minlength="5">
+            minlength="5"
+          >
             <template slot="prepend">
-              <div class="group-text">{{formData.table_id_prefix}}</div>
+              <div class="group-text">{{ formData.table_id_prefix }}</div>
             </template>
           </bk-input>
         </bk-form-item>
@@ -62,17 +74,29 @@
       <!-- 过期时间 -->
       <bk-form-item :label="$t('过期时间')">
         <bk-select
-          style="width: 320px;"
           v-model="formData.retention"
+          style="width: 320px"
           :clearable="false"
-          data-test-id="storageBox_select_selectExpiration">
-          <div slot="trigger" class="bk-select-name">
+          data-test-id="storageBox_select_selectExpiration"
+        >
+          <div
+            slot="trigger"
+            class="bk-select-name"
+          >
             {{ formData.retention + $t('天') }}
           </div>
-          <template v-for="(option, index) in retentionDaysList">
-            <bk-option :key="index" :id="option.id" :name="option.name"></bk-option>
+          <template>
+            <bk-option
+              v-for="(option, index) in retentionDaysList"
+              :id="option.id"
+              :key="index"
+              :name="option.name"
+            ></bk-option>
           </template>
-          <div slot="extension" style="padding: 8px 0;">
+          <div
+            slot="extension"
+            style="padding: 8px 0"
+          >
             <bk-input
               v-model="customRetentionDay"
               size="small"
@@ -87,19 +111,29 @@
       </bk-form-item>
       <!-- 热数据\冷热集群存储期限 -->
       <bk-form-item
+        v-if="selectedStorageCluster.enable_hot_warm"
         :label="$t('热数据天数')"
         class="hot-data-form-item"
-        v-if="selectedStorageCluster.enable_hot_warm">
+      >
         <bk-select
-          style="width: 320px;"
-          data-test-id="storageBox_select_selectHotData"
           v-model="formData.allocation_min_days"
+          style="width: 320px"
+          data-test-id="storageBox_select_selectHotData"
           :clearable="false"
-          :disabled="!selectedStorageCluster.enable_hot_warm">
-          <template v-for="(option, index) in hotDataDaysList">
-            <bk-option :key="index" :id="option.id" :name="option.name"></bk-option>
+          :disabled="!selectedStorageCluster.enable_hot_warm"
+        >
+          <template>
+            <bk-option
+              v-for="(option, index) in hotDataDaysList"
+              :id="option.id"
+              :key="index"
+              :name="option.name"
+            ></bk-option>
           </template>
-          <div slot="extension" style="padding: 8px 0;">
+          <div
+            slot="extension"
+            style="padding: 8px 0"
+          >
             <bk-input
               v-model="customHotDataDay"
               size="small"
@@ -111,16 +145,23 @@
             ></bk-input>
           </div>
         </bk-select>
-        <span v-if="!selectedStorageCluster.enable_hot_warm" class="disable-tips">
-          {{$t('该集群未开启热数据设置')}}
-          <a href="javascript:void(0);" @click="jumpToEsAccess">{{$t('前往ES源进行设置')}}</a>
+        <span
+          v-if="!selectedStorageCluster.enable_hot_warm"
+          class="disable-tips"
+        >
+          {{ $t('该集群未开启热数据设置') }}
+          <a
+            href="javascript:void(0);"
+            @click="jumpToEsAccess"
+            >{{ $t('前往ES源进行设置') }}</a
+          >
         </span>
       </bk-form-item>
       <!-- 副本数 -->
       <bk-form-item :label="$t('副本数')">
         <bk-input
-          class="copy-number-input"
           v-model="formData.storage_replies"
+          class="copy-number-input"
           type="number"
           :max="replicasMax"
           :min="0"
@@ -133,8 +174,8 @@
       <!-- 分片数 -->
       <bk-form-item :label="$t('分片数')">
         <bk-input
-          class="copy-number-input"
           v-model="formData.es_shards"
+          class="copy-number-input"
           type="number"
           :max="shardsMax"
           :min="1"
@@ -144,41 +185,54 @@
           @blur="changeShardsNumber"
         ></bk-input>
       </bk-form-item>
-      <div class="capacity-assessment" v-if="isCanUseAssessment">
-        <div class="button-text" @click="isShowAssessment = !isShowAssessment">
+      <div
+        v-if="isCanUseAssessment"
+        class="capacity-assessment"
+      >
+        <div
+          class="button-text"
+          @click="isShowAssessment = !isShowAssessment"
+        >
           <span>{{ $t('容量评估') }}</span>
-          <span :class="['bk-icon','icon-angle-double-down',isShowAssessment && 'is-active']"></span>
+          <span :class="['bk-icon', 'icon-angle-double-down', isShowAssessment && 'is-active']"></span>
         </div>
-        <div v-if="isForcedFillAssessment" class="capacity-message">
+        <div
+          v-if="isForcedFillAssessment"
+          class="capacity-message"
+        >
           <span class="bk-icon icon-info"></span>
-          <span style="font-size: 12px;">{{ $t('当前主机数较多，请进行容量评估') }}</span>
+          <span style="font-size: 12px">{{ $t('当前主机数较多，请进行容量评估') }}</span>
         </div>
       </div>
       <div v-show="isShowAssessment && isCanUseAssessment">
         <div class="capacity-illustrate">
-          <p class="illustrate-title">{{$t('容量说明')}}</p>
-          <p>{{$t('容量计算公式：单机日志增量主机数量存储转化率分片数（日志保留天数 + 1）')}}</p>
-          <p>{{$t('存储转化率（1.5）：即原始日志增加日志采集元数据并存储到ES到实际占有的空间')}}</p>
-          <p>{{$t('分片数（{x}）：1个主分片+{n}个副本数，避免节点故障导致数据丢失',
-                  {
-                    x: formData.storage_replies * 1 + 1,
-                    n: formData.storage_replies
-                  }
-          )}}</p>
+          <p class="illustrate-title">{{ $t('容量说明') }}</p>
+          <p>{{ $t('容量计算公式：单机日志增量主机数量存储转化率分片数（日志保留天数 + 1）') }}</p>
+          <p>{{ $t('存储转化率（1.5）：即原始日志增加日志采集元数据并存储到ES到实际占有的空间') }}</p>
+          <p>
+            {{
+              $t('分片数（{x}）：1个主分片+{n}个副本数，避免节点故障导致数据丢失', {
+                x: formData.storage_replies * 1 + 1,
+                n: formData.storage_replies
+              })
+            }}
+          </p>
         </div>
 
         <bk-form-item :label="$t('每日单台日志量')">
           <div class="capacity-message">
             <bk-input
+              v-model="formData.assessment_config.log_assessment"
               class="capacity-input"
               type="number"
-              v-model="formData.assessment_config.log_assessment"
-              :min="0.1">
+              :min="0.1"
+            >
             </bk-input>
-            <div class="unit-container">
-              G
-            </div>
-            <span v-bk-tooltips.right="$t('基于单台最大的日志存储量粗略评估')" class="right">
+            <div class="unit-container">G</div>
+            <span
+              v-bk-tooltips.right="$t('基于单台最大的日志存储量粗略评估')"
+              class="right"
+            >
               <i class="bk-icon icon-info"></i>
             </span>
           </div>
@@ -187,22 +241,27 @@
         <div class="need-approval">
           <bk-checkbox
             v-model="formData.assessment_config.need_approval"
-            :disabled="isForcedFillAssessment">
-            {{$t('需要审批')}}
+            :disabled="isForcedFillAssessment"
+          >
+            {{ $t('需要审批') }}
           </bk-checkbox>
           <bk-alert
             style="width: 607px"
             type="warning"
-            :show-icon="false">
-            <div class="approval-alert" slot="title">
+            :show-icon="false"
+          >
+            <div
+              slot="title"
+              class="approval-alert"
+            >
               <span class="bk-icon icon-exclamation-circle"></span>
-              <p>{{$t('勾选需要审批后需等待审批通过后，才会继续进行存储流程')}}</p>
+              <p>{{ $t('勾选需要审批后需等待审批通过后，才会继续进行存储流程') }}</p>
             </div>
           </bk-alert>
         </div>
 
         <bk-form-item :label="$t('审批人')">
-          <span class="approver">{{$t('集群负责人')}}（ {{getApprover}} ）</span>
+          <span class="approver">{{ $t('集群负责人') }}（ {{ getApprover }} ）</span>
         </bk-form-item>
       </div>
       <!-- 查看权限 -->
@@ -236,8 +295,9 @@
           data-test-id="storageBox_button_previousPage"
           :title="$t('上一步')"
           :disabled="isLoading"
-          @click="prevHandler">
-          {{$t('上一步')}}
+          @click="prevHandler"
+        >
+          {{ $t('上一步') }}
         </bk-button>
         <bk-button
           theme="primary"
@@ -245,13 +305,15 @@
           data-test-id="storageBox_button_nextPage"
           :loading="isLoading"
           :disabled="!collectProject"
-          @click.stop.prevent="finish">
-          {{$t('下一步')}}
+          @click.stop.prevent="finish"
+        >
+          {{ $t('下一步') }}
         </bk-button>
         <bk-button
           theme="default"
-          @click="cancel">
-          {{$t('取消')}}
+          @click="cancel"
+        >
+          {{ $t('取消') }}
         </bk-button>
       </bk-form-item>
     </bk-form>
@@ -266,17 +328,17 @@ import ClusterTable from './components/cluster-table';
 
 export default {
   components: {
-    ClusterTable,
+    ClusterTable
   },
   mixins: [storageMixin],
   props: {
     operateType: String,
     curStep: {
       type: Number,
-      default: 1,
+      default: 1
     },
     collectorId: String,
-    isCleanField: Boolean,
+    isCleanField: Boolean
   },
   data() {
     return {
@@ -294,24 +356,26 @@ export default {
       copysText: {},
       jsonText: {},
       defaultSettings: {
-        isShow: false,
+        isShow: false
       },
       logOriginal: '',
-      params: { // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
+      params: {
+        // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
         etl_config: 'bk_log_text',
         etl_params: {
           separator_regexp: '',
-          separator: '',
-        },
+          separator: ''
+        }
       },
-      formData: { // 最后一次正确的结果，保存以此数据为准
+      formData: {
+        // 最后一次正确的结果，保存以此数据为准
         table_id: '',
         etl_config: 'bk_log_text',
         etl_params: {
           retain_original_text: true,
           retain_extra_json: false,
           separator_regexp: '',
-          separator: '',
+          separator: ''
           // separator_field_list: ''
         },
         fields: [],
@@ -324,8 +388,8 @@ export default {
         assessment_config: {
           log_assessment: '',
           need_approval: false,
-          approvals: [],
-        },
+          approvals: []
+        }
       },
       selectedStorageCluster: {}, // 选择的es集群
       retentionDaysList: [], // 过期天数列表
@@ -336,33 +400,37 @@ export default {
         table_id: [
           {
             required: true,
-            trigger: 'blur',
+            trigger: 'blur'
           },
           {
             max: 50,
-            trigger: 'blur',
+            trigger: 'blur'
           },
           {
             min: 5,
-            trigger: 'blur',
+            trigger: 'blur'
           },
           {
             regex: /^[A-Za-z0-9_]+$/,
-            trigger: 'blur',
-          },
+            trigger: 'blur'
+          }
         ],
-        cluster_id: [{
-          validator(val) {
-            return val !== '';
-          },
-          trigger: 'change',
-        }],
-        view_roles: [{
-          validator(val) {
-            return val.length >= 1;
-          },
-          trigger: 'change',
-        }],
+        cluster_id: [
+          {
+            validator(val) {
+              return val !== '';
+            },
+            trigger: 'change'
+          }
+        ],
+        view_roles: [
+          {
+            validator(val) {
+              return val.length >= 1;
+            },
+            trigger: 'change'
+          }
+        ]
       },
       storage_capacity: '',
       tips_storage: [],
@@ -383,8 +451,8 @@ export default {
         value: '',
         option: {
           time_format: '',
-          time_zone: '',
-        },
+          time_zone: ''
+        }
       },
       stashCleanConf: null, // 清洗缓存,
       isShowAssessment: false,
@@ -393,7 +461,7 @@ export default {
       replicasMax: 7,
       shardsMax: 7,
       isForcedFillAssessment: false, // 是否必须容量评估
-      editStorageClusterID: null, // 存储页进入时判断是否有选择过存储集群
+      editStorageClusterID: null // 存储页进入时判断是否有选择过存储集群
     };
   },
   computed: {
@@ -403,7 +471,7 @@ export default {
       curCollect: 'collect/curCollect',
       globalsData: 'globals/globalsData',
       accessUserManage: 'accessUserManage',
-      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      isShowMaskingTemplate: 'isShowMaskingTemplate'
     }),
     collectProject() {
       return projectManages(this.$store.state.topMenu, 'collection-item');
@@ -426,7 +494,7 @@ export default {
         return this.selectedStorageCluster?.admin.join(', ') || '';
       }
       return '';
-    },
+    }
   },
   async mounted() {
     this.getStorage();
@@ -438,15 +506,17 @@ export default {
   methods: {
     // 获取采集项清洗基础配置缓存 用于存储入库提交
     getCleanStash() {
-      this.$http.request('clean/getCleanStash', {
-        params: {
-          collector_config_id: this.curCollect.collector_config_id,
-        },
-      }).then((res) => {
-        if (res.data) {
-          this.stashCleanConf = res.data;
-        }
-      })
+      this.$http
+        .request('clean/getCleanStash', {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id
+          }
+        })
+        .then(res => {
+          if (res.data) {
+            this.stashCleanConf = res.data;
+          }
+        })
         .finally(() => {
           this.getDetail();
         });
@@ -464,7 +534,7 @@ export default {
         view_roles,
         fields,
         etl_params: etlParams,
-        assessment_config: assessmentConfig,
+        assessment_config: assessmentConfig
       } = this.formData;
       const isNeedAssessment = this.getNeedAssessmentStatus();
       this.isLoading = true;
@@ -482,22 +552,22 @@ export default {
           retain_original_text: etlParams.retain_original_text,
           retain_extra_json: etlParams.retain_extra_json ?? false,
           separator_regexp: etlParams.separator_regexp,
-          separator: etlParams.separator,
+          separator: etlParams.separator
         },
         fields,
         assessment_config: {
           log_assessment: `${assessmentConfig.log_assessment}G`,
           need_approval: assessmentConfig.need_approval,
-          approvals: assessmentConfig.approvals,
+          approvals: assessmentConfig.approvals
         },
-        need_assessment: isNeedAssessment,
+        need_assessment: isNeedAssessment
       };
-      !isNeedAssessment && (delete data.assessment_config);
+      !isNeedAssessment && delete data.assessment_config;
       /* eslint-disable */
       if (etl_config !== 'bk_log_text') {
         const payload = {
           retain_original_text: etlParams.retain_original_text,
-          retain_extra_json: etlParams.retain_extra_json ?? false,
+          retain_extra_json: etlParams.retain_extra_json ?? false
         };
         if (etl_config === 'bk_log_delimiter') {
           payload.separator = etlParams.separator;
@@ -510,39 +580,41 @@ export default {
       }
       /* eslint-enable */
       this.isLoading = true;
-      this.$http.request('collect/fieldCollection', {
-        params: {
-          collector_config_id: this.curCollect.collector_config_id,
-        },
-        data,
-      }).then((res) => {
-        if (res.code === 0) {
-          // this.storageList = res.data
-          // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
-          this.isLoading = false;
-          if (res.data) {
-            this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
-            this.$emit('changeIndexSetId', res.data.index_set_id || '');
-          }
-          if (this.isCleanField) {
-            this.messageSuccess(this.$t('保存成功'));
-            this.$emit('changeSubmit', true);
-            this.$emit('stepChange', 'back');
-          } else {
-            if (data.need_assessment && data.assessment_config.need_approval) {
-              this.$emit('setAssessmentItem', {
-                iframe_ticket_url: res.data.ticket_url,
-                itsm_ticket_status: 'applying',
-              });
-            } else {
-              this.$emit('setAssessmentItem', {});
+      this.$http
+        .request('collect/fieldCollection', {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id
+          },
+          data
+        })
+        .then(res => {
+          if (res.code === 0) {
+            // this.storageList = res.data
+            // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
+            this.isLoading = false;
+            if (res.data) {
+              this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
+              this.$emit('changeIndexSetId', res.data.index_set_id || '');
             }
-            // 只有在不展示日志脱敏的情况下才改变保存状态
-            if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
-            this.$emit('stepChange');
+            if (this.isCleanField) {
+              this.messageSuccess(this.$t('保存成功'));
+              this.$emit('changeSubmit', true);
+              this.$emit('stepChange', 'back');
+            } else {
+              if (data.need_assessment && data.assessment_config.need_approval) {
+                this.$emit('setAssessmentItem', {
+                  iframe_ticket_url: res.data.ticket_url,
+                  itsm_ticket_status: 'applying'
+                });
+              } else {
+                this.$emit('setAssessmentItem', {});
+              }
+              // 只有在不展示日志脱敏的情况下才改变保存状态
+              if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
+              this.$emit('stepChange');
+            }
           }
-        }
-      })
+        })
         .finally(() => {
           this.isLoading = false;
         });
@@ -552,20 +624,25 @@ export default {
       const isCanSubmit = this.getSubmitAuthority();
       if (!isCanSubmit) return;
       const promises = [this.checkStore()];
-      Promise.all(promises).then(() => {
-        this.fieldCollection();
-      }, (validator) => {
-        console.warn('保存失败', validator);
-      });
+      Promise.all(promises).then(
+        () => {
+          this.fieldCollection();
+        },
+        validator => {
+          console.warn('保存失败', validator);
+        }
+      );
     },
     // 存储校验
     checkStore() {
       return new Promise((resolve, reject) => {
         if (!this.isUnmodifiable) {
-          this.$refs.validateForm.validate().then((validator) => {
-            resolve(validator);
-          })
-            .catch((err) => {
+          this.$refs.validateForm
+            .validate()
+            .then(validator => {
+              resolve(validator);
+            })
+            .catch(err => {
               console.warn('存储校验错误');
               reject(err);
             });
@@ -593,11 +670,11 @@ export default {
         etl_config,
         etl_params,
         fields,
-        collector_config_name_en,
+        collector_config_name_en
       } = this.curCollect;
       const option = { time_zone: '', time_format: '' };
       const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
-      copyFields.forEach((row) => {
+      copyFields.forEach(row => {
         row.value = '';
         if (row.is_delete) {
           const copyRow = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), JSON.parse(JSON.stringify(row)));
@@ -610,17 +687,18 @@ export default {
         }
       });
       /* eslint-disable */
-      this.params.etl_config = etl_config
+      this.params.etl_config = etl_config;
       Object.assign(this.params.etl_params, {
         separator_regexp: etl_params.separator_regexp || '',
         separator: etl_params.separator || ''
-      })
-      this.isUnmodifiable = !!(table_id || storage_cluster_id)
-      this.isUnmodfyIndexName = !!(table_id || storage_cluster_id || collector_config_name_en)
-      this.fieldType = etl_config || 'bk_log_text'
+      });
+      this.isUnmodifiable = !!(table_id || storage_cluster_id);
+      this.isUnmodfyIndexName = !!(table_id || storage_cluster_id || collector_config_name_en);
+      this.fieldType = etl_config || 'bk_log_text';
       let default_exclusive_cluster_id;
-      if (!storage_cluster_id && this.exclusiveList.length) { // 新增时若有业务独享集群则直接赋值独享集群列表第一条id
-        this.isChangeSelect = true; // 不提示切换集群dialog 
+      if (!storage_cluster_id && this.exclusiveList.length) {
+        // 新增时若有业务独享集群则直接赋值独享集群列表第一条id
+        this.isChangeSelect = true; // 不提示切换集群dialog
         default_exclusive_cluster_id = this.exclusiveList[0].storage_cluster_id;
       }
       // this.switcher = etl_config ? etl_config !== 'bk_log_text' : false
@@ -633,19 +711,23 @@ export default {
         es_shards: storageShardsNums,
         table_id_prefix,
         etl_config: this.fieldType,
-        etl_params: Object.assign({
-          retain_original_text: true,
-          retain_extra_json: false,
-          separator_regexp: '',
-          separator: '',
-          // separator_field_list: ''
-        }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
+        etl_params: Object.assign(
+          {
+            retain_original_text: true,
+            retain_extra_json: false,
+            separator_regexp: '',
+            separator: ''
+            // separator_field_list: ''
+          },
+          // eslint-disable-next-line camelcase
+          etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}
+        ),
         fields: copyFields.filter(item => !item.is_built_in),
         retention: retention ? `${retention}` : this.defaultRetention,
         storage_replies,
         // eslint-disable-next-line camelcase
         allocation_min_days: allocation_min_days ? `${allocation_min_days}` : '0',
-        view_roles,
+        view_roles
       });
 
       if (this.stashCleanConf) {
@@ -653,13 +735,13 @@ export default {
         Object.assign(this.formData, {
           etl_config: this.stashCleanConf.clean_type,
           etl_params: this.stashCleanConf.etl_params,
-          fields: this.stashCleanConf.etl_fields,
+          fields: this.stashCleanConf.etl_fields
         });
       }
       // eslint-disable-next-line camelcase
       this.editStorageClusterID = storage_cluster_id;
-      this.formData.storage_cluster_id = this.formData.storage_cluster_id === null
-        ? tsStorageId : this.formData.storage_cluster_id;
+      this.formData.storage_cluster_id =
+        this.formData.storage_cluster_id === null ? tsStorageId : this.formData.storage_cluster_id;
 
       this.basicLoading = false;
     },
@@ -667,8 +749,8 @@ export default {
       this.$router.push({
         name: 'collection-item',
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
     },
     /**
@@ -678,24 +760,26 @@ export default {
       const curTaskIdList = new Set();
       this.curCollect.task_id_list.forEach(id => curTaskIdList.add(id));
       const params = {
-        collector_config_id: this.curCollect.collector_config_id,
+        collector_config_id: this.curCollect.collector_config_id
       };
-      this.$http.request('collect/getIssuedClusterList', {
-        params,
-        query: { task_id_list: [...curTaskIdList.keys()].join(',') },
-      }).then((res) => {
-        const data = res.data.contents;
-        let hostLength = 0;
-        data.forEach((cluster) => {
-          hostLength += cluster.child.length;
-        });
-        // 这里获取主机总数量赋值并与HOST_COUNT比较如果主机数量大于最大值则必填容量评估内容
-        const isOverHost = hostLength > Number(this.HOST_COUNT);
-        this.hostNumber = hostLength;
-        this.isShowAssessment = isOverHost;
-        this.isForcedFillAssessment = isOverHost;
-        this.formData.assessment_config.need_approval = isOverHost;
-      })
+      this.$http
+        .request('collect/getIssuedClusterList', {
+          params,
+          query: { task_id_list: [...curTaskIdList.keys()].join(',') }
+        })
+        .then(res => {
+          const data = res.data.contents;
+          let hostLength = 0;
+          data.forEach(cluster => {
+            hostLength += cluster.child.length;
+          });
+          // 这里获取主机总数量赋值并与HOST_COUNT比较如果主机数量大于最大值则必填容量评估内容
+          const isOverHost = hostLength > Number(this.HOST_COUNT);
+          this.hostNumber = hostLength;
+          this.isShowAssessment = isOverHost;
+          this.isForcedFillAssessment = isOverHost;
+          this.formData.assessment_config.need_approval = isOverHost;
+        })
         .catch(() => {
           this.hostNumber = 0;
           this.isForcedFillAssessment = false;
@@ -709,177 +793,180 @@ export default {
        */
       const { storage_cluster_id: clusterID, assessment_config: assessmentConfig } = this.formData;
       const isNotSelectedID = clusterID === '';
-      const isNotFillLog = this.isForcedFillAssessment && this.isCanUseAssessment && assessmentConfig.log_assessment === '';
+      const isNotFillLog =
+        this.isForcedFillAssessment && this.isCanUseAssessment && assessmentConfig.log_assessment === '';
       if (isNotSelectedID || isNotFillLog) {
-        const message = isNotSelectedID ? this.$t('请选择集群') : this.$t('请填写容量评估的每日单台日志量') ;
+        const message = isNotSelectedID ? this.$t('请选择集群') : this.$t('请填写容量评估的每日单台日志量');
         this.$bkMessage({
           theme: 'error',
-          message,
+          message
         });
         return false;
       }
       return true;
     },
     getNeedAssessmentStatus() {
-      const { assessment_config: { log_assessment: logAssessment, need_approval: needApproval } } = this.formData;
+      const {
+        assessment_config: { log_assessment: logAssessment, need_approval: needApproval }
+      } = this.formData;
       return this.isCanUseAssessment && (logAssessment !== '' || needApproval);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/storage.scss';
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/storage.scss';
+@import '@/scss/mixins/flex.scss';
+/* stylelint-disable no-descending-specificity */
+.step-storage {
+  position: relative;
+  max-height: 100%;
+  min-width: 950px;
+  padding: 0 42px 42px;
+  overflow: auto;
 
-  .step-storage {
-    position: relative;
-    min-width: 950px;
-    max-height: 100%;
-    padding: 0 42px 42px;
-    overflow: auto;
+  .bk-label {
+    font-size: 12px;
+  }
 
-    .bk-label {
-      font-size: 12px;
-    }
+  .tips {
+    margin-left: 8px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #aeb0b7;
+  }
 
-    .tips {
-      font-size: 12px;
-      color: #aeb0b7;
-      margin-left: 8px;
-      line-height: 32px;
-    }
+  .form-div {
+    display: flex;
+    margin: 20px 0;
 
-    .form-div {
-      display: flex;
-      margin: 20px 0;
+    .form-inline-div {
+      white-space: nowrap;
 
-      .form-inline-div {
-        white-space: nowrap;
-
-        .bk-form-content {
-          display: flex;
-          flex-wrap: nowrap;
-        }
-      }
-
-      .prefix {
-        font-size: 14px;
-        line-height: 32px;
-        color: #858790;
-        margin-right: 8px;
-        min-width: 80px;
-        text-align: right;
-      }
-    }
-
-    .add-collection-title {
-      width: 100%;
-      font-size: 14px;
-      font-weight: 600;
-      color: #63656e;
-      border-bottom: 1px solid #dcdee5;
-      padding-bottom: 10px;
-      margin: 30px 0 20px 0;
-    }
-
-    .capacity-assessment {
-      margin: 20px 0;
-      font-size: 14px;
-
-      @include flex-align;
-
-      .capacity-message {
-        color: #63656e;
-        margin-left: 20px;
-      }
-
-      .icon-angle-double-down {
-        font-size: 24px;
-
-        &.is-active {
-          transform: rotateZ(180deg) translateY(-2px);
-        }
-      }
-
-      .button-text {
-        @include flex-align;
-      }
-    }
-
-    .capacity-illustrate {
-      height: 104px;
-      background: #fafbfd;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-      padding: 12px 20px;
-      margin-bottom: 20px;
-
-      .illustrate-title {
-        font-weight: 700;
-      }
-
-      p {
-        color: #63656e;
-        margin-bottom: 4px;
-        font-size: 12px;
-      }
-    }
-
-    .capacity-message {
-      display: flex;
-      align-items: center;
-
-      .capacity-input {
-        width: 320px;
-      }
-
-      .unit-container {
-        width: 40px;
-        border: 1px solid #c4c6cc ;
-        background: #f2f4f8;
-        color: #63656e;
-        text-align: center;
-        margin: 1px 0 0 -1px;
-        margin-right: 8px;
-      }
-
-      .right {
-        color: #63656e;
-      }
-    }
-
-    .need-approval {
-      margin: 12px 0 12px 116px;
-
-      @include flex-align;
-
-      .bk-checkbox-text {
-        font-size: 12px;
-        margin-right: 12px;
-      }
-
-      .approval-alert {
+      .bk-form-content {
         display: flex;
-        align-items: center;
-      }
-
-      .icon-exclamation-circle {
-        font-size: 16px;
-        margin-right: 8px;
-        color: #ff9c01;
+        flex-wrap: nowrap;
       }
     }
 
-    .approver {
-      font-size: 12px;
-      color: #313238;
-    }
-
-    .operate-container {
-      margin-top: 32px;
-      transform: translateX(-115px);
+    .prefix {
+      min-width: 80px;
+      margin-right: 8px;
+      font-size: 14px;
+      line-height: 32px;
+      color: #858790;
+      text-align: right;
     }
   }
+
+  .add-collection-title {
+    width: 100%;
+    padding-bottom: 10px;
+    margin: 30px 0 20px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #63656e;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  .capacity-assessment {
+    margin: 20px 0;
+    font-size: 14px;
+
+    @include flex-align;
+
+    .capacity-message {
+      margin-left: 20px;
+      color: #63656e;
+    }
+
+    .icon-angle-double-down {
+      font-size: 24px;
+
+      &.is-active {
+        transform: rotateZ(180deg) translateY(-2px);
+      }
+    }
+
+    .button-text {
+      @include flex-align;
+    }
+  }
+
+  .capacity-illustrate {
+    height: 104px;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+
+    .illustrate-title {
+      font-weight: 700;
+    }
+
+    p {
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #63656e;
+    }
+  }
+
+  .capacity-message {
+    display: flex;
+    align-items: center;
+
+    .capacity-input {
+      width: 320px;
+    }
+
+    .unit-container {
+      width: 40px;
+      margin: 1px 0 0 -1px;
+      margin-right: 8px;
+      color: #63656e;
+      text-align: center;
+      background: #f2f4f8;
+      border: 1px solid #c4c6cc;
+    }
+
+    .right {
+      color: #63656e;
+    }
+  }
+
+  .need-approval {
+    margin: 12px 0 12px 116px;
+
+    @include flex-align;
+
+    .bk-checkbox-text {
+      margin-right: 12px;
+      font-size: 12px;
+    }
+
+    .approval-alert {
+      display: flex;
+      align-items: center;
+    }
+
+    .icon-exclamation-circle {
+      margin-right: 8px;
+      font-size: 16px;
+      color: #ff9c01;
+    }
+  }
+
+  .approver {
+    font-size: 12px;
+    color: #313238;
+  }
+
+  .operate-container {
+    margin-top: 32px;
+    transform: translateX(-115px);
+  }
+}
 </style>

@@ -22,26 +22,41 @@
 
 <template>
   <section
-    v-bkloading="{ isLoading: logLoading, opacity: .6 }"
+    v-bkloading="{ isLoading: logLoading, opacity: 0.6 }"
     :class="{
       'log-full-dialog-wrapper': isScreenFull,
       'bk-form': true,
       'context-log-wrapper': true,
       'log-full-width': !isScreenFull
-    }">
+    }"
+  >
     <!-- IP 日志路径 -->
     <div class="dialog-label">
-      <span class="dialog-title">{{title}}</span>
-      <span style="margin-right: 10px;">IP: {{params.ip || params.serverIp}}</span>
-      <span class="title-overflow" v-bk-overflow-tips>{{ $t('日志路径') + ': ' + (params.path || params.logfile) }}</span>
+      <span class="dialog-title">{{ title }}</span>
+      <span style="margin-right: 10px">IP: {{ params.ip || params.serverIp }}</span>
+      <span
+        v-bk-overflow-tips
+        class="title-overflow"
+        >{{ $t('日志路径') + ': ' + (params.path || params.logfile) }}</span
+      >
     </div>
 
     <div class="dialog-bars">
-      <log-filter :is-screen-full="isScreenFull" @handle-filter="handleFilter" />
+      <log-filter
+        :is-screen-full="isScreenFull"
+        @handle-filter="handleFilter"
+      />
       <!-- 暂停、复制、全屏 -->
       <div class="controls">
-        <div class="control-icon" ref="fieldsConfigRef" v-bk-tooltips="fieldsConfigTooltip">
-          <span class="icon log-icon icon-set-icon" style="font-size: 16px;"></span>
+        <div
+          ref="fieldsConfigRef"
+          v-bk-tooltips="fieldsConfigTooltip"
+          class="control-icon"
+        >
+          <span
+            class="icon log-icon icon-set-icon"
+            style="font-size: 16px"
+          ></span>
         </div>
         <fields-config
           :id="fieldsConfigId"
@@ -51,19 +66,27 @@
           @confirm="confirmConfig"
           @cancel="cancelConfig"
         ></fields-config>
-        <div class="control-icon" @click="toggleScreenFull">
+        <div
+          class="control-icon"
+          @click="toggleScreenFull"
+        >
           <span class="icon log-icon icon-full-screen-log"></span>
         </div>
       </div>
     </div>
-    <div class="dialog-log-markdown" ref="contextLog" tabindex="0">
+    <div
+      ref="contextLog"
+      class="dialog-log-markdown"
+      tabindex="0"
+    >
       <log-view
         :log-list="logList"
         :reverse-log-list="reverseLogList"
         :filter-key="activeFilterKey"
         :filter-type="filterType"
         :ignore-case="ignoreCase"
-        :interval="interval" />
+        :interval="interval"
+      />
     </div>
 
     <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
@@ -84,23 +107,23 @@ export default {
   components: {
     logView,
     FieldsConfig,
-    LogFilter,
+    LogFilter
   },
   props: {
     retrieveParams: {
       type: Object,
-      required: true,
+      required: true
     },
     logParams: {
       type: Object,
       default() {
         return {};
-      },
+      }
     },
     title: {
       type: String,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     const id = 'fields-config-tippy';
@@ -120,7 +143,7 @@ export default {
         theme: 'light',
         extCls: 'fields-config-tippy',
         content: `#${id}`,
-        onShow: this.requestFields,
+        onShow: this.requestFields
       },
       rawList: [],
       logList: [], // 过滤成字符串的列表
@@ -140,15 +163,16 @@ export default {
       flipScreenList: [],
       interval: {
         prev: 0,
-        next: 0,
+        next: 0
       },
-      currentConfigID: 0,
+      currentConfigID: 0
     };
   },
   computed: {
-    filedSettingConfigID() { // 当前索引集的显示字段ID
+    filedSettingConfigID() {
+      // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
-    },
+    }
   },
   created() {
     this.deepClone(this.logParams);
@@ -177,7 +201,8 @@ export default {
         if (typeof obj[key] === 'object') {
           this.deepClone(obj[key]);
         } else {
-          this.params[key] = String(obj[key]).replace(/<mark>/g, '')
+          this.params[key] = String(obj[key])
+            .replace(/<mark>/g, '')
             .replace(/<\/mark>/g, '');
         }
       }
@@ -195,14 +220,14 @@ export default {
             scope: 'search_context',
             start_time: this.retrieveParams.start_time,
             end_time: this.retrieveParams.end_time,
-            is_realtime: 'True',
-          },
+            is_realtime: 'True'
+          }
         });
         this.currentConfigID = res.data.config_id;
         this.totalFields = res.data.fields;
         this.displayFieldNames = res.data.display_fields;
         this.totalFieldNames = res.data.fields.map(fieldInfo => fieldInfo.field_name);
-        this.displayFields = res.data.display_fields.map((fieldName) => {
+        this.displayFields = res.data.display_fields.map(fieldName => {
           return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
         });
         return true;
@@ -213,10 +238,13 @@ export default {
       }
     },
     async requestContentLog(direction) {
-      const data = Object.assign({
-        size: 500,
-        zero: this.zero,
-      }, this.params);
+      const data = Object.assign(
+        {
+          size: 500,
+          zero: this.zero
+        },
+        this.params
+      );
       if (direction === 'down') {
         data.begin = this.nextBegin;
       } else if (direction === 'top') {
@@ -229,14 +257,14 @@ export default {
         this.logLoading = true;
         const res = await this.$http.request('retrieve/getContentLog', {
           params: { index_set_id: this.$route.params.indexId },
-          data,
+          data
         });
 
         const { list } = res.data;
         if (list && list.length) {
           const stringList = this.formatStringList(
             list,
-            this.displayFieldNames.length ? this.displayFieldNames : ['log'],
+            this.displayFieldNames.length ? this.displayFieldNames : ['log']
           );
           if (direction) {
             if (direction === 'down') {
@@ -284,16 +312,16 @@ export default {
      **/
     formatStringList(list, displayFieldNames) {
       const stringList = [];
-      list.forEach((listItem) => {
+      list.forEach(listItem => {
         let logString = '';
-        displayFieldNames.forEach((field) => {
+        displayFieldNames.forEach(field => {
           const listValue = listItem[field];
           if (listValue && typeof listValue === 'object') {
             // logString += (Object.values(listValue).join(' ') + '    ')
-            logString += (`${Object.values(listValue).join(' ')} `);
+            logString += `${Object.values(listValue).join(' ')} `;
           } else {
             // logString += (listValue + '    ')
-            logString += (`${listValue} `);
+            logString += `${listValue} `;
           }
         });
         stringList.push(logString);
@@ -307,16 +335,16 @@ export default {
       const data = { display_fields: list };
       try {
         const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
-          params: { index_set_id: this.$route.params.indexId, config_id: this.currentConfigID },
+          params: { index_set_id: this.$route.params.indexId, config_id: this.currentConfigID }
         });
         Object.assign(data, {
           sort_list: configRes.data.sort_list,
           name: configRes.data.name,
-          config_id: this.currentConfigID,
+          config_id: this.currentConfigID
         });
         await this.$http.request('retrieve/updateFieldsConfig', {
           params: { index_set_id: this.$route.params.indexId },
-          data,
+          data
         });
         const res = await this.requestFields();
         if (res) {
@@ -415,116 +443,116 @@ export default {
       setTimeout(() => {
         this.throttle = false;
       }, 300);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/clearfix';
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/clearfix';
+@import '../../../scss/mixins/scroller';
 
-  .context-log-wrapper {
-    position: relative;
+.context-log-wrapper {
+  position: relative;
 
-    @include clearfix;
+  @include clearfix;
 
-    .dialog-label {
+  .dialog-label {
+    display: flex;
+    margin-bottom: 20px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    align-items: center;
+  }
+
+  .dialog-title {
+    margin-right: 20px;
+    font-size: 20px;
+    line-height: 20px;
+    color: #313238;
+  }
+
+  .dialog-bars {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 14px;
+
+    .controls {
       display: flex;
       align-items: center;
-      margin-bottom: 20px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
 
-    .dialog-title {
-      color: #313238;
-      font-size: 20px;
-      margin-right: 20px;
-      line-height: 20px;
-    }
-
-    .dialog-bars {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 14px;
-
-      .controls {
+      .control-icon {
         display: flex;
+        width: 32px;
+        height: 32px;
+        font-size: 32px;
+        cursor: pointer;
+        border: 1px solid #c4c6cc;
+        transition: color 0.2s;
+        justify-content: center;
         align-items: center;
 
-        .control-icon {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          width: 32px;
-          height: 32px;
-          border: 1px solid #c4c6cc;
-          font-size: 32px;
-          cursor: pointer;
-          transition: color .2s;
+        &:not(:last-child) {
+          margin-right: 10px;
+        }
 
-          &:not(:last-child) {
-            margin-right: 10px;
-          }
-
-          &:hover {
-            color: #3a84ff;
-            transition: color .2s;
-          }
+        &:hover {
+          color: #3a84ff;
+          transition: color 0.2s;
         }
       }
     }
+  }
 
-    .dialog-log-markdown {
-      height: 404px;
-      background: #f5f7fa;
-      overflow-y: auto;
+  .dialog-log-markdown {
+    height: 404px;
+    overflow-y: auto;
+    background: #f5f7fa;
 
-      @include scroller($backgroundColor: #aaa, $width: 4px);
+    @include scroller($backgroundColor: #aaa, $width: 4px);
 
-      &::-webkit-scrollbar {
-        background-color: #dedede;
-      }
-    }
-
-    .scroll-bar {
-      position: absolute;
-      right: 24px;
-      top: 68px;
-      display: flex;
-      flex-flow: column;
-      justify-content: space-between;
-      height: 56px;
-
-      .icon {
-        font-size: 24px;
-        cursor: pointer;
-        color: #d9d9d9;
-      }
-    }
-
-    .handle-tips {
-      margin-top: 10px;
-      color: #63656e;
+    &::-webkit-scrollbar {
+      background-color: #dedede;
     }
   }
 
-  .log-full-dialog-wrapper {
+  .scroll-bar {
+    position: absolute;
+    top: 68px;
+    right: 24px;
+    display: flex;
+    height: 56px;
+    flex-flow: column;
+    justify-content: space-between;
+
+    .icon {
+      font-size: 24px;
+      color: #d9d9d9;
+      cursor: pointer;
+    }
+  }
+
+  .handle-tips {
     margin-top: 10px;
-    height: calc(100% - 72px);
+    color: #63656e;
+  }
+}
 
-    .dialog-log-markdown {
-      height: calc(100% - 76px);
-    }
+.log-full-dialog-wrapper {
+  height: calc(100% - 72px);
+  margin-top: 10px;
 
-    .dialog-label {
-      padding-top: 15px;
-    }
+  .dialog-log-markdown {
+    height: calc(100% - 76px);
   }
 
-  .log-full-width {
-    width: 1030px;
+  .dialog-label {
+    padding-top: 15px;
   }
+}
+
+.log-full-width {
+  width: 1030px;
+}
 </style>

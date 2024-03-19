@@ -25,19 +25,19 @@ import { Component, Prop, Emit, Ref, Watch } from 'vue-property-decorator';
 import './cluster-filter.scss';
 
 interface IProps {
-  title: string,
-  searchable: boolean,
-  popoverMinWidth: number,
-  toggle: Function,
-  select: Array<string>,
-  selectList: Array<ISelectOption>,
-  loading: boolean,
-  isActive: boolean,
+  title: string;
+  searchable: boolean;
+  popoverMinWidth: number;
+  toggle: Function;
+  select: Array<string>;
+  selectList: Array<ISelectOption>;
+  loading: boolean;
+  isActive: boolean;
 }
 
 interface ISelectOption {
-  id: string,
-  name: string
+  id: string;
+  name: string;
 }
 
 @Component
@@ -89,22 +89,25 @@ export default class TimeFormatterSwitcher extends tsc<IProps> {
 
   render() {
     const triggerSlot = () => (
-      <div class="filter-box">
-        <span>{ this.title }</span>
-        <i class={['bk-icon icon-funnel', { 'is-active': (this.isShowSelectOption || this.isActive) }]}></i>
+      <div class='filter-box'>
+        <span>{this.title}</span>
+        <i class={['bk-icon icon-funnel', { 'is-active': this.isShowSelectOption || this.isActive }]}></i>
       </div>
     );
     const selectGroupDom = () => {
       return (
-        <div class="group-list">
+        <div class='group-list'>
           {this.selectList.map(option => (
             <bk-option
-              class="group-item"
+              class='group-item'
               id={option.id}
               name={option.name}
             >
-              <bk-checkbox ext-cls="ext-box" checked={this.getGroupItemCheckedState(option.id)}>
-                <span title={option.name}>{ option.name }</span>
+              <bk-checkbox
+                ext-cls='ext-box'
+                checked={this.getGroupItemCheckedState(option.id)}
+              >
+                <span title={option.name}>{option.name}</span>
               </bk-checkbox>
             </bk-option>
           ))}
@@ -112,18 +115,23 @@ export default class TimeFormatterSwitcher extends tsc<IProps> {
       );
     };
     const extensionSlot = () => (
-      <div slot="extension" class="extension-box">
+      <div
+        slot='extension'
+        class='extension-box'
+      >
         <bk-button
-          style="margin-right: 8px;"
-          theme="primary"
-          size="small"
-          onClick={this.submitFilter}>
+          style='margin-right: 8px;'
+          theme='primary'
+          size='small'
+          onClick={this.submitFilter}
+        >
           {this.$t('确定')}
         </bk-button>
         <bk-button
-          theme="default"
-          size="small"
-          onClick={this.cancelFilter}>
+          theme='default'
+          size='small'
+          onClick={this.cancelFilter}
+        >
           {this.$t('取消')}
         </bk-button>
       </div>
@@ -132,9 +140,9 @@ export default class TimeFormatterSwitcher extends tsc<IProps> {
       <bk-select
         multiple
         searchable={this.searchable}
-        ext-popover-cls="cluster-select-filter-popover"
-        class="cluster-select-filter"
-        ref="clusterSelect"
+        ext-popover-cls='cluster-select-filter-popover'
+        class='cluster-select-filter'
+        ref='clusterSelect'
         clearable={false}
         loading={this.loading}
         // show-empty={false}
@@ -145,11 +153,11 @@ export default class TimeFormatterSwitcher extends tsc<IProps> {
         onSelected={this.handleSelectedOption}
         onToggle={this.toggleSelect}
         scopedSlots={{
-          trigger: () => triggerSlot(),
+          trigger: () => triggerSlot()
         }}
       >
-        { selectGroupDom() }
-        { extensionSlot() }
+        {selectGroupDom()}
+        {extensionSlot()}
       </bk-select>
     );
   }

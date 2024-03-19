@@ -3,10 +3,10 @@
 
 %preview-box {
   .preview {
+    padding: 6px 0;
     /* stylelint-disable-next-line declaration-no-important */
     background: #f5f7fa !important;
     flex-direction: column;
-    padding: 6px 0;
 
     @include flex-justify(space-between);
   }
@@ -47,25 +47,25 @@
   }
 
   .fix-content {
-    margin-top: 18px;
     padding-bottom: 6px;
+    margin-top: 18px;
   }
 
   .item-title {
-    font-size: 12px;
     margin-bottom: 8px;
+    font-size: 12px;
     align-items: center;
 
     @include flex-justify(space-between);
 
     .title {
-      color: #313238;
       font-size: 14px;
+      color: #313238;
     }
 
     .alert {
-      color: #979ba5;
       margin-left: 16px;
+      color: #979ba5;
     }
 
     .icon {
@@ -103,8 +103,8 @@
 
   .masking-field-table {
     td .cell {
-      padding: 0;
       height: 100%;
+      padding: 0;
     }
 
     .is-last {
@@ -155,13 +155,13 @@
         @include flex-align(center);
 
         .field-type-icon {
-          color: #989ca7;
           margin-right: 8px;
+          color: #989ca7;
         }
 
         .nick-name {
-          color: #989ca7;
           margin-left: 8px;
+          color: #989ca7;
         }
       }
     }
@@ -187,8 +187,8 @@
           @include flex-align(center);
 
           &:hover {
-            background: #e2eeff;
             color: #3a84ff;
+            background: #e2eeff;
           }
 
           &:hover .icon-close {
@@ -205,29 +205,29 @@
         }
 
         .icon-plus {
-          font-size: 20px;
           display: inline-block;
+          font-size: 20px;
         }
 
         .icon-grag-fill {
           display: inline-block;
           width: 14px;
           height: 14px;
+          margin-right: 2px;
           font-size: 12px;
           color: #c3c5c9;
-          margin-right: 2px;
-          transform: translateY(1px);
           cursor: move;
+          transform: translateY(1px);
 
           @include flex-align(center);
         }
 
         .sync-tag {
-          font-size: 12px;
-          flex-shrink: 0;
-          padding: 0 3px;
           height: 18px;
+          padding: 0 3px;
+          font-size: 12px;
           line-height: 18px;
+          flex-shrink: 0;
         }
 
         .add-rule-icon {
@@ -250,14 +250,14 @@
       .preview-excess-num {
         display: inline-block;
         min-width: 24px;
+        padding: 0 4px;
         margin-left: 4px;
         font-size: 12px;
-        padding: 0 4px;
-        border-radius: 2px;
-        background: #ebecf0;
         color: #979ba5;
-        transform: scale(.8);
         cursor: pointer;
+        background: #ebecf0;
+        border-radius: 2px;
+        transform: scale(.8);
 
         &:hover {
           color: #3a84ff;
@@ -279,19 +279,19 @@
 
   .icon-info-circle-shape {
     display: inline-block;
-    font-size: 16px;
     margin-left: 4px;
+    font-size: 16px;
     color: #c4c6cc;
   }
 
   .add-rule-icon {
     width: 22px;
     height: 22px;
-    background: #fff;
-    box-shadow: 0 2px 4px 0 #1919290d;
-    border-radius: 2px;
     margin-left: 15px;
     cursor: pointer;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
 
     @include flex-center();
 
@@ -340,8 +340,8 @@
     }
 
     :last-child {
-      color: #313238;
       margin-left: 4px;
+      color: #313238;
     }
   }
 }
@@ -368,8 +368,8 @@
     }
 
     .rule-text {
-      margin: 16px 0;
       padding: 0 28px;
+      margin: 16px 0;
       text-align: center;
     }
 
@@ -400,23 +400,23 @@
           height: 32px;
           line-height: 32px;
           color: #313238;
-          background: #f0f1f5;
           text-align: center;
+          background: #f0f1f5;
         }
 
         .rule-item-row {
           height: 96px;
-          flex-direction: column;
-          background: #fafbfd;
           padding: 0 25px;
+          background: #fafbfd;
+          flex-direction: column;
 
           @include flex-justify(center);
         }
 
         .item {
+          display: flex;
           height: 32px;
           line-height: 32px;
-          display: flex;
 
           .key {
             color: #63656e;
@@ -467,29 +467,29 @@
 
 .sync-render-header {
   .icon-double-arrow {
-    margin: 0 2px 0 11px;
     display: none;
+    margin: 0 2px 0 11px;
     font-size: 12px;
-    transform: scale(.7);
     color: #3a84ff;
+    transform: scale(.7);
   }
 
   .icon-info-fill {
-    font-size: 14px;
     margin-left: 6px;
+    font-size: 14px;
     color: #979ba5;
   }
 
   .icon-brush {
+    display: inline-flex;
     width: 20px;
     height: 20px;
-    border-radius: 2px;
     margin-left: 4px;
-    display: inline-flex;
+    cursor: pointer;
+    background: #eaebf0;
+    border-radius: 2px;
     justify-items: center;
     align-items: center;
-    background: #eaebf0;
-    cursor: pointer;
 
     &:before {
       display: inline-block;
@@ -506,9 +506,9 @@
   }
 
   .sync-btn {
-    cursor: pointer;
     display: none;
     color: #3a84ff;
+    cursor: pointer;
   }
 
   .is-show-sync {
