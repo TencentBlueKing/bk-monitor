@@ -88,6 +88,7 @@ const defalutOptions = {
     enabled: false
   },
   fontSize: 14,
+  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
   codeLens: false,
   contextmenu: false,
   fixedOverflowWidgets: true,
@@ -106,7 +107,9 @@ const defalutOptions = {
   },
   padding: {
     top: 4,
-    bottom: 5
+    bottom: 8,
+    right: 0,
+    left: 0
   },
   suggest: () => ({
     showWords: false

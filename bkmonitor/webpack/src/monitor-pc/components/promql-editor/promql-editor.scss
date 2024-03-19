@@ -1,5 +1,4 @@
 /* stylelint-disable declaration-no-important */
-
 .promql-editor-component {
   position: relative;
   display: flex;
@@ -15,16 +14,18 @@
     border-color: #ff5656;
   }
 
-  .view-lines {
-    span {
-      font-family: Consolas, 'Courier New', monospace !important;
-    }
-  }
-
   .promql-editor {
     width: 100%;
     height: 100%;
     border: 0;
+
+    .overflowingContentWidgets {
+      .monaco-hover-content {
+        .hover-row.status-bar {
+          display: none;
+        }
+      }
+    }
   }
 
   .scroll-decoration {
