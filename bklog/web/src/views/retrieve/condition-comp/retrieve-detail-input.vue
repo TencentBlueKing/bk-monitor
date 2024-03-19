@@ -21,50 +21,67 @@
   -->
 
 <template>
-  <div v-bk-clickoutside="handleClickOutside" class="retrieve-detail-input">
+  <div
+    v-bk-clickoutside="handleClickOutside"
+    class="retrieve-detail-input"
+  >
     <bk-input
+      ref="inputRef"
       class="king-input-retrieve"
       data-test-id="dataQuery_input_checkForPhrases"
       :value="value"
       type="textarea"
-      ref="inputRef"
       @focus="handleFocus"
       @input="handleInput"
       @blur="handleBlur"
       @keydown="handleKeydown"
     ></bk-input>
-    <div v-if="isKeywordsError" class="refresh-keywords">
-      <span class="error-message">{{$t('当前查询语句有语法错误')}}, </span>
-      <span v-if="keywordIsResolved" @click="handleRefreshKeywords">
-        <i18n path="点击可进行{0}" class="error-message">
+    <div
+      v-if="isKeywordsError"
+      class="refresh-keywords"
+    >
+      <span class="error-message">{{ $t('当前查询语句有语法错误') }}, </span>
+      <span
+        v-if="keywordIsResolved"
+        @click="handleRefreshKeywords"
+      >
+        <i18n
+          path="点击可进行{0}"
+          class="error-message"
+        >
           <span>
             <span class="log-icon icon-refresh-icon"></span>
-            <span class="refresh-btn">{{$t('自动转换')}}</span>
+            <span class="refresh-btn">{{ $t('自动转换') }}</span>
           </span>
         </i18n>
       </span>
       <div v-if="!!keywordErrorMessage">
-        <span class="error-title">{{$t('错误原因')}}: </span>
-        <span class="error-message">{{keywordErrorMessage}}</span>
+        <span class="error-title">{{ $t('错误原因') }}: </span>
+        <span class="error-message">{{ keywordErrorMessage }}</span>
       </div>
     </div>
     <!-- 搜索提示 -->
     <ul
       v-if="renderDropdown"
-      class="retrieve-dropdown"
       ref="dropdownRef"
-      @click="handleClickDropdown">
+      class="retrieve-dropdown"
+      @click="handleClickDropdown"
+    >
       <!-- 字段列表 -->
       <template v-if="showFields">
         <li
           v-for="item in fieldList"
           :key="item"
           class="list-item field-list-item"
-          @click="handleClickField(item)">
+          @click="handleClickField(item)"
+        >
           <div class="item-type-icon">
             <span class="log-icon icon-field"></span>
           </div>
-          <div v-bk-overflow-tips="{ placement: 'right' }" class="item-text text-overflow-hidden">
+          <div
+            v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-text text-overflow-hidden"
+          >
             {{ item }}
           </div>
           <!-- <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
@@ -80,34 +97,50 @@
           v-for="item in valueList"
           :key="item"
           class="list-item value-list-item"
-          @click="handleClickValue(item)">
+          @click="handleClickValue(item)"
+        >
           <div class="item-type-icon">
             <span class="log-icon icon-value"></span>
           </div>
-          <div v-bk-overflow-tips="{ placement: 'right' }" class="item-text text-overflow-hidden">
+          <div
+            v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-text text-overflow-hidden"
+          >
             {{ item }}
           </div>
         </li>
       </template>
       <!-- : :* -->
       <template v-if="showColon">
-        <li class="list-item colon-list-item" @click="handleClickColon(':')">
+        <li
+          class="list-item colon-list-item"
+          @click="handleClickColon(':')"
+        >
           <div class="item-type-icon">
             <span class="log-icon icon-equal"></span>
           </div>
           <div class="item-text">:</div>
-          <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
+          <div
+            v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-description text-overflow-hidden"
+          >
             <i18n path="{0}某一值">
               <span class="item-callout">{{ $t('等于') }}</span>
             </i18n>
           </div>
         </li>
-        <li class="list-item colon-list-item" @click="handleClickColon(': *')">
+        <li
+          class="list-item colon-list-item"
+          @click="handleClickColon(': *')"
+        >
           <div class="item-type-icon">
             <span class="log-icon icon-equal"></span>
           </div>
           <div class="item-text">:*</div>
-          <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
+          <div
+            v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-description text-overflow-hidden"
+          >
             <i18n path="{0}任意形式">
               <span class="item-callout">{{ $t('存在') }}</span>
             </i18n>
@@ -116,23 +149,35 @@
       </template>
       <!-- AND OR -->
       <template v-if="showContinue">
-        <li class="list-item continue-list-item" @click="handleClickContinue('AND')">
+        <li
+          class="list-item continue-list-item"
+          @click="handleClickContinue('AND')"
+        >
           <div class="item-type-icon">
             <span class="log-icon icon-and"></span>
           </div>
           <div class="item-text">AND</div>
-          <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
+          <div
+            v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-description text-overflow-hidden"
+          >
             <i18n path="需要{0}为真">
               <span class="item-callout">{{ $t('两个参数都') }}</span>
             </i18n>
           </div>
         </li>
-        <li class="list-item continue-list-item" @click="handleClickContinue('OR')">
+        <li
+          class="list-item continue-list-item"
+          @click="handleClickContinue('OR')"
+        >
           <div class="item-type-icon">
             <span class="log-icon icon-and"></span>
           </div>
           <div class="item-text">OR</div>
-          <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
+          <div
+            v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-description text-overflow-hidden"
+          >
             <i18n path="需要{0}为真">
               <span class="item-callout">{{ $t('一个或多个参数') }}</span>
             </i18n>
@@ -146,29 +191,29 @@
 <script>
 export default {
   model: {
-    event: 'change',
+    event: 'change'
   },
   props: {
     value: {
       type: String,
-      required: true,
+      required: true
     },
     retrievedKeyword: {
       type: String,
-      default: '*',
+      default: '*'
     },
     dropdownData: {
       type: Object,
-      required: true,
+      required: true
     },
     isAutoQuery: {
       type: Boolean,
-      default: false,
+      default: false
     },
     isShowUiType: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   data() {
     return {
@@ -188,17 +233,13 @@ export default {
       resetKeyword: '', // 修复过后的语句
       originFieldList: [], // 所有字段列表 ['name', 'age']
       fieldList: [], // 显示字段列表，['name', 'age']
-      valueList: [], // 字段可能的值 ['"arman"', '"xxx yyy"'] [18, 22]
+      valueList: [] // 字段可能的值 ['"arman"', '"xxx yyy"'] [18, 22]
     };
   },
   computed: {
     renderDropdown() {
-      return this.showDropdown
-             && (this.showFields
-              || this.showValue
-              || this.showColon
-              || this.showContinue);
-    },
+      return this.showDropdown && (this.showFields || this.showValue || this.showColon || this.showContinue);
+    }
   },
   watch: {
     showDropdown(val) {
@@ -221,8 +262,8 @@ export default {
           this.calculateDropdown();
         }
       },
-      deep: true,
-    },
+      deep: true
+    }
   },
   mounted() {
     this.inputElement = this.$refs.inputRef.$el.querySelector('textarea');
@@ -277,9 +318,11 @@ export default {
       const dropdownList = dropdownEl.querySelectorAll('.list-item');
       if (code === 'NumpadEnter' || code === 'Enter') {
         e.preventDefault();
-        if (this.activeIndex !== null) { // enter 选中下拉选项
+        if (this.activeIndex !== null) {
+          // enter 选中下拉选项
           dropdownList[this.activeIndex].click();
-        } else { // enter 检索
+        } else {
+          // enter 检索
           this.closeDropdown();
         }
       } else if (code === 'ArrowUp') {
@@ -349,7 +392,8 @@ export default {
       // 所以 blur 事件回调延迟 200ms 执行，让 click 事件执行后才确认如何执行
       this.blurTimer && clearTimeout(this.blurTimer);
       this.blurTimer = setTimeout(async () => {
-        if (this.shouldHandleBlur) { // 非点击下拉触发的 blur 事件
+        if (this.shouldHandleBlur) {
+          // 非点击下拉触发的 blur 事件
           this.showDropdown = false;
           // 自动搜索时 先判断语句是否出错 如果出错 则提示出错原因 且不进行请求
           if (this.retrievedKeyword !== val.trim() || this.isKeywordsError) {
@@ -361,7 +405,8 @@ export default {
         }
       }, 200);
     },
-    handleRefreshKeywords() { // 替换语句
+    handleRefreshKeywords() {
+      // 替换语句
       this.$emit('change', this.resetKeyword);
       this.resetKeyword = '';
       this.isKeywordsError = false;
@@ -370,11 +415,12 @@ export default {
       this.$emit('isCanSearch', true);
       if (this.isAutoQuery) this.$emit('retrieve');
     },
-    async handleCheckKeywords(keyword) { // 检查检索语句是否有误
+    async handleCheckKeywords(keyword) {
+      // 检查检索语句是否有误
       if (keyword === '') keyword = '*';
       try {
         const { data } = await this.$http.request('favorite/checkKeywords', {
-          data: { keyword },
+          data: { keyword }
         });
         this.isKeywordsError = !data.is_legal;
         this.keywordIsResolved = data.is_resolved;
@@ -409,9 +455,10 @@ export default {
       // 开始输入字段【nam】
       const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups.field;
       if (inputField) {
-        this.fieldList = this.originFieldList.filter((item) => {
+        this.fieldList = this.originFieldList.filter(item => {
           if (item.includes(inputField)) {
-            if (item === inputField) { // 完全匹配字段同时和 : :* 选项
+            if (item === inputField) {
+              // 完全匹配字段同时和 : :* 选项
               this.showColon = true;
             }
             return true;
@@ -485,8 +532,7 @@ export default {
       let valueMapList = Object.keys(valueMap);
       if (valueMap.__fieldType === 'string') {
         valueMapList = valueMapList // 清除mark标签
-          .map(item => `"${item.replace(/<mark>/g, '')
-            .replace(/<\/mark>/g, '')}"`);
+          .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
       }
       return [...new Set(valueMapList)]; // 清除重复的字段
     },
@@ -539,188 +585,188 @@ export default {
       this.$emit('change', `${this.value + type} `);
       this.showWhichDropdown('Fields');
       this.fieldList = [...this.originFieldList];
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/scroller';
+/* stylelint-disable no-descending-specificity */
+.retrieve-detail-input {
+  position: relative;
 
-  .retrieve-detail-input {
-    position: relative;
+  .refresh-keywords {
+    margin-top: 4px;
+    font-size: 12px;
 
-    .refresh-keywords {
-      margin-top: 4px;
+    .error-message {
+      color: #ea3636;
+    }
+
+    .error-title {
+      color: #63656e;
+    }
+
+    .refresh-btn,
+    .icon-refresh-icon {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .king-input-retrieve {
+    :deep(.bk-form-textarea) {
+      resize: vertical;
+    }
+  }
+
+  .retrieve-dropdown {
+    position: absolute;
+    z-index: 99;
+    width: 100%;
+    max-height: 360px;
+    margin-top: 4px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
+
+    @include scroller(#ccc);
+
+    .list-item {
+      display: flex;
+      align-items: center;
       font-size: 12px;
+      line-height: 32px;
+      background-color: #fff;
 
-      .error-message {
-        color: #ea3636;
-      }
-
-      .error-title {
-        color: #63656e;
-      }
-
-      .refresh-btn,
-      .icon-refresh-icon {
-        cursor: pointer;
-        color: #3a84ff;
-      }
-    }
-
-    .king-input-retrieve {
-      :deep(.bk-form-textarea) {
-        resize: vertical;
-      }
-    }
-
-    .retrieve-dropdown {
-      position: absolute;
-      z-index: 99;
-      width: 100%;
-      max-height: 360px;
-      overflow: auto;
-      margin-top: 4px;
-      background: #fff;
-      box-shadow: 0 2px 6px 0 rgba(0, 0, 0, .1);
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-
-      @include scroller(#CCC);
-
-      .list-item {
+      .item-type-icon {
         display: flex;
+        width: 32px;
+        height: 32px;
+        justify-content: center;
         align-items: center;
-        font-size: 12px;
-        line-height: 32px;
-        background-color: #fff;
 
-        .item-type-icon {
-          width: 32px;
-          height: 32px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-
-          .log-icon {
-            font-size: 16px;
-          }
+        .log-icon {
+          font-size: 16px;
         }
+      }
 
-        .item-text {
-          flex: 1;
-          min-width: 150px;
-          padding: 0 8px;
-          color: #63656e;
+      .item-text {
+        min-width: 150px;
+        padding: 0 8px;
+        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+        color: #63656e;
+        flex: 1;
+      }
+
+      .item-description {
+        margin-left: 24px;
+        color: #979ba5;
+        flex: 2;
+
+        .item-callout {
+          padding: 0 4px;
           font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-        }
-
-        .item-description {
-          flex: 2;
-          color: #979ba5;
-          margin-left: 24px;
-
-          .item-callout {
-            padding: 0 4px;
-            color: #313238;
-            background-color: #f4f6fa;
-            font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-          }
-        }
-
-        &:hover,
-        &.active {
+          color: #313238;
           background-color: #f4f6fa;
-
-          .item-text {
-            color: #313238;
-          }
-
-          .item-callout {
-            background-color: #fff;
-          }
-        }
-
-        &:hover {
-          cursor: pointer;
-          background-color: #eaf3ff;
         }
       }
 
-      /* 字段 icon 样式 */
-      .field-list-item.list-item {
-        .item-type-icon {
-          color: #936501;
-          background-color: #fef6e6;
-        }
-
-        &:hover,
-        &.active {
-          .item-type-icon {
-            color: #010101;
-            background-color: #fdedcc;
-          }
-        }
-      }
-
-      /* 值 icon 样式 */
-      .value-list-item.list-item {
-        .item-type-icon {
-          color: #02776e;
-          background-color: #e6f2f1;
-        }
-
-        &:hover,
-        &.active {
-          .item-type-icon {
-            color: #010101;
-            background-color: #cce5e3;
-          }
-        }
-      }
-
-      /* AND OR icon 样式 */
-      .continue-list-item.list-item {
-        .item-type-icon {
-          color: #7800a6;
-          background-color: #f2e6f6;
-        }
-
-        &:hover,
-        &.active {
-          .item-type-icon {
-            color: #000;
-            background-color: #e4cced;
-          }
-        }
-      }
-
-      /* : :* icon 样式 */
-      .colon-list-item.list-item {
-        .item-type-icon {
-          color: #006bb4;
-          background-color: #e6f0f8;
-        }
-
-        &:hover,
-        &.active {
-          .item-type-icon {
-            color: #000;
-            background-color: #cce1f0;
-          }
-        }
-      }
-
-      .history-title-item.list-item {
-        border-top: 1px solid #dcdee5;
-        background-color: #fff;
-        cursor: default;
+      &:hover,
+      &.active {
+        background-color: #f4f6fa;
 
         .item-text {
-          color: #979ba5;
+          color: #313238;
         }
+
+        .item-callout {
+          background-color: #fff;
+        }
+      }
+
+      &:hover {
+        cursor: pointer;
+        background-color: #eaf3ff;
+      }
+    }
+
+    /* 字段 icon 样式 */
+    .field-list-item.list-item {
+      .item-type-icon {
+        color: #936501;
+        background-color: #fef6e6;
+      }
+
+      &:hover,
+      &.active {
+        .item-type-icon {
+          color: #010101;
+          background-color: #fdedcc;
+        }
+      }
+    }
+
+    /* 值 icon 样式 */
+    .value-list-item.list-item {
+      .item-type-icon {
+        color: #02776e;
+        background-color: #e6f2f1;
+      }
+
+      &:hover,
+      &.active {
+        .item-type-icon {
+          color: #010101;
+          background-color: #cce5e3;
+        }
+      }
+    }
+
+    /* AND OR icon 样式 */
+    .continue-list-item.list-item {
+      .item-type-icon {
+        color: #7800a6;
+        background-color: #f2e6f6;
+      }
+
+      &:hover,
+      &.active {
+        .item-type-icon {
+          color: #000;
+          background-color: #e4cced;
+        }
+      }
+    }
+
+    /* : :* icon 样式 */
+    .colon-list-item.list-item {
+      .item-type-icon {
+        color: #006bb4;
+        background-color: #e6f0f8;
+      }
+
+      &:hover,
+      &.active {
+        .item-type-icon {
+          color: #000;
+          background-color: #cce1f0;
+        }
+      }
+    }
+
+    .history-title-item.list-item {
+      cursor: default;
+      background-color: #fff;
+      border-top: 1px solid #dcdee5;
+
+      .item-text {
+        color: #979ba5;
       }
     }
   }
+}
 </style>

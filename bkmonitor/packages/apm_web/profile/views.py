@@ -114,7 +114,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             app_name=app_name,
             file_key=key,
             file_md5=md5,
-            file_type=validated_data["file_type"],
             profile_id=profile_id,
             operator=request.user.username,
             origin_file_name=uploaded.name,
@@ -127,7 +126,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         # 异步任务：文件解析及存储
         profile_file_upload_and_parse.delay(
             key,
-            validated_data["file_type"],
             profile_id,
             validated_data["bk_biz_id"],
             service_name,
@@ -401,13 +399,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         start, end = self._enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
         results = self._query(
-            api_type=APIType.LABELS,
+            api_type=APIType.LABEL_VALUES,
             app_name=app_name,
             bk_biz_id=bk_biz_id,
             service_name=service_name,
             data_type=validated_data["data_type"],
             extra_params={
-                "label_filter": {validated_data["label_key"]: "op_is_not_null"},
+                "label_key": validated_data["label_key"],
                 "limit": {"offset": offset, "rows": rows},
             },
             result_table_id=result_table_id,
@@ -416,13 +414,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             converted=False,
         )
 
-        return Response(
-            data={
-                "label_values": [
-                    json.loads(i["labels"]).get(validated_data["label_key"]) for i in results["list"] if i.get("labels")
-                ]
-            }
-        )
+        return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})
 
     @action(methods=["GET"], detail=False, url_path="export")
     def export(self, request: Request):

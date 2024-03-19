@@ -29,19 +29,29 @@
         scene="part"
       >
         <div class="empty-card">
-          <div class="empty-message">{{$t('暂未进行检索')}}</div>
+          <div class="empty-message">{{ $t('暂未进行检索') }}</div>
           <div class="empty-main">
-            <div class="suggest-title">{{$t('您可以按照以下方式进行检索')}}</div>
+            <div class="suggest-title">{{ $t('您可以按照以下方式进行检索') }}</div>
             <div class="suggest-list">
               <span>
-                1. <i18n path="当前是否有数据源，如果没有请 {0}">
-                  <span class="blue-btn" @click="handleBtnClick('goToConfig')">{{$t('前往配置')}}</span>
+                1.
+                <i18n path="当前是否有数据源，如果没有请 {0}">
+                  <span
+                    class="blue-btn"
+                    @click="handleBtnClick('goToConfig')"
+                    >{{ $t('前往配置') }}</span
+                  >
                 </i18n>
               </span>
-              <span> 2. {{$t('检查查询条件是否完整，是否有报错')}}</span>
+              <span> 2. {{ $t('检查查询条件是否完整，是否有报错') }}</span>
               <span>
-                3. <i18n path="当前可能是手动查询，请 {0}">
-                  <span class="blue-btn" @click="handleBtnClick('clickToQuery')">{{$t('点击查询')}}</span>
+                3.
+                <i18n path="当前可能是手动查询，请 {0}">
+                  <span
+                    class="blue-btn"
+                    @click="handleBtnClick('clickToQuery')"
+                    >{{ $t('点击查询') }}</span
+                  >
                 </i18n>
               </span>
             </div>
@@ -56,26 +66,37 @@
         scene="part"
       >
         <div class="empty-card">
-          <div class="empty-message">{{$t('查询无数据')}}</div>
+          <div class="empty-message">{{ $t('查询无数据') }}</div>
           <div class="empty-main">
-            <div class="suggest-title">{{$t('您可以按照以下方式优化检索结果')}}</div>
+            <div class="suggest-title">{{ $t('您可以按照以下方式优化检索结果') }}</div>
             <div class="suggest-list">
               <span>
-                1. <i18n path="检查 {0} 情况">
-                  <span class="blue-btn" @click="handleBtnClick('indexConfig')">{{$t('数据源配置')}}</span>
+                1.
+                <i18n path="检查 {0} 情况">
+                  <span
+                    class="blue-btn"
+                    @click="handleBtnClick('indexConfig')"
+                    >{{ $t('数据源配置') }}</span
+                  >
                 </i18n>
               </span>
-              <span>2. {{$t('检查右上角的索时间范围')}}</span>
-              <span>3. {{$t('优化查询语句')}}</span>
+              <span>2. {{ $t('检查右上角的索时间范围') }}</span>
+              <span>3. {{ $t('优化查询语句') }}</span>
               <div class="grammar-list">
-                <span v-for="(item, index) in grammarMap" :key="index">
+                <span
+                  v-for="(item, index) in grammarMap"
+                  :key="index"
+                >
                   <span>{{ item.key }}</span> : <span>{{ item.value }}</span>
                 </span>
               </div>
             </div>
           </div>
-          <div class="more-rule" @click="handleBtnClick('queryString')">
-            {{$t('查看更多语法规则')}}
+          <div
+            class="more-rule"
+            @click="handleBtnClick('queryString')"
+          >
+            {{ $t('查看更多语法规则') }}
             <span class="log-icon icon-tiaozhuan"></span>
           </div>
         </div>
@@ -90,65 +111,68 @@ export default {
   props: {
     retrieveSearchNumber: {
       type: Number,
-      require: true,
+      require: true
     },
     indexSetItem: {
       type: Object,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
       grammarMap: [
         {
           key: this.$t('带字段全文检索更高效'),
-          value: 'log:abc',
+          value: 'log:abc'
         },
         {
           key: this.$t('模糊检索使用通配符'),
-          value: this.$t('abc* 或 ab?c'),
+          value: this.$t('abc* 或 ab?c')
         },
         {
           key: this.$t('双引号匹配完整字符串'),
-          value: 'log:"ERROR MSG"',
+          value: 'log:"ERROR MSG"'
         },
         {
           key: this.$t('数值字段范围匹配'),
-          value: 'count:[1 TO 5]',
+          value: 'count:[1 TO 5]'
         },
         {
           key: this.$t('正则匹配'),
-          value: 'name:/joh?n(ath[oa]n/',
+          value: 'name:/joh?n(ath[oa]n/'
         },
         {
           key: this.$t('组合检索注意大写'),
-          value: 'log: (error OR info)',
-        },
+          value: 'log: (error OR info)'
+        }
       ],
-      routeNameList: { // 路由跳转name
+      routeNameList: {
+        // 路由跳转name
         log: 'manage-collection',
         custom: 'custom-report-detail',
         manage: 'bkdata-index-set-manage',
-        indexManage: 'log-index-set-manage',
+        indexManage: 'log-index-set-manage'
       },
-      detailJumpRouteKey: 'log',
+      detailJumpRouteKey: 'log'
     };
   },
   computed: {
     ...mapGetters({
       indexId: 'indexId',
-      spaceUid: 'spaceUid',
+      spaceUid: 'spaceUid'
     }),
     isFirstSearch() {
       return this.retrieveSearchNumber <= 1;
-    },
+    }
   },
   watch: {
     indexSetItem: {
       handler(nVal) {
         if (JSON.stringify(nVal) === '{}') return;
-        if (nVal.scenario_id === 'log') { // 索引集类型为采集项或自定义上报
-          if (nVal.collector_scenario_id === null) { // 若无日志类型 则类型为索引集
+        if (nVal.scenario_id === 'log') {
+          // 索引集类型为采集项或自定义上报
+          if (nVal.collector_scenario_id === null) {
+            // 若无日志类型 则类型为索引集
             this.getDetailJumpRouteKey('setIndex');
             return;
           }
@@ -159,8 +183,8 @@ export default {
         // 当scenario_id不为log（采集项，索引集，自定义上报）时
         this.getDetailJumpRouteKey(nVal.scenario_id);
       },
-      immediate: true,
-    },
+      immediate: true
+    }
   },
   methods: {
     handleBtnClick(clickType) {
@@ -172,34 +196,38 @@ export default {
         case 'queryString': // 查询更多语法
           this.handleGotoLink('queryString');
           break;
-        case 'indexConfig': { // 索引配置
-          if (JSON.stringify(this.indexSetItem) === '{}') {
-            this.$bkMessage({
-              theme: 'error',
-              message: this.$t('未找到对应的采集项'),
+        case 'indexConfig':
+          {
+            // 索引配置
+            if (JSON.stringify(this.indexSetItem) === '{}') {
+              this.$bkMessage({
+                theme: 'error',
+                message: this.$t('未找到对应的采集项')
+              });
+              return;
+            }
+            const params = {};
+            if (['manage', 'indexManage'].includes(this.detailJumpRouteKey)) {
+              params.indexSetId = this.indexSetItem?.index_set_id;
+            } else {
+              params.collectorId = this.indexSetItem?.collector_config_id;
+            }
+            const { href } = this.$router.resolve({
+              name: this.routeNameList[this.detailJumpRouteKey],
+              params,
+              query: {
+                spaceUid: this.$store.state.spaceUid
+              }
             });
-            return;
+            window.open(href, '_blank');
           }
-          const params = {};
-          if (['manage', 'indexManage'].includes(this.detailJumpRouteKey)) {
-            params.indexSetId = this.indexSetItem?.index_set_id;
-          } else {
-            params.collectorId = this.indexSetItem?.collector_config_id;
-          }
-          const { href } = this.$router.resolve({
-            name: this.routeNameList[this.detailJumpRouteKey],
-            params,
-            query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
-          });
-          window.open(href, '_blank');
-        }
           break;
-        case 'goToConfig': { // 前往配置
-          const jumpUrl = `${baseUrl}#/manage/log-collection/collection-item?spaceUid=${this.spaceUid}`;
-          window.open(jumpUrl, '_blank');
-        }
+        case 'goToConfig':
+          {
+            // 前往配置
+            const jumpUrl = `${baseUrl}#/manage/log-collection/collection-item?spaceUid=${this.spaceUid}`;
+            window.open(jumpUrl, '_blank');
+          }
           break;
         case 'clickToQuery': // 点击查询
           this.$emit('shouldRetrieve');
@@ -214,8 +242,8 @@ export default {
       } else {
         this.detailJumpRouteKey = detailStr;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -228,13 +256,13 @@ export default {
     color: #63656e;
 
     .empty-main {
-      font-size: 12px;
       min-width: 230px;
+      font-size: 12px;
       text-align: left;
 
       .suggest-title {
-        color: #979ba5;
         padding: 8px 0;
+        color: #979ba5;
       }
 
       .suggest-list {
@@ -243,22 +271,22 @@ export default {
         line-height: 18px;
 
         .grammar-list {
-          margin-left: 14px;
           display: flex;
+          margin-left: 14px;
           flex-direction: column;
         }
       }
     }
 
     .more-rule {
-      font-size: 12px;
       margin-top: 8px;
+      font-size: 12px;
       color: #3a84ff;
       cursor: pointer;
 
       .log-icon {
         display: inline-block;
-        transform: scale(.8) translate3d(-2px, -1px, 0);
+        transform: scale(0.8) translate3d(-2px, -1px, 0);
       }
     }
   }

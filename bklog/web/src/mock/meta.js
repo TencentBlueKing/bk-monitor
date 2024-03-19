@@ -20,7 +20,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-
 const users = {
   message: '',
   code: 0,
@@ -29,16 +28,16 @@ const users = {
       username: 'admin',
       chname: 'admin',
       language: 'zh-cn',
-      time_zone: 'Asia/Shanghai',
+      time_zone: 'Asia/Shanghai'
     },
     {
       username: 'zhang',
       chname: 'zhangyuting',
       language: 'zh-cn',
-      time_zone: 'Asia/Shanghai',
-    },
+      time_zone: 'Asia/Shanghai'
+    }
   ],
-  result: true,
+  result: true
 };
 
 const type = {
@@ -47,22 +46,22 @@ const type = {
   data: [
     {
       type: 'weixin',
-      label: '微信',
+      label: '微信'
     },
     {
       type: 'mail',
-      label: '邮件',
+      label: '邮件'
     },
     {
       type: 'sms',
-      label: '短信',
+      label: '短信'
     },
     {
       type: 'voice',
-      label: '语音',
-    },
+      label: '语音'
+    }
   ],
-  result: true,
+  result: true
 };
 
 const language = {
@@ -71,21 +70,21 @@ const language = {
   data: [
     {
       id: 'zh-hans',
-      name: '中文',
+      name: '中文'
     },
     {
       id: 'en',
-      name: '英文',
-    },
+      name: '英文'
+    }
   ],
-  result: true,
+  result: true
 };
 
 const updateLanguage = {
   message: '',
   code: 0,
   data: [],
-  result: true,
+  result: true
 };
 
 // 获取接入场景
@@ -93,7 +92,7 @@ const scenario = {
   message: '',
   code: 0,
   data: [],
-  result: true,
+  result: true
 };
 
 export default {
@@ -101,5 +100,5 @@ export default {
   type,
   language,
   updateLanguage,
-  scenario,
+  scenario
 };

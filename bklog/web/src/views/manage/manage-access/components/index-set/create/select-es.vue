@@ -27,102 +27,138 @@
     :title="$t('新增索引')"
     :width="680"
     :mask-close="false"
-    :show-footer="false">
+    :show-footer="false"
+  >
     <div class="slot-container">
       <bk-form
+        ref="formRef"
         :model="formData"
         :label-width="100"
         :rules="formRules"
-        ref="formRef">
+      >
         <bk-form-item
           :label="$t('索引')"
           required
           property="resultTableId"
-          class="add-index-input-container">
+          class="add-index-input-container"
+        >
           <bk-input
             v-model.trim="formData.resultTableId"
             placeholder="log_search_*"
             class="king-input"
             @focus="handleFocus"
-            @enter="handleSearch"></bk-input>
+            @enter="handleSearch"
+          ></bk-input>
           <bk-button
             class="king-button"
             :loading="searchLoading"
             :disabled="!formData.resultTableId || formData.resultTableId === '*'"
-            @click="handleSearch">
+            @click="handleSearch"
+          >
             {{ $t('搜索') }}
           </bk-button>
-          <div class="error-tips-container" v-if="indexErrorText">
-            <span class="log-icon icon-info-fill" v-bk-tooltips="{ width: 440, content: indexErrorText }"></span>
+          <div
+            v-if="indexErrorText"
+            class="error-tips-container"
+          >
+            <span
+              v-bk-tooltips="{ width: 440, content: indexErrorText }"
+              class="log-icon icon-info-fill"
+            ></span>
           </div>
           <div class="input-tips">{{ $t('支持“*”匹配，不支持其他特殊符号') }}</div>
         </bk-form-item>
         <bk-form-item label="">
-          <div class="result-tips" v-if="matchedTableIds.length">
+          <div
+            v-if="matchedTableIds.length"
+            class="result-tips"
+          >
             <i class="bk-icon icon-check-circle-shape"></i>
             {{ $t('成功匹配 {x} 条索引', { x: matchedTableIds.length }) }}
           </div>
           <bk-table
             v-bkloading="{ isLoading: tableLoading }"
             :data="matchedTableIds"
-            max-height="400">
+            max-height="400"
+          >
             <bk-table-column
               :label="$t('索引')"
               property="result_table_id"
-              min-width="490">
+              min-width="490"
+            >
             </bk-table-column>
             <div slot="empty">
-              <empty-status :empty-type="emptyType" @operation="handleOperation" />
+              <empty-status
+                :empty-type="emptyType"
+                @operation="handleOperation"
+              />
             </div>
           </bk-table>
         </bk-form-item>
         <bk-form-item
           :label="$t('时间字段')"
           required
-          property="time_field">
+          property="time_field"
+        >
           <bk-select
             :value="formData.time_field"
             searchable
             :clearable="false"
-            @selected="handleSelectedTimeField">
+            @selected="handleSelectedTimeField"
+          >
             <bk-option
               v-for="item in timeFields"
-              :key="item.field_name"
               :id="item.field_name"
-              :name="item.field_name">
+              :key="item.field_name"
+              :name="item.field_name"
+            >
             </bk-option>
           </bk-select>
         </bk-form-item>
         <bk-form-item
+          v-if="formData.time_field_type === 'long'"
           :label="$t('时间格式')"
           required
           property="time_field_unit"
-          v-if="formData.time_field_type === 'long'">
+        >
           <bk-select
             v-model="formData.time_field_unit"
             searchable
-            :clearable="false">
+            :clearable="false"
+          >
             <bk-option
               v-for="item in timeUnits"
-              :key="item.id"
               :id="item.id"
-              :name="item.name">
+              :key="item.id"
+              :name="item.name"
+            >
             </bk-option>
           </bk-select>
         </bk-form-item>
         <div slot="empty">
-          <empty-status :empty-type="emptyType" @operation="handleOperation" />
+          <empty-status
+            :empty-type="emptyType"
+            @operation="handleOperation"
+          />
         </div>
       </bk-form>
-      <div slot="footer" class="button-footer">
+      <div
+        slot="footer"
+        class="button-footer"
+      >
         <bk-button
           class="king-button"
           theme="primary"
           :loading="confirmLoading"
-          @click="handleConfirm">
+          @click="handleConfirm"
+        >
           {{ $t('添加') }}
         </bk-button>
-        <bk-button class="king-button" @click="handleCancel">{{ $t('取消') }}</bk-button>
+        <bk-button
+          class="king-button"
+          @click="handleCancel"
+          >{{ $t('取消') }}</bk-button
+        >
       </div>
     </div>
   </bk-dialog>
@@ -134,17 +170,17 @@ import EmptyStatus from '@/components/empty-status';
 
 export default {
   components: {
-    EmptyStatus,
+    EmptyStatus
   },
   props: {
     parentData: {
       type: Object,
-      required: true,
+      required: true
     },
     timeIndex: {
       type: Object,
-      default: null,
-    },
+      default: null
+    }
   },
   data() {
     const scenarioId = this.$route.name.split('-')[0];
@@ -162,41 +198,49 @@ export default {
         resultTableId: '',
         time_field: '',
         time_field_type: '',
-        time_field_unit: 'microsecond',
+        time_field_unit: 'microsecond'
       },
       timeUnits: [
         { name: this.$t('秒（second）'), id: 'second' },
         { name: this.$t('毫秒（millisecond）'), id: 'millisecond' },
-        { name: this.$t('微秒（microsecond）'), id: 'microsecond' },
+        { name: this.$t('微秒（microsecond）'), id: 'microsecond' }
       ],
       formRules: {
-        resultTableId: [{
-          required: true,
-          trigger: 'blur',
-        }, {
-          validator: val => val && val !== '*',
-          trigger: 'blur',
-        }],
-        time_field: [{
-          required: true,
-          trigger: 'change',
-        }, {
-          validator: (val) => {
-            if (!this.timeIndex) return true;
-            return this.timeIndex.time_field === val;
+        resultTableId: [
+          {
+            required: true,
+            trigger: 'blur'
           },
-          message: this.$t('时间字段需要保持一致'),
-          trigger: 'change',
-        }],
-        time_field_unit: [{
-          required: true,
-          trigger: 'change',
-        }],
-      },
+          {
+            validator: val => val && val !== '*',
+            trigger: 'blur'
+          }
+        ],
+        time_field: [
+          {
+            required: true,
+            trigger: 'change'
+          },
+          {
+            validator: val => {
+              if (!this.timeIndex) return true;
+              return this.timeIndex.time_field === val;
+            },
+            message: this.$t('时间字段需要保持一致'),
+            trigger: 'change'
+          }
+        ],
+        time_field_unit: [
+          {
+            required: true,
+            trigger: 'change'
+          }
+        ]
+      }
     };
   },
   computed: {
-    ...mapState(['spaceUid', 'bkBizId']),
+    ...mapState(['spaceUid', 'bkBizId'])
   },
   methods: {
     openDialog() {
@@ -214,8 +258,8 @@ export default {
           resultTableId: '',
           time_field: '',
           time_field_type: '',
-          time_field_unit: 'microsecond',
-        },
+          time_field_unit: 'microsecond'
+        }
       });
     },
     handleOperation(type) {
@@ -266,8 +310,8 @@ export default {
             scenario_id: this.scenarioId,
             bk_biz_id: this.bkBizId,
             storage_cluster_id: this.parentData.storage_cluster_id,
-            result_table_id: this.formData.resultTableId,
-          },
+            result_table_id: this.formData.resultTableId
+          }
         });
         return res.data;
       } catch (e) {
@@ -281,13 +325,13 @@ export default {
       try {
         const res = await this.$http.request('/resultTables/info', {
           params: {
-            result_table_id: this.formData.resultTableId,
+            result_table_id: this.formData.resultTableId
           },
           query: {
             scenario_id: this.scenarioId,
             bk_biz_id: this.bkBizId,
-            storage_cluster_id: this.parentData.storage_cluster_id,
-          },
+            storage_cluster_id: this.parentData.storage_cluster_id
+          }
         });
         const timeFields = res.data.fields.filter(item => item.field_type === 'date' || item.field_type === 'long');
         // 如果已经添加了索引，回填三个字段（禁止更改字段名）
@@ -321,23 +365,23 @@ export default {
           basic_indices: this.parentData.indexes.map(item => ({
             index: item.result_table_id,
             time_field: this.formData.time_field,
-            time_field_type: this.formData.time_field_type,
+            time_field_type: this.formData.time_field_type
           })),
           append_index: {
             index: this.formData.resultTableId,
             time_field: this.formData.time_field,
-            time_field_type: this.formData.time_field_type,
-          },
+            time_field_type: this.formData.time_field_type
+          }
         };
         await this.$http.request('/resultTables/adapt', { data });
         this.$emit('selected', {
           bk_biz_id: this.bkBizId,
-          result_table_id: this.formData.resultTableId,
+          result_table_id: this.formData.resultTableId
         });
         this.$emit('update:timeIndex', {
           time_field: this.formData.time_field,
           time_field_type: this.formData.time_field_type,
-          time_field_unit: this.formData.time_field_unit,
+          time_field_unit: this.formData.time_field_unit
         });
         this.showDialog = false;
       } catch (e) {
@@ -348,79 +392,79 @@ export default {
     },
     handleCancel() {
       this.showDialog = false;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped lang="scss">
-  .slot-container {
-    padding-right: 40px;
+.slot-container {
+  padding-right: 40px;
 
-    :deep(.bk-form) {
-      .bk-label {
-        text-align: left;
-      }
-
-      .bk-form-content {
-        position: relative;
-      }
+  :deep(.bk-form) {
+    .bk-label {
+      text-align: left;
     }
 
-    .add-index-input-container {
+    .bk-form-content {
       position: relative;
+    }
+  }
 
-      .king-input {
-        width: calc(100% - 90px);
-      }
+  .add-index-input-container {
+    position: relative;
 
-      .king-button {
-        position: absolute;
-        top: 0;
-        right: 0;
-      }
-
-      .error-tips-container {
-        position: absolute;
-        top: 0;
-        right: -32px;
-      }
-
-      .log-icon {
-        font-size: 18px;
-        cursor: pointer;
-        color: #ea3636;
-      }
-
-      .input-tips {
-        color: #979ba5;
-        font-size: 12px;
-        line-height: 14px;
-        margin-top: 2px;
-      }
+    .king-input {
+      width: calc(100% - 90px);
     }
 
-    .result-tips {
+    .king-button {
       position: absolute;
-      top: 7px;
-      right: 14px;
-      z-index: 10;
-      font-size: 12px;
-      color: #2dcb56;
-      padding-left: 12px;
+      top: 0;
+      right: 0;
     }
 
-    .button-footer {
-      text-align: right;
-      margin-top: 20px;
+    .error-tips-container {
+      position: absolute;
+      top: 0;
+      right: -32px;
+    }
 
-      .king-button {
-        width: 86px;
+    .log-icon {
+      font-size: 18px;
+      color: #ea3636;
+      cursor: pointer;
+    }
 
-        &:first-child {
-          margin-right: 8px;
-        }
+    .input-tips {
+      margin-top: 2px;
+      font-size: 12px;
+      line-height: 14px;
+      color: #979ba5;
+    }
+  }
+
+  .result-tips {
+    position: absolute;
+    top: 7px;
+    right: 14px;
+    z-index: 10;
+    padding-left: 12px;
+    font-size: 12px;
+    color: #2dcb56;
+  }
+
+  .button-footer {
+    margin-top: 20px;
+    text-align: right;
+
+    .king-button {
+      width: 86px;
+
+      &:first-child {
+        margin-right: 8px;
       }
     }
   }
+}
 </style>

@@ -4,22 +4,22 @@
 
   .masking-field-box {
     height: calc(100% - 65px);
-    overflow-y: auto;
     min-width: 1030px;
     padding: 0 40px 20px;
+    overflow-y: auto;
   }
 
   .submit-content {
     position: absolute;
-    z-index: 9;
-    min-width: 1030px;
-    width: 100%;
-    height: 65px;
-    background: #fafbfd;
-    border-top: 1px solid #dde4eb;
     bottom: 0;
     left: 0;
+    z-index: 9;
     display: flex;
+    width: 100%;
+    height: 65px;
+    min-width: 1030px;
+    background: #fafbfd;
+    border-top: 1px solid #dde4eb;
     align-items: center;
 
     > :first-child {
@@ -27,8 +27,8 @@
     }
 
     .bk-button {
-      margin-right: 8px;
       padding: 0px 29px;
+      margin-right: 8px;
     }
   }
 }

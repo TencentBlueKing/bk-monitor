@@ -26,10 +26,9 @@ const requestTableList = {};
 
 const getDocCountList = {};
 
-
 export default {
   getLogTableHead,
   getIndexSet,
   requestTableList,
-  getDocCountList,
+  getDocCountList
 };

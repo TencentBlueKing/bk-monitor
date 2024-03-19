@@ -22,29 +22,47 @@
 
 <template>
   <div
-    :class="{ 'retrieve-favorite-card': true, 'is-expand': isExpand }"
     v-bk-clickoutside="handleClickoutside"
-    @click="toggleExpand">
+    :class="{ 'retrieve-favorite-card': true, 'is-expand': isExpand }"
+    @click="toggleExpand"
+  >
     <template v-if="favoriteList.length">
       <div class="card-title">
         <span>{{ $t('收藏') }}</span>
       </div>
-      <ul v-if="computedFavoriteList.length" class="favorite-list" ref="favList">
-        <template v-for="item in computedFavoriteList">
+      <ul
+        v-if="computedFavoriteList.length"
+        ref="favList"
+        class="favorite-list"
+      >
+        <template>
           <li
+            v-for="item in computedFavoriteList"
+            :key="item.id"
             :class="{
               'favorite-item': true,
               'is-latest': item.isLatest
             }"
-            :key="item.id"
-            :title="item.detail">
-            <div class="title" @click.stop="handleSearch(item)">{{ item.title }}</div>
-            <span class="bk-icon icon-close-line-2" @click.stop="$emit('remove', item.id)"></span>
+            :title="item.detail"
+          >
+            <div
+              class="title"
+              @click.stop="handleSearch(item)"
+            >
+              {{ item.title }}
+            </div>
+            <span
+              class="bk-icon icon-close-line-2"
+              @click.stop="$emit('remove', item.id)"
+            ></span>
           </li>
         </template>
       </ul>
       <span class="arrow-down-wrap">
-        <i class="bk-icon expand-icon icon-angle-down" :class="isExpand ? 'is-flip' : ''"></i>
+        <i
+          class="bk-icon expand-icon icon-angle-down"
+          :class="isExpand ? 'is-flip' : ''"
+        ></i>
       </span>
     </template>
   </div>
@@ -57,19 +75,19 @@ export default {
   props: {
     favoriteList: {
       type: Array,
-      required: true,
+      required: true
     },
     latestFavoriteId: {
       type: [Number, String],
-      default: '',
-    },
+      default: ''
+    }
   },
   data() {
     return {
       isExpand: false,
       computedFavoriteList: [],
       handleOverflowDebounce: null,
-      resizeObserver: null,
+      resizeObserver: null
     };
   },
   watch: {
@@ -82,20 +100,20 @@ export default {
           params: item.params,
           indexId: String(item.index_set_id),
           expanded: false,
-          isLatest: this.latestFavoriteId === item.favorite_search_id,
+          isLatest: this.latestFavoriteId === item.favorite_search_id
         }));
         this.$nextTick(() => {
           this.handleOverflow();
         });
       },
-      immediate: true,
+      immediate: true
     },
     latestFavoriteId(val) {
       this.computedFavoriteList = this.computedFavoriteList.map(item => ({
         ...item,
-        isLatest: val === item.id,
+        isLatest: val === item.id
       }));
-    },
+    }
   },
   created() {
     this.handleOverflowDebounce = debounce(300, false, this.handleOverflow);
@@ -139,7 +157,7 @@ export default {
     removeOverflow() {
       const overflowList = this.$refs.favList?.querySelectorAll('.fav-overflow-item');
       if (!overflowList?.length) return;
-      overflowList.forEach((item) => {
+      overflowList.forEach(item => {
         this.$refs.favList.removeChild(item);
       });
     },
@@ -186,126 +204,126 @@ export default {
         payload.params.ip_chooser = {};
       }
       this.$emit('shouldRetrieve', payload);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '../../../scss/mixins/scroller.scss';
+@import '../../../scss/mixins/scroller.scss';
 
-  .retrieve-favorite-card {
-    position: relative;
-    display: flex;
-    padding: 0 14px 0 24px;
-    height: 42px;
-    flex: 1;
-    overflow: hidden;
-    cursor: pointer;
+.retrieve-favorite-card {
+  position: relative;
+  display: flex;
+  height: 42px;
+  padding: 0 14px 0 24px;
+  overflow: hidden;
+  cursor: pointer;
+  flex: 1;
 
-    .card-title {
-      margin-right: 12px;
-      line-height: 50px;
-      color: #63656e;
-      white-space: nowrap;
+  .card-title {
+    margin-right: 12px;
+    line-height: 50px;
+    color: #63656e;
+    white-space: nowrap;
 
-      .icon-lc-star-shape {
-        color: rgb(254, 156, 0);
-      }
-    }
-
-    .favorite-list {
-      margin: 0 10px;
-      display: flex;
-      flex-wrap: wrap;
-      flex: 1;
-      padding: 14px 0;
-    }
-
-    .favorite-item {
-      position: relative;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      float: left;
-      margin-right: 10px;
-      margin-bottom: 10px;
-      padding: 0 4px 0 8px;
-      height: 22px;
-      background: #fafbfd;
-      border: 1px solid #dcdee5;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-
-    .fav-overflow-item {
-      width: 22px;
-      height: 22px;
-      line-height: 18px;
-      margin: 0 4px 10px 0;
-      border: 1px solid rgba(151, 155, 165, .3);
-      border-radius: 3px;
-      background-color: #fafbfd;
-
-      .tag {
-        display: inline-block;
-        width: 100%;
-        text-align: center;
-        padding: 0;
-      }
-    }
-
-    .is-latest {
-      background: #edf4ff;
-      border-color: #3a84ff;
-      color: #3a84ff;
-    }
-
-    .title {
-      margin-right: 16px;
-    }
-
-    .icon-close-line-2 {
-      display: none;
-      position: absolute;
-      right: 4px;
-      font-size: 12px;
-      color: #63656e;
-      cursor: pointer;
-    }
-
-    .favorite-item:hover {
-      background-color: #f0f1f5;
-
-      .icon-close-line-2 {
-        display: inline-block;
-      }
-    }
-
-    .arrow-down-wrap {
-      padding-top: 16px;
-    }
-
-    .expand-icon {
-      display: inline-block;
-      color: #63656e;
-      font-size: 22px;
-      cursor: pointer;
-      transition: transform .3s;
-
-      &.is-flip {
-        transform: rotate(180deg);
-        transition: transform .3s;
-      }
-    }
-
-    &.is-expand {
-      height: fit-content;
-      overflow: auto;
-      background: #fff;
-      border: 1px solid #dcdee5;
-      border-radius: 4px;
-      box-shadow: 0px 2px 6px 0px rgba(0,0,0,.10);
+    .icon-lc-star-shape {
+      color: rgb(254, 156, 0);
     }
   }
+
+  .favorite-list {
+    display: flex;
+    padding: 14px 0;
+    margin: 0 10px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  .favorite-item {
+    position: relative;
+    display: flex;
+    float: left;
+    height: 22px;
+    padding: 0 4px 0 8px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 3px;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .fav-overflow-item {
+    width: 22px;
+    height: 22px;
+    margin: 0 4px 10px 0;
+    line-height: 18px;
+    background-color: #fafbfd;
+    border: 1px solid rgba(151, 155, 165, 0.3);
+    border-radius: 3px;
+
+    .tag {
+      display: inline-block;
+      width: 100%;
+      padding: 0;
+      text-align: center;
+    }
+  }
+
+  .is-latest {
+    color: #3a84ff;
+    background: #edf4ff;
+    border-color: #3a84ff;
+  }
+
+  .title {
+    margin-right: 16px;
+  }
+
+  .icon-close-line-2 {
+    position: absolute;
+    right: 4px;
+    display: none;
+    font-size: 12px;
+    color: #63656e;
+    cursor: pointer;
+  }
+
+  .favorite-item:hover {
+    background-color: #f0f1f5;
+
+    .icon-close-line-2 {
+      display: inline-block;
+    }
+  }
+
+  .arrow-down-wrap {
+    padding-top: 16px;
+  }
+
+  .expand-icon {
+    display: inline-block;
+    font-size: 22px;
+    color: #63656e;
+    cursor: pointer;
+    transition: transform 0.3s;
+
+    &.is-flip {
+      transform: rotate(180deg);
+      transition: transform 0.3s;
+    }
+  }
+
+  &.is-expand {
+    height: fit-content;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 4px;
+    box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.1);
+  }
+}
 </style>

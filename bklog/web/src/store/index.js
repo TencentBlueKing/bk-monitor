@@ -41,7 +41,7 @@ const store = new Vuex.Store({
   modules: {
     retrieve,
     collect,
-    globals,
+    globals
   },
   // 公共 store
   state: {
@@ -101,14 +101,14 @@ const store = new Vuex.Store({
     /** 日志灰度 */
     maskingToggle: {
       toggleString: 'off',
-      toggleList: [],
+      toggleList: []
     },
     /** 外部版路由菜单 */
     externalMenu: [],
     isAppFirstLoad: true,
     /** 是否清空了显示字段，展示全量字段 */
     isNotVisibleFieldsShow: false,
-    showAlert: false, // 是否展示跑马灯
+    showAlert: false // 是否展示跑马灯
   },
   // 公共 getters
   getters: {
@@ -127,8 +127,12 @@ const store = new Vuex.Store({
     asIframe: state => state.asIframe,
     iframeQuery: state => state.iframeQuery,
     demoUid: state => state.demoUid,
-    accessUserManage: state => Boolean(state.topMenu.find(item => item.id === 'manage')?.
-      children.some(item => (item.id === 'permissionGroup' && item.project_manage === true))),
+    accessUserManage: state =>
+      Boolean(
+        state.topMenu
+          .find(item => item.id === 'manage')
+          ?.children.some(item => item.id === 'permissionGroup' && item.project_manage === true)
+      ),
     spaceBgColor: state => state.spaceBgColor,
     isEnLanguage: state => state.isEnLanguage,
     chartSizeNum: state => state.chartSizeNum,
@@ -138,9 +142,8 @@ const store = new Vuex.Store({
     maskingToggle: state => state.maskingToggle,
     isNotVisibleFieldsShow: state => state.isNotVisibleFieldsShow,
     /** 脱敏灰度判断 */
-    isShowMaskingTemplate: state => (
+    isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId))
-    ),
   },
   // 公共 mutations
   mutations: {
@@ -192,7 +195,10 @@ const store = new Vuex.Store({
     },
     updateMySpaceList(state, spaceList) {
       // eslint-disable-next-line max-len
-      state.mySpaceList = spaceList.map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
+      state.mySpaceList = spaceList.map(item => ({
+        ...item,
+        py_text: Vue.prototype.$bkToPinyin(item.space_name, true)
+      }));
     },
     updateIndexId(state, indexId) {
       state.indexId = indexId;
@@ -275,7 +281,7 @@ const store = new Vuex.Store({
     },
     updateNoticeAlert(state, val) {
       state.showAlert = val;
-    },
+    }
   },
   actions: {
     /**
@@ -290,7 +296,7 @@ const store = new Vuex.Store({
      * @return {Promise} promise 对象
      */
     userInfo({ commit }, params, config = {}) {
-      return http.request('userInfo/getUserInfo', { query: params, config }).then((response) => {
+      return http.request('userInfo/getUserInfo', { query: params, config }).then(response => {
         const userData = response.data || {};
         commit('updateUser', userData);
         return userData;
@@ -311,12 +317,12 @@ const store = new Vuex.Store({
     getMenuList({}, spaceUid) {
       return http.request('meta/menu', {
         query: {
-          space_uid: spaceUid,
-        },
+          space_uid: spaceUid
+        }
       });
     },
     getGlobalsData({ commit }) {
-      return http.request('collect/globals', { query: {} }).then((response) => {
+      return http.request('collect/globals', { query: {} }).then(response => {
         const globalsData = response.data || {};
         commit('updateGlobalsData', globalsData);
         return globalsData;
@@ -335,19 +341,20 @@ const store = new Vuex.Store({
       return new Promise(async (resolve, reject) => {
         try {
           const checkRes = await http.request('auth/checkAllowed', {
-            data: paramData,
+            data: paramData
           });
           for (const item of checkRes.data) {
-            if (item.is_allowed === false) { // 无权限
+            if (item.is_allowed === false) {
+              // 无权限
               resolve({
-                isAllowed: false,
+                isAllowed: false
               });
               return;
             }
           }
           // 有权限
           resolve({
-            isAllowed: true,
+            isAllowed: true
           });
         } catch (err) {
           // 请求出错
@@ -358,7 +365,7 @@ const store = new Vuex.Store({
     // 已知无权限，需要获取信息
     getApplyData(context, paramData) {
       return http.request('auth/getApplyData', {
-        data: paramData,
+        data: paramData
       });
     },
     // 判断有无权限，无权限获取相关信息
@@ -366,31 +373,32 @@ const store = new Vuex.Store({
       return new Promise(async (resolve, reject) => {
         try {
           const checkRes = await http.request('auth/checkAllowed', {
-            data: paramData,
+            data: paramData
           });
           for (const item of checkRes.data) {
-            if (item.is_allowed === false) { // 无权限
+            if (item.is_allowed === false) {
+              // 无权限
               const applyDataRes = await http.request('auth/getApplyData', {
-                data: paramData,
+                data: paramData
               });
               resolve({
                 isAllowed: false,
-                data: applyDataRes.data,
+                data: applyDataRes.data
               });
               return;
             }
           }
           // 有权限
           resolve({
-            isAllowed: true,
+            isAllowed: true
           });
         } catch (err) {
           // 请求出错
           reject(err);
         }
       });
-    },
-  },
+    }
+  }
 });
 
 /**
@@ -429,9 +437,7 @@ store.dispatch = function (_type, _payload, config = {}) {
     .forEach(sub => sub.before(action, store.state));
   // store._actionSubscribers.forEach(sub => sub(action, store.state));
 
-  return entry.length > 1
-    ? Promise.all(entry.map(handler => handler(payload, config)))
-    : entry[0](payload, config);
+  return entry.length > 1 ? Promise.all(entry.map(handler => handler(payload, config))) : entry[0](payload, config);
 };
 
 export default store;

@@ -22,87 +22,121 @@
 
 <template>
   <!-- 自定义上报列表页面 -->
-  <div class="custom-item-container" data-test-id="custom_div_customContainer">
+  <div
+    class="custom-item-container"
+    data-test-id="custom_div_customContainer"
+  >
     <section class="operation">
       <div class="top-operation">
         <bk-button
+          v-cursor="{ active: isAllowedCreate === false }"
           class="fl"
           theme="primary"
           data-test-id="customContainer_button_addNewCustom"
-          v-cursor="{ active: isAllowedCreate === false }"
+          :disabled="!collectProject || isAllowedCreate === null || isRequest"
           @click="operateHandler({}, 'add')"
-          :disabled="!collectProject || isAllowedCreate === null || isRequest">
+        >
           {{ $t('新建自定义上报') }}
         </bk-button>
         <div class="collect-search fr">
           <bk-input
-            clearable
             v-model="inputKeyWords"
+            clearable
             data-test-id="customContainer_input_searchTableItem"
             :placeholder="$t('搜索名称、存储索引名')"
             :right-icon="'bk-icon icon-search'"
             @enter="search"
-            @change="handleSearchChange">
+            @change="handleSearchChange"
+          >
           </bk-input>
         </div>
       </div>
 
-      <div class="table-operation" data-test-id="customContainer_table_container">
+      <div
+        class="table-operation"
+        data-test-id="customContainer_table_container"
+      >
         <bk-table
-          class="custom-table"
           v-bkloading="{ isLoading: isRequest }"
+          class="custom-table"
           :data="collectList"
           :pagination="pagination"
           :limit-list="pagination.limitList"
           @page-change="handlePageChange"
-          @page-limit-change="handleLimitChange">
+          @page-limit-change="handleLimitChange"
+        >
           <bk-table-column
             :label="$t('数据ID')"
             :render-header="$renderHeader"
             prop="collector_config_id"
-            width="100">
+            width="100"
+          >
             <template slot-scope="props">
               <span>
                 {{ props.row.bk_data_id || '--' }}
               </span>
             </template>
           </bk-table-column>
-          <bk-table-column :label="$t('名称')" :render-header="$renderHeader" prop="collector_config_name">
+          <bk-table-column
+            :label="$t('名称')"
+            :render-header="$renderHeader"
+            prop="collector_config_name"
+          >
             <template slot-scope="props">
               <div class="custom-name-box">
-                <span class="collector-config-name" @click="operateHandler(props.row, 'view')">
+                <span
+                  class="collector-config-name"
+                  @click="operateHandler(props.row, 'view')"
+                >
                   {{ props.row.collector_config_name || '--' }}
                 </span>
                 <span
                   v-if="props.row.is_desensitize"
+                  v-bk-tooltips.top="$t('已脱敏')"
                   class="bk-icon log-icon icon-masking"
-                  v-bk-tooltips.top="$t('已脱敏')">
+                >
                 </span>
               </div>
             </template>
           </bk-table-column>
-          <bk-table-column :label="$t('监控对象')" :render-header="$renderHeader" prop="category_name">
+          <bk-table-column
+            :label="$t('监控对象')"
+            :render-header="$renderHeader"
+            prop="category_name"
+          >
             <template slot-scope="props">
               <span>
                 {{ props.row.category_name || '--' }}
               </span>
             </template>
           </bk-table-column>
-          <bk-table-column :label="$t('数据类型')" :render-header="$renderHeader" prop="custom_name">
+          <bk-table-column
+            :label="$t('数据类型')"
+            :render-header="$renderHeader"
+            prop="custom_name"
+          >
             <template slot-scope="props">
               <span>
                 {{ props.row.custom_name || '--' }}
               </span>
             </template>
           </bk-table-column>
-          <bk-table-column :label="$t('过期时间')" :render-header="$renderHeader" min-width="50">
+          <bk-table-column
+            :label="$t('过期时间')"
+            :render-header="$renderHeader"
+            min-width="50"
+          >
             <template slot-scope="props">
               <span>
                 {{ props.row.retention ? `${props.row.retention} ${$t('天')}` : '--' }}
               </span>
             </template>
           </bk-table-column>
-          <bk-table-column :label="$t('创建记录')" :render-header="$renderHeader" prop="created_at">
+          <bk-table-column
+            :label="$t('创建记录')"
+            :render-header="$renderHeader"
+            prop="created_at"
+          >
             <template slot-scope="props">
               <span>
                 {{ props.row.created_at || '--' }}
@@ -113,7 +147,8 @@
             :label="$t('更新记录')"
             :render-header="$renderHeader"
             prop="updated_at"
-            width="239">
+            width="239"
+          >
             <template slot-scope="props">
               <span>
                 {{ props.row.updated_at || '--' }}
@@ -124,33 +159,42 @@
             :label="$t('操作')"
             :render-header="$renderHeader"
             class-name="operate-column"
-            width="202">
-            <div class="collect-table-operate" slot-scope="props">
+            width="202"
+          >
+            <div
+              slot-scope="props"
+              class="collect-table-operate"
+            >
               <bk-button
+                v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
                 class="king-button"
                 theme="primary"
                 text
                 :disabled="!props.row.is_active || (!props.row.index_set_id && !props.row.bkdata_index_set_ids.length)"
-                v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
-                @click="operateHandler(props.row, 'search')">
-                {{ $t('检索') }}</bk-button>
+                @click="operateHandler(props.row, 'search')"
+              >
+                {{ $t('检索') }}</bk-button
+              >
               <bk-button
+                v-cursor="{
+                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                }"
                 class="king-button"
                 theme="primary"
                 text
+                @click="operateHandler(props.row, 'edit')"
+              >
+                {{ $t('编辑') }}</bk-button
+              >
+              <bk-button
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                 }"
-                @click="operateHandler(props.row, 'edit')">
-                {{ $t('编辑') }}</bk-button>
-              <bk-button
                 theme="primary"
                 text
                 :disabled="!props.row.table_id"
-                v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                }"
-                @click="operateHandler(props.row, 'clean')">
+                @click="operateHandler(props.row, 'clean')"
+              >
                 {{ $t('清洗') }}
               </bk-button>
               <bk-popover
@@ -159,82 +203,95 @@
                 theme="dot-menu light"
                 offset="15"
                 :arrow="false"
-                :distance="0">
+                :distance="0"
+              >
                 <i
                   class="bk-icon icon-more"
-                  style="margin-left: 5px; font-size: 14px; font-weight: bold;">
+                  style="margin-left: 5px; font-size: 14px; font-weight: bold"
+                >
                 </i>
-                <ul class="collection-operation-list" slot="content">
+                <ul
+                  slot="content"
+                  class="collection-operation-list"
+                >
                   <!-- 查看详情 -->
                   <li>
                     <a
-                      href="javascript:;"
                       v-cursor="{
                         active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH])
                       }"
-                      @click="operateHandler(props.row, 'view')">
+                      href="javascript:;"
+                      @click="operateHandler(props.row, 'view')"
+                    >
                       {{ $t('详情') }}
                     </a>
                   </li>
                   <li v-if="isShowMaskingTemplate">
                     <a
-                      href="javascript:;"
                       v-cursor="{
                         active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH])
                       }"
-                      @click="operateHandler(props.row, 'masking')">
+                      href="javascript:;"
+                      @click="operateHandler(props.row, 'masking')"
+                    >
                       {{ $t('日志脱敏') }}
                     </a>
                   </li>
                   <li v-if="props.row.is_active">
                     <a
+                      v-if="!collectProject"
                       href="javascript:;"
                       class="text-disabled"
-                      v-if="!collectProject">
-                      {{$t('停用')}}
+                    >
+                      {{ $t('停用') }}
                     </a>
                     <a
-                      href="javascript:;"
                       v-else
                       v-cursor="{
                         active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                       }"
-                      @click.stop="operateHandler(props.row, 'stop')">
-                      {{$t('停用')}}
+                      href="javascript:;"
+                      @click.stop="operateHandler(props.row, 'stop')"
+                    >
+                      {{ $t('停用') }}
                     </a>
                   </li>
                   <li v-else>
                     <a
+                      v-if="!collectProject"
                       href="javascript:;"
                       class="text-disabled"
-                      v-if="!collectProject">
-                      {{$t('启用')}}
+                    >
+                      {{ $t('启用') }}
                     </a>
                     <a
-                      href="javascript:;"
                       v-else
                       v-cursor="{
                         active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                       }"
-                      @click.stop="operateHandler(props.row, 'start')">
-                      {{$t('启用')}}
+                      href="javascript:;"
+                      @click.stop="operateHandler(props.row, 'start')"
+                    >
+                      {{ $t('启用') }}
                     </a>
                   </li>
                   <li>
                     <a
+                      v-if="!collectProject"
                       href="javascript:;"
                       class="text-disabled"
-                      v-if="!collectProject">
-                      {{$t('删除')}}
+                    >
+                      {{ $t('删除') }}
                     </a>
                     <a
-                      href="javascript:;"
                       v-else
                       v-cursor="{
                         active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                       }"
-                      @click="deleteCollect(props.row)">
-                      {{$t('删除')}}
+                      href="javascript:;"
+                      @click="deleteCollect(props.row)"
+                    >
+                      {{ $t('删除') }}
                     </a>
                   </li>
                 </ul>
@@ -242,7 +299,10 @@
             </div>
           </bk-table-column>
           <div slot="empty">
-            <empty-status :empty-type="emptyType" @operation="handleOperation" />
+            <empty-status
+              :empty-type="emptyType"
+              @operation="handleOperation"
+            />
           </div>
         </bk-table>
       </div>
@@ -260,7 +320,7 @@ import EmptyStatus from '@/components/empty-status';
 export default {
   name: 'CustomReportList',
   components: {
-    EmptyStatus,
+    EmptyStatus
   },
   mixins: [collectedItemsMixin],
   data() {
@@ -271,15 +331,15 @@ export default {
       collectProject: projectManages(this.$store.state.topMenu, 'collection-item'), // 权限
       isRequest: false,
       params: {
-        collector_config_id: '',
+        collector_config_id: ''
       },
       pagination: {
         current: 1,
         count: 100,
         limit: 10,
-        limitList: [10, 20, 50, 100],
+        limitList: [10, 20, 50, 100]
       },
-      emptyType: 'empty',
+      emptyType: 'empty'
     };
   },
   computed: {
@@ -287,11 +347,11 @@ export default {
       spaceUid: 'spaceUid',
       bkBizId: 'bkBizId',
       authGlobalInfo: 'globals/authContainerInfo',
-      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      isShowMaskingTemplate: 'isShowMaskingTemplate'
     }),
     authorityMap() {
       return authorityMap;
-    },
+    }
   },
   created() {
     !this.authGlobalInfo && this.checkCreateAuth();
@@ -314,7 +374,7 @@ export default {
             title: this.$t('确认停用当前采集项？'),
             confirmFn: () => {
               this.toggleCollect(row, operateType);
-            },
+            }
           });
         } else {
           this.toggleCollect(row, operateType);
@@ -332,7 +392,7 @@ export default {
         search: 'retrieve',
         clean: 'clean-edit',
         view: 'custom-report-detail',
-        masking: 'custom-report-masking',
+        masking: 'custom-report-masking'
       };
 
       if (operateType === 'search') {
@@ -367,24 +427,26 @@ export default {
           ...query,
           spaceUid: this.$store.state.spaceUid,
           backRoute,
-          editName,
-        },
+          editName
+        }
       });
     },
     // 启用 || 停用
     toggleCollect(row, type) {
       const { isActive } = row;
-      this.$http.request(`collect/${type === 'start' ? 'startCollect' : 'stopCollect'}`, {
-        params: {
-          collector_config_id: row.collector_config_id,
-        },
-      }).then((res) => {
-        if (res.result) {
-          row.is_active = !row.is_active;
-          res.result && this.messageSuccess(this.$t('修改成功'));
-          this.requestData();
-        }
-      })
+      this.$http
+        .request(`collect/${type === 'start' ? 'startCollect' : 'stopCollect'}`, {
+          params: {
+            collector_config_id: row.collector_config_id
+          }
+        })
+        .then(res => {
+          if (res.result) {
+            row.is_active = !row.is_active;
+            res.result && this.messageSuccess(this.$t('修改成功'));
+            this.requestData();
+          }
+        })
         .catch(() => {
           row.is_active = isActive;
         });
@@ -396,48 +458,51 @@ export default {
         subTitle: this.$t('当前上报名称为{n}，确认要删除？', { n: row.collector_config_name }),
         confirmFn: () => {
           this.requestDeleteCollect(row);
-        },
+        }
       });
     },
     requestData() {
       this.isRequest = true;
       this.emptyType = this.inputKeyWords ? 'search-empty' : 'empty';
-      const ids = this.$route.query.ids; // 根据id来检索
+      const { ids } = this.$route.query; // 根据id来检索
       const collectorIdList = ids ? decodeURIComponent(ids) : [];
-      this.$http.request('collect/getCollectList', {
-        query: {
-          bk_biz_id: this.bkBizId,
-          keyword: this.inputKeyWords,
-          page: this.pagination.current,
-          pagesize: this.pagination.limit,
-          collector_scenario_id: 'custom',
-          collector_id_list: collectorIdList,
-        },
-      }).then(async (res) => {
-        const { data } = res;
-        if (data && data.list) {
-          const resList = data.list;
-          const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
-          const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-          const newCollectList = resList.map(item => ({
-            ...item,
-            is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
-          }));
-          this.collectList.splice(0, this.collectList.length, ...newCollectList);
-          this.pagination.count = data.total;
-        }
-      })
+      this.$http
+        .request('collect/getCollectList', {
+          query: {
+            bk_biz_id: this.bkBizId,
+            keyword: this.inputKeyWords,
+            page: this.pagination.current,
+            pagesize: this.pagination.limit,
+            collector_scenario_id: 'custom',
+            collector_id_list: collectorIdList
+          }
+        })
+        .then(async res => {
+          const { data } = res;
+          if (data && data.list) {
+            const resList = data.list;
+            const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
+            const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
+            const newCollectList = resList.map(item => ({
+              ...item,
+              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false
+            }));
+            this.collectList.splice(0, this.collectList.length, ...newCollectList);
+            this.pagination.count = data.total;
+          }
+        })
         .catch(() => {
           this.emptyType = '500';
         })
         .finally(() => {
           this.isRequest = false;
           // 如果有ids 重置路由
-          if (ids) this.$router.replace({
-            query: {
-              spaceUid: this.$route.query.spaceUid,
-            },
-          });
+          if (ids)
+            this.$router.replace({
+              query: {
+                spaceUid: this.$route.query.spaceUid
+              }
+            });
         });
     },
     handleSearchChange(val) {
@@ -463,139 +528,138 @@ export default {
     async getDesensitizeStatus(indexIdList = []) {
       try {
         return await this.$http.request('masking/getDesensitizeState', {
-          data: { index_set_ids: indexIdList },
+          data: { index_set_ids: indexIdList }
         });
       } catch (error) {
         return [];
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/devops-common.scss';
-  @import '@/scss/mixins/cursor.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
+@import '@/scss/mixins/cursor.scss';
 
-  .custom-item-container {
-    padding: 20px 24px;
+.custom-item-container {
+  padding: 20px 24px;
 
-    .top-operation {
-      margin-bottom: 20px;
+  .top-operation {
+    margin-bottom: 20px;
 
-      @include clearfix;
+    @include clearfix;
 
-      .bk-button {
-        width: 150px;
-      }
-
-      .collect-search {
-        width: 360px;
-      }
+    .bk-button {
+      width: 150px;
     }
 
-    .table-operation {
-      .custom-table {
+    .collect-search {
+      width: 360px;
+    }
+  }
+
+  .table-operation {
+    .custom-table {
+      overflow: visible;
+
+      .bk-table-pagination-wrapper {
+        background-color: #fafbfd;
+      }
+
+      .operate-column .cell {
         overflow: visible;
+      }
 
-        .bk-table-pagination-wrapper {
-          background-color: #fafbfd;
-        }
+      .bk-table-body-wrapper {
+        overflow: visible;
+      }
 
-        .operate-column .cell {
-          overflow: visible;
-        }
+      .collect-table-operate {
+        display: flex;
+        align-items: center;
 
-        .bk-table-body-wrapper {
-          overflow: visible;
-        }
-
-        .collect-table-operate {
-          display: flex;
-          align-items: center;
-
-          .king-button {
-            margin-right: 14px;
-          }
-        }
-
-        .bk-dropdown-list a.text-disabled:hover {
-          color: #c4c6cc;
-          cursor: not-allowed;
+        .king-button {
+          margin-right: 14px;
         }
       }
 
-      .collector-config-name {
-        @include cursor;
-      }
-
-      .icon-masking {
-        margin-left: 8px;
-        color: #ff9c01;
-      }
-    }
-
-    .custom-name-box {
-      display: flex;
-      align-items: center;
-
-      .icon-masking {
-        flex-shrink: 0;
-      }
-    }
-
-  }
-
-  .dot-menu {
-    display: inline-block;
-    vertical-align: middle;
-  }
-
-  .dot-menu-theme {
-    /* stylelint-disable-next-line declaration-no-important */
-    padding: 0 !important;
-
-    &::before {
-      /* stylelint-disable-next-line declaration-no-important */
-      background: #fff !important;
-    }
-  }
-
-  .collection-operation-list {
-    margin: 0;
-    min-width: 50px;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-
-    li {
-      padding: 4px 16px;
-      font-size: 12px;
-      line-height: 26px;
-      cursor: pointer;
-
-      &:hover {
-        background-color: #eaf3ff;
-        color: #3a84ff;
-      }
-    }
-
-    a {
-      display: inline-block;
-      width: 100%;
-      height: 100%;
-      color: #63656e;
-    }
-
-    .text-disabled {
-      color: #c4c6cc;
-
-      &:hover {
+      .bk-dropdown-list a.text-disabled:hover {
+        color: #c4c6cc;
         cursor: not-allowed;
       }
     }
+
+    .collector-config-name {
+      @include cursor;
+    }
+
+    .icon-masking {
+      margin-left: 8px;
+      color: #ff9c01;
+    }
   }
+
+  .custom-name-box {
+    display: flex;
+    align-items: center;
+
+    .icon-masking {
+      flex-shrink: 0;
+    }
+  }
+}
+
+.dot-menu {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.dot-menu-theme {
+  /* stylelint-disable-next-line declaration-no-important */
+  padding: 0 !important;
+
+  &::before {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: #fff !important;
+  }
+}
+
+.collection-operation-list {
+  display: flex;
+  min-width: 50px;
+  margin: 0;
+  list-style: none;
+  flex-direction: column;
+  justify-content: center;
+
+  li {
+    padding: 4px 16px;
+    font-size: 12px;
+    line-height: 26px;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+      background-color: #eaf3ff;
+    }
+  }
+
+  a {
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    color: #63656e;
+  }
+
+  .text-disabled {
+    color: #c4c6cc;
+
+    &:hover {
+      cursor: not-allowed;
+    }
+  }
+}
 </style>

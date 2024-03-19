@@ -1,14 +1,14 @@
 .origin-content {
   .black-mark {
-    background: #e6e6e6;
-    color: #313238;
     margin-right: 2px;
+    color: #313238;
+    background: #e6e6e6;
     border-radius: 2px;
   }
 
   .origin-value {
-    word-break: break-all;
     margin: 0 4px 0 2px;
+    word-break: break-all;
   }
 
   mark {

@@ -16,7 +16,6 @@ from urllib.parse import urlencode
 import arrow
 from django.conf import settings
 
-from alarm_backends.core.i18n import i18n
 from bkmonitor.data_source import load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import Event, QueryConfigModel
@@ -237,8 +236,7 @@ def get_clustering_log(
                 remark = log_pattern["remark"][-1]
                 record["remark_text"] = remark["remark"]
                 record["remark_user"] = remark["username"]
-                # 激活当前业务时区，获取备注创建时间字符串
-                i18n.set_biz(alert.event.bk_biz_id)
+                # 获取备注创建时间字符串
                 record["remark_time"] = arrow.get(remark["create_time"] / 1000).to('local').format('YYYY-MM-DD HH:mm')
         except Exception as e:
             logger.exception(f"get alert[{alert.id}] signature[{log_signature}] log clustering new pattern error: {e}")

@@ -21,19 +21,25 @@
   -->
 
 <template>
-  <div class="result-scroll-container" ref="scrollContainer" @scroll.passive="handleScroll">
+  <div
+    ref="scrollContainer"
+    class="result-scroll-container"
+    @scroll.passive="handleScroll"
+  >
     <!-- 检索结果 -->
     <div class="result-text">
       <i18n path="检索结果（找到 {0} 条结果，用时{1}毫秒) {2}">
         <span class="total-count">{{ totalCount }}</span>
-        <span>{{tookTime}}</span>
+        <span>{{ tookTime }}</span>
         <template v-if="showAddMonitor">
           <span>
-            , <i18n path="将搜索条件 {0}">
+            ,
+            <i18n path="将搜索条件 {0}">
               <a
                 href="javascript:void(0);"
                 class="monitor-link"
-                @click="jumpMonitor">
+                @click="jumpMonitor"
+              >
                 {{ $t('添加为监控') }}
                 <span class="log-icon icon-lianjie"></span>
               </a>
@@ -47,12 +53,12 @@
         :retrieve-params="retrieveParams"
         :date-picker-value="datePickerValue"
         @change-queue-res="changeQueueRes"
-        @change-total-count="changeTotalCount" />
+        @change-total-count="changeTotalCount"
+      />
       <bk-divider class="divider-line"></bk-divider>
       <result-table-panel
         ref="resultTablePanel"
         v-bind="$attrs"
-        v-on="$listeners"
         :index-set-list="indexSetList"
         :date-picker-value="datePickerValue"
         :retrieve-params="retrieveParams"
@@ -61,10 +67,16 @@
         :table-list="tableList"
         :origin-table-list="originTableList"
         :kv-show-fields-list="kvShowFieldsList"
-        :is-page-over="isPageOver" />
+        :is-page-over="isPageOver"
+        v-on="$listeners"
+      />
     </div>
     <!-- 滚动到顶部 -->
-    <div class="fixed-scroll-top-btn" v-show="showScrollTop" @click="scrollToTop">
+    <div
+      v-show="showScrollTop"
+      class="fixed-scroll-top-btn"
+      @click="scrollToTop"
+    >
       <i class="bk-icon icon-angle-up"></i>
     </div>
   </div>
@@ -80,30 +92,30 @@ import { setFieldsWidth, parseBigNumberList } from '@/common/util';
 export default {
   components: {
     ResultChart,
-    ResultTablePanel,
+    ResultTablePanel
   },
   mixins: [tableRowDeepViewMixin],
   props: {
     retrieveParams: {
       type: Object,
-      required: true,
+      required: true
     },
     tookTime: {
       type: Number,
-      required: true,
+      required: true
     },
     tableData: {
       type: Object,
-      required: true,
+      required: true
     },
     indexSetList: {
       type: Array,
-      required: true,
+      required: true
     },
     datePickerValue: {
       type: Array,
-      default: () => [],
-    },
+      default: () => []
+    }
   },
   data() {
     return {
@@ -120,18 +132,19 @@ export default {
       queueStatus: false,
       showScrollTop: false, // 显示滚动到顶部icon
       isInit: false,
-      kvShowFieldsList: [],
+      kvShowFieldsList: []
     };
   },
   computed: {
     ...mapState({
       bkBizId: state => state.bkBizId,
-      isExternal: state => state.isExternal,
+      isExternal: state => state.isExternal
     }),
     showAddMonitor() {
-      return !this.isExternal
-                  && Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor'));
-    },
+      return (
+        !this.isExternal && Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor'))
+      );
+    }
   },
   watch: {
     tableData(data) {
@@ -153,7 +166,7 @@ export default {
         });
         this.isPageOver = false;
       }
-    },
+    }
   },
   methods: {
     // 跳转到监控
@@ -165,18 +178,18 @@ export default {
         scenarioId: '',
         indexStatement: this.retrieveParams.keyword, // 查询语句
         dimension: [], // 监控维度
-        condition: [], // 监控条件
+        condition: [] // 监控条件
       };
       const indexSet = this.indexSetList.find(item => item.index_set_id === indexSetId);
       if (indexSet) {
         params.scenarioId = indexSet.category_id;
       }
-      this.retrieveParams.addition.forEach((item) => {
+      this.retrieveParams.addition.forEach(item => {
         params.condition.push({
           condition: 'and',
           key: item.field,
           method: item.operator === 'eq' ? 'is' : item.operator,
-          value: item.value,
+          value: item.value
         });
       });
       const urlArr = [];
@@ -228,90 +241,90 @@ export default {
     },
     changeQueueRes(status) {
       this.queueStatus = status;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  // @import '../../../scss/mixins/scroller.scss';
+// @import '../../../scss/mixins/scroller.scss';
 
-  .result-scroll-container {
-    height: 100%;
-    overflow: auto;
+.result-scroll-container {
+  height: 100%;
+  overflow: auto;
 
-    &::-webkit-scrollbar {
-      width: 10px;
-      height: 4px;
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      border-radius: 5px;
-      border-style: dashed;
-      border-left-width: 3px;
-      border-color: transparent;
-      background-color: #ddd;
-      background-clip: padding-box;
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background: #ddd;
-    }
+  &::-webkit-scrollbar {
+    width: 10px;
+    height: 4px;
+    background: transparent;
   }
 
-  .result-text {
-    font-size: 12px;
-    color: #63656e;
-    padding: 10px 20px;
-
-    .monitor-link {
-      color: #3a84ff;
-    }
-
-    .total-count {
-      color: #f00;
-    }
+  &::-webkit-scrollbar-thumb {
+    background-color: #ddd;
+    border-color: transparent;
+    border-style: dashed;
+    border-left-width: 3px;
+    border-radius: 5px;
+    background-clip: padding-box;
   }
 
-  .result-main {
-    margin: 0 16px 16px;
-    min-height: calc(100% - 54px);
-    background-color: #fff;
+  &::-webkit-scrollbar-thumb:hover {
+    background: #ddd;
+  }
+}
+
+.result-text {
+  padding: 10px 20px;
+  font-size: 12px;
+  color: #63656e;
+
+  .monitor-link {
+    color: #3a84ff;
   }
 
-  .divider-line {
-    /* stylelint-disable-next-line declaration-no-important */
-    margin: 0 !important;
+  .total-count {
+    color: #f00;
+  }
+}
+
+.result-main {
+  min-height: calc(100% - 54px);
+  margin: 0 16px 16px;
+  background-color: #fff;
+}
+
+.divider-line {
+  /* stylelint-disable-next-line declaration-no-important */
+  margin: 0 !important;
+}
+
+.fixed-scroll-top-btn {
+  position: fixed;
+  right: 14px;
+  bottom: 24px;
+  z-index: 2100;
+  display: flex;
+  width: 36px;
+  height: 36px;
+  color: #63656e;
+  cursor: pointer;
+  background: #f0f1f5;
+  border: 1px solid #dde4eb;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
+  justify-content: center;
+  align-items: center;
+
+  &:hover {
+    color: #fff;
+    background: #979ba5;
+    transition: all 0.2s;
   }
 
-  .fixed-scroll-top-btn {
-    position: fixed;
-    bottom: 24px;
-    right: 14px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 36px;
-    height: 36px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .2);
-    border: 1px solid #dde4eb;
-    border-radius: 4px;
-    color: #63656e;
-    background: #f0f1f5;
-    cursor: pointer;
-    z-index: 2100;
-    transition: all .2s;
-
-    &:hover {
-      color: #fff;
-      background: #979ba5;
-      transition: all .2s;
-    }
-
-    .bk-icon {
-      font-size: 20px;
-      font-weight: bold;
-    }
+  .bk-icon {
+    font-size: 20px;
+    font-weight: bold;
   }
+}
 </style>

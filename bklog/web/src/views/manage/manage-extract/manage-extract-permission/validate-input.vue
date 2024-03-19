@@ -25,9 +25,9 @@
     <bk-input
       :value="value"
       :class="isError && 'is-error'"
+      :placeholder="placeholder"
       @change="handleChange"
       @blur="handleBlur"
-      :placeholder="placeholder"
     ></bk-input>
   </div>
 </template>
@@ -35,25 +35,25 @@
 <script>
 export default {
   model: {
-    event: 'change',
+    event: 'change'
   },
   props: {
     value: {
       type: String,
-      default: '',
+      default: ''
     },
     placeholder: {
       type: String,
-      default: '',
+      default: ''
     },
     validator: {
       type: Function,
-      default: val => Boolean(val),
-    },
+      default: val => Boolean(val)
+    }
   },
   data() {
     return {
-      isError: false,
+      isError: false
     };
   },
   methods: {
@@ -62,7 +62,7 @@ export default {
     },
     handleBlur(val) {
       this.isError = !this.validator(val);
-    },
-  },
+    }
+  }
 };
 </script>

@@ -1,24 +1,24 @@
 .manage-input {
   .bk-form-input {
     height: 42px;
-    transition: background .2s;
+    padding: 0 16px;
+    border: 1px solid transparent;
     border-radius: 0;
     box-sizing: border-box;
-    border: 1px solid transparent;
-    padding: 0 16px;
+    transition: background .2s;
   }
 
   .collect-box {
-    height: 42px;
     display: flex;
-    align-items: center;
+    height: 42px;
     padding: 0 16px;
     line-height: 44px;
     cursor: text;
+    align-items: center;
 
     .collect-name {
-      width: calc(100% - 20px);
       display: inline-block;
+      width: calc(100% - 20px);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;

@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from metadata import models
 from metadata.utils import consul_tools
@@ -83,3 +83,62 @@ def disable_influxdb_router_for_vm_table(
     models.AccessVMRecord.refresh_vm_router()
 
     logger.info("disable influxdb router for vm table successfully")
+
+
+def query_vm_datalink(bk_data_id: int) -> Dict:
+    """查询 vm 的链路"""
+    try:
+        ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+    except models.DataSource.DoesNotExist:
+        raise ValueError(f"bk_data_id:{bk_data_id} not found")
+    # 组装返回数据
+    ret_data = {"bk_data_id": ds.bk_data_id, "is_enabled": ds.is_enable, "etl_config": ds.etl_config}
+    # 如果数据源已经停用，不需要后续的链路信息，直接返回
+    if not ds.is_enable:
+        return ret_data
+
+    # 添加数据源级别的选项
+    ret_data["option"] = models.DataSourceOption.get_option(bk_data_id)
+    # 添加结果表信息
+    result_table_id_list = [
+        info.table_id for info in models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id)
+    ]
+    result_table_list = []
+    # 获取存在的结果表
+    real_table_ids = {
+        rt["table_id"]: rt
+        for rt in models.ResultTable.objects.filter(
+            table_id__in=result_table_id_list, is_deleted=False, is_enable=True
+        ).values("table_id", "bk_biz_id", "schema_type")
+    }
+    if not real_table_ids:
+        ret_data["result_table_list"] = result_table_list
+        return ret_data
+
+    real_table_id_list = list(real_table_ids.keys())
+    # 获取结果表对应 VM 的数据源 ID
+    tid_bk_base_data_ids = {
+        obj["result_table_id"]: obj["bk_base_data_id"]
+        for obj in models.AccessVMRecord.objects.filter(result_table_id__in=real_table_id_list).values(
+            "result_table_id", "bk_base_data_id"
+        )
+    }
+    # 批量获取结果表级别选项
+    table_id_option_dict = models.ResultTableOption.batch_result_table_option(real_table_id_list)
+    # 获取字段信息
+    table_field_dict = models.ResultTableField.batch_get_fields(real_table_id_list, True)
+    # 判断需要未删除，而且在启用状态的结果表
+    for rt, rt_info in real_table_ids.items():
+        result_table_list.append(
+            {
+                "result_table": rt,
+                # 如果是自定义上报的情况，不需要指定字段
+                "field_list": table_field_dict.get(rt, []) if not ds.is_custom_timeseries_report else [],
+                "schema_type": rt_info["schema_type"],
+                "option": table_id_option_dict.get(rt, {}),
+                "bk_base_data_id": tid_bk_base_data_ids.get(rt),
+            }
+        )
+    ret_data["result_table_list"] = result_table_list
+
+    return ret_data

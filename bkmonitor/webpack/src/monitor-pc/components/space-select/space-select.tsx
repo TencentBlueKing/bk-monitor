@@ -516,10 +516,6 @@ export default class SpaceSelect extends tsc<
     if (+this.localCurrentSpace === +this.currentSpace) {
       return;
     }
-    // 切换全局业务配置
-    window.cc_biz_id = +this.localCurrentSpace;
-    window.bk_biz_id = +this.localCurrentSpace;
-    window.space_uid = this.spaceList.find(item => item.bk_biz_id === +this.localCurrentSpace)?.space_uid;
     this.$store.commit('app/SET_BIZ_ID', +this.localCurrentSpace);
     const serachParams = new URLSearchParams({ bizId: `${+this.localCurrentSpace}` });
     const newUrl = `${window.location.pathname}?${serachParams.toString()}#${this.$route.fullPath}`;

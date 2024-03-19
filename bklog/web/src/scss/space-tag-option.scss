@@ -1,6 +1,6 @@
 .space-code-option {
-  width: 100%;
   display: flex;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
 
@@ -12,16 +12,16 @@
 
   .icon-check-1 {
     display: inline-block;
-    transform: translateY(2px);
     font-size: 24px;
+    transform: translateY(2px);
   }
 
   .identify-icon {
     display: inline-block;
     width: 4px; 
-    height: 4px;
-    border-radius: 50%; 
+    height: 4px; 
     margin-right: 4px;
+    border-radius: 50%;
     transform: translateY(-2px);
 
     &.is-use {
@@ -40,8 +40,8 @@
   .list-item-tag {
     display: inline-block;
     height: 23px;
-    line-height: 23px;
     padding: 0 10px;
+    line-height: 23px;
     border-radius: 2px;
 
     &:not(:last-child) {
