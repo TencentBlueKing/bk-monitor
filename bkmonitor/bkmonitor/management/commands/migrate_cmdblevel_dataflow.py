@@ -23,7 +23,7 @@ class Command(BaseCommand):
         self.migrate_cmdb_level_dataflow()
 
     def migrate_cmdb_level_dataflow(self):
-        # 1. 获取当前cmdb level 的所有dataflow。并且状态为 running的
+        # 1. 获取当前cmdb level 的所有dataflow。
         params = {"project_id": settings.BK_DATA_PROJECT_ID}
         flows = api.bkdata.get_data_flow_list(**params)
         target_flows = [f for f in flows if "CMDB预聚合" in f["flow_name"]]
@@ -50,7 +50,7 @@ class Command(BaseCommand):
                 # 2.3 没有需要删除的节点，则跳过重启
                 continue
             if flow["status"] == "running":
-                # 3. 重启
+                # 3. flow状态为 running的, 重启
                 print(f"flow({flow_id}): restart flow")
                 try:
                     # 3.1 重启，从上次停止位置开始处理
