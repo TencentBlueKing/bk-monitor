@@ -33,13 +33,18 @@
     :open="showDatePicker"
     @change="handleDateChange"
     @shortcut-change="handleShortcutChange"
-    @open-change="handleOpenChange">
+    @open-change="handleOpenChange"
+  >
     <div
       v-if="timeRange !== 'custom'"
       slot="trigger"
       class="king-date-trigger"
-      @click.stop="togglePicker">
-      <div class="bk-date-picker-editor" :class="{ 'is-focus': showDatePicker }">
+      @click.stop="togglePicker"
+    >
+      <div
+        class="bk-date-picker-editor"
+        :class="{ 'is-focus': showDatePicker }"
+      >
         {{ shortTextEnum[timeRange] }}
       </div>
       <div class="icon-wrapper">
@@ -54,12 +59,12 @@ export default {
   props: {
     timeRange: {
       type: String,
-      required: true,
+      required: true
     },
     timeValue: {
       type: Array,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     const oneDay = 1000 * 60 * 60 * 24;
@@ -67,38 +72,43 @@ export default {
     const oneMonth = oneDay * 30;
     return {
       showDatePicker: false,
-      shortcuts: [{
-        text: this.$t('近一天'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - oneDay);
-          return [start, end];
+      shortcuts: [
+        {
+          text: this.$t('近一天'),
+          value() {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - oneDay);
+            return [start, end];
+          }
         },
-      }, {
-        text: this.$t('近一周'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - oneWeek);
-          return [start, end];
+        {
+          text: this.$t('近一周'),
+          value() {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - oneWeek);
+            return [start, end];
+          }
         },
-      }, {
-        text: this.$t('近一月'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - oneMonth);
-          return [start, end];
+        {
+          text: this.$t('近一月'),
+          value() {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - oneMonth);
+            return [start, end];
+          }
         },
-      }, {
-        text: this.$t('所有'),
-        value() {
-          const end = new Date();
-          const start = new Date('2000-01-01');
-          return [start, end];
-        },
-      }],
+        {
+          text: this.$t('所有'),
+          value() {
+            const end = new Date();
+            const start = new Date('2000-01-01');
+            return [start, end];
+          }
+        }
+      ],
       shortTextEnum: {
         [this.$t('近一天')]: '1d',
         [this.$t('近一周')]: '1w',
@@ -107,8 +117,8 @@ export default {
         '1d': this.$t('近一天'),
         '1w': this.$t('近一周'),
         '1m': this.$t('近一月'),
-        all: this.$t('所有'),
-      },
+        all: this.$t('所有')
+      }
     };
   },
   methods: {
@@ -124,43 +134,45 @@ export default {
       this.$emit('update:timeValue', date);
     },
     handleShortcutChange(data) {
-      if (data !== undefined) { // 快捷键事件
+      if (data !== undefined) {
+        // 快捷键事件
         this.$emit('update:timeRange', this.shortTextEnum[data.text]);
-      } else { // 日期选择事件
+      } else {
+        // 日期选择事件
         this.$emit('update:timeRange', 'custom');
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .king-date-picker {
-    width: 300px;
-    margin-right: 20px;
-    background-color: #fff;
+.king-date-picker {
+  width: 300px;
+  margin-right: 20px;
+  background-color: #fff;
 
-    .king-date-trigger {
-      .icon-wrapper {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 32px;
-        height: 32px;
+  .king-date-trigger {
+    .icon-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 32px;
+      height: 32px;
 
-        .icon-date-picker {
-          font-size: 18px;
-        }
+      .icon-date-picker {
+        font-size: 18px;
       }
+    }
 
-      .bk-date-picker-editor {
-        transition: border-color .3s;
+    .bk-date-picker-editor {
+      transition: border-color 0.3s;
 
-        &.is-focus {
-          border-color: #3a84ff;
-          transition: border-color .3s;
-        }
+      &.is-focus {
+        border-color: #3a84ff;
+        transition: border-color 0.3s;
       }
     }
   }
+}
 </style>

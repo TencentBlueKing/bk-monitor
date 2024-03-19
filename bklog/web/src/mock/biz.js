@@ -27,12 +27,12 @@ const list = {
   data: [
     {
       bk_biz_id: 1,
-      bk_biz_name: '业务名称',
-    },
+      bk_biz_name: '业务名称'
+    }
   ],
-  result: true,
+  result: true
 };
 
 export default {
-  list,
+  list
 };

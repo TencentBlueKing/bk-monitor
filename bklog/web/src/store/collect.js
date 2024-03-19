@@ -27,10 +27,10 @@ export default {
   state: {
     curCollect: {},
     curIndexSet: {},
-    scenarioMap: null,
+    scenarioMap: null
   },
   getters: {
-    curCollect: state => state.curCollect,
+    curCollect: state => state.curCollect
   },
   mutations: {
     setCurCollect(state, collect) {
@@ -51,7 +51,7 @@ export default {
     },
     updateScenarioMap(state, payload) {
       state.scenarioMap = payload;
-    },
+    }
   },
-  actions: {},
+  actions: {}
 };

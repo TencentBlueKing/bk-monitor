@@ -7,12 +7,12 @@
   background-color: #fff;
 
   .query-btn {
+    display: flex;
     width: 32px;
     height: 32px;
-    background: #fff;
     margin-right: 2px;
     color: #9a9ba5;
-    display: flex;
+    background: #fff;
     justify-content: center;
 
     div {
@@ -45,13 +45,13 @@
 
     .catching-ball {
       position: absolute;
+      top: -6px;
+      right: 4px;
+      z-index: 999;
       width: 12px;
       height: 12px;
-      right: 4px;
-      top: -6px;
-      z-index: 999;
-      border-radius: 50%;
       background: #ea3636;
+      border-radius: 50%;
     }
 
     .icon {
@@ -74,8 +74,8 @@
 
     .icon-brush {
       position: absolute;
-      left: 8px;
       top: 8px;
+      left: 8px;
       font-size: 14px;
       color: #63656e;
       pointer-events: none;
@@ -86,22 +86,22 @@
     cursor: not-allowed;
 
     &.bk-primary {
+      color: #fff;
       /* stylelint-disable-next-line declaration-no-important */
       background: #a3c5fd !important;
 
       /* stylelint-disable-next-line declaration-no-important */
       border-color: #a3c5fd !important;
-      color: #fff;
     }
   }
 
   .loading-box {
     width: 32px;
     height: 32px;
+    margin-right: 2px;
     cursor: pointer;
     border: 1px solid #c4c6cc;
     border-radius: 2px;
-    margin-right: 2px;
 
     .loading {
       cursor: not-allowed;

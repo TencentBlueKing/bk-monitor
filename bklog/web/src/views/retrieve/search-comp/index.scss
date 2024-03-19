@@ -4,34 +4,34 @@
 
   .inquire-cascader {
     position: absolute;
-    left: 0;
     top: 0;
+    left: 0;
     width: 100%;
     opacity: 0;
   }
 
   &.active,
   &:hover {
-    .bk-button { 
-      /* stylelint-disable-next-line declaration-no-important */
-      border-color: #e1ecff !important;
+    .bk-button {
 
       /* stylelint-disable-next-line declaration-no-important */
-      background: #e1ecff !important;
+      background: #e1ecff !important; 
+      /* stylelint-disable-next-line declaration-no-important */
+      border-color: #e1ecff !important;
     }
   }
 
   .add-condition {
     width: 100%;
     font-size: 12px;
-    color: #3a84ff;
-    letter-spacing: 0;
     line-height: 20px;
+    letter-spacing: 0;
+    color: #3a84ff;
   
     &.bk-button {
       color: #3a84ff;
-      border-color: #f0f5ff;
       background: #f0f5ff;
+      border-color: #f0f5ff;
     }
   }
 }

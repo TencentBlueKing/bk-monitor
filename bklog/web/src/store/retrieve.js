@@ -28,7 +28,7 @@ export default {
     chartKey: random(10), // 复用监控的图表，改变key重新请求图表
     cacheDatePickerValue: [],
     cacheTimeRange: '',
-    filedSettingConfigID: 1,
+    filedSettingConfigID: 1
   },
   mutations: {
     updateChartKey(state) {
@@ -42,7 +42,7 @@ export default {
     },
     updateFiledSettingConfigID(state, payload) {
       state.filedSettingConfigID = payload;
-    },
+    }
   },
-  actions: {},
+  actions: {}
 };

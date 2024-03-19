@@ -22,76 +22,99 @@
 
 <template>
   <div class="text-filter-container">
-    <bk-select v-model="filterType" style="width: 174px;margin-right: 20px;background-color: #fff;">
+    <bk-select
+      v-model="filterType"
+      style="width: 174px; margin-right: 20px; background-color: #fff"
+    >
       <bk-option
         v-for="option in filterList"
-        :key="option.id"
         :id="option.id"
-        :name="option.name">
+        :key="option.id"
+        :name="option.name"
+      >
       </bk-option>
     </bk-select>
     <!-- 关键字过滤 -->
-    <div class="filter-content" v-show="filterType === 'match_word'">
+    <div
+      v-show="filterType === 'match_word'"
+      class="filter-content"
+    >
       <bk-input
-        style="width: 300px;"
+        v-model="filterContent.keyword"
+        style="width: 300px"
         :maxlength="64"
         data-test-id="addNewExtraction_input_filterKeyword"
         :placeholder="$t('多个关键字用英文逗号')"
-        v-model="filterContent.keyword">
+      >
       </bk-input>
       <bk-select
         v-model="filterContent.keyword_type"
-        style="width: 70px; margin-right: 10px;background-color: #fff;"
+        style="width: 70px; margin-right: 10px; background-color: #fff"
         data-test-id="addNewExtraction_select_filterCondition"
-        :clearable="false">
+        :clearable="false"
+      >
         <bk-option
           v-for="option in keywordTypeList"
-          :key="option.id"
           :id="option.id"
-          :name="option.name">
+          :key="option.id"
+          :name="option.name"
+        >
         </bk-option>
       </bk-select>
       {{ $t('关键字匹配模式') }}
     </div>
     <!-- 关键字范围 -->
     <div v-show="filterType === 'match_range'">
-      <i18n class="filter-content" path="从匹配{0}开始到匹配{1}之间的所有行">
+      <i18n
+        class="filter-content"
+        path="从匹配{0}开始到匹配{1}之间的所有行"
+      >
         <bk-input
-          style="width: 180px;margin: 0 6px;"
+          v-model="filterContent.start"
+          style="width: 180px; margin: 0 6px"
           :maxlength="64"
-          v-model="filterContent.start">
+        >
         </bk-input>
         <bk-input
-          style="width: 180px;margin: 0 6px;"
+          v-model="filterContent.end"
+          style="width: 180px; margin: 0 6px"
           :maxlength="64"
-          v-model="filterContent.end">
+        >
         </bk-input>
       </i18n>
     </div>
     <!-- 最新行数 -->
-    <div class="filter-content" v-show="filterType === 'tail_line'">
+    <div
+      v-show="filterType === 'tail_line'"
+      class="filter-content"
+    >
       <bk-input
-        style="width: 120px;"
+        style="width: 120px"
         type="number"
         :placeholder="$t('请输入整数')"
         :precision="0"
         :value="filterContent.line_num"
-        @change="handleChangeNumber('line_num', $event)">
+        @change="handleChangeNumber('line_num', $event)"
+      >
       </bk-input>
     </div>
     <!-- 按行过滤 -->
     <div v-show="filterType === 'line_range'">
-      <i18n class="filter-content" path="从第{0}行到第{1}行">
+      <i18n
+        class="filter-content"
+        path="从第{0}行到第{1}行"
+      >
         <bk-input
-          style="width: 120px;margin: 0 6px;"
+          style="width: 120px; margin: 0 6px"
           type="number"
           :placeholder="$t('请输入整数')"
           :precision="0"
           :value="filterContent.start_line"
-          @change="handleChangeNumber('start_line', $event)">
+          @change="handleChangeNumber('start_line', $event)"
+        >
         </bk-input>
         <bk-input
-          style="width: 120px;margin: 0 6px;"
+          style="width: 120px; margin: 0 6px"
           type="number"
           :placeholder="$t('请输入整数')"
           :precision="0"
@@ -108,19 +131,24 @@ export default {
   data() {
     return {
       filterType: '',
-      filterList: [{
-        id: 'match_word',
-        name: this.$t('关键字过滤'),
-      }, {
-        id: 'match_range',
-        name: this.$t('关键字范围'),
-      }, {
-        id: 'tail_line',
-        name: this.$t('最新行数'),
-      }, {
-        id: 'line_range',
-        name: this.$t('按行过滤'),
-      }],
+      filterList: [
+        {
+          id: 'match_word',
+          name: this.$t('关键字过滤')
+        },
+        {
+          id: 'match_range',
+          name: this.$t('关键字范围')
+        },
+        {
+          id: 'tail_line',
+          name: this.$t('最新行数')
+        },
+        {
+          id: 'line_range',
+          name: this.$t('按行过滤')
+        }
+      ],
       filterContent: {
         // 关键字过滤
         keyword: '',
@@ -132,18 +160,22 @@ export default {
         line_num: 0,
         // 按行过滤
         start_line: 0,
-        end_line: 0,
+        end_line: 0
       },
-      keywordTypeList: [{
-        id: 'keyword_and',
-        name: this.$t('与'),
-      }, {
-        id: 'keyword_or',
-        name: this.$t('或'),
-      }, {
-        id: 'keyword_not',
-        name: this.$t('非'),
-      }],
+      keywordTypeList: [
+        {
+          id: 'keyword_and',
+          name: this.$t('与')
+        },
+        {
+          id: 'keyword_or',
+          name: this.$t('或')
+        },
+        {
+          id: 'keyword_not',
+          name: this.$t('非')
+        }
+      ]
     };
   },
   methods: {
@@ -153,7 +185,8 @@ export default {
     },
     handleChangeNumber(key, val) {
       const num = Number(val);
-      if (num <= 0 && val !== '') { // 保证大于0并触发响应式数据更新
+      if (num <= 0 && val !== '') {
+        // 保证大于0并触发响应式数据更新
         this.filterContent[key] = -1;
         this.$nextTick(() => {
           this.filterContent[key] = 0;
@@ -161,19 +194,19 @@ export default {
       } else {
         this.filterContent[key] = num;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .text-filter-container {
+.text-filter-container {
+  display: flex;
+  align-items: center;
+
+  .filter-content {
     display: flex;
     align-items: center;
-
-    .filter-content {
-      display: flex;
-      align-items: center;
-    }
   }
+}
 </style>

@@ -6,3 +6,10 @@ declare global {
     timezone: string;
   }
 }
+
+declare module 'vue/types/vue' {
+  interface Vue {
+    $bkMessage?: (p: Partial<{}>) => void;
+    $bkPopover?: (...Object) => void;
+  }
+}

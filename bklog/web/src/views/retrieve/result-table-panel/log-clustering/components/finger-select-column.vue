@@ -24,7 +24,8 @@
     :value="value === 2"
     :indeterminate="value === 1"
     :disabled="disabled"
-    @change="handleCheckChange">
+    @change="handleCheckChange"
+  >
   </bk-checkbox>
 </template>
 <script>
@@ -32,22 +33,20 @@ export default {
   props: {
     value: {
       type: Number,
-      default: 0,
+      default: 0
     },
     disabled: {
       type: Boolean,
-      default: true,
-    },
+      default: true
+    }
   },
   data() {
-    return {
-    };
+    return {};
   },
   methods: {
     handleCheckChange(state) {
       this.$emit('change', state);
-    },
-  },
+    }
+  }
 };
 </script>
-<style lang="scss" scoped></style>

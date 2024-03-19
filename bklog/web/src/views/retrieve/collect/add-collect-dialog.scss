@@ -18,9 +18,9 @@
 
     > :first-child {
       display: inline-block;
-      min-width: 72px;  
+      min-width: 72px;
+      margin-right: 6px;  
       color: #979ba5;
-      margin-right: 6px;
     }
   }
 
@@ -60,10 +60,10 @@
   }
 
   .explanation-field {
+    padding: 6px 8px;
     font-size: 12px;
     line-height: 20px;
     background: #f5f7fa;
-    padding: 6px 8px;
   }
 
   .bk-form-checkbox {
@@ -76,9 +76,9 @@
     flex-wrap: wrap;
 
     .current-filed {
+      margin-left: 24px;
       font-size: 12px;
       color: #979ba5;
-      margin-left: 24px;
     }
   }
 
@@ -89,18 +89,18 @@
     }
   
     .operate-button {
-      font-size: 16px;
       margin-left: 6px;
-      justify-content: space-between;
+      font-size: 16px;
       color: #979ba5;
+      justify-content: space-between;
   
       span {
         cursor: pointer;
       }
   
       > :first-child {
-        color: #33d05c;
         margin-right: 12px;
+        color: #33d05c;
       }
   
       > :last-child {

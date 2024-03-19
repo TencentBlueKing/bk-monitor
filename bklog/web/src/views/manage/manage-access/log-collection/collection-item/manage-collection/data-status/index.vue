@@ -31,15 +31,24 @@
         <daily-chart />
       </div>
     </section>
-    <section v-if="!isMasking" class="partial-content">
+    <section
+      v-if="!isMasking"
+      class="partial-content"
+    >
       <div class="main-title">
         {{ $t('数据采样') }}
-        <div class="refresh-button" @click="fetchDataSampling">
+        <div
+          class="refresh-button"
+          @click="fetchDataSampling"
+        >
           <span class="bk-icon icon-refresh"></span>
           <span>{{ $t('刷新') }}</span>
         </div>
       </div>
-      <data-sampling :data="dataSamplingList" :loading="dataSamplingLoading" />
+      <data-sampling
+        :data="dataSamplingList"
+        :loading="dataSamplingLoading"
+      />
     </section>
   </div>
 </template>
@@ -53,19 +62,19 @@ export default {
   components: {
     DataSampling,
     MinuteChart,
-    DailyChart,
+    DailyChart
   },
   props: {
     collectorData: {
       type: Object,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
       dataSamplingLoading: true,
       dataSamplingList: [],
-      isMasking: false,
+      isMasking: false
     };
   },
   async created() {
@@ -79,14 +88,18 @@ export default {
   },
   methods: {
     /**
-   * @desc: 判断当前是采集项是否有脱敏
-   * @returns {Array}
-   */
+     * @desc: 判断当前是采集项是否有脱敏
+     * @returns {Array}
+     */
     async getMaskingConfig() {
       try {
-        await this.$http.request('masking/getMaskingConfig', {
-          params: { index_set_id: this.collectorData?.index_set_id },
-        }, { catchIsShowMessage: false });
+        await this.$http.request(
+          'masking/getMaskingConfig',
+          {
+            params: { index_set_id: this.collectorData?.index_set_id }
+          },
+          { catchIsShowMessage: false }
+        );
         return true;
       } catch (err) {
         return false;
@@ -98,8 +111,8 @@ export default {
         this.dataSamplingLoading = true;
         const dataSamplingRes = await this.$http.request('source/dataList', {
           params: {
-            collector_config_id: this.$route.params.collectorId,
-          },
+            collector_config_id: this.$route.params.collectorId
+          }
         });
         this.dataSamplingList = dataSamplingRes.data;
       } catch (e) {
@@ -108,7 +121,7 @@ export default {
       } finally {
         this.dataSamplingLoading = false;
       }
-    },
-  },
+    }
+  }
 };
 </script>

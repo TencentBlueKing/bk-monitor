@@ -23,22 +23,34 @@
 <template>
   <div class="kv-list-wrapper">
     <div class="kv-content">
-      <div class="log-item" v-for="(field, index) in fieldKeyMap" :key="index">
-        <div class="field-label" :style="`max-width: ${getMaxWidth}px; width: ${getMaxWidth}px;`">
+      <div
+        v-for="(field, index) in fieldKeyMap"
+        :key="index"
+        class="log-item"
+      >
+        <div
+          class="field-label"
+          :style="`max-width: ${getMaxWidth}px; width: ${getMaxWidth}px;`"
+        >
           <span
+            v-bk-tooltips="fieldTypePopover(field)"
             class="field-type-icon mr5"
             :class="getFieldIcon(field)"
-            v-bk-tooltips="fieldTypePopover(field)"
           ></span>
-          <span class="field-text" :title="field">{{ field }}</span>
+          <span
+            class="field-text"
+            :title="field"
+            >{{ field }}</span
+          >
         </div>
         <div class="handle-option-list">
           <span
-            v-for="(option) in toolMenuList"
+            v-for="option in toolMenuList"
             :key="option.id"
-            :class="`icon ${getHandleIcon(option, field)} ${checkDisable(option.id, field)}`"
             v-bk-tooltips="{ content: getIconPopover(option.id, field), delay: 300 }"
-            @click.stop="handleMenuClick(option.id, field)">
+            :class="`icon ${getHandleIcon(option, field)} ${checkDisable(option.id, field)}`"
+            @click.stop="handleMenuClick(option.id, field)"
+          >
           </span>
         </div>
         <div class="field-value">
@@ -50,7 +62,8 @@
           <span
             v-if="getRelationMonitorField(field)"
             class="relation-monitor-btn"
-            @click="handleViewMonitor(field)">
+            @click="handleViewMonitor(field)"
+          >
             <span>{{ getRelationMonitorField(field) }}</span>
             <i class="log-icon icon-jump"></i>
           </span>
@@ -69,46 +82,46 @@ import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
 export default {
   components: {
-    TextSegmentation,
+    TextSegmentation
   },
   mixins: [tableRowDeepViewMixin],
   props: {
     data: {
       type: Object,
-      default: () => {},
+      default: () => {}
     },
     fieldList: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     visibleFields: {
       type: Array,
-      required: true,
+      required: true
     },
     totalFields: {
       type: Array,
-      required: true,
+      required: true
     },
     kvShowFieldsList: {
       type: Array,
-      require: true,
+      require: true
     },
     apmRelation: {
       type: Object,
-      default: () => {},
+      default: () => {}
     },
     sortList: {
       type: Array,
-      require: true,
+      require: true
     },
     retrieveParams: {
       type: Object,
-      require: true,
+      require: true
     },
     listData: {
       type: Object,
-      default: () => {},
-    },
+      default: () => {}
+    }
   },
   data() {
     return {
@@ -117,7 +130,7 @@ export default {
         { id: 'not', icon: 'bk-icon icon-narrow-line search' },
         { id: 'display', icon: 'bk-icon icon-arrows-up-circle' },
         // { id: 'chart', icon: 'log-icon icon-chart' },
-        { id: 'copy', icon: 'log-icon icon-copy' },
+        { id: 'copy', icon: 'log-icon icon-copy' }
       ],
       toolMenuTips: {
         is: this.$t('添加 {n} 过滤项', { n: '=' }),
@@ -126,12 +139,13 @@ export default {
         displayField: this.$t('将字段添加至表格中'),
         copy: this.$t('复制'),
         text_is: this.$t('文本类型不支持 {n} 操作', { n: '=' }),
-        text_not: this.$t('文本类型不支持 {n} 操作', { n: '!=' }),
+        text_not: this.$t('文本类型不支持 {n} 操作', { n: '!=' })
       },
-      mappingKay: { // is is not 值映射
+      mappingKay: {
+        // is is not 值映射
         is: '=',
-        'is not': '!=',
-      },
+        'is not': '!='
+      }
     };
   },
   computed: {
@@ -150,12 +164,14 @@ export default {
     hiddenFields() {
       return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
     },
-    filedSettingConfigID() { // 当前索引集的显示字段ID
+    filedSettingConfigID() {
+      // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
     },
-    isHaveBkHostIDAndHaveValue() { // 当前是否有bk_host_id字段且有值
+    isHaveBkHostIDAndHaveValue() {
+      // 当前是否有bk_host_id字段且有值
       return !!this.data?.bk_host_id;
-    },
+    }
   },
   methods: {
     formatterStr(row, field) {
@@ -185,13 +201,13 @@ export default {
 
       return {
         content: this.fieldTypeMap[fieldType] && this.fieldTypeMap[fieldType].name,
-        disabled: !this.fieldTypeMap[fieldType],
+        disabled: !this.fieldTypeMap[fieldType]
       };
     },
     checkDisable(id, field) {
       const type = this.getFieldType(field);
       const isExist = this.filterIsExist(id, field);
-      return ((['is', 'not'].includes(id) && type === 'text') || type === '__virtual__' || isExist)  ? 'is-disabled' : '';
+      return (['is', 'not'].includes(id) && type === 'text') || type === '__virtual__' || isExist ? 'is-disabled' : '';
     },
     getIconPopover(id, field) {
       const type = this.getFieldType(field);
@@ -213,7 +229,8 @@ export default {
     handleMenuClick(operator, item, field, isLink = false) {
       let params = {};
       const curValue = this.tableRowDeepView(this.data, item, this.getFieldType(item), false);
-      if (!field) {  // disable时操作禁用
+      if (!field) {
+        // disable时操作禁用
         const disableStr = this.checkDisable(operator, item);
         if (disableStr === 'is-disabled') return;
       }
@@ -227,7 +244,7 @@ export default {
         params = {
           fieldName: field ? field : item,
           operation: operator === 'is' ? 'is' : 'is not',
-          value: field ? item : curValue,
+          value: field ? item : curValue
         };
       }
 
@@ -267,7 +284,7 @@ export default {
           } else {
             this.$bkMessage({
               theme: 'warning',
-              message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+              message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。')
             });
           }
           break;
@@ -276,7 +293,7 @@ export default {
         case 'ip':
         case 'bk_host_id':
           {
-            const endStr = `${this.data[field]}${(field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue) ? '' : '-0'}`;
+            const endStr = `${this.data[field]}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
             path = `/?bizId=${this.bkBizId}#/performance/detail/${endStr}`;
           }
           break;
@@ -330,114 +347,113 @@ export default {
       if (this.retrieveParams?.addition.length) {
         if (id === 'not') id = 'is not';
         const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(field), false);
-        return this.retrieveParams.addition.some((addition) => {
-          return addition.field === field
-        && addition.operator === (this.mappingKay[id] ?? id) // is is not 值映射 判断是否
-        && addition.value.toString() === curValue.toString();
+        return this.retrieveParams.addition.some(addition => {
+          return (
+            addition.field === field &&
+            addition.operator === (this.mappingKay[id] ?? id) && // is is not 值映射 判断是否
+            addition.value.toString() === curValue.toString()
+          );
         });
       }
       return false;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/scroller';
+/* stylelint-disable no-descending-specificity */
+.kv-list-wrapper {
+  .log-item {
+    display: flex;
+    align-items: baseline;
 
-  .kv-list-wrapper {
-    .log-item {
+    .field-label {
       display: flex;
+      height: 100%;
+      flex-shrink: 0;
       align-items: baseline;
+      flex-wrap: nowrap;
 
-      .field-label {
-        flex-shrink: 0;
-        height: 100%;
-        display: flex;
-        align-items: baseline;
-        flex-wrap: nowrap;
-
-        .field-text {
-          word-break: normal;
-          width: auto;
-          display: block;
-          white-space: pre-wrap;
-          word-wrap: break-word ;
-          overflow: hidden;
-        }
-
-        :deep(.icon-ext) {
-          width: 13px;
-          display: inline-block;
-          font-size: 12px;
-          transform: translateX(-1px) scale(.8);
-        }
+      .field-text {
+        display: block;
+        width: auto;
+        overflow: hidden;
+        word-break: normal;
+        word-wrap: break-word;
+        white-space: pre-wrap;
       }
 
-      .field-value {
-        word-break: break-all;
-      }
-
-      .handle-option-list {
-        flex-shrink: 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin: 0px 14px 0 24px;
-
-        .icon {
-          margin-right: 6px;
-          font-size: 14px;
-          cursor: pointer;
-
-          &:hover {
-            color: #3a84ff;
-          }
-        }
-
-        .search {
-          font-size: 16px;
-        }
-
-        .icon-arrows-up-circle {
-          transform: rotate(45deg);
-        }
-
-        .icon-arrows-up-circle {
-          margin-right: 2px;
-          font-size: 12px;
-
-          &.is-hidden {
-            transform: rotate(225deg);
-          }
-        }
-
-        .icon-chart {
-          margin: 0 0 0 6px;
-        }
-
-        .icon-copy {
-          transform: rotate(0);
-          font-size: 24px;
-          cursor: pointer;
-        }
-
-        .icon-enlarge-line,
-        .icon-narrow-line,
-        .icon-arrows-up-circle,
-        .icon-copy {
-          &.is-disabled {
-            color: #dcdee5;
-            cursor: not-allowed;
-          }
-        }
+      :deep(.icon-ext) {
+        display: inline-block;
+        width: 13px;
+        font-size: 12px;
+        transform: translateX(-1px) scale(0.8);
       }
     }
 
-    .relation-monitor-btn {
-      margin-left: 12px;
-      color: #3a84ff;
-      cursor: pointer;
+    .field-value {
+      word-break: break-all;
+    }
+
+    .handle-option-list {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0px 14px 0 24px;
+
+      .icon {
+        margin-right: 6px;
+        font-size: 14px;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+
+      .search {
+        font-size: 16px;
+      }
+
+      .icon-arrows-up-circle {
+        margin-right: 2px;
+        font-size: 12px;
+        transform: rotate(45deg);
+
+        &.is-hidden {
+          transform: rotate(225deg);
+        }
+      }
+
+      .icon-chart {
+        margin: 0 0 0 6px;
+      }
+
+      .icon-copy {
+        font-size: 24px;
+        cursor: pointer;
+        transform: rotate(0);
+      }
+
+      .icon-enlarge-line,
+      .icon-narrow-line,
+      .icon-arrows-up-circle,
+      .icon-copy {
+        &.is-disabled {
+          color: #dcdee5;
+          cursor: not-allowed;
+        }
+      }
     }
   }
+
+  .relation-monitor-btn {
+    margin-left: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
 </style>

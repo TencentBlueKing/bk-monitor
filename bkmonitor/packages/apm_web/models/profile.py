@@ -33,6 +33,7 @@ class ProfileUploadRecord(models.Model):
         choices=[("perf_script", "perf_script"), ("pprof", "pprof"), ("jfr", "jfr")],
         max_length=50,
         db_index=True,
+        null=True,
     )
     file_key = models.CharField("文件存储路径", max_length=1024)
     file_md5 = models.CharField("文件MD5", max_length=32, db_index=True)
