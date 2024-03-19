@@ -45,7 +45,7 @@
     "vuedraggable": "^2.24.3",
     "vuex": "^3.6.2",
     "vuex-module-decorators": "^1.2.0",
-    "xlsx": "^0.16.9"
+    "xlsx": "^0.18.5"
   },
   "keywords": [
     "monitor",
