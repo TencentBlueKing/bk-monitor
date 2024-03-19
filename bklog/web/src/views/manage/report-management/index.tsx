@@ -35,7 +35,7 @@ class ReportManagement extends tsc<IProps> {
   get src() {
     const bizId = this.$store.state.bkBizId;
     // @ts-ignore
-    const targetSrc = `${window.MONITOR_URL}/?bizId=${bizId}&needMenu=false#/trace/report`;
+    const targetSrc = `${window.MONITOR_URL}/?bizId=${bizId}&needMenu=false&isShowHeaderNav=false#/trace/report`;
     return targetSrc;
   }
 

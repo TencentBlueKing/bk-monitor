@@ -447,24 +447,7 @@ export default defineComponent({
      * @param { * } val
      */
     function handleCopy(text) {
-      let switchedText = '';
-      switch (text) {
-        case 'time':
-          switchedText = dayjs(new Date()).format('YYYY-MM-DD HH:mm');
-          break;
-        case 'index_set_name':
-          switchedText =
-            indexSetIDList.value.find(item => item.id === formData.scenario_config.index_set_id)?.name || '';
-          break;
-        case 'business_name':
-          // @ts-ignore
-          switchedText = window.space_list.find(item => item.bk_biz_id === window.bk_biz_id)?.name || '';
-          break;
-        default:
-          switchedText = `{{${text}}}`;
-          break;
-      }
-      copyText(switchedText, msg => {
+      copyText(`{{${text}}}`, msg => {
         Message({
           message: msg,
           theme: 'error'

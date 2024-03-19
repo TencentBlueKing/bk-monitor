@@ -515,22 +515,7 @@ class QuickCreateSubscription extends tsc<IProps> {
      * @param { * } val
      */
   handleCopy(text) {
-    let switchedText = '';
-    switch (text) {
-      case 'time':
-        switchedText = dayjs(new Date()).format('YYYY-MM-DD HH:mm');
-        break;
-      case 'index_set_name':
-        switchedText = this.indexSetName;
-        break;
-      case 'business_name':
-        switchedText = this.bizName;
-        break;
-      default:
-        switchedText = `{{${text}}}`;
-        break;
-    }
-    copyText(switchedText, msg => {
+    copyText(`{{${text}}}`, msg => {
       this.$bkMessage({
         message: msg,
         theme: 'error'
