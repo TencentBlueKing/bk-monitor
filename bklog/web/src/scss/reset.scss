@@ -2,22 +2,22 @@
 
 // 浏览器重置样式
 * {
-  box-sizing: border-box;
   outline: none;
+  box-sizing: border-box;
 }
 
 html,
 body {
-  margin: 0;
-  padding: 0;
   height: 100%;
+  padding: 0;
+  margin: 0;
   overflow: hidden;
 }
 
 ul,
 li {
-  margin: 0;
   padding: 0;
+  margin: 0;
   list-style: none;
 }
 
@@ -25,8 +25,8 @@ dl,
 dt,
 dd,
 p {
-  margin: 0;
   padding: 0;
+  margin: 0;
 }
 
 a {

@@ -27,12 +27,12 @@ const models = {
   data: [
     {
       model_id: 'xxx',
-      model_name: '异常检测模型',
-    },
+      model_name: '异常检测模型'
+    }
   ],
-  result: true,
+  result: true
 };
 
 export default {
-  models,
+  models
 };

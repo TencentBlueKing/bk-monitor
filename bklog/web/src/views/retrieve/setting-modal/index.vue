@@ -23,8 +23,8 @@
 <template>
   <!-- 检索-设置 -->
   <bk-dialog
-    width="100%"
     v-model="isDialogVisiable"
+    width="100%"
     :show-mask="false"
     :close-icon="false"
     :show-footer="false"
@@ -32,17 +32,22 @@
     :scrollable="true"
     :position="{
       top: 50,
-      left: 0,
+      left: 0
     }"
     @value-change="openPage"
-    @after-leave="closePage">
+    @after-leave="closePage"
+  >
     <div
-      class="setting-container"
       v-if="isDialogVisiable"
-      data-test-id="clusterSetting_div_settingContainer">
+      class="setting-container"
+      data-test-id="clusterSetting_div_settingContainer"
+    >
       <div class="setting-title">
-        <span>{{$t('设置')}}</span>
-        <span class="bk-icon icon-close" @click="closeSetting"></span>
+        <span>{{ $t('设置') }}</span>
+        <span
+          class="bk-icon icon-close"
+          @click="closeSetting"
+        ></span>
       </div>
 
       <div class="setting-main">
@@ -50,19 +55,21 @@
           <div
             v-for="item of showCurrentList"
             :key="item.id"
-            :class="['setting-option',currentChoice === item.id ? 'current-color' : '']"
+            :class="['setting-option', currentChoice === item.id ? 'current-color' : '']"
             :data-test-id="`settingContainer_div_select${item.id}`"
-            @click="handleNavClick(item)">
+            @click="handleNavClick(item)"
+          >
             <div>
               <span class="log-icon icon-block-shape"></span>
-              <span>{{item.name}}</span>
+              <span>{{ item.name }}</span>
             </div>
             <div @click.stop="stopChangeSwitch(item)">
               <bk-switcher
-                theme="primary"
                 v-model="item.isEditable"
+                theme="primary"
                 :pre-check="() => false"
-                :disabled="item.isDisabled">
+                :disabled="item.isDisabled"
+              >
               </bk-switcher>
             </div>
           </div>
@@ -72,38 +79,49 @@
           <div class="more-details">
             <div class="details">
               <p>
-                <span>{{ $t("索引集") }}：</span>
-                <span class="title-overflow" v-bk-overflow-tips>
+                <span>{{ $t('索引集') }}：</span>
+                <span
+                  v-bk-overflow-tips
+                  class="title-overflow"
+                >
                   {{ indexSetItem.index_set_name }}
                 </span>
               </p>
               <p>
-                <span>{{ $t("索引") }}：</span>
-                <span class="title-overflow" v-bk-overflow-tips>
+                <span>{{ $t('索引') }}：</span>
+                <span
+                  v-bk-overflow-tips
+                  class="title-overflow"
+                >
                   {{ showResultTableID }}
                 </span>
               </p>
               <p>
-                <span>{{ $t("来源") }}：</span>
-                <span class="title-overflow" v-bk-overflow-tips>
+                <span>{{ $t('来源') }}：</span>
+                <span
+                  v-bk-overflow-tips
+                  class="title-overflow"
+                >
                   {{ indexSetItem.scenario_name }}
                 </span>
               </p>
             </div>
             <div
-              class="more-message"
               v-if="isCollector"
-              @click="handleClickDetail">
-              {{$t('更多详情')}}
+              class="more-message"
+              @click="handleClickDetail"
+            >
+              {{ $t('更多详情') }}
               <span class="log-icon icon-lianjie"></span>
             </div>
           </div>
           <div
             class="operation-container"
-            :data-test-id="`settingContainer_div_${showComponent}`">
+            :data-test-id="`settingContainer_div_${showComponent}`"
+          >
             <component
-              v-if="isShowPage"
               :is="showComponent"
+              v-if="isShowPage"
               :global-editable="!isDebugRequest && globalEditable"
               :index-set-item="indexSetItem"
               :total-fields="totalFields"
@@ -113,7 +131,8 @@
               :retrieve-params="retrieveParams"
               @resetPage="resetPage"
               @updateLogFields="updateLogFields"
-              @debugRequestChange="debugRequestChange" />
+              @debugRequestChange="debugRequestChange"
+            />
           </div>
         </div>
       </div>
@@ -130,41 +149,41 @@ export default {
   components: {
     FullTextIndex,
     FieldExtraction,
-    LogCluster,
+    LogCluster
   },
   props: {
     isShowDialog: {
       type: Boolean,
-      default: false,
+      default: false
     },
     selectChoice: {
       type: String,
-      default: 'index',
+      default: 'index'
     },
     indexSetItem: {
       type: Object,
-      require: true,
+      require: true
     },
     totalFields: {
       type: Array,
-      default: () => ([]),
+      default: () => []
     },
     configData: {
       type: Object,
-      require: true,
+      require: true
     },
     cleanConfig: {
       type: Object,
-      require: true,
+      require: true
     },
     datePickerValue: {
       type: Array,
-      required: true,
+      required: true
     },
     retrieveParams: {
       type: Object,
-      default: () => ({}),
-    },
+      default: () => ({})
+    }
   },
   data() {
     return {
@@ -186,16 +205,17 @@ export default {
           componentsName: 'FieldExtraction',
           name: this.$t('字段提取'),
           isEditable: false,
-          isDisabled: false,
+          isDisabled: false
         },
         {
           id: 'clustering',
           componentsName: 'LogCluster',
           name: this.$t('日志聚类'),
           isEditable: false,
-          isDisabled: false,
-        }],
-      showCurrentList: [],
+          isDisabled: false
+        }
+      ],
+      showCurrentList: []
     };
   },
   computed: {
@@ -205,21 +225,25 @@ export default {
     globalEditable() {
       return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
     },
-    isCollector() { // 字段提取的索引集来源是否为采集项
+    isCollector() {
+      // 字段提取的索引集来源是否为采集项
       return this.cleanConfig?.extra?.collector_config_id !== null;
     },
-    isExtractActive() { // 字段提取是否开启
+    isExtractActive() {
+      // 字段提取是否开启
       return this.cleanConfig?.is_active;
     },
-    isClusteringActive() { // 日志聚类是否开启
+    isClusteringActive() {
+      // 日志聚类是否开启
       return this.configData?.is_active;
     },
-    isSignatureActive() { // 日志聚类的数据指纹是否开启
+    isSignatureActive() {
+      // 日志聚类的数据指纹是否开启
       return this.configData?.extra?.signature_switch;
     },
     showResultTableID() {
       return this.indexSetItem?.indices[0]?.result_table_id || '';
-    },
+    }
   },
   watch: {
     isDialogVisiable(val) {
@@ -229,17 +253,17 @@ export default {
       immediate: true,
       handler(val) {
         this.setIsShowExtract(val === 'log');
-      },
-    },
+      }
+    }
   },
   methods: {
     handleMenuStatus() {
       const { isExtractActive, isClusteringActive, isCollector } = this;
-      this.showCurrentList = this.showCurrentList.map((list) => {
+      this.showCurrentList = this.showCurrentList.map(list => {
         return {
           ...list,
           isEditable: list.id === 'extract' ? isExtractActive : isClusteringActive,
-          isDisabled: list.id === 'extract' ? !isCollector : isClusteringActive,
+          isDisabled: list.id === 'extract' ? !isCollector : isClusteringActive
         };
       });
     },
@@ -262,7 +286,7 @@ export default {
           this.jumpCloseSwitch();
           this.currentChoice = item.id;
           this.showComponent = item.componentsName;
-        },
+        }
       });
     },
     openPage() {
@@ -289,34 +313,32 @@ export default {
         item.isEditable = true;
         return;
       }
-      const msg = item.id === 'extract'
-        ? this.$t('是否关闭字段提取？')
-        : this.$t('是否关闭日志聚类？');
+      const msg = item.id === 'extract' ? this.$t('是否关闭字段提取？') : this.$t('是否关闭日志聚类？');
 
       if (item.id === 'extract') {
         this.$bkInfo({
           title: msg,
           confirmLoading: true,
           confirmFn: async () => {
-            const isFinish = item.id === 'extract'
-              ? await this.requestCloseClean()
-              : await this.requestCloseCluster();
+            const isFinish = item.id === 'extract' ? await this.requestCloseClean() : await this.requestCloseCluster();
             isFinish && (item.isEditable = false);
-          },
+          }
         });
       } else {
         item.isEditable = false;
       }
     },
     async requestCloseClean() {
-      const { extra: { collector_config_id } } = this.cleanConfig;
+      const {
+        extra: { collector_config_id }
+      } = this.cleanConfig;
       const res = await this.$http.request('/logClustering/closeClean', {
         params: {
-          collector_config_id,
+          collector_config_id
         },
         data: {
-          collector_config_id,
-        },
+          collector_config_id
+        }
       });
       return res.result;
     },
@@ -338,9 +360,12 @@ export default {
       if (!this.isClusteringActive && this.currentChoice === 'clustering') {
         this.showCurrentList[1].isEditable = false;
       }
-      if (!this.isSubmit && this.currentChoice === 'extract'
-       && this.showCurrentList[0].isDisabled !== true
-       && !this.isExtractActive) {
+      if (
+        !this.isSubmit &&
+        this.currentChoice === 'extract' &&
+        this.showCurrentList[0].isDisabled !== true &&
+        !this.isExtractActive
+      ) {
         this.showCurrentList[0].isEditable = false;
       }
     },
@@ -352,12 +377,15 @@ export default {
       this.$emit('updateLogFields');
     },
     handleClickDetail() {
-      const { extra: { collector_config_id: collectorID, collector_scenario_id: scenarioID } } = this.cleanConfig;
+      const {
+        extra: { collector_config_id: collectorID, collector_scenario_id: scenarioID }
+      } = this.cleanConfig;
       if (!collectorID) return;
-      const spaceUid = this.$store.state.spaceUid;
-      const jumpUrl = scenarioID === 'custom'
-        ? `/#/manage/custom-report/detail/${collectorID}?spaceUid=${spaceUid}`
-        : `/#/manage/log-collection/collection-item/manage/${collectorID}?spaceUid=${spaceUid}`;
+      const { spaceUid } = this.$store.state;
+      const jumpUrl =
+        scenarioID === 'custom'
+          ? `/#/manage/custom-report/detail/${collectorID}?spaceUid=${spaceUid}`
+          : `/#/manage/log-collection/collection-item/manage/${collectorID}?spaceUid=${spaceUid}`;
       window.open(jumpUrl, '_blank');
     },
     setIsShowExtract(state) {
@@ -368,144 +396,144 @@ export default {
       this.$nextTick(() => {
         this.isShowPage = true;
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  :deep(.bk-dialog-body) {
-    background-color: #f5f6fa;
-    overflow: hidden;
-    padding: 0;
-  }
+:deep(.bk-dialog-body) {
+  padding: 0;
+  overflow: hidden;
+  background-color: #f5f6fa;
+}
 
-  :deep(.bk-dialog-tool) {
-    display: none;
-  }
+:deep(.bk-dialog-tool) {
+  display: none;
+}
 
-  @mixin container-shadow() {
-    background: #fff;
-    border-radius: 2px;
-    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, .05);
-  }
+@mixin container-shadow() {
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
+}
 
-  .setting-container {
-    height: calc(100vh - 52px);
-    overflow-y: auto;
+.setting-container {
+  display: flex;
+  height: calc(100vh - 52px);
+  min-width: 1460px;
+  overflow-y: auto;
+  justify-content: center;
+
+  .setting-title {
+    position: fixed;
+    z-index: 999;
+    width: calc(100vw + 12px);
+    height: 52px;
     min-width: 1460px;
-    display: flex;
-    justify-content: center;
+    font-size: 16px;
+    line-height: 52px;
+    text-align: center;
+    background-color: #fff;
+    border-bottom: 1px solid #dcdee5;
+    // box-shadow:0 3px 6px #DEE0E7 ;
+    .bk-icon {
+      position: absolute;
+      top: 10px;
+      right: 24px;
+      font-size: 32px;
+      cursor: pointer;
+    }
+  }
 
-    .setting-title {
-      width: calc(100vw + 12px);
-      height: 52px;
-      min-width: 1460px;
-      line-height: 52px;
-      font-size: 16px;
-      text-align: center;
-      position: fixed;
-      z-index: 999;
-      background-color: #fff;
-      border-bottom: 1px solid #dcdee5;
-      // box-shadow:0 3px 6px #DEE0E7 ;
-      .bk-icon {
-        font-size: 32px;
+  .setting-main {
+    position: relative;
+    display: flex;
+    padding: 72px 40px 0;
+
+    .setting-left {
+      height: 365px;
+      min-width: 240px;
+      padding-top: 4px;
+
+      @include container-shadow;
+
+      .setting-option {
+        display: flex;
+        height: 40px;
+        margin: 4px 0;
+        font-size: 15px;
         cursor: pointer;
-        position: absolute;
-        top: 10px;
-        right: 24px;
+        transition: all 0.3s;
+        justify-content: space-evenly;
+        align-items: center;
+
+        .log-icon {
+          margin-right: 20px;
+        }
+
+        &:hover {
+          @extend %current-color;
+        }
       }
     }
 
-    .setting-main {
-      padding: 72px 40px 0;
-      display: flex;
-      position: relative;
+    .setting-right {
+      max-width: 1020px;
+      margin-left: 20px;
 
-      .setting-left {
-        min-width: 240px;
-        height: 365px;
-        padding-top: 4px;
+      .more-details {
+        display: flex;
+        height: 48px;
+        padding: 0 24px;
+        justify-content: space-between;
+        align-items: center;
 
         @include container-shadow;
 
-        .setting-option {
-          height: 40px;
-          font-size: 15px;
-          margin: 4px 0;
+        .details {
           display: flex;
-          cursor: pointer;
-          justify-content: space-evenly;
-          align-items: center;
-          transition: all .3s;
+          flex-shrink: 0;
+          width: 810px;
 
-          .log-icon {
-            margin-right: 20px;
-          }
-
-          &:hover {
-            @extend %current-color;
-          }
-        }
-      }
-
-      .setting-right {
-        margin-left: 20px;
-        max-width: 1020px;
-
-        .more-details {
-          height: 48px;
-          padding: 0 24px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-
-          @include container-shadow;
-
-          .details {
+          p {
             display: flex;
-            flex-shrink: 0;
-            width: 810px;
+            justify-content: center;
+            align-items: center;
+            margin-right: 40px;
 
-            p {
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              margin-right: 40px;
+            > :first-child {
+              flex-shrink: 0;
+              color: #979ba5;
+            }
 
-              > :first-child {
-                flex-shrink: 0;
-                color: #979ba5;
-              }
-
-              > :last-child {
-                max-width: 240px;
-              }
+            > :last-child {
+              max-width: 240px;
             }
           }
         }
+      }
 
-        .more-message {
-          min-width: 102px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
+      .more-message {
+        min-width: 102px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
 
-        .operation-container {
-          margin-top: 20px;
-          min-height: 770px;
-          padding: 24px 20px 100px;
+      .operation-container {
+        min-height: 770px;
+        padding: 24px 20px 100px;
+        margin-top: 20px;
 
-          @include container-shadow;
-        }
+        @include container-shadow;
       }
     }
-
-    %current-color,
-    .current-color {
-      color: #3a84ff;
-      background-color: #e1ecff;
-    }
   }
+
+  %current-color,
+  .current-color {
+    color: #3a84ff;
+    background-color: #e1ecff;
+  }
+}
 </style>

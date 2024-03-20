@@ -6,7 +6,7 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    border-radius: $width / 2;
     background-color: $backgroundColor;
+    border-radius: calc($width / 2);
   }
 }

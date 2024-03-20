@@ -29,25 +29,43 @@
       <dl class="description-list">
         <div class="description-row">
           <dt class="description-term">{{ $t('索引集名称') }}</dt>
-          <dd class="description-definition" v-bk-overflow-tips>{{ indexSetData.index_set_name || '--' }}</dd>
+          <dd
+            v-bk-overflow-tips
+            class="description-definition"
+          >
+            {{ indexSetData.index_set_name || '--' }}
+          </dd>
           <dt class="description-term">{{ $t('所属集群') }}</dt>
           <dd class="description-definition">{{ indexSetData.storage_cluster_name || '--' }}</dd>
         </div>
         <div class="description-row">
           <dt class="description-term">{{ $t('数据分类') }}</dt>
-          <dd class="description-definition" v-bk-overflow-tips>{{ categoryMap[indexSetData.category_id] || '--' }}</dd>
+          <dd
+            v-bk-overflow-tips
+            class="description-definition"
+          >
+            {{ categoryMap[indexSetData.category_id] || '--' }}
+          </dd>
           <dt class="description-term">{{ $t('创建人') }}</dt>
           <dd class="description-definition">{{ indexSetData.created_by || '--' }}</dd>
         </div>
         <div class="description-row">
           <dt class="description-term">{{ $t('数据源') }}</dt>
-          <dd class="description-definition" v-bk-overflow-tips>{{ scenarioMap[indexSetData.scenario_id] || '--' }}</dd>
+          <dd
+            v-bk-overflow-tips
+            class="description-definition"
+          >
+            {{ scenarioMap[indexSetData.scenario_id] || '--' }}
+          </dd>
           <dt class="description-term">{{ $t('创建时间') }}</dt>
           <dd class="description-definition">{{ indexSetData.created_at.slice(0, 19) || '--' }}</dd>
         </div>
       </dl>
     </section>
-    <section class="partial-content" style="margin-bottom: 20px;">
+    <section
+      class="partial-content"
+      style="margin-bottom: 20px"
+    >
       <div class="main-title">
         {{ $t('采集项') }}
       </div>
@@ -58,8 +76,12 @@
         :max-height="526"
         :pagination="indexesPagination"
         @page-change="handleIndexesPageChange"
-        @page-limit-change="handleIndexesLimitChange">
-        <bk-table-column :label="$t('索引')" prop="result_table_id"></bk-table-column>
+        @page-limit-change="handleIndexesLimitChange"
+      >
+        <bk-table-column
+          :label="$t('索引')"
+          prop="result_table_id"
+        ></bk-table-column>
         <bk-table-column :label="$t('状态')">
           <template slot-scope="{ row }">
             <div :class="['status-text', row.stat.health]">
@@ -87,13 +109,17 @@
             {{ getFileSize(row.stat['store.size']) }}
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('操作')" width="150">
+        <bk-table-column
+          :label="$t('操作')"
+          width="150"
+        >
           <template slot-scope="{ row }">
             <bk-button
               theme="primary"
               text
               :disabled="pagedIndexesList.length === 1"
-              @click="removeIndex(row)">
+              @click="removeIndex(row)"
+            >
               {{ $t('删除') }}
             </bk-button>
           </template>
@@ -112,15 +138,29 @@
         :max-height="526"
         :pagination="recordsPagination"
         @page-change="handleRecordsPageChange"
-        @page-limit-change="handleRecordsLimitChange">
-        <bk-table-column :label="$t('操作日期')" width="200">
+        @page-limit-change="handleRecordsLimitChange"
+      >
+        <bk-table-column
+          :label="$t('操作日期')"
+          width="200"
+        >
           <template slot-scope="{ row }">
             {{ row.created_at.slice(0, 19) }}
           </template>
         </bk-table-column>
-        <bk-table-column :label="$t('操作内容')" prop="content"></bk-table-column>
-        <bk-table-column :label="$t('操作人')" prop="created_by" width="160"></bk-table-column>
-        <bk-table-column :label="$t('操作结果')" width="140">
+        <bk-table-column
+          :label="$t('操作内容')"
+          prop="content"
+        ></bk-table-column>
+        <bk-table-column
+          :label="$t('操作人')"
+          prop="created_by"
+          width="160"
+        ></bk-table-column>
+        <bk-table-column
+          :label="$t('操作结果')"
+          width="140"
+        >
           <template slot-scope="{ row }">
             <div :class="['status-text', row.result && 'success-status']">
               {{ row.result ? $t('成功') : $t('失败') }}
@@ -140,8 +180,8 @@ export default {
   props: {
     indexSetData: {
       type: Object,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
@@ -151,20 +191,20 @@ export default {
       healthMap: {
         green: this.$t('健康'),
         yellow: this.$t('部分故障'),
-        red: this.$t('严重故障'),
+        red: this.$t('严重故障')
       },
       indexesPagination: {
         current: 1,
         limit: 10,
-        count: 0,
+        count: 0
       },
       tableLoading2: true, // 操作记录
       recordsData: [],
       recordsPagination: {
         current: 1,
         limit: 10,
-        count: 0,
-      },
+        count: 0
+      }
     };
   },
   computed: {
@@ -177,13 +217,13 @@ export default {
     },
     categoryMap() {
       const map = {};
-      this.$store.state.globals.globalsData.category.forEach((child) => {
-        child.children.forEach((item) => {
+      this.$store.state.globals.globalsData.category.forEach(child => {
+        child.children.forEach(item => {
           map[item.id] = item.name;
         });
       });
       return map;
-    },
+    }
   },
   created() {
     this.fetchIndexes();
@@ -195,8 +235,8 @@ export default {
         // 获取索引列表
         const res = await this.$http.request('indexSet/indexes', {
           params: {
-            index_set_id: this.indexSetData.index_set_id,
-          },
+            index_set_id: this.indexSetData.index_set_id
+          }
         });
         this.indexesData = res.data.list;
         this.indexesPagination.count = res.data.total;
@@ -229,9 +269,10 @@ export default {
               category_id: this.indexSetData.category_id,
               indexes: this.indexSetData.indexes.filter(item => item.result_table_id !== row.result_table_id),
               view_roles: [], // 兼容后端历史遗留代码
-              space_uid: this.spaceUid,
+              space_uid: this.spaceUid
             };
-            if (this.$route.name.includes('track')) { // 全链路追踪
+            if (this.$route.name.includes('track')) {
+              // 全链路追踪
               requestBody.is_trace_log = true;
             }
             if (this.scenarioId === 'es') {
@@ -239,23 +280,26 @@ export default {
                 time_field: this.indexSetData.time_field,
                 time_field_type: this.indexSetData.time_field_type,
                 time_field_unit: this.indexSetData.time_field_unit,
-                storage_cluster_id: this.indexSetData.storage_cluster_id,
+                storage_cluster_id: this.indexSetData.storage_cluster_id
               });
             }
             const res = await this.$http.request('/indexSet/update', {
               params: {
-                index_set_id: this.$route.params.indexSetId,
+                index_set_id: this.$route.params.indexSetId
               },
-              data: requestBody,
+              data: requestBody
             });
-            this.indexesData.splice(this.indexesData.findIndex(item => item === row), 1);
+            this.indexesData.splice(
+              this.indexesData.findIndex(item => item === row),
+              1
+            );
             this.indexesPagination.count -= 1;
             this.$store.commit('collect/updateCurIndexSet', res.data);
             this.messageSuccess(this.$t('删除成功'));
           } catch (e) {
             console.warn(e);
           }
-        },
+        }
       });
     },
     async fetchRecords() {
@@ -268,8 +312,8 @@ export default {
             record_type: 'index_set',
             record_object_id: this.indexSetData.index_set_id,
             page: this.recordsPagination.current,
-            pagesize: this.recordsPagination.limit,
-          },
+            pagesize: this.recordsPagination.limit
+          }
         });
         this.recordsData = res.data.list;
         this.recordsPagination.count = res.data.total;
@@ -290,66 +334,66 @@ export default {
     },
     getFileSize(size) {
       return formatFileSize(size);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .description-list {
-    font-size: 12px;
-    line-height: 16px;
+.description-list {
+  font-size: 12px;
+  line-height: 16px;
 
-    .description-row {
-      display: flex;
-      align-items: center;
-    }
-
-    .description-term {
-      min-width: 120px;
-      height: 40px;
-      padding-right: 20px;
-      text-align: right;
-      color: #63656e;
-    }
-
-    .description-definition {
-      width: 200px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-right: 10px;
-      height: 40px;
-      color: #313238;
-    }
+  .description-row {
+    display: flex;
+    align-items: center;
   }
 
-  .king-table {
-    :deep(.bk-table-body) {
-      .cell {
-        padding-top: 8px;
-        padding-bottom: 8px;
-      }
-    }
+  .description-term {
+    height: 40px;
+    min-width: 120px;
+    padding-right: 20px;
+    color: #63656e;
+    text-align: right;
   }
 
-  .status-text {
+  .description-definition {
+    width: 200px;
+    height: 40px;
+    margin-right: 10px;
+    overflow: hidden;
+    color: #313238;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.king-table {
+  :deep(.bk-table-body) {
+    .cell {
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+  }
+}
+
+.status-text {
+  color: #ea3636;
+
+  &.success-status {
+    color: #2dcb56;
+  }
+
+  &.green {
+    color: #2dcb56;
+  }
+
+  &.yellow {
+    color: #ff9c01;
+  }
+
+  &.red {
     color: #ea3636;
-
-    &.success-status {
-      color: #2dcb56;;
-    }
-
-    &.green {
-      color: #2dcb56;;
-    }
-
-    &.yellow {
-      color: #ff9c01;;
-    }
-
-    &.red {
-      color: #ea3636;;
-    }
   }
+}
 </style>

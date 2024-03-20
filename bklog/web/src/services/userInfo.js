@@ -22,12 +22,12 @@
 
 const getUserInfo = {
   url: '/api/user/',
-  method: 'get',
+  method: 'get'
 };
 
 const getUsername = {
   url: '/meta/mine/',
-  method: 'get',
+  method: 'get'
 };
 
 export { getUserInfo, getUsername };

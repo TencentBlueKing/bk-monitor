@@ -22,7 +22,7 @@
 
 const getMyProjectList = {
   url: '/api/test/:id/test/',
-  method: 'get',
+  method: 'get'
 };
 
 export { getMyProjectList };

@@ -118,12 +118,24 @@ class SceneServiceNode(MachineLearnNode):
 
     @property
     def config(self):
-        mapping = {
-            field: {
-                "input_field_name": field,
+        group_serving_enabled = self.plan_info.get("properties", {}).get("group_serving_enabled", True)
+        if group_serving_enabled:
+            mapping = {
+                field: {
+                    "input_field_name": field,
+                }
+                for field in self.agg_dimensions
             }
-            for field in self.agg_dimensions
-        }
+            group_dimension = self.agg_dimensions
+            has_group = bool(self.agg_dimensions)
+        else:
+            mapping = {
+                "passthrough_group": {
+                    "input_field_name": self.agg_dimensions,
+                },
+            }
+            group_dimension = []
+            has_group = False
         mapping.update(
             {
                 "timestamp": {
@@ -159,8 +171,8 @@ class SceneServiceNode(MachineLearnNode):
                 "flow_id": 0,  # 创建时填充
                 "input_mapping": {
                     input_field_name: {
-                        "has_group": bool(self.agg_dimensions),
-                        "group_dimension": self.agg_dimensions,
+                        "has_group": has_group,
+                        "group_dimension": group_dimension,
                         "mapping": mapping,
                         "input_dataset_id": self.source_rt_id,
                     }

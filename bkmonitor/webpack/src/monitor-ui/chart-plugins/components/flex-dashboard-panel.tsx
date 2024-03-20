@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { DashboardColumnType, IPanelModel, ObservablePanelField, PanelModel } from '../typings';
@@ -347,7 +348,13 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
     panel?.updateRealHeight(height);
   }
   render() {
-    if (!this.panels?.length) return <div class='dashboard-panel empty-data'>{this.$t('查无数据')}</div>;
+    if (!this.panels?.length)
+      return (
+        <EmptyStatus
+          class='dashboard-panel empty-data'
+          type='empty'
+        ></EmptyStatus>
+      );
     return (
       <div
         id='dashboard-panel'

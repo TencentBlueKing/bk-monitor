@@ -42,29 +42,29 @@
 <script>
 export default {
   model: {
-    event: 'change',
+    event: 'change'
   },
   props: {
     value: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     list: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     allowCreate: {
       type: Boolean,
-      required: true,
+      required: true
     },
     placeholder: {
       type: String,
-      default: '',
-    },
+      default: ''
+    }
   },
   data() {
     return {
-      isError: false,
+      isError: false
     };
   },
   created() {
@@ -101,7 +101,7 @@ export default {
     },
     pasteFn(val) {
       const users = [...this.value];
-      val.split(';').forEach((item) => {
+      val.split(';').forEach(item => {
         item = item.trim();
         if (item) {
           if (this.allowCreate) {
@@ -109,7 +109,7 @@ export default {
               users.push(item);
             }
           } else {
-            this.list.forEach((user) => {
+            this.list.forEach(user => {
               if ((user.displayname === item || user.username === item) && !users.includes(user.username)) {
                 users.push(user.username);
               }
@@ -119,13 +119,13 @@ export default {
       });
       this.$emit('change', users);
       return [];
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .validate-tag-input :deep(.is-error .bk-tag-input) {
-    border-color: #ff5656;
-  }
+.validate-tag-input :deep(.is-error .bk-tag-input) {
+  border-color: #ff5656;
+}
 </style>

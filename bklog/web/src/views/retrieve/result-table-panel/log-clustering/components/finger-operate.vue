@@ -21,7 +21,6 @@
   -->
 <template>
   <div class="fingerprint-setting fl-sb">
-
     <div class="is-near24">
       <bk-checkbox
         v-model="isNear24"
@@ -29,63 +28,79 @@
         :true-value="true"
         :false-value="false"
         :disabled="!fingerOperateData.signatureSwitch"
-        @change="handleShowNearPattern">
+        @change="handleShowNearPattern"
+      >
       </bk-checkbox>
       <span
         @mouseenter="handleShowAlarmPopover"
-        @click="handleChangeTrigger">{{$t('近24H新增')}}</span>
+        @click="handleChangeTrigger"
+        >{{ $t('近24H新增') }}</span
+      >
       <div v-show="false">
         <div
           ref="alarmPopover"
           slot="content"
-          class="alarm-content">
-          <span @click.stop="updateNewClsStrategy">{{!alarmSwitch ? $t('开启告警') : $t('关闭告警')}}</span>
+          class="alarm-content"
+        >
+          <span @click.stop="updateNewClsStrategy">{{ !alarmSwitch ? $t('开启告警') : $t('关闭告警') }}</span>
           <span
             v-if="alarmSwitch"
             class="right-alarm"
-            @click="handleEmitEditAlarm">
-            {{$t('编辑告警')}}</span>
+            @click="handleEmitEditAlarm"
+          >
+            {{ $t('编辑告警') }}</span
+          >
         </div>
       </div>
     </div>
 
-    <div class="pattern fl-sb" style="width: 200px">
+    <div
+      class="pattern fl-sb"
+      style="width: 200px"
+    >
       <span>Pattern</span>
       <div class="pattern-slider-box fl-sb">
-        <span>{{$t('少')}}</span>
+        <span>{{ $t('少') }}</span>
         <bk-slider
-          class="pattern-slider"
           v-model="patternSize"
+          class="pattern-slider"
           data-test-id="fingerTable_slider_patterSize"
           :show-tip="false"
           :disable="!fingerOperateData.signatureSwitch"
           :max-value="fingerOperateData.sliderMaxVal"
-          @change="handleChangepatternSize"></bk-slider>
-        <span>{{$t('多')}}</span>
+          @change="handleChangepatternSize"
+        ></bk-slider>
+        <span>{{ $t('多') }}</span>
       </div>
     </div>
 
     <bk-popover
+      ref="groupPopover"
       ext-cls="popover-content"
       placement="bottom-start"
       width="400"
-      ref="groupPopover"
       :disabled="!fingerOperateData.signatureSwitch"
       :tippy-options="tippyOptions"
-      :on-show="handleShowMorePopover">
+      :on-show="handleShowMorePopover"
+    >
       <div
         v-bk-tooltips="$t('更多')"
         :class="{ 'operation-icon': true, 'disabled-icon': !fingerOperateData.signatureSwitch }"
-        @click="handleClickGroupPopover">
+        @click="handleClickGroupPopover"
+      >
         <span class="bk-icon icon-more"></span>
       </div>
       <div
+        slot="content"
         class="group-popover"
-        slot="content">
+      >
         <div class="piece">
           <span>
             <span class="title">{{ $t('维度') }}</span>
-            <i class="notice log-icon icon-help" v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"></i>
+            <i
+              v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"
+              class="notice log-icon icon-help"
+            ></i>
           </span>
           <bk-select
             v-model="dimension"
@@ -93,16 +108,19 @@
             multiple
             display-tag
             ext-popover-cls="selected-ext"
-            :scroll-height="140">
+            :scroll-height="140"
+          >
             <bk-option
               v-for="option in dimensionList"
-              :key="option.id"
               :id="option.id"
-              :name="option.name">
+              :key="option.id"
+              :name="option.name"
+            >
               <bk-checkbox
                 ext-cls="ext-box"
                 :title="option.name"
-                :checked="dimension.includes(option.id)">
+                :checked="dimension.includes(option.id)"
+              >
                 {{ option.name }}
               </bk-checkbox>
             </bk-option>
@@ -120,16 +138,19 @@
             multiple
             display-tag
             ext-popover-cls="selected-ext"
-            :scroll-height="140">
+            :scroll-height="140"
+          >
             <bk-option
               v-for="option in groupList"
-              :key="option.id"
               :id="option.id"
-              :name="option.name">
+              :key="option.id"
+              :name="option.name"
+            >
               <bk-checkbox
                 ext-cls="ext-box"
                 :title="option.name"
-                :checked="group.includes(option.id)">
+                :checked="group.includes(option.id)"
+              >
                 {{ option.name }}
               </bk-checkbox>
             </bk-option>
@@ -139,8 +160,9 @@
           <span class="title">{{ $t('同比') }}</span>
           <div class="year-on-year">
             <bk-switcher
+              v-model="yearSwitch"
               theme="primary"
-              v-model="yearSwitch">
+            >
             </bk-switcher>
             <bk-select
               v-model="yearOnYearHour"
@@ -148,27 +170,40 @@
               ext-popover-cls="compared-select-option"
               :clearable="false"
               :disabled="!yearSwitch"
-              @toggle="toggleYearSelect">
+              @toggle="toggleYearSelect"
+            >
               <bk-option
                 v-for="option in fingerOperateData.comparedList"
-                :key="option.id"
                 :id="option.id"
-                :name="option.name">
+                :key="option.id"
+                :name="option.name"
+              >
               </bk-option>
-              <div slot="" class="compared-customize">
+              <div
+                slot=""
+                class="compared-customize"
+              >
                 <div
                   v-if="fingerOperateData.isShowCustomize"
                   class="customize-option"
-                  @click="changeCustomizeState(false)">
-                  <span>{{$t('自定义')}}</span>
+                  @click="changeCustomizeState(false)"
+                >
+                  <span>{{ $t('自定义') }}</span>
                 </div>
-                <div style="margin-top: 8px;" v-else>
+                <div
+                  v-else
+                  style="margin-top: 8px"
+                >
                   <bk-input
                     :placeholder="$t('输入自定义同比，按 Enter 确认')"
-                    @enter="handleEnterCompared">
+                    @enter="handleEnterCompared"
+                  >
                   </bk-input>
                   <div class="compared-select-icon">
-                    <span v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')" class="top-end">
+                    <span
+                      v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
+                      class="top-end"
+                    >
                       <i class="log-icon icon-help"></i>
                     </span>
                   </div>
@@ -179,17 +214,19 @@
         </div>
         <div class="popover-button">
           <bk-button
-            style="margin-right: 8px;"
+            style="margin-right: 8px"
             theme="primary"
             size="small"
-            @click="submitPopover">
-            {{$t('保存')}}
+            @click="submitPopover"
+          >
+            {{ $t('保存') }}
           </bk-button>
           <bk-button
             theme="default"
             size="small"
-            @click="cancelPopover">
-            {{$t('取消')}}
+            @click="cancelPopover"
+          >
+            {{ $t('取消') }}
           </bk-button>
         </div>
       </div>
@@ -202,16 +239,16 @@ export default {
   props: {
     fingerOperateData: {
       type: Object,
-      require: true,
+      require: true
     },
     requestData: {
       type: Object,
-      require: true,
+      require: true
     },
     totalFields: {
       type: Array,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
@@ -232,8 +269,8 @@ export default {
         trigger: 'manual',
         hideOnClick: false,
         offset: '16',
-        interactive: true,
-      },
+        interactive: true
+      }
     };
   },
   computed: {
@@ -245,7 +282,7 @@ export default {
     },
     groupList() {
       return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
-    },
+    }
   },
   mounted() {
     this.handleShowMorePopover();
@@ -264,7 +301,7 @@ export default {
       if (!matchVal) {
         this.$bkMessage({
           theme: 'warning',
-          message: this.$t('请按照提示输入'),
+          message: this.$t('请按照提示输入')
         });
         return;
       }
@@ -277,10 +314,10 @@ export default {
       }
       propComparedList.push({
         id: Number(matchVal[1]),
-        name: this.$t('{n} 小时前', { n: matchVal[1] }),
+        name: this.$t('{n} 小时前', { n: matchVal[1] })
       });
       this.$emit('handleFingerOperate', 'fingerOperateData', {
-        comparedList: propComparedList,
+        comparedList: propComparedList
       });
       this.yearOnYearHour = Number(matchVal[1]);
     },
@@ -288,7 +325,12 @@ export default {
       this.$emit('handleFingerOperate', 'requestData', { show_new_pattern: state }, true);
     },
     handleChangepatternSize(val) {
-      this.$emit('handleFingerOperate', 'requestData', { pattern_level: this.fingerOperateData.patternList[val] }, true);
+      this.$emit(
+        'handleFingerOperate',
+        'requestData',
+        { pattern_level: this.fingerOperateData.patternList[val] },
+        true
+      );
     },
     changeCustomizeState(val) {
       this.$emit('handleFingerOperate', 'fingerOperateData', { isShowCustomize: val });
@@ -312,7 +354,7 @@ export default {
       if (!this.interactType) {
         this.popoverInstance?.set({
           trigger: 'click',
-          hideOnClick: true,
+          hideOnClick: true
         });
       }
       this.interactType = true;
@@ -326,7 +368,7 @@ export default {
         arrow: true,
         theme: 'light',
         interactive: true,
-        hideOnClick: false,
+        hideOnClick: false
       });
       this.popoverInstance && this.popoverInstance.show();
     },
@@ -334,16 +376,18 @@ export default {
      * @desc: 查询新类告警
      */
     initNewClsStrategy() {
-      this.$http.request('/logClustering/getNewClsStrategy', {
-        params: {
-          index_set_id: this.$route.params.indexId,
-        },
-      }).then((res) => {
-        this.$emit('handleFingerOperate', 'fingerOperateData', {
-          alarmObj: res.data,
+      this.$http
+        .request('/logClustering/getNewClsStrategy', {
+          params: {
+            index_set_id: this.$route.params.indexId
+          }
+        })
+        .then(res => {
+          this.$emit('handleFingerOperate', 'fingerOperateData', {
+            alarmObj: res.data
+          });
+          this.alarmSwitch = res.data.is_active;
         });
-        this.alarmSwitch = res.data.is_active;
-      });
     },
     /**
      * @desc: 更新新类告警
@@ -354,50 +398,57 @@ export default {
       const queryObj = {
         bk_biz_id: this.bkBizId,
         strategy_id: strategyID,
-        action,
+        action
       };
       // 开启新类告警时需删除strategy_id字段
       !this.alarmSwitch && delete queryObj.strategy_id;
-      this.isRequestAlarm = true,
-      this.$http.request('/logClustering/updateNewClsStrategy', {
-        params: {
-          index_set_id: this.$route.params.indexId,
-        },
-        data: { ...queryObj },
-      }).then((res) => {
-        if (res.result) {
-          this.popoverInstance.hide();
-          this.$emit('handleFingerOperate', 'fingerOperateData', {
-            alarmObj: {
-              strategy_id: res.data,
-              is_active: !this.alarmSwitch,
+      (this.isRequestAlarm = true),
+        this.$http
+          .request('/logClustering/updateNewClsStrategy', {
+            params: {
+              index_set_id: this.$route.params.indexId
             },
+            data: { ...queryObj }
+          })
+          .then(res => {
+            if (res.result) {
+              this.popoverInstance.hide();
+              this.$emit('handleFingerOperate', 'fingerOperateData', {
+                alarmObj: {
+                  strategy_id: res.data,
+                  is_active: !this.alarmSwitch
+                }
+              });
+              this.$bkMessage({
+                theme: 'success',
+                message: this.$t('操作成功'),
+                ellipsisLine: 0
+              });
+              setTimeout(() => {
+                this.alarmSwitch = !this.alarmSwitch;
+              }, 200);
+            }
+          })
+          .finally(() => {
+            this.isRequestAlarm = false;
           });
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('操作成功'),
-            ellipsisLine: 0,
-          });
-          setTimeout(() => {
-            this.alarmSwitch = !this.alarmSwitch;
-          }, 200);
-        }
-      })
-        .finally(() => {
-          this.isRequestAlarm = false;
-        });
     },
     async submitPopover() {
       await this.updateInitGroup();
       this.$emit('handleFingerOperate', 'fingerOperateData', {
         dimensionList: this.dimension,
         selectGroupList: this.group,
-        yearSwitch: this.yearSwitch,
+        yearSwitch: this.yearSwitch
       });
-      this.$emit('handleFingerOperate', 'requestData', {
-        group_by: [...this.group, ...this.dimension],
-        year_on_year_hour: this.yearSwitch ? this.yearOnYearHour : 0,
-      }, true);
+      this.$emit(
+        'handleFingerOperate',
+        'requestData',
+        {
+          group_by: [...this.group, ...this.dimension],
+          year_on_year_hour: this.yearSwitch ? this.yearOnYearHour : 0
+        },
+        true
+      );
       this.cancelPopover();
     },
     /**
@@ -406,11 +457,11 @@ export default {
     async updateInitGroup() {
       await this.$http.request('/logClustering/updateInitGroup', {
         params: {
-          index_set_id: this.$route.params.indexId,
+          index_set_id: this.$route.params.indexId
         },
         data: {
-          group_fields: this.dimension,
-        },
+          group_fields: this.dimension
+        }
       });
     },
     cancelPopover() {
@@ -429,8 +480,8 @@ export default {
       this.group = finger.selectGroupList;
       this.yearSwitch = finger.yearSwitch;
       this.yearOnYearHour = finger.yearOnYearHour;
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
@@ -438,8 +489,8 @@ export default {
 
 .fingerprint-setting {
   height: 32px;
-  line-height: 24px;
   font-size: 12px;
+  line-height: 24px;
   flex-shrink: 0;
 
   > div {
@@ -450,10 +501,10 @@ export default {
     @include flex-center;
 
     > span {
-      border-bottom: 1px dashed #979ba5;
       margin-left: 4px;
       line-height: 16px;
       cursor: pointer;
+      border-bottom: 1px dashed #979ba5;
     }
   }
 
@@ -473,15 +524,15 @@ export default {
 .compared-select-option {
   .compared-customize {
     position: relative;
-    margin-bottom: 8px;
     top: -3px;
+    margin-bottom: 8px;
   }
 
   .compared-select-icon {
-    font-size: 14px;
     position: absolute;
     top: 0;
     right: 22px;
+    font-size: 14px;
   }
 
   .customize-option {
@@ -506,17 +557,17 @@ export default {
 }
 
 .alarm-content {
-  color: #3a84ff;
   font-size: 12px;
+  color: #3a84ff;
   cursor: pointer;
 
   .right-alarm {
     margin-left: 6px;
 
     &:before {
-      content: '|';
       margin-right: 6px;
       color: #dcdee5;
+      content: '|';
     }
   }
 }
@@ -547,26 +598,26 @@ export default {
     }
 
     .notice {
-      color: #979ba5;
       font-size: 14px;
+      color: #979ba5;
       cursor: pointer;
     }
 
     .group-alert {
       position: relative;
-      margin: 6px 0 14px 0;
       padding: 6px 30px;
+      margin: 6px 0 14px 0;
       line-height: 20px;
       color: #63656e;
       background: #f0f1f5;
       border-radius: 2px;
 
       .icon-info {
-        color: #979ba5;
-        font-size: 16px;
         position: absolute;
         top: 8px;
         left: 8px;
+        font-size: 16px;
+        color: #979ba5;
       }
     }
 
@@ -582,62 +633,61 @@ export default {
     .popover-button {
       padding: 12px 0;
 
-      @include flex-justify(end);
+      @include flex-justify(flex-end);
     }
   }
 }
 
 .ext-box {
-  height: 32px;
-
   /* stylelint-disable-next-line declaration-no-important */
   display: flex !important;
+  height: 32px;
 
   @include flex-center();
 
   :deep(.bk-checkbox-text) {
-    /* stylelint-disable-next-line declaration-no-important */
-    font-size: 12px !important;
     width: calc(100% - 20px);
     overflow: hidden;
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 }
 
 .disabled-icon {
+  cursor: not-allowed;
   background-color: #fff;
   border-color: #dcdee5;
-  cursor: not-allowed;
 
   &:hover,
   .log-icon {
-    border-color: #dcdee5;
     color: #c4c6cc;
+    border-color: #dcdee5;
   }
 }
 
 .operation-icon {
   display: flex;
-  justify-content: center;
-  align-items: center;
   width: 26px;
   height: 26px;
   margin-left: 10px;
   cursor: pointer;
   border: 1px solid #c4c6cc;
-  transition: boder-color .2s;
   border-radius: 2px;
   outline: none;
+  transition: boder-color 0.2s;
+  justify-content: center;
+  align-items: center;
 
   &:hover {
     border-color: #979ba5;
-    transition: boder-color .2s;
+    transition: boder-color 0.2s;
   }
 
   &:active {
     border-color: #3a84ff;
-    transition: boder-color .2s;
+    transition: boder-color 0.2s;
   }
 
   .icon-more {

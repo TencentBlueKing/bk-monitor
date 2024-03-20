@@ -24,20 +24,35 @@
   <div
     class="echart-annotation"
     v-show="annotation.show"
-    :style="{ left: annotation.x + 'px', top: annotation.y + 'px' }">
-    <div class="echart-annotation-title">{{ annotation.title}}</div>
+    :style="{ left: annotation.x + 'px', top: annotation.y + 'px' }"
+  >
+    <div class="echart-annotation-title">{{ annotation.title }}</div>
     <div class="echart-annotation-name">
-      <span class="name-mark" :style="{ backgroundColor: annotation.color }"></span>{{annotation.name}}
+      <span
+        class="name-mark"
+        :style="{ backgroundColor: annotation.color }"
+      ></span
+      >{{ annotation.name }}
     </div>
     <ul class="echart-annotation-list">
       <template v-for="item in annotation.list">
-        <li class="list-item" v-if="item.show" :key="item.id" @click="handleGotoDetail(item)">
-          <span class="icon-monitor item-icon" :class="`icon-mc-${item.id}`"></span>
-          <span> {{toolBarMap[item.id]}}
+        <li
+          class="list-item"
+          v-if="item.show"
+          :key="item.id"
+          @click="handleGotoDetail(item)"
+        >
+          <span
+            class="icon-monitor item-icon"
+            :class="`icon-mc-${item.id}`"
+          ></span>
+          <span>
+            {{ toolBarMap[item.id] }}
             <span
               v-if="item.id === 'ip'"
-              style="color: #c4c6cc">
-              {{`(${item.value.split('-').reverse().join(':')})`}}
+              style="color: #c4c6cc"
+            >
+              {{ `(${item.value.split('-').reverse().join(':')})` }}
             </span>
           </span>
           <i class="icon-monitor icon-mc-link list-item-link"></i>
@@ -53,12 +68,12 @@ import { IAnnotation, IAnnotationListItem } from '../options/type-interface';
 
 @Component({ name: 'ChartAnnotation' })
 export default class ChartAnnotation extends Vue {
-  @Prop({ required: true })annotation: IAnnotation
+  @Prop({ required: true }) annotation: IAnnotation;
   get toolBarMap() {
     return {
       ip: this.$t('相关主机详情'),
       process: this.$t('相关进程信息'),
-      strategy: this.$t('相关策略'),
+      strategy: this.$t('相关策略')
     };
   }
   handleGotoDetail(item: IAnnotationListItem) {
@@ -67,10 +82,9 @@ export default class ChartAnnotation extends Vue {
         window.open(location.href.replace(location.hash, `#/performance/detail/${item.value}`));
         break;
       case 'process':
-        window.open(location.href.replace(
-          location.hash,
-          `#/performance/detail-new/${item.value.id}/${item.value.processId}`,
-        ));
+        window.open(
+          location.href.replace(location.hash, `#/performance/detail-new/${item.value.id}/${item.value.processId}`)
+        );
         break;
       case 'strategy':
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${item.value}`));
@@ -81,72 +95,71 @@ export default class ChartAnnotation extends Vue {
 </script>
 
 <style lang="scss" scoped>
-  .echart-annotation {
-    position: absolute;
-    min-height: 84px;
-    width: 220px;
-    background: white;
-    border-radius: 2px;
-    box-shadow: 0px 4px 12px 0px rgba(0,0,0,.2);
-    z-index: 99;
-    font-size: 12px;
-    color: #63656e;
+.echart-annotation {
+  position: absolute;
+  z-index: 99;
+  width: 220px;
+  min-height: 84px;
+  font-size: 12px;
+  color: #63656e;
+  background: white;
+  border-radius: 2px;
+  box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.2);
 
-    &-title {
-      margin: 6px 0 0 16px;
-      line-height: 20px;
+  &-title {
+    margin: 6px 0 0 16px;
+    line-height: 20px;
+  }
+
+  &-name {
+    display: flex;
+    height: 20px;
+    max-width: 90%;
+    padding-left: 18px;
+    margin-top: 2px;
+    overflow: hidden;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-bottom: 1px solid #f0f1f5;
+    align-items: center;
+
+    .name-mark {
+      flex: 0 0 12px;
+      height: 4px;
+      margin-right: 10px;
     }
+  }
 
-    &-name {
-      margin-top: 2px;
-      padding-left: 18px;
-      height: 20px;
+  &-list {
+    display: flex;
+    flex-direction: column;
+
+    .list-item {
+      flex: 0 0 30px;
       display: flex;
       align-items: center;
-      font-weight: 700;
-      border-bottom: 1px solid #f0f1f5;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 90%;
+      padding-left: 16px;
 
-      .name-mark {
-        flex: 0 0 12px;
-        height: 4px;
+      .item-icon {
+        width: 16px;
+        height: 16px;
         margin-right: 10px;
+        font-size: 16px;
       }
-    }
 
-    &-list {
-      display: flex;
-      flex-direction: column;
+      &-link {
+        margin-right: 6px;
+        margin-left: auto;
+        font-size: 12px;
+      }
 
-      .list-item {
-        flex: 0 0 30px;
-        display: flex;
-        align-items: center;
-        padding-left: 16px;
-
-        .item-icon {
-          margin-right: 10px;
-          font-size: 16px;
-          margin-right: 10px;
-          height: 16px;
-          width: 16px;
-        }
-
-        &-link {
-          font-size: 12px;
-          margin-left: auto;
-          margin-right: 6px;
-        }
-
-        &:hover {
-          background-color: #e1ecff;
-          cursor: pointer;
-          color: #3a84ff;
-        }
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+        background-color: #e1ecff;
       }
     }
   }
+}
 </style>

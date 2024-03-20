@@ -22,21 +22,32 @@
 
 <template>
   <div>
-    <div class="result-table-container" data-test-id="retrieve_from_fieldForm">
+    <div
+      class="result-table-container"
+      data-test-id="retrieve_from_fieldForm"
+    >
       <keep-alive>
         <component
           :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
           v-bind="$attrs"
-          v-on="$listeners"
           :table-list="tableList"
           :retrieve-params="retrieveParams"
           :handle-click-tools="handleClickTools"
+          v-on="$listeners"
         ></component>
       </keep-alive>
 
       <!-- 表格底部内容 -->
-      <p class="more-desc" v-if="tableList.length === limitCount">{{ $t('仅展示检索结果的前2000条，如果要查看更多请优化查询条件') }}
-        <a href="javascript: void(0);" @click="scrollToTop">{{ $t('返回顶部') }}</a>
+      <p
+        v-if="tableList.length === limitCount"
+        class="more-desc"
+      >
+        {{ $t('仅展示检索结果的前2000条，如果要查看更多请优化查询条件') }}
+        <a
+          href="javascript: void(0);"
+          @click="scrollToTop"
+          >{{ $t('返回顶部') }}</a
+        >
       </p>
     </div>
 
@@ -51,20 +62,23 @@
       :mask-close="false"
       :esc-close="false"
       :show-footer="false"
-      @after-leave="hideDialog">
+      @after-leave="hideDialog"
+    >
       <real-time-log
         v-if="logDialog.type === 'realTimeLog'"
         :title="logDialog.title"
         :log-params="logDialog.data"
         @toggleScreenFull="toggleScreenFull"
-        @close-dialog="hideDialog" />
+        @close-dialog="hideDialog"
+      />
       <context-log
         v-if="logDialog.type === 'contextLog'"
         :title="logDialog.title"
         :retrieve-params="retrieveParams"
         :log-params="logDialog.data"
         @toggleScreenFull="toggleScreenFull"
-        @close-dialog="hideDialog" />
+        @close-dialog="hideDialog"
+      />
     </bk-dialog>
   </div>
 </template>
@@ -82,22 +96,22 @@ export default {
     RealTimeLog,
     ContextLog,
     OriginalList,
-    TableList,
+    TableList
   },
   mixins: [tableRowDeepViewMixin],
   props: {
     retrieveParams: {
       type: Object,
-      required: true,
+      required: true
     },
     tableList: {
       type: Array,
-      required: true,
+      required: true
     },
     showOriginal: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   data() {
     return {
@@ -110,15 +124,15 @@ export default {
         visible: false,
         headerPosition: 'left',
         fullscreen: true,
-        data: {},
-      },
+        data: {}
+      }
     };
   },
   computed: {
     ...mapState({
-      bkBizId: state => state.bkBizId,
+      bkBizId: state => state.bkBizId
     }),
-    ...mapState('globals', ['fieldTypeMap']),
+    ...mapState('globals', ['fieldTypeMap'])
   },
   methods: {
     // 滚动到顶部
@@ -142,7 +156,7 @@ export default {
       if (cluster && containerID) {
         queryData = {
           cluster_id: encodeURIComponent(cluster),
-          container_id: containerID,
+          container_id: containerID
         };
       } else {
         if (!__ext) return;
@@ -150,25 +164,27 @@ export default {
         queryData = { container_id: __ext.container_id };
         if (__ext.io_tencent_bcs_cluster) {
           Object.assign(queryData, {
-            cluster_id: encodeURIComponent(__ext.io_tencent_bcs_cluster),
+            cluster_id: encodeURIComponent(__ext.io_tencent_bcs_cluster)
           });
         } else if (__ext.bk_bcs_cluster_id) {
           Object.assign(queryData, {
-            cluster_id: encodeURIComponent(__ext.bk_bcs_cluster_id),
+            cluster_id: encodeURIComponent(__ext.bk_bcs_cluster_id)
           });
         }
       }
       if (!queryData.cluster_id || !queryData.container_id) return;
       this.webConsoleLoading = true;
-      this.$http.request('retrieve/getWebConsoleUrl', {
-        params: {
-          index_set_id: this.$route.params.indexId,
-        },
-        query: queryData,
-      }).then((res) => {
-        window.open(res.data);
-      })
-        .catch((e) => {
+      this.$http
+        .request('retrieve/getWebConsoleUrl', {
+          params: {
+            index_set_id: this.$route.params.indexId
+          },
+          query: queryData
+        })
+        .then(res => {
+          window.open(res.data);
+        })
+        .catch(e => {
           console.warn(e);
         })
         .finally(() => {
@@ -182,7 +198,7 @@ export default {
         // 传参配置指定字段
         if (Array.isArray(contextFields) && contextFields.length) {
           contextFields.push(config.timeField);
-          contextFields.forEach((field) => {
+          contextFields.forEach(field => {
             if (field === 'bk_host_id') {
               if (row[field]) dialogNewParams[field] = row[field];
             } else {
@@ -205,262 +221,262 @@ export default {
     toggleScreenFull(isScreenFull) {
       this.logDialog.width = isScreenFull ? '100%' : 1078;
       this.logDialog.fullscreen = isScreenFull;
-    },
-  },
+    }
+  }
 };
 </script>
 
-
 <style lang="scss">
-  .tippy-tooltip.light-theme.bk-table-setting-popover-content-theme {
-    padding: 0;
+/* stylelint-disable no-descending-specificity */
+.tippy-tooltip.light-theme.bk-table-setting-popover-content-theme {
+  padding: 0;
+}
+
+.result-table-container {
+  position: relative;
+  background: #fff;
+
+  .is-hidden-table-header {
+    & .bk-table-header-wrapper,
+    .is-right {
+      display: none;
+    }
   }
 
-  .result-table-container {
-    position: relative;
-    background: #fff;
+  .king-table {
+    margin-top: 12px;
 
-    .is-hidden-table-header {
-      & .bk-table-header-wrapper,
-      .is-right {
-        display: none;
+    td {
+      vertical-align: top;
+    }
+
+    .bk-table-body-wrapper {
+      min-height: calc(100vh - 550px);
+      color: #313238;
+
+      .bk-table-empty-block {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: calc(100vh - 600px);
       }
     }
 
-    .king-table {
-      margin-top: 12px;
+    .cell {
+      .operation-button:not(:last-child) {
+        padding-right: 8px;
+      }
+    }
 
-      td {
-        vertical-align: top;
+    td mark {
+      color: #313238;
+      background: #f3e186;
+    }
+
+    :deep(.result-table-loading) {
+      width: calc(100% - 2px);
+      height: calc(100% - 2px);
+    }
+
+    .handle-card {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-left: 10px;
+
+      &:first-child {
+        margin-left: 0;
+      }
+    }
+
+    .icon-handle {
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .time-field {
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .original-str,
+    .visiable-field {
+      .str-content {
+        position: relative;
+        line-height: 20px;
+
+        &.is-limit {
+          max-height: 116px;
+        }
       }
 
-      .bk-table-body-wrapper {
-        color: #313238;
-        min-height: calc(100vh - 550px);
+      &.is-wrap {
+        .str-content {
+          display: block;
+          overflow: hidden;
+        }
+      }
 
-        .bk-table-empty-block {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: calc(100vh - 600px);
+      .origin-str {
+        line-height: 24px;
+        color: #313238;
+      }
+
+      .show-whole-btn {
+        position: absolute;
+        top: 93px;
+        width: 100%;
+        height: 24px;
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+        background: #fff;
+        transition: background-color 0.25s ease;
+      }
+
+      .hide-whole-btn {
+        margin-top: -2px;
+        line-height: 14px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    .original-time {
+      padding-top: 14px;
+
+      .cell {
+        padding-left: 2px;
+      }
+    }
+
+    .hover-row {
+      .show-whole-btn {
+        background-color: #f5f7fa;
+      }
+    }
+
+    .original-str {
+      .hide-whole-btn {
+        margin-top: 4px;
+      }
+
+      .cell {
+        padding: 10px 14px 0 14px;
+      }
+
+      &.is-wrap .cell {
+        padding: 10px 14px 8px;
+      }
+    }
+
+    td.bk-table-expanded-cell {
+      padding: 0;
+    }
+
+    .bk-table-column-expand .bk-icon {
+      top: 21px;
+    }
+
+    &.is-wrap td .cell {
+      display: inline-table;
+    }
+
+    .bk-table-empty-text {
+      width: 100%;
+      padding: 0;
+    }
+
+    .visiable-field {
+      .str-content {
+        &.is-limit {
+          max-height: 100px;
         }
       }
 
       .cell {
-        .operation-button:not(:last-child) {
-          padding-right: 8px;
-        }
+        padding: 12px 14px 0 14px;
       }
 
-      td mark {
-        background: #f3e186;
-        color: #313238;
+      &.is-wrap .cell {
+        padding: 12px 14px 8px;
       }
 
-      :deep(.result-table-loading) {
-        width: calc(100% - 2px);
-        height: calc(100% - 2px);
-      }
-
-      .handle-card {
-        display: inline-block;
-        margin-left: 10px;
-        width: 14px;
-        height: 14px;
-
-        &:first-child {
-          margin-left: 0;
-        }
-      }
-
-      .icon-handle {
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
-
-        &:hover {
-          color: #3a84ff;
-        }
-      }
-
-      .time-field {
-        font-weight: 700;
-        white-space: nowrap;
-      }
-
-      .original-str,
-      .visiable-field {
-        .str-content {
-          position: relative;
-          line-height: 20px;
-
-          &.is-limit {
-            max-height: 116px;
-          }
-        }
-
-        &.is-wrap {
-          .str-content {
-            display: block;
-            overflow: hidden;
-          }
-        }
-
-        .origin-str {
-          color: #313238;
-          line-height: 24px;
-        }
-
-        .show-whole-btn {
-          position: absolute;
-          top: 93px;
-          width: 100%;
-          height: 24px;
-          color: #3a84ff;
-          font-size: 12px;
-          background: #fff;
-          cursor: pointer;
-          transition: background-color .25s ease;
-        }
-
-        .hide-whole-btn {
-          line-height: 14px;
-          margin-top: -2px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
-
-      .original-time {
-        padding-top: 14px;
-
-        .cell {
-          padding-left: 2px;
-        }
-      }
-
-      .hover-row {
-        .show-whole-btn {
-          background-color: #f5f7fa;
-        }
-      }
-
-      .original-str {
-        .hide-whole-btn {
-          margin-top: 4px;
-        }
-
-        .cell {
-          padding: 10px 14px 0 14px;
-        }
-
-        &.is-wrap .cell {
-          padding: 10px 14px 8px;
-        }
-      }
-
-      td.bk-table-expanded-cell {
-        padding: 0;
-      }
-
-      .bk-table-column-expand .bk-icon {
-        top: 21px;
-      }
-
-      &.is-wrap td .cell {
-        display: inline-table;
-      }
-
-      .bk-table-empty-text {
-        padding: 0;
-        width: 100%;
-      }
-
-      .visiable-field {
-        .str-content {
-          &.is-limit {
-            max-height: 100px;
-          }
-        }
-
-        .cell {
-          padding: 12px 14px 0 14px;
-        }
-
-        &.is-wrap .cell {
-          padding: 12px 14px 8px;
-        }
-
-        .show-whole-btn {
-          top: 83px;
-        }
-      }
-
-      .row-hover {
-        background: #fff;
-      }
-
-      th .cell {
-        /* stylelint-disable-next-line declaration-no-important */
-        padding: 0 15px !important;
-      }
-
-      &.original-table .bk-table-column-expand .bk-icon {
-        top: 20px;
+      .show-whole-btn {
+        top: 83px;
       }
     }
 
-    .render-header {
-      .field-type-icon {
-        width: 12px;
-        margin: 0 4px 0 0;
-        font-size: 12px;
-        color: #979ba5;
-      }
-
-      .toggle-display {
-        position: absolute;
-        right: 12px;
-        top: 16px;
-        color: #c4c6cc;
-        cursor: pointer;
-        display: none;
-
-        &:hover {
-          color: #ea3636;
-        }
-
-        &.is-hidden {
-          visibility: hidden;
-        }
-      }
-
-      .timer-formatter {
-        transform: translateY(-1px);
-      }
+    .row-hover {
+      background: #fff;
     }
 
-    th .cell:hover {
-      .toggle-display {
-        display: inline-block;
-      }
-    }
-  }
-  // 日志全屏状态下的样式
-  .log-full-dialog {
-    :deep(.bk-dialog-content) {
+    th .cell {
       /* stylelint-disable-next-line declaration-no-important */
-      margin-bottom: 0 !important;
+      padding: 0 15px !important;
+    }
+
+    &.original-table .bk-table-column-expand .bk-icon {
+      top: 20px;
     }
   }
 
-  .more-desc {
-    font-size: 12px;
-    text-align: center;
-    color: #979ba5;
+  .render-header {
+    .field-type-icon {
+      width: 12px;
+      margin: 0 4px 0 0;
+      font-size: 12px;
+      color: #979ba5;
+    }
 
-    a {
-      color: #3a84ff;
+    .toggle-display {
+      position: absolute;
+      top: 16px;
+      right: 12px;
+      display: none;
+      color: #c4c6cc;
+      cursor: pointer;
+
+      &:hover {
+        color: #ea3636;
+      }
+
+      &.is-hidden {
+        visibility: hidden;
+      }
+    }
+
+    .timer-formatter {
+      transform: translateY(-1px);
     }
   }
+
+  th .cell:hover {
+    .toggle-display {
+      display: inline-block;
+    }
+  }
+}
+// 日志全屏状态下的样式
+.log-full-dialog {
+  :deep(.bk-dialog-content) {
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-bottom: 0 !important;
+  }
+}
+
+.more-desc {
+  font-size: 12px;
+  color: #979ba5;
+  text-align: center;
+
+  a {
+    color: #3a84ff;
+  }
+}
 </style>

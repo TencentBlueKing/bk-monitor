@@ -9,8 +9,8 @@
 
   .icon-funnel {
     font-size: 14px;
-    cursor: pointer;
     color: #c4c6cc;
+    cursor: pointer;
   }
 
   .is-active {
@@ -53,6 +53,6 @@
   .extension-box {
     padding: 12px 0;
 
-    @include flex-justify(start);
+    @include flex-justify(flex-start);
   }
 }

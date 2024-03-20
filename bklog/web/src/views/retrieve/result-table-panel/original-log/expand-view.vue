@@ -24,17 +24,22 @@
   <div class="expand-view-wrapper">
     <div class="view-tab">
       <span
-        :class="{ 'active': activeExpandView === 'kv' }"
-        @click="activeExpandView = 'kv'">
+        :class="{ active: activeExpandView === 'kv' }"
+        @click="activeExpandView = 'kv'"
+      >
         KV
       </span>
       <span
-        :class="{ 'active': activeExpandView === 'json' }"
-        @click="activeExpandView = 'json'">
+        :class="{ active: activeExpandView === 'json' }"
+        @click="activeExpandView = 'json'"
+      >
         JSON
       </span>
     </div>
-    <div class="view-content kv-view-content" v-show="activeExpandView === 'kv'">
+    <div
+      v-show="activeExpandView === 'kv'"
+      class="view-content kv-view-content"
+    >
       <kv-list
         v-bind="$attrs"
         :data="data"
@@ -42,10 +47,17 @@
         :field-list="totalFields"
         :total-fields="totalFields"
         :kv-show-fields-list="kvShowFieldsList"
-        @menuClick="(val, isLink) => $emit('menuClick', val, isLink)" />
+        @menuClick="(val, isLink) => $emit('menuClick', val, isLink)"
+      />
     </div>
-    <div class="view-content json-view-content" v-show="activeExpandView === 'json'">
-      <VueJsonPretty :deep="5" :data="jsonShowData" />
+    <div
+      v-show="activeExpandView === 'json'"
+      class="view-content json-view-content"
+    >
+      <VueJsonPretty
+        :deep="5"
+        :data="jsonShowData"
+      />
     </div>
   </div>
 </template>
@@ -57,30 +69,30 @@ import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 
 export default {
   components: {
-    KvList,
+    KvList
   },
   mixins: [tableRowDeepViewMixin],
   props: {
     data: {
       type: Object,
-      default: () => {},
+      default: () => {}
     },
     totalFields: {
       type: Array,
-      required: true,
+      required: true
     },
     listData: {
       type: Object,
-      default: () => {},
+      default: () => {}
     },
     kvShowFieldsList: {
       type: Array,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
-      activeExpandView: 'kv',
+      activeExpandView: 'kv'
     };
   },
   computed: {
@@ -99,56 +111,56 @@ export default {
         pre[cur.field_name] = this.tableRowDeepView(showTableData, cur.field_name, cur.field_type) ?? '';
         return pre;
       }, {});
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .expand-view-wrapper {
-    color: #313238;
+.expand-view-wrapper {
+  color: #313238;
 
-    .view-tab {
-      font-size: 0;
-      background-color: #fafbfd;
+  .view-tab {
+    font-size: 0;
+    background-color: #fafbfd;
 
-      span {
-        display: inline-block;
-        width: 68px;
-        height: 26px;
-        line-height: 26px;
-        font-size: 12px;
-        border: 1px solid #eaebf0;
-        background-color: #f5f7fa;
-        border-top: 0;
-        text-align: center;
-        cursor: pointer;
+    span {
+      display: inline-block;
+      width: 68px;
+      height: 26px;
+      font-size: 12px;
+      line-height: 26px;
+      text-align: center;
+      cursor: pointer;
+      background-color: #f5f7fa;
+      border: 1px solid #eaebf0;
+      border-top: 0;
 
-        &:first-child {
-          border-left: 0;
-        }
-
-        &.active {
-          border: 0;
-          color: #3a84ff;
-          background-color: #fafbfd;
-        }
+      &:first-child {
+        border-left: 0;
       }
-    }
 
-    .view-content {
-      padding: 10px 30px;
-      background-color: #fafbfd;
-
-      :deep(.vjs-tree) {
-        /* stylelint-disable-next-line declaration-no-important */
-        font-size: 12px !important;
-
-        .vjs-value__string {
-          white-space: pre-wrap;
-          tab-size: 3;
-        }
+      &.active {
+        color: #3a84ff;
+        background-color: #fafbfd;
+        border: 0;
       }
     }
   }
+
+  .view-content {
+    padding: 10px 30px;
+    background-color: #fafbfd;
+
+    :deep(.vjs-tree) {
+      /* stylelint-disable-next-line declaration-no-important */
+      font-size: 12px !important;
+
+      .vjs-value__string {
+        white-space: pre-wrap;
+        tab-size: 3;
+      }
+    }
+  }
+}
 </style>

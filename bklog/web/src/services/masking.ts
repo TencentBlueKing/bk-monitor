@@ -23,117 +23,116 @@
 /**
  * 获取规则详情
  */
- const getDesensitize = {
+const getDesensitize = {
   url: 'desensitize/rule/:rule_id/',
-  method: 'get',
+  method: 'get'
 };
 /**
  * 脱敏规则正则调试
  */
- const desensitizeDebug = {
+const desensitizeDebug = {
   url: '/desensitize/rule/debug/',
-  method: 'post',
+  method: 'post'
 };
 /**
  * 获取索引集脱敏配置详情
  */
- const getMaskingConfig = {
+const getMaskingConfig = {
   url: '/index_set/:index_set_id/desensitize/config/retrieve/',
-  method: 'get',
+  method: 'get'
 };
 /**
  * 获取当前日志查询字符串
  */
- const getMaskingSearchStr = {
+const getMaskingSearchStr = {
   url: '/search/index_set/:index_set_id/search/original/',
-  method: 'post',
+  method: 'post'
 };
 /**
  * 接口获取脱敏预览
  */
- const getConfigPreview = {
+const getConfigPreview = {
   url: '/desensitize/rule/preview/',
-  method: 'post',
+  method: 'post'
 };
 /**
  * 匹配脱敏规则
  */
- const matchMaskingRule = {
+const matchMaskingRule = {
   url: '/desensitize/rule/match/',
-  method: 'post',
+  method: 'post'
 };
 
 /**
  * 获取规则列表
  */
- const getMaskingRuleList = {
+const getMaskingRuleList = {
   url: '/desensitize/rule/?space_uid=:space_uid&rule_type=:rule_type',
-  method: 'get',
+  method: 'get'
 };
-
 
 /**
  * 删除规则
  */
- const deleteRule = {
+const deleteRule = {
   url: '/desensitize/rule/:rule_id/',
-  method: 'delete',
+  method: 'delete'
 };
 /**
  * 启用规则
  */
- const startDesensitize = {
+const startDesensitize = {
   url: '/desensitize/rule/:rule_id/start/',
-  method: 'post',
+  method: 'post'
 };
 /**
  * 停用规则
  */
- const stopDesensitize = {
+const stopDesensitize = {
   url: '/desensitize/rule/:rule_id/stop/',
-  method: 'post',
+  method: 'post'
 };
 /**
  * 更新规则
  */
 const updateDesensitize = {
   url: '/desensitize/rule/:rule_id/',
-  method: 'put',
+  method: 'put'
 };
 /**
  * 创建规则
  */
- const createDesensitize = {
+const createDesensitize = {
   url: '/desensitize/rule/',
-  method: 'post',
+  method: 'post'
 };
 /**
  * 创建日志脱敏配置
  */
- const createDesensitizeConfig = {
+const createDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/create/',
-  method: 'post',
+  method: 'post'
 };
 /**
  * 创建日志脱敏配置
  */
- const updateDesensitizeConfig = {
+const updateDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/update/',
-  method: 'put',
+  method: 'put'
 };
 /**
  * 删除日志脱敏配置
  */
- const deleteDesensitizeConfig = {
+const deleteDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/delete/',
-  method: 'delete',
+  method: 'delete'
 };
 /**
  * 获取索引集脱敏状态
  */
- const getDesensitizeState = {
+const getDesensitizeState = {
   url: '/index_set/desensitize/config/state/',
-  method: 'post',
+  method: 'post'
 };
 
 export {
