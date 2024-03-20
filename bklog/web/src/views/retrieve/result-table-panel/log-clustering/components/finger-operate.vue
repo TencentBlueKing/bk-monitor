@@ -595,10 +595,6 @@ export default {
   line-height: 24px;
   flex-shrink: 0;
 
-  > div {
-    margin-left: 20px;
-  }
-
   .is-near24 {
     @include flex-center;
 
@@ -612,6 +608,7 @@ export default {
 
   .pattern {
     width: 200px;
+    margin: 0 20px;
 
     .pattern-slider-box {
       width: 154px;
@@ -773,7 +770,6 @@ export default {
   display: flex;
   width: 26px;
   height: 26px;
-  margin-left: 10px;
   cursor: pointer;
   border: 1px solid #c4c6cc;
   border-radius: 2px;
@@ -806,7 +802,7 @@ export default {
 }
 
 .btn-subscription {
-  padding: 8px;
+  margin-right: 20px;
   font-size: 14px;
   color: #63656e;
   cursor: pointer;
