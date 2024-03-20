@@ -633,7 +633,7 @@ export default {
     .popover-button {
       padding: 12px 0;
 
-      @include flex-justify(end);
+      @include flex-justify(flex-end);
     }
   }
 }

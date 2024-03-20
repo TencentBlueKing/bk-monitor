@@ -528,7 +528,7 @@ export default {
     display: flex;
     padding: 0 22px;
     margin-bottom: 24px;
-    align-items: start;
+    align-items: flex-start;
 
     .export-text {
       max-width: 184px;
