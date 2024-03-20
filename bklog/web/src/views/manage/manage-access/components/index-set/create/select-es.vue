@@ -117,7 +117,7 @@
         </bk-form-item>
         <bk-form-item
           v-if="formData.time_field_type === 'long'"
-          :label="$t('时间格式')"
+          :label="$t('时间精度')"
           required
           property="time_field_unit"
         >
