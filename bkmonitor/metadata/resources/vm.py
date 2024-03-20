@@ -20,7 +20,7 @@ from rest_framework import serializers
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.space.space_data_source import get_real_biz_id
-from metadata.service.vm_storage import query_vm_datalink
+from metadata.service.vm_storage import query_bcs_cluster_vm_rts, query_vm_datalink
 
 
 class QueryBizByBkBase(Resource):
@@ -144,3 +144,11 @@ class QueryVmDatalink(Resource):
 
     def perform_request(self, data: OrderedDict) -> Dict:
         return query_vm_datalink(data["bk_data_id"])
+
+
+class QueryBcsClusterVmTableIds(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bcs_cluster_id = serializers.CharField(required=True, label="BCS 集群ID")
+
+    def perform_request(self, data: OrderedDict) -> Dict:
+        return query_bcs_cluster_vm_rts(data["bcs_cluster_id"])
