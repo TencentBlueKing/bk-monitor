@@ -454,4 +454,3 @@ class ListAgentState(GseAPIBaseResource):
 
     class RequestSerializer(serializers.Serializer):
         agent_id_list = serializers.ListField(child=serializers.CharField())
-        agent_id_list = serializers.ListField(child=serializers.CharField())
