@@ -684,7 +684,7 @@ export default class MonitorEcharts extends Vue {
       this.chart = chart;
       this.groupId && (this.chart.group = this.groupId);
       if (this.autoresize) {
-        const handler = debounce(300, false, () => this.resize());
+        const handler = debounce(300, () => this.resize());
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         this.resizeHandler = async () => {
           await this.$nextTick();

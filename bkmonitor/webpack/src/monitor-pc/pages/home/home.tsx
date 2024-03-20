@@ -214,7 +214,7 @@ export default class Home extends tsc<{}> {
   }
 
   mounted() {
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.throttledScroll = throttle(300, this.handleScroll);
     const targetEl: HTMLDivElement = document.querySelector('.page-container');
     targetEl.addEventListener('scroll', this.throttledScroll as any);
   }

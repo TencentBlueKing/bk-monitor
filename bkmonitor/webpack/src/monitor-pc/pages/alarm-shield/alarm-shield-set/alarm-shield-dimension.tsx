@@ -140,7 +140,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
   }
 
   created() {
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.throttledScroll = throttle(300, this.handleScroll);
   }
 
   async activated() {
