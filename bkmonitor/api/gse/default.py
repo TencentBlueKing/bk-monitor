@@ -24,13 +24,13 @@ class GseBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     base_url = f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/gse/"
     # 如果开启通过 gse agent 2.0 访问 API，则通过 apigw 访问 gse 的服务
     if getattr(settings, "USE_GSE_AGENT_STATUS_NEW_API", False):
-        base_url = f"{settings.BK_COMPONENT_API_URL}/api/bk-gse/prod/api/v2/"
+        base_url = f"{settings.BKGSE_APIGW_BASE_URL.rstrip('/')}/api/v2/"
 
     module_name = "gse"
 
 
 class GseAPIBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "%s/api/bk-gse/prod/api/v2/" % settings.BK_COMPONENT_API_URL
+    base_url = f"{settings.BKGSE_APIGW_BASE_URL.rstrip('/')}/api/v2/"
     module_name = "gse"
 
 
@@ -441,7 +441,6 @@ class GetProcStatus(GseBaseResource):
 
 
 class ListAgentState(GseAPIBaseResource):
-
     action = "cluster/list_agent_state"
     method = "POST"
     backend_cache_type = CacheType.GSE
