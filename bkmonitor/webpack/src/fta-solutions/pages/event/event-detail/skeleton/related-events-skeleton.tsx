@@ -26,16 +26,19 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './monitor-echarts-skeleton.scss';
+import './related-events-skeleton.scss';
 
 @Component
-export default class MonitorEchartsSkeleton extends tsc<{}> {
+export default class RelatedEventsSkeleton extends tsc<{}> {
   render() {
     return (
-      <div class='monitor-echarts-skeleton'>
-        {new Array(10).fill(null).map((_item, index) => (
+      <div class='event-detail-related-events-skeleton'>
+        <div class='h-32 w--100 skeleton-element'></div>
+        <div class='h-20 w--100 mt-24 skeleton-element'></div>
+
+        {new Array(5).fill(null).map((_item, index) => (
           <div
-            class='h-20 w--100 mt-22 skeleton-element'
+            class='h-36 w--100 mt-26 skeleton-element'
             key={index}
           ></div>
         ))}

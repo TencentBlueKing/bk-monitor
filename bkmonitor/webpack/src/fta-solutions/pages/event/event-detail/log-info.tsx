@@ -33,6 +33,7 @@ import { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { BookMarkModel, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
+import ExperiencesSkeleton from './skeleton/experiences-skeleton';
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail } from './type';
 
@@ -121,8 +122,9 @@ export default class LogInfo extends tsc<IProps> {
     return (
       <div
         class={['event-detail-log-info-component', { show: this.show }]}
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
+        {this.loading && <ExperiencesSkeleton></ExperiencesSkeleton>}
         {this.localPanels.length ? (
           <DashboardPanel
             panels={this.localPanels}

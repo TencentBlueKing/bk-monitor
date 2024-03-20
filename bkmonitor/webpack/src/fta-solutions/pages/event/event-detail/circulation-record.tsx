@@ -30,6 +30,7 @@ import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components
 
 import EventDetail from '../../../store/modules/event-detail';
 
+import ExperiencesSkeleton from './skeleton/experiences-skeleton';
 import LoadingBox from './loading-box';
 import NoticeStatusDialog from './notice-status-dialog';
 import { IDetail } from './type';
@@ -456,8 +457,9 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     return (
       <div
         class={['event-detail-circulation', { displaynone: !this.show }]}
-        v-bkloading={{ isLoading: this.circulationRecord.loading }}
+        // v-bkloading={{ isLoading: this.circulationRecord.loading }}
       >
+        {this.circulationRecord.loading && <ExperiencesSkeleton></ExperiencesSkeleton>}
         <ul class='log-list'>
           {list.length > 0 ? (
             list.map((item, index) => (

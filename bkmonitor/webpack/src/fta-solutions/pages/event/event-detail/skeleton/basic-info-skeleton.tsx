@@ -23,22 +23,51 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './monitor-echarts-skeleton.scss';
+import './basic-info-skeleton.scss';
 
 @Component
-export default class MonitorEchartsSkeleton extends tsc<{}> {
+export default class BasicInfoSkeleton extends tsc<{}> {
   render() {
     return (
-      <div class='monitor-echarts-skeleton'>
-        {new Array(10).fill(null).map((_item, index) => (
-          <div
-            class='h-20 w--100 mt-22 skeleton-element'
-            key={index}
-          ></div>
-        ))}
+      <div class='event-detail-basic-info-skeleton'>
+        <div class='w--100 h-24 skeleton-element'></div>
+        <div class='container-01'>
+          <div class='container-01-left'>
+            <div class='top-wrap'>
+              <div class='container-01-left-left'>
+                {new Array(4).fill(null).map((_item, index) => (
+                  <div
+                    class='w--100 h-20 mr-80 mt-10 skeleton-element'
+                    key={index}
+                  ></div>
+                ))}
+              </div>
+              <div class='container-01-left-right'>
+                {new Array(4).fill(null).map((_item, index) => (
+                  <div
+                    class='w--100 h-20 mr-80 mt-10 skeleton-element'
+                    key={index}
+                  ></div>
+                ))}
+              </div>
+            </div>
+            <div class='bottom-wrap'>
+              {new Array(3).fill(null).map((_item, index) => (
+                <div
+                  class='w--100 h-20 mr-80 mt-10 skeleton-element'
+                  key={index}
+                ></div>
+              ))}
+            </div>
+          </div>
+          <div class='container-01-right'>
+            <div class='w-158 h-100 skeleton-element'></div>
+          </div>
+        </div>
       </div>
     );
   }
