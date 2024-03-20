@@ -765,10 +765,8 @@ class QueryTopoInstanceResource(PageListResource):
         # 新功能，包含字段 updated_at 时，从缓存中读取数据并更新 updated_at
         # 不含 updated_at 时，按需返回
         if self.UNIQUE_UPDATED_AT in fields:
-            fields_set = set(fields)
-            merge_data_need_fields_set = set(self.merge_data_need_fields)
             # 补充字段，防止 merge_data 报错
-            tem_fields = fields_set | merge_data_need_fields_set
+            tem_fields = set(fields) | set(self.merge_data_need_fields)
             data = [obj for obj in queryset.values(*tem_fields)]
             merge_data = self.merge_data(data, validated_request_data)
             data = self.post_process(unique_params, merge_data)
