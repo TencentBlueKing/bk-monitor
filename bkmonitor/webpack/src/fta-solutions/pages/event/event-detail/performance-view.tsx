@@ -32,6 +32,7 @@ import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
+import ExperiencesSkeleton from './skeleton/experiences-skeleton';
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail, setBizIdToPanel } from './type';
 
@@ -186,8 +187,9 @@ export default class PerformanceView extends tsc<IProps> {
     return (
       <div
         class={['event-detail-performance-view', { show: this.show }]}
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
+        {this.loading && <ExperiencesSkeleton></ExperiencesSkeleton>}
         {this.localPanels.length ? (
           <DashboardPanel
             panels={this.localPanels}
