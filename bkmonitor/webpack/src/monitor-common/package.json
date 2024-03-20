@@ -24,6 +24,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "vue": "2.7.14"
+    "vue": "v2-latest"
   }
 }

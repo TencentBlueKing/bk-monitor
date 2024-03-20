@@ -35,7 +35,7 @@
     "monitor-ui": "workspace:*",
     "sortablejs": "^1.15.2",
     "throttle-debounce": "^5.0.0",
-    "vue": "2.7.14",
+    "vue": "v2-latest",
     "vue-class-component": "^7.2.6",
     "vue-i18n": "^8.28.2",
     "vue-json-viewer": "^2.2.22",

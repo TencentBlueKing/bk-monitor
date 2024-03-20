@@ -13,7 +13,7 @@
     "axios": "^0.26.1",
     "monitor-common": "workspace:*",
     "qs": "^6.12.0",
-    "vue": "2.7.14"
+    "vue": "v2-latest"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.3.1",

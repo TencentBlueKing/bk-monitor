@@ -14,7 +14,7 @@
   "author": "bk fe",
   "license": "MIT",
   "dependencies": {
-    "vue": "2.7.14"
+    "vue": "v2-latest"
   },
   "devDependencies": {
     "eslint-config-prettier": "^9.1.0",
