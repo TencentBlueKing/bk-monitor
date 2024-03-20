@@ -30,11 +30,7 @@
     @mouseenter="showTitleTool = true"
     @mouseleave="showTitleTool = false"
   >
-    <skeleton-base
-      v-if="loading"
-      :children="skeletonBaseConfig"
-      class="skeleton-base-wrap"
-    />
+    <monitor-echarts-skeleton v-if="loading" />
 
     <div
       class="echart-header"
@@ -246,7 +242,6 @@ import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
 import { traceListById } from 'monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
-import SkeletonBase from 'monitor-pc/components/skeleton/skeleton-base';
 import { downCsvFile, IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
 
@@ -271,6 +266,7 @@ import {
   ITextChartOption,
   ITextSeries
 } from './options/type-interface';
+import MonitorEchartsSkeleton from './skeleton/monitor-echarts-skeleton.tsx';
 import watermarkMaker from './utils/watermarkMaker';
 import { getValueFormat } from './valueFormats';
 
@@ -299,7 +295,7 @@ interface IAlarmStatus {
     TextChart,
     ChartTitle,
     TableChart,
-    SkeletonBase
+    MonitorEchartsSkeleton
   }
 })
 export default class MonitorEcharts extends Vue {
@@ -442,15 +438,6 @@ export default class MonitorEcharts extends Vue {
     // 是否处于移动中
     moving: false
   };
-
-  get skeletonBaseConfig() {
-    const calcRow = Math.floor((this.chartWrapHeight + this.tableHeight) / 36);
-    return {
-      row: calcRow < 5 ? 5 : calcRow,
-      width: '100%',
-      height: '20px'
-    };
-  }
 
   // 监控图表默认配置
   get defaultOptions() {
