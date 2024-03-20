@@ -38,7 +38,7 @@
           v-bk-overflow-tips
           class="title-overflow"
         >
-          {{ $t('日志路径') + ': ' + (params.path || params.logfile || '\\') }}
+          {{ $t('日志路径') + ': ' + (params.path || params.logfile) }}
         </span>
       </template>
       <template v-else>
