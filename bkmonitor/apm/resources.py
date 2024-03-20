@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import datetime
 import json
 import logging
@@ -642,7 +643,8 @@ class QueryTopoRelationResource(Resource):
 class QueryTopoInstanceResource(PageListResource):
     UNIQUE_UPDATED_AT = "updated_at"
 
-    default_fields = ["updated_at", "id", "instance_id"]
+    topo_instance_all_fields = [field.column for field in TopoInstance._meta.fields]
+    merge_data_need_fields = ["updated_at", "id", "instance_id"]
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
@@ -667,8 +669,8 @@ class QueryTopoInstanceResource(PageListResource):
         :return:
         """
         if sort_field in (self.UNIQUE_UPDATED_AT,):
-            return sorted(queryset, key=lambda item: item.updated_at)
-        return sorted(queryset, key=lambda item: item.updated_at, reverse=True)
+            return sorted(queryset, key=lambda item: item["updated_at"])
+        return sorted(queryset, key=lambda item: item["updated_at"], reverse=True)
 
     def filter_data(self, queryset, filter_flag):
         """
@@ -723,6 +725,19 @@ class QueryTopoInstanceResource(PageListResource):
             merge_data.append(instance)
         return merge_data
 
+    def param_preprocessing(self, validated_request_data, total):
+        """
+        page, page_size, fields 预处理
+        """
+        page = validated_request_data.get("page") or 1
+        page_size = validated_request_data.get("page_size") or total
+        fields = validated_request_data.get("fields") or self.topo_instance_all_fields
+        query_fields = copy.deepcopy(fields)
+        sort_field = validated_request_data.get("sort")
+        if sort_field and self.UNIQUE_UPDATED_AT in sort_field:
+            query_fields.append(self.UNIQUE_UPDATED_AT)
+        return page, page_size, query_fields
+
     def perform_request(self, validated_request_data):
         filter_params = DiscoverHandler.get_retention_utc_filter_params(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
@@ -737,42 +752,38 @@ class QueryTopoInstanceResource(PageListResource):
         unique_params = self.pre_process(filter_params, validated_request_data)
 
         queryset = TopoInstance.objects.filter(**filter_params)
+
+        total = queryset.count()
+
+        page, page_size, fields = self.param_preprocessing(validated_request_data, total)
+
+        # 排序
         sort_field = validated_request_data.get("sort")
         if sort_field and self.UNIQUE_UPDATED_AT not in sort_field:
             queryset = queryset.order_by(sort_field)
 
-        total = queryset.count()
-
-        fields = validated_request_data.get("fields")
         # 新功能，包含字段 updated_at 时，从缓存中读取数据并更新 updated_at
         # 不含 updated_at 时，按需返回
-        data = None
         if self.UNIQUE_UPDATED_AT in fields:
+            fields_set = set(fields)
+            merge_data_need_fields_set = set(self.merge_data_need_fields)
             # 补充字段，防止 merge_data 报错
-            tem_fields = set(fields) | set(self.default_fields)
+            tem_fields = fields_set | merge_data_need_fields_set
             data = [obj for obj in queryset.values(*tem_fields)]
             merge_data = self.merge_data(data, validated_request_data)
             data = self.post_process(unique_params, merge_data)
             # 去除补充的字段
-            data = [{field: i[field] for field in fields} for i in data]
-        elif not fields:  # 维持原有逻辑
-            data = [obj for obj in queryset.values()]
-            merge_data = self.merge_data(data, validated_request_data)
-            data = self.post_process(unique_params, merge_data)
+            return_fields = validated_request_data.get("fields")
+            if return_fields:
+                data = [{field: i[field] for field in return_fields} for i in data]
+            total = len(data)
+        else:
+            data = queryset
 
-        # 分页
-        if validated_request_data.get("page") and validated_request_data.get("page_size"):
-            if data is None:
-                page_data = self.handle_pagination(data=queryset, params=validated_request_data)
-                res = list(page_data.values(*fields))
-            else:
-                res = self.handle_pagination(data=data, params=validated_request_data)
+        res = self.handle_pagination(data=data, params={"page": page, "page_size": page_size})
+        if isinstance(res, list):
             return {"total": total, "data": res}
-
-        if data is None:
-            data = [obj for obj in queryset.values(*fields)]
-
-        return {"total": total, "data": data}
+        return {"total": total, "data": [obj for obj in res.values(*fields)]}
 
 
 class QueryRootEndpointResource(Resource):
