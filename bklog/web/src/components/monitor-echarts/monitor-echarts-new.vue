@@ -126,7 +126,7 @@ import watermarkMaker from './utils/watermark-maker';
 import ChartInView from './utils/chart-in-view';
 import { getValueFormat } from './value-formats-package';
 import ChartTitle from './components/chart-title-new.vue';
-import { Debounce } from '../../common/util'; 
+import { Debounce } from '../../common/util';
 interface ICurValue {
   xAxis: string | number;
   yAxis: string | number;

@@ -553,7 +553,6 @@ export default {
   审批成功: 'Approval successful',
   审批失败: 'Approval failed',
   保留未定义字段: 'Leave undefined fields',
-  事件内容: 'Event content',
   '{n}脱敏规则': '{n} desensitization Rule',
   日志来源: 'Log Source',
   应用次数: 'Application Count',

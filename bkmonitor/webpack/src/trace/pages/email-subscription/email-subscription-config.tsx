@@ -1155,7 +1155,7 @@ export default defineComponent({
 
     function getUrlSearchParams() {
       const url = new URLSearchParams(window.location.search);
-      isShowHeaderNav.value = Boolean(url.get('isShowHeaderNav') !== 'false');
+      isShowHeaderNav.value = Boolean(url.get('needMenu') !== 'false');
     }
 
     const isManagerOrUser = computed(() => {
@@ -1343,7 +1343,7 @@ export default defineComponent({
             class='report-nav'
           ></NavBar>
         )}
-        <div class='email-subscription-config-container'>
+        <div class={['email-subscription-config-container', { 'as-iframe': !this.isShowHeaderNav }]}>
           {/* 头部搜索 部分 */}
           {headerTmpl()}
           <Loading loading={this.isTableLoading}>

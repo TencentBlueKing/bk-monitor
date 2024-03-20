@@ -100,5 +100,5 @@ export default {
   ipChooser,
   authorization,
   masking,
-  newReport,
+  newReport
 };

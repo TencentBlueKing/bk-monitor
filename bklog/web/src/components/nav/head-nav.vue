@@ -210,21 +210,24 @@
           <li>
             <a
               href="javascript:;"
-              @click="handleGoToMyApplication">
+              @click="handleGoToMyApplication"
+            >
               {{ $t('我申请的') }}
             </a>
           </li>
           <li>
             <a
               href="javascript:;"
-              @click="handleGoToMyReport">
+              @click="handleGoToMyReport"
+            >
               {{ $t('我的订阅') }}
             </a>
           </li>
           <li>
             <a
               href="javascript:;"
-              @click="handleQuit">
+              @click="handleQuit"
+            >
               {{ $t('退出登录') }}
             </a>
           </li>
@@ -232,8 +235,14 @@
       </bk-dropdown-menu>
     </div>
 
-    <GlobalDialog v-model='showGlobalDialog' :title='globalDialogTitle'>
-      <iframe :src='targetSrc' style='width: 100%;height: 100%;border: none;'></iframe>
+    <GlobalDialog
+      v-model="showGlobalDialog"
+      :title="globalDialogTitle"
+    >
+      <iframe
+        :src="targetSrc"
+        style="width: 100%; height: 100%; border: none"
+      ></iframe>
     </GlobalDialog>
   </nav>
 </template>
@@ -268,7 +277,10 @@ export default {
       isShowLogoutDropdown: false,
       showLogVersion: false,
       language: 'zh-cn',
-      languageList: [{ id: 'zh-cn', name: '中文' }, { id: 'en', name: 'English' }],
+      languageList: [
+        { id: 'zh-cn', name: '中文' },
+        { id: 'en', name: 'English' }
+      ],
       showGlobalDialog: false,
       globalDialogTitle: '',
       targetSrc: ''
@@ -535,7 +547,7 @@ export default {
         this.globalDialogTitle = this.$t('我的订阅');
         this.showGlobalDialog = true;
         this.targetSrc = targetSrc;
-      })
+      });
     },
     /** 退出登录 */
     handleQuit() {

@@ -38,8 +38,8 @@ interface IProps {
 
 @Component({
   components: {
-    CreateSubscriptionForm,
-  },
+    CreateSubscriptionForm
+  }
 })
 class QuickCreateSubscription extends tsc<IProps> {
   @Model('change', { type: Boolean }) value: IProps['value'];
@@ -50,24 +50,23 @@ class QuickCreateSubscription extends tsc<IProps> {
   isSending = false;
   isShowSendingSuccessDialog = false;
   handleSave() {
-    (this.$refs.refOfCreateSubscriptionForm as any)
-      ?.validateAllForms?.()
-      .then((response) => {
-        this.isSaving = true;
-        this.$http.request('newReport/createOrUpdateReport/', {
-          data: response,
+    (this.$refs.refOfCreateSubscriptionForm as any)?.validateAllForms?.().then(response => {
+      this.isSaving = true;
+      this.$http
+        .request('newReport/createOrUpdateReport/', {
+          data: response
         })
-          .then(() => {
-            this.$bkMessage({
-              theme: 'success',
-              message: this.$t('保存成功'),
-            });
-            this.$emit('change', false);
-          })
-          .finally(() => {
-            this.isSaving = false;
+        .then(() => {
+          this.$bkMessage({
+            theme: 'success',
+            message: this.$t('保存成功')
           });
-      })
+          this.$emit('change', false);
+        })
+        .finally(() => {
+          this.isSaving = false;
+        });
+    });
   }
 
   async testSending(to: TestSendingTarget) {
@@ -82,18 +81,19 @@ class QuickCreateSubscription extends tsc<IProps> {
             {
               id: this.$store.state.userMeta?.username || '',
               type: 'user',
-              is_enabled: true,
-            },
+              is_enabled: true
+            }
           ],
-          channel_name: 'user',
-        },
+          channel_name: 'user'
+        }
       ];
       formData.channels = selfChannels;
     }
     this.isSending = true;
-    await this.$http.request('newReport/sendReport/', {
-      data: formData
-    })
+    await this.$http
+      .request('newReport/sendReport/', {
+        data: formData
+      })
       .then(() => {
         this.isShowSendingSuccessDialog = true;
       })
@@ -131,7 +131,7 @@ class QuickCreateSubscription extends tsc<IProps> {
               <bk-button
                 theme='primary'
                 loading={this.isSaving}
-                style="width: 88px; margin-right: 8px;"
+                style='width: 88px; margin-right: 8px;'
                 onClick={this.handleSave}
               >
                 {this.$t('保存')}
@@ -140,40 +140,41 @@ class QuickCreateSubscription extends tsc<IProps> {
                 theme='primary'
                 outline
                 loading={this.isSending}
-                style="width: 88px; margin-right: 8px;"
+                style='width: 88px; margin-right: 8px;'
                 onClick={() => this.testSending('self')}
               >
                 {this.$t('测试发送')}
               </bk-button>
               {/* 20240305 若默认测试发送只给自己，那么没必要再出一次气泡窗选择了 */}
-              {false && <bk-dropdown-menu
-                trigger='click'
-                placement='top-start'
-              >
-                <bk-button
-                  theme='primary'
-                  outline
-                  loading={this.isSending}
-                  slot='dropdown-trigger'
-                  style="width: 88px; margin-right: 8px;"
+              {false && (
+                <bk-dropdown-menu
+                  trigger='click'
+                  placement='top-start'
                 >
-                  {this.$t('测试发送')}
-                </bk-button>
+                  <bk-button
+                    theme='primary'
+                    outline
+                    loading={this.isSending}
+                    slot='dropdown-trigger'
+                    style='width: 88px; margin-right: 8px;'
+                  >
+                    {this.$t('测试发送')}
+                  </bk-button>
 
-                <ul
-                  class='bk-dropdown-list'
-                  slot='dropdown-content'
-                >
-                  <li>
-                    <a
-                      href='javascript:;'
-                      onClick={() => this.testSending('self')}
-                    >
-                      {this.$t('给自己')}
-                    </a>
-                  </li>
-                  {/* 2024.1.12 由于该按钮需要权限判断，但不好实现，这里直接去掉该功能。这里先保留 */}
-                  {/* <li>
+                  <ul
+                    class='bk-dropdown-list'
+                    slot='dropdown-content'
+                  >
+                    <li>
+                      <a
+                        href='javascript:;'
+                        onClick={() => this.testSending('self')}
+                      >
+                        {this.$t('给自己')}
+                      </a>
+                    </li>
+                    {/* 2024.1.12 由于该按钮需要权限判断，但不好实现，这里直接去掉该功能。这里先保留 */}
+                    {/* <li>
                     <a
                       href='javascript:;'
                       onClick={() => this.testSending('all')}
@@ -181,10 +182,11 @@ class QuickCreateSubscription extends tsc<IProps> {
                       {this.$t('给全员')}
                     </a>
                   </li> */}
-                </ul>
-              </bk-dropdown-menu>}
+                  </ul>
+                </bk-dropdown-menu>
+              )}
               <bk-button
-                style="width: 88px;"
+                style='width: 88px;'
                 onClick={() => this.$emit('change', false)}
               >
                 {this.$t('取消')}
@@ -193,14 +195,23 @@ class QuickCreateSubscription extends tsc<IProps> {
           </div>
         </bk-sideslider>
 
-        <bk-dialog v-model={this.isShowSendingSuccessDialog} theme="primary" show-footer={false} ext-cls='test-sending-result-dialog'>
-          <div slot='header' class='test-send-success-dialog-header'>
-            <i class='bk-icon icon-check-circle-shape' style='color: rgb(45, 202, 86);'></i>
+        <bk-dialog
+          v-model={this.isShowSendingSuccessDialog}
+          theme='primary'
+          show-footer={false}
+          ext-cls='test-sending-result-dialog'
+        >
+          <div
+            slot='header'
+            class='test-send-success-dialog-header'
+          >
+            <i
+              class='bk-icon icon-check-circle-shape'
+              style='color: rgb(45, 202, 86);'
+            ></i>
             <span style='margin-left: 10px;'>{this.$t('发送测试邮件成功')}</span>
           </div>
-          <div class='test-send-success-dialog-content'>
-            {this.$t('邮件任务已生成, 请一分钟后到邮箱查看')}
-          </div>
+          <div class='test-send-success-dialog-content'>{this.$t('邮件任务已生成, 请一分钟后到邮箱查看')}</div>
         </bk-dialog>
       </div>
     );

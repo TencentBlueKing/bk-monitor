@@ -6,9 +6,9 @@
 
   .quick-create-subscription-slider-container {
     max-height: calc(100vh - 60px - 52px);
-    overflow-y: auto;
     padding: 20px 24px;
     padding-bottom: 10px;
+    overflow-y: auto;
     background-color: #f5f7fa;
   }
 
@@ -22,10 +22,10 @@
 }
 
 .test-send-success-dialog-header {
-  text-align: left;
-  color: #313238;
   font-size: 20px;
   font-weight: bold;
+  color: #313238;
+  text-align: left;
 }
 
 .test-send-success-dialog-content {
