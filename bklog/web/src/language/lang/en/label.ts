@@ -596,4 +596,5 @@ export default {
   字段设置: 'Field Settings',
   目标字段: 'Target Field',
   排序字段: 'Sort Field',
+  时间精度: 'Time Accuracy',
 };

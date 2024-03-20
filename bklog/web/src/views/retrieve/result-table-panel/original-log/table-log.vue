@@ -68,6 +68,7 @@
         v-if="logDialog.type === 'realTimeLog'"
         :title="logDialog.title"
         :log-params="logDialog.data"
+        :target-fields="targetFields"
         @toggleScreenFull="toggleScreenFull"
         @close-dialog="hideDialog"
       />
@@ -76,6 +77,7 @@
         :title="logDialog.title"
         :retrieve-params="retrieveParams"
         :log-params="logDialog.data"
+        :target-fields="targetFields"
         @toggleScreenFull="toggleScreenFull"
         @close-dialog="hideDialog"
       />
@@ -117,6 +119,7 @@ export default {
     return {
       limitCount: 2000,
       webConsoleLoading: false,
+      targetFields: [],
       logDialog: {
         title: '',
         type: '',
@@ -199,10 +202,12 @@ export default {
         const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
         // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
         if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-          fieldParamsKey.forEach((field) => {
+          this.targetFields = targetFields;
+          fieldParamsKey.forEach(field => {
             dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
           });
-        } else if (Array.isArray(contextFields) && contextFields.length) { // 传参配置指定字段
+        } else if (Array.isArray(contextFields) && contextFields.length) {
+          // 传参配置指定字段
           contextFields.push(config.timeField);
           contextFields.forEach(field => {
             if (field === 'bk_host_id') {
@@ -222,6 +227,7 @@ export default {
       this.logDialog.type = '';
       this.logDialog.title = '';
       this.logDialog.visible = false;
+      this.targetFields = [];
     },
     // 实时日志或上下文弹窗开启或关闭全屏
     toggleScreenFull(isScreenFull) {
