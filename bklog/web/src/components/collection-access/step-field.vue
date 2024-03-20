@@ -550,22 +550,11 @@
           theme="primary"
           data-test-id="fieldExtractionBox_button_nextPage"
           :loading="isLoading"
-          :disabled="!collectProject || !showDebugBtn || !hasFields || isSetDisabled"
+          :disabled="!collectProject || isSetDisabled"
           @click.stop.prevent="finish(true)"
         >
+          <!-- || !showDebugBtn || !hasFields -->
           {{ isSetEdit ? $t('保存') : $t('下一步') }}
-        </bk-button>
-        <!-- 跳过 -->
-        <bk-button
-          v-if="!isTempField && !isSetEdit"
-          theme="default"
-          :title="$t('取消')"
-          class="ml10"
-          data-test-id="fieldExtractionBox_button_Pass"
-          :disabled="isLoading"
-          @click="handleSkip"
-        >
-          {{ $t('跳过') }}
         </bk-button>
         <!-- 保存模板 -->
         <bk-button
@@ -830,7 +819,7 @@ export default {
       },
       originParticipleState: 'default',
       // eslint-disable-next-line
-      defaultParticipleStr: ',.\'";=()[]{}@&<>/:\\n\\t\\r',
+      defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\'
     };
   },
   computed: {
@@ -1052,7 +1041,7 @@ export default {
       const {
         name,
         clean_type,
-        etl_params,
+        etl_params: etlParams,
         etl_fields: etlFields,
         visible_type,
         visible_bk_biz_id: visibleBkBizList
@@ -1061,8 +1050,8 @@ export default {
       /* eslint-disable */
       this.params.etl_config = clean_type;
       Object.assign(this.params.etl_params, {
-        separator_regexp: etl_params.separator_regexp || '',
-        separator: etl_params.separator || ''
+        separator_regexp: etlParams.separator_regexp || '',
+        separator: etlParams.separator || ''
       });
       this.visibleBkBiz = visibleBkBizList;
       this.cacheVisibleList = visibleBkBizList;
@@ -1078,7 +1067,9 @@ export default {
             separator_regexp: '',
             separator: '',
             retain_extra_json: false
-        }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
+          },
+          etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
+        ), // eslint-disable-line
         fields: etlFields,
         visible_type
       });
@@ -1132,35 +1123,39 @@ export default {
       });
       this.isLoading = true;
       this.basicLoading = true;
+      const payload = {
+        retain_original_text: etlParams.retain_original_text,
+        original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+        original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+        retain_extra_json: etlParams.retain_extra_json ?? false
+      };
       let data = {
         clean_type: etlConfig,
         etl_params: {
-          retain_original_text: etlParams.retain_original_text,
-          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
           separator_regexp: etlParams.separator_regexp,
           separator: etlParams.separator,
-          retain_extra_json: etlParams.retain_extra_json ?? false
+          ...payload
         },
         etl_fields: fields,
         visible_type
       };
       /* eslint-disable */
       if (etlConfig !== 'bk_log_text') {
-        const payload = {
-          retain_original_text: etlParams.retain_original_text,
-          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
-          retain_extra_json : etlParams.retain_extra_json ?? false
-        }
+        data.etl_fields = fieldTableData;
         if (etlConfig === 'bk_log_delimiter') {
           payload.separator = etlParams.separator;
         }
         if (etlConfig === 'bk_log_regexp') {
           payload.separator_regexp = etlParams.separator_regexp;
         }
-        data.etlParams = payload;
-        data.etl_fields = this.$refs.fieldTable.getData();
+        // 获取当前表格字段
+        const fieldTableData = this.$refs.fieldTable.getData() || [];
+        // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
+        data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
+        data.etl_params = payload;
+      } else {
+        delete data.etl_params['separator_regexp'];
+        delete data.etl_params['separator'];
       }
 
       let requestUrl;
@@ -1228,7 +1223,7 @@ export default {
     // 检查提取方法或条件是否已变更
     checkEtlConfChnage(isCollect = false) {
       // 非bk_log_text类型需要有正确的结果
-      if (this.formData.etl_config && this.formData.etl_config !== 'bk_log_text' && !this.hasFormat) return;
+      // if (this.formData.etl_config && this.formData.etl_config !== 'bk_log_text' && !this.hasFormat) return;
       let isConfigChange = false; // 提取方法或条件是否已变更
       const etlConfigParam = this.params.etl_config;
       if (etlConfigParam !== 'bk_log_text') {
@@ -1288,6 +1283,7 @@ export default {
       }
       Promise.all(promises).then(
         () => {
+          // console.log(123456);
           this.checkEtlConfChnage(isCollect);
         },
         validator => {
@@ -1298,10 +1294,6 @@ export default {
     // 字段表格校验
     checkFieldsTable() {
       return this.formData.etl_config !== 'bk_log_text' ? this.$refs.fieldTable.validateFieldTable() : [];
-    },
-    // 跳过
-    handleSkip() {
-      this.$emit('stepChange', this.curStep + 1);
     },
     handleCancel(isCollect = false) {
       if (isCollect) return;
@@ -1360,7 +1352,7 @@ export default {
     // 获取详情
     getDetail() {
       // const tsStorageId = this.formData.storage_cluster_id;
-      const { table_id, storage_cluster_id, table_id_prefix, etl_config, etl_params, fields } = this.curCollect;
+      const { table_id, storage_cluster_id, table_id_prefix, etl_config, etl_params: etlParams, fields } = this.curCollect;
       const option = { time_zone: '', time_format: '' };
       const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
       copyFields.forEach(row => {
@@ -1378,8 +1370,8 @@ export default {
       /* eslint-disable */
       this.params.etl_config = etl_config;
       Object.assign(this.params.etl_params, {
-        separator_regexp: etl_params?.separator_regexp || '',
-        separator: etl_params?.separator || ''
+        separator_regexp: etlParams?.separator_regexp || '',
+        separator: etlParams?.separator || ''
       });
       this.isUnmodifiable = !!(table_id || storage_cluster_id);
       this.fieldType = etl_config || 'bk_log_text';
@@ -1397,7 +1389,9 @@ export default {
             retain_extra_json: false,
             original_text_is_case_sensitive: false,
             original_text_tokenize_on_chars: ''
-        }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
+          },
+          etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
+        ), // eslint-disable-line
         fields: copyFields.filter(item => !item.is_built_in)
       });
       if (!this.copyBuiltField.length) {
@@ -1726,13 +1720,13 @@ export default {
             const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
             this.formData.fields.splice(0, this.formData.fields.length);
             /* eslint-disable */
-          this.params.etl_config = clean_type
-          Object.assign(this.params.etl_params, {
-            separator_regexp: etlParams.separator_regexp || '',
-            separator: etlParams.separator || ''
-          })
-          this.fieldType = clean_type
-          /* eslint-enable */
+            this.params.etl_config = clean_type;
+            Object.assign(this.params.etl_params, {
+              separator_regexp: etlParams.separator_regexp || '',
+              separator: etlParams.separator || ''
+            });
+            this.fieldType = clean_type;
+            /* eslint-enable */
             Object.assign(this.formData, {
               etl_config: this.fieldType,
               etl_params: Object.assign(
@@ -1741,7 +1735,9 @@ export default {
                   separator_regexp: '',
                   separator: '',
                   retain_extra_json: false
-            }, etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}), // eslint-disable-line
+                },
+                etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
+              ), // eslint-disable-line
               fields: etlFields
             });
             if (etlParams.original_text_tokenize_on_chars) {
@@ -1875,72 +1871,56 @@ export default {
     align-items: center;
     margin: 50px 0 -26px;
 
-    .collector-select {
-      display: flex;
-      align-items: center;
-      margin: 50px 0 -26px;
-
-      label {
-        margin-right: 16px;
-        font-size: 12px;
-        color: #63656e;
-      }
-    }
-
-    .origin-log-config {
+    label {
+      margin-right: 16px;
       font-size: 12px;
       color: #63656e;
+    }
+  }
 
-      .title {
-        display: inline-block;
-        margin: 24px 0 8px 0;
-      }
+  .origin-log-config {
+    font-size: 12px;
+    color: #63656e;
 
-      label {
-        margin-right: 24px;
-        font-size: 12px;
-      }
-
-      .select-container {
-        margin-top: 15px;
-      }
-
-      .flex-box,
-      %flex-box {
-        display: flex;
-        justify-content: start;
-        align-items: center;
-      }
-
-      .select-title {
-        width: 52px;
-        height: 32px;
-        background: #fafbfd;
-        border: 1px solid #c4c6cc;
-        border-radius: 2px 0 0 2px;
-        transform: translateX(1px);
-        justify-content: center;
-
-        @extend %flex-box;
-      }
-
-      .origin-select-custom {
-        width: 70px;
-      }
-
-      .bk-select-name {
-        padding: 0 22px 0 10px;
-      }
+    .title {
+      display: inline-block;
+      margin: 24px 0 8px 0;
     }
 
-    .step-field-title {
+    label {
+      margin-right: 24px;
+      font-size: 12px;
+    }
+
+    .select-container {
+      margin-top: 15px;
+    }
+
+    .flex-box,
+    %flex-box {
       display: flex;
-      justify-content: space-between;
+      justify-content: start;
       align-items: center;
-      width: 100%;
-      font-size: 14px;
-      font-weight: 600;
-      color: #63656e;
+    }
+
+    .select-title {
+      width: 52px;
+      height: 32px;
+      background: #fafbfd;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px 0 0 2px;
+      transform: translateX(1px);
+      justify-content: center;
+
+      @extend %flex-box;
+    }
+
+    .origin-select-custom {
+      width: 70px;
+    }
+
+    .bk-select-name {
+      padding: 0 22px 0 10px;
     }
   }
 
@@ -1988,20 +1968,6 @@ export default {
     font-size: 12px;
     line-height: 32px;
     color: #aeb0b7;
-  }
-
-  .tips_storage {
-    width: 540px;
-    padding: 10px;
-    margin-top: 15px;
-    font-size: 12px;
-    background-color: rgb(239, 248, 255);
-    border: 1px solid deepskyblue;
-
-    div {
-      line-height: 24px;
-      color: #63656e;
-    }
   }
 
   .form-div {
