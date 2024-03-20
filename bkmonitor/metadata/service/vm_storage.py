@@ -13,6 +13,8 @@ import json
 import logging
 from typing import Dict, List, Optional
 
+from rest_framework.exceptions import ValidationError
+
 from metadata import models
 from metadata.utils import consul_tools
 
@@ -152,7 +154,7 @@ def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
     )
     # 集群不可用时，返回异常
     if not cluster_infos.exists():
-        raise ValueError(f"cluster_id: {bcs_cluster_id} status is not running")
+        raise ValidationError(f"cluster_id: {bcs_cluster_id} status is not running")
     # 获取到数据源ID， 区分内置和自定义
     cluster_info = cluster_infos.first()
     cluster_data_id = {
