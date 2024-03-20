@@ -659,14 +659,14 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
     """
 
     tokenize_on_chars = serializers.CharField(
-        label=_("自定义分词符"), required=False, default="", allow_blank=True, allow_null=True
+        label=_("自定义分词符"), required=False, default="", allow_blank=True, allow_null=True, trim_whitespace=False
     )
 
     def validate(self, attrs):
         ret = super().validate(attrs)
-        if not ret.get("tokenize_on_chars"):
-            return ret
-        return unicode_str_decode(ret)
+        if ret.get("tokenize_on_chars"):
+            ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
+        return ret
 
 
 class CollectorEtlParamsSerializer(serializers.Serializer):
@@ -677,7 +677,7 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     retain_original_text = serializers.BooleanField(label=_("是否保留原文"), required=False, default=True)
     original_text_is_case_sensitive = serializers.BooleanField(label=_("原文大小写敏感"), required=False, default=False)
     original_text_tokenize_on_chars = serializers.CharField(
-        label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default=""
+        label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
     )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
 
