@@ -97,7 +97,7 @@ class ClusteringRemark(SoftDeleteModel):
 
 
 class ClusteringConfig(SoftDeleteModel):
-    group_fields = models.JSONField(_("分组字段 kv格式"), default=dict, null=True, blank=True)
+    group_fields = models.JSONField(_("分组字段"), default=list, null=True, blank=True)
     collector_config_id = models.IntegerField(_("采集项id"), null=True, blank=True)
     collector_config_name_en = models.CharField(_("采集项英文名"), max_length=255, null=True, blank=True)
     index_set_id = models.IntegerField(_("索引集id"), db_index=True)

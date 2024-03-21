@@ -328,7 +328,7 @@ export default class MonitorEcharts extends Vue {
           appendToBody: true,
           formatter: this.handleSetTooltip,
           position: (pos, params, dom, rect, size) => {
-            if (!this.chartInView || this.chartInView.chartInTop === undefined) {
+            if (this.chartInView?.chartInTop === undefined) {
               const domRect = this.$el.getBoundingClientRect();
               if (!this.chartInView) {
                 this.chartInView = new ChartInView(domRect.y < 100, domRect.bottom + 20 >= window.innerHeight);
@@ -455,7 +455,7 @@ export default class MonitorEcharts extends Vue {
       const chart: any = echarts.init(this.chartRef);
       this.chart = chart;
       if (this.autoresize) {
-        const handler = debounce(300, false, () => this.resize());
+        const handler = debounce(300, () => this.resize());
         this.resizeHandler = async () => {
           await this.$nextTick();
           this.chartRef?.offsetParent !== null && handler();

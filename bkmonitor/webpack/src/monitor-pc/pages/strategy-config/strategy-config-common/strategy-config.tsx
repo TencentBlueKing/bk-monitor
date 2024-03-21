@@ -737,7 +737,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         id: 'operator'
       }
     };
-    this.header.handleSearch = debounce(300, false, () => {
+    this.header.handleSearch = debounce(300, () => {
       this.handleGetListData(false, 1);
     });
     this.createdConditionList();
