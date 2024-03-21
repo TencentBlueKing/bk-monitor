@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,24 +23,42 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { DirectiveBinding } from 'vue';
 
-import type { App } from 'vue';
-import { bkTooltips } from 'bkui-vue';
-
-import authority from './authority';
-import watermark from './watermark';
-
-const directives: Record<string, any> = {
-  // 指令对象
-  authority,
-  bkTooltips,
-  watermark
-};
+interface WatermarkOptions {
+  text: string; // 文本
+  font: string; // canvas font
+  textColor: string; // 文本颜色
+}
 
 export default {
-  install(app: App) {
-    Object.keys(directives).forEach(key => {
-      app.directive(key, directives[key]);
-    });
+  mounted(el: HTMLElement, binding: DirectiveBinding<WatermarkOptions>): void {
+    if (!binding.value) return;
+    // 默认值
+    const defaults: WatermarkOptions = {
+      text: '',
+      font: '14px Arial',
+      textColor: '#f1f1f1'
+    };
+    const options: WatermarkOptions = { ...defaults, ...binding.value };
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    canvas.style.display = 'none';
+    ctx.globalAlpha = 0.5;
+    if (ctx) {
+      const textWidth: number = ctx.measureText(options.text).width;
+      const offsetX: number = Math.ceil(textWidth * 3);
+      canvas.width = offsetX;
+      canvas.height = offsetX;
+
+      ctx.rotate(-Math.PI / 6);
+      ctx.font = options.font;
+      ctx.fillStyle = options.textColor;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      ctx.fillText(options.text, 0, 120 / 2 + 5);
+    }
+    el.style.backgroundImage = `url(${canvas.toDataURL('image/png')})`;
   }
 };
