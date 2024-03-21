@@ -174,16 +174,9 @@
             v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
             theme="primary"
             text
-            :disabled="getDeleteDisabled(!props.row.is_editable, 'btn') || !collectProject"
             @click="manageIndexSet('delete', props.row)"
           >
-            <span
-              v-bk-tooltips.top="{
-                content: `${$t('内置索引集')}, ${$t('不可删除')}`,
-                disabled: getDeleteDisabled(props.row.is_editable, 'tips')
-              }"
-              >{{ $t('删除') }}</span
-            >
+            <span>{{ $t('删除') }}</span>
           </bk-button>
         </template>
       </bk-table-column>
@@ -504,13 +497,6 @@ export default {
       } catch (error) {
         return [];
       }
-    },
-    getDeleteDisabled(isEdited, type = 'btn') {
-      if (this.scenarioId === 'es') {
-        if (type === 'btn') return false;
-        if (type === 'tips') return true;
-      }
-      return isEdited;
     }
   }
 };
