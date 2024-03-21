@@ -438,5 +438,11 @@ export default {
   确定回收当前分享链接: 'Recycle the sharing link ?',
   '是否还原默认配置？': 'Do you want to restore the default configuration?',
   发送测试邮件成功: 'Sent test Email successful',
-  索引集非COUNT汇聚方法需要选择一个指标: 'The index set non-COUNT aggregation method needs to select a metric'
+  索引集非COUNT汇聚方法需要选择一个指标: 'The index set non-COUNT aggregation method needs to select a metric',
+  '是否克隆 {0} ?': 'Do you want to clone {0}?',
+  '是否删除 {0} ?': 'Do you want to delete {0}?',
+  '是否取消 {0} 的订阅?': 'Do you want to unsubscribe {0}?',
+  '是否重新订阅 {0} ?': 'Do you want to re-subscribe {0}?',
+  取消订阅成功: 'Unsubscribe successful',
+  重新订阅成功: 'Re-subscribe successful'
 };

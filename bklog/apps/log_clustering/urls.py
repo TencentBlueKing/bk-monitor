@@ -19,15 +19,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import url, include
+from django.conf.urls import include, url
 from rest_framework import routers
 
 from apps.log_clustering.views.clustering_config_views import ClusteringConfigViewSet
 from apps.log_clustering.views.clustering_monitor_views import ClusteringMonitorViewSet
 from apps.log_clustering.views.pattern_views import PatternViewSet
+from apps.log_clustering.views.report_views import ReportViewSet
 
 router = routers.DefaultRouter(trailing_slash=True)
 router.register(r"pattern", PatternViewSet, basename="pattern_set")
+router.register(r"report", ReportViewSet, basename="report")
 router.register(r"clustering_config", ClusteringConfigViewSet, basename="clustering_config")
 router.register(r"clustering_monitor", ClusteringMonitorViewSet, basename="clustering_monitor")
 

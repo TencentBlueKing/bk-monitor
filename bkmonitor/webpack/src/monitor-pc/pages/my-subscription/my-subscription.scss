@@ -1,0 +1,225 @@
+.my-apply-container {
+  width: 100%;
+  padding: 24px;
+
+  .header-title {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 52px;
+    font-size: 16px;
+    color: #63656e;
+    background: #fff;
+    box-shadow: 0 1px 0 0 #dcdee5,
+      0 3px 4px 0 #4070cb0f;
+  }
+
+  .temp-container {
+    padding: 24px;
+    margin-top: 52px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
+
+  .header-container {
+    display: flex;
+    justify-content: space-between;
+  }
+}
+
+.circle {
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50%;
+
+  &.effecting {
+    background: #e5f6ea;
+    border: 1px solid #3fc06d;
+  }
+
+  &.canceled {
+    background: #e1ecff;
+    border: 1px solid #699df4;
+  }
+
+  &.effected {
+    background: #f0f1f5;
+    border: 1px solid #c4c6cc;
+  }
+
+  &.success {
+    background: #e5f6ea;
+    border: 1px solid #3fc06d;
+  }
+
+  &.fail {
+    background: #ffe6e6;
+    border: 1px solid #ea3636;
+  }
+
+  &.no_status {
+    background: #f0f1f5;
+    border: 1px solid #c4c6cc;
+  }
+}
+
+.my-subscription-slider {
+  .title-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 24px;
+
+    .title {
+      font-size: 16px;
+      line-height: 16px;
+      color: #313238;
+    }
+
+    .sub-title {
+      margin-left: 10px;
+      overflow: hidden;
+      font-size: 14px;
+      line-height: 14px;
+      color: #63656e;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.dialog-header-info-container {
+  display: flex;
+  justify-content: space-between;
+
+  .label-container {
+    display: flex;
+
+    .label {
+      font-size: 12px;
+      color: #63656e;
+    }
+
+    .value {
+      margin-left: 12px;
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+}
+
+.dot-circle {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &.success {
+    background: #e5f6ea;
+    border: 1px solid #3fc06d;
+  }
+
+  &.gray {
+    background: #f0f1f5;
+    border: 1px solid #c4c6cc;
+  }
+
+  &.failed {
+    background: #ffe6e6;
+    border: 1px solid #ea3636;
+  }
+
+  &.partial_failed {
+    background: #ffe8c3;
+    border: 1px solid #ff9c01;
+  }
+
+  &.no_status {
+    background: #f0f1f5;
+    border: 1px solid #c4c6cc;
+  }
+}
+
+.email-subscription-popover {
+  // &.tippy-tooltip[data-size=small] {
+  //     padding: 7px 0;
+  // }
+
+  .popover-item {
+    padding: 7px 12px;
+    color: #63656e;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+
+  .resend-popover-container {
+    width: 280px;
+    padding: 8px;
+
+    .success-header-text {
+      font-size: 12px;
+      color: #63656e;
+
+      .success-text {
+        font-size: 12px;
+        color: #2dcb56;
+      }
+
+      .fail-text {
+        font-size: 12px;
+        color: #ea3636;
+      }
+    }
+
+    .header-confirm-text {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #63656e;
+    }
+
+    .tag-content {
+      margin-top: 6px;
+    }
+
+    .footer-operation {
+      margin-top: 10px;
+      text-align: right;
+    }
+  }
+}
+
+.resend-tag-input {
+  z-index: 3000;
+}
+
+.bk-selector-list .bk-selector-list-item .text {
+  display: inline-block;
+  width: 236px;
+  line-height: 20px;
+  word-break: break-all;
+  white-space: normal;
+}
+
+.cancel-report-dialog {
+  .header {
+    /* stylelint-disable-next-line declaration-no-important */
+    white-space: normal !important;
+  }
+}
+
+.re-subscription-confirm {
+  .bk-dialog-header-inner {
+    /* stylelint-disable-next-line declaration-no-important */
+    white-space: normal !important;
+  }
+}

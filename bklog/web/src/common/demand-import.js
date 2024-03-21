@@ -63,6 +63,7 @@ import {
   bkProgress,
   bkRadio,
   bkRadioGroup,
+  bkRadioButton,
   bkRoundProgress,
   bkRow,
   bkSearchSelect,
@@ -127,6 +128,7 @@ Vue.use(bkProcess);
 Vue.use(bkProgress);
 Vue.use(bkRadio);
 Vue.use(bkRadioGroup);
+Vue.use(bkRadioButton);
 Vue.use(bkRoundProgress);
 Vue.use(bkRow);
 Vue.use(bkSearchSelect);

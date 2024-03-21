@@ -1,0 +1,30 @@
+.report-nav {
+  position: relative;
+  z-index: 100;
+
+  /* stylelint-disable-next-line declaration-no-important */
+  height: 48px !important;
+  padding-left: 24px;
+  font-size: 16px;
+  color: #313238;
+}
+
+.create-subscription-container {
+  position: relative;
+  max-height: calc(100vh - 52px - 48px);
+  padding: 24px 24px 14px 24px;
+  overflow-y: auto;
+
+  .bk-form-label {
+    font-size: 12px;
+  }
+
+  .bk-checkbox-label {
+    font-size: 12px;
+  }
+}
+
+.footer-bar {
+  width: 100%;
+  padding: 10px 24px;
+}

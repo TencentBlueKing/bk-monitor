@@ -124,5 +124,25 @@ export default {
   添加轮值人员: 'Add Rotation Members',
   对比项: 'Comparative Item',
   告警: 'Alarm',
-  关注人: 'Follower'
+  关注人: 'Follower',
+
+  单号: 'Order Number',
+  当前步骤: 'Current Step',
+  当前处理人: 'Current Handler',
+  单据状态: 'Order Status',
+  提单时间: 'Order Time',
+  订阅场景: 'Subscription Scenario',
+  发送模式: 'Send Mode',
+  周期发送: 'Periodical Send',
+  仅发一次: 'Only Send Once',
+  最近一次发送时间: 'Last Send Time',
+  未发送: 'Not Sent',
+  发送成功: 'Send Success',
+  发送部分失败: 'Send Partially Failed',
+  发送失败: 'Send Failed',
+  发送结果: 'Send Result',
+  通知渠道: 'Notification Channel',
+  接收人: 'Recipient',
+  变量说明: 'Variable Description',
+  任务有效期: 'Task validity period'
 };

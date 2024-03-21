@@ -201,5 +201,36 @@ export default {
   '文件解析可能耗费较长时间，可先选择已解析文件查看':
     'File parsing may take a long time, you can select the parsed file first to view',
   请上传文件后查看: 'Please upload the file and view it after that',
-  已选: 'selected'
+  已选: 'selected',
+  'tips-采集状态': 'Collection Status',
+  '已成功发送 {0} 个内部用户': '{0} internal users successfully sent',
+  '已成功发送 {0} 个外部邮件': '{0} external messages sent successfully',
+  '已成功发送 {0} 个企业微信群': '{0} enterprise WeChat groups sent successfully',
+  '已成功发送 {0} 个，失败 {1} 个内部用户': '{0} successfully sent, {1} failed internal users',
+  '已成功发送 {0} 个，失败 {1} 个外部邮件': '{0} successfully sent, {1} failed external messages',
+  '已成功发送 {0} 个，失败 {1} 个企业微信群': '{0} successfully sent, {1} failed enterprise WeChat groups',
+  '当前已存在相同索引集的订阅 {btn} ，请确认是否要创建新订阅或是直接修改已有订阅内容？':
+    'There is currently a subscription {btn} for the same index set. Please confirm whether you want to create a new subscription or directly modify the existing subscription content?',
+  请输入搜索条件: 'Please enter the search condition',
+  确定重新发送给以下用户: 'Confirm to resend to the following users:',
+  确定重新发送给以下邮件: 'Confirm to resend to the following emails:',
+  确定重新发送给以下企业微信群: 'Confirm to resend to the following enterprise WeChat groups:',
+  确定重新发送给以下失败用户: 'Confirm to resend to the following failed users:',
+  确定重新发送给以下失败邮件: 'Confirm to resend to the following failed emails:',
+  确定重新发送给以下失败企业微信群: 'Confirm to resend to the following failed enterprise WeChat groups:',
+  必需为正整数: 'Must be a positive integer',
+  请至少选择一种订阅方式: 'Please select at least one subscription method',
+  请选择: 'please choose',
+  主动订阅: 'Actively subscribe',
+  他人订阅: 'Others subscribe',
+  内部邮件不可为空: 'Internal email cannot be empty',
+  外部邮件不可为空: 'External email cannot be empty',
+  企业微信群不可为空: 'Enterprise WeChat group cannot be empty',
+  '是否发送给自己?': 'Send to yourself?',
+  更新人: 'Updater',
+  更新时间: 'Update time',
+  '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm',
+  '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。':
+    'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.',
+  当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals.'
 };

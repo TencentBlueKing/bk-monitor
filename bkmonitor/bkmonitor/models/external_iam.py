@@ -27,7 +27,6 @@ STATUS_CHOICES = (
     ("success", "success"),
     ("failed", "failed"),
 )
-
 ACTION_ID_MAP = {"view_grafana": "view_dashboard_v2", "manage_grafana": "manage_dashboard_v2"}
 
 

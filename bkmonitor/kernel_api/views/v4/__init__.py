@@ -23,6 +23,7 @@ from .event_plugin import *  # noqa
 from .grafana import *  # noqa
 from .mail_report import *  # noqa
 from .metrics import *  # noqa
+from .new_report import *  # noqa
 from .notice_group import *  # noqa
 from .plugin import *  # noqa
 from .shield import *  # noqa

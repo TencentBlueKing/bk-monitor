@@ -4,6 +4,7 @@ declare global {
   interface Window {
     mainComponent: any;
     timezone: string;
+    MONITOR_URL: string;
   }
 }
 

@@ -49,6 +49,11 @@ export const allRouteConfig: IRouteConfig[] = [
     id: 'profiling',
     name: 'Profiling',
     route: 'profiling'
+  },
+  {
+    id: 'report',
+    name: 'route-订阅配置',
+    route: 'report'
   }
 ];
 

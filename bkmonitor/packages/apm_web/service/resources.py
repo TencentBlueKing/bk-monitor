@@ -301,9 +301,20 @@ class LogServiceChoiceListResource(Resource):
 class LogServiceRelationBkLogIndexSet(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
+        # 是否仅过滤开启数据指纹的索引集
+        clustering_only = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_request_data):
         index_set = api.log_search.search_index_set(bk_biz_id=validated_request_data["bk_biz_id"])
+        if validated_request_data.get("clustering_only"):
+            # 过滤开启数据指纹的索引集，根据是否携带关联tag判定
+            new_index_set = []
+            for index in index_set:
+                for tag in index.get("tags", []):
+                    if tag["name"] == "数据指纹" and tag["color"] == "green":
+                        new_index_set.append(index)
+                        continue
+            index_set = new_index_set
         return [{"id": i["index_set_id"], "name": i["index_set_name"]} for i in index_set]
 
 
@@ -311,7 +322,6 @@ class ServiceConfigResource(Resource):
     RequestSerializer = ServiceConfigSerializer
 
     def perform_request(self, validated_request_data):
-
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
         service_name = validated_request_data["service_name"]
@@ -348,7 +358,6 @@ class ServiceConfigResource(Resource):
         }
 
         for index, item in enumerate(uri_relations):
-
             qs = relations.filter(uri=item)
             if qs.exists():
                 qs.update(rank=index)

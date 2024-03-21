@@ -166,3 +166,87 @@ class UpdateNewClsStrategySerializer(serializers.Serializer):
         if attrs["action"] == ActionEnum.DELETE.value and not attrs.get("strategy_id"):
             raise ValidationError(_("删除操作时需要提供对应strategy_id"))
         return attrs
+
+
+class SubscriberSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    type = serializers.CharField(required=False)
+    is_enabled = serializers.BooleanField()
+
+
+class ChannelSerializer(serializers.Serializer):
+    is_enabled = serializers.BooleanField()
+    subscribers = SubscriberSerializer(many=True)
+    channel_name = serializers.CharField()
+    send_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class ScenarioConfigSerializer(serializers.Serializer):
+    # Clustering
+    index_set_id = serializers.IntegerField()
+    is_show_new_pattern = serializers.BooleanField()
+    pattern_level = serializers.CharField()
+    log_display_count = serializers.IntegerField()
+    year_on_year_change = serializers.CharField()
+    year_on_year_hour = serializers.IntegerField()
+    generate_attachment = serializers.BooleanField()
+
+
+class FrequencySerializer(serializers.Serializer):
+    type = serializers.IntegerField(required=True, label="频率类型")
+    day_list = serializers.ListField(required=False, label="几天")
+    week_list = serializers.ListField(required=False, label="周几")
+    hour = serializers.FloatField(required=False, label="小时频率")
+    run_time = serializers.CharField(required=False, label="运行时间", allow_blank=True)
+
+    class DataRangeSerializer(serializers.Serializer):
+        time_level = serializers.CharField(required=True, label="数据范围时间等级")
+        number = serializers.IntegerField(required=True, label="数据范围时间")
+
+    data_range = DataRangeSerializer(required=False)
+
+
+class ContentConfigSerializer(serializers.Serializer):
+    title = serializers.CharField()
+    is_link_enabled = serializers.BooleanField()
+
+
+class CreateOrUpdateReportSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    name = serializers.CharField(required=True)
+    bk_biz_id = serializers.IntegerField(required=True)
+    scenario = serializers.CharField(label="订阅场景", required=True)
+    subscriber_type = serializers.CharField(label="订阅人类型", required=True)
+    channels = ChannelSerializer(many=True, required=True)
+    frequency = FrequencySerializer(required=True)
+    content_config = ContentConfigSerializer(required=True)
+    scenario_config = ScenarioConfigSerializer(required=True)
+    start_time = serializers.IntegerField(label="开始时间", required=False, default=None, allow_null=True)
+    end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
+    is_manager_created = serializers.BooleanField(required=False, default=False)
+    is_enabled = serializers.BooleanField(required=False, default=True)
+
+
+class GetExistReportsSerlaizer(serializers.Serializer):
+    scenario = serializers.CharField(label="订阅场景", required=True)
+    query_type = serializers.CharField(required=False, label="查询类型")
+    bk_biz_id = serializers.IntegerField(required=True)
+    index_set_id = serializers.IntegerField(required=True)
+
+
+class GetReportVariablesSerlaizer(serializers.Serializer):
+    scenario = serializers.CharField(label="订阅场景", required=True)
+
+
+class SendReportSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False)
+    bk_biz_id = serializers.IntegerField(required=False)
+    scenario = serializers.CharField(label="订阅场景", required=False)
+    channels = ChannelSerializer(many=True, required=False)
+    frequency = FrequencySerializer(required=False)
+    content_config = ContentConfigSerializer(required=False)
+    scenario_config = ScenarioConfigSerializer(required=False)
+    start_time = serializers.IntegerField(label="开始时间", required=False, default=None, allow_null=True)
+    end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
+    is_manager_created = serializers.BooleanField(required=False, default=False)
+    is_enabled = serializers.BooleanField(required=False, default=True)
