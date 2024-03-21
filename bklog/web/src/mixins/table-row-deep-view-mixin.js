@@ -27,7 +27,7 @@ export default {
     // 是否转换日期类型字段格式
     isFormatDate() {
       return this.$store.state.isFormatDate;
-    },
+    }
   },
   methods: {
     /**
@@ -42,7 +42,6 @@ export default {
      */
     tableRowDeepView(row, key, fieldType, isFormatDate = this.isFormatDate, emptyCharacter) {
       return parseTableRowData(row, key, fieldType, isFormatDate, emptyCharacter);
-    },
-
-  },
+    }
+  }
 };

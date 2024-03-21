@@ -140,14 +140,19 @@ export default defineComponent({
     const rotationTypeData = reactive<RotationTypeData>(createDefaultRotation());
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
+      resetEffectiveStartTime();
+      resetUsersColor();
+      getPreviewData();
+    }
+
+    /** 重置生效起始时间 */
+    function resetEffectiveStartTime() {
       if (id.value) {
         // 编辑状态下 且 生效结束时间大于此时此刻（永久）， 将生效起始时间修改为此时此刻
         if (!formData.effective.endTime || new Date(formData.effective.endTime).getTime() > new Date().getTime()) {
           formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
         }
       }
-      resetUsersColor();
-      getPreviewData();
     }
 
     /** 重置用户组所对应的颜色 */
@@ -192,11 +197,13 @@ export default defineComponent({
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
       rotationType.value = type;
+      resetEffectiveStartTime();
       resetUsersColor();
       getPreviewData();
     }
 
     function handleReplaceUserDrop() {
+      resetEffectiveStartTime();
       resetUsersColor();
       getPreviewData();
     }
@@ -245,6 +252,7 @@ export default defineComponent({
     }
 
     function validRotationRule() {
+      if (rotationTypeData[rotationType.value].length === 0) return { err: true, msg: t('最少添加一条轮值规则') };
       if (rotationType.value === RotationTabTypeEnum.REGULAR) {
         for (const item of rotationTypeData[RotationTabTypeEnum.REGULAR]) {
           const valid = validFixedRotationData(item);

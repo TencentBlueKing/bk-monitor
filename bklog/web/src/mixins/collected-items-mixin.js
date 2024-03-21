@@ -28,51 +28,64 @@ export default {
       disabledTips: {
         terminated: {
           operateType: ['clone', 'storage', 'search', 'clean'],
-          tips: this.$t('未完成配置'),
+          tips: this.$t('未完成配置')
         },
-        delete: this.$t('删除前请先停用'),
-      },
+        delete: this.$t('删除前请先停用')
+      }
     };
   },
   methods: {
-    async operateHandler(row, operateType) { // type: [view, status , search, edit, field, start, stop, delete]
-      if (operateType === 'add') { // 新建权限控制
+    async operateHandler(row, operateType) {
+      // type: [view, status , search, edit, field, start, stop, delete]
+      if (operateType === 'add') {
+        // 新建权限控制
         if (!this.isAllowedCreate) {
           return this.getOptionApplyData({
             action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
-            resources: [{
-              type: 'space',
-              id: this.spaceUid,
-            }],
+            resources: [
+              {
+                type: 'space',
+                id: this.spaceUid
+              }
+            ]
           });
         }
-      } else if (operateType === 'view') { // 查看权限
-        if (!(row.permission?.[authorityMap.VIEW_COLLECTION_AUTH])) {
+      } else if (operateType === 'view') {
+        // 查看权限
+        if (!row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]) {
           return this.getOptionApplyData({
             action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
-            resources: [{
-              type: 'collection',
-              id: row.collector_config_id,
-            }],
+            resources: [
+              {
+                type: 'collection',
+                id: row.collector_config_id
+              }
+            ]
           });
         }
-      } else if (operateType === 'search') { // 检索权限
-        if (!(row.permission?.[authorityMap.SEARCH_LOG_AUTH])) {
+      } else if (operateType === 'search') {
+        // 检索权限
+        if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
           return this.getOptionApplyData({
             action_ids: [authorityMap.SEARCH_LOG_AUTH],
-            resources: [{
-              type: 'indices',
-              id: row.index_set_id,
-            }],
+            resources: [
+              {
+                type: 'indices',
+                id: row.index_set_id
+              }
+            ]
           });
         }
-      } else if (!(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH])) { // 管理权限
+      } else if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
+        // 管理权限
         return this.getOptionApplyData({
           action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-          resources: [{
-            type: 'collection',
-            id: row.collector_config_id,
-          }],
+          resources: [
+            {
+              type: 'collection',
+              id: row.collector_config_id
+            }
+          ]
         });
       } else if (operateType === 'masking') {
         // if (!(row.permission?.[authorityMap.SEARCH_LOG_AUTH])) {
@@ -89,23 +102,28 @@ export default {
     },
     // 删除
     requestDeleteCollect(row) {
-      this.$http.request('collect/deleteCollect', {
-        params: {
-          collector_config_id: row.collector_config_id,
-        },
-      }).then((res) => {
-        if (res.result) {
-          const page = this.collectList.length <= 1
-            ? (this.pagination.current > 1 ? this.pagination.current - 1 : 1)
-            : this.pagination.current;
-          if (page !== this.pagination.current) {
-            this.handlePageChange(page);
-          } else {
-            this.requestData();
+      this.$http
+        .request('collect/deleteCollect', {
+          params: {
+            collector_config_id: row.collector_config_id
           }
-        }
-      })
-        .catch(() => { });
+        })
+        .then(res => {
+          if (res.result) {
+            const page =
+              this.collectList.length <= 1
+                ? this.pagination.current > 1
+                  ? this.pagination.current - 1
+                  : 1
+                : this.pagination.current;
+            if (page !== this.pagination.current) {
+              this.handlePageChange(page);
+            } else {
+              this.requestData();
+            }
+          }
+        })
+        .catch(() => {});
     },
     /**
      * 分页变换
@@ -122,10 +140,10 @@ export default {
       }
     },
     /**
-    * 分页限制
-    * @param  {Number} page 当前页码
-    * @return {[type]}      [description]
-    */
+     * 分页限制
+     * @param  {Number} page 当前页码
+     * @return {[type]}      [description]
+     */
     handleLimitChange(page) {
       // console.log('changelimit');
       if (this.pagination.limit !== page) {
@@ -149,10 +167,12 @@ export default {
       try {
         const res = await this.$store.dispatch('checkAllowed', {
           action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
-          resources: [{
-            type: 'space',
-            id: this.spaceUid,
-          }],
+          resources: [
+            {
+              type: 'space',
+              id: this.spaceUid
+            }
+          ]
         });
         this.isAllowedCreate = res.isAllowed;
       } catch (err) {
@@ -165,8 +185,8 @@ export default {
       if (!this.disabledTips[item.status]) return '--';
       if (this.disabledTips[item.status].operateType?.includes(operateType)) {
         return this.disabledTips[item.status].tips;
-      };
+      }
       return '--';
-    },
-  },
+    }
+  }
 };

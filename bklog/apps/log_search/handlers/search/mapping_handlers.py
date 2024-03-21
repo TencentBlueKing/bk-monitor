@@ -24,6 +24,7 @@ import re
 from collections import defaultdict
 from typing import Any, Dict, List
 
+import arrow
 from django.conf import settings
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -323,6 +324,13 @@ class MappingHandlers(object):
     ):
         """默认字段排序规则"""
         time_field = cls.get_time_field(index_set_id)
+        if default_sort_tag and scenario_id in [Scenario.ES, Scenario.BKDATA]:
+            is_exists = IndexSetFieldsConfig.objects.filter(index_set_id=index_set_id).exists()
+            if not is_exists:
+                log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+                sort_fields = log_index_set_obj.sort_fields if log_index_set_obj else []
+                if sort_fields and scenario_id in [Scenario.ES, Scenario.BKDATA]:
+                    return [[field, "desc"] for field in sort_fields]
         if scope in ["trace_detail", "trace_scatter"]:
             return [[time_field, "asc"]]
         if default_sort_tag and scenario_id == Scenario.BKDATA:
@@ -398,19 +406,34 @@ class MappingHandlers(object):
         return type_keyword_fields[:2]
 
     def _get_mapping(self):
-        return self._get_latest_mapping(index_set_id=self.index_set_id)
+        # 当没有指定时间范围时，默认获取最近一天的mapping
+        if not self.start_time and not self.end_time:
+            start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+        else:
+            try:
+                start_time = arrow.get(int(self.start_time)).to(self.time_zone)
+                end_time = arrow.get(int(self.end_time)).to(self.time_zone)
+            except ValueError:
+                start_time = arrow.get(self.start_time, tzinfo=self.time_zone)
+                end_time = arrow.get(self.end_time, tzinfo=self.time_zone)
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}")
-    def _get_latest_mapping(self, *, index_set_id):  # noqa
-        start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+        start_time_format = start_time.floor("hour").strftime("%Y-%m-%d %H:%M:%S")
+        end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
+
+        return self._get_latest_mapping(
+            index_set_id=self.index_set_id, start_time=start_time_format, end_time=end_time_format
+        )
+
+    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
+    def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
         latest_mapping = BkLogApi.mapping(
             {
                 "indices": self.indices,
                 "scenario_id": self.scenario_id,
                 "storage_cluster_id": self.storage_cluster_id,
                 "time_zone": self.time_zone,
-                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "start_time": start_time,
+                "end_time": end_time,
             }
         )
         return latest_mapping

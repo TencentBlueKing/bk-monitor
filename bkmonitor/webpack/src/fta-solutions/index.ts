@@ -41,7 +41,7 @@ import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
 
-import '../monitor-static/icons/monitor-icons.css';
+import 'monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
 
 Vue.config.devtools = process.env.NODE_ENV === 'development';

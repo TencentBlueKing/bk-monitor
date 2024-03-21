@@ -24,41 +24,62 @@
   <div class="field-data">
     <div class="title">
       <i18n path="{0}/{1}条记录中数量排名前 5 的数据值">
-        <span>{{statisticalFieldData.__validCount}}</span>
-        <span>{{statisticalFieldData.__totalCount}}</span>
+        <span>{{ statisticalFieldData.__validCount }}</span>
+        <span>{{ statisticalFieldData.__totalCount }}</span>
       </i18n>
     </div>
     <ul class="chart-list">
-      <template v-for="(item, index) in topFiveList">
-        <li class="chart-item" :key="index + Date.now()">
+      <template>
+        <li
+          v-for="(item, index) in topFiveList"
+          :key="index + Date.now()"
+          class="chart-item"
+        >
           <div class="chart-content">
             <div class="text-container">
-              <div v-bk-overflow-tips class="text-value">{{ item[0] }}</div>
+              <div
+                v-bk-overflow-tips
+                class="text-value"
+              >
+                {{ item[0] }}
+              </div>
               <div class="percent-value">{{ computePercent(item[1]) }}</div>
             </div>
             <div class="percent-bar-container">
-              <div class="percent-bar" :style="{ width: computePercent(item[1]) }"></div>
+              <div
+                class="percent-bar"
+                :style="{ width: computePercent(item[1]) }"
+              ></div>
             </div>
           </div>
           <div class="operation-container">
             <span
               v-bk-tooltips="getIconPopover('=', item[0])"
               :class="['bk-icon icon-enlarge-line', filterIsExist('is', item[0]) ? 'disable' : '']"
-              @click="addCondition('is', item[0])">
+              @click="addCondition('is', item[0])"
+            >
             </span>
             <span
               v-bk-tooltips="getIconPopover('!=', item[0])"
               :class="['bk-icon icon-narrow-line', filterIsExist('is not', item[0]) ? 'disable' : '']"
-              @click="addCondition('is not', item[0])">
+              @click="addCondition('is not', item[0])"
+            >
             </span>
           </div>
         </li>
       </template>
-      <li class="more-item" v-if="!showAllList && shouldShowMore">
+      <li
+        v-if="!showAllList && shouldShowMore"
+        class="more-item"
+      >
         <span
-          @click="() => {
-            showAllList = !showAllList
-          }">{{$t('更多')}}</span>
+          @click="
+            () => {
+              showAllList = !showAllList;
+            }
+          "
+          >{{ $t('更多') }}</span
+        >
       </li>
     </ul>
   </div>
@@ -68,61 +89,61 @@
 import _escape from 'lodash/escape';
 
 export default {
+  inject: ['addFilterCondition'],
   props: {
     statisticalFieldData: {
       type: Object,
       default() {
         return {};
-      },
+      }
     },
     fieldName: {
       type: String,
-      required: true,
+      required: true
     },
     fieldType: {
       type: String,
-      required: true,
+      required: true
     },
     parentExpand: {
       type: Boolean,
-      default: false,
+      default: false
     },
     retrieveParams: {
       type: Object,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
       showAllList: false,
       shouldShowMore: false,
-      mappingKay: { // is is not 值映射
+      mappingKay: {
+        // is is not 值映射
         is: '=',
-        'is not': '!=',
-      },
+        'is not': '!='
+      }
     };
   },
   computed: {
     topFiveList() {
       const totalList = Object.entries(this.statisticalFieldData);
       totalList.sort((a, b) => b[1] - a[1]);
-      totalList.forEach((item) => {
+      totalList.forEach(item => {
         const markList = item[0].toString().match(/(<mark>).*?(<\/mark>)/g) || [];
         if (markList.length) {
-          item[0] = markList.map(item => item.replace(/<mark>/g, '')
-            .replace(/<\/mark>/g, '')).join(',');
+          item[0] = markList.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
         }
       });
       this.shouldShowMore = totalList.length > 5;
       return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
-    },
+    }
   },
   watch: {
     parentExpand(val) {
       if (!val) this.showAllList = false;
-    },
+    }
   },
-  inject: ['addFilterCondition'],
   methods: {
     // 计算百分比
     computePercent(count) {
@@ -141,106 +162,108 @@ export default {
       if (this.fieldType === '__virtual__') return true;
       if (this.retrieveParams?.addition.length) {
         if (operator === 'not') operator = 'is not';
-        return this.retrieveParams.addition.some((addition) => {
-          return addition.field === this.fieldName
-        && addition.operator === (this.mappingKay[operator] ?? operator) // is is not 值映射
-        && addition.value.toString() === value.toString();
+        return this.retrieveParams.addition.some(addition => {
+          return (
+            addition.field === this.fieldName &&
+            addition.operator === (this.mappingKay[operator] ?? operator) && // is is not 值映射
+            addition.value.toString() === value.toString()
+          );
         });
       }
       return false;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .field-data {
-    padding: 0 12px;
-    // background-color: #FAFBFD;
-    .title {
-      padding: 8px 0 4px;
-      color: #979ba5;
-    }
+.field-data {
+  padding: 0 12px;
+  // background-color: #FAFBFD;
+  .title {
+    padding: 8px 0 4px;
+    color: #979ba5;
+  }
 
-    .disable {
-      /* stylelint-disable-next-line declaration-no-important */
-      color: #dcdee5 !important;
-    }
+  .disable {
+    /* stylelint-disable-next-line declaration-no-important */
+    color: #dcdee5 !important;
+  }
 
-    .chart-list {
-      .chart-item {
-        display: flex;
-        align-items: center;
+  .chart-list {
+    .chart-item {
+      display: flex;
+      align-items: center;
 
-        .chart-content {
-          width: calc(100% - 46px);
+      .chart-content {
+        width: calc(100% - 46px);
 
-          .text-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            line-height: 20px;
+        .text-container {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          line-height: 20px;
 
-            .text-value {
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-
-            .percent-value {
-              flex-shrink: 0;
-              color: #2dcb56;
-              margin-left: 6px;
-            }
+          .text-value {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
 
-          .percent-bar-container {
-            position: relative;
-            height: 6px;
-            margin-bottom: 9px;
-            background-color: #dcdee5;
-
-            .percent-bar {
-              position: absolute;
-              height: 6px;
-              background-color: #2dcb56;
-            }
+          .percent-value {
+            margin-left: 6px;
+            color: #2dcb56;
+            flex-shrink: 0;
           }
         }
 
-        .operation-container {
-          flex-shrink: 0;
-          display: flex;
-          justify-content: space-between;
-          width: 36px;
-          margin-left: 10px;
-          transform: translateY(4px);
+        .percent-bar-container {
+          position: relative;
+          height: 6px;
+          margin-bottom: 9px;
+          background-color: #dcdee5;
 
-          .bk-icon {
-            font-size: 18px;
-            color: #3a84ff;
-            // transform: rotate(45deg);
-            cursor: pointer;
-
-            &:active {
-              color: #2761dd;
-            }
-
-            &:hover {
-              color: #699df4;
-            }
+          .percent-bar {
+            position: absolute;
+            height: 6px;
+            background-color: #2dcb56;
           }
         }
       }
 
-      .more-item {
-        margin: 4px 0 10px;
+      .operation-container {
+        flex-shrink: 0;
+        display: flex;
+        justify-content: space-between;
+        width: 36px;
+        margin-left: 10px;
+        transform: translateY(4px);
 
-        span {
+        .bk-icon {
+          font-size: 18px;
           color: #3a84ff;
+          // transform: rotate(45deg);
           cursor: pointer;
+
+          &:active {
+            color: #2761dd;
+          }
+
+          &:hover {
+            color: #699df4;
+          }
         }
+      }
+    }
+
+    .more-item {
+      margin: 4px 0 10px;
+
+      span {
+        color: #3a84ff;
+        cursor: pointer;
       }
     }
   }
+}
 </style>

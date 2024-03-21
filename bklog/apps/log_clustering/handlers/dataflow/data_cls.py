@@ -424,6 +424,7 @@ class LogCountAggregationFlowCls(object):
     tspider_storage: TspiderStorageCls
     storage_type: str
     bk_biz_id: int
+    groups: str = ""
     cluster: str = ""
 
 

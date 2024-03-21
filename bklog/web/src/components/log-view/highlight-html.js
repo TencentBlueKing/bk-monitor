@@ -25,21 +25,21 @@ export default {
   props: {
     item: {
       type: String,
-      required: true,
+      required: true
     },
     filterKey: {
       type: String,
-      required: true,
+      required: true
     },
     ignoreCase: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   render(h, c) {
     const { item, filterKey, ignoreCase } = c.props;
 
-    const handleMatch = (key) => {
+    const handleMatch = key => {
       let filtKey = filterKey;
       const keyVal = ignoreCase ? key : key.toLowerCase();
       filtKey = ignoreCase ? filtKey : filtKey.toLowerCase();
@@ -52,11 +52,11 @@ export default {
     const match = item.slice(index, index + length);
     const right = item.slice(index + length);
     return (
-            <span style="white-space: normal;word-break: break-all;">
-                <span>{left}</span>
-                <span style="background: yellow;color: #313238;">{match}</span>
-                <span>{right}</span>
-            </span>
+      <span style='white-space: normal;word-break: break-all;'>
+        <span>{left}</span>
+        <span style='background: yellow;color: #313238;'>{match}</span>
+        <span>{right}</span>
+      </span>
     );
-  },
+  }
 };

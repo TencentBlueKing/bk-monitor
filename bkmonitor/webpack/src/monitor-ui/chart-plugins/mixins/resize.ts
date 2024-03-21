@@ -43,7 +43,7 @@ export default class ResizeMixin extends Vue {
     if (this.$refs.chart) {
       /** display: none后dom的宽高为0 */
       const { height = 0, width = 0 } = (this.$refs.chart as Element).getBoundingClientRect();
-      if (height > 32 && width > 32) {
+      if (height > 32 && width >= 0) {
         this.height = height;
         this.width = width;
       }

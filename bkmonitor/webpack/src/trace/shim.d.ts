@@ -53,5 +53,7 @@ declare global {
     apm_ebpf_enabled: boolean;
     dayjs?: Dayjs;
     enable_apm_profiling: boolean;
+    bk_docs_site_url: string;
+    graph_watermark: boolean;
   }
 }

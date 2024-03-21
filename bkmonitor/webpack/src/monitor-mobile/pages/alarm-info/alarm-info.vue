@@ -148,10 +148,10 @@
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 import dayjs from 'dayjs';
+import { getUrlParam } from 'monitor-common/utils/utils';
 import { Button, Cell, Collapse, CollapseItem, Dialog, List, PullRefresh } from 'vant';
 
 import { ackEvent } from '../../../monitor-api/modules/mobile_event';
-import { getUrlParam } from '../../../monitor-common/utils/utils';
 import MonitorMobileEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
 import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';

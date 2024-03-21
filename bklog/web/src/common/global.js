@@ -53,8 +53,8 @@ try {
   topWindow.BLUEKING = {
     corefunc: {
       open_login_dialog: openLoginDialog,
-      close_login_dialog: closeLoginDialog,
-    },
+      close_login_dialog: closeLoginDialog
+    }
   };
   window.open_login_dialog = openLoginDialog;
   window.close_login_dialog = closeLoginDialog;

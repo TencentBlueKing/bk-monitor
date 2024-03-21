@@ -21,11 +21,7 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Model,
-  Prop,
-} from 'vue-property-decorator';
+import { Component, Model, Prop } from 'vue-property-decorator';
 import { Dialog } from 'bk-magic-vue';
 import MaskingSetting from '../log-masking/masking-setting';
 import './index.scss';
@@ -71,26 +67,29 @@ export default class MaskingDialog extends tsc<IProps> {
     return (
       <Dialog
         value={this.value}
-        render-directive="if"
-        width="100%"
+        render-directive='if'
+        width='100%'
         scrollable
         show-mask={false}
         show-footer={false}
         draggable={false}
         close-icon={false}
-        ext-cls="masking-dialog"
+        ext-cls='masking-dialog'
         position={{
           top: this.showAlert ? 90 : 50,
-          left: 0,
+          left: 0
         }}
       >
         <div class={`masking-container ${this.showAlert ? 'is-show-notice' : ''}`}>
-          <div class="masking-title">
+          <div class='masking-title'>
             <div></div>
             <span>{this.$t('全局设置')}</span>
-            <div class="bk-icon icon-close" onClick={this.handleCloseDialog}></div>
+            <div
+              class='bk-icon icon-close'
+              onClick={this.handleCloseDialog}
+            ></div>
           </div>
-          <div class="center-box">
+          <div class='center-box'>
             <div
               class='left-panel'
               style={{ display: this.menuList?.length ? 'flex' : 'none' }}

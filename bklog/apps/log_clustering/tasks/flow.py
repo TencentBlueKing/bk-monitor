@@ -59,3 +59,13 @@ def update_predict_nodes_and_online_task(index_set_id):
     logger.info(f"update predict flow nodes and online task beginning: index_set_id -> {index_set_id}")
     DataFlowHandler().update_predict_nodes_and_online_tasks(index_set_id=index_set_id)
     logger.info(f"update predict flow nodes and online task success: index_set_id -> {index_set_id}")
+
+
+@high_priority_task(ignore_result=True)
+def update_log_count_aggregation_flow(index_set_id):
+    """
+    更新聚合flow
+    """
+    logger.info(f"update agg flow nodes beginning: index_set_id -> {index_set_id}")
+    DataFlowHandler().update_log_count_aggregation_flow(index_set_id=index_set_id)
+    logger.info(f"update agg flow nodes success: index_set_id -> {index_set_id}")

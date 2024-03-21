@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { EChartOption } from 'echarts'
+import { EChartOption } from 'echarts';
 
 export interface ILegendItem {
   name: string;
@@ -29,20 +29,19 @@ export interface ILegendItem {
   avg: number;
   total: number;
   color: string;
-  show:  boolean;
+  show: boolean;
 }
-export type ChartType = 'bar'| 'line' | 'pie' | 'map' | 'status' | 'text'
+export type ChartType = 'bar' | 'line' | 'pie' | 'map' | 'status' | 'text';
 export interface IChartOptionPorps {
-  chartType: ChartType
-  colors: string[]
-  showExtremum: boolean
-  chartOption: EChartOption
-  lineWidth: number
+  chartType: ChartType;
+  colors: string[];
+  showExtremum: boolean;
+  chartOption: EChartOption;
+  lineWidth: number;
 }
-
 
 export interface IChartInstance {
-  getOptions: (data: any, otherOptions?: EChartOption) => ({options: EChartOption, legendData: ILegendItem[]})
+  getOptions: (data: any, otherOptions?: EChartOption) => { options: EChartOption; legendData: ILegendItem[] };
 }
 
 export interface IMoreToolItem {
@@ -59,17 +58,19 @@ export interface IAnnotation {
   title: string;
   name: string;
   color: string;
-  list?: IAnnotationListItem[]
+  list?: IAnnotationListItem[];
 }
 export interface IAnnotationListItem {
-  id: string; value: any; show: boolean
+  id: string;
+  value: any;
+  show: boolean;
 }
 export interface IStatusSeries {
   value: number | string;
-  status: number | string
+  status: number | string;
 }
 export interface IStatusChartOption {
-  series: IStatusSeries[]
+  series: IStatusSeries[];
 }
 
 export interface ITextSeries {
@@ -78,6 +79,6 @@ export interface ITextSeries {
 }
 
 export interface ITextChartOption {
-  series: ITextSeries
+  series: ITextSeries;
 }
-export type MoreChartToolItem = 'explore' | 'set' | 'strategy' | 'area'
+export type MoreChartToolItem = 'explore' | 'set' | 'strategy' | 'area';

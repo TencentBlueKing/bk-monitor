@@ -25,26 +25,38 @@
     width="1105"
     :value="show"
     :show-footer="false"
-    @value-change="handleValueChange">
+    @value-change="handleValueChange"
+  >
     <template>
-      <div class="log-version" v-bkloading="{ isLoading: loading }">
+      <div
+        v-bkloading="{ isLoading: loading }"
+        class="log-version"
+      >
         <div class="log-version-left">
           <ul class="left-list">
             <li
+              v-for="(item, index) in logList"
+              :key="index"
               class="left-list-item"
               :class="{ 'item-active': index === active }"
-              v-for="(item,index) in logList"
-              :key="index"
-              @click="handleItemClick(index)">
-              <span class="item-title">{{item.title}}</span>
-              <span class="item-date">{{item.date}}</span>
-              <span v-if="index === current" class="item-current">{{$t('当前版本')}}</span>
+              @click="handleItemClick(index)"
+            >
+              <span class="item-title">{{ item.title }}</span>
+              <span class="item-date">{{ item.date }}</span>
+              <span
+                v-if="index === current"
+                class="item-current"
+                >{{ $t('当前版本') }}</span
+              >
             </li>
           </ul>
         </div>
         <div class="log-version-right">
           <!-- eslint-disable vue/no-v-html -->
-          <div class="detail-container" v-html="currentLog.detail"></div>
+          <div
+            class="detail-container"
+            v-html="currentLog.detail"
+          ></div>
           <!--eslint-enable-->
         </div>
       </div>
@@ -60,7 +72,7 @@ export default {
   name: 'LogVersion',
   props: {
     // 是否显示
-    dialogShow: Boolean,
+    dialogShow: Boolean
   },
   data() {
     return {
@@ -68,17 +80,17 @@ export default {
       current: 0,
       active: 0,
       logList: [],
-      loading: false,
+      loading: false
     };
   },
   computed: {
     ...mapState({
       spaceUid: state => state.spaceUid,
-      isExternal: state => state.isExternal,
+      isExternal: state => state.isExternal
     }),
     currentLog() {
       return this.logList[this.active] || {};
-    },
+    }
   },
   watch: {
     dialogShow: {
@@ -93,8 +105,8 @@ export default {
           this.loading = false;
         }
       },
-      immediate: true,
-    },
+      immediate: true
+    }
   },
   beforeDestroy() {
     this.show = false;
@@ -119,14 +131,14 @@ export default {
     async getVersionLogsList() {
       const params = {
         method: 'get',
-        url: `${window.SITE_URL}version_log/version_logs_list/`,
+        url: `${window.SITE_URL}version_log/version_logs_list/`
       };
       if (this.isExternal) {
         params.headers = {
-          'X-Bk-Space-Uid': this.spaceUid,
+          'X-Bk-Space-Uid': this.spaceUid
         };
       }
-      const { data } = await axios(params).catch((_) => {
+      const { data } = await axios(params).catch(_ => {
         console.warn(_);
         return { data: { data: [] } };
       });
@@ -138,108 +150,108 @@ export default {
         method: 'get',
         url: `${window.SITE_URL}version_log/version_log_detail/`,
         params: {
-          log_version: this.currentLog.title,
-        },
+          log_version: this.currentLog.title
+        }
       };
       if (this.isExternal) {
         params.headers = {
-          'X-Bk-Space-Uid': this.spaceUid,
+          'X-Bk-Space-Uid': this.spaceUid
         };
       }
-      const { data } = await axios(params).catch((_) => {
+      const { data } = await axios(params).catch(_ => {
         console.warn(_);
         return { data: '' };
       });
       return data.data;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .log-version {
+.log-version {
+  display: flex;
+  margin: -33px -24px -26px;
+
+  &-left {
     display: flex;
-    margin: -33px -24px -26px;
+    padding: 40px 0;
+    font-size: 12px;
+    background-color: #fafbfd;
+    border-right: 1px solid #dcdee5;
+    flex: 0 0 180px;
 
-    &-left {
-      flex: 0 0 180px;
-      background-color: #fafbfd;
-      border-right: 1px solid #dcdee5;
-      padding: 40px 0;
+    .left-list {
       display: flex;
-      font-size: 12px;
+      width: 100%;
+      height: 520px;
+      overflow: auto;
+      border-top: 1px solid #dcdee5;
+      border-bottom: 1px solid #dcdee5;
+      flex-direction: column;
 
-      .left-list {
-        border-top: 1px solid #dcdee5;
-        border-bottom: 1px solid #dcdee5;
-        height: 520px;
-        overflow: auto;
+      &-item {
+        position: relative;
         display: flex;
+        padding-left: 30px;
+        border-bottom: 1px solid #dcdee5;
+        flex: 0 0 54px;
         flex-direction: column;
-        width: 100%;
+        justify-content: center;
 
-        &-item {
-          flex: 0 0 54px;
+        &:hover {
+          cursor: pointer;
+          background-color: #fff;
+        }
+
+        .item-title {
+          font-size: 16px;
+          color: #313238;
+        }
+
+        .item-date {
+          color: #979ba5;
+        }
+
+        .item-current {
+          position: absolute;
+          top: 8px;
+          right: 20px;
           display: flex;
-          flex-direction: column;
+          width: 58px;
+          height: 20px;
+          color: #fff;
+          background-color: #699df4;
+          border-radius: 2px;
+          align-items: center;
           justify-content: center;
-          padding-left: 30px;
-          position: relative;
-          border-bottom: 1px solid #dcdee5;
+        }
 
-          &:hover {
-            cursor: pointer;
-            background-color: #fff;
-          }
+        &.item-active {
+          background-color: #fff;
 
-          .item-title {
-            color: #313238;
-            font-size: 16px;
-          }
-
-          .item-date {
-            color: #979ba5;
-          }
-
-          .item-current {
+          &::before {
             position: absolute;
-            right: 20px;
-            top: 8px;
-            background-color: #699df4;
-            border-radius: 2px;
-            width: 58px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-          }
-
-          &.item-active {
-            background-color: #fff;
-
-            &::before {
-              content: ' ';
-              position: absolute;
-              top: 0px;
-              bottom: 0px;
-              left: 0;
-              width: 6px;
-              background-color: #3a84ff;
-            }
+            top: 0px;
+            bottom: 0px;
+            left: 0;
+            width: 6px;
+            background-color: #3a84ff;
+            content: ' ';
           }
         }
       }
     }
+  }
 
-    &-right {
-      flex: 1;
-      padding: 25px 30px 50px 45px;
+  &-right {
+    flex: 1;
+    padding: 25px 30px 50px 45px;
 
-      .detail-container {
-        max-height: 525px;
-        overflow: auto;
-      }
+    .detail-container {
+      max-height: 525px;
+      overflow: auto;
     }
   }
+}
 </style>

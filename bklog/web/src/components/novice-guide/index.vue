@@ -22,23 +22,41 @@
 
 <template>
   <transition name="guide-fade">
-    <div v-if="!isDone && stepList.length" ref="wraper" class="novice-guide">
+    <div
+      v-if="!isDone && stepList.length"
+      ref="wraper"
+      class="novice-guide"
+    >
       <StepBox
+        v-if="!isShowFinisheDialog && !isShowStopDialog"
         ref="tip"
         :placement="placement"
         :tip-styles="tipStyles"
-        v-if="!isShowFinisheDialog && !isShowStopDialog"
       >
-        <div slot="title">
-          {{ currentStep.title }}（{{ currentStepNum }}/{{ stepList.length }}）
-        </div>
+        <div slot="title">{{ currentStep.title }}（{{ currentStepNum }}/{{ stepList.length }}）</div>
         <div slot="content">{{ currentStep.content }}</div>
         <template slot="action">
           <template v-if="!isLast">
-            <div class="action-text" @click="handleStepChange('stop')">{{ $t('跳过') }}</div>
-            <div class="action-btn" @click="handleStepChange('next')">{{ $t('下一步') }}</div>
+            <div
+              class="action-text"
+              @click="handleStepChange('stop')"
+            >
+              {{ $t('跳过') }}
+            </div>
+            <div
+              class="action-btn"
+              @click="handleStepChange('next')"
+            >
+              {{ $t('下一步') }}
+            </div>
           </template>
-          <div v-else class="action-btn" @click="handleStepChange('finish')">{{ $t('完成') }}</div>
+          <div
+            v-else
+            class="action-btn"
+            @click="handleStepChange('finish')"
+          >
+            {{ $t('完成') }}
+          </div>
         </template>
       </StepBox>
 
@@ -90,17 +108,17 @@ import StepBox from '../step-box/index.vue';
 export default {
   name: '',
   components: {
-    StepBox,
+    StepBox
   },
   props: {
     guidePage: {
       type: String,
-      required: '',
+      required: ''
     },
     data: {
       type: Object,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
@@ -112,7 +130,7 @@ export default {
       currentStep: {},
       tipStyles: {},
       placement: '',
-      doneCountTime: 3,
+      doneCountTime: 3
     };
   },
   computed: {
@@ -127,7 +145,7 @@ export default {
     },
     isLast() {
       return this.currentStepIndex === this.stepList.length - 1;
-    },
+    }
   },
   created() {
     this.helpImg = '';
@@ -193,12 +211,9 @@ export default {
             right: targetRight,
             bottom: targeBottom,
             left: targetLeft,
-            width: targetWidth,
+            width: targetWidth
           } = $stepTarget.getBoundingClientRect();
-          const {
-            width,
-            height,
-          } = this.$refs.tip.$el.getBoundingClientRect();
+          const { width, height } = this.$refs.tip.$el.getBoundingClientRect();
 
           let placement = 'left';
           if (width > height && targeBottom < 0.3 * windowHieght) {
@@ -212,22 +227,22 @@ export default {
           if (placement === 'bottom') {
             styles = {
               top: `${targeBottom + 10}px`,
-              left: `${targetLeft + (targetWidth - width) / 2}px`,
+              left: `${targetLeft + (targetWidth - width) / 2}px`
             };
           } else if (placement === 'top') {
             styles = {
               top: `${windowHieght - targetTop - height - 10}px`,
-              left: `${targetLeft + (targetWidth - width) / 2}px`,
+              left: `${targetLeft + (targetWidth - width) / 2}px`
             };
           } else if (placement === 'left') {
             styles = {
               top: `${targetTop}px`,
-              right: `${windowWidth - targetLeft + 10}px`,
+              right: `${windowWidth - targetLeft + 10}px`
             };
           } else if (placement === 'right') {
             styles = {
               top: `${targetTop}px`,
-              left: `${targetRight + 10}px`,
+              left: `${targetRight + 10}px`
             };
           }
           this.currentStep = Object.freeze(currentStep);
@@ -240,7 +255,7 @@ export default {
      * 清空所有步骤的激活状态
      */
     clearActive() {
-      document.body.querySelectorAll('.guide-highlight').forEach((el) => {
+      document.body.querySelectorAll('.guide-highlight').forEach(el => {
         el.classList.remove('guide-highlight');
       });
     },
@@ -322,121 +337,124 @@ export default {
     handleStepChange(step) {
       const curStep = ['stop', 'finish'].includes(step) ? this.stepList.length : this.currentStepIndex + 1;
 
-      this.$http.request('meta/updateUserGuide', { data: { [this.guidePage]: curStep } }).then(() => {
-        step === 'next' ? this.handleNext() : step === 'finish' ? this.handleFinish() : this.handleStop();
-      })
-        .catch((e) => {
+      this.$http
+        .request('meta/updateUserGuide', { data: { [this.guidePage]: curStep } })
+        .then(() => {
+          step === 'next' ? this.handleNext() : step === 'finish' ? this.handleFinish() : this.handleStop();
+        })
+        .catch(e => {
           console.warn(e);
         });
-    },
-  },
+    }
+  }
 };
 </script>
 
-<style lang='scss'>
-  body {
-    *.guide-highlight {
-      /* stylelint-disable-next-line declaration-no-important */
-      opacity: 1 !important;
+<style lang="scss">
+body {
+  *.guide-highlight {
+    /* stylelint-disable-next-line declaration-no-important */
+    z-index: 100001 !important;
 
-      /* stylelint-disable-next-line declaration-no-important */
-      z-index: 100001 !important;
+    /* stylelint-disable-next-line declaration-no-important */
+    pointer-events: none !important;
+    background: #fff;
+    /* stylelint-disable-next-line declaration-no-important */
+    opacity: 1 !important;
+  }
+}
+
+.novice-guide {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100000;
+  background: rgba(0, 0, 0, 0.6);
+
+  .guide-finished-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    .wraper {
+      width: 400px;
+      height: 210px;
+      padding-top: 74px;
+      text-align: center;
       background: #fff;
+      border-radius: 2px;
 
-      /* stylelint-disable-next-line declaration-no-important */
-      pointer-events: none !important;
-    }
-  }
+      .flag {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        display: flex;
+        width: 86px;
+        height: 86px;
+        font-size: 55px;
+        color: #fff;
+        background: #2dcb56;
+        border: 13px solid #dcffe2;
+        border-radius: 50%;
+        transform: translate(-50%, -27px);
+        align-items: center;
+        justify-content: center;
 
-  .novice-guide {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 100000;
-    background: rgba(0,0,0,.6);
-
-    .guide-finished-box {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-
-      .wraper {
-        width: 400px;
-        height: 210px;
-        padding-top: 74px;
-        text-align: center;
-        background: #fff;
-        border-radius: 2px;
-
-        .flag {
+        &:after {
           position: absolute;
-          top: 0;
-          left: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 86px;
-          height: 86px;
-          font-size: 55px;
-          color: #fff;
-          border: 13px solid #dcffe2;
-          border-radius: 50%;
-          background: #2dcb56;
-          transform: translate(-50%, -27px);
-
-          &:after {
-            content: '';
-            position: absolute;
-          }
-        }
-      }
-    }
-
-    .guide-stop-box {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-
-      .wraper {
-        width: 500px;
-        height: 370px;
-        padding-top: 25px;
-        text-align: center;
-        border-radius: 2px;
-        background: #fff;
-
-        .cancal-btn {
-          position: absolute;
-          top: 5px;
-          right: 5px;
-          width: 26px;
-          height: 26px;
-          font-weight: 700;
-          font-size: 22px;
-          color: #979ba5;
-          line-height: 26px;
-          text-align: center;
-          border-radius: 50%;
-          cursor: pointer;
-
-          &:hover {
-            background-color: #f0f1f5;
-          }
+          content: '';
         }
       }
     }
   }
 
-  .guide-fade-leave-active {
-    transition: visibility .15s linear, opacity .1s linear;
-  }
+  .guide-stop-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 
-  .guide-fade-leave-to {
-    opacity: 0;
-    visibility: hidden;
+    .wraper {
+      width: 500px;
+      height: 370px;
+      padding-top: 25px;
+      text-align: center;
+      background: #fff;
+      border-radius: 2px;
+
+      .cancal-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 26px;
+        height: 26px;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 26px;
+        color: #979ba5;
+        text-align: center;
+        cursor: pointer;
+        border-radius: 50%;
+
+        &:hover {
+          background-color: #f0f1f5;
+        }
+      }
+    }
   }
+}
+
+.guide-fade-leave-active {
+  transition:
+    visibility 0.15s linear,
+    opacity 0.1s linear;
+}
+
+.guide-fade-leave-to {
+  opacity: 0;
+  visibility: hidden;
+}
 </style>

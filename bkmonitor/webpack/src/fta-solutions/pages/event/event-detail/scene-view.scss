@@ -1,11 +1,12 @@
+/* stylelint-disable declaration-no-important */
 .event-detail-scene-view {
   display: none;
   min-height: 300px;
 
   &.show {
     display: flex;
-    align-items: center;
     flex-direction: column;
+    align-items: center;
   }
 
   .dashboard-panel {
@@ -22,37 +23,37 @@
   }
 
   .view-bottom {
-    font-size: 12px;
-    height: 68px;
-    margin: auto 0 -68px 0;
-    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
+    height: 68px;
+    margin: auto 0 -68px 0;
+    font-size: 12px;
 
     .view-bottom-label {
-      height: 42px;
-      border-radius: 2px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      bottom: 0;
-      right: 0;
       position: fixed;
-      width: 1280px;
-      background-color: #e1ecff !important;
-      box-shadow: none !important;
+      right: 0;
+      bottom: 0;
       z-index: 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 42px;
+      background-color: #e1ecff !important;
+      border-radius: 2px;
+      box-shadow: none !important;
     }
 
     .link {
-      color: #3a84ff;
       margin: 0 4px;
+      color: #3a84ff;
       cursor: pointer;
 
       .icon-fenxiang {
-        font-size: 12px;
         margin: 0 2px;
+        font-size: 12px;
       }
     }
   }

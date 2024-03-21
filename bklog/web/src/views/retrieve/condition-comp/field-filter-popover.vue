@@ -23,7 +23,10 @@
 <template>
   <div class="filter-popover-content">
     <div class="title">{{ $t('是否可聚合') }}</div>
-    <bk-radio-group v-model="polymerizable" class="king-radio-group">
+    <bk-radio-group
+      v-model="polymerizable"
+      class="king-radio-group"
+    >
       <bk-radio value="0">{{ $t('不限') }}</bk-radio>
       <bk-radio value="1">{{ $t('是') }}</bk-radio>
       <bk-radio value="2">{{ $t('否') }}</bk-radio>
@@ -33,13 +36,15 @@
       <bk-button
         v-for="item in showFieldTypeList"
         :key="item"
-        @click="fieldType = item"
         :class="fieldType === item ? 'is-selected' : ''"
-        size="small">
+        size="small"
+        @click="fieldType = item"
+      >
         <div class="custom-button">
           <span
             class="field-filter-option-icon"
-            :class="item === 'any' ? '' : fieldTypeMap[item].icon">
+            :class="item === 'any' ? '' : fieldTypeMap[item].icon"
+          >
           </span>
           <span class="bk-option-name">{{ fieldTypeMap[item].name }}</span>
         </div>
@@ -50,13 +55,15 @@
         class="king-button mr10"
         size="small"
         theme="primary"
-        @click="handleConfirm">
+        @click="handleConfirm"
+      >
         {{ $t('确定') }}
       </bk-button>
       <bk-button
         class="king-button"
         size="small"
-        @click="handleCancel">
+        @click="handleCancel"
+      >
         {{ $t('取消') }}
       </bk-button>
     </div>
@@ -64,14 +71,16 @@
 </template>
 
 <script>
-let polymerizableCache; let fieldTypeCache;
+let polymerizableCache;
+let fieldTypeCache;
 
 export default {
   props: {
-    value: { // 浮层的显示状态
+    value: {
+      // 浮层的显示状态
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   data() {
     return {
@@ -81,39 +90,40 @@ export default {
       fieldTypeMap: {
         any: {
           name: this.$t('不限'),
-          icon: 'bk-icon icon-check-line',
+          icon: 'bk-icon icon-check-line'
         },
         number: {
           name: this.$t('数字'),
-          icon: 'log-icon icon-number',
+          icon: 'log-icon icon-number'
         },
         keyword: {
           name: this.$t('字符串'),
-          icon: 'log-icon icon-string',
+          icon: 'log-icon icon-string'
         },
         text: {
           name: this.$t('文本'),
-          icon: 'log-icon icon-text',
+          icon: 'log-icon icon-text'
         },
         date: {
           name: this.$t('时间'),
-          icon: 'bk-icon icon-clock',
+          icon: 'bk-icon icon-clock'
         },
         __virtual__: {
           name: this.$t('虚拟字段'),
-          icon: 'log-icon icon-ext',
-        },
-      },
+          icon: 'log-icon icon-ext'
+        }
+      }
     };
   },
   computed: {
     showFieldTypeList() {
       if (this.polymerizable === '1') return this.fieldTypeList.filter(item => item !== 'date');
       return this.fieldTypeList;
-    },
+    }
   },
   watch: {
-    '$route.params.indexId'() { // 切换索引集重置状态
+    '$route.params.indexId'() {
+      // 切换索引集重置状态
       this.polymerizable = '0';
       this.fieldType = 'any';
     },
@@ -125,7 +135,7 @@ export default {
         this.polymerizable = polymerizableCache;
         this.fieldType = fieldTypeCache;
       }
-    },
+    }
   },
   methods: {
     handleConfirm() {
@@ -133,102 +143,102 @@ export default {
       fieldTypeCache = this.fieldType;
       this.$emit('confirm', {
         polymerizable: this.polymerizable,
-        fieldType: this.fieldType,
+        fieldType: this.fieldType
       });
       this.$emit('closePopover');
     },
     handleCancel() {
       this.$emit('closePopover');
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .filter-popover-content {
-    padding: 8px 2px;
+.filter-popover-content {
+  padding: 8px 2px;
 
-    .title {
+  .title {
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .king-radio-group {
+    justify-content: space-between;
+    margin-bottom: 22px;
+
+    .bk-form-radio {
+      margin-right: 24px;
       font-size: 12px;
-      line-height: 16px;
-      margin-bottom: 10px;
+    }
+  }
+
+  .bk-button-group {
+    .bk-button {
+      padding: 0 8px;
     }
 
-    .king-radio-group {
-      justify-content: space-between;
-      margin-bottom: 22px;
-
-      .bk-form-radio {
-        margin-right: 24px;
+    .custom-button {
+      .bk-icon,
+      .log-icon {
+        margin-left: 0;
         font-size: 12px;
       }
-    }
 
-    .bk-button-group {
-      .bk-button {
-        padding: 0 8px;
+      .icon-clock {
+        position: relative;
+        top: -1px;
       }
 
-      .custom-button {
-        .bk-icon,
-        .log-icon {
-          margin-left: 0;
-          font-size: 12px;
-        }
-
-        .icon-clock {
-          position: relative;
-          top: -1px;
-        }
-
-        .icon-ext {
-          position: relative;
-          top: -1px;
-          margin-right: 4px;
-        }
+      .icon-ext {
+        position: relative;
+        top: -1px;
+        margin-right: 4px;
       }
-    }
-
-    .button-container {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 24px;
-    }
-
-    :deep(.bk-select-prefix-icon) {
-      font-size: 12px;
-      color: #979ba5;
     }
   }
 
-  .option-container {
+  .button-container {
     display: flex;
-    align-items: center;
-
-    &:hover .field-filter-option-icon {
-      color: #3a84ff;
-    }
+    justify-content: flex-end;
+    margin-top: 24px;
   }
+
+  :deep(.bk-select-prefix-icon) {
+    font-size: 12px;
+    color: #979ba5;
+  }
+}
+
+.option-container {
+  display: flex;
+  align-items: center;
+
+  &:hover .field-filter-option-icon {
+    color: #3a84ff;
+  }
+}
 </style>
 
 <style lang="scss">
-  .bk-option {
-    .field-filter-option-icon {
-      width: 12px;
-      font-size: 12px;
-      color: #979ba5;
-      margin-right: 8px;
-    }
-
-    &.is-selected .field-filter-option-icon {
-      color: #3a84ff;
-    }
-  }
-
-  .icon-ext {
-    width: 13px;
-    display: inline-block;
+.bk-option {
+  .field-filter-option-icon {
+    width: 12px;
+    margin-right: 8px;
     font-size: 12px;
-    transform: translateX(-1px) scale(.8);
+    color: #979ba5;
   }
+
+  &.is-selected .field-filter-option-icon {
+    color: #3a84ff;
+  }
+}
+
+.icon-ext {
+  display: inline-block;
+  width: 13px;
+  font-size: 12px;
+  transform: translateX(-1px) scale(0.8);
+}
 </style>

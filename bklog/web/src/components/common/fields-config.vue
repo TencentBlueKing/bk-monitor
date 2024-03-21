@@ -21,26 +21,39 @@
   -->
 
 <template>
-  <div :id="id" class="fields-config-tippy" v-bkloading="{ isLoading }">
+  <div
+    :id="id"
+    v-bkloading="{ isLoading }"
+    class="fields-config-tippy"
+  >
     <!-- 字段显示设置 -->
-    <div class="config-title">{{$t('设置显示与排序')}}</div>
+    <div class="config-title">{{ $t('设置显示与排序') }}</div>
     <div class="field-list-container">
       <!-- 已选字段 -->
       <div class="field-list">
         <div class="list-title">
           <i18n path="显示字段（已选 {0} / {1})">
-            <span>{{displayFieldNames.length}}</span>
-            <span>{{limitCount}}</span>
+            <span>{{ displayFieldNames.length }}</span>
+            <span>{{ limitCount }}</span>
           </i18n>
         </div>
-        <vue-draggable v-bind="dragOptions" v-model="displayFieldNames">
+        <vue-draggable
+          v-bind="dragOptions"
+          v-model="displayFieldNames"
+        >
           <transition-group>
-            <li class="list-item display-item" v-for="(field, index) in displayFieldNames" :key="field">
+            <li
+              v-for="(field, index) in displayFieldNames"
+              :key="field"
+              class="list-item display-item"
+            >
               <span class="icon log-icon icon-drag-dots"></span>
               <div class="field_name">{{ field }}</div>
               <div
                 :class="['operate-button', disabledRemove && 'disabled']"
-                @click="removeItem(index)">{{$t('删除')}}
+                @click="removeItem(index)"
+              >
+                {{ $t('删除') }}
               </div>
             </li>
           </transition-group>
@@ -48,11 +61,20 @@
       </div>
       <!-- 其他字段 -->
       <div class="field-list">
-        <div class="list-title">{{$t('其他字段')}}</div>
+        <div class="list-title">{{ $t('其他字段') }}</div>
         <ul>
-          <li class="list-item rest-item" v-for="field in restFieldNames" :key="field">
+          <li
+            v-for="field in restFieldNames"
+            :key="field"
+            class="list-item rest-item"
+          >
             <div class="field_name">{{ field }}</div>
-            <div :class="['operate-button', disabledAdd && 'disabled']" @click="addItem(field)">{{$t('添加')}}</div>
+            <div
+              :class="['operate-button', disabledAdd && 'disabled']"
+              @click="addItem(field)"
+            >
+              {{ $t('添加') }}
+            </div>
           </li>
         </ul>
       </div>
@@ -61,10 +83,17 @@
       <!-- 确定、取消按钮 -->
       <bk-button
         size="small"
-        style="margin-right: 8px;"
+        style="margin-right: 8px"
         theme="primary"
-        @click="handleConfirm">{{$t('确定')}}</bk-button>
-      <bk-button size="small" style="margin-right: 24px;" @click="handleCancel">{{$t('取消')}}</bk-button>
+        @click="handleConfirm"
+        >{{ $t('确定') }}</bk-button
+      >
+      <bk-button
+        size="small"
+        style="margin-right: 24px"
+        @click="handleCancel"
+        >{{ $t('取消') }}</bk-button
+      >
     </div>
   </div>
 </template>
@@ -74,25 +103,25 @@ import VueDraggable from 'vuedraggable';
 
 export default {
   components: {
-    VueDraggable,
+    VueDraggable
   },
   props: {
     id: {
       type: String,
-      required: true,
+      required: true
     },
     isLoading: {
       type: Boolean,
-      required: true,
+      required: true
     },
     total: {
       type: Array,
-      required: true,
+      required: true
     },
     display: {
       type: Array,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
@@ -104,8 +133,8 @@ export default {
         animation: 150,
         tag: 'ul',
         handle: '.icon-drag-dots',
-        'ghost-class': 'sortable-ghost-class',
-      },
+        'ghost-class': 'sortable-ghost-class'
+      }
     };
   },
   computed: {
@@ -119,13 +148,13 @@ export default {
     // 超过最大显示量禁止添加字段
     disabledAdd() {
       return this.displayFieldNames.length >= this.limitCount;
-    },
+    }
   },
   watch: {
     total() {
       this.totalFieldNames = [...this.total];
       this.displayFieldNames = [...this.display];
-    },
+    }
   },
   methods: {
     /**
@@ -147,86 +176,86 @@ export default {
     },
     handleCancel() {
       this.$emit('cancel');
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .fields-config-tippy > .tippy-tooltip {
-    padding: 0;
-    border: 1px solid #dcdee5;
+.fields-config-tippy > .tippy-tooltip {
+  padding: 0;
+  border: 1px solid #dcdee5;
 
-    .fields-config-tippy {
-      .config-title {
-        padding: 20px 24px 0;
-        color: #313238;
-        font-size: 20px;
-        line-height: 28px;
-        font-weight: normal;
-      }
+  .fields-config-tippy {
+    .config-title {
+      padding: 20px 24px 0;
+      font-size: 20px;
+      font-weight: normal;
+      line-height: 28px;
+      color: #313238;
+    }
 
-      .field-list-container {
-        max-height: 400px;
-        padding: 10px 24px;
-        overflow: auto;
-        color: #63656e;
+    .field-list-container {
+      max-height: 400px;
+      padding: 10px 24px;
+      overflow: auto;
+      color: #63656e;
 
-        .field-list {
-          .list-title,
-          .list-item,
-          .operate-button {
-            line-height: 32px;
+      .field-list {
+        .list-title,
+        .list-item,
+        .operate-button {
+          line-height: 32px;
+        }
+
+        .list-item {
+          position: relative;
+          display: flex;
+          align-items: center;
+          padding-left: 12px;
+          margin-bottom: 2px;
+          background-color: #f5f6fa;
+
+          &.display-item {
+            .icon-drag-dots {
+              width: 16px;
+              font-size: 14px;
+              color: #979ba5;
+              text-align: left;
+              cursor: move;
+              transition: opacity 0.2s linear;
+            }
           }
 
-          .list-item {
-            position: relative;
-            display: flex;
-            align-items: center;
-            padding-left: 12px;
-            margin-bottom: 2px;
-            background-color: #f5f6fa;
+          .operate-button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 40px;
+            text-align: center;
+            cursor: pointer;
 
-            &.display-item {
-              .icon-drag-dots {
-                width: 16px;
-                text-align: left;
-                font-size: 14px;
-                color: #979ba5;
-                cursor: move;
-                transition: opacity .2s linear;
-              }
+            &:hover {
+              color: #3a84ff;
             }
 
-            .operate-button {
-              position: absolute;
-              top: 0;
-              right: 0;
-              width: 40px;
-              text-align: center;
-              cursor: pointer;
-
-              &:hover {
-                color: #3a84ff;
-              }
-
-              &.disabled {
-                color: #dcdee5;
-                cursor: not-allowed;
-              }
+            &.disabled {
+              color: #dcdee5;
+              cursor: not-allowed;
             }
           }
         }
       }
+    }
 
-      .config-buttons {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        height: 50px;
-        background: #fafbfd;
-        border-top: 1px solid #dcdee5;
-      }
+    .config-buttons {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      height: 50px;
+      background: #fafbfd;
+      border-top: 1px solid #dcdee5;
     }
   }
+}
 </style>

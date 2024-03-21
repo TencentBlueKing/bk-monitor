@@ -24,14 +24,15 @@
   <div class="validate-user-selector">
     <bk-user-selector
       :value="value"
-      style="width: 400px;"
+      style="width: 400px"
       :class="isError && 'is-error'"
       :api="api"
       :empty-text="$t('无匹配人员')"
       :placeholder="placeholder"
       :disabled="disabled"
       @change="handleChange"
-      @blur="handleBlur">
+      @blur="handleBlur"
+    >
     </bk-user-selector>
   </div>
 </template>
@@ -41,32 +42,32 @@ import BkUserSelector from '@blueking/user-selector';
 
 export default {
   components: {
-    BkUserSelector,
+    BkUserSelector
   },
   model: {
-    event: 'change',
+    event: 'change'
   },
   props: {
     value: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     placeholder: {
       type: String,
-      default: '',
+      default: ''
     },
     api: {
       type: String,
-      default: '',
+      default: ''
     },
     disabled: {
       type: Boolean,
-      type: false,
-    },
+      type: false
+    }
   },
   data() {
     return {
-      isError: false,
+      isError: false
     };
   },
   methods: {
@@ -87,10 +88,10 @@ export default {
     },
     pasteFn(val) {
       const users = [...this.value];
-      val.split(';').forEach((item) => {
+      val.split(';').forEach(item => {
         item = item.trim();
         if (item) {
-          this.list.forEach((user) => {
+          this.list.forEach(user => {
             if ((user.displayname === item || user.username === item) && !users.includes(user.username)) {
               users.push(user.username);
             }
@@ -99,13 +100,13 @@ export default {
       });
       this.$emit('change', users);
       return [];
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .validate-user-selector :deep(.is-error .user-selector-container) {
-    border-color: #ff5656;
-  }
+.validate-user-selector :deep(.is-error .user-selector-container) {
+  border-color: #ff5656;
+}
 </style>

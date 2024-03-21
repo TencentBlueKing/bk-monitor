@@ -1,52 +1,59 @@
 .relation-graph {
+  z-index: 1;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background: #fff;
   overflow-x: auto;
+
   .back-btn {
-    min-width: 52px;
-    height: 26px;
-    background: #eaebf0;
-    border-radius: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     position: absolute;
     top: 60px;
     left: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    height: 26px;
     cursor: pointer;
+    background: #eaebf0;
+    border-radius: 2px;
   }
+
   .graph-main {
     height: calc(100% - 50px);
   }
+
   .graph-container {
     height: 100%;
     overflow: hidden;
   }
+
   .node-tooltips-container {
-    background: #fff;
-    border: 1px solid #dcdee5;
-    box-shadow: 0 3px 6px 0 rgba(0,0,0,.16);
-    border-radius: 2px;
     z-index: 1;
     user-select: none;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 3px 6px 0 rgba(0,0,0,.16);
+
     .node-label {
       position: relative;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin: 0;
+      justify-content: space-between;
       padding: 0 24px;
+      margin: 0;
       font-size: 16px;
       font-weight: normal;
-      color: #313238;
       line-height: 32px;
+      color: #313238;
+
       .node-text {
-        line-height: 16px;
         padding-top: 8px;
+        line-height: 16px;
       }
+
       .label-mark {
         position: absolute;
         left: 0;
@@ -56,83 +63,99 @@
         border-radius: 1px 0 0 0;
       }
     }
+
     .language-icon,
     .root-icon {
       width: 12px;
       height: 12px;
     }
+
     .language-name {
-      color: #979ba5;
       font-size: 12px;
+      color: #979ba5;
     }
+
     .root-node-mark {
-      height: 22px;
       display: flex;
       align-items: center;
+      height: 22px;
       padding: 0 8px;
       background: #edf4ff;
       border: 1px solid rgba(58,132,255,.30);
       border-radius: 12px;
+
       span {
         margin-left: 4px;
-        color: #3a84ff;
         font-size: 12px;
+        color: #3a84ff;
       }
     }
+
     .node-message {
       display: flex;
+
       li {
         padding: 16px;
         text-align: center;
       }
+
       .value {
         margin-bottom: 6px;
-        color: #313238;
         font-size: 18px;
+        color: #313238;
       }
     }
   }
+
   .node-menu-container {
+    z-index: 1;
     min-width: 174px;
     background: #fff;
     border: 1px solid #dcdee5;
-    box-shadow: 0 2px 6px 0 rgba(0,0,0,.10);
     border-radius: 2px;
-    z-index: 1;
+    box-shadow: 0 2px 6px 0 rgba(0,0,0,.10);
+
     li {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 6px 12px;
       cursor: pointer;
+
       .node-menu-icon {
         margin-right: 2px;
       }
+
       .icon-fenxiang {
-        color: #737987;
         font-size: 12px;
+        color: #737987;
       }
+
       &:hover {
         color: #3a84ff;
         background: #e1ecff;
+
         .icon-fenxiang {
           color: #3a84ff;
         }
       }
     }
   }
+
   .zoom-bar {
+    position: absolute;
+    top: 50%;
+    right: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    position: absolute;
-    right: 20px;
-    top: 50%;
     margin-top: -70px;
+
     .icon-monitor {
       margin: 8px 0;
       color: #c4c6cc;
       cursor: pointer;
+
       &:hover {
         color: #3a84ff;
       }
@@ -141,10 +164,12 @@
     .bk-slider-runway {
       background-color: #eaebf0;
     }
+
     .bk-slider-bar {
-      border-bottom-right-radius: 3px;
       background-color: #eaebf0;
+      border-bottom-right-radius: 3px;
     }
+
     .slider-button {
       width: 12px;
       height: 12px;
@@ -152,16 +177,18 @@
       border: 2px solid #fff;
     }
   }
+
   .table-container {
+    height: calc(100% - 42px);
     padding: 0 20px 15px 20px;
     overflow: auto;
-    height: calc(100% - 42px);
   }
+
   .empty-chart {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
     height: 100%;
-    flex: 1;
   }
 }

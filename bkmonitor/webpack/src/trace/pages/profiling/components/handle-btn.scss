@@ -1,0 +1,47 @@
+.favorite-pop-content {
+  width: 372px;
+  padding: 9px 2px;
+
+  .fav-title {
+    margin-bottom: 7px;
+    line-height: 20px;
+    color: #63656e;
+  }
+
+  .fav-main {
+    display: flex;
+    align-items: center;
+
+    &>:not(:last-child) {
+      margin-right: 4px;
+    }
+
+    .fav-btn {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      font-size: 30px;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+      transition: border-color .2s;
+
+      &:hover {
+        border-color: #3a84ff;
+      }
+
+      .icon-mc-check-small {
+        font-size: 24px;
+        color: #2dcb56;
+      }
+
+      .icon-mc-close {
+        font-size: 24px;
+        color: #ea3636;
+      }
+    }
+  }
+}

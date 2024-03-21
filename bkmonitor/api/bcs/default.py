@@ -157,3 +157,49 @@ class FetchSharedClusterNamespacesResource(BcsApiBaseResource):
             }
             for ns in ns_list
         ]
+
+
+class GetProjectsResource(BcsApiBaseResource):
+    """查询项目信息"""
+
+    action = "/bcsproject/v1/projects"
+    method = "GET"
+    backend_cache_type = None
+
+    default_limit = 1000
+
+    class RequestSerializer(serializers.Serializer):
+        limit = serializers.IntegerField(required=False, default=1000)
+        offset = serializers.IntegerField(required=False, default=0)
+        kind = serializers.CharField(required=False, allow_blank=True)
+        is_detail = serializers.BooleanField(required=False, default=False)
+
+    def perform_request(self, validated_request_data):
+        projects = super(GetProjectsResource, self).perform_request(validated_request_data)
+        count = projects["total"]
+        project_list = projects.get("results") or []
+        # 如果每页的数量大于count，则不用继续请求，否则需要继续请求
+        if count > self.default_limit:
+            max_offset = count // self.default_limit
+            start_offset = 1
+            while start_offset <= max_offset:
+                validated_request_data.update({"limit": self.default_limit, "offset": start_offset})
+                resp_data = super(GetProjectsResource, self).perform_request(validated_request_data)
+                project_list.extend(resp_data.get("results") or [])
+                start_offset += 1
+        # 因为返回数据内容太多，抽取必要的字段
+        if validated_request_data.get("is_detail"):
+            return project_list
+
+        return self._refine_projects(project_list)
+
+    def _refine_projects(self, project_list):
+        return [
+            {
+                "project_id": p["projectID"],
+                "name": p["name"],
+                "project_code": p["projectCode"],
+                "bk_biz_id": p["businessID"],
+            }
+            for p in project_list
+        ]

@@ -114,7 +114,7 @@ def cache_cmdb_resource():
     tobe_cached_bizs = []
     for biz in biz_result:
         bk_biz_id = biz["bk_biz_id"]
-        if not biz_is_ready(bk_biz_id, minute_line):
+        if bk_biz_id < 0 or not biz_is_ready(bk_biz_id, minute_line):
             continue
         tobe_cached_bizs.append(bk_biz_id)
         for cmdb_task in cmdb_api_list(bk_biz_id):

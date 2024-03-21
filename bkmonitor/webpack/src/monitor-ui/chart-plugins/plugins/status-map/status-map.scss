@@ -1,85 +1,97 @@
 $message-width: 120px;
 
 .status-map {
+  z-index: 1;
   display: flex;
-  width: 100%;
-  height: 100%;
   flex: 1;
   flex-direction: column;
-  z-index: 7;
-  background-color: white;
+  width: 100%;
+  height: 100%;
+
   &-header {
-    flex: 0 0 46px;
     display: flex;
+    flex: 0 0 46px;
     align-items: center;
     width: 100%;
     height: 46px;
   }
+
   &-content {
-    flex: 1;
     display: flex;
+    flex: 1;
     width: 100%;
     height: calc(100% - 46px);
+
     &.right-legend {
       flex-direction: row;
     }
+
     .chart-instance {
-      width: calc(100% - #{$message-width});
-      flex: 1;
       display: flex;
+      flex: 1;
       flex-grow: 2;
+      width: calc(100% - #{$message-width});
     }
+
     .chart-legend {
+      position: relative;
       max-width: 100%;
-      max-height: 40%;
-      overflow: auto;
       height: auto;
       min-height: 1px;
-      position: relative;
+      max-height: 40%;
+      overflow: auto;
+
       &.right-legend {
         max-width: 40%;
         max-height: 100%;
       }
     }
   }
+
   &-message-wrap {
     position: relative;
-    height: 100%;
-    width: $message-width;
-    flex-shrink: 0;
     z-index: 1;
+    flex-shrink: 0;
+    width: $message-width;
+    height: 100%;
   }
+
   &-message {
     position: absolute;
     top: 0;
     left: 0;
-    height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    height: 100%;
     padding: 0 0 12px 18px;
+
     .extend-content {
       white-space: nowrap;
     }
+
     .extend-name {
-      line-height: 22px;
       margin-right: 16px;
+      line-height: 22px;
       color: #979ba5;
     }
+
     .extend-value {
       font-size: 16px;
       font-weight: bold;
       color: #63656e;
     }
+
     .extend-unit {
       color: #63656e;
     }
   }
+
   .empty-chart {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
     height: 100%;
-    flex: 1;
   }
 }
