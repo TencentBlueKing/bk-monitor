@@ -138,10 +138,14 @@ class PatternHandler:
 
             group = str(pattern.get("group", "")).split("|") if pattern.get("group") else []
 
-            group_hash = ClusteringRemark.convert_groups_to_groups_hash(dict(zip(self._group_by, group)))
+            group_dict = dict(zip(self._group_by, group))
+
+            group_hash = ClusteringRemark.convert_groups_to_groups_hash(group_dict)
 
             # 用于标识新类的key，包含 签名 + 所有分组字段值的元组
-            new_class_group_key = tuple([signature] + group)
+            new_class_group_key = tuple(
+                [signature] + [str(group_dict.get(field, "")) for field in self._clustering_config.group_fields]
+            )
 
             if (signature, group_hash) in signature_map_remark:
                 remark = signature_map_remark[(signature, group_hash)]["remark"]
@@ -210,6 +214,7 @@ class PatternHandler:
         aggs_group_reuslt = aggs_group
         for group_key in self._group_by:
             aggs_group["field_name"] = group_key
+            aggs_group["missing"] = ""
             aggs_group["sub_fields"] = {}
             aggs_group = aggs_group["sub_fields"]
         return aggs_group_reuslt
@@ -285,7 +290,7 @@ class PatternHandler:
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
         if self._clustering_config.log_count_agg_rt:
-            select_fields = NEW_CLASS_QUERY_FIELDS + self._group_by
+            select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
             # 新类异常检测逻辑适配
             new_classes = (
                 BkData(self._clustering_config.log_count_agg_rt)
@@ -304,7 +309,7 @@ class PatternHandler:
                 .time_range(start_time.timestamp, end_time.timestamp)
                 .query()
             )
-        return {tuple(new_class[field] for field in select_fields) for new_class in new_classes}
+        return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
     def set_clustering_owner(self, params: dict):
         """
