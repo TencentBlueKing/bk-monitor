@@ -97,7 +97,7 @@ class CreateApplicationResource(Resource):
         app_name = serializers.CharField(label="应用名称", max_length=50)
         app_alias = serializers.CharField(label="应用别名", max_length=255)
         # enable profiling as default for debugging
-        enabled_profiling = serializers.BooleanField(label="是否开启性能分析", default=False)
+        enabled_profiling = serializers.BooleanField(label="是否开启性能分析", required=False, default=False)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置")
 
@@ -113,7 +113,7 @@ class CreateApplicationResource(Resource):
             app_alias=validated_request_data["app_alias"],
             description=validated_request_data["description"],
             es_storage_config=validated_request_data["es_storage_config"],
-            options={"enabled_profiling": validated_request_data["enabled_profiling"]},
+            options={"enabled_profiling": validated_request_data.get("enabled_profiling", False)},
         )
 
 

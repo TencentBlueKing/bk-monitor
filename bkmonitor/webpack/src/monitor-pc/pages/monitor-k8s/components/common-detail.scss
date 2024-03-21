@@ -5,7 +5,7 @@
   z-index: 9;
   display: flex;
   flex-direction: column;
-  height: 100%; 
+  height: 100%;
   color: #63656e;
   background-color: white;
   box-shadow: 0 2px 4px 0 rgb(0 0 0 / 16%);
@@ -109,7 +109,7 @@
         left: 0;
         width: 100%;
         height: 4px;
-        background-image: linear-gradient(180deg, rgba(0,0,0,.00) 0%, rgba(0,0,0,.06) 100%);
+        background-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, .06) 100%);
       }
     }
   }
@@ -131,8 +131,8 @@
     .detail-shrink {
       margin-left: auto;
 
-      @include tool-icon(24px)
-    ;}
+      @include tool-icon(24px);
+    }
   }
 
   &-panel {
@@ -171,7 +171,7 @@
     .list-type-wrap {
       .list-type-item {
         overflow: hidden;
-        
+
         line-height: 22px;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -234,7 +234,7 @@
     .text {
       @include ellipsis;
     }
-    
+
     .link-col {
       @include ellipsis;
     }
@@ -246,7 +246,7 @@
       cursor: pointer;
     }
   }
-  
+
   .show-mode-button {
     position: absolute;
     top: 8px;
@@ -286,7 +286,7 @@
         border-radius: 50%;
         transform: translate(-50%, -50%);
       }
-    
+
       &::before {
         top: 50%;
         left: 50%;
@@ -296,12 +296,13 @@
       }
     }
 
-    &:nth-child(n+2) {
+    &:nth-child(n + 2) {
       margin-left: 8px;
     }
 
     &.bg- {
-      &normal {
+      &normal,
+      &success {
         background-color: #f2fff4;
       }
 
@@ -313,21 +314,22 @@
         background-color: #f0f1f5;
       }
     }
-    
+
     .status-icon {
       position: relative;
       width: 12px;
       height: 12px;
       border-radius: 50%;
-    
-      &.status-normal {
-        @include status-icon(#3FC06D);
+
+      &.status-normal,
+      &.status-success {
+        @include status-icon(#3fc06d);
       }
-    
+
       &.status-disabled {
-        @include status-icon(#EA3636);
+        @include status-icon(#ea3636);
       }
-    
+
       &.status-failed {
         @include status-icon(#979ba5);
       }
@@ -394,7 +396,7 @@
       flex-wrap: nowrap;
       justify-content: space-between;
 
-      &:nth-child(n+2) {
+      &:nth-child(n + 2) {
         margin-top: 8px;
       }
 
@@ -410,7 +412,7 @@
           word-wrap: break-word;
         }
       }
-      
+
       .value-container {
         width: calc(100% - 80px - 2px);
 

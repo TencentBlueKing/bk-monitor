@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,24 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import Vue from 'vue';
 
-import type { App } from 'vue';
-import { bkTooltips } from 'bkui-vue';
+import Authority from './authority';
+import EnClass from './en-class';
+import EnStyle from './en-style';
+import MonitorLoading from './monitor-loading';
+import Watermark from './watermark';
 
-import authority from './authority';
-import watermark from './watermark';
-
-const directives: Record<string, any> = {
-  // 指令对象
-  authority,
-  bkTooltips,
-  watermark
-};
-
-export default {
-  install(app: App) {
-    Object.keys(directives).forEach(key => {
-      app.directive(key, directives[key]);
-    });
-  }
-};
+Vue.use(MonitorLoading);
+Vue.use(Authority);
+Vue.use(EnStyle);
+Vue.use(EnClass);
+Vue.use(Watermark);

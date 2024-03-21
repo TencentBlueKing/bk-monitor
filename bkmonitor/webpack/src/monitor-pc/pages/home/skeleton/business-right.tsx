@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,24 +23,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { App } from 'vue';
-import { bkTooltips } from 'bkui-vue';
+import './business-right.scss';
 
-import authority from './authority';
-import watermark from './watermark';
-
-const directives: Record<string, any> = {
-  // 指令对象
-  authority,
-  bkTooltips,
-  watermark
-};
-
-export default {
-  install(app: App) {
-    Object.keys(directives).forEach(key => {
-      app.directive(key, directives[key]);
-    });
+@Component
+export default class BusinessRight extends tsc<{}> {
+  render() {
+    return (
+      <div class='business-right-skeleton'>
+        <div class='business-right-skeleton-left'>
+          <div class='w-65 h-20 skeleton-element'></div>
+          <div class='w-180 h-172 mt-24 skeleton-element'></div>
+        </div>
+        <div class='business-right-skeleton-right'>
+          <div class='w-173 h-32 skeleton-element'></div>
+          <div class='w--100 h-20 mt-12 skeleton-element'></div>
+          <div class='w-65 h-20 mt-24 skeleton-element'></div>
+          <div class='w-125 h-20 mt-12 skeleton-element'></div>
+          <div class='w-125 h-20 mt-12 skeleton-element'></div>
+          <div class='w-254 h-20 mt-24 skeleton-element'></div>
+        </div>
+      </div>
+    );
   }
-};
+}

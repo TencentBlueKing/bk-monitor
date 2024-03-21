@@ -1000,6 +1000,13 @@ class CreateResourceSet(DataAccessAPIResource):
     method = "POST"
 
 
+class GetOrCreateResourceSet(DataAccessAPIResource):
+    """创建或获取资源(如果资源存在 则返回的是已存在资源的信息)"""
+
+    action = "/v3/resourcecenter/resource_sets/get_or_create/"
+    method = "POST"
+
+
 class UpdateResourceSet(DataAccessAPIResource):
     """更新资源"""
 
