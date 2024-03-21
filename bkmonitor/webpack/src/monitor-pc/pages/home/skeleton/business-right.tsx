@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,29 +23,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { createI18n } from 'vue-i18n';
-import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
-import { docCookies } from 'monitor-common/utils/utils';
-import { mergeI18nJson } from 'monitor-pc/i18n/commmon';
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import './dayjs';
+import './business-right.scss';
 
-let currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
-if (currentLang === 'en') {
-  currentLang = 'enUS';
-} else {
-  currentLang = 'zhCN';
-}
-const i18n = createI18n({
-  locale: currentLang,
-  fallbackLocale: 'zh-cn',
-  silentTranslationWarn: true,
-  silentFallbackWarn: true,
-  // allowComposition: true,
-  // legacy: false,
-  messages: {
-    ...mergeI18nJson()
+@Component
+export default class BusinessRight extends tsc<{}> {
+  render() {
+    return (
+      <div class='business-right-skeleton'>
+        <div class='business-right-skeleton-left'>
+          <div class='w-65 h-20 skeleton-element'></div>
+          <div class='w-180 h-172 mt-24 skeleton-element'></div>
+        </div>
+        <div class='business-right-skeleton-right'>
+          <div class='w-173 h-32 skeleton-element'></div>
+          <div class='w--100 h-20 mt-12 skeleton-element'></div>
+          <div class='w-65 h-20 mt-24 skeleton-element'></div>
+          <div class='w-125 h-20 mt-12 skeleton-element'></div>
+          <div class='w-125 h-20 mt-12 skeleton-element'></div>
+          <div class='w-254 h-20 mt-24 skeleton-element'></div>
+        </div>
+      </div>
+    );
   }
-});
-window.i18n = i18n.global;
-export default i18n;
+}

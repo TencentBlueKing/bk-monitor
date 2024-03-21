@@ -368,6 +368,10 @@ class LogIndexSet(SoftDeleteModel):
     bcs_project_id = models.CharField(_("项目ID"), max_length=64, default="")
     is_editable = models.BooleanField(_("是否可以编辑"), default=True)
 
+    # 上下文、实时日志 定位字段 排序字段
+    target_fields = models.JSONField(_("定位字段"), null=True, default=list)
+    sort_fields = models.JSONField(_("排序字段"),  null=True, default=list)
+
     def get_name(self):
         return self.index_set_name
 
@@ -509,6 +513,8 @@ class LogIndexSet(SoftDeleteModel):
             "time_field_type",
             "time_field_unit",
             "tag_ids",
+            "target_fields",
+            "sort_fields"
         )
 
         # 获取接入场景
@@ -553,6 +559,8 @@ class LogIndexSet(SoftDeleteModel):
             index_set["tags"] = IndexSetTag.batch_get_tags(index_set["tag_ids"])
             index_set["is_favorite"] = index_set["index_set_id"] in mark_index_set_ids
             index_set["no_data_check_time"] = no_data_check_time
+            index_set["target_fields"] = [] if not index_set["target_fields"] else index_set["target_fields"]
+            index_set["sort_fields"] = [] if not index_set["sort_fields"] else index_set["sort_fields"]
             for del_field in ["tag_ids"]:
                 index_set.pop(del_field)
             result.append(index_set)

@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,29 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { createI18n } from 'vue-i18n';
-import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
-import { docCookies } from 'monitor-common/utils/utils';
-import { mergeI18nJson } from 'monitor-pc/i18n/commmon';
+import Vue from 'vue';
 
-import './dayjs';
+import Authority from './authority';
+import EnClass from './en-class';
+import EnStyle from './en-style';
+import MonitorLoading from './monitor-loading';
+import Watermark from './watermark';
 
-let currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
-if (currentLang === 'en') {
-  currentLang = 'enUS';
-} else {
-  currentLang = 'zhCN';
-}
-const i18n = createI18n({
-  locale: currentLang,
-  fallbackLocale: 'zh-cn',
-  silentTranslationWarn: true,
-  silentFallbackWarn: true,
-  // allowComposition: true,
-  // legacy: false,
-  messages: {
-    ...mergeI18nJson()
-  }
-});
-window.i18n = i18n.global;
-export default i18n;
+Vue.use(MonitorLoading);
+Vue.use(Authority);
+Vue.use(EnStyle);
+Vue.use(EnClass);
+Vue.use(Watermark);

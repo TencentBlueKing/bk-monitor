@@ -1,31 +1,31 @@
 /* stylelint-disable declaration-no-important*/
 .chart-wrapper {
   position: relative;
-  height: 100%;
-  width: 100%;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #fff;
   border: 1px solid transparent;
   border-radius: 2px;
-  background: #fff;
 
   &.hover-style {
     box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05); 
   }
 
   .loading-icon {
-    display: inline-block;
     position: absolute;
     top: 10px;
     right: 10px;
+    z-index: 1000;
+    display: inline-block;
     width: 20px;
     height: 20px;
-    z-index: 1000;
   }
   
   &.is-collapsed {
-    border: 1px solid transparent !important;
     background: transparent !important;
+    border: 1px solid transparent !important;
     box-shadow: none !important;
   }
 
@@ -34,9 +34,9 @@
       box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05), 0px 2px 4px 0px rgba(0,0,0,.10);
 
       &.is-collapsed {
-        box-shadow: none;
         background: transparent;
         border: 1px solid transparent;
+        box-shadow: none;
       }
       // &.grafana-check {
       //   border-color: #3a84ff !important;
@@ -49,22 +49,22 @@
 
   &.is-checked {
     // border-color: #3a84ff !important;
-    .check-mark {
-      border-color: #3a84ff #3a84ff transparent transparent !important;;
+    .check-mark {;
       display: block;
+      border-color: #3a84ff #3a84ff transparent transparent !important;
     }
   }
 
   .check-mark {
     position: absolute;
-    right: -1px;
     top: -1px;
-    border-width: 14px;
+    right: -1px;
+    z-index: 999;
+    display: none;
     border-color: #dcdee5 #dcdee5 transparent transparent;
     border-style: solid;
-    display: none;
+    border-width: 14px;
     border-radius: 2px;
-    z-index: 999;
 
     &:hover {
       cursor: pointer;
@@ -72,59 +72,59 @@
     }
 
     &::after {
-      content: ' ';
-      width: 4px;
-      height: 8px;
-      border-bottom: 2px solid white;
-      border-right: 2px solid white;
       position: absolute;
       top: -12px;
       left: 3px;
+      width: 4px;
+      height: 8px;
+      content: ' ';
+      border-right: 2px solid white;
+      border-bottom: 2px solid white;
       transform: rotate(45deg) scaleY(1);
     }
   }
 
   .monitor-echart-common {
+    z-index: 999;
     display: flex;
-    width: 100%;
-    height: 100%;
     flex: 1;
     flex-direction: column;
-    z-index: 999;
+    width: 100%;
+    height: 100%;
     background-color: white;
 
     &-header {
-      flex: 0 0 46px;
       display: flex;
+      flex: 0 0 46px;
       align-items: center;
       width: 100%;
       height: 46px;
     }
 
     &-content {
-      flex: 1;
       display: flex;
+      flex: 1;
+      flex-direction: column;
       width: 100%;
       height: calc(100% - 46px);
-      flex-direction: column;
 
       &.right-legend {
         flex-direction: row;
       }
 
       .chart-instance {
-        flex: 1;
         display: flex;
+        flex: 1;
         flex-grow: 2;
       }
 
       .chart-legend {
+        position: relative;
         max-width: 100%;
-        max-height: 40%;
-        overflow: auto;
         height: auto;
         min-height: 1px;
-        position: relative;
+        max-height: 40%;
+        overflow: auto;
 
         &.right-legend {
           max-width: 40%;
@@ -135,51 +135,51 @@
   }
 
   .empty-text {
-    height: 100%;
-    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    height: 100%;
   }
 
   .wm {
     position: absolute;
     top: 0;
-    left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1000;
+    left: 0;
+    z-index: 0;
     pointer-events: none;
   }
 
   .is-error {
     position: absolute;
-    left: -1px;
     top: -1px;
-    border-width: 12px;
+    left: -1px;
+    z-index: 999;
+    display: block;
+    color: #fff;
+    cursor: pointer;
     border-color: #e0226e transparent transparent #e0226e;
     border-style: solid;
-    display: block;
-    cursor: pointer;
+    border-width: 12px;
     border-radius: 2px;
-    color: #fff;
-    z-index: 999;
 
     &::after {
-      content: '!';
-      width: 4px;
-      height: 8px;
       position: absolute;
       top: -12px;
       left: -6px;
+      width: 4px;
+      height: 8px;
+      content: '!';
     }
   }
 }
 
 .chart-wrapper-error-tooltip {
   .tippy-tooltip {
-    background-color: #e0226e !important;
     max-width: 400px;
+    background-color: #e0226e !important;
 
     .tippy-arrow {
       border-top: 8px solid #e0226e !important;

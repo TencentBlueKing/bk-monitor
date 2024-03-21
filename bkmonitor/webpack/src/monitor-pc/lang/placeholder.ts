@@ -150,7 +150,7 @@ export default {
   选择目标: 'Select a target',
   选择事件: 'Select event',
   选择运营商: 'Select Operator',
-  选择所有主机: 'Select All Hosts',
+  '选择所有主机{0}': 'Select All Hosts {0}',
   选择告警组: 'Select Alarm Team',
   选择监控指标: 'Select monitoring metrics',
   选择时间范围: 'Select Time Range',

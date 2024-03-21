@@ -224,10 +224,10 @@ class TailSamplingFlow(ApmFlow):
         cluster_info = ClusterInfo.objects.filter(cluster_id=storage.storage_cluster_id).first()
         bkdata_cluster_name = self._BKDATA_ES_CLUSTER_NAME_FORMAT.format(cluster_name=cluster_info.cluster_name)
         bkdata_cluster_id = self._BKDATA_ES_CLUSTER_ID_FORMAT.format(cluster_id=cluster_info.cluster_id)
-        if bkdata_cluster_id not in [i.get("resource_group_id") for i in all_resources]:
-            self.logger.info(f"check bkdata cluster_id: {bkdata_cluster_id} not in resource_sets, start register")
 
-            # 在bkdata中监控业务中注册此ES资源
+        if bkdata_cluster_id not in [i.get("resource_group_id") for i in all_resources]:
+            self.logger.info(f"resource_set_id: {bkdata_cluster_id} not in resource list, start check if registry")
+
             params = {
                 "bk_username": settings.APM_APP_BKDATA_OPERATOR,
                 "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
@@ -255,8 +255,22 @@ class TailSamplingFlow(ApmFlow):
                 },
                 "version": "1",
             }
-            api.bkdata.create_resource_set(params)
-            self.logger.info(f"register bkdata resource: {bkdata_cluster_id}({bkdata_cluster_name}) successfully")
+
+            resource_info = api.bkdata.get_or_create_resource_set(params)
+            if resource_info.get("resource_set_id"):
+                if resource_info["resource_set_id"] != bkdata_cluster_id:
+                    self.logger.info(
+                        f"detected ES(host: {cluster_info.domain_name}) has been registered, "
+                        f"will use the resource whose resource_set_id is {resource_info['resource_set_id']}"
+                    )
+                    bkdata_cluster_id = resource_info["resource_set_id"]
+                    bkdata_cluster_name = resource_info["resource_set_name"]
+                else:
+                    self.logger.info(
+                        f"register bkdata resource: {bkdata_cluster_id}({bkdata_cluster_name}) successfully"
+                    )
+            else:
+                raise ValueError(f"[get_or_create_resource_set] response abnormal, response: {resource_info}")
 
         # 查看此资源是否已授权项目
         resource_info = api.bkdata.get_resource_set(resource_set_id=bkdata_cluster_id)
