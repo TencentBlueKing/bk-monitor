@@ -63,7 +63,6 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
 )
 from apps.log_search.exceptions import (
-    BaseSearchGseIndexNoneException,
     BaseSearchIndexSetDataDoseNotExists,
     BaseSearchIndexSetException,
     BaseSearchResultAnalyzeException,
@@ -1112,9 +1111,6 @@ class SearchHandler(object):
                 raise BaseSearchSortListException(BaseSearchSortListException.MESSAGE.format(sort_item=field))
 
     def search_context(self):
-        if self.scenario_id in [Scenario.BKDATA, Scenario.LOG] and (not self.gseindex and not self.gseIndex):
-            raise BaseSearchGseIndexNoneException()
-
         if self.scenario_id == Scenario.ES and not (
             self.index_set_obj.target_fields and self.index_set_obj.sort_fields
         ):
