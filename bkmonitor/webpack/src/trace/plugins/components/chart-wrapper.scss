@@ -11,6 +11,8 @@
   border: 1px solid transparent;
   border-radius: 2px;
 
+  @include chart-plugin-is-error;
+
   &.hover-style {
     box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05); 
   }
@@ -150,11 +152,9 @@
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 1000;
+    z-index: 0;
     pointer-events: none;
   }
-
-  @include chart-plugin-is-error;
 }
 
 @include chart-error-tooltip;

@@ -200,7 +200,7 @@ export default {
       }, []);
     },
     computedRate(count) {
-      return `${((count / this.tableData.length) * 100).toFixed(2)}%`;
+      return `${((count / this.tableList.length) * 100).toFixed(2)}%`;
     },
     tableRowClick(row) {
       this.$refs.logClusterTable.toggleRowExpansion(row);
