@@ -650,5 +650,7 @@ export default {
   '如需根据某些维度拆分聚类结果，可将字段设置为维度。':
     'Divide results according to dimensions and set fields to dimension results.',
   '修改字段会影响当前聚类结果，请勿随意修改':
-    'Modifying fields will affect the current results, feel free to modify them.'
+    'Modifying fields will affect the current results, feel free to modify them.',
+  '修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？':
+    'Modifying dimension fields will affect existing notes and alarm configurations. Please do not change them unless necessary. Are you sure you want to modify it?'
 };
