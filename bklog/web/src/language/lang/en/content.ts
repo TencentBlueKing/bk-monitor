@@ -665,5 +665,6 @@ export default {
   停用状态下无法添加标签: 'Cannot add label when disabled.',
   '内置标签名，请重新填写': 'Built-in label, please reset fill in',
   '联合查询无法进行异步下载，可直接下载前1万条数据':
-    'Joint query cannot be downloaded asynchronously, but the first 10,000 pieces of data can be downloaded directly.'
+    'Joint query cannot be downloaded asynchronously, but the first 10,000 pieces of data can be downloaded directly.',
+  已有同名标签: 'A tag with the same name already exists'
 };
