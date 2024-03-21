@@ -175,7 +175,6 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @description 隐藏输入框
    */
   handleTagClickout() {
-    console.log('xxxx');
     const data = this.basicInfo;
     const { copyName } = this.input;
     if (copyName.length && copyName !== data.name) {
@@ -218,6 +217,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @param key
    */
   handleEditLabel(key) {
+    this.input.copyName = this.basicInfo?.[key] || '';
     this.input.show = true;
     this.$nextTick().then(() => {
       this.$refs[`input${key}`]?.focus();
