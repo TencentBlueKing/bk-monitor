@@ -235,6 +235,15 @@
               </bk-table>
             </div>
           </div>
+          <div
+            v-if="scenarioId === 'es'"
+            class="collection-form"
+          >
+            <div class="collection-label not-required">{{ $t('时间字段') }}</div>
+            <div class="selected-collection time-filed">
+              {{ getTimeFiled }}
+            </div>
+          </div>
         </template>
       </article>
       <article
@@ -338,7 +347,6 @@
       </bk-button>
       <component
         :is="scenarioId === 'es' ? 'SelectEs' : 'SelectCollection'"
-        v-if="!isShowTrace"
         ref="selectCollectionRef"
         :parent-data="formData"
         :time-index.sync="timeIndex"
@@ -429,6 +437,9 @@ export default {
         bkdata: this.$t('数据源')
       };
       return textMap[this.scenarioId];
+    },
+    getTimeFiled() {
+      return this.timeIndex?.time_field || '--';
     }
   },
   created() {
@@ -958,6 +969,12 @@ export default {
         .selected-tag {
           cursor: pointer;
         }
+      }
+
+      .time-filed {
+        align-items: center;
+        padding-top: 0;
+        font-size: 12px;
       }
     }
   }
