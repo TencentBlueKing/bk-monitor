@@ -1719,13 +1719,13 @@ class DataFlowHandler(BaseAiopsHandler):
                 table_name=f"bklog_{index_set_id}_agg",
                 result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_agg",
                 filter_rule=log_count_signatures_filter_rule,
+                groups=", ".join(clustering_config.group_fields),
             ),
             tspider_storage=TspiderStorageCls(
                 cluster=self.conf.get("tspider_cluster"), expires=self.conf.get("log_count_tspider_expires")
             ),
             storage_type=storage_type,
             bk_biz_id=bk_biz_id,
-            groups=", ".join(clustering_config.group_fields),
             cluster=self.get_model_available_storage_cluster(),
         )
 
