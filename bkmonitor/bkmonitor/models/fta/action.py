@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
-import urllib.parse
 from collections import defaultdict
 from datetime import datetime
 from importlib import import_module
@@ -533,12 +532,12 @@ class ActionInstance(AbstractRecordModel):
                         content_template = config_schema.get("content_template_shielded", content_template)
                     if self.inputs.get("shield_ids"):
                         content_template = config_schema.get("content_template_shielded_with_url", content_template)
-                        kwargs["url"] = urllib.parse.urljoin(
-                            settings.BK_MONITOR_HOST,
-                            "?bizId={bk_biz_id}/#/alarm-shield-detail/{shield_id}".format(
-                                bk_biz_id=self.bk_biz_id, shield_id=self.inputs["shield_ids"][0]
-                            ),
-                        )
+                        # 告警屏蔽跳转，路由由前端拼接，忽略 url 参数
+                        # ?bizId={biz_id}/#/alarm-shield-detail/{shield_id}
+                        kwargs["router_info"] = {
+                            "router_name": "alarm-shield-detail",
+                            "params": {"biz_id": self.bk_biz_id, "shield_id": self.inputs["shield_ids"][0]},
+                        }
                 action_plugin_type = ActionPluginType.COMMON
 
             if need_action_link and have_url is False:
@@ -552,15 +551,20 @@ class ActionInstance(AbstractRecordModel):
                     bk_itsm_host=settings.BK_ITSM_HOST, ticket_id=approve_info.get("id")
                 )
         content_template = content_template or _("%s执行{{status_display}}") % self.action_config.get("name", _("处理套餐"))
-        content = Jinja2Renderer.render(content_template, kwargs)
+        text = Jinja2Renderer.render(content_template, kwargs)
 
-        return {
-            "text": content,
-            "url": kwargs.get(
-                "url", settings.ACTION_DETAIL_URL.format(bk_biz_id=self.bk_biz_id, action_id=self.es_action_id)
-            ),
+        content = {
+            "text": text,
             "action_plugin_type": action_plugin_type,
         }
+
+        if "router_info" in kwargs:
+            content["router_info"] = kwargs["router_info"]
+        else:
+            default_url = settings.ACTION_DETAIL_URL.format(bk_biz_id=self.bk_biz_id, action_id=self.es_action_id)
+            content["url"] = kwargs.get("url", default_url)
+
+        return content
 
     def get_status_display(self):
         """
@@ -682,7 +686,11 @@ class ConvergeInstance(AbstractRecordModel):
         "收敛事件类型", choices=CONVERGE_FUNC_CHOICES, max_length=128, null=True, blank=True, db_index=True
     )
     converge_type = models.CharField(
-        null=False, blank=False, db_index=True, max_length=64, choices=[("converge", _("收敛事件")), ("action", _("处理事件"))]
+        null=False,
+        blank=False,
+        db_index=True,
+        max_length=64,
+        choices=[("converge", _("收敛事件")), ("action", _("处理事件"))],
     )
 
     bk_biz_id = models.IntegerField("业务编码", db_index=True)

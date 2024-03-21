@@ -23,13 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
+import { computed, defineComponent, PropType, ref } from 'vue';
 import { bkTooltips } from 'bkui-vue';
 import { type IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-// @ts-ignore
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
-import watermarkMaker from 'monitor-ui/monitor-echarts/utils/watermarkMaker';
 
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
@@ -74,13 +72,6 @@ export default defineComponent({
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { time_series_forecast, time_series_list } = props.panel?.options || {};
       return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
-    });
-
-    onMounted(() => {
-      // @ts-ignore
-      if (window.graph_watermark) {
-        waterMaskImg.value = watermarkMaker(window.user_name || window.username);
-      }
     });
 
     /**
@@ -199,10 +190,12 @@ export default defineComponent({
             onClick={this.handleChartCheck}
           />
         )}
-        {!!this.waterMaskImg && (
+        {!!window.graph_watermark && (
           <div
             class='wm'
-            style={{ backgroundImage: `url('${this.waterMaskImg}')` }}
+            v-watermark={{
+              text: window.user_name || window.username
+            }}
           ></div>
         )}
         {!!this.errorMsg && (
