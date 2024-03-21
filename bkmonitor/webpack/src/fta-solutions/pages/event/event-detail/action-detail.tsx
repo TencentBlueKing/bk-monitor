@@ -29,6 +29,8 @@ import dayjs from 'dayjs';
 import { actionDetail, searchAlert } from 'monitor-api/modules/alert';
 import { isZh } from 'monitor-pc/common/constant';
 
+import ActionDetailoSkeleton from './skeleton/action-detail-skeleton';
+import ActionDetailTableSkeleton from './skeleton/action-detail-table-skeleton';
 import { getStatusInfo } from './type';
 
 import './action-detail.scss';
@@ -112,6 +114,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
   };
   loading = false;
   popoperInstance: any = null;
+  detailInfoLoading = false;
 
   // 是否为单页
   get getIsPage() {
@@ -120,7 +123,9 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
 
   async created() {
     this.loading = true;
+    this.detailInfoLoading = true;
     this.detailInfo = await actionDetail({ id: this.id, bk_biz_id: this.bizId }).catch(() => ({}));
+    this.detailInfoLoading = false;
     const oneDay = 60 * 24 * 60;
     const params = {
       conditions: [],
@@ -336,66 +341,76 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     return (
       <div
         class={['active-detail-record', { 'active-detail-record-page': this.getIsPage }]}
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         <div class='detail-top'>
           <div class='detail-title'>{this.$t('处理详情')}</div>
-          <div class='detail-info'>
-            {info.map(child => (
-              <div class={['form-item', { 'form-item-1': child.length === 1 }]}>
-                {child.map((item, index) => (
-                  <div class={['item-col', `item-col-${index}`]}>
-                    <div class='item-label'>{item.title}&nbsp;:&nbsp;</div>
-                    <div class='item-content'>
-                      {item?.extCls ? item.content : <span class='item-content-text'>{item.content}</span>}
+          {this.detailInfoLoading ? (
+            <ActionDetailoSkeleton></ActionDetailoSkeleton>
+          ) : (
+            <div class='detail-info'>
+              {info.map(child => (
+                <div class={['form-item', { 'form-item-1': child.length === 1 }]}>
+                  {child.map((item, index) => (
+                    <div class={['item-col', `item-col-${index}`]}>
+                      <div class='item-label'>{item.title}&nbsp;:&nbsp;</div>
+                      <div class='item-content'>
+                        {item?.extCls ? item.content : <span class='item-content-text'>{item.content}</span>}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div class='detail-table'>
-          {this.tableData.trigger.length
-            ? [
-                <div class='table-title first'>
-                  {this.$t('触发的告警')}
-                  <i18n
-                    path='仅展示最近10条，更多详情请{0}'
-                    class='msg'
-                  >
-                    <span
-                      class='table-title-link'
-                      onClick={() => this.handleToAlertList('trigger')}
-                    >
-                      {/* <span class="icon-monitor icon-copy-link"></span> */}
-                      <span class='link-text'>{this.$t('前往告警列表')}</span>
-                    </span>
-                  </i18n>
-                </div>,
-                <div class='table-content'>{this.getTableComponent(this.tableData.trigger)}</div>
-              ]
-            : undefined}
-          {this.tableData.defense?.length
-            ? [
-                <div class='table-title'>
-                  {this.$t('防御的告警')}
-                  <i18n
-                    path='仅展示最近10条，更多详情请{0}'
-                    class='msg'
-                  >
-                    <span
-                      class='table-title-link'
-                      onClick={() => this.handleToAlertList('defense')}
-                    >
-                      {/* <span class="icon-monitor icon-copy-link"></span> */}
-                      <span class='link-text'>{this.$t('前往告警列表')}</span>
-                    </span>
-                  </i18n>
-                </div>,
-                <div class='table-content'>{this.getTableComponent(this.tableData.defense)}</div>
-              ]
-            : undefined}
+          {this.loading ? (
+            <ActionDetailTableSkeleton></ActionDetailTableSkeleton>
+          ) : (
+            [
+              this.tableData.trigger.length
+                ? [
+                    <div class='table-title first'>
+                      {this.$t('触发的告警')}
+                      <i18n
+                        path='仅展示最近10条，更多详情请{0}'
+                        class='msg'
+                      >
+                        <span
+                          class='table-title-link'
+                          onClick={() => this.handleToAlertList('trigger')}
+                        >
+                          {/* <span class="icon-monitor icon-copy-link"></span> */}
+                          <span class='link-text'>{this.$t('前往告警列表')}</span>
+                        </span>
+                      </i18n>
+                    </div>,
+                    <div class='table-content'>{this.getTableComponent(this.tableData.trigger)}</div>
+                  ]
+                : undefined,
+              this.tableData.defense?.length
+                ? [
+                    <div class='table-title'>
+                      {this.$t('防御的告警')}
+                      <i18n
+                        path='仅展示最近10条，更多详情请{0}'
+                        class='msg'
+                      >
+                        <span
+                          class='table-title-link'
+                          onClick={() => this.handleToAlertList('defense')}
+                        >
+                          {/* <span class="icon-monitor icon-copy-link"></span> */}
+                          <span class='link-text'>{this.$t('前往告警列表')}</span>
+                        </span>
+                      </i18n>
+                    </div>,
+                    <div class='table-content'>{this.getTableComponent(this.tableData.defense)}</div>
+                  ]
+                : undefined
+            ]
+          )}
         </div>
       </div>
     );
