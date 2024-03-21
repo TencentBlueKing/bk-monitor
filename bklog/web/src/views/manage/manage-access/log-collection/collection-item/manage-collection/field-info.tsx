@@ -445,7 +445,7 @@ export default class FieldInfo extends tsc<IProps> {
           <TableColumn
             label={this.$t('分词符')}
             key={'tokenize_on_chars'}
-            width='160'
+            width='180'
             scopedSlots={tokenizeSlot}
           ></TableColumn>
 

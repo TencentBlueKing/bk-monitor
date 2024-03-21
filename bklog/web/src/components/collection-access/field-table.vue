@@ -1283,154 +1283,10 @@ export default {
   position: relative;
   display: flex;
 
-  .field-table-container {
-    position: relative;
-    display: flex;
-
-    .field-method-head {
-      position: absolute;
-      top: -30px;
-      right: 0;
-    }
-
-    .field-table {
-      .cell {
-        padding-right: 5px;
-        padding-left: 5px;
-      }
-
-      .bk-label {
-        display: none;
-      }
-
-      .render-header {
-        display: flex;
-        align-items: center;
-        height: 100%;
-
-        span:nth-child(2) {
-          color: #979ba5;
-        }
-
-        .render-Participle {
-          display: inline-block;
-          width: 100%;
-          text-align: center;
-        }
-
-        span:nth-child(3) {
-          display: flex;
-          width: 14px;
-          height: 14px;
-          margin-top: 2px;
-          font-size: 14px;
-          outline: none;
-          justify-content: center;
-          align-items: center;
-        }
-      }
-
-      .bk-table-empty-text {
-        padding: 12px 0;
-      }
-
-      .bk-table-empty-block {
-        min-height: 32px;
-      }
-
-      .empty-text {
-        color: #979ba5;
-      }
-    }
-
-    .preview-panel-left {
-      flex: 1;
-    }
-
-    .participle-box {
-      display: flex;
-      width: 100%;
-      justify-content: start;
-      align-items: center;
-
-      .select-custom {
-        width: 70px;
-        margin-right: 8px;
-      }
-
-      .bk-select-name {
-        padding: 0 22px 0 10px;
-      }
-
-      .bk-form-control {
-        width: 149px;
-      }
-    }
-
-    .preview-panel-right {
-      width: 335px;
-      font-size: 12px;
-      color: #c4c6cc;
-      background: #63656e;
-      border-bottom: 1px solid #72757d;
-      border-radius: 0 2px 2px 0;
-
-      .preview-item {
-        height: 42px;
-        padding: 0 10px;
-        overflow: hidden;
-        line-height: 42px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        border-top: 1px solid #72757d;
-
-        &:first-child {
-          height: 43px;
-          border-top: 1px solid transparent;
-        }
-      }
-
-      .preview-title {
-        color: #fff;
-      }
-    }
-
-    .bk-table .table-link {
-      cursor: pointer;
-    }
-
-    .field-date {
-      display: inline-block;
-      padding: 0 10px;
-      font-size: 14px;
-      outline: none;
-
-      &:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &.field-date-active {
-        color: #3a84ff;
-
-        .icon-date-picker {
-          color: #3a84ff;
-        }
-      }
-
-      &.field-date-disable {
-        color: #dcdee5;
-        cursor: not-allowed;
-      }
-    }
-
-    .icon-date-picker {
-      color: #979ba5;
-
-      &.active {
-        color: #3a84ff;
-      }
-    }
+  .field-method-head {
+    position: absolute;
+    top: -30px;
+    right: 0;
   }
 
   .field-table {
@@ -1485,6 +1341,26 @@ export default {
 
   .preview-panel-left {
     flex: 1;
+  }
+
+  .participle-box {
+    display: flex;
+    width: 100%;
+    justify-content: start;
+    align-items: center;
+
+    .select-custom {
+      width: 70px;
+      margin-right: 8px;
+    }
+
+    .bk-select-name {
+      padding: 0 22px 0 10px;
+    }
+
+    .bk-form-control {
+      width: 149px;
+    }
   }
 
   .preview-panel-right {
