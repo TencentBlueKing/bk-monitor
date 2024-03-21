@@ -308,7 +308,7 @@ export default class MonitorMobileEcharts extends Vue {
     this.chart = chart;
     this.chartUnit = this.unit;
     if (this.autoresize) {
-      const handler = debounce(300, false, () => this.resize());
+      const handler = debounce(300, () => this.resize());
       this.resizeHandler = async () => {
         await this.$nextTick();
         this.chartRef?.offsetParent !== null && handler();

@@ -554,7 +554,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   }
 
   scrollInit() {
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.throttledScroll = throttle(300, this.handleScroll);
     this.$nextTick(() => {
       this.scrollEl = this.$el;
       this.scrollEl?.addEventListener('scroll', this.throttledScroll);
