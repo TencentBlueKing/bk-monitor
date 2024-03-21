@@ -21,19 +21,14 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Emit,
-  Prop,
-  Ref,
-} from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Button } from 'bk-magic-vue';
 import MaskingField from '../../components/log-masking/masking-field';
 import './step-masking.scss';
 import $http from '../../api';
 
 interface IProps {
-  value: Boolean
+  value: Boolean;
 }
 
 @Component
@@ -72,14 +67,14 @@ export default class StepMasking extends tsc<IProps> {
       this.emitSubmitChange(true);
       this.emitStepChange();
       return;
-    }; // 非更新状态且没有任何字段选择规则 直接下一步
+    } // 非更新状态且没有任何字段选择规则 直接下一步
     let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
     if (!data.field_configs.length && isUpdate) requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
     try {
       this.submitLoading = true;
       const res = await $http.request(`masking/${requestStr}`, {
         params: { index_set_id: this.curCollect?.index_set_id },
-        data,
+        data
       });
       this.$emit('changeIndexSetId', this.curCollect?.index_set_id || '');
       this.emitSubmitChange(true);
@@ -91,7 +86,7 @@ export default class StepMasking extends tsc<IProps> {
       this.emitSubmitChange(false);
     } finally {
       this.submitLoading = false;
-    };
+    }
   }
 
   /** 跳过 */
@@ -105,37 +100,45 @@ export default class StepMasking extends tsc<IProps> {
     this.$router.push({
       name: 'collection-item',
       query: {
-        spaceUid: this.$store.state.spaceUid,
-      },
+        spaceUid: this.$store.state.spaceUid
+      }
     });
   }
 
   render() {
     return (
-      <div class="filed-masking-container">
-        <div class="masking-field-box">
+      <div class='filed-masking-container'>
+        <div class='masking-field-box'>
           <MaskingField
-            ref="maskingField"
+            ref='maskingField'
             collect-data={this.curCollect}
             operate-type={this.operateType}
-            onChangeData={() => this.submitSelectRule()} />
+            onChangeData={() => this.submitSelectRule()}
+          />
         </div>
-        <div class="submit-content">
+        <div class='submit-content'>
           <Button
-            theme="primary"
+            theme='primary'
             loading={this.submitLoading}
-            onClick={() => this.submitSelectRule(true)}>
+            onClick={() => this.submitSelectRule(true)}
+          >
             {this.isShowJump ? this.$t('下一步') : this.$t('应用')}
           </Button>
-          {
-            this.isShowJump && <Button
-            theme="default"
-            loading={this.submitLoading}
-            onClick={() => this.handleNextPage()}>
-            {this.$t('跳过')}
+          {this.isShowJump && (
+            <Button
+              theme='default'
+              loading={this.submitLoading}
+              onClick={() => this.handleNextPage()}
+            >
+              {this.$t('跳过')}
+            </Button>
+          )}
+          <Button
+            theme='default'
+            onClick={() => this.cancelSelectRule()}
+          >
+            {this.$t('取消')}
           </Button>
-          }
-          <Button theme="default" onClick={() => this.cancelSelectRule()}>{this.$t('取消')}</Button>
         </div>
       </div>
     );

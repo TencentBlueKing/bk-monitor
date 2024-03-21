@@ -68,6 +68,7 @@ export default class TableLegend extends CommonLegend {
       return +bVal - +aVal;
     });
   }
+
   render() {
     return (
       <table class='table-legend'>
@@ -108,7 +109,9 @@ export default class TableLegend extends CommonLegend {
                       {title === 'Min' && (
                         <div
                           class='legend-metric'
-                          onClick={e => this.handleLegendEvent(e, 'click', item)}
+                          onMousedown={e => this.handleLegendMouseEvent(e, 'mousedown')}
+                          onMousemove={e => this.handleLegendMouseEvent(e, 'mousemove')}
+                          onMouseup={e => this.handleLegendMouseEvent(e, 'mouseup', item)}
                           onMouseenter={e => this.handleLegendEvent(e, 'highlight', item)}
                           onMouseleave={e => this.handleLegendEvent(e, 'downplay', item)}
                         >

@@ -26,67 +26,91 @@
       ref="validateForm"
       :label-width="labelWidth"
       :form-type="showType"
-      :model="subFormData">
+      :model="subFormData"
+    >
       <div>
         <!-- 段日志正则调试 -->
-        <div v-if="hasMultilineReg" class="multiline-log-container mt">
+        <div
+          v-if="hasMultilineReg"
+          class="multiline-log-container mt"
+        >
           <div class="row-container">
             <bk-form-item
               :label="$t('行首正则')"
               :rules="rules.notEmptyForm"
               required
-              property="params.multiline_pattern">
+              property="params.multiline_pattern"
+            >
               <div class="flex-ac">
                 <bk-input
-                  data-test-id="sourceLogBox_input_beginningRegular"
-                  style="width: 320px;"
                   v-model.trim="subFormData.params.multiline_pattern"
+                  data-test-id="sourceLogBox_input_beginningRegular"
+                  style="width: 320px"
                 ></bk-input>
                 <bk-button
-                  text size="small"
+                  text
+                  size="small"
                   class="king-button"
                   data-test-id="sourceLogBox_button_debugging"
-                  @click="showRegDialog = true">
+                  @click="showRegDialog = true"
+                >
                   {{ $t('调试') }}
                 </bk-button>
               </div>
             </bk-form-item>
           </div>
           <div :class="['row-container', 'second', showType === 'horizontal' && 'pl150']">
-            <i18n path="最多匹配{0}行，最大耗时{1}秒" class="i18n-style">
-              <bk-form-item :rules="rules.maxLine" property="params.multiline_max_lines">
+            <i18n
+              path="最多匹配{0}行，最大耗时{1}秒"
+              class="i18n-style"
+            >
+              <bk-form-item
+                :rules="rules.maxLine"
+                property="params.multiline_max_lines"
+              >
                 <bk-input
                   v-model="subFormData.params.multiline_max_lines"
                   data-test-id="sourceLogBox_input_mostMatches"
                   type="number"
                   :precision="0"
-                  :show-controls="false">
+                  :show-controls="false"
+                >
                 </bk-input>
               </bk-form-item>
-              <bk-form-item :rules="rules.maxTimeout" property="params.multiline_timeout">
+              <bk-form-item
+                :rules="rules.maxTimeout"
+                property="params.multiline_timeout"
+              >
                 <bk-input
                   v-model="subFormData.params.multiline_timeout"
                   data-test-id="sourceLogBox_input_maximumTimeConsuming"
                   type="number"
                   :precision="0"
-                  :show-controls="false">
+                  :show-controls="false"
+                >
                 </bk-input>
               </bk-form-item>
             </i18n>
           </div>
           <multiline-reg-dialog
             :old-pattern.sync="subFormData.params.multiline_pattern"
-            :show-dialog.sync="showRegDialog">
+            :show-dialog.sync="showRegDialog"
+          >
           </multiline-reg-dialog>
         </div>
         <template v-if="!isStandardOutput">
           <!-- 日志路径 -->
-          <div class="form-div mt log-paths" v-for="(log, index) in logPaths" :key="index">
+          <div
+            v-for="(log, index) in logPaths"
+            :key="index"
+            class="form-div mt log-paths"
+          >
             <bk-form-item
               required
               :label="index === 0 ? $t('日志路径') : ''"
               :rules="rules.paths"
-              :property="'params.paths.' + index + '.value'">
+              :property="'params.paths.' + index + '.value'"
+            >
               <div class="log-path flex-ac">
                 <bk-input
                   v-model="log.value"
@@ -96,14 +120,19 @@
                   <i
                     class="bk-icon icon-plus-circle-shape icons"
                     data-test-id="sourceLogBox_i_newAddLogPath"
-                    @click="addLog"></i>
+                    @click="addLog"
+                  ></i>
                   <i
-                    :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: logPaths.length === 1 }] "
+                    :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: logPaths.length === 1 }]"
                     data-test-id="sourceLogBox_i_deleteAddLogPath"
-                    @click="delLog(index)"></i>
+                    @click="delLog(index)"
+                  ></i>
                 </div>
               </div>
-              <div :class="['tips', showType !== 'horizontal' && 'log-tips']" v-if="index === 0">
+              <div
+                v-if="index === 0"
+                :class="['tips', showType !== 'horizontal' && 'log-tips']"
+              >
                 <i18n path="日志文件的绝对路径，可使用 {0}">
                   <span class="font-gray">{{ $t('通配符') }}</span>
                 </i18n>
@@ -111,97 +140,167 @@
             </bk-form-item>
           </div>
           <!-- 日志字符集 -->
-          <bk-form-item class="mt" :label="$t('字符集')" required>
+          <bk-form-item
+            class="mt"
+            :label="$t('字符集')"
+            required
+          >
             <bk-select
-              data-test-id="sourceLogBox_div_changeLogCharacterTet"
-              style="width: 320px;"
-              searchable
               v-model="subFormData.data_encoding"
-              :clearable="false">
+              data-test-id="sourceLogBox_div_changeLogCharacterTet"
+              style="width: 320px"
+              searchable
+              :clearable="false"
+            >
               <bk-option
                 v-for="(option, ind) in globalsData.data_encoding"
-                :key="ind"
                 :id="option.id"
-                :name="option.name">
+                :key="ind"
+                :name="option.name"
+              >
               </bk-option>
             </bk-select>
           </bk-form-item>
         </template>
       </div>
       <!-- 过滤内容 -->
-      <div :class="['filter-content', showType === 'horizontal' && 'horizontal-item']" v-en-class="'en-span'">
+      <div
+        v-en-class="'en-span'"
+        :class="['filter-content', showType === 'horizontal' && 'horizontal-item']"
+      >
         <span v-bk-tooltips="$t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')">
-          <span class="filter-title">{{$t('过滤内容')}}</span>
+          <span class="filter-title">{{ $t('过滤内容') }}</span>
         </span>
-        <bk-radio-group v-model="subFormData.params.conditions.type" @change="chooseType">
-          <bk-radio value="none" style="margin-right: 12px">{{$t('不过滤')}}</bk-radio>
-          <bk-radio value="match" style="margin-right: 12px">{{$t('字符串过滤')}}</bk-radio>
-          <bk-radio value="separator">{{$t('分隔符过滤')}}</bk-radio>
+        <bk-radio-group
+          v-model="subFormData.params.conditions.type"
+          @change="chooseType"
+        >
+          <bk-radio
+            value="none"
+            style="margin-right: 12px"
+            >{{ $t('不过滤') }}</bk-radio
+          >
+          <bk-radio
+            value="match"
+            style="margin-right: 12px"
+            >{{ $t('字符串过滤') }}</bk-radio
+          >
+          <bk-radio value="separator">{{ $t('分隔符过滤') }}</bk-radio>
         </bk-radio-group>
         <template v-if="isClickTypeRadio">
           <div class="flex-ac filter-select">
             <bk-select
+              v-if="isString"
+              v-model="subFormData.params.conditions.match_type"
               :clearable="false"
               :popover-min-width="240"
-              v-if="isString" v-model="subFormData.params.conditions.match_type">
-              <bk-option id="include" :name="$t('include(保留匹配字符串)')"></bk-option>
-              <bk-option id="exclude" :name="$t('exclude(过滤匹配字符串)')" disabled>
+            >
+              <bk-option
+                id="include"
+                :name="$t('include(保留匹配字符串)')"
+              ></bk-option>
+              <bk-option
+                id="exclude"
+                :name="$t('exclude(过滤匹配字符串)')"
+                disabled
+              >
                 <span v-bk-tooltips.right="$t('正在开发中')">{{ $t('exclude(过滤匹配字符串)') }}</span>
               </bk-option>
             </bk-select>
             <bk-input
               v-show="isString"
               v-model="subFormData.params.conditions.match_content"
-              style="margin-left: 8px; width: 600px;"></bk-input>
+              style="width: 600px; margin-left: 8px"
+            ></bk-input>
             <bk-select
-              style="width: 320px; height: 32px"
               v-if="!isString"
-              v-model="subFormData.params.conditions.separator">
+              v-model="subFormData.params.conditions.separator"
+              style="width: 320px; height: 32px"
+            >
               <bk-option
                 v-for="(option, index) in globalsData.data_delimiter"
-                :key="index"
                 :id="option.id"
-                :name="option.name">
+                :key="index"
+                :name="option.name"
+              >
               </bk-option>
             </bk-select>
           </div>
-          <div class="tips" v-show="!isString">{{ $t('复杂的过滤条件（超过5个）会影响机器性能') }}</div>
-          <div class="form-div" v-if="!isString">
-            <div class="choose-table" style="width: 800px;">
+          <div
+            v-show="!isString"
+            class="tips"
+          >
+            {{ $t('复杂的过滤条件（超过5个）会影响机器性能') }}
+          </div>
+          <div
+            v-if="!isString"
+            class="form-div"
+          >
+            <div
+              class="choose-table"
+              style="width: 800px"
+            >
               <div class="choose-table-item choose-table-item-head">
                 <div class="left">{{ $t('第几列') }}</div>
                 <div class="main">{{ $t('等于') }}</div>
                 <div class="right">{{ $t('增/删') }}</div>
               </div>
               <div class="choose-table-item-body">
-                <div class="choose-table-item" v-for="(item, index) in separatorFilters" :key="index">
+                <div
+                  v-for="(item, index) in separatorFilters"
+                  :key="index"
+                  class="choose-table-item"
+                >
                   <div class="left">
                     <bk-form-item
-                      label="" :rules="rules.separator_filters"
-                      :property="'params.conditions.separator_filters.' + index + '.fieldindex'">
-                      <bk-input style="width: 100px;" v-model="item.fieldindex"></bk-input>
+                      label=""
+                      :rules="rules.separator_filters"
+                      :property="'params.conditions.separator_filters.' + index + '.fieldindex'"
+                    >
+                      <bk-input
+                        v-model="item.fieldindex"
+                        style="width: 100px"
+                      ></bk-input>
                     </bk-form-item>
                   </div>
-                  <div :class="['main', { line: separatorFilters.length > 1 }] ">
+                  <div :class="['main', { line: separatorFilters.length > 1 }]">
                     <bk-form-item
-                      label="" :rules="rules.separator_filters"
-                      :property="'params.conditions.separator_filters.' + index + '.word'">
+                      label=""
+                      :rules="rules.separator_filters"
+                      :property="'params.conditions.separator_filters.' + index + '.word'"
+                    >
                       <bk-input v-model="item.word"></bk-input>
                     </bk-form-item>
                   </div>
                   <div class="right">
-                    <i class="bk-icon icon-plus-circle-shape icons" @click="addItem"></i>
                     <i
-                      :class="['bk-icon icon-minus-circle-shape icons ml9',
-                               { disable: separatorFilters.length === 1 }]"
-                      @click="delItem(index)">
+                      class="bk-icon icon-plus-circle-shape icons"
+                      @click="addItem"
+                    ></i>
+                    <i
+                      :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: separatorFilters.length === 1 }]"
+                      @click="delItem(index)"
+                    >
                     </i>
                   </div>
                 </div>
-                <div class="choose-select" v-if="separatorFilters && separatorFilters.length > 1">
-                  <bk-select class="select-div" v-model="type" @selected="changeType">
-                    <bk-option id="and" :name="$t('并')"></bk-option>
-                    <bk-option id="or" :name="$t('或')"></bk-option>
+                <div
+                  v-if="separatorFilters && separatorFilters.length > 1"
+                  class="choose-select"
+                >
+                  <bk-select
+                    v-model="type"
+                    class="select-div"
+                    @selected="changeType"
+                  >
+                    <bk-option
+                      id="and"
+                      :name="$t('并')"
+                    ></bk-option>
+                    <bk-option
+                      id="or"
+                      :name="$t('或')"
+                    ></bk-option>
                   </bk-select>
                 </div>
               </div>
@@ -219,21 +318,25 @@
       :label-width="labelWidth"
       :form-type="showType"
       :model="subFormData"
-      class="mt">
+      class="mt"
+    >
       <bk-form-item
         :label="$t('日志种类')"
         data-test-id="sourceLogBox_div_logSpecies"
-        required>
+        required
+      >
         <bk-checkbox-group
           v-model="selectLogSpeciesList"
-          @change="otherBlurRules">
+          @change="otherBlurRules"
+        >
           <div class="species-item">
             <bk-checkbox
-              v-for=" (item, index) in logSpeciesList"
+              v-for="(item, index) in logSpeciesList"
+              :key="index"
               :disabled="selectLogSpeciesList.length === 1 && selectLogSpeciesList[0] === item.id"
               :value="item.id"
-              :key="index">
-              {{item.name}}
+            >
+              {{ item.name }}
             </bk-checkbox>
             <bk-tag-input
               v-model="otherSpeciesList"
@@ -243,58 +346,69 @@
               :has-delete-icon="true"
               :allow-create="true"
               @blur="otherBlurRules"
-              @remove="otherBlurRules">
+              @remove="otherBlurRules"
+            >
             </bk-tag-input>
           </div>
         </bk-checkbox-group>
       </bk-form-item>
     </bk-form>
     <!-- win-过滤内容 -->
-    <div :class="['config-item','mt', showType === 'horizontal' && 'win-content']" v-en-class="'en-span'">
+    <div
+      v-en-class="'en-span'"
+      :class="['config-item', 'mt', showType === 'horizontal' && 'win-content']"
+    >
       <span v-bk-tooltips="$t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')">
-        <span class="filter-title">{{$t('过滤内容')}}</span>
+        <span class="filter-title">{{ $t('过滤内容') }}</span>
       </span>
-      <div class="form-div win-filter" v-for="(item, index) in eventSettingList" :key="index">
+      <div
+        v-for="(item, index) in eventSettingList"
+        :key="index"
+        class="form-div win-filter"
+      >
         <bk-select
-          class="select-div"
           v-model="item.type"
+          class="select-div"
           :clearable="false"
-          @selected="tagBlurRules(item, index)">
+          @selected="tagBlurRules(item, index)"
+        >
           <bk-option
             v-for="option in selectEventList"
-            :key="option.id"
             :id="option.id"
+            :key="option.id"
             :disabled="option.isSelect"
-            :name="option.name">
+            :name="option.name"
+          >
           </bk-option>
         </bk-select>
         <bk-tag-input
+          v-model="item.list"
           :class="{
             'tag-input': true,
             tagRulesColor: !item.isCorrect
           }"
-          v-model="item.list"
           allow-auto-match
           has-delete-icon
           allow-create
-          :paste-fn="(v) => pasteFn(v, index)"
+          :paste-fn="v => pasteFn(v, index)"
           @blur="tagBlurRules(item, index)"
-          @remove="tagBlurRules(item, index)">
+          @remove="tagBlurRules(item, index)"
+        >
         </bk-tag-input>
         <div class="ml9">
           <i
-            :class="
-              [
-                'bk-icon icon-plus-circle-shape icons',
-                {
-                  disable: eventSettingList.length === selectEventList.length
-                }
-              ]"
+            :class="[
+              'bk-icon icon-plus-circle-shape icons',
+              {
+                disable: eventSettingList.length === selectEventList.length
+              }
+            ]"
             @click="addWinEvent"
           ></i>
           <i
-            :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: eventSettingList.length === 1 }] "
-            @click="delWinEvent(index)"></i>
+            :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: eventSettingList.length === 1 }]"
+            @click="delWinEvent(index)"
+          ></i>
         </div>
       </div>
     </div>
@@ -306,68 +420,72 @@ import { mapGetters } from 'vuex';
 import { deepClone } from '../../../monitor-echarts/utils';
 export default {
   components: {
-    MultilineRegDialog,
+    MultilineRegDialog
   },
   props: {
     showType: {
       type: String,
-      default: 'horizontal',
+      default: 'horizontal'
     },
     configData: {
       type: Object,
-      required: true,
+      required: true
     },
     scenarioId: {
       type: String,
-      required: true,
+      required: true
     },
     currentEnvironment: {
       type: String,
-      require: true,
+      require: true
     },
     configLength: {
       type: Number,
-      require: true,
+      require: true
     },
     isCloneOrUpdate: {
       type: Boolean,
-      require: true,
+      require: true
     },
     enLabelWidth: {
       type: Number,
-      default: 180,
-    },
+      default: 180
+    }
   },
   data() {
     return {
       rules: {
-        paths: [ // 日志路径
+        paths: [
+          // 日志路径
           {
             required: true,
-            trigger: 'change',
-          },
+            trigger: 'change'
+          }
         ],
-        separator_filters: [ // 分隔符过滤条件
+        separator_filters: [
+          // 分隔符过滤条件
           {
-            validator: (value) => {
-              const isFillOneSide = this.separatorFilters.some((item) => {
+            validator: value => {
+              const isFillOneSide = this.separatorFilters.some(item => {
                 return (item.fieldindex && !item.word) || (!item.fieldindex && item.word);
               });
               if (isFillOneSide) return Boolean(value);
               return true;
             },
-            trigger: 'blur',
-          },
+            trigger: 'blur'
+          }
         ],
-        notEmptyForm: [ // 不能为空的表单
+        notEmptyForm: [
+          // 不能为空的表单
           {
             required: true,
-            trigger: 'blur',
-          },
+            trigger: 'blur'
+          }
         ],
-        maxLine: [ // 最多匹配行数
+        maxLine: [
+          // 最多匹配行数
           {
-            validator: (val) => {
+            validator: val => {
               if (val > 1000) {
                 this.formData.params.multiline_max_lines = '1000';
               } else if (val < 1) {
@@ -375,12 +493,13 @@ export default {
               }
               return true;
             },
-            trigger: 'blur',
-          },
+            trigger: 'blur'
+          }
         ],
-        maxTimeout: [ // 最大耗时
+        maxTimeout: [
+          // 最大耗时
           {
-            validator: (val) => {
+            validator: val => {
               if (val > 10) {
                 this.formData.params.multiline_timeout = '10';
               } else if (val < 1) {
@@ -388,9 +507,9 @@ export default {
               }
               return true;
             },
-            trigger: 'blur',
-          },
-        ],
+            trigger: 'blur'
+          }
+        ]
       },
       subFormData: {
         data_encoding: 'UTF-8', // 日志字符集
@@ -398,67 +517,72 @@ export default {
           multiline_pattern: '', // 行首正则, char
           multiline_max_lines: '50', // 最多匹配行数, int
           multiline_timeout: '2', // 最大耗时, int
-          paths: [ // 日志路径
-            { value: '' },
+          paths: [
+            // 日志路径
+            { value: '' }
           ],
           conditions: {
             type: 'none', // 过滤方式类型
             match_type: 'include', // 过滤方式 可选字段 include, exclude
             match_content: '',
             separator: '|',
-            separator_filters: [ // 分隔符过滤条件
-              { fieldindex: '', word: '', op: '=', logic_op: 'and' },
-            ],
+            separator_filters: [
+              // 分隔符过滤条件
+              { fieldindex: '', word: '', op: '=', logic_op: 'and' }
+            ]
           },
           winlog_name: [], // windows事件名称
           winlog_level: [], // windows事件等级
-          winlog_event_id: [], // windows事件id
-        },
+          winlog_event_id: [] // windows事件id
+        }
       },
       type: 'and',
       showRegDialog: false, // 显示段日志调试弹窗
       otherRules: false, // 是否有其他规则
-      logSpeciesList: [{
-        id: 'Application',
-        name: this.$t('应用程序(Application)'),
-      }, {
-        id: 'Security',
-        name: this.$t('安全(Security)'),
-      }, {
-        id: 'System',
-        name: this.$t('系统(System)'),
-      }, {
-        id: 'Other',
-        name: this.$t('其他'),
-      }],
+      logSpeciesList: [
+        {
+          id: 'Application',
+          name: this.$t('应用程序(Application)')
+        },
+        {
+          id: 'Security',
+          name: this.$t('安全(Security)')
+        },
+        {
+          id: 'System',
+          name: this.$t('系统(System)')
+        },
+        {
+          id: 'Other',
+          name: this.$t('其他')
+        }
+      ],
       selectLogSpeciesList: ['Application', 'Security', 'System', 'Other'],
       otherSpeciesList: [],
       selectEventList: [
         {
           id: 'winlog_event_id',
           name: this.$t('事件ID'),
-          isSelect: false,
+          isSelect: false
         },
         {
           id: 'winlog_level',
           name: this.$t('级别'),
-          isSelect: false,
+          isSelect: false
         },
         {
           id: 'winlog_source',
           name: this.$t('事件来源'),
-          isSelect: false,
+          isSelect: false
         },
         {
           id: 'winlog_content',
           name: this.$t('事件内容'),
-          isSelect: false,
-        },
+          isSelect: false
+        }
       ],
-      eventSettingList: [
-        { type: 'winlog_event_id', list: [], isCorrect: true },
-      ],
-      isFirst: true,
+      eventSettingList: [{ type: 'winlog_event_id', list: [], isCorrect: true }],
+      isFirst: true
     };
   },
   computed: {
@@ -466,12 +590,16 @@ export default {
     // 分隔符字段过滤条件
     separatorFilters() {
       const { params } = this.subFormData;
-      return params.conditions?.separator_filters || [{
-        fieldindex: '',
-        word: '',
-        op: '=',
-        logic_op: this.type,
-      }];
+      return (
+        params.conditions?.separator_filters || [
+          {
+            fieldindex: '',
+            word: '',
+            op: '=',
+            logic_op: this.type
+          }
+        ]
+      );
     },
     // 是否打开行首正则功能
     hasMultilineReg() {
@@ -501,7 +629,8 @@ export default {
     winCannotPass() {
       return this.eventSettingList.some(el => el.isCorrect === false) || this.otherRules;
     },
-    getWinParamsData() { // wineventlog日志类型时进行params属性修改
+    getWinParamsData() {
+      // wineventlog日志类型时进行params属性修改
       const winParams = {};
       const { selectLogSpeciesList, otherSpeciesList, eventSettingList } = this;
       const cloneSpeciesList = deepClone(selectLogSpeciesList);
@@ -509,11 +638,11 @@ export default {
         cloneSpeciesList.splice(cloneSpeciesList.indexOf('Other'), 1);
       }
       winParams.winlog_name = cloneSpeciesList.concat(otherSpeciesList);
-      eventSettingList.forEach((el) => {
+      eventSettingList.forEach(el => {
         winParams[el.type] = el.list;
       });
       return winParams;
-    },
+    }
   },
   watch: {
     subFormData: {
@@ -521,11 +650,11 @@ export default {
       handler(val) {
         const { data_encoding, params } = val;
         this.$emit('configChange', { data_encoding, params });
-      },
+      }
     },
     configLength() {
       Object.assign(this.subFormData, this.configData);
-    },
+    }
   },
   created() {
     Object.assign(this.subFormData, this.configData);
@@ -537,8 +666,10 @@ export default {
       }
       if (this.scenarioId !== 'wineventlog') {
         if (params.paths.length > 0) {
-          params.paths = typeof params.paths[0] === 'string' ? params.paths.map(item => ({ value: item })) : params.paths;
-        } else { // 兼容原日志路径为空列表
+          params.paths =
+            typeof params.paths[0] === 'string' ? params.paths.map(item => ({ value: item })) : params.paths;
+        } else {
+          // 兼容原日志路径为空列表
           params.paths = [{ value: '' }];
         }
       } else {
@@ -561,7 +692,7 @@ export default {
             newEventSettingList.push({
               type: key,
               list: val,
-              isCorrect: true,
+              isCorrect: true
             });
           }
         }
@@ -576,7 +707,7 @@ export default {
     // 修改分隔符过滤的并&或
     changeType(value) {
       this.type = value;
-      this.subFormData.params.conditions.separator_filters.map((item) => {
+      this.subFormData.params.conditions.separator_filters.map(item => {
         item.logic_op = value;
       });
     },
@@ -585,7 +716,10 @@ export default {
     },
     delLog(index) {
       if (this.subFormData.params.paths.length > 1) {
-        this.subFormData.params.paths.splice(this.subFormData.params.paths.findIndex((item, ind) => ind === index), 1);
+        this.subFormData.params.paths.splice(
+          this.subFormData.params.paths.findIndex((item, ind) => ind === index),
+          1
+        );
       }
     },
     chooseType(value) {
@@ -593,9 +727,10 @@ export default {
       const conditions = this.subFormData.params.conditions || {};
       if (!this.isString && !conditions?.separator_filters?.length) {
         Object.assign(conditions, {
-          separator_filters: [ // 分隔符过滤条件
-            { fieldindex: '', word: '', op: '=', logic_op: this.type },
-          ],
+          separator_filters: [
+            // 分隔符过滤条件
+            { fieldindex: '', word: '', op: '=', logic_op: this.type }
+          ]
         });
       }
     },
@@ -604,14 +739,17 @@ export default {
         fieldindex: '',
         word: '',
         op: '=',
-        logic_op: this.type,
+        logic_op: this.type
       });
     },
     delItem(index) {
       const { separator_filters: separatorFilters } = this.subFormData.params.conditions;
       if (separatorFilters.length > 1) {
-        separatorFilters.splice(separatorFilters.findIndex((item, ind) => index === ind), 1);
-      };
+        separatorFilters.splice(
+          separatorFilters.findIndex((item, ind) => index === ind),
+          1
+        );
+      }
     },
     addWinEvent() {
       const eventType = this.eventSettingList.map(el => el.type);
@@ -624,16 +762,19 @@ export default {
     },
     delWinEvent(index) {
       if (this.eventSettingList.length > 1) {
-        this.eventSettingList.splice(this.eventSettingList.findIndex((el, ind) => index === ind), 1);
+        this.eventSettingList.splice(
+          this.eventSettingList.findIndex((el, ind) => index === ind),
+          1
+        );
         this.selectDisabledChange(false);
       }
     },
     selectDisabledChange(state = true) {
       if (this.eventSettingList.length === 1) {
-        this.selectEventList.forEach(el => el.isSelect = false);
+        this.selectEventList.forEach(el => (el.isSelect = false));
       }
       if (this.eventSettingList.length === this.selectEventList.length) {
-        this.selectEventList.forEach(el => el.isSelect = true);
+        this.selectEventList.forEach(el => (el.isSelect = true));
       }
       for (const eItem of this.eventSettingList) {
         for (const sItem of this.selectEventList) {
@@ -655,10 +796,10 @@ export default {
     tagBlurRules(item, index) {
       switch (item.type) {
         case 'winlog_event_id':
-          this.eventSettingList[index].isCorrect =  item.list.every(el => /^[\d]+$/.test(el));
+          this.eventSettingList[index].isCorrect = item.list.every(el => /^[\d]+$/.test(el));
           break;
         case 'winlog_level':
-          this.eventSettingList[index].isCorrect =  item.list.every(Boolean);
+          this.eventSettingList[index].isCorrect = item.list.every(Boolean);
           break;
         default:
           this.eventSettingList[index].isCorrect = true;
@@ -669,23 +810,24 @@ export default {
       const oldEventList = this.eventSettingList[index].list;
       const matchList = v.split(/\n/g); // 根据换行符进行切割
       this.eventSettingList[index].list = oldEventList.concat(matchList);
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
+/* stylelint-disable no-descending-specificity */
 .horizontal-item {
-  padding: 20px 0;
   position: relative;
   left: 115px;
   max-width: 80%;
+  padding: 20px 0;
 
   > span {
-    color: #90929a;
-    font-size: 14px;
     position: absolute;
-    left: -80px;
     top: 23px;
+    left: -80px;
+    font-size: 14px;
+    color: #90929a;
   }
 
   .filter-select {
@@ -737,8 +879,8 @@ export default {
 
 .filter-title {
   display: inline-block;
-  border-bottom: 1px dashed #000;
   margin-bottom: 8px;
   font-size: 12px;
+  border-bottom: 1px dashed #000;
 }
 </style>

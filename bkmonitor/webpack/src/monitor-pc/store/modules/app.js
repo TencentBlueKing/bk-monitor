@@ -76,7 +76,8 @@ const state = {
   bizBgColor: '', // 业务颜色
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
-  bizIdChangePedding: '' // 业务id是否切换
+  bizIdChangePedding: '', // 业务id是否切换
+  extraDocLinkMap: {}
 };
 
 const mutations = {
@@ -90,12 +91,29 @@ const mutations = {
     state.needBack = back;
   },
   [SET_BIZ_ID](state, id) {
+    window.cc_biz_id = +id;
+    window.bk_biz_id = +id;
+    window.space_uid = state.bizList.find(item => item.bk_biz_id === +id)?.space_uid;
     state.bizId = id;
+    const isDemo = state.bizList?.find(item => +item.id === +id)?.is_demo;
+    !isDemo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${id}`);
   },
   [SET_APP_STATE](state, data) {
     Object.keys(data).forEach(key => {
       if (key === 'bizList') {
-        state[key] = data[key].map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
+        state[key] = data[key].map(item => {
+          const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
+          const pyText = pinyinStr.replace(/,/g, '');
+          const pyfText = pinyinStr
+            .split(',')
+            .map(str => str.charAt(0))
+            .join('');
+          return {
+            ...item,
+            py_text: pyText,
+            pyf_text: pyfText
+          };
+        });
         return;
       }
       state[key] = data[key];
@@ -173,6 +191,13 @@ const mutations = {
     } else {
       handleReload();
     }
+  },
+  /**
+   * @description: 更新文档链接
+   * @param {Object} data
+   */
+  updateExtraDocLinkMap(state, data) {
+    state.extraDocLinkMap = data;
   }
 };
 

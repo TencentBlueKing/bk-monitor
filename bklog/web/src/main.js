@@ -46,14 +46,14 @@ import { ZoneContextManager } from '@opentelemetry/context-zone';
 
 const provider = new WebTracerProvider();
 provider.register({
-  contextManager: new ZoneContextManager(),
+  contextManager: new ZoneContextManager()
 });
 registerInstrumentations({
-  instrumentations: [new XMLHttpRequestInstrumentation(
-    {
+  instrumentations: [
+    new XMLHttpRequestInstrumentation({
       // propagateTraceHeaderCorsUrls: new RegExp('.*'),
-    },
-  )],
+    })
+  ]
 });
 const tracer = provider.getTracer('bk-log');
 Vue.prototype.$renderHeader = renderHeader;
@@ -66,7 +66,7 @@ try {
       id, // 项目key
       reportApiSpeed: true, // 接口测速
       reportAssetSpeed: true, // 静态资源测速
-      spa: true,
+      spa: true
     });
     window.__aegisInstance = aegis;
     Vue.config.errorHandler = function (err, vm, info) {
@@ -77,7 +77,7 @@ try {
   console.warn('前端监控接入出错', e);
 }
 
-router.onError((err) => {
+router.onError(err => {
   const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;
   const isChunkLoadFailed = err.message.match(pattern);
   const targetPath = router.history.pending.fullPath;
@@ -93,9 +93,9 @@ Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 
 if (process.env.NODE_ENV === 'development') {
-  http.request('meta/getEnvConstant').then((res) => {
-    const data = res.data;
-    Object.keys(data).forEach((key) => {
+  http.request('meta/getEnvConstant').then(res => {
+    const { data } = res;
+    Object.keys(data).forEach(key => {
       window[key] = data[key];
     });
     window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
@@ -107,9 +107,9 @@ if (process.env.NODE_ENV === 'development') {
       store,
       i18n,
       components: {
-        App,
+        App
       },
-      template: '<App/>',
+      template: '<App/>'
     });
     Vue.config.devtools = true;
   });
@@ -121,9 +121,9 @@ if (process.env.NODE_ENV === 'development') {
     store,
     i18n,
     components: {
-      App,
+      App
     },
-    template: '<App/>',
+    template: '<App/>'
   });
   Vue.config.devtools = true;
 }

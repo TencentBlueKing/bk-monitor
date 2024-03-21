@@ -10,9 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from core.drf_resource.viewsets import ResourceViewSet
-from core.drf_resource.viewsets import ResourceRoute
 from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
 class GetDocsLinkViewSet(ResourceViewSet):
@@ -25,4 +24,5 @@ class GetDocsLinkViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("GET", resource.commons.get_doc_link),
+        ResourceRoute("GET", resource.commons.get_link_mapping, endpoint="mapping"),
     ]

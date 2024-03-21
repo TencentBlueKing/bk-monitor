@@ -22,9 +22,15 @@
 
 <template>
   <div class="manage-container">
-    <div class="manage-main" v-if="!pageLoading">
+    <div
+      v-if="!pageLoading"
+      class="manage-main"
+    >
       <sub-nav></sub-nav>
-      <router-view class="manage-content" :key="routerKey"></router-view>
+      <router-view
+        :key="routerKey"
+        class="manage-content"
+      ></router-view>
     </div>
   </div>
 </template>
@@ -36,24 +42,24 @@ import SubNav from '@/components/nav/manage-nav';
 export default {
   name: 'ManageIndex',
   components: {
-    SubNav,
+    SubNav
   },
   data() {
     return {
       navThemeColor: '#2c354d',
       routerKey: 0,
-      isExpand: true,
+      isExpand: true
     };
   },
   computed: {
     ...mapState(['topMenu', 'activeManageNav']),
     ...mapState('globals', ['globalsData']),
     ...mapGetters({
-      pageLoading: 'pageLoading',
+      pageLoading: 'pageLoading'
     }),
     manageNavList() {
       return this.topMenu.find(item => item.id === 'manage')?.children || [];
-    },
+    }
   },
   created() {
     this.getGlobalsData();
@@ -70,8 +76,8 @@ export default {
       this.$router.push({
         name: id,
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
       if (this.activeManageNav.id === id) {
         // this.routerKey += 1;
@@ -82,50 +88,52 @@ export default {
       if (Object.keys(this.globalsData).length) {
         return;
       }
-      this.$http.request('collect/globals').then((res) => {
-        this.$store.commit('globals/setGlobalsData', res.data);
-      })
-        .catch((e) => {
+      this.$http
+        .request('collect/globals')
+        .then(res => {
+          this.$store.commit('globals/setGlobalsData', res.data);
+        })
+        .catch(e => {
           console.warn(e);
         });
     },
     handleToggle(data) {
       this.isExpand = data;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../scss/mixins/scroller.scss';
+@import '../../scss/mixins/scroller.scss';
 
-  .manage-container {
+.manage-container {
+  height: 100%;
+
+  .manage-content {
+    // height: 100%;
+    position: relative;
+    top: 48px;
+    height: calc(100% - 52px);
+    overflow: auto;
+
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+  }
+
+  .manage-main {
     height: 100%;
+  }
 
-    .manage-content {
-      height: calc(100% - 52px);
-      // height: 100%;
-      position: relative;
-      top: 48px;
-      overflow: auto;
+  :deep(.bk-table) {
+    background: #fff;
 
-      @include scroller($backgroundColor: #C4C6CC, $width: 4px);
+    .cell {
+      display: block;
     }
 
-    .manage-main {
-      height: 100%;
-    }
-
-    :deep(.bk-table) {
-      background: #fff;
-
-      .cell {
-        display: block;
-      }
-
-      .bk-table-pagination-wrapper {
-        background: #fafbfd;
-      }
+    .bk-table-pagination-wrapper {
+      background: #fafbfd;
     }
   }
+}
 </style>

@@ -56,7 +56,8 @@ class DrfApiError(CommonError):
         elif isinstance(detail, dict):
             for k, v in list(detail.items()):
                 if v:
-                    return DrfApiError.drf_error_processor(v)
+                    # 补充字段字段信息
+                    return f"({k}) {DrfApiError.drf_error_processor(v)}"
             else:
                 return ""
         elif isinstance(detail, list):

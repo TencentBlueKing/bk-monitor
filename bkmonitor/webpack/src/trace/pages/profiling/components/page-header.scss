@@ -1,0 +1,47 @@
+.page-header-component {
+  width: 100%;
+
+  .page-header-left {
+    flex: 1;
+
+    .icon-container {
+      position: relative;
+      display: flex;
+      width: min-content;
+      margin: 12px 17px;
+      background: #f0f1f5;
+      border-radius: 2px;
+
+      > :first-child {
+        margin-right: 2px;
+      }
+
+      .result-icon-box {
+        width: 32px;
+        height: 24px;
+        font-size: 14px;
+        line-height: 20px;
+        color: #fff;
+        text-align: center;
+        cursor: pointer;
+        background: #699df4;
+        border-radius: 2px;
+
+        .icon-monitor {
+          display: inline-block;
+          font-size: 18px;
+          transform: translateY(2px);
+        }
+
+        &.light-icon {
+          color: #63656e;
+          background: #f0f1f5;
+        }
+
+        &.light-icon:hover {
+          background: #dcdee5;
+        }
+      }
+    }
+  }
+}

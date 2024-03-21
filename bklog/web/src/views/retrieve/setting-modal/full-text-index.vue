@@ -25,60 +25,74 @@
   <div>
     <bk-form :label-width="200">
       <!-- 大小写敏感 -->
-      <bk-form-item :label="$t('大小写敏感')" :required="true">
+      <bk-form-item
+        :label="$t('大小写敏感')"
+        :required="true"
+      >
         <bk-switcher
+          v-model="formData.is_case_sensitive"
           class="ml200"
           theme="primary"
           size="large"
-          v-model="formData.is_case_sensitive"
-          :disabled="!globalEditable"></bk-switcher>
+          :disabled="!globalEditable"
+        ></bk-switcher>
       </bk-form-item>
       <!-- 包含中文 -->
       <bk-form-item
         :label="$t('包含中文')"
-        :required="true">
+        :required="true"
+      >
         <bk-switcher
+          v-model="demo1"
           class="ml200"
           theme="primary"
           size="large"
-          v-model="demo1"
-          :disabled="!globalEditable">
+          :disabled="!globalEditable"
+        >
         </bk-switcher>
       </bk-form-item>
       <!-- 分词符 -->
       <bk-form-item
         :label="$t('分词符')"
         :required="true"
-        :property="''">
+        :property="''"
+      >
         <bk-input
-          class="ml200 w240"
           v-model="formData.delimeter"
+          class="ml200 w240"
           :clearable="true"
-          :disabled="!globalEditable">
+          :disabled="!globalEditable"
+        >
         </bk-input>
       </bk-form-item>
 
-      <bk-form-item class="ml200" style="margin-top: 40px;">
+      <bk-form-item
+        class="ml200"
+        style="margin-top: 40px"
+      >
         <bk-button
           theme="primary"
           :title="$t('保存')"
           :disabled="!globalEditable"
           :loading="isHandle"
-          @click.stop.prevent="handleSubmit">
+          @click.stop.prevent="handleSubmit"
+        >
           {{ $t('保存') }}
         </bk-button>
         <bk-button
           theme="default"
           :title="$t('重置')"
           :disabled="!globalEditable"
-          @click="handleReset">
+          @click="handleReset"
+        >
           {{ $t('重置') }}
         </bk-button>
         <bk-button
           theme="default"
           :title="$t('恢复默认')"
           :disabled="!globalEditable"
-          @click="handleDefaultReset">
+          @click="handleDefaultReset"
+        >
           {{ $t('恢复默认') }}
         </bk-button>
       </bk-form-item>
@@ -91,8 +105,8 @@ export default {
   props: {
     globalEditable: {
       type: Boolean,
-      default: true,
-    },
+      default: true
+    }
   },
   data() {
     return {
@@ -100,29 +114,29 @@ export default {
       rules: {},
       formData: {
         is_case_sensitive: 1, // 大小写敏感
-        delimeter: '', // 分词符
-      },
+        delimeter: '' // 分词符
+      }
     };
   },
   mounted() {},
   methods: {
     handleSubmit() {},
     handleReset() {},
-    handleDefaultReset() {},
-  },
+    handleDefaultReset() {}
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  :deep(.bk-label) {
-    text-align: left;
-  }
+:deep(.bk-label) {
+  text-align: left;
+}
 
-  .ml200 {
-    margin-left: -200px;
-  }
+.ml200 {
+  margin-left: -200px;
+}
 
-  .w240 {
-    width: 240px;
-  }
+.w240 {
+  width: 240px;
+}
 </style>

@@ -30,40 +30,47 @@
       :quick-close="true"
       :before-close="handleCloseSidebar"
       @animation-end="$emit('hidden')"
-      @update:isShow="updateIsShow">
-      <div v-bkloading="{ isLoading: sliderLoading }" slot="content" class="archive-slider-content">
+      @update:isShow="updateIsShow"
+    >
+      <div
+        slot="content"
+        v-bkloading="{ isLoading: sliderLoading }"
+        class="archive-slider-content"
+      >
         <bk-form
           v-if="!sliderLoading"
+          ref="validateForm"
           data-test-id="addNewArchive_div_formContainer"
           :model="formData"
           :label-width="350"
           :rules="basicRules"
           form-type="vertical"
-          ref="validateForm"
-          class="king-form">
+          class="king-form"
+        >
           <bk-form-item
             :label="$t('选择采集项/采集插件')"
             required
-            property="instance_id">
+            property="instance_id"
+          >
             <bk-select
-              searchable
               v-model="formData.instance_id"
+              searchable
               data-test-id="formContainer_select_selectCollector"
               :clearable="false"
               :disabled="isEdit"
               @change="handleCollectorChange"
             >
               <bk-option-group
-                show-collapse
                 v-for="item in collectorList"
                 :id="item.id"
-                :name="item.name"
                 :key="item.id"
+                show-collapse
+                :name="item.name"
               >
                 <bk-option
                   v-for="option in item.list"
-                  :key="option.id"
                   :id="option.id"
+                  :key="option.id"
                   :name="option.name"
                   :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]"
                 >
@@ -75,36 +82,51 @@
           <bk-form-item
             :label="$t('归档仓库')"
             required
-            property="target_snapshot_repository_name">
+            property="target_snapshot_repository_name"
+          >
             <bk-select
               v-model="formData.target_snapshot_repository_name"
               data-test-id="formContainer_select_selectStorehouse"
-              :disabled="isEdit || !formData.instance_id">
+              :disabled="isEdit || !formData.instance_id"
+            >
               <bk-option
                 v-for="option in repositoryRenderList"
-                :key="option.repository_name"
                 :id="option.repository_name"
+                :key="option.repository_name"
                 :name="option.repository_name"
-                :disabled="!option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]">
+                :disabled="!option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]"
+              >
               </bk-option>
             </bk-select>
           </bk-form-item>
           <bk-form-item
             :label="$t('过期时间')"
             required
-            property="snapshot_days">
+            property="snapshot_days"
+          >
             <bk-select
-              style="width: 300px;"
               v-model="formData.snapshot_days"
+              style="width: 300px"
               data-test-id="formContainer_select_selectExpireDate"
-              :clearable="false">
-              <div slot="trigger" class="bk-select-name">
+              :clearable="false"
+            >
+              <div
+                slot="trigger"
+                class="bk-select-name"
+              >
                 {{ getDaysStr }}
               </div>
               <template v-for="(option, index) in retentionDaysList">
-                <bk-option :key="index" :id="option.id" :name="option.name"></bk-option>
+                <bk-option
+                  :id="option.id"
+                  :key="index"
+                  :name="option.name"
+                ></bk-option>
               </template>
-              <div slot="extension" style="padding: 8px 0;">
+              <div
+                slot="extension"
+                style="padding: 8px 0"
+              >
                 <bk-input
                   v-model="customRetentionDay"
                   size="small"
@@ -116,18 +138,21 @@
               </div>
             </bk-select>
           </bk-form-item>
-          <bk-form-item style="margin-top: 40px;">
+          <bk-form-item style="margin-top: 40px">
             <bk-button
               theme="primary"
               class="king-button mr10"
               data-test-id="formContainer_button_handleSubmit"
               :loading="confirmLoading"
-              @click.stop.prevent="handleConfirm">
+              @click.stop.prevent="handleConfirm"
+            >
               {{ $t('提交') }}
             </bk-button>
             <bk-button
               data-test-id="formContainer_button_handleCancel"
-              @click="handleCancel">{{ $t('取消') }}</bk-button>
+              @click="handleCancel"
+              >{{ $t('取消') }}</bk-button
+            >
           </bk-form-item>
         </bk-form>
       </div>
@@ -145,12 +170,12 @@ export default {
   props: {
     showSlider: {
       type: Boolean,
-      default: false,
+      default: false
     },
     editArchive: {
       type: Object,
-      default: null,
-    },
+      default: null
+    }
   },
   data() {
     return {
@@ -159,7 +184,7 @@ export default {
       customRetentionDay: '', // 自定义过期天数
       collectorList: [
         { id: 'collector_config', name: this.$t('采集项'), list: [] }, // 采集项
-        { id: 'collector_plugin', name: this.$t('采集插件'), list: [] }, // 采集插件
+        { id: 'collector_plugin', name: this.$t('采集插件'), list: [] } // 采集插件
       ], // 采集项列表
       repositoryOriginList: [], // 仓库列表
       // repositoryRenderList: [], // 根据采集项关联的仓库列表
@@ -167,20 +192,20 @@ export default {
       formData: {
         snapshot_days: '',
         instance_id: '',
-        target_snapshot_repository_name: '',
+        target_snapshot_repository_name: ''
       },
       collectorType: 'collector_config',
       basicRules: {},
       requiredRules: {
         required: true,
-        trigger: 'blur',
-      },
+        trigger: 'blur'
+      }
     };
   },
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
-      globalsData: 'globals/globalsData',
+      globalsData: 'globals/globalsData'
     }),
     authorityMap() {
       return authorityMap;
@@ -205,7 +230,7 @@ export default {
         return this.$t('永久');
       }
       return !!this.formData.snapshot_days ? this.formData.snapshot_days + this.$t('天') : '';
-    },
+    }
   },
   watch: {
     async showSlider(val) {
@@ -220,12 +245,12 @@ export default {
             instance_id: instanceId,
             target_snapshot_repository_name,
             snapshot_days,
-            instance_type: instanceType,
+            instance_type: instanceType
           } = this.editArchive;
           Object.assign(this.formData, {
             instance_id: instanceId,
             target_snapshot_repository_name,
-            snapshot_days,
+            snapshot_days
           });
           this.collectorType = instanceType;
         }
@@ -235,16 +260,16 @@ export default {
         this.formData = {
           snapshot_days: '',
           instance_id: '',
-          target_snapshot_repository_name: '',
+          target_snapshot_repository_name: ''
         };
       }
-    },
+    }
   },
   created() {
     this.basicRules = {
       instance_id: [this.requiredRules],
       target_snapshot_repository_name: [this.requiredRules],
-      snapshot_days: [this.requiredRules],
+      snapshot_days: [this.requiredRules]
     };
   },
   methods: {
@@ -252,37 +277,41 @@ export default {
     getCollectorList() {
       const query = {
         bk_biz_id: this.bkBizId,
-        have_data_id: 1,
+        have_data_id: 1
       };
-      this.$http.request('collect/getAllCollectors', { query }).then((res) => {
-        this.collectorList[0].list = res.data.map((item) => {
-          return {
-            id: item.collector_config_id,
-            name: item.collector_config_name,
-            ...item,
-          };
-        }) || [];
+      this.$http.request('collect/getAllCollectors', { query }).then(res => {
+        this.collectorList[0].list =
+          res.data.map(item => {
+            return {
+              id: item.collector_config_id,
+              name: item.collector_config_name,
+              ...item
+            };
+          }) || [];
       });
-      this.$http.request('collect/getCollectorPlugins', { query }).then((res) => {
-        this.collectorList[1].list = res.data.map((item) => {
-          return {
-            id: item.collector_plugin_id,
-            name: item.collector_plugin_name,
-            ...item,
-          };
-        }) || [];
+      this.$http.request('collect/getCollectorPlugins', { query }).then(res => {
+        this.collectorList[1].list =
+          res.data.map(item => {
+            return {
+              id: item.collector_plugin_id,
+              name: item.collector_plugin_name,
+              ...item
+            };
+          }) || [];
       });
     },
     // 获取归档仓库列表
     getRepoList() {
-      this.$http.request('archive/getRepositoryList', {
-        query: {
-          bk_biz_id: this.bkBizId,
-        },
-      }).then((res) => {
-        const { data } = res;
-        this.repositoryOriginList = data || [];
-      })
+      this.$http
+        .request('archive/getRepositoryList', {
+          query: {
+            bk_biz_id: this.bkBizId
+          }
+        })
+        .then(res => {
+          const { data } = res;
+          this.repositoryOriginList = data || [];
+        })
         .finally(() => {
           this.sliderLoading = false;
         });
@@ -298,13 +327,13 @@ export default {
       this.$emit('update:showSlider', false);
     },
     updateDaysList() {
-      const retentionDaysList = [...this.globalsData.storage_duration_time].filter((item) => {
+      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
         return item.id;
       });
       retentionDaysList.push({
         default: false,
         id: '0',
-        name: this.$t('永久'),
+        name: this.$t('永久')
       });
       this.retentionDaysList = retentionDaysList;
     },
@@ -316,7 +345,7 @@ export default {
         if (!this.retentionDaysList.some(item => item.id === stringVal)) {
           this.retentionDaysList.push({
             id: stringVal,
-            name: stringVal + this.$t('天'),
+            name: stringVal + this.$t('天')
           });
         }
         this.formData.snapshot_days = stringVal;
@@ -334,10 +363,12 @@ export default {
         this.$bkLoading();
         const res = await this.$store.dispatch('getApplyData', {
           action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-          resources: [{
-            type: 'collection',
-            id: item.collector_config_id,
-          }],
+          resources: [
+            {
+              type: 'collection',
+              id: item.collector_config_id
+            }
+          ]
         });
         window.open(res.data.apply_url);
       } catch (err) {
@@ -354,7 +385,7 @@ export default {
         let paramsData = {
           ...this.formData,
           instance_type: this.collectorType,
-          bk_biz_id: this.bkBizId,
+          bk_biz_id: this.bkBizId
         };
 
         if (this.isEdit) {
@@ -362,7 +393,7 @@ export default {
           const { snapshot_days } = this.formData;
           const { archive_config_id } = this.editArchive;
           paramsData = {
-            snapshot_days,
+            snapshot_days
           };
           // eslint-disable-next-line camelcase
           params.archive_config_id = archive_config_id;
@@ -371,12 +402,12 @@ export default {
         this.confirmLoading = true;
         await this.$http.request(url, {
           data: paramsData,
-          params,
+          params
         });
         this.$bkMessage({
           theme: 'success',
           message: this.$t('保存成功'),
-          delay: 1500,
+          delay: 1500
         });
         this.$emit('updated');
       } catch (e) {
@@ -384,26 +415,26 @@ export default {
       } finally {
         this.confirmLoading = false;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .archive-slider-content {
-    height: calc(100vh - 60px);
-    min-height: 394px;
+.archive-slider-content {
+  height: calc(100vh - 60px);
+  min-height: 394px;
 
-    .king-form {
-      padding: 10px 0 36px 36px;
+  .king-form {
+    padding: 10px 0 36px 36px;
 
-      .bk-form-item {
-        margin-top: 18px;
-      }
+    .bk-form-item {
+      margin-top: 18px;
+    }
 
-      .bk-select {
-        width: 300px;
-      }
+    .bk-select {
+      width: 300px;
     }
   }
+}
 </style>

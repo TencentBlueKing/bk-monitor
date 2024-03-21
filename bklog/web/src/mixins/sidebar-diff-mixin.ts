@@ -23,11 +23,11 @@
 import { deepClone, deepEqual } from '../common/util';
 
 export default {
-  data () {
+  data() {
     return {
-      _initCloneData_: null,// 初始化时的formData
+      _initCloneData_: null, // 初始化时的formData
       _isChange_: false,
-      _isDataInit_: false,
+      _isDataInit_: false
     };
   },
   computed: {
@@ -45,7 +45,7 @@ export default {
         // 对比是否进行过修改
         if (!deepEqual(newVal, this._initCloneData_)) this._isChange_ = true;
       }
-    },
+    }
   },
   methods: {
     /**
@@ -55,22 +55,24 @@ export default {
     $isSidebarClosed(): Promise<boolean> {
       const _this = this;
       return new Promise((resolve, reject) => {
-        if (this._isChange_) { // 已编辑
+        if (this._isChange_) {
+          // 已编辑
           this.$bkInfo({
             extCls: 'sideslider-close-cls',
             title: this.$t('确认离开当前页？'),
             subTitle: this.$t('离开将会导致未保存信息丢失'),
             okText: this.$t('离开'),
-            confirmFn () {
+            confirmFn() {
               resolve(true);
               _this._isChange_ = false;
               _this._isDataInit_ = false;
             },
-            cancelFn () {
+            cancelFn() {
               resolve(false);
             }
           });
-        } else { // 未编辑
+        } else {
+          // 未编辑
           resolve(true);
           _this._isChange_ = false;
           _this._isDataInit_ = false;
@@ -82,18 +84,18 @@ export default {
      */
     initSidebarFormData(): void {
       // 从计算属性中获取所需要对比的key列表
-      this._initCloneData_ = Object.keys(this._watchFormData_).reduce((pre:object, cur:string)=> {
+      this._initCloneData_ = Object.keys(this._watchFormData_).reduce((pre: object, cur: string) => {
         pre[cur] = deepClone(this[cur]);
         return pre;
       }, {});
       this._isDataInit_ = true;
     },
-        /**
+    /**
      * @desc: 是否改变过侧边弹窗的数据
      * @returns {Boolean} true为没改 false为改了 触发二次弹窗
      */
     async handleCloseSidebar(): Promise<boolean> {
       return await this.$isSidebarClosed();
-    },
+    }
   }
 };

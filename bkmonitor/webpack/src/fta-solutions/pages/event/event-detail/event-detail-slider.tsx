@@ -161,7 +161,12 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           onInfo={this.handleInfo}
         ></EventDetail>
       ),
-      handleDetail: () => <ActionDetail id={this.eventId}></ActionDetail>
+      handleDetail: () => (
+        <ActionDetail
+          id={this.eventId}
+          bizId={this.bizId}
+        ></ActionDetail>
+      )
     };
     return tplMap[this.type]();
   }

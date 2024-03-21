@@ -13,16 +13,16 @@
 
   .label {
     &.required::after {
-      content: '*';
       display: inline-block;
       margin-left: 6px;
-      color: #ea3636
+      color: #ea3636;
+      content: '*'
     }
   }
 
   .hint {
-    color: #ff9c01;
     margin-left: 10px;
     line-height: 20px;
+    color: #ff9c01;
   }
 }

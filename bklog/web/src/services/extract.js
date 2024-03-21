@@ -22,82 +22,82 @@
 
 const getTaskList = {
   url: '/log_extract/tasks/',
-  method: 'get',
+  method: 'get'
 };
 
 const getTaskDetail = {
   url: '/log_extract/tasks/:id/',
-  method: 'get',
+  method: 'get'
 };
 
 const getTopoIpList = {
   url: '/log_extract/explorer/topo/',
-  method: 'get',
+  method: 'get'
 };
 
 // 文件浏览策略，返回某用户在某业务-某IP 中可访问的目录的文件类型
 const getAvailableExplorerPath = {
   url: '/log_extract/explorer/strategies/',
-  method: 'post',
+  method: 'post'
 };
 
 // 预览用户在业务机器中的可下载的文件
 const getExplorerList = {
   url: '/log_extract/explorer/list_file/',
-  method: 'post',
+  method: 'post'
 };
 
 // 点击开始下载后创建下载任务
 const createDownloadTask = {
   url: '/log_extract/tasks/',
-  method: 'post',
+  method: 'post'
 };
 
 // 点击重新下载
 const reDownloadFile = {
   url: '/log_extract/tasks/recreate/',
-  method: 'post',
+  method: 'post'
 };
 
 // 轮询任务状态
 const pollingTaskStatus = {
   url: '/log_extract/tasks/polling/',
-  method: 'get',
+  method: 'get'
 };
 
 // 轮询任务状态
 const getDownloadUrl = {
   url: '/log_extract/tasks/download/',
-  method: 'get',
+  method: 'get'
 };
 
 // 提取链路接口
 const getExtractLinkList = {
   url: '/log_extract/tasks/link_list/',
-  method: 'get',
+  method: 'get'
 };
 
 // 获取下载目标主机数量的拓扑树
 const trees = {
   url: '/log_extract/explorer/trees/',
-  method: 'post',
+  method: 'post'
 };
 
 // 根据多个拓扑节点与搜索条件批量分页查询所包含的主机信息
 const queryHosts = {
   url: '/log_extract/explorer/query_hosts/',
-  method: 'post',
+  method: 'post'
 };
 
 // 根据多个拓扑节点与搜索条件批量分页查询所包含的主机ID信息
 const queryHostIdInfos = {
   url: '/log_extract/explorer/query_host_id_infos/',
-  method: 'post',
+  method: 'post'
 };
 
 const getIpListDisplayName = {
   url: '/bizs/:bk_biz_id/get_display_name/',
-  method: 'post',
+  method: 'post'
 };
 
 export {
@@ -114,5 +114,5 @@ export {
   trees,
   queryHosts,
   queryHostIdInfos,
-  getIpListDisplayName,
+  getIpListDisplayName
 };

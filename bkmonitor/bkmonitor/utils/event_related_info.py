@@ -13,6 +13,7 @@ import logging
 import time
 from urllib.parse import urlencode
 
+import arrow
 from django.conf import settings
 
 from bkmonitor.data_source import load_data_source
@@ -23,6 +24,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 
 __all__ = ["get_event_relation_info", "get_alert_relation_info"]
 
+from core.drf_resource import api
 
 logger = logging.getLogger("fta_action.run")
 
@@ -106,6 +108,7 @@ def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: 
     interval = query_config.get("agg_interval", 60)
     start_time = alert.begin_time - 60 * 60
     end_time = max(alert.begin_time + interval, alert.latest_time) + 60 * 60
+    group_by = query_config.get("agg_dimension", [])
 
     try:
         dimensions = alert.origin_alarm["data"]["dimensions"]
@@ -115,7 +118,7 @@ def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: 
         logger.exception("[get_alert_info_for_log_clustering_count] get dimension error: %s", e)
         return ""
 
-    return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures)
+    return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures, group_by, dimensions)
 
 
 def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_id: str):
@@ -128,28 +131,43 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
     interval = query_config.get("agg_interval", 60)
     start_time = alert.begin_time
     end_time = max(alert.begin_time + interval, alert.latest_time)
-
-    # 查出这段时间新增的数据签名
-    signatures = data_source.query_dimensions(
-        dimension_field="signature", start_time=start_time * 1000, end_time=end_time * 1000
-    )
+    group_by = query_config.get("agg_dimension", [])
+    signatures = []
 
     try:
         dimensions = alert.origin_alarm["data"]["dimensions"]
+        if dimensions.get("signature"):
+            signatures = [dimensions["signature"]]
         # 新类敏感度默认取最低档，即最少告警
         sensitivity = dimensions.get("sensitivity", "__dist_09")
     except Exception as e:
         logger.exception("[get_alert_info_for_log_clustering_new_class] get dimension error: %s", e)
         sensitivity = "__dist_09"
-    return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures)
+        dimensions = {}
+
+    if not signatures:
+        signatures = data_source.query_dimensions(
+            dimension_field="signature", start_time=start_time * 1000, end_time=end_time * 1000
+        )
+    return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures, group_by, dimensions)
 
 
-def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_time, sensitivity, signatures):
+def get_clustering_log(
+    alert: AlertDocument, index_set_id: str, start_time, end_time, sensitivity, signatures, group_by, dimensions
+):
     start_time_str = time_tools.utc2biz_str(start_time)
     end_time_str = time_tools.utc2biz_str(end_time)
+    addition = [{"field": sensitivity, "operator": "=", "value": ",".join(signatures)}]
+    addition.extend(
+        [
+            {"field": dimension_field, "operator": "=", "value": dimension_value}
+            for dimension_field, dimension_value in dimensions.items()
+            if dimension_field not in ["sensitivity", "signature"]
+        ]
+    )
     params = {
         "bizId": alert.event.bk_biz_id,
-        "addition": json.dumps([{"field": sensitivity, "operator": "=", "value": ",".join(signatures)}]),
+        "addition": json.dumps(addition),
         "start_time": start_time_str,
         "end_time": end_time_str,
     }
@@ -159,6 +177,7 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
 
     # 查询关联日志，最多展示1条
     record = {}
+    log_signature = None
     try:
         log_data_source_class = load_data_source(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)
         log_data_source = log_data_source_class.init_by_query_config(
@@ -173,6 +192,9 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
             record = logs[0]
             for key in record.copy():
                 if key.startswith("__dist_"):
+                    # 获取pattern
+                    if key == sensitivity:
+                        log_signature = record[key]
                     # 去掉数据签名相关字段，精简显示内容
                     record.pop(key)
 
@@ -180,6 +202,45 @@ def get_clustering_log(alert: AlertDocument, index_set_id: str, start_time, end_
         logger.exception(f"get alert[{alert.id}] log clustering new class log error: {e}")
 
     record["bklog_link"] = bklog_link
+
+    if log_signature:
+        try:
+            addition = [{"field": sensitivity, "operator": "=", "value": log_signature}]
+            # 增加聚类分组告警维度值作为查询条件
+            addition.extend(
+                [
+                    {"field": dimension_field, "operator": "=", "value": dimension_value}
+                    for dimension_field, dimension_value in dimensions.items()
+                    if dimension_field not in ["sensitivity", "signature"]
+                ]
+            )
+            pattern_params = {
+                "bizId": alert.event.bk_biz_id,
+                "addition": addition,
+                "start_time": start_time_str,
+                "end_time": end_time_str,
+                "index_set_id": index_set_id,
+                "pattern_level": sensitivity.lstrip("__dist_"),
+                "show_new_pattern": False,
+            }
+            # 增加聚类分组参数
+            group_by = [group for group in group_by if group not in ["sensitivity", "signature"]]
+            if group_by:
+                pattern_params["group_by"] = group_by
+                record["group_by"] = group_by
+
+            patterns = api.log_search.search_pattern(pattern_params)
+            log_pattern = patterns[0]
+            record["owners"] = ",".join(log_pattern["owners"])
+            if log_pattern["remark"]:
+                remark = log_pattern["remark"][-1]
+                record["remark_text"] = remark["remark"]
+                record["remark_user"] = remark["username"]
+                # 获取备注创建时间字符串
+                record["remark_time"] = arrow.get(remark["create_time"] / 1000).to('local').format('YYYY-MM-DD HH:mm')
+        except Exception as e:
+            logger.exception(f"get alert[{alert.id}] signature[{log_signature}] log clustering new pattern error: {e}")
+
     content = json.dumps(record, ensure_ascii=False)
     # 截断
     content = content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content

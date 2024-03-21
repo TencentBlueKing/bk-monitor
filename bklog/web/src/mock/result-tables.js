@@ -27,14 +27,14 @@ const list = {
   data: [
     {
       result_table_id: '591_a',
-      result_table_name_alias: '中文名称',
+      result_table_name_alias: '中文名称'
     },
     {
       result_table_id: 'log_login_11',
-      result_table_name_alias: null,
-    },
+      result_table_name_alias: null
+    }
   ],
-  result: true,
+  result: true
 };
 // 索引详情
 const info = {
@@ -45,22 +45,22 @@ const info = {
       {
         field_type: 'string',
         field_name: 'log',
-        field_alias: '',
+        field_alias: ''
       },
       {
         field_type: 'timestamp',
         field_name: 'timestamp',
-        field_alias: '',
+        field_alias: ''
       },
       {
         field_type: 'long',
         field_name: 'server_id',
-        field_alias: '',
-      },
+        field_alias: ''
+      }
     ],
-    cluster: 'xxxx',
+    cluster: 'xxxx'
   },
-  result: true,
+  result: true
 };
 
 // 索引适配
@@ -68,11 +68,11 @@ const adapt = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 export default {
   list,
   info,
-  adapt,
+  adapt
 };

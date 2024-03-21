@@ -2,8 +2,8 @@
   &::after {
     display: block;
     clear: both;
-    content: '';
     font-size: 0;
+    content: '';
     visibility: hidden;
   }
 }

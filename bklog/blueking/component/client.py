@@ -116,6 +116,8 @@ class BaseComponentClient(object):
         """Send request"""
         # determine whether access test environment of third-party system
         headers = kwargs.pop("headers", {})
+        params = params or {}
+        data = data or {}
         if self.use_test_env:
             headers["x-use-test-env"] = "1"
         if self.language:
@@ -156,6 +158,8 @@ class ComponentClientWithSignature(BaseComponentClient):
         """Send request, will add "signature" parameter."""
         # determine whether access test environment of third-party system
         headers = kwargs.pop("headers", {})
+        params = params or {}
+        data = data or {}
         if self.use_test_env:
             headers["x-use-test-env"] = "1"
         if self.language:
