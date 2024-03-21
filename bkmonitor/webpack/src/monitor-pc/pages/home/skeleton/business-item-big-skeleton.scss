@@ -1,0 +1,139 @@
+@mixin flex-center() {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.business-item-big-skeleton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+
+  .w--100 {
+    width: 100%;
+  }
+
+  .h-50 {
+    height: 50px;
+  }
+
+  .w-82 {
+    width: 82px; 
+  }
+
+  .h-20 {
+    height: 20px;
+  }
+
+  .w-392 {
+    width: 392px;
+  }
+
+  .h-1 {
+    height: 1px;
+  }
+
+  .mt-14 {
+    margin-top: 14px;
+  }
+
+  .w-48 {
+    width: 48px;
+  }
+
+  .h-16 {
+    height: 16px;
+  }
+
+  .w-125 {
+    width: 125px;
+  }
+
+  .h-60 {
+    height: 60px;
+  }
+
+  .mt-16 {
+    margin-top: 16px;
+  }
+
+  .left {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 438px;
+    height: 261px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    .container-01 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 392px;
+      margin-top: 11px;
+    }
+
+    .container-02 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 392px;
+      margin-top: 16px;
+
+      .container-02-left {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 10px;
+        padding-left: 17px;
+
+        .ring-out {
+          width: 81px;
+          height: 81px;
+          border-radius: 50%;
+
+          @include flex-center();
+
+          .ring-in {
+            z-index: 1;
+            width: 60px;
+            height: 60px;
+            background: #fff;
+            border-radius: 50%;
+
+            @include flex-center();
+
+            .rect {
+              z-index: 2;
+              width: 48px;
+              height: 36px;
+            }
+          }
+        }
+      }
+
+      .container-02-right {
+        display: grid;
+        flex: 1;
+        grid-template-rows: repeat(2, 60px);
+        grid-template-columns: repeat(auto-fill, 125px);
+        grid-gap: 10px;
+        justify-content: end;
+      }
+    }
+  }
+
+  .line {
+    position: relative;
+    top: -103px;
+    width: 24px;
+    height: 2px;
+    background: #dcdee5;
+    opacity: 1;
+  }
+}

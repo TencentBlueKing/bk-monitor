@@ -23,30 +23,42 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Vue } from 'vue-property-decorator';
-import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Debounce } from 'monitor-common/utils/utils';
+import type { DirectiveBinding } from 'vue';
 
-@Component
-export default class ResizeMixin extends Vue {
-  height = 100;
-  width = 300;
-
-  mounted() {
-    addListener(this.$el as HTMLDivElement, this.handleResize);
-  }
-  beforeDestroy() {
-    removeListener(this.$el as HTMLDivElement, this.handleResize);
-  }
-  @Debounce(100)
-  handleResize() {
-    if (this.$refs.chart) {
-      /** display: none后dom的宽高为0 */
-      const { height = 0, width = 0 } = (this.$refs.chart as Element).getBoundingClientRect();
-      if (height > 32 && width >= 0) {
-        this.height = height;
-        this.width = width;
-      }
-    }
-  }
+interface WatermarkOptions {
+  text: string; // 文本
+  font: string; // canvas font
+  textColor: string; // 文本颜色
 }
+
+export default {
+  mounted(el: HTMLElement, binding: DirectiveBinding<WatermarkOptions>): void {
+    if (!binding.value) return;
+    // 默认值
+    const defaults: WatermarkOptions = {
+      text: '',
+      font: '14px Arial',
+      textColor: '#f1f1f1'
+    };
+    const options: WatermarkOptions = { ...defaults, ...binding.value };
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    canvas.style.display = 'none';
+    ctx.globalAlpha = 0.5;
+    if (ctx) {
+      const textWidth: number = ctx.measureText(options.text).width;
+      const offsetX: number = Math.ceil(textWidth * 3);
+      canvas.width = offsetX;
+      canvas.height = offsetX;
+
+      ctx.rotate(-Math.PI / 6);
+      ctx.font = options.font;
+      ctx.fillStyle = options.textColor;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      ctx.fillText(options.text, 0, 120 / 2 + 5);
+    }
+    el.style.backgroundImage = `url(${canvas.toDataURL('image/png')})`;
+  }
+};
