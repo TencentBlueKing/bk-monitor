@@ -13,7 +13,6 @@ import datetime
 import itertools
 import json
 import operator
-import re
 from collections import defaultdict
 from dataclasses import asdict
 from urllib.parse import urlparse
@@ -36,7 +35,6 @@ from apm_web.constants import (
     DEFAULT_DB_CONFIG,
     DEFAULT_DIMENSION_DATA_PERIOD,
     DEFAULT_NO_DATA_PERIOD,
-    DEFAULT_SPLIT_SYMBOL,
     NODATA_ERROR_STRATEGY_CONFIG_KEY,
     Apdex,
     BizConfigKey,
@@ -85,7 +83,6 @@ from apm_web.models import (
     AppServiceRelation,
     CMDBServiceRelation,
     LogServiceRelation,
-    UriServiceRelation,
 )
 from apm_web.resources import AsyncColumnsListResource
 from apm_web.serializers import (
@@ -1883,6 +1880,15 @@ class ModifyMetricResource(Resource):
 class QueryEndpointStatisticsResource(PageListResource):
     span_keys = ["db.system", "http.url", "messaging.system", "rpc.system"]
 
+    default_sort = "-request_count"
+
+    GROUP_KEY_ATT_CONFIG = {
+        "db_system": "attributes.db.system",
+        "http_url": "attributes.http.url",
+        "messaging_system": "attributes.messaging.system",
+        "rpc_system": "attributes.rpc.system",
+    }
+
     def get_columns(self, column_type=None):
         return [
             StringTableFormat(id="summary", name=_("请求内容"), min_width=120),
@@ -1941,6 +1947,10 @@ class QueryEndpointStatisticsResource(PageListResource):
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
         span_keys = serializers.ListSerializer(child=serializers.CharField(), required=False, label="分类过滤")
+        keyword = serializers.CharField(required=False, label="过滤条件", allow_blank=True)
+
+    def get_filter_fields(self):
+        return ["summary"]
 
     def build_filter_params(self, filters):
         res = []
@@ -2012,6 +2022,9 @@ class QueryEndpointStatisticsResource(PageListResource):
         """
         if validated_data.get("span_keys", []):
             self.span_keys = validated_data.get("span_keys")
+        # 设置默认排序
+        if not validated_data.get("sort"):
+            validated_data["sort"] = self.default_sort
         filter_params = self.build_filter_params(validated_data["filter_params"])
         ComponentHandler.build_component_filter_params(
             validated_data["bk_biz_id"],
@@ -2021,94 +2034,31 @@ class QueryEndpointStatisticsResource(PageListResource):
             validated_data.get("component_instance_id"),
         )
 
-        spans = api.apm_api.query_span(
+        buckets = api.apm_api.query_span(
             {
                 "bk_biz_id": validated_data["bk_biz_id"],
                 "app_name": validated_data["app_name"],
                 "start_time": validated_data["start_time"],
                 "end_time": validated_data["end_time"],
                 "filter_params": filter_params,
+                "group_keys": [key.replace(".", "_") for key in self.span_keys],
             }
         )
 
-        is_component = ComponentHandler.is_component(validated_data.get("service_params"))
-
-        uri_configs_mappings = None
-        if not is_component:
-            # http类服务可以设置uri归类
-            uri_configs_mappings = self.group_by(
-                UriServiceRelation.objects.filter(
-                    bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-                ),
-                lambda i: i.service_name,
-            )
-
-        summary_mappings = defaultdict(list)
-        for span in spans:
-            summary = None
-            filter_key = None
-            if not is_component:
-                # http 类服务summary处理
-                if (
-                    SpanAttributes.HTTP_URL in span[OtlpKey.ATTRIBUTES]
-                    and ResourceAttributes.SERVICE_NAME in span[OtlpKey.RESOURCE]
-                ):
-                    # http span需要根据服务配置uri进行汇总
-                    url = span["attributes"][SpanAttributes.HTTP_URL]
-
-                    # 取此服务的uri配置
-                    uri_configs = uri_configs_mappings.get(span[OtlpKey.RESOURCE][ResourceAttributes.SERVICE_NAME], [])
-                    for uri_config in uri_configs:
-                        if re.match(uri_config.uri, url):
-                            summary = SpanHandler.generate_uri(urlparse(url))
-                            filter_key = "http.url"
-
-                if not summary:
-                    # 否则取span的分析字段
-                    summary = next(
-                        iter(
-                            span[OtlpKey.ATTRIBUTES][attr]
-                            for attr in self.span_keys
-                            if attr in span[OtlpKey.ATTRIBUTES]
-                        ),
-                        None,
-                    )
-
-                if not summary:
-                    continue
-            else:
-                # 组件类服务summary处理
-                summary = span[OtlpKey.SPAN_NAME]
-            if not filter_key:
-                filter_key = next(
-                    iter(
-                        attr
-                        for attr in self.span_keys
-                        if attr in span[OtlpKey.ATTRIBUTES] and span[OtlpKey.ATTRIBUTES][attr]
-                    ),
-                    None,
-                )
-            if filter_key:
-                filter_key = OtlpKey.ATTRIBUTES + "." + filter_key
-                summary = DEFAULT_SPLIT_SYMBOL.join([filter_key, summary])
-            summary_mappings[summary].append(span)
-
         res = []
-        for summary, items in summary_mappings.items():
-            intervals = [int(str(i["end_time"])[:-3]) - int(str(i["start_time"])[:-3]) for i in items]
-            tmp = str(summary).split(DEFAULT_SPLIT_SYMBOL, maxsplit=1)
-            filter_key = OtlpKey.SPAN_NAME
-            if len(tmp) == 2:
-                summary = tmp[-1]
-                filter_key = tmp[0]
+        for bucket in buckets:
+            display_values = [(k, v) for k, v in bucket["key"].items() if v]
+            if not display_values:
+                continue
+            filter_key, summary = display_values[0]
             res.append(
                 {
                     "summary": summary,
-                    "filter_key": filter_key,
-                    "request_count": len(items),
-                    "average": round(sum(intervals) / len(intervals), 2),
-                    "max_elapsed": max(intervals),
-                    "min_elapsed": min(intervals),
+                    "filter_key": self.GROUP_KEY_ATT_CONFIG.get(filter_key, "span_name"),
+                    "request_count": bucket["doc_count"],
+                    "average": round(bucket["avg_duration"]["value"] / 1000, 2),
+                    "min_elapsed": round(bucket["min_duration"]["value"] / 1000, 2),
+                    "max_elapsed": round(bucket["max_duration"]["value"] / 1000, 2),
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},
                 }
             )

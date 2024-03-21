@@ -787,18 +787,24 @@ class QuerySpanResource(Resource):
         filter_params = serializers.ListField(required=False, label="过滤条件", child=FilterSerializer())
         fields = serializers.ListField(required=False, label="过滤字段")
         category = serializers.CharField(required=False, label="类别")
+        group_keys = serializers.ListField(required=False, label="聚和字段", default=[])
 
     def perform_request(self, validated_request_data):
         application = ApmApplication.get_application(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         )
-        return application.trace_datasource.query_span(
-            validated_request_data["start_time"],
-            validated_request_data["end_time"],
-            validated_request_data.get("filter_params"),
-            validated_request_data.get("fields"),
-            validated_request_data.get("category"),
-        )
+        param = {
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+            "filter_params": validated_request_data.get("filter_params"),
+            "category": validated_request_data.get("category"),
+            "fields": validated_request_data.get("fields"),
+        }
+        if not validated_request_data.get("group_keys"):
+            return application.trace_datasource.query_span(**param)
+
+        param["group_keys"] = validated_request_data.get("group_keys")
+        return application.trace_datasource.new_query_span(**param)
 
 
 class QueryEndpointResource(Resource):
