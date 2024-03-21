@@ -174,16 +174,9 @@
             v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
             theme="primary"
             text
-            :disabled="!props.row.is_editable || !collectProject"
             @click="manageIndexSet('delete', props.row)"
           >
-            <span
-              v-bk-tooltips.top="{
-                content: `${$t('内置索引集')}, ${$t('不可删除')}`,
-                disabled: props.row.is_editable
-              }"
-              >{{ $t('删除') }}</span
-            >
+            <span>{{ $t('删除') }}</span>
           </bk-button>
         </template>
       </bk-table-column>

@@ -30,7 +30,6 @@ import i18n from './i18n/i18n';
 
 import { createApp } from 'vue';
 import { Message } from 'bkui-vue';
-
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
 import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
