@@ -1719,6 +1719,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 table_name=f"bklog_{index_set_id}_agg",
                 result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_agg",
                 filter_rule=log_count_signatures_filter_rule,
+                # TODO: group by 字段需要转换为原始字段名称
                 groups=", ".join(clustering_config.group_fields),
             ),
             tspider_storage=TspiderStorageCls(
