@@ -104,11 +104,13 @@ class ExportConfigResource(Resource):
         assign_group_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         dashboard_uids = serializers.ListField(child=serializers.CharField(), allow_null=True, default=None)
         bk_biz_id = serializers.IntegerField()
+        is_replace_table_id = serializers.BooleanField(required=False, label="是否替换结果表ID为data_label")
 
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
 
     @classmethod
-    def export_rules(cls, bk_biz_id: int, rule_ids: Optional[List[int]]) -> Dict[str, str]:
+    def export_rules(cls, bk_biz_id: int, rule_ids: Optional[List[int]],
+                     is_replace_table_id: bool = False) -> Dict[str, str]:
         """
         导出策略配置
         """
@@ -174,7 +176,7 @@ class ExportConfigResource(Resource):
                 path = ""
                 filename = f"{name}.yaml"
 
-            yield path, filename, yaml.dump(parser.unparse(strategy_config), allow_unicode=True)
+            yield path, filename, yaml.dump(parser.unparse(strategy_config, is_replace_table_id), allow_unicode=True)
 
     @classmethod
     def export_notice_groups(cls, bk_biz_id: int, notice_group_ids: Optional[List[int]]):
@@ -273,7 +275,8 @@ class ExportConfigResource(Resource):
             yield path, filename, yaml.dump(parser.unparse(action_config), allow_unicode=True)
 
     @classmethod
-    def export_dashboard(cls, bk_biz_id: int, dashboard_uids: Optional[List[str]], external: bool = False):
+    def export_dashboard(cls, bk_biz_id: int, dashboard_uids: Optional[List[str]], external: bool = False,
+                         is_replace_table_id: bool = False):
         """
         导出grafana仪表盘配置
         """
@@ -300,7 +303,8 @@ class ExportConfigResource(Resource):
             dashboard_config = dashboard["dashboard"]
             # 是否按外部使用导出
             if external:
-                DashboardExporter(data_sources).make_exportable(dashboard_config, datasource_mapping)
+                DashboardExporter(data_sources).make_exportable(dashboard_config, datasource_mapping,
+                                                                is_replace_table_id=is_replace_table_id)
 
             # 将仪表盘目录设置为导出文件夹目录
             if "folderTitle" in info:
@@ -371,9 +375,11 @@ class ExportConfigResource(Resource):
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
+        is_replace_table_id = params.get("is_replace_table_id", None)
         configs = {
             "rule": {
-                (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2] for x in self.export_rules(bk_biz_id, params["rule_ids"])
+                (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2] for x in self.export_rules(bk_biz_id, params["rule_ids"],
+                                                                                      is_replace_table_id)
             },
             "notice": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
@@ -384,7 +390,8 @@ class ExportConfigResource(Resource):
             },
             "grafana": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
-                for x in self.export_dashboard(bk_biz_id, params["dashboard_uids"], params["dashboard_for_external"])
+                for x in self.export_dashboard(bk_biz_id, params["dashboard_uids"],
+                                               params["dashboard_for_external"], is_replace_table_id)
             },
             "assign_group": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
@@ -404,6 +411,7 @@ class ExportConfigFileResource(ExportConfigResource):
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         with_related_config = serializers.BooleanField(label="是否导出关联", default=False)
+        is_replace_table_id = serializers.BooleanField(required=False, label="是否替换结果表ID为data_label")
 
     @classmethod
     def create_tarfile(cls, configs: Dict[str, Iterable[Tuple[str, str, str]]]) -> str:
@@ -433,6 +441,7 @@ class ExportConfigFileResource(ExportConfigResource):
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
+        is_replace_table_id = params.get("is_replace_table_id", None)
 
         # 默认导出全部配置，除非传入策略ID列表
         rule_ids = params.get("rule_ids")
@@ -473,10 +482,11 @@ class ExportConfigFileResource(ExportConfigResource):
                 )
 
         configs = {
-            "rule": self.export_rules(bk_biz_id, rule_ids),
+            "rule": self.export_rules(bk_biz_id, rule_ids, is_replace_table_id),
             "notice": self.export_notice_groups(bk_biz_id, notice_group_ids),
             "action": self.export_actions(bk_biz_id, action_ids),
-            "grafana": self.export_dashboard(bk_biz_id, dashboard_uids, params["dashboard_for_external"]),
+            "grafana": self.export_dashboard(bk_biz_id, dashboard_uids,
+                                             params["dashboard_for_external"], is_replace_table_id),
             "assign_group": self.export_assign_groups(bk_biz_id, assign_group_ids),
             "duty": self.export_duties(bk_biz_id, duty_rules),
         }

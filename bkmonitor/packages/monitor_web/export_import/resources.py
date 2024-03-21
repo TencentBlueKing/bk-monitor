@@ -19,6 +19,7 @@ import shutil
 import tarfile
 import uuid
 from uuid import uuid4
+import re
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -62,6 +63,7 @@ from bkmonitor.utils.text import convert_filename
 from bkmonitor.utils.time_tools import now
 from bkmonitor.views import serializers
 from constants.strategy import TargetFieldType
+from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.tasks import step
 from core.errors.export_import import (
@@ -247,6 +249,7 @@ class ExportPackageRequestSerializer(serializers.Serializer):
     strategy_config_ids = serializers.ListField(required=False, allow_empty=True, label="需要导出的策略配置ID列表")
     view_config_ids = serializers.ListField(required=False, allow_empty=True, label="需要导出的视图配置ID列表")
     list_data = serializers.ListField(required=False, allow_empty=True, label="需转为csv的列表数据")
+    is_replace_table_id = serializers.BooleanField(required=False, label="是否替换结果表ID为data_label")
 
     def validate(self, attrs):
         # 如果不是需要列表转csv，则必须传业务ID
@@ -275,6 +278,7 @@ class ExportPackageResource(Resource):
         self.package_name = ""
         self.file_msg = {}
         self.RequestSerializer = ExportPackageRequestSerializer
+        self.is_replace_table_id = None
 
     def perform_request(self, validated_request_data):
         self.bk_biz_id = validated_request_data.get("bk_biz_id")
@@ -284,6 +288,7 @@ class ExportPackageResource(Resource):
         self.strategy_config_ids = validated_request_data.get("strategy_config_ids", [])
         self.view_config_ids = validated_request_data.get("view_config_ids", [])
         self.list_data = validated_request_data.get("list_data", [])
+        self.is_replace_table_id = validated_request_data.get("is_replace_table_id", None)
         if not any([self.collect_config_ids, self.strategy_config_ids, self.view_config_ids, self.list_data]):
             raise ValidationError(_("未选择任何配置"))
 
@@ -421,7 +426,7 @@ class ExportPackageResource(Resource):
             result = api.grafana.get_dashboard_by_uid(uid=view_config_id, org_id=org_id)
             if result["result"] and result["data"].get("dashboard"):
                 dashboard = result["data"]["dashboard"]
-                DashboardExporter(data_sources).make_exportable(dashboard)
+                DashboardExporter(data_sources).make_exportable(dashboard, is_replace_table_id=self.is_replace_table_id)
                 view_config_file_name = dashboard.get("title", "dashboard")
             else:
                 continue
@@ -469,6 +474,18 @@ class ExportPackageResource(Resource):
                         query_config["agg_dimension"] = extend_msg["agg_dimension"]
                         query_config["extend_fields"] = {}
                         query_config["agg_dimension"].extend(target_type_to_dimensions[target_type])
+
+                    # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID替换为 data_label
+                    data_label = query_config.get("data_label", None)
+                    if self.is_replace_table_id and data_label and \
+                            (query_config.get("data_source_label", None)
+                             in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]):
+                        query_config["metric_id"] = re.sub(
+                            rf"\b{query_config['result_table_id']}\b",
+                            data_label,
+                            query_config["metric_id"]
+                        )
+                        query_config["result_table_id"] = data_label
 
             with open(
                 os.path.join(
