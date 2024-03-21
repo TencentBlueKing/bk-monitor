@@ -1069,7 +1069,7 @@ export default {
             retain_extra_json: false
           },
           etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
-        ), // eslint-disable-line
+        ),
         fields: etlFields,
         visible_type
       });
@@ -1283,7 +1283,6 @@ export default {
       }
       Promise.all(promises).then(
         () => {
-          // console.log(123456);
           this.checkEtlConfChnage(isCollect);
         },
         validator => {
@@ -1391,7 +1390,7 @@ export default {
             original_text_tokenize_on_chars: ''
           },
           etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
-        ), // eslint-disable-line
+        ),
         fields: copyFields.filter(item => !item.is_built_in)
       });
       if (!this.copyBuiltField.length) {
@@ -1737,7 +1736,7 @@ export default {
                   retain_extra_json: false
                 },
                 etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
-              ), // eslint-disable-line
+              ),
               fields: etlFields
             });
             if (etlParams.original_text_tokenize_on_chars) {
