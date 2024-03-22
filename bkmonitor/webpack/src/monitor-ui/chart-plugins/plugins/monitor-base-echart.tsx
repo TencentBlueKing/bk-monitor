@@ -124,8 +124,10 @@ class MonitorBaseEchart extends BaseEchart {
   handleDataZoom(event) {
     const [batch] = event.batch;
     if (batch.startValue && batch.endValue) {
-      (this as any).instance.dispatchAction({
-        type: 'restore'
+      window.requestAnimationFrame(() => {
+        (this as any).instance.dispatchAction({
+          type: 'restore'
+        });
       });
       const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
       let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
@@ -173,6 +175,7 @@ class MonitorBaseEchart extends BaseEchart {
           silent: true
         });
         (this as any).curChartOption = (this as any).instance.getOption();
+        this.initChartAction();
       },
       { deep: false }
     );
@@ -253,7 +256,7 @@ class MonitorBaseEchart extends BaseEchart {
               yAxis: item.value[1]
             };
           }
-          if (item.value[1] === null) return '';
+          if (item.value[1] === null) return undefined;
           let curSeries: any = (this as any).curChartOption.series[item.seriesIndex];
           if (curSeries?.stack?.includes('boundary-')) {
             curSeries = (this as any).curChartOption.series.find((item: any) => !item?.stack?.includes('boundary-'));
@@ -272,7 +275,7 @@ class MonitorBaseEchart extends BaseEchart {
                   ${valueObj?.text} ${valueObj?.suffix || ''}</span>
                   </li>`;
         });
-      if (liHtmls?.length < 1) return '';
+      if (liHtmls?.length < 1) return undefined;
       // 如果超出屏幕高度，则分列展示
       const maxLen = Math.ceil((window.innerHeight - 100) / 20);
       if (list.length > maxLen && this.tooltipSize) {
