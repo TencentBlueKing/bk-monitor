@@ -1322,3 +1322,6 @@ SINGLE_VM_SPACE_ID_LIST = []
 
 # 文档链接配置 格式: {"key1": {"type": "splice/link", "value": ""}}
 DOC_LINK_MAPPING = {}
+
+# 插件授权给 bkci 空间使用
+BKCI_SPACE_ACCESS_PLUGIN_LIST = []
