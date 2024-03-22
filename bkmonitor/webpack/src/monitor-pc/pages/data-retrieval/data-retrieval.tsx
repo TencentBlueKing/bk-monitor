@@ -2747,7 +2747,10 @@ export default class DataRetrieval extends tsc<{}> {
     this.promqlData[index].code = value;
   }
   /* promql code 失焦 */
-  handlePromqlDataBlur() {
+  handlePromqlDataBlur(isErr: boolean) {
+    if (isErr) {
+      return;
+    }
     if (this.isNeedQueryOfAuto()) this.handleQueryProxy();
   }
   handlePromqlDataFocus(index: number) {
