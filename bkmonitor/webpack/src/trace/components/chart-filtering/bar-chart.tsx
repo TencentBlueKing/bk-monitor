@@ -25,13 +25,12 @@
  */
 import { defineComponent, onBeforeUnmount, onMounted, PropType, ref, shallowRef, watch, WatchStopHandle } from 'vue';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import type { EChartOption, ECharts } from 'echarts';
-import * as echarts from 'echarts';
+import { echarts, type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 export const BarChartProps = {
   // echart 配置
   options: {
-    type: Object as PropType<EChartOption>,
+    type: Object as PropType<MonitorEchartOptions>,
     required: true
   },
   // 当前滑动选择的时间范围
@@ -49,7 +48,7 @@ export default defineComponent({
     let unwatchOptions: WatchStopHandle | null = null;
     const chartRef = ref<HTMLDivElement>();
     // echarts 实例
-    const instance = shallowRef<ECharts>();
+    const instance = shallowRef<echarts.ECharts>();
 
     onMounted(() => {
       initChart();

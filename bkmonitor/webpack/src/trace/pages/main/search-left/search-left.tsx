@@ -124,6 +124,7 @@ export default defineComponent({
               {props.appList.map((item, index) => (
                 <Select.Option
                   key={index}
+                  id={item.app_name}
                   name={`${item.app_alias}（${item.app_name}）`}
                 >
                   <div

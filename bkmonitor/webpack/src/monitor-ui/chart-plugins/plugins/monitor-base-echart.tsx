@@ -27,10 +27,10 @@ import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import echarts, { EChartOption } from 'echarts';
 import { hexToRgbA } from 'monitor-common/utils/utils';
 
 import { ICurPoint } from '../typings';
+import { echarts, type MonitorEchartOptions } from '../typings/index';
 
 import BaseEchart, { IChartEvent, IChartProps } from './base-echart';
 
@@ -47,7 +47,7 @@ class MonitorBaseEchart extends BaseEchart {
   tooltipSize: number[];
   // tableToolSize
   tableToolSize = 0;
-  getMonitorEchartOptions(): EChartOption {
+  getMonitorEchartOptions(): MonitorEchartOptions {
     return Object.freeze(
       deepmerge(
         {
@@ -179,9 +179,9 @@ class MonitorBaseEchart extends BaseEchart {
   }
   /**
    * @description: 设置echart的option
-   * @param {EChartOption} option
+   * @param {MonitorEchartOptions} option
    */
-  public setPartialOption(option: EChartOption) {
+  public setPartialOption(option: MonitorEchartOptions) {
     if ((this as any).instance) {
       (this as any).instance.setOption(option, { notMerge: false });
       (this as any).curChartOption = (this as any).instance.getOption();
@@ -280,7 +280,7 @@ class MonitorBaseEchart extends BaseEchart {
         this.tableToolSize = this.tableToolSize
           ? Math.min(this.tableToolSize, this.tooltipSize[0])
           : this.tooltipSize[0];
-        ulStyle = `display:flex; flex-wrap:wrap; width: ${5 + cols * this.tableToolSize}px;`;
+        ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 1.33)}px;`;
       }
     }
     return `<div class="monitor-chart-tooltips">

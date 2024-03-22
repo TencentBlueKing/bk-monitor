@@ -8,7 +8,6 @@
   "scripts": {
     "debug": "node node_modules/@blueking/bkmonitor-cli/dist/index.js dev -t",
     "preinstall": "npx only-allow pnpm",
-    "postinstall": "npm run change:modules",
     "install-build": "pnpm i",
     "prettier": "prettier --write ./ '!**/*.{css,scss,less}'",
     "change:modules": "node ./webpack/change-modules-code.js",

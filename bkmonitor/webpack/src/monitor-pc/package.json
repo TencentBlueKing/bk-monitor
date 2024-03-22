@@ -11,7 +11,7 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/bk-weweb": "0.0.25.beta.11",
+    "@blueking/bk-weweb": "0.0.2-5.beta.15",
     "@blueking/date-picker": "^1.0.0",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
@@ -54,7 +54,7 @@
   "author": "bk fe",
   "license": "MIT",
   "devDependencies": {
-    "@types/echarts": "^4.9.22",
+    "@blueking/release-note": "0.0.1-beta.6",
     "@types/throttle-debounce": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^7.3.1",
     "@typescript-eslint/parser": "^7.3.1",

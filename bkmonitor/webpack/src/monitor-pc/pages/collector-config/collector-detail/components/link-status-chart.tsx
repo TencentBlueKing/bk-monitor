@@ -26,8 +26,8 @@
 
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import echarts from 'echarts';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
+import { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TimeRange, { DateValue, TimeRangeType } from '../../../../components/time-range/time-range';
@@ -63,7 +63,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
 
   @Ref('baseChartRef') baseChart;
 
-  defaultOption = Object.freeze<echarts.EChartOption>({
+  defaultOption = Object.freeze<MonitorEchartOptions>({
     legend: {
       bottom: 8,
       itemWidth: 8,
@@ -123,8 +123,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
 
   loading = false;
 
-  get options(): echarts.EChartOption {
-    const minute: echarts.EChartOption.SeriesLine = {
+  get options(): MonitorEchartOptions {
+    const minute: MonitorEchartSeries = {
       name: this.$tc('分钟数据量'),
       data: this.data.map(item => [item[1], item[0]]) || [],
       type: 'line',
@@ -133,7 +133,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
         color: '#339DFF'
       }
     };
-    const hour: echarts.EChartOption.SeriesBar = {
+    const hour: MonitorEchartSeries = {
       name: this.$tc('小时数据量'),
       data: this.data.map(item => [item[1], item[0]]) || [],
       type: 'bar',
