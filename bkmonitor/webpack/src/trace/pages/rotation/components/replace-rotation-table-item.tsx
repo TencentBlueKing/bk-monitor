@@ -690,8 +690,9 @@ export default defineComponent({
             >
               {this.rotationTypeList.map(item => (
                 <Select.Option
-                  label={item.label}
-                  value={item.value}
+                  key={item.value}
+                  name={item.label}
+                  id={item.value}
                 ></Select.Option>
               ))}
             </Select>

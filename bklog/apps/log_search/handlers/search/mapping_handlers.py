@@ -327,15 +327,13 @@ class MappingHandlers(object):
     ):
         """默认字段排序规则"""
         time_field = cls.get_time_field(index_set_id)
-        if default_sort_tag and scenario_id in [Scenario.ES, Scenario.BKDATA]:
-            is_exists = IndexSetFieldsConfig.objects.filter(index_set_id=index_set_id).exists()
-            if not is_exists:
-                log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-                sort_fields = log_index_set_obj.sort_fields if log_index_set_obj else []
-                if sort_fields and scenario_id in [Scenario.ES, Scenario.BKDATA]:
-                    return [[field, "desc"] for field in sort_fields]
-        if scope in ["trace_detail", "trace_scatter"]:
-            return [[time_field, "asc"]]
+
+        # 先看索引集有没有配排序字段
+        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        sort_fields = log_index_set_obj.sort_fields if log_index_set_obj else []
+        if sort_fields:
+            return [[field, "desc"] for field in sort_fields]
+
         if default_sort_tag and scenario_id == Scenario.BKDATA:
             return [[time_field, "desc"], ["gseindex", "desc"], ["_iteration_idx", "desc"]]
         if default_sort_tag and scenario_id == Scenario.LOG:
