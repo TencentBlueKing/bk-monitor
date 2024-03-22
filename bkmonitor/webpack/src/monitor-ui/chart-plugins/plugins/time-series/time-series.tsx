@@ -815,7 +815,7 @@ export class LineChart
         avgSource: 0,
         totalSource: 0,
         metricField: item.metricField,
-        dimensions: item.dimensions as unknown as Record<string, string>
+        dimensions: item.dimensions
       };
       // 动态单位转换
       const unitFormatter =

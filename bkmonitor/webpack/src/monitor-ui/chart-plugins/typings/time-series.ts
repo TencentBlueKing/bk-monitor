@@ -44,6 +44,7 @@ export interface ITimeSeriesItem extends MonitorEchartOptions {
   metricField?: string; // 指标
   traceData?: Record<number, IProfilingTraceInfo[]>;
   markArea?: Record<string, any>;
+  dimensions?: Record<string, any>;
 }
 
 export interface IProfilingTraceInfo {
