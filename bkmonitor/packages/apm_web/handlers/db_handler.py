@@ -11,8 +11,12 @@ specific language governing permissions and limitations under the License.
 
 from typing import List, Tuple
 
+from django.utils.functional import classproperty
+from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Q, Search
+from opentelemetry.semconv.trace import SpanAttributes
+
 from apm_web.constants import (
-    DEFAULT_MAX_VALUE,
     METRIC_MAP,
     METRIC_PARAM_MAP,
     METRIC_RATE_TUPLE,
@@ -23,10 +27,6 @@ from apm_web.constants import (
 from apm_web.handlers.component_handler import ComponentHandler
 from constants.apm import OtlpKey
 from core.drf_resource import api
-from django.utils.functional import classproperty
-from django.utils.translation import ugettext_lazy as _
-from elasticsearch_dsl import Q, Search
-from opentelemetry.semconv.trace import SpanAttributes
 
 
 class EsOperator:
@@ -50,7 +50,9 @@ class DbStatisticsHandler:
         """
         res = []
         for bucket in buckets:
-            item = {"summary": bucket.get("key")}
+            item = bucket.get("key")
+            if not item:
+                continue
             for metric in metric_list:
                 if metric in METRIC_PARAM_MAP:
                     item[metric] = bucket.get(metric, {}).get("count", {}).get("value")
@@ -84,11 +86,7 @@ class DbStatisticsHandler:
 
         if metric_set:
             metric_set = self.handle_metric(metric_set)
-
-        aggs = {group_by_key: {"terms": {"field": group_by_key, "size": DEFAULT_MAX_VALUE}}}
-
         metric_aggs = {}
-
         for metric in metric_set:
             if metric in METRIC_PARAM_MAP:
                 _aggs = METRIC_MAP.get(metric)
@@ -100,11 +98,7 @@ class DbStatisticsHandler:
                 if metric in METRIC_VALUE_COUNT_TUPLE:
                     _tem[metric]["value_count"]["field"] = group_by_key
                 metric_aggs.update(_tem)
-
-        if metric_aggs:
-            aggs[group_by_key]["aggs"] = metric_aggs
-
-        return {"aggs": aggs}
+        return metric_aggs
 
 
 class DbQuery:
@@ -121,12 +115,11 @@ class DbQuery:
             EsOperator.EQUAL: lambda q, k, v: q.filter(Q("terms", **{k: v})),
             EsOperator.NOT_EQUAL: lambda q, k, v: q.filter("bool", must_not=[Q("terms", **{k: v})]),
             EsOperator.BETWEEN: lambda q, k, v: q.filter(Q("range", **{k: {"gte": v[0], "lte": v[1]}})),
-            EsOperator.LIKE: lambda q, k, v: q.query("bool", must=[Q("wildcard", **{k: f'*{v[0]}*'})]),
+            EsOperator.LIKE: lambda q, k, v: q.filter(Q("wildcard", **{k: f'*{v[0]}*'})),
         }
 
     @classmethod
     def add_filter_params(cls, query, filter_params):
-
         for i in filter_params:
             query = cls.add_filter_param(query, i)
 
@@ -134,14 +127,12 @@ class DbQuery:
 
     @classmethod
     def add_filter_param(cls, query, filter_param):
-
         if filter_param["operator"] not in cls.operator_mapping:
             raise ValueError(_("不支持的查询操作符: %s") % (filter_param['operator']))
         return cls.operator_mapping[filter_param["operator"]](query, filter_param["key"], filter_param["value"])
 
     @classmethod
     def add_time(cls, query, start_time, end_time, time_field=None):
-
         time_query = {}
         if start_time:
             time_query["gt"] = start_time * 1000000
@@ -197,7 +188,6 @@ class DbInstanceHandler:
 
     @staticmethod
     def get_topo_instance_key(keys: List[Tuple[str, str]], item):
-
         instance_keys = []
         for first_key, second_key in keys:
             key = item.get(first_key, item).get(second_key, "")
