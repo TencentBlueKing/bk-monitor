@@ -138,42 +138,41 @@
         {{ $t('上传内容') }}
       </div>
       <div class="item-container">
-        <div
-          class="upload-container"
-          style="margin: -8px 0 0 -10px"
-        >
-          <div
-            class="upload-item"
-            v-for="(system, index) in systemTabs.list"
-            :key="`${index}-Exporter`"
-            v-show="pluginBasicInfo.type.value === 'Exporter'"
-          >
-            <mo-upload
-              :ref="`uploadFile-exporter-${index}`"
-              :collector="pluginBasicInfo.exporterCollector[system.name]"
-              :is-edit="data.isEdit"
-              :plugin-id="pluginBasicInfo.name"
-              :system="system.name"
-              :plugin-type="pluginBasicInfo.type.value"
-            />
-          </div>
-          <div
-            class="upload-item"
-            v-for="(system, index) in systemTabs.list"
-            :key="`${index}-DataDog`"
-            v-show="pluginBasicInfo.type.value === 'DataDog'"
-          >
-            <mo-upload
-              :ref="`uploadFile-datadog-${index}`"
-              @change="getCheckNameChange"
-              @yaml="getYaml"
-              :collector="pluginBasicInfo.dataDogCollector[system.name]"
-              :is-edit="data.isEdit"
-              :plugin-id="pluginBasicInfo.name"
-              :system="system.name"
-              :plugin-type="pluginBasicInfo.type.value"
-            />
-          </div>
+        <div class="upload-container">
+          <template v-if="pluginBasicInfo.type.value === 'Exporter'">
+            <div
+              class="upload-item"
+              v-for="(system, index) in systemTabs.list"
+              :key="`${index}-Exporter`"
+            >
+              <mo-upload
+                :ref="`uploadFile-exporter-${index}`"
+                :collector="pluginBasicInfo.exporterCollector[system.name]"
+                :is-edit="data.isEdit"
+                :plugin-id="pluginBasicInfo.name"
+                :system="system.name"
+                :plugin-type="pluginBasicInfo.type.value"
+              />
+            </div>
+          </template>
+          <template v-else>
+            <div
+              class="upload-item"
+              v-for="(system, index) in systemTabs.list"
+              :key="`${index}-DataDog`"
+            >
+              <mo-upload
+                :ref="`uploadFile-datadog-${index}`"
+                @change="getCheckNameChange"
+                @yaml="getYaml"
+                :collector="pluginBasicInfo.dataDogCollector[system.name]"
+                :is-edit="data.isEdit"
+                :plugin-id="pluginBasicInfo.name"
+                :system="system.name"
+                :plugin-type="pluginBasicInfo.type.value"
+              />
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -1789,7 +1788,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     display: flex;
     flex-direction: row;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 
     .item-label {
       position: relative;
@@ -1963,15 +1962,10 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       }
 
       .upload-container {
-        display: flex;
-        flex-wrap: wrap;
-
         .upload-item {
-          position: relative;
-          width: calc(50% - 10px);
-          min-width: 350px;
-          margin-top: 8px;
-          margin-left: 10px;
+          & + .upload-item {
+            margin-top: 12px;
+          }
 
           :deep(.bk-upload) {
             .file-wrapper {
@@ -2053,10 +2047,6 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       .description {
         color: #979ba5;
       }
-    }
-
-    &.upload-package {
-      margin-bottom: 10px;
     }
 
     &.label-bottom {
