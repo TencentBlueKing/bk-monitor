@@ -1,18 +1,21 @@
 .exception-guide-wrap {
+  z-index: 1;
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
   height: 100%;
-  flex: 1;
+
   .text-wrap {
     display: flex;
     flex-direction: column;
     align-items: center;
   }
+
   .text-row {
     margin: 16px 0 24px;
     font-size: 14px;
+    color: #979ba5;
     text-align: left;
-    color: #979BA5;
   }
 }

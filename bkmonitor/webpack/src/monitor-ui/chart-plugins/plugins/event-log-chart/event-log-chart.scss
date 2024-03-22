@@ -1,13 +1,13 @@
 .event-log-chart {
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  background-color: #fff;
   width: 100%;
   height: 100%;
 
   .event-log-chart-main {
-    flex: 1;
     display: flex;
+    flex: 1;
     flex-direction: column;
     padding: 0 16px 16px 16px;
     overflow-y: scroll;

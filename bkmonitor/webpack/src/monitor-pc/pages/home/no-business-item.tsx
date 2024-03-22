@@ -77,7 +77,7 @@ export default class NoBusinessItem extends tsc<IProps> {
   // }
 
   async created() {
-    this.mousemoveFn = throttle(50, false, this.handleMousemove);
+    this.mousemoveFn = throttle(50, this.handleMousemove);
     if (this.data.id) {
       this.loading = true;
       this.url = await getAuthorityDetail({

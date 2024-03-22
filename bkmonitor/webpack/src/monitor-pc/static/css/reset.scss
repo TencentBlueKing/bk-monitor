@@ -23,15 +23,11 @@ label {
 }
 
 * {
+  box-sizing: border-box;
+
   &:focus {
     outline: none;
   }
-}
-
-*,
-*::after,
-*::before {
-  box-sizing: border-box;
 }
 
 div,

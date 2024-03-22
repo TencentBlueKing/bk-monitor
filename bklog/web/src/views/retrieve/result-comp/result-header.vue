@@ -285,7 +285,8 @@ export default {
         // 路由跳转name
         log: 'manage-collection',
         custom: 'custom-report-detail',
-        manage: 'bkdata-index-set-manage',
+        bkdata: 'bkdata-index-set-manage',
+        es: 'es-index-set-manage',
         indexManage: 'log-index-set-manage'
       },
       /** 日志脱敏路由跳转key */
@@ -475,9 +476,7 @@ export default {
         return;
       }
       // 赋值详情路由的key
-      if (['es', 'bkdata'].includes(detailStr)) {
-        this.detailJumpRouteKey = 'manage';
-      } else if (detailStr === 'setIndex') {
+      if (detailStr === 'setIndex') {
         this.detailJumpRouteKey = 'indexManage';
       } else {
         this.detailJumpRouteKey = detailStr;
