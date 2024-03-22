@@ -804,7 +804,7 @@ class QuerySpanResource(Resource):
             return application.trace_datasource.query_span(**param)
 
         param["group_keys"] = validated_request_data.get("group_keys")
-        return application.trace_datasource.new_query_span(**param)
+        return application.trace_datasource.query_span_with_group_keys(**param)
 
 
 class QueryEndpointResource(Resource):

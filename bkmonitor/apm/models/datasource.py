@@ -802,7 +802,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
             )
         return result
 
-    def new_query_span(self, start_time, end_time, filter_params=None, fields=None, category=None, group_keys=None):
+    def query_span_with_group_keys(
+        self, start_time, end_time, filter_params=None, fields=None, category=None, group_keys=None
+    ):
         query = self.fetch.query(
             "bool",
             filter=[

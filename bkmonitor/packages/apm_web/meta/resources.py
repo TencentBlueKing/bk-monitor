@@ -13,6 +13,7 @@ import datetime
 import itertools
 import json
 import operator
+import re
 from collections import defaultdict
 from dataclasses import asdict
 from urllib.parse import urlparse
@@ -83,6 +84,7 @@ from apm_web.models import (
     AppServiceRelation,
     CMDBServiceRelation,
     LogServiceRelation,
+    UriServiceRelation,
 )
 from apm_web.resources import AsyncColumnsListResource
 from apm_web.serializers import (
@@ -2016,6 +2018,27 @@ class QueryEndpointStatisticsResource(PageListResource):
 
         return items
 
+    @classmethod
+    def add_url_classify_data(cls, summary_mappings):
+        """
+        添加 url 归类统计数据
+        """
+        res = []
+        for summary, items in summary_mappings.items():
+            request_count = len(items)
+            res.append(
+                {
+                    "summary": summary,
+                    "filter_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
+                    "request_count": request_count,
+                    "average": round(sum([item["avg_duration"]["value"] for item in items]) / request_count / 1000, 2),
+                    "max_elapsed": round(max([item["max_duration"]["value"] for item in items]) / 1000, 2),
+                    "min_elapsed": round(min([item["min_duration"]["value"] for item in items]) / 1000, 2),
+                    "operation": {"trace": _("调用链"), "statistics": _("统计")},
+                }
+            )
+        return res
+
     def perform_request(self, validated_data):
         """
         根据app_name service_name查询span 遍历span然后取db.system,http.method..等等这些字段 没有就为空
@@ -2045,16 +2068,36 @@ class QueryEndpointStatisticsResource(PageListResource):
             }
         )
 
+        is_component = ComponentHandler.is_component(validated_data.get("service_params"))
+        uri_queryset = None
+        if not is_component:
+            uri_queryset = UriServiceRelation.objects.filter(
+                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
+            )
+
         res = []
+        summary_mappings = defaultdict(list)
+        uri_list = uri_queryset.values_list("uri", flat=True).distinct()
         for bucket in buckets:
             display_values = [(k, v) for k, v in bucket["key"].items() if v]
             if not display_values:
                 continue
-            filter_key, summary = display_values[0]
+            tmp_filter_key, summary = display_values[0]
+            filter_key = self.GROUP_KEY_ATT_CONFIG.get(tmp_filter_key, "span_name")
+            # http_url 归类处理
+            if not is_component and filter_key in [OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)]:
+                url = None
+                for uri in uri_list:
+                    if re.match(uri, summary):
+                        url = SpanHandler.generate_uri(urlparse(summary))
+                        summary_mappings[url].append(bucket)
+                        break
+                if url:
+                    continue
             res.append(
                 {
                     "summary": summary,
-                    "filter_key": self.GROUP_KEY_ATT_CONFIG.get(filter_key, "span_name"),
+                    "filter_key": filter_key,
                     "request_count": bucket["doc_count"],
                     "average": round(bucket["avg_duration"]["value"] / 1000, 2),
                     "min_elapsed": round(bucket["min_duration"]["value"] / 1000, 2),
@@ -2062,6 +2105,9 @@ class QueryEndpointStatisticsResource(PageListResource):
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},
                 }
             )
+        # 添加 http_url 统计数据
+        url_classify_data = self.add_url_classify_data(summary_mappings)
+        res += url_classify_data
         return self.get_pagination_data(res, validated_data)
 
 
