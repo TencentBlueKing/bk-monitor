@@ -1141,7 +1141,6 @@ export default {
       };
       /* eslint-disable */
       if (etlConfig !== 'bk_log_text') {
-        data.etl_fields = fieldTableData;
         if (etlConfig === 'bk_log_delimiter') {
           payload.separator = etlParams.separator;
         }
@@ -1153,6 +1152,7 @@ export default {
         // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
         data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
         data.etl_params = payload;
+        data.etl_fields = fieldTableData;
       } else {
         delete data.etl_params['separator_regexp'];
         delete data.etl_params['separator'];
