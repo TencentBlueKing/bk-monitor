@@ -154,7 +154,6 @@ class SearchHandler(object):
 
         # 透传查询类型
         self.index_set_id = index_set_id
-        self.index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
         self.search_dict.update({"index_set_id": index_set_id})
 
         # 原始索引和场景id（初始化mapping时传递）
@@ -303,6 +302,12 @@ class SearchHandler(object):
         self.desensitize_handler = DesensitizeHandler(self.field_configs)
 
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
+
+    @property
+    def index_set(self):
+        if not hasattr(self, "_index_set"):
+            self._index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+        return self._index_set
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
