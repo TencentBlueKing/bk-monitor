@@ -50,6 +50,8 @@ export default class QueryStatement extends tsc<IProps> {
   /** 是否展示添加标签 */
   isShowNewGroupInput = false;
 
+  isShowAllLabel = false;
+
   verifyData = {
     labelEditName: ''
   };
@@ -92,6 +94,10 @@ export default class QueryStatement extends tsc<IProps> {
   get showLabelList() {
     const showIDlist = this.filterBuiltInList.map(item => item.tag_id);
     return this.propLabelList.filter(item => showIDlist.includes(item.tag_id));
+  }
+
+  get filterLabelList() {
+    return this.isShowAllLabel ? this.showLabelList : this.showLabelList.slice(0, 3);
   }
 
   /** 单选框标签下拉列表 */
@@ -199,32 +205,52 @@ export default class QueryStatement extends tsc<IProps> {
     }
   }
 
+  isShowMoreNum(index: number) {
+    return index === 2 && !this.isShowAllLabel && this.showLabelList.length > 3;
+  }
+
   render() {
     return (
       <div class='label-select'>
         <div
-          class='label-tag-container'
-          v-bk-overflow-tips={{
-            content: `${this.showLabelList.map(item => item.name).join(', ')}`
-          }}
+          class='label-tag-box'
+          style={{ width: this.showLabelList.length ? '190px' : '0' }}
         >
-          <span>
-            {this.showLabelList.map(item => (
-              <Tag>
-                <span class='label-tag'>
-                  <span
-                    v-bk-overflow-tips
-                    class='title-overflow'
-                  >
-                    {item.name}
-                  </span>
-                  <i
-                    class='bk-icon icon-close'
-                    onClick={() => this.handleDeleteTag(item.tag_id)}
-                  ></i>
+          <span class='tag-container'>
+            {this.filterLabelList.map((item, index) => {
+              return (
+                <span class='tag-label-item'>
+                  <Tag>
+                    <span class='label-tag'>
+                      <span
+                        v-bk-overflow-tips
+                        class='title-overflow'
+                      >
+                        {item.name}
+                      </span>
+                      <i
+                        class='bk-icon icon-close'
+                        onClick={() => this.handleDeleteTag(item.tag_id)}
+                      ></i>
+                    </span>
+                  </Tag>
+                  {this.isShowMoreNum(index) && (
+                    <div
+                      class='more-num'
+                      v-bk-tooltips={{
+                        content: `${this.showLabelList
+                          .slice(3)
+                          .map(item => item.name)
+                          .join(', ')}`
+                      }}
+                      onClick={() => (this.isShowAllLabel = true)}
+                    >
+                      +{this.showLabelList.slice(3).length}
+                    </div>
+                  )}
                 </span>
-              </Tag>
-            ))}
+              );
+            })}
           </span>
           <Select
             searchable

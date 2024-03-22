@@ -269,7 +269,6 @@ export default {
   不是有效的yaml文件: 'Not a valid yaml file',
   未选择则默认为全部字段: 'If not selected, it defaults to all fields',
   确定要删除当前字段配置: 'Are you sure to delete the current field configuration?',
-  当前查询语句有语法错误: 'There is a syntax error in the current query statement',
   选择离你最近的提取链路: 'Choose the extraction link closest to you',
   '可以尝试{0}或{1}': 'You can try {0} or {1}',
   您没有相应资源的访问权限: 'You do not have access to the corresponding resources',

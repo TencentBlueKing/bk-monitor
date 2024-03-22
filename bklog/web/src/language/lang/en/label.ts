@@ -393,7 +393,7 @@ export default {
   自动转换: 'Automatic conversion',
   自动查询: 'Auto Query',
   新建成功: 'Added successful',
-  错误原因: 'Reason for error',
+  语法错误: 'Grammatical errors',
   容器集群: 'Container cluster',
   链路配置: 'Link configuration',
   共享集群: 'Shared cluster',
