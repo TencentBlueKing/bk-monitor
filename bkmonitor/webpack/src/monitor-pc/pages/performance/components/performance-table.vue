@@ -1104,6 +1104,7 @@ $processColors: #ea3636 #c4c6cc #63656e;
 
       .tips-num {
         font-weight: bold;
+        margin: 0 4px;
       }
 
       .tips-btn {
