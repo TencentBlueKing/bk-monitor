@@ -154,6 +154,7 @@ class SearchHandler(object):
 
         # 透传查询类型
         self.index_set_id = index_set_id
+        self.index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
         self.search_dict.update({"index_set_id": index_set_id})
 
         # 原始索引和场景id（初始化mapping时传递）
@@ -402,13 +403,12 @@ class SearchHandler(object):
         """
         判断聚类配置
         """
-        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
         if clustering_config:
             return (
                 True,
                 {
-                    "collector_config_id": log_index_set.collector_config_id,
+                    "collector_config_id": self.index_set.collector_config_id,
                     "signature_switch": clustering_config.signature_enable,
                     "clustering_field": clustering_config.clustering_fields,
                 },
@@ -420,15 +420,14 @@ class SearchHandler(object):
         """
         获取清洗配置
         """
-        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
-        if not log_index_set.collector_config_id:
+        if not self.index_set.collector_config_id:
             return False, {"collector_config_id": None}
-        collector_config = CollectorConfig.objects.get(collector_config_id=log_index_set.collector_config_id)
+        collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
         return (
             collector_config.etl_config != EtlConfig.BK_LOG_TEXT,
             {
                 "collector_scenario_id": collector_config.collector_scenario_id,
-                "collector_config_id": log_index_set.collector_config_id,
+                "collector_config_id": self.index_set.collector_config_id,
             },
         )
 
@@ -439,6 +438,9 @@ class SearchHandler(object):
         @param field_result:
         @return:
         """
+        # 设置了自定义排序字段的，默认认为支持上下文
+        if self.index_set.target_fields and self.index_set.sort_fields:
+            return True, {"reason": "", "context_fields": []}
         result = MappingHandlers.analyze_fields(field_result)
         if result["context_search_usable"]:
             return True, {"reason": "", "context_fields": result.get("context_fields", [])}
