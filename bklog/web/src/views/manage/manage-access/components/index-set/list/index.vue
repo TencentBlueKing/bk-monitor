@@ -119,6 +119,21 @@
         </template>
       </bk-table-column>
       <bk-table-column
+        min-width="200"
+        width="200"
+        :label="$t('标签')"
+        :render-header="$renderHeader"
+      >
+        <template slot-scope="props">
+          <index-set-label-select
+            :row-data="props.row"
+            :label.sync="props.row.tags"
+            :select-label-list="selectLabelList"
+            @refreshLabelList="initLabelSelectList"
+          />
+        </template>
+      </bk-table-column>
+      <bk-table-column
         :label="$t('创建时间')"
         :render-header="$renderHeader"
       >
@@ -207,7 +222,8 @@ import EmptyStatus from '@/components/empty-status';
 export default {
   name: 'IndexSetList',
   components: {
-    EmptyStatus
+    EmptyStatus,
+    IndexSetLabelSelect
   },
   data() {
     const scenarioId = this.$route.name.split('-')[0];
@@ -229,7 +245,8 @@ export default {
       isCreateLoading: false, // 新建索引集
       isAllowedCreate: null,
       emptyType: 'empty',
-      isInit: true
+      isInit: true,
+      selectLabelList: []
     };
   },
   computed: {
@@ -505,6 +522,15 @@ export default {
         });
       } catch (error) {
         return [];
+      }
+    },
+    /** 初始化标签列表 */
+    async initLabelSelectList() {
+      try {
+        const res = await this.$http.request('unionSearch/unionLabelList');
+        this.selectLabelList = res.data;
+      } catch (error) {
+        this.selectLabelList = [];
       }
     }
   }

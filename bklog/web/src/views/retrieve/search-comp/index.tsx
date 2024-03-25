@@ -379,7 +379,7 @@ export default class SearchComp extends tsc<IProps> {
       // 获取当前遍历到的条件
       const currentCondition = this.conditionList[cIndex];
       // 如果当前条件的操作符和字段与给定的匹配
-      if (currentCondition.operator === operator && currentCondition.id === field) {
+      if (currentCondition.operator === operator && currentCondition.id === field && currentCondition.isInclude) {
         // 如果当前条件的值为空数组
         if (!currentCondition.value.length) {
           // 则将输入值数组直接设置为当前条件的值

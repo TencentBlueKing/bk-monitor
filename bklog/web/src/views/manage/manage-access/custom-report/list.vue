@@ -122,6 +122,8 @@
             </template>
           </bk-table-column>
           <bk-table-column
+            min-width="200"
+            width="200"
             :label="$t('标签')"
             :render-header="$renderHeader"
           >
@@ -600,7 +602,7 @@ export default {
       }
 
       .bk-table-body-wrapper {
-        overflow: visible;
+        overflow: auto;
       }
 
       .collect-table-operate {

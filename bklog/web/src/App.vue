@@ -461,6 +461,98 @@ export default {
     white-space: nowrap;
   }
 }
+// hack 组件样式
+.bk-dialog.bk-info-box .bk-dialog-header-inner {
+  /* stylelint-disable-next-line declaration-no-important */
+  white-space: normal !important;
+}
+
+.bk-date-picker-dropdown .bk-picker-confirm-time {
+  color: #3a84ff;
+}
+
+.tippy-tooltip .tippy-content {
+  padding: 0;
+  word-break: break-all;
+}
+
+.bk-form-control.is-error .bk-form-input {
+  border-color: #ff5656;
+}
+// 导航
+.bk-log-navigation.bk-navigation,
+.hack-king-navigation.bk-navigation {
+  /* stylelint-disable-next-line declaration-no-important */
+  width: 100% !important;
+
+  /* stylelint-disable-next-line declaration-no-important */
+  height: 100% !important;
+
+  .container-header {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: none !important;
+  }
+
+  .bk-navigation-wrapper {
+    height: 100%;
+
+    .navigation-container {
+      z-index: 100;
+      /* stylelint-disable-next-line declaration-no-important */
+      max-width: calc(100% - 60px) !important;
+
+      .container-content {
+        /* stylelint-disable-next-line declaration-no-important */
+        height: 100% !important;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        max-height: 100% !important;
+        padding: 0;
+
+        .navigation-content {
+          height: 100%;
+        }
+      }
+    }
+
+    .bk-navigation-menu-group {
+      .group-name-wrap .group-name {
+        margin-right: 0;
+      }
+    }
+
+    .navigation-menu-item-icon.bk-icon {
+      min-width: 28px;
+    }
+
+    .nav-item {
+      display: inline-block;
+      width: 100%;
+    }
+  }
+
+  .nav-slider-list {
+    /* stylelint-disable-next-line declaration-no-important */
+    height: calc(100% - 56px) !important;
+  }
+}
+
+.biz-menu {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+// 表格单元 v-bk-overflow-tips
+.bk-table .bk-table-body-wrapper .table-ceil-container {
+  width: 100%;
+
+  > span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
 // hack vue-json-pretty
 .json-view-wrapper .vjs-value {
   word-break: break-all;

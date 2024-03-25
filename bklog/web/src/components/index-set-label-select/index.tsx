@@ -50,8 +50,10 @@ export default class QueryStatement extends tsc<IProps> {
   /** 是否展示添加标签 */
   isShowNewGroupInput = false;
 
+  isShowAllLabel = false;
+
   verifyData = {
-    labelEditName: '',
+    labelEditName: ''
   };
 
   rules = {
@@ -59,19 +61,19 @@ export default class QueryStatement extends tsc<IProps> {
       {
         validator: this.checkTagName,
         message: window.mainComponent.$t('已有同名标签'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         validator: this.checkBuiltInTagName,
         message: window.mainComponent.$t('内置标签名，请重新填写'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur',
-      },
-    ],
+        trigger: 'blur'
+      }
+    ]
   };
 
   get isDisabledAddNewTag() {
@@ -91,8 +93,11 @@ export default class QueryStatement extends tsc<IProps> {
   /** 索引集展示的标签 */
   get showLabelList() {
     const showIDlist = this.filterBuiltInList.map(item => item.tag_id);
-    return this.propLabelList.filter(item => showIDlist.includes(item.tag_id),
-    );
+    return this.propLabelList.filter(item => showIDlist.includes(item.tag_id));
+  }
+
+  get filterLabelList() {
+    return this.isShowAllLabel ? this.showLabelList : this.showLabelList.slice(0, 3);
   }
 
   /** 单选框标签下拉列表 */
@@ -100,7 +105,7 @@ export default class QueryStatement extends tsc<IProps> {
     const propIDlist = this.propLabelList.map(item => item.tag_id);
     return this.filterBuiltInList.map(item => ({
       ...item,
-      disabled: propIDlist.includes(item.tag_id),
+      disabled: propIDlist.includes(item.tag_id)
     }));
   }
 
@@ -110,15 +115,11 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   checkTagName() {
-    return !this.showGroupSelectLabelList.some(
-      item => item.name === this.verifyData.labelEditName.trim(),
-    );
+    return !this.showGroupSelectLabelList.some(item => item.name === this.verifyData.labelEditName.trim());
   }
 
   checkBuiltInTagName() {
-    return !this.builtInList.some(
-      item => item.name === this.verifyData.labelEditName.trim(),
-    );
+    return !this.builtInList.some(item => item.name === this.verifyData.labelEditName.trim());
   }
 
   /** 给索引集添加标签 */
@@ -127,20 +128,18 @@ export default class QueryStatement extends tsc<IProps> {
     $http
       .request('unionSearch/unionAddLabel', {
         params: {
-          index_set_id: this.rowData.index_set_id,
+          index_set_id: this.rowData.index_set_id
         },
         data: {
-          tag_id: tagID,
-        },
+          tag_id: tagID
+        }
       })
       .then(() => {
-        const newLabel = this.selectLabelList.find(
-          item => item.tag_id === tagID,
-        );
+        const newLabel = this.selectLabelList.find(item => item.tag_id === tagID);
         this.propLabelList.push(newLabel);
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('操作成功'),
+          message: this.$t('操作成功')
         });
       })
       .finally(() => {});
@@ -154,10 +153,10 @@ export default class QueryStatement extends tsc<IProps> {
           $http
             .request('unionSearch/unionCreateLabel', {
               data: {
-                name: this.verifyData.labelEditName.trim(),
-              },
+                name: this.verifyData.labelEditName.trim()
+              }
             })
-            .then((res) => {
+            .then(res => {
               this.initLabelSelectList();
               this.addLabelToIndexSet(res.data.tag_id);
             })
@@ -167,7 +166,7 @@ export default class QueryStatement extends tsc<IProps> {
               this.tagSelectRef.close();
             });
         },
-        () => {},
+        () => {}
       );
     } else {
       this.isShowNewGroupInput = false;
@@ -183,19 +182,17 @@ export default class QueryStatement extends tsc<IProps> {
     $http
       .request('unionSearch/unionDeleteLabel', {
         params: {
-          index_set_id: this.rowData.index_set_id,
+          index_set_id: this.rowData.index_set_id
         },
         data: {
-          tag_id: tagID,
-        },
+          tag_id: tagID
+        }
       })
       .then(() => {
-        this.propLabelList = this.propLabelList.filter(
-          item => item.tag_id !== tagID,
-        );
+        this.propLabelList = this.propLabelList.filter(item => item.tag_id !== tagID);
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('操作成功'),
+          message: this.$t('操作成功')
         });
       })
       .finally(() => {});
@@ -208,29 +205,52 @@ export default class QueryStatement extends tsc<IProps> {
     }
   }
 
+  isShowMoreNum(index: number) {
+    return index === 2 && !this.isShowAllLabel && this.showLabelList.length > 3;
+  }
+
   render() {
     return (
-      <div class="label-select">
+      <div class='label-select'>
         <div
-          class="label-tag-container"
-          v-bk-overflow-tips={{
-            content: `${this.showLabelList
-              .map(item => item.name)
-              .join(', ')}`,
-          }}
+          class='label-tag-box'
+          style={{ width: this.showLabelList.length ? '190px' : '0' }}
         >
-          <span>
-            {this.showLabelList.map(item => (
-              <Tag>
-                <span class="label-tag">
-                  <span v-bk-overflow-tips class="title-overflow">{item.name}</span>
-                  <i
-                    class="bk-icon icon-close"
-                    onClick={() => this.handleDeleteTag(item.tag_id)}
-                  ></i>
+          <span class='tag-container'>
+            {this.filterLabelList.map((item, index) => {
+              return (
+                <span class='tag-label-item'>
+                  <Tag>
+                    <span class='label-tag'>
+                      <span
+                        v-bk-overflow-tips
+                        class='title-overflow'
+                      >
+                        {item.name}
+                      </span>
+                      <i
+                        class='bk-icon icon-close'
+                        onClick={() => this.handleDeleteTag(item.tag_id)}
+                      ></i>
+                    </span>
+                  </Tag>
+                  {this.isShowMoreNum(index) && (
+                    <div
+                      class='more-num'
+                      v-bk-tooltips={{
+                        content: `${this.showLabelList
+                          .slice(3)
+                          .map(item => item.name)
+                          .join(', ')}`
+                      }}
+                      onClick={() => (this.isShowAllLabel = true)}
+                    >
+                      +{this.showLabelList.slice(3).length}
+                    </div>
+                  )}
                 </span>
-              </Tag>
-            ))}
+              );
+            })}
           </span>
           <Select
             searchable
@@ -239,64 +259,67 @@ export default class QueryStatement extends tsc<IProps> {
             disabled={this.isDisabledAddNewTag}
             onSelected={this.addLabelToIndexSet}
             onToggle={this.toggleSelect}
-            ref="tagSelect"
+            ref='tagSelect'
             scopedSlots={{
               trigger: () => (
                 <div
                   v-bk-tooltips={{
                     disabled: !this.isDisabledAddNewTag,
                     content: this.$t('停用状态下无法添加标签'),
-                    delay: 300,
+                    delay: 300
                   }}
                   class={[
                     'add-label-btn',
                     {
-                      disabled: this.isDisabledAddNewTag,
-                    },
+                      disabled: this.isDisabledAddNewTag
+                    }
                   ]}
                 >
-                  <i class="bk-icon icon-plus-line"></i>
+                  <i class='bk-icon icon-plus-line'></i>
                 </div>
-              ),
+              )
             }}
           >
-            <div class="new-label-container" slot="extension">
+            <div
+              class='new-label-container'
+              slot='extension'
+            >
               {this.isShowNewGroupInput ? (
-                <div class="new-label-input">
+                <div class='new-label-input'>
                   <Form
                     labelWidth={0}
                     style={{ width: '100%' }}
-                    ref="checkInputForm"
+                    ref='checkInputForm'
                     {...{
                       props: {
                         model: this.verifyData,
-                        rules: this.rules,
-                      },
+                        rules: this.rules
+                      }
                     }}
                   >
-                    <FormItem property="labelEditName">
+                    <FormItem property='labelEditName'>
                       <Input
                         clearable
-                        ref="labelEditInput"
+                        ref='labelEditInput'
                         vModel={this.verifyData.labelEditName}
                         onEnter={v => this.handleLabelKeyDown(v)}
                       ></Input>
                     </FormItem>
                   </Form>
-                  <div class="operate-button">
+                  <div class='operate-button'>
                     <span
-                      class="bk-icon icon-check-line"
+                      class='bk-icon icon-check-line'
                       onClick={() => this.handleChangeLabelStatus('add')}
                     ></span>
                     <span
-                      class="bk-icon icon-close-line-2"
+                      class='bk-icon icon-close-line-2'
                       onClick={() => this.handleChangeLabelStatus('cancel')}
                     ></span>
                   </div>
                 </div>
               ) : (
                 <div
-                  class="add-new-label"
+                  class='add-new-label'
                   onClick={() => {
                     this.isShowNewGroupInput = true;
                     this.$nextTick(() => {
@@ -304,15 +327,15 @@ export default class QueryStatement extends tsc<IProps> {
                     });
                   }}
                 >
-                  <i class="bk-icon icon-plus-circle"></i>
+                  <i class='bk-icon icon-plus-circle'></i>
                   <span>{this.$t('新增标签')}</span>
                 </div>
               )}
             </div>
-            <div class="group-list">
+            <div class='group-list'>
               {this.showGroupSelectLabelList.map(item => (
                 <Option
-                  class="label-option"
+                  class='label-option'
                   id={item.tag_id}
                   name={item.name}
                   disabled={item.disabled}

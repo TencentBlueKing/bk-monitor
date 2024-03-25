@@ -778,17 +778,23 @@ export const isIPv6 = (str = '') => {
   );
 };
 
+/** 是否强制更新现有的表格缓存显示字段 每次需要强制更新只需取反即可 */
+const TABLE_FORCE = true;
+
 // 列表设置刷新本地缓存
 export const getDefaultSettingSelectFiled = (key, filed) => {
+  const tableForceStr = localStorage.getItem('TABLE_FORCE');
+  const parseForce = JSON.parse(tableForceStr);
   const selectObj = JSON.parse(localStorage.getItem('TABLE_SELECT_FILED'));
   const assignObj = {};
-  if (!selectObj) {
+  if (!selectObj || !tableForceStr || parseForce !== TABLE_FORCE) {
     assignObj[key] = filed;
   } else {
     Object.assign(assignObj, selectObj);
     assignObj[key] = selectObj[key] ?? filed;
   }
   localStorage.setItem('TABLE_SELECT_FILED', JSON.stringify(assignObj));
+  localStorage.setItem('TABLE_FORCE', JSON.stringify(TABLE_FORCE));
   return assignObj[key];
 };
 

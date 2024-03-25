@@ -39,9 +39,8 @@
       v-if="isKeywordsError"
       class="refresh-keywords"
     >
-      <span class="error-message">{{ $t('当前查询语句有语法错误') }}</span>
       <div v-if="!!keywordErrorMessage">
-        <span class="error-title">{{ $t('错误原因') }}: </span>
+        <span class="error-title">{{ $t('语法错误') }}: </span>
         <span class="error-message">{{ keywordErrorMessage }}</span>
         <span
           v-if="keywordIsResolved"
@@ -51,7 +50,7 @@
             path="点击可进行{0}"
             class="error-message"
           >
-            <span>
+            <span class="flex-align-center">
               <span class="log-icon icon-refresh-icon"></span>
               <span class="refresh-btn">{{ $t('以此替换') }}</span>
             </span>
@@ -852,6 +851,11 @@ export default {
         color: #979ba5;
       }
     }
+  }
+
+  .flex-align-center {
+    display: inline-flex;
+    align-items: center;
   }
 }
 </style>
