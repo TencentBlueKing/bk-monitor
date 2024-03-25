@@ -39,6 +39,7 @@ import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
+import PromqlMonacoEditor from '../../../../components/promql-editor/promql-editor';
 import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
@@ -651,19 +652,30 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             </div>
           ) : (
             <div class='metric-source-wrap'>
-              <div class={['metric-source', { 'is-error': this.promqlError }]}>
-                {this.loading ? undefined : (
-                  <PromqlEditor
-                    ref='promql-editor'
-                    class='promql-editor'
-                    value={this.source}
-                    onFocus={this.handlePromqlFocus}
-                    executeQuery={this.handlePromqlEnter}
-                    // onBlur={(val, hasError: boolean) => this.handlePromqlBlur(hasError)}
-                    onChange={this.handlePromsqlChange}
-                  />
-                )}
-              </div>
+              {this.loading ? undefined : (
+                // <PromqlEditor
+                //   ref='promql-editor'
+                //   class='promql-editor'
+                //   value={this.source}
+                //   onFocus={this.handlePromqlFocus}
+                //   executeQuery={this.handlePromqlEnter}
+                //   // onBlur={(val, hasError: boolean) => this.handlePromqlBlur(hasError)}
+                //   onChange={this.handlePromsqlChange}
+                // />
+                <PromqlMonacoEditor
+                  class='mt-16'
+                  ref='promql-editor'
+                  minHeight={80}
+                  value={this.source}
+                  isError={this.promqlError}
+                  onFocus={this.handlePromqlFocus}
+                  executeQuery={this.handlePromqlEnter}
+                  onChange={this.handlePromsqlChange}
+                />
+              )}
+              {/* <div class={['metric-source', { 'is-error': this.promqlError }]}>
+                
+              </div> */}
               <div class='source-options-wrap'>
                 <bk-input
                   class='step-input'
