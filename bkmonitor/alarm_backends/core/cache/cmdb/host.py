@@ -13,6 +13,8 @@ import json
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
+from django.conf import settings
+
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from api.cmdb.define import Host, TopoTree
 from bkmonitor.utils.local import local
@@ -119,7 +121,6 @@ class HostIPManager(CMDBCacheManager):
 
     @classmethod
     def to_kv(cls, host_keys: Optional[List[str]] = None) -> Dict[str, List[str]]:
-
         host_keys_gby_ip: Dict[str, Set[str]] = defaultdict(set)
         if host_keys is None:
             host_keys = HostManager.keys()
@@ -146,8 +147,8 @@ class HostIPManager(CMDBCacheManager):
 
         # IP对应的可选云区域列表
         # {
-        #   "10.0.0.1": ["10.0.0.1|0", "10.0.0.1|1"],
-        #   "10.0.0.2": ["10.0.0.2|0"]
+        #   "127.0.0.1": ["127.0.0.1|0", "127.0.0.1|1"],
+        #   "127.0.0.2": ["127.0.0.2|0"]
         # }
 
         ip_mapping = cls.to_kv()
@@ -184,6 +185,7 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
 
     type = "host"
     CACHE_KEY = "{prefix}.cmdb.host".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    ObjectClass = Host
 
     @classmethod
     def key_to_internal_value(cls, ip, bk_cloud_id=0):
@@ -301,6 +303,8 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
+    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     HostIDManager.refresh()
     HostManager.refresh()
     HostIPManager.refresh()

@@ -8,7 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 
+from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
 from api.cmdb.define import Business
@@ -22,6 +24,7 @@ class BusinessManager(CMDBCacheManager):
 
     type = "biz"
     CACHE_KEY = "{prefix}.cmdb.business".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    ObjectClass = Business
 
     @classmethod
     def key_to_internal_value(cls, bk_biz_id):
@@ -33,6 +36,12 @@ class BusinessManager(CMDBCacheManager):
         取出key时进行转化
         """
         return int(origin_key)
+
+    @classmethod
+    def deserialize(cls, string):
+        if string.startswith("{"):
+            return Business(**json.loads(string))
+        return super(BusinessManager, cls).deserialize(string)
 
     @classmethod
     def get(cls, bk_biz_id):
@@ -76,4 +85,6 @@ class BusinessManager(CMDBCacheManager):
 
 
 def main():
+    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     BusinessManager.refresh()
