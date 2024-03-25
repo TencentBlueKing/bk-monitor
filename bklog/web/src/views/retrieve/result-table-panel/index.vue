@@ -124,6 +124,7 @@ export default {
   methods: {
     showOriginLog() {
       this.active = 'origin';
+      this.handleChangeTab('origin');
     },
     async handleChangeTab(name) {
       this.$refs?.logClusteringRef?.$refs.fingerRef?.$refs.groupPopover.instance?.hide();

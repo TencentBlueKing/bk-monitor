@@ -105,7 +105,7 @@
         <template slot-scope="{ row }">
           <span
             class="link-color"
-            @click="handleMenuClick('show original', row)"
+            @click="handleMenuBatchClick(row)"
           >
             {{ row.count }}</span
           >
@@ -122,7 +122,7 @@
         <template slot-scope="{ row }">
           <span
             class="link-color"
-            @click="handleMenuClick('show original', row)"
+            @click="handleMenuBatchClick(row)"
           >
             {{ `${toFixedNumber(row.percentage, 2)}%` }}
           </span>
@@ -401,7 +401,7 @@ export default {
     EmptyStatus,
     BkUserSelector
   },
-  inject: ['addFilterCondition'],
+  inject: ['addFilterCondition', 'batchAddCondition'],
   props: {
     fingerList: {
       type: Array,
@@ -590,18 +590,32 @@ export default {
       switch (option) {
         // pattern 下钻
         case 'show original':
-          if (this.requestData.group_by.length) {
-            this.requestData.group_by.forEach((el, index) => {
-              this.addFilterCondition(el, 'is', row.group[index]);
-            });
-          }
-          this.addFilterCondition(`__dist_${this.requestData.pattern_level}`, 'is', row.signature.toString(), isLink);
+          this.handleMenuBatchClick(row, isLink);
           if (!isLink) this.$emit('showOriginLog');
           break;
         case 'copy':
           copyMessage(row.pattern);
           break;
       }
+    },
+    handleMenuBatchClick(row, isLink = true) {
+      const additionList = [];
+      const groupBy = this.requestData.group_by;
+      if (groupBy.length) {
+        groupBy.forEach((el, index) => {
+          additionList.push({
+            field: el,
+            operator: 'is',
+            value: row.group[index]
+          });
+        });
+      }
+      additionList.push({
+        field: `__dist_${this.requestData.pattern_level}`,
+        operator: 'is',
+        value: row.signature.toString()
+      });
+      this.batchAddCondition(additionList, isLink);
     },
     showArrowsClass(row) {
       if (row.year_on_year_percentage === 0) return '';
