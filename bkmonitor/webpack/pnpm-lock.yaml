@@ -330,9 +330,6 @@ importers:
       qs:
         specifier: ^6.12.0
         version: 6.12.0
-      vue:
-        specifier: v2-latest
-        version: 2.7.16
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.3.1
