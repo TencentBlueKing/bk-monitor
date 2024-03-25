@@ -31,7 +31,7 @@ class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
     HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY = "{prefix}.cmdb.host_to_service_instance_id".format(
         prefix=CMDBCacheManager.CACHE_KEY_PREFIX
     )
-    OBJECT_CLASS = ServiceInstance
+    ObjectClass = ServiceInstance
 
     @classmethod
     def key_to_internal_value(cls, service_instance_id):
