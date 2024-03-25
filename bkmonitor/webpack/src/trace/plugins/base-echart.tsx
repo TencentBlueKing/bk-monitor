@@ -317,6 +317,7 @@ export default defineComponent({
             );
             curChartOption = instance.value.getOption();
           }
+          initChartAction();
         },
         { deep: false }
       );
