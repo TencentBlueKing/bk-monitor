@@ -1088,9 +1088,6 @@ class CustomTimeSeriesDataSource(TimeSeriesDataSource):
     def __init__(self, *args, **kwargs):
         super(CustomTimeSeriesDataSource, self).__init__(*args, **kwargs)
 
-        if judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table):
-            self.filter_dict["bk_biz_id"] = str(kwargs["bk_biz_id"])
-
 
 class LogSearchTimeSeriesDataSource(TimeSeriesDataSource):
     """

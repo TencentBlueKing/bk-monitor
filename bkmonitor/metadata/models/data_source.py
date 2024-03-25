@@ -527,6 +527,7 @@ class DataSource(models.Model):
                 try:
                     space_type_id, space_id = space_uid.split(SPACE_UID_HYPHEN)
                     data_source.space_uid = space_uid
+                    data_source.space_type_id = space_type_id
                     data_source.save()
                     logger.info(
                         "data_id->[{}] now set space uid->[{}]".format(data_source.bk_data_id, data_source.space_uid)
