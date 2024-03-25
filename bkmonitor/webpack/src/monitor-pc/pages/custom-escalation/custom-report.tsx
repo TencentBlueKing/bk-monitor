@@ -216,7 +216,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   }
 
   created() {
-    this.handleSearch = debounce(300, false, this.handleSearchChange);
+    this.handleSearch = debounce(300, this.handleSearchChange);
   }
   mounted() {
     if (!this.loading && !this.tableData.loading) {

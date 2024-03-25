@@ -40,9 +40,10 @@ import {
   strategyLabelList
 } from 'monitor-api/modules/strategies';
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
-import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
+import PromqlMonacoEditor from '../../../components/promql-editor/promql-editor';
 import { ISpaceItem } from '../../../types';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
@@ -1065,11 +1066,16 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         return (
                           <div class='promql-content'>
                             <div class='edit-wrap'>
-                              <PromqlEditor
+                              <PromqlMonacoEditor
+                                minHeight={160}
+                                value={this.sourceData.sourceCode}
+                                readonly={true}
+                              ></PromqlMonacoEditor>
+                              {/* <PromqlEditor
                                 class='promql-editor'
                                 readonly={true}
                                 value={this.sourceData.sourceCode}
-                              ></PromqlEditor>
+                              ></PromqlEditor> */}
                             </div>
                             <div class='step-wrap'>
                               <bk-input

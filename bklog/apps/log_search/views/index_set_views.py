@@ -59,6 +59,7 @@ class IndexSetViewSet(ModelViewSet):
     model = LogIndexSet
     search_fields = ("index_set_name",)
     lookup_value_regex = "[^/]+"
+    filter_fields_exclude = ["target_fields", "sort_fields"]
 
     def get_permissions(self):
         try:
@@ -98,6 +99,9 @@ class IndexSetViewSet(ModelViewSet):
             time_field_unit = serializers.ChoiceField(
                 required=False, default=None, choices=TimeFieldUnitEnum.get_choices()
             )
+
+            target_fields = serializers.ListField(required=False, default=[])
+            sort_fields = serializers.ListField(required=False, default=[])
 
             class Meta:
                 model = LogIndexSet
@@ -197,6 +201,8 @@ class IndexSetViewSet(ModelViewSet):
         @apiSuccess {String} indexes.time_field 时间字段
         @apiSuccess {String} indexes.apply_status 审核状态
         @apiSuccess {String} indexes.apply_status_name 审核状态名称
+        @apiSuccess {List} target_fields 实时日志上下文目标字段
+        @apiSuccess {List} sort_fields 实时日志上下文排序字段
         @apiSuccess {String} indexes.created_at 创建时间
         @apiSuccess {String} indexes.created_by 创建者
         @apiSuccessExample {json} 成功返回:
@@ -248,7 +254,9 @@ class IndexSetViewSet(ModelViewSet):
                                 "updated_at": "2019-10-10 11:11:11",
                                 "updated_by": "user",
                             }
-                        ]
+                        ],
+                        "target_fields": ['path', 'bk_host_id'],
+                        "sort_fields": ['gseIndex'],
                         "created_at": "2019-10-10 11:11:11",
                         "created_by": "user",
                         "updated_at": "2019-10-10 11:11:11",
@@ -293,6 +301,8 @@ class IndexSetViewSet(ModelViewSet):
         @apiSuccess {String} indexes.time_field 时间字段
         @apiSuccess {String} indexes.apply_status 审核状态
         @apiSuccess {String} indexes.apply_status_name 审核状态名称
+        @apiSuccess {List} target_fields 实时日志上下文目标字段
+        @apiSuccess {List} sort_fields 实时日志上下文排序字段
         @apiSuccess {String} indexes.created_at 创建时间
         @apiSuccess {String} indexes.created_by 创建者
         @apiSuccessExample {json} 成功返回:
@@ -337,7 +347,9 @@ class IndexSetViewSet(ModelViewSet):
                         "updated_at": "2019-10-10 11:11:11",
                         "updated_by": "user",
                     }
-                ]
+                ],
+                "target_fields": ['path', 'bk_host_id'],
+                "sort_fields": ['gseIndex'],
                 "created_at": "2019-10-10 11:11:11",
                 "created_by": "user",
                 "updated_at": "2019-10-10 11:11:11",
@@ -370,6 +382,8 @@ class IndexSetViewSet(ModelViewSet):
         @apiParam {String} time_field 时间字段
         @apiParam {String} time_field_type 时间字段类型（当选择第三方es时候需要传入，默认值是date,可传入如long）
         @apiParam {String} time_field_unit 时间字段类型单位（当选择非date的时候传入，秒/毫秒/微秒）
+        @apiParam {List} target_fields 上下文、实时日志目标字段 默认为 []
+        @apiParam {List} sort_fields 上下文、实时日志排序字段 默认为 []
         @apiParamExample {Json} 请求参数
         {
             "index_set_name": "登陆日志",
@@ -391,7 +405,9 @@ class IndexSetViewSet(ModelViewSet):
             ],
             "time_field": "abc",
             "time_field_type": "date"/"long",
-            "time_field_unit": "second"/"millisecond"/"microsecond"
+            "time_field_unit": "second"/"millisecond"/"microsecond",
+            "target_fields": ['path', 'bk_host_id'],
+            "sort_fields": ['gseIndex']
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -429,6 +445,8 @@ class IndexSetViewSet(ModelViewSet):
             time_field_unit=data["time_field_unit"],
             bk_app_code=data.get("bk_app_code"),
             is_editable=data.get("is_editable"),
+            target_fields=data.get("target_fields", []),
+            sort_fields=data.get("sort_fields", []),
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
@@ -442,6 +460,8 @@ class IndexSetViewSet(ModelViewSet):
         @apiParam {String} time_field 时间字段
         @apiParam {String} time_field_type 时间字段类型（当选择第三方es时候需要传入，默认值是date,可传入如long）
         @apiParam {String} time_field_unit 时间字段类型单位（当选择非date的时候传入，秒/毫秒/微秒）
+        @apiParam {List} target_fields 上下文、实时日志目标字段 默认为 []
+        @apiParam {List} sort_fields 上下文、实时日志排序字段 默认为 []
         @apiParamExample {Json} 请求参数
         {
             "index_set_name": "登陆日志",
@@ -461,7 +481,9 @@ class IndexSetViewSet(ModelViewSet):
             ],
             "time_field": "abc",
             "time_field_type": "date"/"long",
-            "time_field_unit": "second"/"millisecond"/"microsecond"
+            "time_field_unit": "second"/"millisecond"/"microsecond",
+            "target_fields": ['path', 'bk_host_id'],
+            "sort_fields": ['gseIndex']
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -491,6 +513,8 @@ class IndexSetViewSet(ModelViewSet):
             time_field_type=data["time_field_type"],
             time_field_unit=data["time_field_unit"],
             storage_cluster_id=storage_cluster_id,
+            target_fields=data.get("target_fields", []),
+            sort_fields=data.get("sort_fields", []),
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
@@ -516,6 +540,8 @@ class IndexSetViewSet(ModelViewSet):
         @apiParam {String} time_field 时间字段
         @apiParam {String} time_field_type 时间字段类型（当选择第三方es时候需要传入，默认值是date,可传入如long）
         @apiParam {String} time_field_unit 时间字段类型单位（当选择非date的时候传入，秒/毫秒/微秒）
+        @apiParam {List} target_fields 上下文、实时日志目标字段 默认为 []
+        @apiParam {List} sort_fields 上下文、实时日志排序字段 默认为 []
         @apiParamExample {Json} 请求参数
         {
             "index_set_name": "登陆日志",
@@ -537,7 +563,9 @@ class IndexSetViewSet(ModelViewSet):
             ],
             "time_field": "abc",
             "time_field_type": "date"/"long",
-            "time_field_unit": "second"/"millisecond"/"microsecond"
+            "time_field_unit": "second"/"millisecond"/"microsecond",
+            "target_fields": [],
+            "sort_fields": []
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -562,6 +590,8 @@ class IndexSetViewSet(ModelViewSet):
             storage_cluster_id=data.get("storage_cluster_id"),
             category_id=data.get("category_id"),
             collector_config_id=data.get("collector_config_id"),
+            target_fields=data.get("target_fields", []),
+            sort_fields=data.get("sort_fields", []),
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
 

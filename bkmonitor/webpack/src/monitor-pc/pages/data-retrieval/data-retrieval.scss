@@ -340,6 +340,8 @@
                   .promql-editor {
                     height: 100%;
                     min-height: 80px;
+                    overflow: auto;
+                    resize: vertical;
                     border: 0;
 
                     .cm-content {

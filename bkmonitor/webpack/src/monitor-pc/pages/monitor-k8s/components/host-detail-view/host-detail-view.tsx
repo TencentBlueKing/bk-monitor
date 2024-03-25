@@ -402,7 +402,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`
               ]}
               v-bk-tooltips={{
-                content: this.$t('tips-采集状态'),
+                content: this.$t('采集状态'),
                 delay: 200,
                 boundary: 'window'
               }}

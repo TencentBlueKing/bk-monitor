@@ -23,7 +23,6 @@ from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
     BKCI_1001_TABLE_ID_PREFIX,
-    BKCI_SPACE_ACCESS_PLUGIN_LIST,
     BKCI_SYSTEM_TABLE_ID_PREFIX,
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
     DATA_LABEL_TO_RESULT_TABLE_KEY,
@@ -247,7 +246,7 @@ class SpaceTableIDRedis:
         # 获取空间关联的业务，注意这里业务 ID 为字符串类型
         # 追加空间访问指定插件的 filter
         tids = models.ResultTable.objects.filter(
-            Q(table_id__startswith=BKCI_SYSTEM_TABLE_ID_PREFIX) | Q(table_id__in=BKCI_SPACE_ACCESS_PLUGIN_LIST)
+            Q(table_id__startswith=BKCI_SYSTEM_TABLE_ID_PREFIX) | Q(table_id__in=settings.BKCI_SPACE_ACCESS_PLUGIN_LIST)
         ).values_list("table_id", flat=True)
         return {tid: {"filters": [{"bk_biz_id": str(obj.resource_id)}]} for tid in tids}
 

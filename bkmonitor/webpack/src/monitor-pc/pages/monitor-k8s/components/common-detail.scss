@@ -312,7 +312,8 @@
     }
 
     &.bg- {
-      &normal {
+      &normal,
+      &success {
         background-color: #f2fff4;
       }
 
@@ -331,7 +332,8 @@
       height: 12px;
       border-radius: 50%;
 
-      &.status-normal {
+      &.status-normal,
+      &.status-success {
         @include status-icon(#3fc06d);
       }
 

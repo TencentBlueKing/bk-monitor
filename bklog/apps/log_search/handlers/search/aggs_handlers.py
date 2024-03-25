@@ -25,6 +25,8 @@ import datetime
 import typing
 from collections import defaultdict
 
+from elasticsearch_dsl import A, Search
+
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import DateHistogramException
 from apps.log_search.handlers.search.search_handlers_esquery import (
@@ -38,7 +40,6 @@ from apps.utils.time_handler import (
     generate_time_range,
     timestamp_to_timeformat,
 )
-from elasticsearch_dsl import A, Search
 
 
 class AggsBase(abc.ABC):
@@ -116,13 +117,19 @@ class AggsHandlers(AggsBase):
     @classmethod
     def _build_terms_bucket(cls, aggs, field: str, size: int, order: dict) -> Search:
         sub_aggs = {}
+        extra_params = {}
         field_name = field
         if isinstance(field, dict):
             field_name = field.get("field_name")
             sub_fields = field.get("sub_fields")
+
+            if "missing" in field:
+                # 填充默认值
+                extra_params["missing"] = field["missing"]
+
             if sub_fields:
                 sub_aggs = cls._build_sub_terms_fields(sub_fields, size, order)
-        terms = A("terms", field=field_name, size=size, order=order, aggs=sub_aggs)
+        terms = A("terms", field=field_name, size=size, order=order, aggs=sub_aggs, **extra_params)
         return aggs.bucket(field_name, terms)
 
     @classmethod
@@ -134,9 +141,15 @@ class AggsHandlers(AggsBase):
         aggs = {}
         for sub_field in sub_fields:
             field_name = sub_field
+            extra_params = {}
             if isinstance(sub_field, dict):
                 field_name = sub_field.get("field_name")
                 sub_fields = sub_field.get("sub_fields")
+
+                if "missing" in sub_field:
+                    # 填充默认值
+                    extra_params["missing"] = sub_field["missing"]
+
                 if sub_fields:
                     aggs[field_name] = A(
                         "terms",
@@ -144,9 +157,10 @@ class AggsHandlers(AggsBase):
                         size=size,
                         order=order,
                         aggs=cls._build_sub_terms_fields(sub_fields, size, order),
+                        **extra_params,
                     )
                     continue
-            aggs[field_name] = A("terms", field=field_name, size=size, order=order)
+            aggs[field_name] = A("terms", field=field_name, size=size, order=order, **extra_params)
         return aggs
 
     @classmethod
@@ -183,11 +197,11 @@ class AggsHandlers(AggsBase):
                 extended_bounds={"min": min_value, "max": max_value},
             )
         else:
-            num = 10 ** 3
+            num = 10**3
             if time_field_unit == TimeFieldUnitEnum.SECOND.value:
                 num = 1
             elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
-                num = 10 ** 6
+                num = 10**6
             min_value = start_time.timestamp * num
             max_value = end_time.timestamp * num
             date_histogram = A(
@@ -207,11 +221,11 @@ class AggsHandlers(AggsBase):
         result = SearchHandlerEsquery(index_set_id, query_data).search(search_type=None)
         if time_field_type != TimeFieldTypeEnum.DATE.value:
             buckets = result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
-            time_multiplicator = 1 / (10 ** 3)
+            time_multiplicator = 1 / (10**3)
             if time_field_unit == TimeFieldUnitEnum.SECOND.value:
                 time_multiplicator = 1
             elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
-                time_multiplicator = 1 / (10 ** 6)
+                time_multiplicator = 1 / (10**6)
             for _buckets in buckets:
                 _buckets["key_as_string"] = timestamp_to_timeformat(
                     _buckets["key"], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False

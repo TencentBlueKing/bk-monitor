@@ -190,7 +190,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
       this.resizeObsever();
       this.dropDownInstance = this.selectDropdownRef?.instance;
       this.handleOverflow();
-      this.handleOverflowDebounce = debounce(300, false, this.handleOverflow);
+      this.handleOverflowDebounce = debounce(300, this.handleOverflow);
     }
   }
   beforeDestroy() {
