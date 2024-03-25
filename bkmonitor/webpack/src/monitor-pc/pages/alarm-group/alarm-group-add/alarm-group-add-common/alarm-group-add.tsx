@@ -27,28 +27,26 @@ import { VNode } from 'vue';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import Schema, { ErrorList, Rules, ValidateSource } from 'async-validator';
-
-import CustomTab, {
-  IPanels
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import CustomTab, { IPanels } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import NoticeModeNew, {
   INoticeWayValue,
   robot
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
 import {
   defaultAddTimeRange,
   executionNotifyConfigChange,
   getNotifyConfig,
   timeRangeValidate,
   timeTransform
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealAddStore from '../../../../../fta-solutions/store/modules/set-meal-add';
-import { getReceiver } from '../../../../../monitor-api/modules/notice_group';
-import { getBkchatGroup } from '../../../../../monitor-api/modules/user_groups';
-import { deepClone, random } from '../../../../../monitor-common/utils/utils';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
+import { createUserGroup, retrieveUserGroup, updateUserGroup } from 'monitor-api/modules/model';
+import { getReceiver } from 'monitor-api/modules/notice_group';
+import { getBkchatGroup } from 'monitor-api/modules/user_groups';
+import { deepClone, random } from 'monitor-common/utils/utils';
+
 // import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
-import { createUserGroup, retrieveUserGroup, updateUserGroup } from '../../.././../../monitor-api/modules/model';
 import { IDutyItem } from '../../duty-arranges/duty-arranges';
 import RotationConfig from '../../rotation/rotation-config';
 import MemberSelector from '../member-selector';
@@ -567,18 +565,18 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           const obj = {
             ...way
           };
-          way.receivers &&
-            Object.assign(obj, {
-              receivers: Array.isArray(way.receivers)
+          if (way.receivers) {
+            // 使用 .trim() 移除字符串两端的换行符和其他空白字符，然后基于换行符或逗号分割字符串
+            const receivers =
+              typeof way.receivers === 'string'
                 ? way.receivers
-                : (() => {
-                    const str = way.receivers.replace(/[^\S\n]+/g, '');
-                    if (str.indexOf('\n') >= 0) {
-                      return str.split('\n');
-                    }
-                    return str.split(',');
-                  })()
-            });
+                    .trim()
+                    .split(/\s*[\n,]+\s*/)
+                    .filter(Boolean)
+                : way.receivers;
+
+            obj.receivers = receivers;
+          }
           return obj;
         })
       }))
@@ -955,6 +953,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 {this.isShowOverInput && (
                   <div class='over-input'>
                     <img
+                      alt=''
                       src={this.loadingSvg}
                       class='status-loading'
                     />

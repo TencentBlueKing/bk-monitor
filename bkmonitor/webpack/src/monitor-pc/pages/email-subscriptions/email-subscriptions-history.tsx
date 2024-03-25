@@ -25,9 +25,8 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { statusList } from '../../../monitor-api/modules/report';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+import { statusList } from 'monitor-api/modules/report';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
 import ListCollapse from './components/list-collapse.vue';
 import { ITableColumnItem } from './types';

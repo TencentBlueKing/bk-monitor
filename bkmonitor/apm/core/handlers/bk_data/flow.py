@@ -66,12 +66,8 @@ class _BkdataFlowLogger:
 
 class ApmFlow:
     _NAME = None
-    _BKBASE_OPERATOR = settings.APM_APP_BKDATA_OPERATOR
-    _BKBASE_MAINTAINER = settings.APM_APP_BKDATA_MAINTAINER
-    _BKBASE_PROJECT_ID = None
     _FLOW = None
     _FLOW_TYPE = None
-    _FLOW_FETCH_STATUS_THRESHOLD = settings.APM_APP_BKDATA_FETCH_STATUS_THRESHOLD
 
     def __init__(self, bk_biz_id, app_name, data_id, config):
         self.data_id = data_id
@@ -98,6 +94,22 @@ class ApmFlow:
         self.logger = _BkdataFlowLogger(self._NAME, self.bk_biz_id, self.app_name, self.flow.id)
         self.logger.info(f"start flow, use bkbase bk_biz_id: {self.bkdata_bk_biz_id}(app bk_biz_id: {self.bk_biz_id})")
         self.application = ApmApplication.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
+
+    @property
+    def bkbase_operator(self):
+        return settings.APM_APP_BKDATA_OPERATOR
+
+    @classmethod
+    def bkbase_maintainer(cls):
+        return settings.APM_APP_BKDATA_MAINTAINER
+
+    @property
+    def flow_fetch_status_threshold(self):
+        return settings.APM_APP_BKDATA_FETCH_STATUS_THRESHOLD
+
+    @property
+    def bkbase_project_id(self):
+        raise NotImplementedError
 
     @property
     def deploy_description(self):
@@ -194,7 +206,7 @@ class ApmFlow:
         """获取数据源API请求参数(接入方式: KAFKA)"""
         access_conf = cls._query_access_conf(data_id)
         # 数据管理员 = operator + APM默认维护人 + 应用创建者
-        maintainers = ",".join(list(set([operator] + cls._BKBASE_MAINTAINER + extra_maintainers or [])))
+        maintainers = ",".join(list(set([operator] + cls.bkbase_maintainer() + extra_maintainers or [])))
 
         return {
             "data_scenario": "queue",
@@ -239,7 +251,7 @@ class ApmFlow:
         params = self.get_deploy_params(
             self.bkdata_bk_biz_id,
             self.data_id,
-            self._BKBASE_OPERATOR,
+            self.bkbase_operator,
             self.deploy_name,
             self.deploy_description,
             extra_maintainers=[self.application.create_user],
@@ -283,7 +295,7 @@ class ApmFlow:
 
         params = {
             "bk_biz_id": self.bkdata_bk_biz_id,
-            "bk_username": self._BKBASE_OPERATOR,
+            "bk_username": self.bkbase_operator,
             "clean_config_name": self.cleans_names,
             "description": self.cleans_description,
             "fields": self.cleans_fields,
@@ -320,7 +332,7 @@ class ApmFlow:
             self._raise_exc(f"cleans table id not found", FlowStatus.CONFIG_CLEANS_START_FAILED.value)
 
         etl_status = self._get_etl_status(FlowStatus.CONFIG_CLEANS_START_FAILED.value)
-        for i in range(self._FLOW_FETCH_STATUS_THRESHOLD):
+        for i in range(self.flow_fetch_status_threshold):
             if etl_status == DataBusStatus.RUNNING:
                 self.logger.info(f"check etl status: {etl_status}, break. loop: {i}")
                 break
@@ -329,7 +341,7 @@ class ApmFlow:
                 response = api.bkdata.start_databus_cleans(
                     result_table_id=self.flow.databus_clean_result_table_id,
                     storages=["kafka"],
-                    bk_username=self._BKBASE_OPERATOR,
+                    bk_username=self.bkbase_operator,
                 )
                 etl_status = self._get_etl_status(FlowStatus.CONFIG_CLEANS_START_FAILED.value)
                 self.logger.info(f"check etl status: {etl_status}, response: {response}, loop: {i}")
@@ -352,7 +364,7 @@ class ApmFlow:
             (
                 i["status"]
                 for i in api.bkdata.get_databus_cleans(
-                    raw_data_id=self.flow.deploy_data_id, bk_username=self._BKBASE_OPERATOR
+                    raw_data_id=self.flow.deploy_data_id, bk_username=self.bkbase_operator
                 )
                 if i["processing_id"] == self.flow.databus_clean_result_table_id
             ),
@@ -360,17 +372,17 @@ class ApmFlow:
         )
 
     def _auth_project(self):
-        self._update_field({"project_id": self._BKBASE_PROJECT_ID})
+        self._update_field({"project_id": self.bkbase_project_id})
 
-        if not check_has_permission(self._BKBASE_PROJECT_ID, self.flow.databus_clean_result_table_id):
+        if not check_has_permission(self.bkbase_project_id, self.flow.databus_clean_result_table_id):
             self.logger.info(
-                f"project id: {self._BKBASE_PROJECT_ID} "
+                f"project id: {self.bkbase_project_id} "
                 f"cleans result table id: {self.flow.databus_clean_result_table_id} no permission, "
                 f"authorization is required"
             )
             try:
                 params = {
-                    "project_id": self._BKBASE_PROJECT_ID,
+                    "project_id": self.bkbase_project_id,
                     "object_id": self.flow.databus_clean_result_table_id,
                     "bk_biz_id": self.bkdata_bk_biz_id,
                 }
@@ -387,7 +399,7 @@ class ApmFlow:
 
         try:
             flow = self.flow_instance()
-            flow.create_flow(project_id=self._BKBASE_PROJECT_ID)
+            flow.create_flow(project_id=self.bkbase_project_id)
             flow.start_flow()
             self.logger.info(f"start flow successfully, flow_id: {flow.data_flow.flow_id}")
             self._update_field({"flow_id": flow.data_flow.flow_id})

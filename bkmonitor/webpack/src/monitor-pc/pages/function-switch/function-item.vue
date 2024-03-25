@@ -133,8 +133,8 @@
 
 <script lang="ts">
 import { Component, Inject, Prop, PropSync, Ref, Vue } from 'vue-property-decorator';
+import { switchFunction } from 'monitor-api/modules/function_switch.js';
 
-import { switchFunction } from '../../../monitor-api/modules/function_switch.js';
 import MonitorVue from '../../types/index';
 
 import HostEditable from './host-editable.vue';

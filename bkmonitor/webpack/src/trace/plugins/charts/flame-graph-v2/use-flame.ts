@@ -31,8 +31,8 @@ import { path } from 'd3-path';
 import { NumberValue, scaleLinear } from 'd3-scale';
 import { BaseType, select, Selection, ValueFn } from 'd3-selection';
 import { curveCatmullRom, line } from 'd3-shape';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import traceIcons from '../../utls/icons';
 
 import {

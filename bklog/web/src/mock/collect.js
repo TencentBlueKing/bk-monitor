@@ -27,7 +27,7 @@ const details = {
   message: '',
   code: 0,
   data: {},
-  result: true,
+  result: true
 };
 const updateCollection = {};
 const getCollectList = {};
@@ -45,5 +45,5 @@ export default {
   updateCollection,
   getCollectList,
   getCollectStatus,
-  getBizTopo,
+  getBizTopo
 };

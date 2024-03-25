@@ -53,14 +53,13 @@
 
 
 <script>
-import { bkTag  } from 'bk-magic-vue';
+
 
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 
 export default {
   name: 'TagSwitch',
   components: {
-    bkTag,
     VerifyInput
   },
   props: {

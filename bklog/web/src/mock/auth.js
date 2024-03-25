@@ -21,14 +21,17 @@
  */
 
 // 是否有权限
-const checkAllowed = [{
-  action_id: 'view_business',
-  is_allowed: true,
-}, {
-  action_id: 'view_business',
-  is_allowed: false,
-  // 'is_allowed': true
-}];
+const checkAllowed = [
+  {
+    action_id: 'view_business',
+    is_allowed: true
+  },
+  {
+    action_id: 'view_business',
+    is_allowed: false
+    // 'is_allowed': true
+  }
+];
 
 // 权限申请数据
 const getApplyData = {
@@ -36,46 +39,53 @@ const getApplyData = {
   apply_data: {
     system_id: 'bk_log_search',
     system_name: '日志平台',
-    actions: [{
-      id: 'view_business',
-      name: '业务查看',
-      related_resource_types: [{
-        system_id: 'bk_cmdb',
-        system_name: '配置平台',
-        type: 'business',
-        type_name: '业务',
-        instances: [
-          [
-            {
-              type: 'business',
-              type_name: '业务',
-              id: '2',
-              name: '蓝鲸',
-            },
-          ],
-        ],
-      }],
-    }, {
-      id: 'create_collection',
-      name: '采集新建',
-      related_resource_types: [{
-        system_id: 'bk_cmdb',
-        system_name: '配置平台',
-        type: 'business',
-        type_name: '业务',
-        instances: [
-          [
-            {
-              type: 'business',
-              type_name: '业务',
-              id: '2',
-              name: '蓝鲸',
-            },
-          ],
-        ],
-      }],
-    }],
-  },
+    actions: [
+      {
+        id: 'view_business',
+        name: '业务查看',
+        related_resource_types: [
+          {
+            system_id: 'bk_cmdb',
+            system_name: '配置平台',
+            type: 'business',
+            type_name: '业务',
+            instances: [
+              [
+                {
+                  type: 'business',
+                  type_name: '业务',
+                  id: '2',
+                  name: '蓝鲸'
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        id: 'create_collection',
+        name: '采集新建',
+        related_resource_types: [
+          {
+            system_id: 'bk_cmdb',
+            system_name: '配置平台',
+            type: 'business',
+            type_name: '业务',
+            instances: [
+              [
+                {
+                  type: 'business',
+                  type_name: '业务',
+                  id: '2',
+                  name: '蓝鲸'
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ]
+  }
 };
 /**
  * 用户组列表
@@ -94,10 +104,10 @@ const list = {
       created_at: '2019-10-10 11:11:11',
       created_by: 'user',
       updated_at: '2019-10-10 11:11:11',
-      updated_by: 'user',
-    },
+      updated_by: 'user'
+    }
   ],
-  result: true,
+  result: true
 };
 
 /**
@@ -107,7 +117,7 @@ const create = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 /**
@@ -117,7 +127,7 @@ const remove = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 /**
@@ -127,10 +137,14 @@ const update = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 export default {
-  checkAllowed, getApplyData,
-  list, create, remove, update,
+  checkAllowed,
+  getApplyData,
+  list,
+  create,
+  remove,
+  update
 };

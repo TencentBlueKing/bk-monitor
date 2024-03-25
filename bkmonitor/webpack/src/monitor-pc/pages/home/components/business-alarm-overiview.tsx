@@ -25,8 +25,8 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { alarmDetailChartData } from 'monitor-api/modules/event_center';
 
-import { alarmDetailChartData } from '../../../../monitor-api/modules/event_center';
 import Os from '../business-alarm-overview/os.vue';
 import Process from '../business-alarm-overview/process.vue';
 import Service from '../business-alarm-overview/service.vue';

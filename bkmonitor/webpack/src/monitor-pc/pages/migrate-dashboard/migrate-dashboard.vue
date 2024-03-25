@@ -267,11 +267,11 @@
 
 <script lang="ts">
 import { Component, Mixins, Watch } from 'vue-property-decorator';
+import { customTimeSeriesList } from 'monitor-api/modules/custom_report';
+import { listCollectorPlugin } from 'monitor-api/modules/model';
+import { createMappingConfig, deleteMappingConfig, getMappingConfig, importAlertRule, importGrafanaDashboard } from 'monitor-api/modules/promql_import';
+import { getCookie, random } from 'monitor-common/utils/utils';
 
-import { customTimeSeriesList } from '../../../monitor-api/modules/custom_report';
-import { listCollectorPlugin } from '../../../monitor-api/modules/model';
-import { createMappingConfig, deleteMappingConfig, getMappingConfig, importAlertRule, importGrafanaDashboard } from '../../../monitor-api/modules/promql_import';
-import { getCookie, random } from '../../../monitor-common/utils/utils';
 import BizSelect from '../../components/biz-select/biz-select';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import commonPageSizeMixin from '../../mixins/commonPageSizeMixin';

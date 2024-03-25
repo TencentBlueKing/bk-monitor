@@ -27,16 +27,15 @@
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkPaasLogin from '@blueking/paas-login';
-import { Input, Navigation, NavigationMenu, NavigationMenuGroup, NavigationMenuItem } from 'bk-magic-vue';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
-import { getFooter, listStickySpaces } from '../../monitor-api/modules/commons';
-import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
-import debounce from '../../monitor-common/utils/debounce-decorator';
-import bus from '../../monitor-common/utils/event-bus';
-import { docCookies, getUrlParam, random } from '../../monitor-common/utils/utils';
-import AuthorityModal from '../../monitor-ui/authority-modal';
+import { getFooter, listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
+import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import debounce from 'monitor-common/utils/debounce-decorator';
+import bus from 'monitor-common/utils/event-bus';
+import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
+import AuthorityModal from 'monitor-ui/authority-modal';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
@@ -58,7 +57,9 @@ import './app.scss';
 import introduce from '../common/introduce';
 import { isAuthority } from '../router/router';
 import { getDashboardCache } from './grafana/utils';
-import { getDashboardList } from '../../monitor-api/modules/grafana';
+import { getDashboardList } from 'monitor-api/modules/grafana';
+import NoticeComponent from '@blueking/notice-component-vue2';
+import '@blueking/notice-component-vue2/dist/style.css';
 
 const changeNoticeRouteList = [
   'strategy-config-add',
@@ -83,7 +84,7 @@ if (currentLang === 'en') {
 }
 @Component
 export default class App extends tsc<{}> {
-  @Ref('menuSearchInput') menuSearchInputRef: Input;
+  @Ref('menuSearchInput') menuSearchInputRef: any;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
   @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
   routeList = getRouteConfig();
@@ -105,6 +106,7 @@ export default class App extends tsc<{}> {
   spacestickyList: string[] = []; /** 置顶的空间列表 */
   headerSettingShow = false;
   userStoreRoutes: IRouteConfigItem[] = [];
+  showAlert = false; // 是否展示跑马灯
   // 全局设置弹窗
   globalSettingShow = false;
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
@@ -216,6 +218,12 @@ export default class App extends tsc<{}> {
         content: this.$tc('全站搜索，可以跨业务直接搜索任意资源')
       }
     ];
+    this.getDocsLinkMapping();
+  }
+  /** 获取文档链接 */
+  async getDocsLinkMapping() {
+    const data = await getLinkMapping().catch(() => {});
+    this.$store.commit('app/updateExtraDocLinkMap', data);
   }
   async handleGetNewUserGuide() {
     if (this.readonly || /^#\/share\//.test(location.hash)) return;
@@ -389,10 +397,6 @@ export default class App extends tsc<{}> {
   // 切换业务
   async handleBizChange(v: number) {
     this.handleHeaderSettingShowChange(false);
-    // 切换全局业务配置
-    window.cc_biz_id = +v;
-    window.bk_biz_id = +v;
-    window.space_uid = this.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
     this.showBizList = false;
     this.$store.commit('app/SET_BIZ_ID', +v);
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
@@ -639,6 +643,9 @@ export default class App extends tsc<{}> {
     this.headerSettingShow = v;
     (this.$refs.commonHeaderDrop as any)?.hide();
   }
+  showAlertChange(v: boolean) {
+    this.showAlert = v;
+  }
   render() {
     /** 页面内容部分 */
     const pageMain = [
@@ -654,7 +661,7 @@ export default class App extends tsc<{}> {
         key={this.routeViewKey}
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
         class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
-        style={{ height: this.showNav ? 'calc(100% - 52px)' : '100%' }}
+        style={{ height: this.showNav ? 'calc(100% - 52px - var(--notice-alert-height))' : '100%' }}
       >
         <keep-alive>
           <router-view class='page-wrapper'></router-view>
@@ -673,9 +680,22 @@ export default class App extends tsc<{}> {
       </div>
     ];
     return (
-      <div class='bk-monitor'>
-        <Navigation
-          class={{ 'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share' }}
+      <div
+        class='bk-monitor'
+        style={{
+          '--notice-alert-height': this.showAlert ? '40px' : '0px'
+        }}
+      >
+        {process.env.NODE_ENV !== 'development' && (
+          <NoticeComponent
+            apiUrl='/notice/announcements'
+            onShowAlertChange={this.showAlertChange}
+          />
+        )}
+        <bk-navigation
+          class={{
+            'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share'
+          }}
           navigation-type='top-bottom'
           on-toggle={this.handleToggle}
           themeColor='#2c354d'
@@ -777,7 +797,7 @@ export default class App extends tsc<{}> {
                     onChange={this.handleBizChange}
                   />
                 </div>
-                <NavigationMenu
+                <bk-navigation-menu
                   style={{ marginTop: this.headerNav === 'data' ? '8px' : '0px' }}
                   toggle-active={this.menuToggle}
                   default-active={this.routeId}
@@ -788,14 +808,14 @@ export default class App extends tsc<{}> {
                     .filter(item => !item.hidden)
                     .map(item =>
                       item?.children?.length ? (
-                        <NavigationMenuGroup
+                        <bk-navigation-menu-group
                           key={item.id}
                           group-name={this.menuToggle ? this.$t(item.name) : this.$t(item.shortName)}
                         >
                           {item.children
                             .filter(child => !child.hidden)
                             .map(child => (
-                              <NavigationMenuItem
+                              <bk-navigation-menu-item
                                 onClick={() => this.handleMenuItemClick(child)}
                                 key={child.id}
                                 href={child.href}
@@ -803,7 +823,7 @@ export default class App extends tsc<{}> {
                                 scopedSlots={{
                                   child: () =>
                                     child?.children?.map(set => (
-                                      <NavigationMenuItem
+                                      <bk-navigation-menu-item
                                         class={{ 'disabled-event': !set.href && !set.path }}
                                         onClick={() => this.handleMenuItemClick(set)}
                                         key={set.id}
@@ -811,7 +831,7 @@ export default class App extends tsc<{}> {
                                         {...{ props: set }}
                                       >
                                         {this.$t(set.name)}
-                                      </NavigationMenuItem>
+                                      </bk-navigation-menu-item>
                                     ))
                                 }}
                                 {...{ props: child }}
@@ -821,11 +841,11 @@ export default class App extends tsc<{}> {
                                   {child.isBeta && <span class='nav-menu-item-beta'>BETA</span>}
                                   {child.navIcon && <i class={child.navIcon} />}
                                 </span>
-                              </NavigationMenuItem>
+                              </bk-navigation-menu-item>
                             ))}
-                        </NavigationMenuGroup>
+                        </bk-navigation-menu-group>
                       ) : (
-                        <NavigationMenuItem
+                        <bk-navigation-menu-item
                           onClick={() => this.handleMenuItemClick(item)}
                           key={item.id}
                           href={item.href}
@@ -837,10 +857,10 @@ export default class App extends tsc<{}> {
                             {item.isBeta && <span class='nav-menu-item-beta'>BETA</span>}
                             {item.navIcon && <i class={item.navIcon} />}
                           </span>
-                        </NavigationMenuItem>
+                        </bk-navigation-menu-item>
                       )
                     )}
-                </NavigationMenu>
+                </bk-navigation-menu>
               </div>
             ) : undefined
             // #endif
@@ -884,7 +904,7 @@ export default class App extends tsc<{}> {
             class='monitor-logo'
             slot='side-icon'
           />
-        </Navigation>
+        </bk-navigation>
         {
           // #if APP !== 'external'
           !(this.readonly || window.__POWERED_BY_BK_WEWEB__) &&

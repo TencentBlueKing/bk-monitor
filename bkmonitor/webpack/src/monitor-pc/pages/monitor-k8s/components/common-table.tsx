@@ -27,21 +27,11 @@
 import JsonViewer from 'vue-json-viewer';
 import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Button,
-  Checkbox,
-  Pagination,
-  Popover,
-  Progress,
-  Spin,
-  Table,
-  TableColumn,
-  TableSettingContent
-} from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import { random } from '../../../../monitor-common/utils/utils';
+import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
 import {
   ColumnSort,
@@ -58,6 +48,7 @@ import {
 import CommonStatus from './common-status/common-status';
 import CommonTagList from './common-tag-list/common-tag-list';
 import MoreOperate from './more-operate/more-operate';
+import TextOverflowCopy from './text-overflow-copy/text-overflow-copy';
 
 import './common-table.scss';
 
@@ -65,6 +56,7 @@ const HEADER_PRE_ICON_NAME = 'header_pre_icon';
 export interface ICommonTableProps {
   // 表格loading
   loading?: boolean;
+  scrollLoading?: boolean;
   // 设置表头字段 存储到本地localstorage key值 默认不设置
   storeKey?: string;
   // 是否可选择行
@@ -97,6 +89,8 @@ export interface ICommonTableProps {
   stripe?: boolean;
   // 表格高度 默认为自动高度  height为Number类型，单位px height为String类型，则高度会设置为 Table 的 style.height
   height?: string | number;
+  // 表格最大高度
+  maxHeight?: string | number;
   // 是否显示表头
   showHeader?: boolean;
   // 是否高亮当前行
@@ -126,18 +120,18 @@ interface ICommonTableEvent {
   onScrollEnd: void;
   onRowClick: void;
 }
-@Component({
-  components: { Popover, Pagination, Checkbox }
-})
+@Component
 export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEvent> {
   @Inject({
     from: 'handleShowAuthorityDetail',
     default: null
   })
   handleShowAuthorityDetail;
-  @Ref('table') tableRef: Table;
+  @Ref('table') tableRef: any;
   // table loading
   @Prop({ default: false }) loading: boolean;
+  // scroll Loading
+  @Prop({ default: false }) scrollLoading: boolean;
   // 是否显示表格列设置
   @Prop({ default: true }) hasColnumSetting: boolean;
   // 设置的表格固定列保存在localstorage的key值
@@ -178,6 +172,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Prop({ type: Boolean, default: false }) stripe: boolean;
   // 表格高度
   @Prop({ type: [String, Number] }) height: string | number;
+  // 表格最大高度
+  @Prop({ type: [String, Number] }) maxHeight: string | number;
   // 是否显示表头
   @Prop({ type: Boolean, default: true }) showHeader: boolean;
   // 是否高亮当前行
@@ -235,16 +231,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (typeof val !== 'number' && !val) return '--';
     return (
       <span class='string-col'>
-        {val.icon ? (
-          val.icon.length > 30 ? (
-            <img src={val.icon} />
-          ) : (
-            <i class={['icon-monitor', 'string-icon', val.icon]} />
-          )
-        ) : (
-          ''
-        )}
-        {Array.isArray(val) ? val.join(',') : val}
+        <TextOverflowCopy val={val}></TextOverflowCopy>
       </span>
     );
   }
@@ -363,7 +350,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       >
         {val.icon ? (
           val.icon.length > 30 ? (
-            <img src={val.icon} />
+            <img
+              src={val.icon}
+              alt=''
+            />
           ) : (
             <i class={['icon-monitor', 'link-icon', val.icon]} />
           )
@@ -390,7 +380,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           >
             {val.icon ? (
               val.icon.length > 30 ? (
-                <img src={val.icon} />
+                <img
+                  src={val.icon}
+                  alt=''
+                />
               ) : (
                 <i class={['icon-monitor', 'link-icon', val.icon]} />
               )
@@ -418,7 +411,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId)
             }
           >
-            {item.icon ? <img src={item.icon} /> : ''}
+            {item.icon ? (
+              <img
+                src={item.icon}
+                alt=''
+              />
+            ) : (
+              ''
+            )}
             {item.value}
           </a>
         ))}
@@ -450,7 +450,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (item.syncTime) {
       urlStr += urlStr.indexOf('?') === -1 ? '?' : '&';
       const { from, to } = this.$route.query;
-      urlStr += `from=${from}&to${to}`;
+      urlStr += `from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     }
 
     if (item.target === 'self') {
@@ -490,12 +490,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return val ? (
       <div class='common-table-progress'>
         <div class='table-progress-text'>{val.label || '--'}</div>
-        <Progress
+        <bk-progress
           class={['common-progress-color', `color-${val.status}`]}
           size='small'
           showText={false}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
-        ></Progress>
+        ></bk-progress>
       </div>
     ) : (
       '--'
@@ -600,7 +600,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   handleSetFormatter(id: string, row: TableRow) {
     const column = this.columns.find(item => item.id === id);
     if (!column) return '--';
-    if (column.asyncable) return <Spin size='mini' />; // 用于异步加载loading
+    if (column.asyncable) return <bk-spin size='mini' />; // 用于异步加载loading
 
     const value: ITableItem<typeof column.type> = row[id];
     switch (column.type) {
@@ -699,7 +699,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         // header-pre-icon
         const headerPreIcon = column[HEADER_PRE_ICON_NAME];
         return (
-          <TableColumn
+          <bk-table-column
             key={`column_${column.id}`}
             label={column.name}
             prop={column.id}
@@ -710,8 +710,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               (this.hasOverviewData || !!headerPreIcon) && column.checked
                 ? () => this.renderColumnsHeader(column)
                 : !!column?.renderHeader
-                ? () => column.renderHeader()
-                : undefined
+                  ? () => column.renderHeader()
+                  : undefined
             }
             {...{
               props: {
@@ -733,7 +733,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       });
     if (this.checkable) {
       columList.unshift(
-        <TableColumn
+        <bk-table-column
           type='selection'
           width='50'
           minWidth='50'
@@ -763,7 +763,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     const headerCellname = ({ column }) => `${cellName({ column })} ${this.hasOverviewData ? 'overview-header' : ''}`;
     return (
       <div class='common-table'>
-        <Table
+        <bk-table
           class={this.tableClass}
           data={this.data}
           size={this.tableSize}
@@ -774,11 +774,19 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           pagination={{ ...this.pagination }}
           ref='table'
           height={this.height}
+          max-height={this.maxHeight}
           showHeader={this.showHeader}
           highlightCurrentRow={this.highlightCurrentRow}
           header-cell-class-name={headerCellname}
           cell-class-name={cellName}
           v-bkloading={{ isLoading: this.loading, zIndex: 1000 }}
+          scroll-loading={{
+            isLoading: this.scrollLoading,
+            size: 'mini',
+            theme: 'info',
+            icon: 'circle-2-1',
+            placement: 'right'
+          }}
           on-sort-change={this.handleSortChange}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
@@ -807,7 +815,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   </span>
                 </i18n>,
                 <slot name='select-content'></slot>,
-                <Button
+                <bk-button
                   slot='count'
                   text={true}
                   theme='primary'
@@ -815,20 +823,20 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   onClick={this.handleClearSelected}
                 >
                   {this.$t('取消')}
-                </Button>
+                </bk-button>
               ]}
             </div>
           ) : undefined}
           {this.showExpand && (
-            <TableColumn
+            <bk-table-column
               type='expand'
               scopedSlots={{ default: this.renderRowExpand() }}
-            ></TableColumn>
+            ></bk-table-column>
           )}
           {this.transformColumns()}
           {this.hasColnumSetting ? (
-            <TableColumn type='setting'>
-              <TableSettingContent
+            <bk-table-column type='setting'>
+              <bk-table-setting-content
                 key={`${this.tableKey}__settings`}
                 class='event-table-setting'
                 fields={this.tableColumns}
@@ -838,11 +846,11 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                 selected={this.tableColumns.filter(item => item.checked || item.disabled)}
                 on-setting-change={this.handleSettingChange}
               />
-            </TableColumn>
+            </bk-table-column>
           ) : (
             ''
           )}
-        </Table>
+        </bk-table>
       </div>
     );
   }

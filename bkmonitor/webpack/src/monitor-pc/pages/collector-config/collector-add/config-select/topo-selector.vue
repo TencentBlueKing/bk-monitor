@@ -233,7 +233,8 @@ import {
   getHostInstanceByIp,
   getHostInstanceByNode,
   getServiceInstanceByNode,
-  getTopoTree } from '../../../../../monitor-api/modules/commons';
+  getTopoTree } from 'monitor-api/modules/commons';
+
 import IpSelect from '../../../../components/ip-select/ip-select';
 
 const EVENT_ACTIVESELECTCHANGE = 'active-select-change';

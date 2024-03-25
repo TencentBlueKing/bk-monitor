@@ -239,8 +239,8 @@
 </template>
 <script>
 import { mapActions } from 'vuex';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
-import { transformDataKey } from '../../../../monitor-common/utils/utils';
 import ContentEmpty from '../components/content-empty';
 
 import mixin from './import-mixin';

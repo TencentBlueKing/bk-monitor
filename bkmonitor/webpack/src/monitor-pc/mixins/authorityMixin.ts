@@ -34,7 +34,7 @@ Component.registerHooks(['beforeRouteEnter']);
 export default (authMap: { [propsName: string]: string }) =>
   Component(
     class authorityMixin extends tsc<{}> {
-      authority: Record<string, boolean>;
+      // authority: Record<string, boolean>;
       __bizIdUnWatch__: any;
       constructor() {
         super();

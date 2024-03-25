@@ -14,9 +14,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import chain
 
-from fta_web.alert.handlers.alert import AlertQueryHandler
-from fta_web.alert.handlers.translator import MetricTranslator
-from fta_web.constants import GLOBAL_BIZ_ID
 from rest_framework import serializers
 
 from bkmonitor.action.alert_assign import AlertAssignMatchManager
@@ -24,19 +21,24 @@ from bkmonitor.action.serializers import (
     AssignGroupSlz,
     AssignRuleSlz,
     BatchAssignRulesSlz,
+    BatchSaveAssignRulesSlz,
 )
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import ASSIGN_CONDITION_KEYS, AssignMode
 from core.drf_resource import Resource, api
+from fta_web.alert.handlers.alert import AlertQueryHandler
+from fta_web.alert.handlers.translator import MetricTranslator
+from fta_web.constants import GLOBAL_BIZ_ID
 
 logger = logging.getLogger("root")
 
 
 class BatchUpdateResource(Resource, metaclass=abc.ABCMeta):
-    class RequestSerializer(BatchAssignRulesSlz):
+    class RequestSerializer(BatchSaveAssignRulesSlz):
         assign_group_id = serializers.IntegerField(label="规则组ID", required=True)
+        name = serializers.CharField(label="规则组名称", required=False)
         settings = serializers.JSONField(label="属性配置", default={}, required=False)
 
     def perform_request(self, validated_request_data):
@@ -87,7 +89,6 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
 
     @staticmethod
     def compare_rules(group_id, debug_rules):
-
         existed_rules = {
             rule["id"]: rule
             for rule in AssignRuleSlz(instance=AlertAssignRule.objects.filter(assign_group_id=group_id), many=True).data
@@ -155,7 +156,8 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
             "end_time": validated_request_data["end_time"] or int(current_time.timestamp()),
         }
         handler = AlertQueryHandler(**search_params)
-        alerts = [AlertDocument(**hit.to_dict()) for hit in handler.search_raw()]
+        search_result, _ = handler.search_raw()
+        alerts = [AlertDocument(**hit.to_dict()) for hit in search_result]
 
         # step2 获取当前DB存储的所有规则，并替换掉当前的告警规则
         # 2.1 获取到所有的规则组内容

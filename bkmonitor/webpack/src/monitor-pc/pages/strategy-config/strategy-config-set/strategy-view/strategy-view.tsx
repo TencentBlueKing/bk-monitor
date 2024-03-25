@@ -28,15 +28,14 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Radio, RadioGroup } from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
+import { fetchItemStatus, getUnitInfo } from 'monitor-api/modules/strategies';
+import { asyncDebounceDecorator } from 'monitor-common/utils/debounce-decorator';
+import { Debounce, deepClone, random, typeTools } from 'monitor-common/utils/utils';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from '../../../../../monitor-api/modules/grafana';
-import { fetchItemStatus, getUnitInfo } from '../../../../../monitor-api/modules/strategies';
-import { asyncDebounceDecorator } from '../../../../../monitor-common/utils/debounce-decorator';
-import { Debounce, deepClone, random, typeTools } from '../../../../../monitor-common/utils/utils';
-import Viewer from '../../../../../monitor-ui/markdown-editor/viewer';
-import MonitorEcharts from '../../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import MonitorDivider from '../../../../components/divider/divider.vue';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
@@ -953,9 +952,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   // 查看近20条数据
                   !!this.needNearRadio && (
                     <div class='radio-count-options'>
-                      <RadioGroup v-model={this.shortcutsType}>
+                      <bk-radio-group v-model={this.shortcutsType}>
                         {this.shortcutsList.map(sh => (
-                          <Radio value={sh.id}>
+                          <bk-radio value={sh.id}>
                             {sh.id === 'NEAR' ? (
                               <i18n
                                 path='查看{0}条数据'
@@ -969,9 +968,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                             ) : (
                               <span>{sh.name}</span>
                             )}
-                          </Radio>
+                          </bk-radio>
                         ))}
-                      </RadioGroup>
+                      </bk-radio-group>
                     </div>
                   ),
                   // <monitor-divider></monitor-divider>,

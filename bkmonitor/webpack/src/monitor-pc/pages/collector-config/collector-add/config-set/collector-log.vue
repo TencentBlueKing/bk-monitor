@@ -178,8 +178,8 @@
 // eslint-disable-next-line no-unused-vars
 import { TranslateResult } from 'vue-i18n/types/index';
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../../../monitor-common/utils/utils';
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 
 interface IKeywordRule {

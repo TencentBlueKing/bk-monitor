@@ -115,7 +115,8 @@
 </template>
 
 <script>
-import { editShield } from '../../../../monitor-api/modules/shield';
+import { editShield } from 'monitor-api/modules/shield';
+
 import { alarmShieldMixin } from '../../../common/mixins';
 import ShieldDateConfig from '../alarm-shield-components/alarm-shield-date';
 import AlarmShieldNotice from '../alarm-shield-components/alarm-shield-notice';

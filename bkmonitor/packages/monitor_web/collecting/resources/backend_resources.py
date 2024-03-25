@@ -32,6 +32,7 @@ from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -75,6 +76,9 @@ from monitor_web.models import (
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.strategies.loader.datalink_loader import (
+    DatalinkDefaultAlarmStrategyLoader,
+)
 from monitor_web.tasks import append_metric_list_cache
 from utils import business
 from utils.query_data import TSDataBase
@@ -395,6 +399,8 @@ class CollectConfigListResource(Resource):
             import traceback
 
             logger.error(traceback.format_exc())
+
+        return {"type_list": [], "config_list": [], "total": 0}
 
 
 class CollectConfigDetailResource(Resource):
@@ -995,6 +1001,10 @@ class SaveCollectConfigResource(Resource):
 
         # 添加完成采集配置，主动更新指标缓存表
         self.update_metric_cache(collector_plugin)
+
+        # 采集配置完成
+        DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+
         return save_result
 
     @staticmethod
@@ -2135,17 +2145,14 @@ class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
 
             return new_target_list
         else:
-            is_split_measurement = False
             if self.config.plugin.is_split_measurement:
-                # 是单指标单表的模式
-                is_split_measurement = True
                 db_name = f"{self.config.plugin.plugin_type}_{self.config.plugin.plugin_id}".lower()
                 group_result = api.metadata.query_time_series_group(bk_biz_id=0, time_series_group_name=db_name)
                 result_tables = [ResultTable.time_series_group_to_result_table(group_result)]
             else:
                 # 获取结果表配置
                 if self.config.plugin.plugin_type == PluginType.PROCESS:
-                    db_name = "process"
+                    db_name = "process:perf"
                     metric_json = PluginManagerFactory.get_manager(
                         plugin=self.config.plugin.plugin_id, plugin_type=self.config.plugin.plugin_type
                     ).gen_metric_info()
@@ -2162,10 +2169,10 @@ class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
                 filter_dict["time__gt"] = f"{period * 3 // 60 + 1}m"
             else:
                 filter_dict["time__gt"] = f"{period // 60 * 3}m"
-            ts_database = TSDataBase(db_name=db_name, result_tables=result_tables, bk_biz_id=self.config.bk_biz_id)
-            result = ts_database.no_data_test(
-                test_target_list=target_list, filter_dict=filter_dict, is_split_measurement=is_split_measurement
+            ts_database = TSDataBase(
+                db_name=db_name.lower(), result_tables=result_tables, bk_biz_id=self.config.bk_biz_id
             )
+            result = ts_database.no_data_test(test_target_list=target_list, filter_dict=filter_dict)
             return result
 
     @staticmethod

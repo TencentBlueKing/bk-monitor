@@ -23,7 +23,7 @@
 <template>
   <div>
     <slot v-if="isMountContent"></slot>
-    <span v-else>{{context}}</span>
+    <span v-else>{{ context }}</span>
   </div>
 </template>
 <script>
@@ -31,16 +31,16 @@ export default {
   props: {
     context: {
       type: String,
-      require: true,
+      require: true
     },
     rootMargin: {
       type: String,
-      default: '0px 0px 0px 0px',
-    },
+      default: '0px 0px 0px 0px'
+    }
   },
   data() {
     return {
-      isMountContent: true,
+      isMountContent: true
     };
   },
   deactivated() {
@@ -60,19 +60,22 @@ export default {
       if (this.intersectionObserver) {
         this.unregisterObserver();
       }
-      this.intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-          if (this.intersectionObserver) {
-            if (entry.intersectionRatio > 0) {
-              this.isMountContent = true;
-            } else {
-              this.isMountContent = false;
+      this.intersectionObserver = new IntersectionObserver(
+        entries => {
+          entries.forEach(entry => {
+            if (this.intersectionObserver) {
+              if (entry.intersectionRatio > 0) {
+                this.isMountContent = true;
+              } else {
+                this.isMountContent = false;
+              }
             }
-          }
-        });
-      }, {
-        rootMargin: this.rootMargin, // '-180px 0px 0px 0px',
-      });
+          });
+        },
+        {
+          rootMargin: this.rootMargin // '-180px 0px 0px 0px',
+        }
+      );
       this.intersectionObserver.observe(this.$el);
     },
     unregisterObserver() {
@@ -81,7 +84,7 @@ export default {
         this.intersectionObserver.disconnect();
         this.intersectionObserver = null;
       }
-    },
-  },
+    }
+  }
 };
 </script>

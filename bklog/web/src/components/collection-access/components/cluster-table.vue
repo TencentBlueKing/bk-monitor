@@ -24,71 +24,124 @@
   <div class="cluster-container">
     <div class="cluster-title">
       <div
-        :class="['cluster-title-container' ,!isShowTable && 'is-active']"
-        @click="isShowTable = !isShowTable">
+        :class="['cluster-title-container', !isShowTable && 'is-active']"
+        @click="isShowTable = !isShowTable"
+      >
         <span class="bk-icon icon-angle-up-fill"></span>
-        <p>{{ tableShowType ? $t("共享集群") : $t('业务独享集群')}}</p>
+        <p>{{ tableShowType ? $t('共享集群') : $t('业务独享集群') }}</p>
       </div>
     </div>
-    <div class="cluster-main" v-show="isShowTable">
+    <div
+      v-show="isShowTable"
+      class="cluster-main"
+    >
       <template v-if="tableList.length">
         <bk-table
           class="cluster-table"
           :data="tableList"
           :max-height="254"
-          @row-click="handleSelectCluster">
-          <bk-table-column :label="$t('集群名')" :render-header="$renderHeader" min-width="240">
+          @row-click="handleSelectCluster"
+        >
+          <bk-table-column
+            :label="$t('集群名')"
+            :render-header="$renderHeader"
+            min-width="240"
+          >
             <template slot-scope="{ row }">
               <bk-radio :checked="clusterSelect === row.storage_cluster_id">
-                <div class="overflow-tips" v-bk-overflow-tips>
+                <div
+                  v-bk-overflow-tips
+                  class="overflow-tips"
+                >
                   <span @click.stop>{{ row.storage_cluster_name }}</span>
                 </div>
               </bk-radio>
             </template>
           </bk-table-column>
-          <bk-table-column :label="$t('总量')" :render-header="$renderHeader" min-width="100">
+          <bk-table-column
+            :label="$t('总量')"
+            :render-header="$renderHeader"
+            min-width="100"
+          >
             <template slot-scope="{ row }">
-              <span>{{formatFileSize(row.storage_total)}}</span>
+              <span>{{ formatFileSize(row.storage_total) }}</span>
             </template>
           </bk-table-column>
-          <bk-table-column min-width="110" :render-header="$renderHeader" :label="$t('空闲率')">
+          <bk-table-column
+            min-width="110"
+            :render-header="$renderHeader"
+            :label="$t('空闲率')"
+          >
             <template slot-scope="{ row }">
               <div class="percent">
                 <div class="percent-progress">
-                  <bk-progress :theme="'success'" :show-text="false" :percent="getPercent(row)"></bk-progress>
+                  <bk-progress
+                    :theme="'success'"
+                    :show-text="false"
+                    :percent="getPercent(row)"
+                  ></bk-progress>
                 </div>
-                <span>{{`${100 - row.storage_usage}%`}}</span>
+                <span>{{ `${100 - row.storage_usage}%` }}</span>
               </div>
             </template>
           </bk-table-column>
-          <bk-table-column :label="$t('索引数')" :render-header="$renderHeader" prop="index_count"></bk-table-column>
+          <bk-table-column
+            :label="$t('索引数')"
+            :render-header="$renderHeader"
+            prop="index_count"
+          ></bk-table-column>
           <bk-table-column
             v-if="tableShowType"
             :label="$t('业务数')"
             :render-header="$renderHeader"
-            prop="biz_count">
+            prop="biz_count"
+          >
           </bk-table-column>
         </bk-table>
-        <div class="cluster-illustrate" v-show="!!activeItem">
-          <p class="illustrate-title">{{$t('说明')}}</p>
-          <div class="illustrate-container" v-en-class="'en-container'">
-            <div v-for="[key, value] of Object.entries(illustrateLabelData)" :key="key">
-              <span class="illustrate-label">{{key}}：</span>
-              <span class="illustrate-value">{{value}}</span>
+        <div
+          v-show="!!activeItem"
+          class="cluster-illustrate"
+        >
+          <p class="illustrate-title">{{ $t('说明') }}</p>
+          <div
+            v-en-class="'en-container'"
+            class="illustrate-container"
+          >
+            <div
+              v-for="[key, value] of Object.entries(illustrateLabelData)"
+              :key="key"
+            >
+              <span class="illustrate-label">{{ key }}：</span>
+              <span class="illustrate-value">{{ value }}</span>
             </div>
           </div>
           <div class="illustrate-list">
-            <pre>{{description}}</pre>
+            <pre>{{ description }}</pre>
           </div>
         </div>
       </template>
       <template v-else>
         <div class="noData-container">
           <div slot="empty">
-            <empty-status empty-type="empty" :show-text="false">
+            <empty-status
+              empty-type="empty"
+              :show-text="false"
+            >
               <div class="noData-message">
-                <p class="empty-message">{{ tableShowType ? $t('当前还没有共享集群，请联系平台管理员提供') : $t('当前还没有业务独享集群，快去创建吧')}}</p>
-                <p v-if="!tableShowType" class="button-text" @click="handleCreateCluster">{{$t('创建集群')}}</p>
+                <p class="empty-message">
+                  {{
+                    tableShowType
+                      ? $t('当前还没有共享集群，请联系平台管理员提供')
+                      : $t('当前还没有业务独享集群，快去创建吧')
+                  }}
+                </p>
+                <p
+                  v-if="!tableShowType"
+                  class="button-text"
+                  @click="handleCreateCluster"
+                >
+                  {{ $t('创建集群') }}
+                </p>
               </div>
             </empty-status>
           </div>
@@ -104,25 +157,25 @@ import EmptyStatus from '@/components/empty-status';
 
 export default {
   components: {
-    EmptyStatus,
+    EmptyStatus
   },
   props: {
     tableList: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     tableType: {
       type: String,
-      default: 'shared',
+      default: 'shared'
     },
     storageClusterId: {
       type: [Number, String],
-      require: true,
+      require: true
     },
     isChangeSelect: {
       type: Boolean,
-      require: true,
-    },
+      require: true
+    }
   },
   data() {
     return {
@@ -132,21 +185,21 @@ export default {
         [this.$t('副本数')]: '',
         [this.$t('过期时间')]: '',
         [this.$t('热冷数据')]: '',
-        [this.$t('日志归档')]: '',
+        [this.$t('日志归档')]: ''
       },
       description: '',
       activeItem: null,
       isShow: false,
-      throttle: false,
+      throttle: false
     };
   },
   computed: {
     ...mapGetters({
-      curCollect: 'collect/curCollect',
+      curCollect: 'collect/curCollect'
     }),
     tableShowType() {
       return this.tableType !== 'exclusive';
-    },
+    }
   },
   watch: {
     storageClusterId(val) {
@@ -155,12 +208,12 @@ export default {
       this.activeItem = this.tableList.find(item => item.storage_cluster_id === val);
       if (!!this.activeItem) {
         const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = this.activeItem.setup_config;
-        const { enable_hot_warm: hotWarm, enable_archive: archive } =  this.activeItem;
+        const { enable_hot_warm: hotWarm, enable_archive: archive } = this.activeItem;
         this.illustrateLabelData = {
           [this.$t('副本数')]: `${this.$t('最大')} ${replicasMax} ${this.$t('个')}`,
           [this.$t('过期时间')]: `${this.$t('最大')} ${daysMax} ${this.$t('天')}`,
           [this.$t('热冷数据')]: hotWarm ? this.$t('支持') : this.$t('不支持'),
-          [this.$t('日志归档')]: archive ? this.$t('支持') : this.$t('不支持'),
+          [this.$t('日志归档')]: archive ? this.$t('支持') : this.$t('不支持')
         };
         this.description = this.activeItem.description;
       } else {
@@ -168,11 +221,11 @@ export default {
           [this.$t('副本数')]: '',
           [this.$t('过期时间')]: '',
           [this.$t('热冷数据')]: '',
-          [this.$t('日志归档')]: '',
+          [this.$t('日志归档')]: ''
         };
         this.description = '';
       }
-    },
+    }
   },
   mounted() {
     this.formatFileSize = formatFileSize;
@@ -196,22 +249,22 @@ export default {
         confirmFn: () => {
           this.$emit('update:isChangeSelect', true);
           this.$emit('update:storageClusterId', $row.storage_cluster_id);
-        },
+        }
       });
     },
     handleCreateCluster() {
       const newUrl = this.$router.resolve({
         name: 'es-cluster-manage',
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
       window.open(newUrl.href, '_blank');
     },
     getPercent($row) {
       return (100 - $row.storage_usage) / 100;
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
@@ -219,8 +272,8 @@ export default {
 @import '@/scss/mixins/overflow-tips.scss';
 
 .cluster-container {
-  line-height: 14px;
   min-width: 900px;
+  line-height: 14px;
 
   .overflow-tips {
     display: inline-block;
@@ -244,6 +297,11 @@ export default {
 
       @include flex-align;
 
+      .icon-angle-up-fill {
+        margin: 0 10px;
+        font-size: 16px;
+      }
+
       &.is-active {
         border-bottom: 1px solid #dcdee5;
 
@@ -251,11 +309,6 @@ export default {
           transform: rotateZ(-90deg);
         }
       }
-    }
-
-    .icon-angle-up-fill {
-      margin: 0 10px;
-      font-size: 16px;
     }
   }
 
@@ -270,13 +323,13 @@ export default {
 
     .cluster-illustrate {
       width: 42%;
-      min-width: 460px;
       max-height: 254px;
+      min-width: 460px;
       padding: 16px;
+      overflow: hidden;
       font-size: 12px;
       border: 1px solid #dcdee5;
       border-left: none;
-      overflow: hidden;
 
       .illustrate-title {
         font-weight: 700;
@@ -324,8 +377,8 @@ export default {
         @include flex-center;
 
         .empty-message {
-          color: #63656e;
           margin-bottom: 6px;
+          color: #63656e;
         }
       }
 
@@ -348,11 +401,11 @@ export default {
 }
 
 :deep(.bk-form-radio) {
-  white-space: nowrap;
   display: flex;
+  white-space: nowrap;
   align-items: center;
 
-  & > input[type = 'radio'] {
+  & > input[type='radio'] {
     /* stylelint-disable-next-line declaration-no-important */
     display: block !important;
     min-width: 16px;
@@ -360,8 +413,8 @@ export default {
 }
 
 :deep(.bk-radio-text) {
-  font-size: 12px;
   display: inline;
   width: 100%;
+  font-size: 12px;
 }
 </style>

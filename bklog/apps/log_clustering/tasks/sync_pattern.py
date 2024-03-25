@@ -80,7 +80,7 @@ def sync(model_id=None, model_output_rt=None):
     patterns = get_pattern(content)
     objects_to_create, objects_to_update = make_signature_objects(patterns=patterns, model_id=model_id)
     AiopsSignatureAndPattern.objects.bulk_create(objects_to_create)
-    AiopsSignatureAndPattern.objects.bulk_update(objects_to_update, fields=["pattern"])
+    AiopsSignatureAndPattern.objects.bulk_update(objects_to_update, fields=["pattern", "origin_pattern"])
 
 
 def get_pattern(content) -> list:
@@ -113,7 +113,6 @@ def get_pattern(content) -> list:
     for _, sensitive_patterns in content[CONTENT_PATTERN_INDEX].items():
         for sensitive_pattern in sensitive_patterns:
             signature = sensitive_pattern[PATTERN_SIGNATURE_INDEX]
-
             if not sensitive_pattern[ORIGIN_LOG_INDEX]:
                 pattern_list = []
                 for pattern in sensitive_pattern[PATTERN_INDEX]:
@@ -121,11 +120,18 @@ def get_pattern(content) -> list:
                         pattern_list.append("#{}#".format(pattern.name))
                         continue
                     pattern_list.append(str(pattern))
-                patterns.append({"signature": str(signature), "pattern": " ".join(pattern_list)})
+                patterns.append(
+                    {
+                        "signature": str(signature),
+                        "pattern": " ".join(pattern_list),
+                        "origin_pattern": " ".join(pattern_list),
+                    }
+                )
                 continue
 
             origin_log = sensitive_pattern[ORIGIN_LOG_INDEX][0]
             pattern_str = ""
+            pattern_list = []
             for pattern in sensitive_pattern[PATTERN_INDEX]:
                 if hasattr(pattern, "name"):
                     value = pattern.value
@@ -133,6 +139,7 @@ def get_pattern(content) -> list:
                 else:
                     value = pattern
                     name = pattern
+                pattern_list.append(name)
                 idx = origin_log.find(value)
                 if idx == -1:
                     break
@@ -140,7 +147,9 @@ def get_pattern(content) -> list:
                 pattern_str += name
                 origin_log = origin_log[idx + len(value) :]
             pattern_str += origin_log
-            patterns.append({"signature": str(signature), "pattern": pattern_str})
+            patterns.append(
+                {"signature": str(signature), "pattern": pattern_str, "origin_pattern": " ".join(pattern_list)}
+            )
     return patterns
 
 
@@ -162,12 +171,17 @@ def make_signature_objects(patterns, model_id) -> [List[AiopsSignatureAndPattern
             # 不存在的，创建一个新对象
             objects_to_create.append(
                 AiopsSignatureAndPattern(
-                    model_id=model_id, signature=origin_signature, pattern=origin_pattern["pattern"]
+                    model_id=model_id,
+                    signature=origin_signature,
+                    pattern=origin_pattern["pattern"],
+                    origin_pattern=origin_pattern["origin_pattern"],
                 )
             )
         else:
             # 已经存在的，只更新对象中的 pattern 字段
             signature_obj = existed_signature_map[origin_signature]
             signature_obj.pattern = origin_pattern["pattern"]
+            # 保留原始pattern 用于不同索引之间的数据同步
+            signature_obj.origin_pattern = origin_pattern["origin_pattern"]
             objects_to_update.append(signature_obj)
     return objects_to_create, objects_to_update

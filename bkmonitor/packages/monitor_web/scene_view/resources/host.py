@@ -54,18 +54,13 @@ class GetHostProcessPortStatusResource(Resource):
         else:
             ip, bk_cloud_id = params["bk_target_ip"], params["bk_target_cloud_id"]
 
-        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-        data_source = data_source_class(
-            table=f"{params['bk_biz_id']}_{settings.PROC_PORT_TABLE_NAME}",
-            metrics=[{"field": "*"}],
-            filter_dict={
-                "display_name": params["display_name"],
-                "ip": ip,
-                "bk_cloud_id": str(bk_cloud_id),
-            },
-            group_by=[],
-        )
-        data: List = data_source.query_data(limit=1, slimit=1)
+        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
+        promql_statement = f"system:proc_port:proc_exists{{bk_target_ip='{ip}', " \
+                           f"display_name='{params['display_name']}', bk_cloud_id='{bk_cloud_id}'}}"
+        query_config = {"promql": promql_statement, "interval": 60}
+        data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
+        query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
+        data: List = query.query_data(limit=1, slimit=1)
         if not data:
             return []
         else:
@@ -297,7 +292,8 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 "name": _("所属模块"),
                 "type": "list",
                 "value": [
-                    " / ".join(topo.bk_inst_name for topo in reversed(topo_link)) for topo_link in topo_links.values()
+                    " / ".join(topo.bk_inst_name for topo in reversed(topo_link) if topo.bk_obj_id != "biz")
+                    for topo_link in topo_links.values()
                 ],
             },
         ]

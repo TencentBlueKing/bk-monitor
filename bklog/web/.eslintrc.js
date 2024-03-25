@@ -27,7 +27,7 @@ module.exports = {
     parser: {
       js: '@typescript-eslint/parser',
       ts: '@typescript-eslint/parser',
-      '<template>': 'espree',
+      '<template>': 'espree'
     },
     ecmaVersion: 2018,
     sourceType: 'module',
@@ -35,14 +35,15 @@ module.exports = {
     ecmaFeatures: {
       globalReturn: false,
       impliedStrict: false,
-      jsx: true,
-    },
+      jsx: true
+    }
   },
-  extends: ['@blueking/eslint-config-bk/vue'],
+  extends: ['eslint-config-tencent', 'plugin:vue/recommended'],
   globals: {
     NODE_ENV: false,
-    __webpack_public_path__: false,
+    __webpack_public_path__: false
   },
+  plugins: ['prettier'],
   rules: {
     'no-param-reassign': 'off',
     'prefer-destructuring': 'off',
@@ -56,5 +57,42 @@ module.exports = {
     'vue/no-lone-template': 'off',
     'vue/no-confusing-v-for-v-if': 'off',
     'vue/multi-word-component-names': 'off',
+    'prettier/prettier': 'error',
+    // props 必须要有默认值，不限制
+    'vue/require-default-prop': 'off',
+    // 禁止在计算属性对属性进行修改，不限制
+    'vue/no-side-effects-in-computed-properties': 'off',
+    // 官方推荐顺序
+    'vue/order-in-components': [
+      'error',
+      {
+        order: [
+          'el',
+          'name',
+          'parent',
+          'functional',
+          ['delimiters', 'comments'],
+          ['components', 'directives', 'filters'],
+          'extends',
+          'mixins',
+          'inheritAttrs',
+          'model',
+          ['props', 'propsData'],
+          'data',
+          'computed',
+          'watch',
+          'LIFECYCLE_HOOKS',
+          'methods',
+          ['template', 'render'],
+          'renderError'
+        ]
+      }
+    ]
   },
+  overrides: [
+    {
+      files: ['*.vue', '*.js', '*.ts', '*.tsx'],
+      extends: ['plugin:prettier/recommended']
+    }
+  ]
 };

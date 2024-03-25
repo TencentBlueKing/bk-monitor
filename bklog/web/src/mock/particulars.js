@@ -40,7 +40,7 @@ const collectList = {
             plugin_version: '1.1',
             instance_id: '',
             bk_supplier_id: 0,
-            create_time: '2019-08-24T18:47:27',
+            create_time: '2019-08-24T18:47:27'
           },
           {
             status: 'FAILED',
@@ -50,7 +50,7 @@ const collectList = {
             plugin_version: '1.1',
             instance_id: '',
             bk_supplier_id: 0,
-            create_time: '2019-08-24T18:47:27',
+            create_time: '2019-08-24T18:47:27'
           },
           {
             status: 'SUCCESS',
@@ -60,7 +60,7 @@ const collectList = {
             plugin_version: '1.1',
             instance_id: '',
             bk_supplier_id: 0,
-            create_time: '2019-08-24T18:47:27',
+            create_time: '2019-08-24T18:47:27'
           },
           {
             status: 'SUCCESS',
@@ -70,7 +70,7 @@ const collectList = {
             plugin_version: '1.1',
             instance_id: '',
             bk_supplier_id: 0,
-            create_time: '2019-08-24T18:47:27',
+            create_time: '2019-08-24T18:47:27'
           },
           {
             status: 'SUCCESS',
@@ -80,7 +80,7 @@ const collectList = {
             plugin_version: '1.1',
             instance_id: '',
             bk_supplier_id: 0,
-            create_time: '2019-08-24T18:47:27',
+            create_time: '2019-08-24T18:47:27'
           },
           {
             status: 'PENDING',
@@ -90,15 +90,15 @@ const collectList = {
             plugin_version: '1.1',
             instance_id: '',
             bk_supplier_id: 0,
-            create_time: '2019-08-24T18:47:27',
-          },
+            create_time: '2019-08-24T18:47:27'
+          }
         ],
         bk_inst_id: 6,
-        bk_inst_name: 'PaaS平台',
-      },
-    ],
+        bk_inst_name: 'PaaS平台'
+      }
+    ]
   },
-  result: true,
+  result: true
 };
 const detailsList = {
   message: '',
@@ -110,17 +110,17 @@ const detailsList = {
     category_name: '主机-操作系统',
     target_nodes: [
       {
-        id: 12,
+        id: 12
       },
       {
-        bk_inst_id: 33,   // 节点实例ID
-        bk_obj_id: 'module',  // 节点对象ID
+        bk_inst_id: 33, // 节点实例ID
+        bk_obj_id: 'module' // 节点对象ID
       },
       {
         ip: '',
         bk_cloud_id: 0,
-        bk_supplier_id: 0,
-      },
+        bk_supplier_id: 0
+      }
     ],
     data_encoding: 'utf-8',
     bk_data_name: '存储索引名',
@@ -137,22 +137,22 @@ const detailsList = {
             fieldindex: 2,
             word: '32',
             op: '=',
-            logic_op: 'or',
+            logic_op: 'or'
           },
           {
             fieldindex: 2,
             word: '32',
             op: '=',
-            logic_op: 'and',
+            logic_op: 'and'
           },
           {
             fieldindex: 2,
             word: '32',
             op: '=',
-            logic_op: 'and',
-          },
-        ],
-      },
+            logic_op: 'and'
+          }
+        ]
+      }
     },
     storage_cluster_id: 'default',
     storage_expires: 1,
@@ -168,19 +168,19 @@ const detailsList = {
       total: 11,
       success: 11,
       failed: 0,
-      pending: 0,
-    },
+      pending: 0
+    }
   },
-  result: true,
+  result: true
 };
 
 const retryList = {
   message: '',
   code: 0,
   data: {
-    task_id: 23768,
+    task_id: 23768
   },
-  result: true,
+  result: true
 };
 
 const dataList = {
@@ -206,9 +206,9 @@ const dataList = {
         '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch',
         '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch',
         '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch',
-        '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch',
+        '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch'
       ],
-      _worldid_: -1,
+      _worldid_: -1
     },
     {
       _bizid_: 0,
@@ -228,17 +228,17 @@ const dataList = {
         '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch',
         '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch',
         '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch',
-        '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch',
+        '[127.0.0.1]20190807-101502 INFO|14|log-main /data/bkee/bin/process_watch'
       ],
-      _worldid_: -1,
-    },
+      _worldid_: -1
+    }
   ],
-  result: true,
+  result: true
 };
 
 export default {
   detailsList,
   collectList,
   retryList,
-  dataList,
+  dataList
 };

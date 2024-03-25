@@ -14,11 +14,8 @@ from typing import Dict, List
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
+from constants.aiops import MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD, SceneSet
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from monitor_web.aiops.ai_setting.constant import (
-    MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
-    SceneSet,
-)
 
 
 def enum(**enums):

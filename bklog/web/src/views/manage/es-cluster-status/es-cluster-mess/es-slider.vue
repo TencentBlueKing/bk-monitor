@@ -21,7 +21,10 @@
   -->
 
 <template>
-  <div class="es-access-slider-container" data-test-id="addNewEsAccess_div_esAccessFromBox">
+  <div
+    class="es-access-slider-container"
+    data-test-id="addNewEsAccess_div_esAccessFromBox"
+  >
     <bk-sideslider
       transfer
       :title="isEdit ? $t('编辑集群') : $t('新建集群')"
@@ -30,71 +33,107 @@
       :quick-close="true"
       :before-close="handleCloseSidebar"
       @animation-end="$emit('hidden')"
-      @update:isShow="updateIsShow">
-      <div v-bkloading="{ isLoading: sliderLoading }" slot="content" class="king-slider-content">
+      @update:isShow="updateIsShow"
+    >
+      <div
+        slot="content"
+        v-bkloading="{ isLoading: sliderLoading }"
+        class="king-slider-content"
+      >
         <bk-form
           v-if="!sliderLoading"
+          ref="validateForm"
           :model="basicFormData"
           :label-width="170"
           :rules="basicRules"
           form-type="vertical"
-          ref="validateForm"
-          class="king-form">
+          class="king-form"
+        >
           <div class="add-collection-title">{{ $t('基础信息') }}</div>
-          <bk-form-item :label="$t('数据源名称')" required property="cluster_name">
+          <bk-form-item
+            :label="$t('数据源名称')"
+            required
+            property="cluster_name"
+          >
             <bk-input
-              data-test-id="esAccessFromBox_input_fillName"
               v-model="basicFormData.cluster_name"
+              data-test-id="esAccessFromBox_input_fillName"
               maxlength="50"
               :readonly="isEdit"
             ></bk-input>
           </bk-form-item>
           <!-- 来源 es地址 -->
           <div class="form-item-container">
-            <bk-form-item :label="$t('来源')" required property="source_type">
+            <bk-form-item
+              :label="$t('来源')"
+              required
+              property="source_type"
+            >
               <div class="source-item">
                 <bk-select
-                  style="width: 154px;margin-right: 10px;"
                   v-model="basicFormData.source_type"
-                  @change="handleChangeSource">
+                  style="width: 154px; margin-right: 10px"
+                  @change="handleChangeSource"
+                >
                   <bk-option
                     v-for="option in globalsData.es_source_type"
-                    :key="option.id"
                     :id="option.id"
-                    :name="option.name">
+                    :key="option.id"
+                    :name="option.name"
+                  >
                   </bk-option>
                 </bk-select>
               </div>
             </bk-form-item>
-            <bk-form-item class="es-address" :label="$t('ES地址')" required property="domain_name">
+            <bk-form-item
+              class="es-address"
+              :label="$t('ES地址')"
+              required
+              property="domain_name"
+            >
               <bk-input
+                v-model="basicFormData.domain_name"
                 class="address-input"
                 data-test-id="esAccessFromBox_input_fillDomainName"
-                v-model="basicFormData.domain_name"
                 :readonly="isEdit"
               ></bk-input>
             </bk-form-item>
           </div>
           <!-- 端口  协议 -->
           <div class="form-item-container">
-            <bk-form-item :label="$t('端口')" required property="port">
+            <bk-form-item
+              :label="$t('端口')"
+              required
+              property="port"
+            >
               <bk-input
-                data-test-id="esAccessFromBox_input_fillPort"
                 v-model="basicFormData.port"
+                data-test-id="esAccessFromBox_input_fillPort"
                 :readonly="isEdit"
                 type="number"
                 :min="0"
                 :max="65535"
-                :show-controls="false">
+                :show-controls="false"
+              >
               </bk-input>
             </bk-form-item>
-            <bk-form-item :label="$t('协议')" required>
+            <bk-form-item
+              :label="$t('协议')"
+              required
+            >
               <bk-select
-                data-test-id="esAccessFromBox_select_selectProtocol"
                 v-model="basicFormData.schema"
-                :clearable="false">
-                <bk-option id="http" name="http"></bk-option>
-                <bk-option id="https" name="https"></bk-option>
+                data-test-id="esAccessFromBox_select_selectProtocol"
+                :clearable="false"
+              >
+                <bk-option
+                  id="http"
+                  name="http"
+                ></bk-option>
+                <bk-option
+                  id="https"
+                  name="https"
+                ></bk-option>
               </bk-select>
             </bk-form-item>
           </div>
@@ -102,15 +141,15 @@
           <div class="form-item-container">
             <bk-form-item :label="$t('用户名')">
               <bk-input
-                data-test-id="esAccessFromBox_input_fillUsername"
                 v-model="basicFormData.auth_info.username"
+                data-test-id="esAccessFromBox_input_fillUsername"
               ></bk-input>
             </bk-form-item>
             <bk-form-item :label="$t('密码')">
               <bk-input
+                v-model="basicFormData.auth_info.password"
                 data-test-id="esAccessFromBox_input_fillPassword"
                 type="password"
-                v-model="basicFormData.auth_info.password"
               ></bk-input>
             </bk-form-item>
           </div>
@@ -121,24 +160,37 @@
                 type="button"
                 theme="primary"
                 :loading="connectLoading"
+                data-test-id="esAccessFromBox_button_connectivityTest"
                 @click="handleTestConnect"
-                data-test-id="esAccessFromBox_button_connectivityTest">
+              >
                 {{ $t('连通性测试') }}
               </bk-button>
-              <div v-if="connectResult === 'success'" class="success-text">
+              <div
+                v-if="connectResult === 'success'"
+                class="success-text"
+              >
                 <i class="bk-icon icon-check-circle-shape"></i>{{ $t('连通成功！') }}
               </div>
-              <div v-else-if="connectResult === 'failed'" class="error-text">
+              <div
+                v-else-if="connectResult === 'failed'"
+                class="error-text"
+              >
                 <i class="bk-icon icon-close-circle-shape"></i>{{ $t('连通失败！') }}
               </div>
             </div>
           </bk-form-item>
-          <bk-form-item label="" v-if="connectResult === 'failed' && connectFailedMessage">
+          <bk-form-item
+            v-if="connectResult === 'failed' && connectFailedMessage"
+            label=""
+          >
             <div class="connect-message">{{ connectFailedMessage }}</div>
           </bk-form-item>
 
           <bk-form-item v-if="connectResult === 'success'">
-            <div class="es-cluster-management button-text" @click="isShowManagement = !isShowManagement">
+            <div
+              class="es-cluster-management button-text"
+              @click="isShowManagement = !isShowManagement"
+            >
               <span>{{ $t('ES集群管理') }}</span>
               <span :class="['bk-icon icon-angle-double-down', isShowManagement && 'is-show']"></span>
             </div>
@@ -146,14 +198,18 @@
 
           <div v-if="isShowManagement && connectResult === 'success'">
             <!-- 可见范围 -->
-            <bk-form-item :label="$t('可见范围')" style="margin-top: 4px">
+            <bk-form-item
+              :label="$t('可见范围')"
+              style="margin-top: 4px"
+            >
               <bk-radio-group v-model="formData.visible_config.visible_type">
                 <bk-radio
-                  class="scope-radio"
                   v-for="item of visibleScopeSelectList"
                   :key="item.id"
-                  :value="item.id">
-                  {{item.name}}
+                  class="scope-radio"
+                  :value="item.id"
+                >
+                  {{ item.name }}
                 </bk-radio>
               </bk-radio-group>
               <bk-select
@@ -162,40 +218,47 @@
                 searchable
                 multiple
                 display-tag
-                @toggle="handleToggleVisible">
+                @toggle="handleToggleVisible"
+              >
                 <template #trigger>
                   <div class="visible-scope-box">
                     <div class="selected-tag">
                       <bk-tag
                         v-for="(tag, index) in visibleList"
                         :key="tag.id"
-                        :class="`tag-icon ${tag.is_use ? 'is-active' : 'is-normal'}`"
                         v-bk-tooltips="inUseProjectPopover(tag.is_use)"
+                        :class="`tag-icon ${tag.is_use ? 'is-active' : 'is-normal'}`"
                         :closable="!tag.is_use"
-                        @close="handleDeleteTag(index)">
+                        @close="handleDeleteTag(index)"
+                      >
                         {{ tag.name }}
                       </bk-tag>
                     </div>
-                    <span class="please-select" v-if="!visibleList.length">{{$t('请选择')}}</span>
-                    <span :class="['bk-icon','icon-angle-down',!visibleIsToggle ? '' : 'icon-rotate']"></span>
+                    <span
+                      v-if="!visibleList.length"
+                      class="please-select"
+                      >{{ $t('请选择') }}</span
+                    >
+                    <span :class="['bk-icon', 'icon-angle-down', !visibleIsToggle ? '' : 'icon-rotate']"></span>
                   </div>
                 </template>
                 <bk-option
                   v-for="item in mySpaceList"
-                  :key="item.bk_biz_id"
                   :id="item.bk_biz_id"
-                  :name="item.space_full_code_name">
+                  :key="item.bk_biz_id"
+                  :name="item.space_full_code_name"
+                >
                   <div class="space-code-option">
                     <div>
                       <span :class="['identify-icon', item.is_use ? 'is-use' : 'not-use']"></span>
                       <span class="code-name">
-                        {{item.space_full_code_name}}
-                        {{item.is_use ? `（${$t('正在使用')}）` : ''}}
+                        {{ item.space_full_code_name }}
+                        {{ item.is_use ? `（${$t('正在使用')}）` : '' }}
                       </span>
                     </div>
                     <div class="list-item-right">
                       <span :class="['list-item-tag', 'light-theme', item.space_type_id || 'other-type']">
-                        {{item.space_type_name}}
+                        {{ item.space_type_name }}
                       </span>
                       <span :class="visibleBkBiz.includes(item.bk_biz_id) && 'bk-icon icon-check-1'"></span>
                     </div>
@@ -203,10 +266,10 @@
                 </bk-option>
               </bk-select>
               <bk-search-select
-                clearable
                 v-show="isBizAttr"
-                v-model="bkBizLabelsList"
                 ref="searchSelectRef"
+                v-model="bkBizLabelsList"
+                clearable
                 :popover-zindex="2500"
                 :data="bizParentList"
                 :show-condition="false"
@@ -215,30 +278,43 @@
                 @menu-select="handleMenuSelect"
                 @menu-child-select="handleChildMenuSelect"
                 @input-change="handleInputChange"
-                @input-click-outside="handleClickOutside">
+                @input-click-outside="handleClickOutside"
+              >
               </bk-search-select>
             </bk-form-item>
             <!-- 过期时间 -->
-            <bk-form-item :label="$t('过期时间')" required>
+            <bk-form-item
+              :label="$t('过期时间')"
+              required
+            >
               <div class="flex-space">
                 <div class="flex-space-item">
-                  <div class="space-item-label">{{$t('默认')}}</div>
+                  <div class="space-item-label">{{ $t('默认') }}</div>
                   <bk-select
                     v-model="formData.setup_config.retention_days_default"
                     :clearable="false"
-                    data-test-id="storageBox_select_selectExpiration">
-                    <div slot="trigger" class="bk-select-name">
+                    data-test-id="storageBox_select_selectExpiration"
+                  >
+                    <div
+                      slot="trigger"
+                      class="bk-select-name"
+                    >
                       {{ formData.setup_config.retention_days_default + $t('天') }}
                     </div>
-                    <template v-for="(option, index) in retentionDaysList">
+                    <template>
                       <bk-option
-                        :key="index"
+                        v-for="(option, index) in retentionDaysList"
                         :id="option.id"
+                        :key="index"
                         :name="option.name"
-                        :disabled="option.disabled">
+                        :disabled="option.disabled"
+                      >
                       </bk-option>
                     </template>
-                    <div slot="extension" style="padding: 8px 0;">
+                    <div
+                      slot="extension"
+                      style="padding: 8px 0"
+                    >
                       <bk-input
                         v-model="customRetentionDay"
                         size="small"
@@ -251,23 +327,32 @@
                   </bk-select>
                 </div>
                 <div class="flex-space-item">
-                  <div class="space-item-label">{{$t('最大')}}</div>
+                  <div class="space-item-label">{{ $t('最大') }}</div>
                   <bk-select
                     v-model="formData.setup_config.retention_days_max"
                     :clearable="false"
-                    data-test-id="storageBox_select_selectExpiration">
-                    <div slot="trigger" class="bk-select-name">
+                    data-test-id="storageBox_select_selectExpiration"
+                  >
+                    <div
+                      slot="trigger"
+                      class="bk-select-name"
+                    >
                       {{ formData.setup_config.retention_days_max + $t('天') }}
                     </div>
-                    <template v-for="(option, index) in maxDaysList">
+                    <template>
                       <bk-option
-                        :key="index"
+                        v-for="(option, index) in maxDaysList"
                         :id="option.id"
+                        :key="index"
                         :name="option.name"
-                        :disabled="option.disabled">
+                        :disabled="option.disabled"
+                      >
                       </bk-option>
                     </template>
-                    <div slot="extension" style="padding: 8px 0;">
+                    <div
+                      slot="extension"
+                      style="padding: 8px 0"
+                    >
                       <bk-input
                         v-model="customMaxDay"
                         size="small"
@@ -282,104 +367,141 @@
               </div>
             </bk-form-item>
             <!-- 副本数 -->
-            <bk-form-item :label="$t('副本数')" required>
+            <bk-form-item
+              :label="$t('副本数')"
+              required
+            >
               <div class="flex-space">
                 <div class="flex-space-item">
-                  <div class="space-item-label">{{$t('默认')}}</div>
+                  <div class="space-item-label">{{ $t('默认') }}</div>
                   <bk-input
+                    v-model="formData.setup_config.number_of_replicas_default"
                     type="number"
                     :max="Number(formData.setup_config.number_of_replicas_max)"
                     :min="0"
-                    v-model="formData.setup_config.number_of_replicas_default">
+                  >
                   </bk-input>
                 </div>
                 <div class="flex-space-item">
-                  <div class="space-item-label">{{$t('最大')}}</div>
+                  <div class="space-item-label">{{ $t('最大') }}</div>
                   <bk-input
+                    v-model="formData.setup_config.number_of_replicas_max"
                     type="number"
                     :min="Number(formData.setup_config.number_of_replicas_default)"
-                    v-model="formData.setup_config.number_of_replicas_max">
+                  >
                   </bk-input>
                 </div>
               </div>
             </bk-form-item>
             <!-- 分片数 -->
-            <bk-form-item :label="$t('分片数')" required>
+            <bk-form-item
+              :label="$t('分片数')"
+              required
+            >
               <div class="flex-space">
                 <div class="flex-space-item">
-                  <div class="space-item-label">{{$t('默认')}}</div>
+                  <div class="space-item-label">{{ $t('默认') }}</div>
                   <bk-input
+                    v-model="formData.setup_config.es_shards_default"
                     type="number"
                     :max="Number(formData.setup_config.es_shards_max)"
                     :min="1"
-                    v-model="formData.setup_config.es_shards_default">
+                  >
                   </bk-input>
                 </div>
                 <div class="flex-space-item">
-                  <div class="space-item-label">{{$t('最大')}}</div>
+                  <div class="space-item-label">{{ $t('最大') }}</div>
                   <bk-input
+                    v-model="formData.setup_config.es_shards_max"
                     type="number"
                     :min="Number(formData.setup_config.es_shards_default)"
-                    v-model="formData.setup_config.es_shards_max">
+                  >
                   </bk-input>
                 </div>
               </div>
             </bk-form-item>
             <!-- 冷热数据 -->
-            <bk-form-item :label="$t('冷热数据')" v-if="connectResult === 'success'">
+            <bk-form-item
+              v-if="connectResult === 'success'"
+              :label="$t('冷热数据')"
+            >
               <div class="form-flex-container">
                 <bk-switcher
                   v-model="formData.enable_hot_warm"
                   theme="primary"
                   size="large"
-                  :disabled="isDisableHotSetting"></bk-switcher>
+                  :disabled="isDisableHotSetting"
+                ></bk-switcher>
                 <template v-if="isDisableHotSetting && !connectLoading">
                   <span class="bk-icon icon-info"></span>
-                  <span style="font-size: 12px;">{{ $t('没有获取到正确的标签，') }}</span>
-                  <a :href="configDocUrl" target="_blank" class="button-text">{{ $t('查看具体的配置方法') }}</a>
+                  <span style="font-size: 12px">{{ $t('没有获取到正确的标签，') }}</span>
+                  <a
+                    :href="configDocUrl"
+                    target="_blank"
+                    class="button-text"
+                    >{{ $t('查看具体的配置方法') }}</a
+                  >
                 </template>
               </div>
             </bk-form-item>
             <!-- 冷热数据标签 -->
-            <div class="form-item-container" v-if="formData.enable_hot_warm">
+            <div
+              v-if="formData.enable_hot_warm"
+              class="form-item-container"
+            >
               <div class="bk-form-item">
                 <div class="form-item-label">
-                  <p>{{$t('热数据标签')}}</p>
+                  <p>{{ $t('热数据标签') }}</p>
                   <div
                     v-if="formData.hot_attr_name && formData.hot_attr_value"
                     class="button-text"
-                    @click="handleViewInstanceList('hot')">
+                    @click="handleViewInstanceList('hot')"
+                  >
                     <span class="bk-icon icon-eye"></span>{{ $t('查看实例列表') }}
                   </div>
                 </div>
-                <bk-select v-model="selectedHotId" @change="handleHotSelected">
-                  <template v-for="option in hotColdAttrSet">
+                <bk-select
+                  v-model="selectedHotId"
+                  @change="handleHotSelected"
+                >
+                  <template>
                     <bk-option
-                      :key="option.computedId"
+                      v-for="option in hotColdAttrSet"
                       :id="option.computedId"
+                      :key="option.computedId"
                       :disabled="option.isSelected"
-                      :name="`${option.computedName}(${option.computedCounts})`">
+                      :name="`${option.computedName}(${option.computedCounts})`"
+                    >
                     </bk-option>
                   </template>
                 </bk-select>
               </div>
-              <div class="bk-form-item" v-if="formData.enable_hot_warm">
+              <div
+                v-if="formData.enable_hot_warm"
+                class="bk-form-item"
+              >
                 <div class="form-item-label">
-                  <p>{{$t('冷数据标签')}}</p>
+                  <p>{{ $t('冷数据标签') }}</p>
                   <div
-                    class="button-text"
                     v-if="formData.warm_attr_name && formData.warm_attr_value"
-                    @click="handleViewInstanceList('cold')">
+                    class="button-text"
+                    @click="handleViewInstanceList('cold')"
+                  >
                     <span class="bk-icon icon-eye"></span>{{ $t('查看实例列表') }}
                   </div>
                 </div>
-                <bk-select v-model="selectedColdId" @change="handleColdSelected">
-                  <template v-for="option in hotColdAttrSet">
+                <bk-select
+                  v-model="selectedColdId"
+                  @change="handleColdSelected"
+                >
+                  <template>
                     <bk-option
-                      :key="option.computedId"
+                      v-for="option in hotColdAttrSet"
                       :id="option.computedId"
+                      :key="option.computedId"
                       :disabled="option.isSelected"
-                      :name="`${option.computedName}(${option.computedCounts})`">
+                      :name="`${option.computedName}(${option.computedCounts})`"
+                    >
                     </bk-option>
                   </template>
                 </bk-select>
@@ -389,22 +511,38 @@
             <div class="form-item-container">
               <bk-form-item :label="$t('日志归档')">
                 <div class="document-container">
-                  <bk-switcher v-model="formData.enable_archive" size="large" theme="primary"></bk-switcher>
+                  <bk-switcher
+                    v-model="formData.enable_archive"
+                    size="large"
+                    theme="primary"
+                  ></bk-switcher>
                   <div
-                    class="check-document button-text"
                     v-if="archiveDocUrl"
-                    @click="handleGotoLink('logArchive')">
+                    class="check-document button-text"
+                    @click="handleGotoLink('logArchive')"
+                  >
                     <span class="bk-icon icon-text-file"></span>
-                    <a>{{$t('查看说明文档')}}</a>
+                    <a>{{ $t('查看说明文档') }}</a>
                   </div>
                 </div>
               </bk-form-item>
-              <bk-form-item v-if="isItsm" :label="$t('容量评估')">
-                <bk-switcher v-model="formData.enable_assessment" size="large" theme="primary"></bk-switcher>
+              <bk-form-item
+                v-if="isItsm"
+                :label="$t('容量评估')"
+              >
+                <bk-switcher
+                  v-model="formData.enable_assessment"
+                  size="large"
+                  theme="primary"
+                ></bk-switcher>
               </bk-form-item>
             </div>
             <!-- 集群负责人 -->
-            <bk-form-item :label="$t('集群负责人')" :desc="$t('集群负责人可以用于容量审核等')" required>
+            <bk-form-item
+              :label="$t('集群负责人')"
+              :desc="$t('集群负责人可以用于容量审核等')"
+              required
+            >
               <div class="principal">
                 <bk-user-selector
                   :class="isAdminError && 'is-error'"
@@ -413,17 +551,22 @@
                   :placeholder="$t('请选择集群负责人')"
                   :empty-text="$t('无匹配人员')"
                   @change="handleChangePrincipal"
-                  @blur="handleBlur">
+                  @blur="handleBlur"
+                >
                 </bk-user-selector>
               </div>
             </bk-form-item>
             <!-- 集群说明 -->
-            <bk-form-item :label="$t('说明')" class="illustrate">
+            <bk-form-item
+              :label="$t('说明')"
+              class="illustrate"
+            >
               <bk-input
+                v-model="formData.description"
                 type="textarea"
                 :rows="3"
                 :maxlength="100"
-                v-model="formData.description">
+              >
               </bk-input>
             </bk-form-item>
           </div>
@@ -435,11 +578,16 @@
             class="king-button mr10"
             :loading="confirmLoading"
             :disabled="isDisableClickSubmit"
+            data-test-id="esAccessFromBox_button_confirm"
             @click.stop.prevent="handleConfirm"
-            data-test-id="esAccessFromBox_button_confirm">
+          >
             {{ $t('提交') }}
           </bk-button>
-          <bk-button @click="handleCancel" data-test-id="esAccessFromBox_button_cancel">{{ $t('取消') }}</bk-button>
+          <bk-button
+            data-test-id="esAccessFromBox_button_cancel"
+            @click="handleCancel"
+            >{{ $t('取消') }}</bk-button
+          >
         </div>
       </div>
     </bk-sideslider>
@@ -448,7 +596,8 @@
       v-model="showInstanceDialog"
       :list="hotColdOriginList"
       :type="viewInstanceType"
-      :form-data="formData" />
+      :form-data="formData"
+    />
   </div>
 </template>
 
@@ -461,18 +610,18 @@ import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
 export default {
   components: {
     EsDialog,
-    BkUserSelector,
+    BkUserSelector
   },
   mixins: [SidebarDiffMixin],
   props: {
     showSlider: {
       type: Boolean,
-      default: false,
+      default: false
     },
     editClusterId: {
       type: Number,
-      default: null,
-    },
+      default: null
+    }
   },
   data() {
     return {
@@ -490,30 +639,32 @@ export default {
         schema: 'http', // 协议
         auth_info: {
           username: '', // 用户名
-          password: '', // 密码
+          password: '' // 密码
         },
         enable_hot_warm: false, // 是否开启冷热数据
         hot_attr_name: '', // 热节点属性名称
         hot_attr_value: '', // 热节点属性值
         warm_attr_name: '', // 冷节点属性名称
         warm_attr_value: '', // 冷节点属性值
-        setup_config: { // 过期时间 副本数
+        setup_config: {
+          // 过期时间 副本数
           retention_days_max: 14,
           retention_days_default: 7,
           number_of_replicas_max: 3,
           number_of_replicas_default: 1,
           es_shards_default: 1,
-          es_shards_max: 3,
+          es_shards_max: 3
         },
         admin: [], // 负责人名单
         description: '', // 集群说明
         enable_archive: false, // 日志存档开关
         enable_assessment: false, // 容量评估开关
-        visible_config: { // 可见范围配置
+        visible_config: {
+          // 可见范围配置
           visible_type: 'current_biz', // 可见范围单选项
           bk_biz_labels: {}, // 按照业务属性选择
-          visible_bk_biz: [], // 多个业务
-        },
+          visible_bk_biz: [] // 多个业务
+        }
       },
       basicFormData: {
         cluster_name: '', // 集群名
@@ -524,28 +675,34 @@ export default {
         schema: 'http', // 协议
         auth_info: {
           username: '', // 用户名
-          password: '', // 密码
-        },
+          password: '' // 密码
+        }
       },
       basicRules: {
         source_type: [
           {
             required: true,
-            trigger: 'blur',
-          },
+            trigger: 'blur'
+          }
         ],
-        cluster_name: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        domain_name: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        port: [{
-          required: true,
-          trigger: 'blur',
-        }],
+        cluster_name: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        domain_name: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        port: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ]
       },
 
       connectLoading: false,
@@ -558,11 +715,12 @@ export default {
       selectedColdId: '', // 冷 attr:value
       showInstanceDialog: false, // 查看实例列表
       viewInstanceType: '', // hot、cold 查看热数据/冷数据实例列表
-      visibleScopeSelectList: [ // 可见范围单选列表
+      visibleScopeSelectList: [
+        // 可见范围单选列表
         { id: 'current_biz', name: this.$t('当前空间可见') },
         { id: 'multi_biz', name: this.$t('多空间选择') },
         { id: 'all_biz', name: this.$t('全平台') },
-        { id: 'biz_attr', name: this.$t('按照空间属性选择') },
+        { id: 'biz_attr', name: this.$t('按照空间属性选择') }
       ],
       visibleBkBiz: [], // 下拉框选中的值列表
       visibleList: [], // 多业务选择下拉框
@@ -581,17 +739,17 @@ export default {
       isAdminError: false, // 集群负责人是否为空
       bizSelectID: '', // 选中的当前按照业务属性选择
       bizInputStr: '', // 按照业务属性选择输入值
-      isFirstShow: true, // 是否是第一次渲染
+      isFirstShow: true // 是否是第一次渲染
     };
   },
   computed: {
     ...mapState({
       mySpaceList: state => state.mySpaceList,
-      userMeta: state => state.userMeta,
+      userMeta: state => state.userMeta
     }),
     ...mapGetters({
       bkBizId: 'bkBizId',
-      globalsData: 'globals/globalsData',
+      globalsData: 'globals/globalsData'
     }),
     isEdit() {
       return this.editClusterId !== null;
@@ -627,7 +785,7 @@ export default {
     // 侧边栏需要对比的formData
     _watchFormData_({ formData, basicFormData }) {
       return { formData, basicFormData };
-    },
+    }
   },
   watch: {
     showSlider(val) {
@@ -653,7 +811,7 @@ export default {
           schema: 'http', // 协议
           auth_info: {
             username: '', // 用户名
-            password: '', // 密码
+            password: '' // 密码
           },
           enable_hot_warm: false, // 是否开启冷热数据
           hot_attr_name: '', // 热节点属性名称
@@ -666,7 +824,7 @@ export default {
             number_of_replicas_max: 3,
             number_of_replicas_default: 1,
             es_shards_default: 1,
-            es_shards_max: 3,
+            es_shards_max: 3
           },
           admin: [],
           description: '',
@@ -675,8 +833,8 @@ export default {
           visible_config: {
             visible_type: 'current_biz',
             visible_bk_biz: [],
-            bk_biz_labels: {},
-          },
+            bk_biz_labels: {}
+          }
         };
         this.visibleBkBiz = [];
         this.visibleList = [];
@@ -697,17 +855,17 @@ export default {
         }
         this.isFirstShow = false;
       },
-      deep: true,
+      deep: true
     },
     'formData.setup_config.retention_days_default': {
       handler() {
         this.daySelectAddToDisable();
-      },
+      }
     },
     'formData.setup_config.retention_days_max': {
       handler() {
         this.daySelectAddToDisable();
-      },
+      }
     },
     // 切换可见范围时 恢复缓存或清空业务选择
     'formData.visible_config.visible_type': {
@@ -716,17 +874,17 @@ export default {
           this.visibleList = [];
         } else {
           this.visibleList = JSON.parse(JSON.stringify(this.cacheVisibleList));
-        };
+        }
         if (val !== 'biz_attr') {
           this.bkBizLabelsList = [];
         } else {
           this.bkBizLabelsList = JSON.parse(JSON.stringify(this.cacheBkBizLabelsList));
         }
-      },
+      }
     },
     visibleList(val) {
       this.visibleBkBiz = val.map(item => item.id);
-    },
+    }
   },
   methods: {
     updateIsShow(val) {
@@ -736,7 +894,7 @@ export default {
       return {
         theme: 'light',
         content: this.$t('该业务已有采集使用，无法取消可见'),
-        disabled: !isUse,
+        disabled: !isUse
       };
     },
     handleDeleteTag(index) {
@@ -750,13 +908,13 @@ export default {
     handleToggleVisible(data) {
       this.visibleIsToggle = data;
       if (!data) {
-        this.visibleBkBiz.forEach((val) => {
+        this.visibleBkBiz.forEach(val => {
           if (!this.visibleList.some(item => String(item.id) === val)) {
             const target = this.mySpaceList.find(project => project.bk_biz_id === val);
             this.visibleList.push({
               id: val,
               name: target.space_full_code_name,
-              is_use: false,
+              is_use: false
             });
           }
         });
@@ -769,22 +927,23 @@ export default {
         const res = await this.$http.request('/source/info', {
           params: {
             cluster_id: this.editClusterId,
-            bk_biz_id: this.bkBizId,
-          },
+            bk_biz_id: this.bkBizId
+          }
         });
         this.basicFormData = {
           cluster_name: res.data.cluster_config.cluster_name, // 集群名
           source_type: res.data.cluster_config.custom_option?.source_type || '', // 来源
-          source_name: res.data.cluster_config.custom_option?.source_type === 'other'
-            ? res.data.cluster_config.custom_option?.source_name
-            : '',
+          source_name:
+            res.data.cluster_config.custom_option?.source_type === 'other'
+              ? res.data.cluster_config.custom_option?.source_name
+              : '',
           domain_name: res.data.cluster_config.domain_name, // 地址
           port: res.data.cluster_config.port, // 端口
           schema: res.data.cluster_config.schema, // 协议
           auth_info: {
             username: res.data.auth_info.username, // 用户名
-            password: res.data.auth_info.password || '******', // 密码
-          },
+            password: res.data.auth_info.password || '******' // 密码
+          }
         };
         this.formData = {
           enable_hot_warm: res.data.cluster_config.enable_hot_warm, // 是否开启冷热数据
@@ -797,35 +956,36 @@ export default {
           description: res.data.cluster_config.custom_option?.description || '',
           enable_archive: res.data.cluster_config.custom_option?.enable_archive || false,
           enable_assessment: res.data.cluster_config.custom_option?.enable_assessment || false,
-          visible_config: res.data.cluster_config.custom_option?.visible_config || {},
+          visible_config: res.data.cluster_config.custom_option?.visible_config || {}
         };
         Object.assign(this.formData, this.basicFormData);
         this.initSidebarFormData();
-        (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach((val) => {
+        (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach(val => {
           const target = this.mySpaceList.find(project => project.bk_biz_id === String(val.bk_biz_id));
           if (target) {
             target.is_use = val.is_use;
             const targetObj = {
               id: String(val.bk_biz_id),
               name: target.space_full_code_name,
-              is_use: val.is_use,
+              is_use: val.is_use
             };
             this.visibleList.push(targetObj);
             this.cacheVisibleList.push(targetObj);
           }
         });
 
-        this.bkBizLabelsList = Object.entries(res.data.cluster_config.custom_option.visible_config?.bk_biz_labels || {})
-          .reduce((pre, cur) => {
-            const propertyName =  this.bizParentList.find(item => item.id ===  cur[0]);
-            const obj = {
-              name: `${propertyName.name}`,
-              id: cur[0],
-              values: cur[1].map(item => ({ id: item, name: item })),
-            };
-            pre.push(obj);
-            return pre;
-          }, []);
+        this.bkBizLabelsList = Object.entries(
+          res.data.cluster_config.custom_option.visible_config?.bk_biz_labels || {}
+        ).reduce((pre, cur) => {
+          const propertyName = this.bizParentList.find(item => item.id === cur[0]);
+          const obj = {
+            name: `${propertyName.name}`,
+            id: cur[0],
+            values: cur[1].map(item => ({ id: item, name: item }))
+          };
+          pre.push(obj);
+          return pre;
+        }, []);
         this.cacheBkBizLabelsList = JSON.parse(JSON.stringify(this.bkBizLabelsList));
         this.$nextTick(() => {
           // 编辑的时候直接联通测试 通过则展开ES集群管理
@@ -850,8 +1010,8 @@ export default {
           schema: this.basicFormData.schema, // 协议
           es_auth_info: {
             username: this.basicFormData.auth_info.username,
-            password: this.basicFormData.auth_info.password,
-          },
+            password: this.basicFormData.auth_info.password
+          }
         };
         if (this.isEdit) {
           postData.cluster_id = this.editClusterId;
@@ -877,7 +1037,7 @@ export default {
     },
     dealWithHotColdData() {
       const hotColdAttrSet = [];
-      this.hotColdOriginList.forEach((item) => {
+      this.hotColdOriginList.forEach(item => {
         const newItem = { ...item };
         newItem.computedId = `${item.attr}:${item.value}`;
         newItem.computedName = `${item.attr}:${item.value}`;
@@ -891,8 +1051,12 @@ export default {
         }
       });
       this.hotColdAttrSet = hotColdAttrSet;
-      this.selectedHotId = this.formData.hot_attr_name ? (`${this.formData.hot_attr_name}:${this.formData.hot_attr_value}`) : '';
-      this.selectedColdId = this.formData.warm_attr_name ? (`${this.formData.warm_attr_name}:${this.formData.warm_attr_value}`) : '';
+      this.selectedHotId = this.formData.hot_attr_name
+        ? `${this.formData.hot_attr_name}:${this.formData.hot_attr_value}`
+        : '';
+      this.selectedColdId = this.formData.warm_attr_name
+        ? `${this.formData.warm_attr_name}:${this.formData.warm_attr_value}`
+        : '';
     },
     handleHotSelected(value) {
       const item = this.hotColdAttrSet.find(item => item.computedId === value);
@@ -924,7 +1088,7 @@ export default {
         await this.$refs.validateForm.validate();
         let url = '/source/create';
         const paramsData = {
-          bk_biz_id: this.bkBizId,
+          bk_biz_id: this.bkBizId
         };
         Object.assign(this.formData, this.basicFormData);
         const postData = JSON.parse(JSON.stringify(this.formData));
@@ -961,12 +1125,12 @@ export default {
         this.confirmLoading = true;
         await this.$http.request(url, {
           data: postData,
-          params: paramsData,
+          params: paramsData
         });
         this.$bkMessage({
           theme: 'success',
           message: this.$t('保存成功'),
-          delay: 1500,
+          delay: 1500
         });
         this.$emit('updated');
       } catch (e) {
@@ -979,7 +1143,7 @@ export default {
       this.$emit('update:showSlider', false);
     },
     updateDaysList() {
-      const retentionDaysList = [...this.globalsData.storage_duration_time].filter((item) => {
+      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
         return item.id;
       });
       this.retentionDaysList = retentionDaysList;
@@ -1007,7 +1171,7 @@ export default {
           if (!this.retentionDaysList.some(item => item.id === stringVal)) {
             this.retentionDaysList.push({
               id: stringVal,
-              name: stringVal + this.$t('天'),
+              name: stringVal + this.$t('天')
             });
           }
           this.formData.setup_config.retention_days_default = stringVal;
@@ -1016,7 +1180,7 @@ export default {
           if (!this.maxDaysList.some(item => item.id === stringVal)) {
             this.maxDaysList.push({
               id: stringVal,
-              name: stringVal + this.$t('天'),
+              name: stringVal + this.$t('天')
             });
           }
           this.formData.setup_config.retention_days_max = stringVal;
@@ -1024,7 +1188,7 @@ export default {
         }
         document.body.click();
       } else {
-        isRetention ? this.customRetentionDay = '' : this.customMaxDay = '';
+        isRetention ? (this.customRetentionDay = '') : (this.customMaxDay = '');
         this.messageError(this.$t('请输入有效数值'));
       }
     },
@@ -1033,8 +1197,8 @@ export default {
      */
     daySelectAddToDisable() {
       const { retention_days_default: defaultDays, retention_days_max: maxDays } = this.formData.setup_config;
-      this.retentionDaysList.forEach(el => el.disabled = Number(maxDays) < Number(el.id));
-      this.maxDaysList.forEach(el => el.disabled = Number(defaultDays) > Number(el.id));
+      this.retentionDaysList.forEach(el => (el.disabled = Number(maxDays) < Number(el.id)));
+      this.maxDaysList.forEach(el => (el.disabled = Number(defaultDays) > Number(el.id)));
     },
     handleChangePrincipal(val) {
       // 集群负责人为空时报错警告
@@ -1047,35 +1211,33 @@ export default {
     },
     getBizPropertyId() {
       // 因搜索框如果直接搜索子级元素则返回值不带父级元素 传参需要父级元素则分开展示
-      this.$http.request('/source/getProperty')
-        .then((res) => {
-          // 父级键名
-          this.bizParentList = res.data.map((item) => {
+      this.$http.request('/source/getProperty').then(res => {
+        // 父级键名
+        this.bizParentList = res.data.map(item => {
+          return {
+            name: item.biz_property_name,
+            id: item.biz_property_id,
+            multiable: true,
+            remote: true
+          };
+        });
+        // 生成子级数组
+        res.data.forEach(item => {
+          this.bizChildrenList[item.biz_property_id] = item.biz_property_value.map(item => {
             return {
-              name: item.biz_property_name,
-              id: item.biz_property_id,
-              multiable: true,
-              remote: true,
+              id: item,
+              name: item
             };
           });
-          // 生成子级数组
-          res.data.forEach((item) => {
-            this.bizChildrenList[item.biz_property_id] = item.biz_property_value.map((item) => {
-              return {
-                id: item,
-                name: item,
-              };
-            });
-          });
         });
+      });
     },
     handleRemoteMethod() {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         setTimeout(() => {
           // 空值返回全部，搜索返回部分
           if (!!this.bizInputStr) {
-            resolve(this.bizChildrenList[this.bizSelectID]
-              .filter(item => item.name.includes(this.bizInputStr)));
+            resolve(this.bizChildrenList[this.bizSelectID].filter(item => item.name.includes(this.bizInputStr)));
           } else {
             resolve(this.bizChildrenList[this.bizSelectID]);
           }
@@ -1101,8 +1263,7 @@ export default {
         this.$refs.searchSelectRef.updateInput();
         this.$refs.searchSelectRef.clearInput();
         this.$refs.searchSelectRef.menu.checked = {};
-        this.$refs.searchSelectRef.menuChildInstance
-        && (this.$refs.searchSelectRef.menuChildInstance.checked = {});
+        this.$refs.searchSelectRef.menuChildInstance && (this.$refs.searchSelectRef.menuChildInstance.checked = {});
         this.$refs.searchSelectRef.menuInstance = null;
       }
     },
@@ -1116,7 +1277,7 @@ export default {
     filterBzID() {
       const parentSet = new Set();
       const list = {};
-      this.bkBizLabelsList.forEach((item) => {
+      this.bkBizLabelsList.forEach(item => {
         // 若当前元素父级未重复则生成新键名并赋值
         if (!parentSet.has(item.id)) {
           parentSet.add(item.id);
@@ -1124,7 +1285,7 @@ export default {
           const valuesList = item.values.map(item => item.id);
           list[item.id] = list[item.id].concat(valuesList);
         } else {
-        // 若当前元素父级重复则去重过滤
+          // 若当前元素父级重复则去重过滤
           const valuesList = item.values.map(item => item.id);
           const concatList = valuesList.concat(list[item.id]);
           const childSet = new Set([...concatList]);
@@ -1139,18 +1300,22 @@ export default {
     checkSelectItem() {
       let messageType;
       const { visible_type: visibleType } = this.formData.visible_config;
-      visibleType === 'multi_biz' && !this.visibleList.length && (messageType = this.$t('可见类型为业务属性时，业务标签不能为空'));
-      visibleType === 'biz_attr' && !this.bkBizLabelsList.length && (messageType = this.$t('可见类型为多业务时，可见业务范围不能为空'));
+      visibleType === 'multi_biz' &&
+        !this.visibleList.length &&
+        (messageType = this.$t('可见类型为业务属性时，业务标签不能为空'));
+      visibleType === 'biz_attr' &&
+        !this.bkBizLabelsList.length &&
+        (messageType = this.$t('可见类型为多业务时，可见业务范围不能为空'));
       if (!!messageType) {
         this.$bkMessage({
           theme: 'error',
-          message: messageType,
+          message: messageType
         });
         return false;
       }
       return true;
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -1165,10 +1330,10 @@ export default {
 
   .add-collection-title {
     width: 100%;
+    padding-top: 18px;
     font-size: 14px;
     font-weight: 600;
     color: #63656e;
-    padding-top: 18px;
   }
 
   .king-form {
@@ -1201,18 +1366,18 @@ export default {
 
       .bk-tag {
         position: relative;
-        margin-left: 10px;
         padding-left: 18px;
+        margin-left: 10px;
       }
 
       .tag-icon::before {
         position: absolute;
         top: 9px;
         left: 8px;
-        content: '';
         width: 4px;
         height: 4px;
         border-radius: 50%;
+        content: '';
       }
 
       .is-active::before {
@@ -1225,15 +1390,15 @@ export default {
     }
 
     .source-name-input.is-error {
+      color: #f56c6c;
       background-color: #ffeded;
       border-color: #fde2e2;
-      color: #f56c6c;
-      transition: all .2s;
+      transition: all 0.2s;
 
       &:hover {
-        background: #fbb8ac;
         color: #fff;
-        transition: all .2s;
+        background: #fbb8ac;
+        transition: all 0.2s;
       }
     }
 
@@ -1249,11 +1414,10 @@ export default {
         width: 108%;
       }
 
-
       .form-item-label {
+        margin-bottom: 8px;
         font-size: 14px;
         color: #63656e;
-        margin-bottom: 8px;
 
         @include flex-align;
       }
@@ -1272,8 +1436,8 @@ export default {
         @include flex-align;
 
         .check-document {
-          font-size: 12px;
           margin: 0 6px 0 20px;
+          font-size: 12px;
         }
 
         .icon-text-file {
@@ -1284,8 +1448,8 @@ export default {
     }
 
     .es-cluster-management {
-      font-size: 14px;
       display: flex;
+      font-size: 14px;
       align-items: center;
 
       .icon-angle-double-down {
@@ -1304,22 +1468,22 @@ export default {
     }
 
     .visible-scope-box {
-      min-height: 30px;
-      display: flex;
       position: relative;
+      display: flex;
+      min-height: 30px;
 
       .please-select {
-        color: #c3cdd7;
         margin-left: 10px;
+        color: #c3cdd7;
       }
 
       .icon-angle-down {
         position: absolute;
-        font-size: 20px;
         top: 4px;
         right: 0;
+        font-size: 20px;
         transform: rotateZ(0deg);
-        transition: all .3s;
+        transition: all 0.3s;
       }
 
       .icon-rotate {
@@ -1355,10 +1519,10 @@ export default {
 .submit-container {
   position: fixed;
   bottom: 0;
-  padding: 8px 0 8px 20px;
-  border-top: 1px solid #dcdee5 ;
   width: 100%;
+  padding: 8px 0 8px 20px;
   background: #fafbfd;
+  border-top: 1px solid #dcdee5;
 }
 
 .illustrate {
@@ -1370,20 +1534,20 @@ export default {
 }
 
 .test-container {
+  display: flex;
   margin-top: 10px;
   font-size: 14px;
   color: #63656e;
-  display: flex;
   align-items: center;
 
   .success-text .bk-icon {
-    color: rgb(45, 203, 86);
     margin: 0 6px 0 10px;
+    color: rgb(45, 203, 86);
   }
 
   .error-text .bk-icon {
-    color: rgb(234, 54, 54);
     margin: 0 6px 0 10px;
+    color: rgb(234, 54, 54);
   }
 }
 

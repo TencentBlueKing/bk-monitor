@@ -65,13 +65,13 @@
 
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
-import { bkPopover } from 'bk-magic-vue';
+
 
 @Component({
   name: 'column-check'
 })
 export default class StrategySetTarget extends Vue {
-  @Ref('popover') readonly popover!: bkPopover;
+  @Ref('popover') readonly popover!: any;
 
   @Prop({
     default: []

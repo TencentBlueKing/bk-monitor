@@ -54,7 +54,7 @@ class DashboardPermission(BasePermission):
                         iam_biz_id = int(result[1][:-1])
                         break
                 elif content.get("field") == "grafana_dashboard.id":
-                    iam_uids.update(cls.get_policy_dashboard_uids(bk_biz_id, content))
+                    iam_uids.update(cls.get_policy_dashboard_uids(org_id, bk_biz_id, content))
             if not iam_biz_id or iam_biz_id == bk_biz_id:
                 uids.update(iam_uids)
 

@@ -32,20 +32,21 @@ const methods = {
         const nowTime = Date.now();
         const time = nowTime - beginTime;
         target.scrollTo({
-          top: computeCoordinate(time, start, to, duration),
+          top: computeCoordinate(time, start, to, duration)
         });
         if (time < duration) {
           requestAnimationFrame(animate);
         }
       }
 
-      function computeCoordinate(time, start, to, duration) { // 计算滚动绝对纵坐标
+      function computeCoordinate(time, start, to, duration) {
+        // 计算滚动绝对纵坐标
         let factor = Math.pow(time / duration, 2); // 系数为 1 就是 linear 效果
         if (factor > 1) factor = 1;
         return start + (to - start) * factor;
       }
     };
-  },
+  }
 };
 
 export default methods;

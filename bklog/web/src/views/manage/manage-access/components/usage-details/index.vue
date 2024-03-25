@@ -36,15 +36,18 @@
         <chart-component
           :type="$t('使用次数趋势')"
           :loading="timesChartLoading"
-          :chart-data="timesChartData" />
+          :chart-data="timesChartData"
+        />
         <chart-component
           :type="$t('用户使用频次')"
           :loading="frequencyChartLoading"
-          :chart-data="frequencyChartData" />
+          :chart-data="frequencyChartData"
+        />
         <chart-component
           :type="$t('检索耗时统计')"
           :loading="spentChartLoading"
-          :chart-data="spentChartData" />
+          :chart-data="spentChartData"
+        />
       </div>
     </section>
 
@@ -65,8 +68,12 @@
         :data="tableData"
         :pagination="pagination"
         @page-change="handlePageChange"
-        @page-limit-change="handlePageLimitChange">
-        <bk-table-column :label="$t('时间')" min-width="10">
+        @page-limit-change="handlePageLimitChange"
+      >
+        <bk-table-column
+          :label="$t('时间')"
+          min-width="10"
+        >
           <template slot-scope="{ row }">
             {{ utcFormatDate(row.created_at) }}
           </template>
@@ -74,13 +81,28 @@
         <bk-table-column
           :label="$t('执行人')"
           prop="created_by"
-          min-width="10"></bk-table-column>
-        <bk-table-column :label="$t('查询语句')" min-width="20">
-          <div class="table-ceil-container" slot-scope="{ row }">
-            <span class="table-view-span-detail" v-bk-overflow-tips>{{ row.query_string }}</span>
+          min-width="10"
+        ></bk-table-column>
+        <bk-table-column
+          :label="$t('查询语句')"
+          min-width="20"
+        >
+          <div
+            slot-scope="{ row }"
+            class="table-ceil-container"
+          >
+            <span
+              v-bk-overflow-tips
+              class="table-view-span-detail"
+              >{{ row.query_string }}</span
+            >
           </div>
         </bk-table-column>
-        <bk-table-column :label="$t('耗时(s)')" prop="duration" min-width="6">
+        <bk-table-column
+          :label="$t('耗时(s)')"
+          prop="duration"
+          min-width="6"
+        >
           <template slot-scope="{ row }">
             {{ (row.duration / 1000).toFixed(3) }}
           </template>
@@ -106,13 +128,13 @@ export default {
   components: {
     ChartComponent,
     TimeRange,
-    EmptyStatus,
+    EmptyStatus
   },
   props: {
     indexSetId: {
       type: [String, Number],
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
@@ -129,10 +151,10 @@ export default {
       pagination: {
         current: 1,
         count: 0,
-        limit: 10,
+        limit: 10
       },
       tableDateValue: ['now-2d', 'now'],
-      timezone: dayjs.tz.guess(),
+      timezone: dayjs.tz.guess()
     };
   },
   created() {
@@ -150,12 +172,12 @@ export default {
       const tempList = handleTransformToTimestamp(this.chartDateValue);
       const payload = {
         params: {
-          index_set_id: this.indexSetId,
+          index_set_id: this.indexSetId
         },
         query: {
           start_time: tempList[0],
-          end_time: tempList[1],
-        },
+          end_time: tempList[1]
+        }
       };
       this.fetchTimesChart(payload);
       this.fetchFrequencyChart(payload);
@@ -224,14 +246,14 @@ export default {
         const tempList = handleTransformToTimestamp(this.tableDateValue);
         const res = await this.$http.request('indexSet/getIndexHistory', {
           params: {
-            index_set_id: this.indexSetId,
+            index_set_id: this.indexSetId
           },
           query: {
             start_time: tempList[0],
             end_time: tempList[1],
             page: this.pagination.current,
-            pagesize: this.pagination.limit,
-          },
+            pagesize: this.pagination.limit
+          }
         });
         this.pagination.count = res.data.total;
         this.tableData = res.data.list;
@@ -254,21 +276,21 @@ export default {
       this.pagination.current = 1;
       this.pagination.limit = limit;
       this.fetchTableData();
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .chart-container {
-    /* stylelint-disable-next-line declaration-no-important */
-    width: calc((100% - 32px) / 3) !important;
-  }
+.chart-container {
+  /* stylelint-disable-next-line declaration-no-important */
+  width: calc((100% - 32px) / 3) !important;
+}
 
-  .usage-details-container {
-    .time-range-wrap {
-      font-weight: normal;
-      font-size: 12px;
-    }
+.usage-details-container {
+  .time-range-wrap {
+    font-size: 12px;
+    font-weight: normal;
   }
+}
 </style>

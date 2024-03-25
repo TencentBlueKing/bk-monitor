@@ -150,9 +150,17 @@ BKCI_AUTHORIZED_DATA_ID_LIST = [1001]
 
 # 1001 跨空间类型允许 bkci 访问的结果表前缀
 BKCI_1001_TABLE_ID_PREFIX = "devx_system."
+# 1001 下p4对应主机结果表允许 bkci 访问的前缀
+P4_1001_TABLE_ID_PREFIX = "perforce_system."
+
+# custom_report_aggate.base 和 bkm_statistics.base 允许全空间类型访问的结果表
+ALL_SPACE_TYPE_TABLE_ID_LIST = ["custom_report_aggate.base", "bkm_statistics.base"]
 
 # 1001 仅允许访问 dbm 相关结果表的前缀
 DBM_1001_TABLE_ID_PREFIX = "dbm_system."
 
 # BKCI 类型可以访问的主机类型结果表前缀
 BKCI_SYSTEM_TABLE_ID_PREFIX = "system."
+
+# 插件授权给 bkci 空间使用
+BKCI_SPACE_ACCESS_PLUGIN_LIST = []

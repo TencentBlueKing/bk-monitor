@@ -88,7 +88,8 @@
   </div>
 </template>
 <script>
-import { frontendCloneInfo, frontendShieldDetail } from '../../../../monitor-api/modules/shield';
+import { frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
+
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar.tsx';
 
@@ -290,11 +291,11 @@ export default {
   // min-height: calc(100vh - 140px);
   // margin: 20px;
   .header {
-    height: 88px;
     width: 100%;
+    height: 88px;
+    padding: 0 27px;
     background: #fff;
     box-shadow: 0 3px 4px 0 rgba(64, 112, 203, .06);
-    padding: 0 27px;
 
     .common-nav-bar {
       box-shadow: none;
@@ -306,10 +307,10 @@ export default {
   }
 
   .container {
-    overflow-y: auto;
-    max-height: calc(100vh - 140px);
     min-height: calc(100vh - 140px);
+    max-height: calc(100vh - 140px);
     padding: 20px;
+    overflow-y: auto;
 
     .set-config-wrapper {
       background: #fff;

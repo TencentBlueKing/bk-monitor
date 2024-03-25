@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 from bkmonitor.event_plugin.constant import EVENT_NORMAL_FIELDS
 from bkmonitor.models import DataSourceLabel, DataTypeLabel, EventPluginInstance
 from bkmonitor.utils.common_utils import safe_int
+from bkmonitor.utils.request import get_request_username
 from constants.data_source import ResultTableLabelObj
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -31,9 +32,8 @@ class EventPluginInstAccessor:
 
     def switch_dataid(self, is_enabled: bool):
         data_id = self.get_data_id()
-        api.metadata.modify_data_id(
-            {"data_id": data_id, "is_enable": is_enabled, "operator": self.plugin_inst.update_user}
-        )
+        operator = get_request_username(self.plugin_inst.update_user)
+        api.metadata.modify_data_id({"data_id": data_id, "is_enable": is_enabled, "operator": operator})
 
     def create_or_update_dataid(self, option=None):
         param = {

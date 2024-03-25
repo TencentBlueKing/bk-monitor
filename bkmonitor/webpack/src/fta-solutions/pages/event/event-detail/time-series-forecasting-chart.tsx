@@ -25,11 +25,10 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { IDetectionConfig } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-import ChartWrapper from '../../../../monitor-ui/chart-plugins/components/chart-wrapper';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
-import { handleThreshold } from '../../../../monitor-ui/chart-plugins/utils';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail } from './type';

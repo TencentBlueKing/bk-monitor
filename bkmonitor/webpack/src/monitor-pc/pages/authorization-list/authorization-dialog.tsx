@@ -26,9 +26,8 @@
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-
-import { createOrUpdateExternalPermission, getByAction } from '../../../monitor-api/modules/iam';
-import { deepClone } from '../../../monitor-common/utils';
+import { createOrUpdateExternalPermission, getByAction } from 'monitor-api/modules/iam';
+import { deepClone } from 'monitor-common/utils';
 
 import { ACTION_MAP, AngleType, EditModel } from './authorization-list';
 

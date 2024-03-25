@@ -158,8 +158,8 @@
 
 <script lang="ts">
 import { Component, Emit, Prop, PropSync, Ref, Vue, Watch } from 'vue-property-decorator';
+import { getDashboardList } from 'monitor-api/modules/grafana';
 
-import { getDashboardList } from '../../../../monitor-api/modules/grafana';
 import SpaceSelect from '../../../components/space-select/space-select';
 import { IContentFormData } from '../types';
 

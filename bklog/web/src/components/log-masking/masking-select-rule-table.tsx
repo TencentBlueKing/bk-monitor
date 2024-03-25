@@ -21,21 +21,8 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Model,
-  Emit,
-  Prop,
-  Watch,
-  Ref,
-} from 'vue-property-decorator';
-import {
-  Table,
-  TableColumn,
-  Input,
-  Button,
-  Checkbox,
-} from 'bk-magic-vue';
+import { Component, Model, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
+import { Table, TableColumn, Input, Button, Checkbox } from 'bk-magic-vue';
 import './masking-select-rule-table.scss';
 import MaskingAddRule from './masking-add-rule';
 import EmptyStatus from '../empty-status/index.vue';
@@ -45,12 +32,12 @@ import * as authorityMap from '../../common/authority-map';
 import $http from '../../api';
 
 interface IProps {
-  value: Boolean,
+  value: Boolean;
 }
 
 interface IAddRuleFieldValue {
-  field: string,
-  fieldLog: string,
+  field: string;
+  fieldLog: string;
 }
 
 @Component
@@ -64,10 +51,14 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) recommendRuleList: Array<number>;
   @Prop({ type: Object, default: () => ({}) }) propPagination: object;
   @Prop({ type: Boolean, default: true }) isPublicList: boolean;
-  @Prop({ type: Object, default: () => ({
-    field: '',
-    fieldLog: '',
-  }) }) addRuleFieldValue: IAddRuleFieldValue;
+  @Prop({
+    type: Object,
+    default: () => ({
+      field: '',
+      fieldLog: ''
+    })
+  })
+  addRuleFieldValue: IAddRuleFieldValue;
   @Ref('orderTips') orderTipsRef: HTMLElement;
 
   searchStr = '';
@@ -84,12 +75,12 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     /** 每页显示数量 */
     limit: 10,
     small: true,
-    limitList: [10, 20, 50, 100],
+    limitList: [10, 20, 50, 100]
   };
 
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
-    text_replace: window.mainComponent.$t('替换'),
+    text_replace: window.mainComponent.$t('替换')
   };
 
   emptyType = 'empty';
@@ -115,10 +106,12 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   get authorityData() {
     return {
       action_ids: [authorityMap.MANAGE_DESENSITIZE_RULE],
-      resources: [{
-        type: 'space',
-        id: this.spaceUid,
-      }],
+      resources: [
+        {
+          type: 'space',
+          id: this.spaceUid
+        }
+      ]
     };
   }
 
@@ -204,12 +197,13 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
    * @returns {String} 返回脱敏规则字符串
    */
   getMaskingRuleStr(item) {
-    const endStr = item?.operator === 'text_replace'
-      ? `${this.$t('替换为')} ${item?.params?.template_string}`
-      : this.$t('保留前{0}位, 后{1}位', {
-        0: item?.params?.preserve_head,
-        1: item?.params?.preserve_tail,
-      });
+    const endStr =
+      item?.operator === 'text_replace'
+        ? `${this.$t('替换为')} ${item?.params?.template_string}`
+        : this.$t('保留前{0}位, 后{1}位', {
+            0: item?.params?.preserve_head,
+            1: item?.params?.preserve_tail
+          });
     return `${this.operatorMap[item?.operator]} | ${endStr}`;
   }
 
@@ -221,12 +215,12 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
       this.isAllowed = authorityRes.isAllowed;
       const res = await $http.request('masking/getMaskingRuleList', {
-        params,
+        params
       });
       const selectList = [];
       const otherList = [];
       const activeRule = res.data.filter(item => item.is_active);
-      activeRule.forEach((item) => {
+      activeRule.forEach(item => {
         // 给推荐规则排序
         this.recommendRuleList.includes(item.id) ? selectList.push(item) : otherList.push(item);
       });
@@ -235,7 +229,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
 
       // 给当前选中了的规则排序到前面
       if (this.defaultSelectRuleList.length) {
-        otherList.sort((a, b) => ((this.defaultSelectRuleList.includes(b.id) || b.is_public) ? 1 : -1));
+        otherList.sort((a, b) => (this.defaultSelectRuleList.includes(b.id) || b.is_public ? 1 : -1));
       }
 
       // 新增规则 把新的规则变绿
@@ -243,12 +237,13 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         otherList.sort((a, b) => (newRuleId === b.id ? 1 : -1));
         otherList[0].is_add = true;
         !this.isSyncSelect && this.defaultSelectRuleList.push(otherList[0].id);
-      };
+      }
 
       this.selectList = this.defaultSelectRuleList;
       // 判断当前是否是同步重新选择列表，将展示不同的顺序
       this.tableList = selectList.concat(otherList);
-      if (this.isSyncSelect) {      // 如果是重选或同步的列表 直接去除掉之前选中过的规则
+      if (this.isSyncSelect) {
+        // 如果是重选或同步的列表 直接去除掉之前选中过的规则
         this.tableList = this.tableList.filter(tItem => !this.defaultSelectRuleList.includes(tItem.id));
       }
       this.tableStrList = this.tableList.map(item => item.rule_name);
@@ -256,7 +251,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);
       this.changePagination({
         current: 1,
-        count: this.tableSearchList.length,
+        count: this.tableSearchList.length
       });
       this.emptyType = 'empty';
       this.searchStr = '';
@@ -271,11 +266,11 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     return h(fingerSelectColumn, {
       props: {
         value: this.checkValue,
-        disabled: this.isSyncSelect,
+        disabled: this.isSyncSelect
       },
       on: {
-        change: this.handleSelectAllItem,
-      },
+        change: this.handleSelectAllItem
+      }
     });
   }
 
@@ -294,8 +289,9 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   }
 
   searchRule() {
-    this.tableSearchList = this.tableList.filter(item => item.rule_name.toString().toLowerCase()
-      .includes(this.searchStr.toLowerCase()));
+    this.tableSearchList = this.tableList.filter(item =>
+      item.rule_name.toString().toLowerCase().includes(this.searchStr.toLowerCase())
+    );
     this.pageLimitChange(this.pagination.limit);
     this.selectList = this.tableSearchList.filter(v => this.selectList.includes(v.id)).map(item => item.id);
     this.changeCheckValue(this.selectList.length);
@@ -336,16 +332,16 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       this.checkValue = 1;
     } else {
       this.checkValue = 2;
-    };
+    }
   }
 
   pageChange(newPage: number) {
     const { limit } = this.pagination;
-    const startIndex = ((newPage - 1) * limit);
+    const startIndex = (newPage - 1) * limit;
     const endIndex = newPage * limit;
     this.tableShowList = this.tableSearchList.slice(startIndex, endIndex);
     this.changePagination({
-      current: newPage,
+      current: newPage
     });
   }
 
@@ -354,7 +350,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     this.changePagination({
       limit,
       current: 1,
-      count: this.tableSearchList.length,
+      count: this.tableSearchList.length
     });
   }
 
@@ -369,7 +365,8 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   }
 
   getMatchContentStr(row) {
-    if (row.match_fields.length && row.match_pattern) return `${row.match_fields.join(', ')} ${this.$t('且')} ${row.match_pattern}`;
+    if (row.match_fields.length && row.match_pattern)
+      return `${row.match_fields.join(', ')} ${this.$t('且')} ${row.match_pattern}`;
     if (row.match_fields.length) return row.match_fields.join(', ');
     return row.match_pattern;
   }
@@ -382,40 +379,56 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   render() {
     const ruleNameSlot = {
       default: ({ row }) => (
-        <div class="rule-name-box">
-          <span class="title-overflow" v-bk-overflow-tips>{row.rule_name}</span>
-          {
-            row.is_public && <span class="tag global">{this.$t('全局')}</span>
-          }
-          {
-            row.is_add && <span class="tag new">{'New'}</span>
-          }
+        <div class='rule-name-box'>
+          <span
+            class='title-overflow'
+            v-bk-overflow-tips
+          >
+            {row.rule_name}
+          </span>
+          {row.is_public && <span class='tag global'>{this.$t('全局')}</span>}
+          {row.is_add && <span class='tag new'>{'New'}</span>}
         </div>
-      ),
+      )
     };
 
     const matchingMethodSlot = {
       default: ({ row }) => (
-        <div class="rule-name-box">
-          <span class="title-overflow" v-bk-overflow-tips>{this.getMatchMethodStr(row)}</span>
+        <div class='rule-name-box'>
+          <span
+            class='title-overflow'
+            v-bk-overflow-tips
+          >
+            {this.getMatchMethodStr(row)}
+          </span>
         </div>
-      ),
+      )
     };
 
     const matchingContentSlot = {
       default: ({ row }) => (
-        <div class="rule-name-box">
-          <span class="title-overflow" v-bk-overflow-tips>{this.getMatchContentStr(row)}</span>
+        <div class='rule-name-box'>
+          <span
+            class='title-overflow'
+            v-bk-overflow-tips
+          >
+            {this.getMatchContentStr(row)}
+          </span>
         </div>
-      ),
+      )
     };
 
     const maskingRulesSlot = {
       default: ({ row }) => (
-        <div class="rule-name-box">
-          <span class="title-overflow" v-bk-overflow-tips>{this.getMaskingRuleStr(row)}</span>
+        <div class='rule-name-box'>
+          <span
+            class='title-overflow'
+            v-bk-overflow-tips
+          >
+            {this.getMaskingRuleStr(row)}
+          </span>
         </div>
-      ),
+      )
     };
 
     const checkBoxSlot = {
@@ -423,53 +436,56 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         <Checkbox
           checked={this.getItemChecked(row.id)}
           disabled={this.getCheckBoxDisable(row.id)}
-          onChange={(val: boolean) => this.handleSelectItem(val, row.id)}>
-        </Checkbox>
-      ),
+          onChange={(val: boolean) => this.handleSelectItem(val, row.id)}
+        ></Checkbox>
+      )
     };
     return (
-      <div class="masking-select-rule-table">
-        <div class="input-box">
+      <div class='masking-select-rule-table'>
+        <div class='input-box'>
           <Button
             outline
-            theme="primary"
-            class="new-rule-btn"
+            theme='primary'
+            class='new-rule-btn'
             v-cursor={{ active: !this.isAllowed }}
-            onClick={() => this.handleAddNewRule()}>
-            <i class="bk-icon icon-plus push"></i>
+            onClick={() => this.handleAddNewRule()}
+          >
+            <i class='bk-icon icon-plus push'></i>
             {this.$t('新建规则')}
           </Button>
-          <div class="right-box">
+          <div class='right-box'>
             <Input
               v-model={this.searchStr}
-              class="search-input"
-              right-icon="bk-icon icon-search"
+              class='search-input'
+              right-icon='bk-icon icon-search'
               onEnter={this.searchRule}
-              onChange={this.handleSearchChange}/>
+              onChange={this.handleSearchChange}
+            />
             <Button
-              class="refresh-btn"
+              class='refresh-btn'
               v-bk-tooltips={this.$t('刷新')}
-              onClick={() => this.initTableList()}>
-              <i class="icon bk-icon icon-right-turn-line"></i>
+              onClick={() => this.initTableList()}
+            >
+              <i class='icon bk-icon icon-right-turn-line'></i>
             </Button>
           </div>
         </div>
 
         <Table
           data={this.tableShowList}
-          size="small"
+          size='small'
           outer-border={false}
           header-border={false}
           max-height={this.tableMaxHeight}
-          render-directive="if"
+          render-directive='if'
           pagination={this.pagination}
           v-bkloading={{ isLoading: this.tableLoading }}
           row-style={this.getShowRowStyle}
           on-page-change={this.pageChange}
-          on-page-limit-change={this.pageLimitChange}>
-
+          on-page-limit-change={this.pageLimitChange}
+        >
           <TableColumn
-            width="50"
+            width='50'
             scopedSlots={checkBoxSlot}
             render-header={this.renderHeaderCheckBox}
           ></TableColumn>
@@ -498,24 +514,41 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             scopedSlots={maskingRulesSlot}
           ></TableColumn>
 
-          <div slot="empty">
-            <EmptyStatus emptyType={this.emptyType} onOperation={this.handleOperation} />
+          <div slot='empty'>
+            <EmptyStatus
+              emptyType={this.emptyType}
+              onOperation={this.handleOperation}
+            />
           </div>
         </Table>
 
-        {
-          this.isShowSubmitContent && <div class="submit-content" style={{ ...this.submitBoxStyle }}>
-            <Button theme="primary" onClick={() => this.submitSelectRule()}>{this.$t('确定')}</Button>
-            <Button theme="default" onClick={() => this.cancelSelectRule()}>{this.$t('取消')}</Button>
+        {this.isShowSubmitContent && (
+          <div
+            class='submit-content'
+            style={{ ...this.submitBoxStyle }}
+          >
+            <Button
+              theme='primary'
+              onClick={() => this.submitSelectRule()}
+            >
+              {this.$t('确定')}
+            </Button>
+            <Button
+              theme='default'
+              onClick={() => this.cancelSelectRule()}
+            >
+              {this.$t('取消')}
+            </Button>
           </div>
-        }
+        )}
 
         <MaskingAddRule
           v-model={this.isShowMaskingAddRule}
           add-rule-field-value={this.addRuleFieldValue}
           table-str-list={this.tableStrList}
           is-public-rule={this.isPublicList}
-          on-submit-rule={(value: any) => (value && this.initTableList(value.id))}/>
+          on-submit-rule={(value: any) => value && this.initTableList(value.id)}
+        />
       </div>
     );
   }

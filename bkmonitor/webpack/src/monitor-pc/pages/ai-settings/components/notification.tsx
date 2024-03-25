@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../../monitor-common/utils/utils';
 import TopoSelector from '../../../components/ip-selector/business/topo-selector-new.vue';
 // import { handleSetTargetDesc } from './common';
 import { CheckedData, HostInfo, HostValueItem, NotificationType, targetFieldMap } from '../types';

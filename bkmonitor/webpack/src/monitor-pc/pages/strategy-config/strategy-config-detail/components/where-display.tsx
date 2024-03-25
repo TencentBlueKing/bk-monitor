@@ -26,9 +26,9 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { random } from 'monitor-common/utils/utils';
 
-import { getVariableValue } from '../../../../../monitor-api/modules/grafana';
-import { random } from '../../../../../monitor-common/utils/utils';
 import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../constant/constant';
 import { ICommonItem, IWhereItem, MetricDetail } from '../../strategy-config-set-new/typings';
 
@@ -72,19 +72,27 @@ export default class WhereDisplay extends tsc<IProps> {
   /** 获取条件的可选项数据 */
   async handleGetWhereOption() {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { data_source_label, data_type_label, metric_field, result_table_id, rawDimensions } = this.metric;
+    const { data_source_label, data_type_label, metric_field, result_table_id, rawDimensions, index_set_id } =
+      this.metric;
     const promiseList = this.value
       .filter(item => rawDimensions.some(dim => dim.is_dimension !== false && dim.id === item.key))
       .map(item => {
         const params = {
-          params: {
-            field: item.key,
-            data_source_label,
-            data_type_label,
-            metric_field,
-            result_table_id,
-            where: []
-          },
+          params: Object.assign(
+            {
+              field: item.key,
+              data_source_label,
+              data_type_label,
+              metric_field,
+              result_table_id,
+              where: []
+            },
+            data_source_label === 'bk_log_search'
+              ? {
+                  index_set_id
+                }
+              : {}
+          ),
           type: 'dimension'
         };
         return getVariableValue(params).then(res => {

@@ -26,7 +26,7 @@ from bkmonitor.dataflow.node.processor import (
 from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import HDFSStorageNode, TSpiderStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
-from monitor_web.aiops.ai_setting.constant import SceneSet
+from constants.aiops import SceneSet
 
 
 class StrategyIntelligentModelDetectTask(BaseTask):

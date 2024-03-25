@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { getUnitInfo } from 'monitor-api/modules/strategies';
 
-import { getUnitInfo } from '../../../../../monitor-api/modules/strategies';
 import { CONDITION_METHOD_LIST, SIMPLE_METHOD_LIST } from '../../../../constant/constant';
 import AbnormalCluster from '../../strategy-config-set-new/detection-rules/components/abnormal-cluster/abnormal-cluster';
 import IntelligentDetect, {

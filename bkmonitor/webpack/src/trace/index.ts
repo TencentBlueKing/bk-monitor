@@ -25,25 +25,23 @@
  */
 // eslint-disable-next-line simple-import-sort/imports
 import './public-path';
-import '../monitor-common/polyfill';
+import 'monitor-common/polyfill';
 import i18n from './i18n/i18n';
 
 import { createApp } from 'vue';
 import { Message } from 'bkui-vue';
 
-import Api from '../monitor-api/api';
-import { setVue } from '../monitor-api/utils/index';
-import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
-import { getUrlParam, mergeSpaceList, setGlobalBizId } from '../monitor-common/utils';
+import Api from 'monitor-api/api';
+import { setVue } from 'monitor-api/utils/index';
+import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import directives from './directive/index';
 import App from './pages/app';
 import router from './router/router';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
-// 全量引入 bkui-vue 样式
-import 'bkui-vue/dist/style.css';
-import '../monitor-static/icons/monitor-icons.css';
+import 'monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
 
 window.source_app = 'trace';

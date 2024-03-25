@@ -8,29 +8,30 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from common.log import logger
+import arrow
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
 from django.utils.translation import ugettext as _
+
+from bkmonitor.action.serializers import AuthorizeConfigSlz, BodyConfigSlz, KVPairSlz
+from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.data_source import UnifyQuery, load_data_source
+from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
+from bkmonitor.views import serializers
+from common.log import logger
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api, resource
+from core.drf_resource.exceptions import CustomException
+from core.errors.uptime_check import UptimeCheckProcessError
 from monitor_web.models.uptime_check import (
     UptimeCheckGroup,
     UptimeCheckNode,
     UptimeCheckTask,
 )
 from monitor_web.uptime_check.constants import TASK_MIN_PERIOD
-
-from bkmonitor.action.serializers import AuthorizeConfigSlz, BodyConfigSlz, KVPairSlz
-from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.data_source import load_data_source
-from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
-from bkmonitor.views import serializers
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api, resource
-from core.drf_resource.exceptions import CustomException
-from core.errors.uptime_check import UptimeCheckProcessError
 
 
 class AuthorizeConfigSerializer(AuthorizeConfigSlz):
@@ -59,21 +60,27 @@ class UptimeCheckNodeSerializer(serializers.ModelSerializer):
                 if host:
                     ip = host[0].bk_host_innerip
                     bk_cloud_id = host[0].bk_cloud_id
-            filter_dict = {
-                "time__gt": "3m",
-                "ip": ip,
-                "bk_cloud_id": str(bk_cloud_id),
-            }
+            promql_statement = (
+                f"bkmonitor:beat_monitor:heartbeat_total:uptime{{ip='{ip}',bk_cloud_id='{bk_cloud_id}'}}[3m]"
+            )
         else:
-            filter_dict = {"time__gt": "3m", "bk_host_id": str(validated_data["bk_host_id"])}
+            promql_statement = (
+                f"bkmonitor:beat_monitor:heartbeat_total:uptime{{bk_host_id='{validated_data['bk_host_id']}'}}[3m]"
+            )
+        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
+        query_config = {
+            "data_source_label": DataSourceLabel.PROMETHEUS,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "promql": promql_statement,
+            "interval": 60,
+            "alias": "a",
+        }
+        data_source = data_source_class(int(validated_data["bk_biz_id"]), **query_config)
+        query = UnifyQuery(bk_biz_id=int(validated_data["bk_biz_id"]), data_sources=[data_source], expression="")
+        end_time = arrow.utcnow().timestamp
+        records = query.query_data(start_time=(end_time - 180) * 1000, end_time=end_time * 1000, limit=5)
 
-        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-        data_source = data_source_class(
-            table="beat_monitor.heartbeat_total",
-            filter_dict=filter_dict,
-        )
-        data = data_source.query_data(limit=5)
-        if len(data):
+        if len(records) > 0:
             return True
 
         raise UptimeCheckProcessError()

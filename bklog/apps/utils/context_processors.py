@@ -98,4 +98,5 @@ def mysetting(request):
         "BK_ETL_DOC_URL": settings.BK_ETL_DOC_URL,
         "ENABLE_CHECK_COLLECTOR": "true" if request.user.is_superuser else "false",
         "IS_EXTERNAL": request.headers.get("Is-External", "false"),
+        "BCS_WEB_CONSOLE_DOMAIN": settings.BCS_WEB_CONSOLE_DOMAIN,
     }

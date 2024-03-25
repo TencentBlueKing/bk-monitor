@@ -42,6 +42,12 @@ export interface ITimeSeriesItem extends EChartOption.SeriesLine {
   stack?: string;
   color?: string;
   metricField?: string; // 指标
+  traceData?: Record<number, IProfilingTraceInfo[]>;
+}
+
+export interface IProfilingTraceInfo {
+  time: string;
+  span_id: string;
 }
 
 export interface ITimeSeriesData {

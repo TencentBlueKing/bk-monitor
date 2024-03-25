@@ -40,21 +40,21 @@ const list = {
         view_roles_list: [
           {
             role_id: 1,
-            role_name: '运维',
+            role_name: '运维'
           },
           {
             role_id: 2,
-            role_name: '产品',
-          },
+            role_name: '产品'
+          }
         ],
         created_at: '2019-10-10 11:11:11',
         created_by: 'user',
         updated_at: '2019-10-10 11:11:11',
-        updated_by: 'user',
-      },
-    ],
+        updated_by: 'user'
+      }
+    ]
   },
-  result: true,
+  result: true
 };
 
 const info = {
@@ -72,19 +72,19 @@ const info = {
     view_roles_list: [
       {
         role_id: 1,
-        role_name: '运维',
+        role_name: '运维'
       },
       {
         role_id: 2,
-        role_name: '产品',
-      },
+        role_name: '产品'
+      }
     ],
     created_at: '2019-10-10 11:11:11',
     created_by: 'user',
     updated_at: '2019-10-10 11:11:11',
-    updated_by: 'user',
+    updated_by: 'user'
   },
-  result: true,
+  result: true
 };
 
 // 创建索引集
@@ -92,14 +92,14 @@ const create = {
   message: 'success',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 const update = {
   message: 'success',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 删除索引集
@@ -107,7 +107,7 @@ const remove = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 索引列表
@@ -131,11 +131,11 @@ const index = {
         created_at: '2019-10-10 11:11:11',
         created_by: 'user',
         updated_at: '2019-10-10 11:11:11',
-        updated_by: 'user',
-      },
-    ],
+        updated_by: 'user'
+      }
+    ]
   },
-  result: true,
+  result: true
 };
 
 // 创建索引
@@ -143,7 +143,7 @@ const createIndex = {
   message: 'success',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 // 删除索引
@@ -151,7 +151,7 @@ const removeIndex = {
   message: '',
   code: 0,
   data: '',
-  result: true,
+  result: true
 };
 
 export default {
@@ -162,5 +162,5 @@ export default {
   remove,
   index,
   removeIndex,
-  createIndex,
+  createIndex
 };

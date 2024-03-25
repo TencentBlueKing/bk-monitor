@@ -921,3 +921,13 @@ class CustomTimeSeriesDetailResource(MetaDataAPIGWResource):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         model_only = serializers.BooleanField(required=False, default=False)
+
+
+class QueryResultTableStorageDetailResource(MetaDataAPIGWResource):
+    action = "/metadata_query_result_table_storage_detail"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        bcs_cluster_id = serializers.CharField(required=False, label="集群ID")

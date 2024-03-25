@@ -103,7 +103,7 @@
   </monitor-dialog>
 </template>
 <script>
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 
 export default {
   name: 'StrategyVariateList',

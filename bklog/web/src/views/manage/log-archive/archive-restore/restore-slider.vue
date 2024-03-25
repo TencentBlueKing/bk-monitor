@@ -30,84 +30,113 @@
       :quick-close="true"
       :before-close="handleCloseSidebar"
       @animation-end="$emit('hidden')"
-      @update:isShow="updateIsShow">
-      <div v-bkloading="{ isLoading: sliderLoading }" slot="content" class="restore-slider-content">
+      @update:isShow="updateIsShow"
+    >
+      <div
+        slot="content"
+        v-bkloading="{ isLoading: sliderLoading }"
+        class="restore-slider-content"
+      >
         <bk-form
           v-if="!sliderLoading"
+          ref="validateForm"
           :model="formData"
           :label-width="150"
           :rules="basicRules"
           data-test-id="restore_div_addNewRestore"
           form-type="vertical"
-          ref="validateForm"
-          class="king-form">
-          <bk-form-item :label="$t('索引集名称')" required property="index_set_name">
+          class="king-form"
+        >
+          <bk-form-item
+            :label="$t('索引集名称')"
+            required
+            property="index_set_name"
+          >
             <bk-input
               v-model="formData.index_set_name"
               data-test-id="addNewRestore_input_indexSetName"
-              :disabled="isEdit"></bk-input>
+              :disabled="isEdit"
+            ></bk-input>
           </bk-form-item>
           <!-- <bk-alert type="info" :title="$t('COS的自动创建和关联，只能用于腾讯云')"></bk-alert> -->
           <bk-form-item
             :label="$t('归档项')"
             required
-            property="archive_config_id">
+            property="archive_config_id"
+          >
             <bk-select
               v-model="formData.archive_config_id"
               data-test-id="addNewRestore_select_selectCollector"
+              :disabled="isEdit"
               @selected="handleArchiveChange"
-              :disabled="isEdit">
+            >
               <bk-option
                 v-for="option in archiveList"
-                :key="option.archive_config_id"
                 :id="option.archive_config_id"
+                :key="option.archive_config_id"
                 :name="option.instance_name"
-                :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]">
+                :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]"
+              >
               </bk-option>
             </bk-select>
           </bk-form-item>
           <bk-form-item
             :label="$t('时间范围')"
             required
-            property="datePickerValue">
+            property="datePickerValue"
+          >
             <bk-date-picker
+              v-model="formData.datePickerValue"
               format="yyyy-MM-dd HH:mm"
               :placeholder="$t('选择日期时间范围')"
               :type="'datetimerange'"
               :disabled="isEdit"
-              v-model="formData.datePickerValue"
-              @change="handleTimeChange">
+              @change="handleTimeChange"
+            >
             </bk-date-picker>
           </bk-form-item>
-          <bk-form-item :label="$t('过期时间')" required property="datePickerExpired">
+          <bk-form-item
+            :label="$t('过期时间')"
+            required
+            property="datePickerExpired"
+          >
             <bk-date-picker
               v-model="formData.datePickerExpired"
               format="yyyy-MM-dd HH:mm"
               data-test-id="addNewRestore_div_datePickerExpired"
               :options="expiredDatePicker"
-              @change="handleExpiredChange">
+              @change="handleExpiredChange"
+            >
             </bk-date-picker>
           </bk-form-item>
-          <bk-form-item :label="$t('结果通知人')" required property="notice_user">
+          <bk-form-item
+            :label="$t('结果通知人')"
+            required
+            property="notice_user"
+          >
             <validate-user-selector
-              style="width: 500px;"
-              data-test-id="addNewRestore_input_notifiedUser"
               v-model="formData.notice_user"
+              style="width: 500px"
+              data-test-id="addNewRestore_input_notifiedUser"
               :api="userApi"
-              :disabled="isEdit" />
+              :disabled="isEdit"
+            />
           </bk-form-item>
-          <bk-form-item style="margin-top: 30px;">
+          <bk-form-item style="margin-top: 30px">
             <bk-button
               theme="primary"
               class="king-button mr10"
               data-test-id="addNewRestore_button_submit"
               :loading="confirmLoading"
-              @click.stop.prevent="handleConfirm">
+              @click.stop.prevent="handleConfirm"
+            >
               {{ $t('提交') }}
             </bk-button>
             <bk-button
+              data-test-id="addNewRestore_button_cancel"
               @click="handleCancel"
-              data-test-id="addNewRestore_button_cancel">{{ $t('取消') }}</bk-button>
+              >{{ $t('取消') }}</bk-button
+            >
           </bk-form-item>
         </bk-form>
       </div>
@@ -123,22 +152,22 @@ import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
 
 export default {
   components: {
-    ValidateUserSelector,
+    ValidateUserSelector
   },
   mixins: [SidebarDiffMixin],
   props: {
     showSlider: {
       type: Boolean,
-      default: false,
+      default: false
     },
     editRestore: {
       type: Object,
-      default: null,
+      default: null
     },
     archiveId: {
       type: Number,
-      default: null,
-    },
+      default: null
+    }
   },
   data() {
     return {
@@ -156,32 +185,32 @@ export default {
         expired_time: '',
         notice_user: [],
         start_time: '',
-        end_time: '',
+        end_time: ''
       },
       basicRules: {},
       requiredRules: {
         required: true,
-        trigger: 'blur',
+        trigger: 'blur'
       },
       expiredDatePicker: {
         disabledDate(time) {
           return time.getTime() < Date.now();
-        },
-      },
+        }
+      }
     };
   },
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
       user: 'uesr',
-      globalsData: 'globals/globalsData',
+      globalsData: 'globals/globalsData'
     }),
     authorityMap() {
       return authorityMap;
     },
     isEdit() {
       return this.editRestore !== null;
-    },
+    }
   },
   watch: {
     showSlider(val) {
@@ -196,7 +225,7 @@ export default {
             expired_time: expiredTime,
             notice_user,
             start_time,
-            end_time,
+            end_time
           } = this.editRestore;
           Object.assign(this.formData, {
             index_set_name,
@@ -207,7 +236,7 @@ export default {
             end_time,
             // eslint-disable-next-line camelcase
             datePickerValue: [start_time, end_time],
-            datePickerExpired: expiredTime,
+            datePickerExpired: expiredTime
           });
         } else {
           const { userMeta } = this.$store.state;
@@ -216,9 +245,10 @@ export default {
           }
         }
 
-        if (this.archiveId) { // 从归档列表新建回溯
+        if (this.archiveId) {
+          // 从归档列表新建回溯
           this.formData.archive_config_id = this.archiveId;
-        };
+        }
         this.initSidebarFormData();
       } else {
         // 清空表单数据
@@ -230,10 +260,10 @@ export default {
           datePickerExpired: '',
           notice_user: [],
           start_time: '',
-          end_time: '',
+          end_time: ''
         };
       }
-    },
+    }
   },
   created() {
     this.basicRules = {
@@ -242,37 +272,39 @@ export default {
       datePickerExpired: [this.requiredRules],
       datePickerValue: [
         {
-          validator: (val) => {
+          validator: val => {
             if (val.length) {
               return !!val.every(item => item);
             }
             return false;
           },
-          trigger: 'blur',
-        },
+          trigger: 'blur'
+        }
       ],
       notice_user: [
         {
-          validator: (val) => {
+          validator: val => {
             return !!val.length;
           },
-          trigger: 'blur',
-        },
-      ],
+          trigger: 'blur'
+        }
+      ]
     };
   },
   methods: {
     getArchiveList() {
       const query = {
-        bk_biz_id: this.bkBizId,
+        bk_biz_id: this.bkBizId
       };
-      this.$http.request('archive/getAllArchives', { query }).then((res) => {
-        this.archiveList = res.data || [];
-        if (!this.isEdit) {
-          this.formData.archive_config_id = res.data[0].archive_config_id || '';
-          this.handleArchiveChange(res.data[0].archive_config_id);
-        }
-      })
+      this.$http
+        .request('archive/getAllArchives', { query })
+        .then(res => {
+          this.archiveList = res.data || [];
+          if (!this.isEdit) {
+            this.formData.archive_config_id = res.data[0].archive_config_id || '';
+            this.handleArchiveChange(res.data[0].archive_config_id);
+          }
+        })
         .finally(() => {
           this.sliderLoading = false;
         });
@@ -294,15 +326,17 @@ export default {
       const selectArchive = this.archiveList.find(el => el.archive_config_id === nval);
       const date = new Date();
       const year = date.getFullYear();
-      const month = (date.getMonth() * 1) + 1 >= 10 ? (date.getMonth() * 1) + 1 : `0${date.getMonth() * 1 + 1}`;
+      const month = date.getMonth() * 1 + 1 >= 10 ? date.getMonth() * 1 + 1 : `0${date.getMonth() * 1 + 1}`;
       const day = date.getDate() >= 10 ? date.getDate() : `0${date.getDate()}`;
       const hour = date.getHours() >= 10 ? date.getHours() : `0${date.getHours()}`;
       const min = date.getMinutes() >= 10 ? date.getMinutes() : `0${date.getMinutes()}`;
       const dateStr = `${year}${month}${day}${hour}${min}`;
-      this.formData.index_set_name  = selectArchive ? `${selectArchive?.instance_name}-${this.$t('回溯')}-${dateStr}` : '';
+      this.formData.index_set_name = selectArchive
+        ? `${selectArchive?.instance_name}-${this.$t('回溯')}-${dateStr}`
+        : '';
     },
     updateDaysList() {
-      const retentionDaysList = [...this.globalsData.storage_duration_time].filter((item) => {
+      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
         return item.id;
       });
       this.retentionDaysList = retentionDaysList;
@@ -315,7 +349,7 @@ export default {
         if (!this.retentionDaysList.some(item => item.id === stringVal)) {
           this.retentionDaysList.push({
             id: stringVal,
-            name: stringVal + this.$t('天'),
+            name: stringVal + this.$t('天')
           });
         }
         this.formData.snapshot_days = stringVal;
@@ -332,7 +366,7 @@ export default {
         let url = '/archive/createRestore';
         let paramsData = {
           ...this.formData,
-          bk_biz_id: this.bkBizId,
+          bk_biz_id: this.bkBizId
         };
         const params = {};
         delete paramsData.datePickerValue;
@@ -346,7 +380,7 @@ export default {
 
           paramsData = {
             expired_time,
-            restore_config_id,
+            restore_config_id
           };
           // eslint-disable-next-line camelcase
           params.restore_config_id = restore_config_id;
@@ -354,13 +388,13 @@ export default {
 
         await this.$http.request(url, {
           data: paramsData,
-          params,
+          params
         });
 
         this.$bkMessage({
           theme: 'success',
           message: this.$t('保存成功'),
-          delay: 1500,
+          delay: 1500
         });
         this.$emit('updated');
       } catch (e) {
@@ -368,38 +402,38 @@ export default {
       } finally {
         this.confirmLoading = false;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .restore-slider-content {
-    min-height: 394px;
-    height: calc(100vh - 60px);
+.restore-slider-content {
+  height: calc(100vh - 60px);
+  min-height: 394px;
 
-    .bk-form.bk-form-vertical {
-      padding: 10px 0 36px 36px;
+  .bk-form.bk-form-vertical {
+    padding: 10px 0 36px 36px;
 
-      .bk-form-item {
-        width: 500px;
-        margin-top: 18px;
-      }
+    .bk-form-item {
+      width: 500px;
+      margin-top: 18px;
+    }
 
-      .bk-alert {
-        width: 500px;
-        margin-top: 12px;
-      }
+    .bk-alert {
+      width: 500px;
+      margin-top: 12px;
+    }
 
-      .bk-select,
-      .bk-date-picker {
-        width: 300px;
-      }
+    .bk-select,
+    .bk-date-picker {
+      width: 300px;
+    }
 
-      .user-selector {
-        /* stylelint-disable-next-line declaration-no-important */
-        width: 500px !important;
-      }
+    .user-selector {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 500px !important;
     }
   }
+}
 </style>

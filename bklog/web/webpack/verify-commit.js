@@ -25,7 +25,9 @@ const newCommitRE = /^(revert: )?(feat|fix|docs|style|refactor|perf|test|chore)(
 if (!(oldCommitRE.test(msg) || newCommitRE.test(msg)) && !msg.includes('Merge branch')) {
   console.log(msg);
   console.log('\n');
-  console.error(`  ${colors.bgRed(colors.white(' ERROR '))} ${colors.red('invalid commit message format.')}\n\n${colors.red('  Proper commit message format is required for automated changelog generation. Examples:\n\n')}    ${colors.green('feature: add \'comments\' option')}\n`
-      + `    ${colors.green('bugfix: handle events on blur (close #28)')}\n}`);
+  console.error(
+    `  ${colors.bgRed(colors.white(' ERROR '))} ${colors.red('invalid commit message format.')}\n\n${colors.red('  Proper commit message format is required for automated changelog generation. Examples:\n\n')}    ${colors.green("feature: add 'comments' option")}\n` +
+      `    ${colors.green('bugfix: handle events on blur (close #28)')}\n}`
+  );
   process.exit(1);
 }

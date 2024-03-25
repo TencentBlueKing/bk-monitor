@@ -16,10 +16,6 @@ from functools import reduce
 
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from fta_web.alert.handlers.base import AlertDimensionFormatter
-from monitor_web.alert_events.resources import EventDimensionMixin
-from monitor_web.shield.serializers import SHIELD_SERIALIZER
-from monitor_web.shield.utils import ShieldDetectManager
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents.alert import AlertDocument
@@ -39,6 +35,10 @@ from constants.shield import ScopeType, ShieldCategory, ShieldStatus
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from core.errors.shield import DuplicateQuickShieldError, ShieldNotExist
+from fta_web.alert.handlers.base import AlertDimensionFormatter
+from monitor_web.alert_events.resources import EventDimensionMixin
+from monitor_web.shield.serializers import SHIELD_SERIALIZER
+from monitor_web.shield.utils import ShieldDetectManager
 
 
 # 屏蔽列表页的serializer
@@ -91,7 +91,6 @@ class ShieldListResource(Resource):
 
         # 过滤条件
         if categories:
-
             if "event" in categories:
                 # 兼容event查询的场景
                 categories.append("alert")
@@ -236,8 +235,8 @@ class AddShieldResource(Resource, EventDimensionMixin):
                     t["bk_target_cloud_id"] = t.pop("bk_cloud_id")
 
             dimension_config = {scope_key_mapping.get(scope_type): target}
-            if "metric_id" in data["dimension_config"]:
-                dimension_config["metric_id"] = data["dimension_config"]["metric_id"]
+        if "metric_id" in data["dimension_config"]:
+            dimension_config["metric_id"] = data["dimension_config"]["metric_id"]
         return dimension_config
 
     def handle_strategy(self, data):
@@ -314,7 +313,6 @@ class AddShieldResource(Resource, EventDimensionMixin):
         return dimension_string
 
     def perform_request(self, data):
-
         data["category"] = ShieldCategory.ALERT if data["category"] == ShieldCategory.EVENT else data["category"]
 
         shield_handler = {

@@ -231,6 +231,8 @@ class EsQuery(object):
     # 调用客户端执行dsl
     def dsl(self):
         dsl: dict = self.search_dict.get("body", {})
+        # 当开启scroll的时候，需要传递scroll参数
+        scroll = self.search_dict.get("scroll", None)
         scenario_id, index_set_string, storage_cluster_id = self._init_common_args()
         bkdata_authentication_method, bkdata_data_token = self._init_bkdata_args()
         # 获取client
@@ -245,7 +247,7 @@ class EsQuery(object):
 
         logger.info(f"[esquery_dsl] index => [{index}], dsl => [{dsl}]")
 
-        result: Dict = client.query(index, dsl)
+        result: Dict = client.query(index, dsl, scroll=scroll)
         result = self.compatibility_result(result)
         result.update({"dsl": json.dumps(dsl)})
         return result

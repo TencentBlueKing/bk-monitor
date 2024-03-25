@@ -337,10 +337,10 @@ public class CodeTransform extends AbstractFlinkBasicTransform {
                     List<SamplingConditions> tmp = new ArrayList<>();
                     tmp.add(samplingConditions.get(i));
                     structConditions.add(tmp);
-                } else if (i > 0 && samplingConditions.get(i).getCondition().equals("OR")) {
+                } else if (i > 0 && samplingConditions.get(i).getCondition().equalsIgnoreCase("OR")) {
                     List<SamplingConditions> tmp = new ArrayList<>();
                     structConditions.add(tmp);
-                } else if (i > 0 && samplingConditions.get(i).getCondition().equals("AND")) {
+                } else if (i > 0 && samplingConditions.get(i).getCondition().equalsIgnoreCase("AND")) {
                     structConditions.get(structConditions.size() - 1).add(samplingConditions.get(i));
                 } else {
                     throw new IllegalArgumentException("Not support condition "
@@ -350,27 +350,32 @@ public class CodeTransform extends AbstractFlinkBasicTransform {
         }
 
         private boolean isSampling(String data) {
-            List<Boolean> orConditions = new ArrayList<>();
+            try {
+                List<Boolean> orConditions = new ArrayList<>();
 
-            for (List<SamplingConditions> andCondition : structConditions) {
-                boolean tag = true;
-                for (SamplingConditions samplingConditions : andCondition) {
-                    if (! isChildSample(data, samplingConditions)) {
-                        tag = false;
+                for (List<SamplingConditions> andCondition : structConditions) {
+                    boolean tag = true;
+                    for (SamplingConditions samplingConditions : andCondition) {
+                        if (! isChildSample(data, samplingConditions)) {
+                            tag = false;
+                            break;
+                        }
+                    }
+                    orConditions.add(tag);
+                }
+
+                boolean tag1 = false;
+                for (Boolean orCondition : orConditions) {
+                    if (orCondition) {
+                        tag1 = true;
                         break;
                     }
                 }
-                orConditions.add(tag);
+                return tag1;
+            } catch (Exception e) {
+                throw new RuntimeException("data is " + data + "  conditions is " + structConditions, e);
             }
 
-            boolean tag1 = false;
-            for (Boolean orCondition : orConditions) {
-                if (orCondition) {
-                    tag1 = true;
-                    break;
-                }
-            }
-            return tag1;
         }
 
         /**
@@ -390,13 +395,16 @@ public class CodeTransform extends AbstractFlinkBasicTransform {
                     || ("reg").equalsIgnoreCase(method) || ("nreg").equalsIgnoreCase(method)) {
                 valueType = "String";
             }
-            String[] split = key.split("\\\\.", 2);
+            String[] split = key.split("\\.", 2);
             List<String> keys = new ArrayList<>(split.length);
             Collections.addAll(keys, split);
             boolean compare;
             if (keys.size() == 1) {
                 Gson gson = new Gson();
                 JsonElement ssObject = gson.fromJson(data, JsonObject.class).get(keys.get(0));
+                if (null == ssObject) {
+                    return false;
+                }
                 if (("String").equals(valueType)) {
                     String stringValue = ssObject.getAsString();
                     compare = compare(stringValue, value, method);
@@ -406,8 +414,14 @@ public class CodeTransform extends AbstractFlinkBasicTransform {
                 }
             } else {
                 Gson gson = new Gson();
-                JsonElement jsonElement = gson.fromJson(data, JsonObject.class).get(keys.get(0)).getAsJsonObject()
-                        .get(keys.get(1));
+                JsonElement oneElement = gson.fromJson(data, JsonObject.class).get(keys.get(0));
+                if (null == oneElement) {
+                    return false;
+                }
+                JsonElement jsonElement = oneElement.getAsJsonObject().get(keys.get(1));
+                if (null == jsonElement) {
+                    return false;
+                }
                 if (("String").equals(valueType)) {
                     String stringValue = jsonElement.getAsString();
                     compare = compare(stringValue, value, method);

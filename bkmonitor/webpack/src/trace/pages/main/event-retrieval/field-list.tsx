@@ -27,9 +27,9 @@ import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Collapse, Progress } from 'bkui-vue';
 import { EnlargeLine, NarrowLine } from 'bkui-vue/lib/icon';
+import { deepClone } from 'monitor-common/utils/utils';
+import { type FieldListType, type FieldValue } from 'monitor-pc/pages/data-retrieval/typings';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
-import { FieldListType, FieldValue } from '../../../../monitor-pc/pages/data-retrieval/typings';
 import { SPAN_KIND_MAPS, SPAN_STATUS_CODE } from '../../../store/constant';
 
 import './field-list.scss';

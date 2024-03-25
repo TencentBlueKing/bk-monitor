@@ -81,7 +81,10 @@ export default class SelectCardItem extends tsc<IProps, IEvent> {
           <div class='select-card-item-main'>
             {this.multiple && this.checked && <span class='lang-checked-icon'></span>}
             <div class='img-contain'>
-              <img src={this.img}></img>
+              <img
+                src={this.img}
+                alt='img'
+              ></img>
             </div>
             <div class='item-title'>{this.title}</div>
             {this.theme === 'plugin' && (
@@ -101,7 +104,10 @@ export default class SelectCardItem extends tsc<IProps, IEvent> {
           <div class='select-card-item-main'>
             {this.multiple && this.checked && <span class='lang-checked-icon'></span>}
             <span class='img-contain'>
-              <img src={this.img}></img>
+              <img
+                src={this.img}
+                alt='img'
+              ></img>
             </span>
             <span class='item-text'>{this.title}</span>
           </div>

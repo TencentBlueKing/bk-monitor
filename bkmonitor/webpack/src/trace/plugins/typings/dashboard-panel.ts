@@ -24,11 +24,9 @@
  * IN THE SOFTWARE.
  */
 import type { EChartOption } from 'echarts';
-
-import { typeTools } from '../../../monitor-common/utils/utils';
+import { typeTools } from 'monitor-common/utils/utils';
 
 import { TimeSeriesType } from './time-series';
-
 // 图例呈现模式
 export type LegendDisplayMode = 'table' | 'list' | 'hidden';
 // 图例展示位置
@@ -275,7 +273,7 @@ export class DataQuery implements IDataQuery {
 }
 
 export interface IRatioRingChartOption {
-  hideLabel: boolean; // 是否隐藏圆环中间label
+  hideLabel?: boolean; // 是否隐藏圆环中间label
 }
 
 // eslint-disable-next-line max-len

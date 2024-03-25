@@ -101,6 +101,11 @@ export default class QueryStatement extends tsc<IProps> {
   /** 当前是否展示下拉列表 */
   isShowSelectPopover = false;
 
+  resizeObserver = null;
+
+  /** 当前选中标签是否超过1行 */
+  isTagHave2Rows =  false;
+
   typeBtnSelectList = [
     {
       id: 'single',
@@ -270,8 +275,9 @@ export default class QueryStatement extends tsc<IProps> {
         height: isUnion ? '260px' : '360px',
       };
     }
+    const unionHeight = this.isTagHave2Rows ? '222px' : '248px';
     return {
-      height: isUnion ? '214px' : '314px',
+      height: isUnion ? unionHeight : '314px',
     };
   }
 
@@ -378,6 +384,7 @@ export default class QueryStatement extends tsc<IProps> {
       const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
       const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
       this.oftenTags = tagCatch[this.spaceUid]?.oftenTags ?? [];
+      this.initResizeGroupStyle();
     } else {
       if (!this.selectTagCatchIDList.length) this.indexSearchType = 'single';
       this.aloneHistory = [];
@@ -388,8 +395,29 @@ export default class QueryStatement extends tsc<IProps> {
         this.setTagLocal();
         this.oftenTags = [];
       }, 500);
+      this.unobserveResizeGroupStyle();
       this.emitSelected();
     }
+  }
+
+  /**
+   * @desc: 监听选的标签是否超过2行
+   */
+  initResizeGroupStyle() {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        this.isTagHave2Rows = entry.contentRect.height > 26;
+      }
+    });
+    const element = document.querySelector('#union-tag-box');
+    this.resizeObserver.observe(element);
+  }
+
+  unobserveResizeGroupStyle() {
+    const element = document.querySelector('#union-tag-box');
+    this.resizeObserver.unobserve(element);
+    this.resizeObserver = null;
+    this.isTagHave2Rows = false;
   }
 
   handleCloseSelectPopover() {
@@ -837,7 +865,13 @@ export default class QueryStatement extends tsc<IProps> {
                 >
                   <div class="tag-box">
                     {item.index_set_names?.map(setName => (
-                      <Tag>{setName}</Tag>
+                      <Tag
+                        ext-cls="tag-item"
+                        v-bk-overflow-tips
+                        class="title-overflow"
+                      >
+                        {setName}
+                      </Tag>
                     ))}
                   </div>
                   <i
@@ -947,7 +981,7 @@ export default class QueryStatement extends tsc<IProps> {
             </div>
           </Popover>
         </div>
-        <div class="index-tag-box">
+        <div class="index-tag-box" id="union-tag-box">
           {this.selectedItemList.map(item => (
             <Tag
               closable
@@ -957,7 +991,7 @@ export default class QueryStatement extends tsc<IProps> {
             >
               <span class="tag-name">
                 {item.isNotVal && <i class="not-val"></i>}
-                <span>{item.indexName}</span>
+                <span class="title-overflow" v-bk-overflow-tips>{item.indexName}</span>
               </span>
             </Tag>
           ))}
@@ -1003,7 +1037,7 @@ export default class QueryStatement extends tsc<IProps> {
             >
               {group.children.map(item => (
                 <Option
-                  class="custom-no-padding-option"
+                  class={['custom-no-padding-option', { 'union-select-item': !this.isAloneType }]}
                   id={String(item.index_set_id)}
                   name={this.getOptionName(item)}
                   disabled={this.getDisabled(item.index_set_id)}

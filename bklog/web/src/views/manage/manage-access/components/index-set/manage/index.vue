@@ -21,28 +21,49 @@
   -->
 
 <template>
-  <div class="access-manage-container" v-bkloading="{ isLoading: basicLoading }">
-    <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
+  <div
+    v-bkloading="{ isLoading: basicLoading }"
+    class="access-manage-container"
+  >
+    <auth-container-page
+      v-if="authPageInfo"
+      :info="authPageInfo"
+    ></auth-container-page>
     <template v-if="!authPageInfo && !basicLoading && curIndexSet">
-      <basic-tab :active.sync="activePanel" type="border-card">
-        <bk-tab-panel v-for="panel in panels" v-bind="panel" :key="panel.name"></bk-tab-panel>
-        <div class="go-search" slot="setting">
+      <basic-tab
+        :active.sync="activePanel"
+        type="border-card"
+      >
+        <bk-tab-panel
+          v-for="panel in panels"
+          v-bind="panel"
+          :key="panel.name"
+        ></bk-tab-panel>
+        <div
+          slot="setting"
+          class="go-search"
+        >
           <div class="search-text">
             <span class="bk-icon icon-info"></span>
             <i18n path="数据采集好了，去 {0}">
-              <span class="search-button" @click="handleGoSearch">{{$t('查看数据')}}</span>
+              <span
+                class="search-button"
+                @click="handleGoSearch"
+                >{{ $t('查看数据') }}</span
+              >
             </i18n>
           </div>
         </div>
       </basic-tab>
       <keep-alive>
         <component
+          :is="dynamicComponent"
           class="tab-content"
           :index-set-data="curIndexSet"
           :collector-data="curIndexSet"
           :index-set-id="curIndexSet.index_set_id"
-          :is="dynamicComponent"
-          @update-active-panel="activePanel = $event" />
+          @update-active-panel="activePanel = $event"
+        />
       </keep-alive>
     </template>
   </div>
@@ -64,7 +85,7 @@ export default {
     BasicInfo,
     FieldInfo,
     UsageDetails,
-    BasicTab,
+    BasicTab
   },
   data() {
     const scenarioId = this.$route.name.split('-')[0];
@@ -76,8 +97,8 @@ export default {
       panels: [
         { name: 'basicInfo', label: this.$t('配置信息') },
         { name: 'usageDetails', label: this.$t('使用详情') },
-        { name: 'fieldInfo', label: this.$t('字段信息') },
-      ],
+        { name: 'fieldInfo', label: this.$t('字段信息') }
+      ]
     };
   },
   computed: {
@@ -86,10 +107,10 @@ export default {
       const componentMaP = {
         basicInfo: 'BasicInfo',
         usageDetails: 'UsageDetails',
-        fieldInfo: 'FieldInfo',
+        fieldInfo: 'FieldInfo'
       };
       return componentMaP[this.activePanel] || 'BasicInfo';
-    },
+    }
   },
   created() {
     this.initPage();
@@ -101,10 +122,12 @@ export default {
       try {
         const paramData = {
           action_ids: [authorityMap.MANAGE_INDICES_AUTH],
-          resources: [{
-            type: 'indices',
-            id: indexSetId,
-          }],
+          resources: [
+            {
+              type: 'indices',
+              id: indexSetId
+            }
+          ]
         };
         const res = await this.$store.dispatch('checkAndGetData', paramData);
         if (res.isAllowed === false) {
@@ -112,10 +135,7 @@ export default {
           // 显示无权限页面
         } else {
           // 正常显示页面
-          await Promise.all([
-            this.fetchIndexSetData(indexSetId),
-            this.fetchScenarioMap(),
-          ]);
+          await Promise.all([this.fetchIndexSetData(indexSetId), this.fetchScenarioMap()]);
         }
       } catch (err) {
         console.warn(err);
@@ -128,8 +148,8 @@ export default {
       if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
         const { data: indexSetData } = await this.$http.request('indexSet/info', {
           params: {
-            index_set_id: indexSetId,
-          },
+            index_set_id: indexSetId
+          }
         });
         this.$store.commit('collect/updateCurIndexSet', indexSetData);
       }
@@ -139,7 +159,7 @@ export default {
       if (!this.scenarioMap) {
         const { data } = await this.$http.request('meta/scenario');
         const map = {};
-        data.forEach((item) => {
+        data.forEach(item => {
           map[item.scenario_id] = item.scenario_name;
         });
         this.$store.commit('collect/updateScenarioMap', map);
@@ -149,16 +169,16 @@ export default {
       const params = {
         indexId: this.curIndexSet.index_set_id
           ? this.curIndexSet.index_set_id
-          : this.curIndexSet.bkdata_index_set_ids[0],
+          : this.curIndexSet.bkdata_index_set_ids[0]
       };
       this.$router.push({
         name: 'retrieve',
         params,
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
-    },
-  },
+    }
+  }
 };
 </script>

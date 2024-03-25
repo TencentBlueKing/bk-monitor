@@ -1,9 +1,9 @@
 import copy
 import re
 from collections import Counter, deque
-from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
+from dataclasses import asdict, dataclass
 from django.utils.translation import ugettext_lazy as _
 from luqum.auto_head_tail import auto_head_tail
 from luqum.exceptions import IllegalCharacterError, ParseSyntaxError
@@ -28,6 +28,7 @@ from apps.constants import (
     WORD_RANGE_OPERATORS,
     LuceneSyntaxEnum,
     LuceneReservedLogicOperatorEnum,
+    FULL_WIDTH_COLON,
 )
 from apps.exceptions import UnknownLuceneOperatorException
 from apps.log_databus.constants import TargetNodeTypeEnum
@@ -1361,6 +1362,9 @@ class LuceneFullWidthChecker(LuceneCheckerBase):
                 if field_name and field_name in self.analyzed_field_list:
                     self.extract_full_width_char(field_expr)
         finally:
+            # 因为exception的情况下, k-v的切分是根据冒号, 所以可能会出现全角冒号的情况
+            if FULL_WIDTH_COLON in self.query_string:
+                self.full_width_char_list.append(FULL_WIDTH_COLON)
             if self.full_width_char_list:
                 self.check_result.error = _("检测到使用了全角字符{char}").format(char=",".join(self.full_width_char_list))
                 return False

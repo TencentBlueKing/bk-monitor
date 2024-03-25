@@ -21,24 +21,29 @@
   -->
 
 <template>
-  <div class="right-panel" :class="{ 'need-border': needBorder }">
+  <div
+    class="right-panel"
+    :class="{ 'need-border': needBorder }"
+  >
     <div
-      @click="handleTitleClick"
       class="right-panel-title"
       :class="{ 'is-collapse': isEndCollapse }"
-      :style="{ 'backgroundColor': titleBgColor }">
+      :style="{ backgroundColor: titleBgColor }"
+      @click="handleTitleClick"
+    >
       <slot name="panel">
         <slot name="pre-panel"></slot>
         <i
           class="bk-icon title-icon"
-          :style="{ 'color': collapseColor }"
-          :class="[collapse ? 'icon-down-shape' : 'icon-right-shape']">
+          :style="{ color: collapseColor }"
+          :class="[collapse ? 'icon-down-shape' : 'icon-right-shape']"
+        >
         </i>
         <div class="title-desc">
           <slot name="title">
             <i18n path="已选择{0}个{1}">
-              <span class="title-desc-num">{{title.num}}</span>
-              <span>{{title.type || $t('主机')}}</span>
+              <span class="title-desc-num">{{ title.num }}</span>
+              <span>{{ title.type || $t('主机') }}</span>
             </i18n>
           </slot>
         </div>
@@ -52,10 +57,13 @@
       @before-leave="beforeLeave"
       @leave="leave"
       @after-leave="afterLeave"
-      @leave-cancelled="afterLeave">
-      <div class="right-panel-content" v-show="collapse">
-        <slot>
-        </slot>
+      @leave-cancelled="afterLeave"
+    >
+      <div
+        v-show="collapse"
+        class="right-panel-content"
+      >
+        <slot> </slot>
       </div>
     </transition>
   </div>
@@ -66,7 +74,7 @@ export default {
   name: 'RightPanel',
   model: {
     prop: 'collapse',
-    event: 'change',
+    event: 'change'
   },
   props: {
     collapse: Boolean,
@@ -75,24 +83,24 @@ export default {
       default() {
         return {
           num: 0,
-          type: this.$t('主机'),
+          type: this.$t('主机')
         };
-      },
+      }
     },
     collapseColor: {
       type: String,
-      default: '#63656E',
+      default: '#63656E'
     },
     titleBgColor: {
       type: String,
-      default: '#FAFBFD',
+      default: '#FAFBFD'
     },
     type: String,
-    needBorder: Boolean,
+    needBorder: Boolean
   },
   data() {
     return {
-      isEndCollapse: this.collapse,
+      isEndCollapse: this.collapse
     };
   },
   methods: {
@@ -142,70 +150,70 @@ export default {
     },
     handleTitleClick() {
       this.$emit('change');
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .right-panel {
-    &.need-border {
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
+.right-panel {
+  &.need-border {
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+  }
+
+  &-title {
+    display: flex;
+    height: 40px;
+    padding: 0 16px;
+    font-weight: bold;
+    color: #63656e;
+    cursor: pointer;
+    background: #fafbfd;
+    align-items: center;
+
+    &.is-collapse {
+      height: 41px;
+      border-bottom: 1px solid #dcdee5;
     }
 
-    &-title {
-      display: flex;
-      height: 40px;
-      background: #fafbfd;
-      color: #63656e;
-      font-weight: bold;
-      align-items: center;
-      padding: 0 16px;
-      cursor: pointer;
+    .title-icon {
+      margin-right: 5px;
+      font-size: 14px;
 
-      &.is-collapse {
-        border-bottom: 1px solid #dcdee5;
-        height: 41px;
-      }
-
-      .title-icon {
-        font-size: 14px;
-        margin-right: 5px;
-
-        &:hover {
-          cursor: pointer;
-        }
-      }
-
-      .title-desc {
-        color: #979ba5;
-
-        &-num {
-          color: #3a84ff;
-          margin: 0 3px;
-        }
+      &:hover {
+        cursor: pointer;
       }
     }
 
-    &-content {
-      :deep(.bk-table) {
-        border: 0;
+    .title-desc {
+      color: #979ba5;
 
-        .bk-table-header {
-          th {
-            background: #fff;
-          }
-        }
-
-        &::after {
-          width: 0;
-        }
+      &-num {
+        margin: 0 3px;
+        color: #3a84ff;
       }
-    }
-
-    .collapse-transition {
-      transition: .3s height ease-in-out;
     }
   }
+
+  &-content {
+    :deep(.bk-table) {
+      border: 0;
+
+      .bk-table-header {
+        th {
+          background: #fff;
+        }
+      }
+
+      &::after {
+        width: 0;
+      }
+    }
+  }
+
+  .collapse-transition {
+    transition: 0.3s height ease-in-out;
+  }
+}
 </style>
