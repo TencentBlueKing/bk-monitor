@@ -31,6 +31,8 @@ def deal_collector_scenario_param(params):
         for index, item in enumerate(condition):
             item["op"] = item["op"]
             if item["op"] not in [
+                PluginParamOpEnum.OP_OLD_EQ.value,
+                PluginParamOpEnum.OP_OLD_NEQ.value,
                 PluginParamOpEnum.OP_EQ.value,
                 PluginParamOpEnum.OP_NEQ.value,
                 PluginParamOpEnum.OP_INCLUDE.value,
@@ -38,7 +40,7 @@ def deal_collector_scenario_param(params):
                 PluginParamOpEnum.OP_REGEX.value,
                 PluginParamOpEnum.OP_NREGEX.value,
             ]:
-                item["op"] = PluginParamOpEnum.OP_EQ.value
+                item["op"] = PluginParamOpEnum.OP_OLD_EQ.value
             if index == 0 or item.get("logic_op", PluginParamLogicOpEnum.AND.value) == PluginParamLogicOpEnum.AND.value:
                 if item.get("word"):
                     filter_bucket.append({"index": item["fieldindex"], "key": item["word"], "op": item["op"]})
@@ -54,6 +56,9 @@ def deal_collector_scenario_param(params):
     elif condition_type == "match":
         key = params["conditions"].get("match_content", "")
         op = params["conditions"].get("match_type", "include")
+        if op == PluginParamOpEnum.OP_INCLUDE.value:
+            # 兼容新旧配置下发
+            op = PluginParamOpEnum.OP_OLD_EQ.value
         if key:
             filters.append({"conditions": [{"index": "-1", "key": key, "op": op}]})
             params["conditions"].update({"separator": "|"})
@@ -72,12 +77,11 @@ def convert_filters_to_collector_condition(filters_config, delimiter=""):
         logic_op = "and" if len(filters_config) <= 1 else "or"
         for filter_item in filters_config:
             for condition_item in filter_item["conditions"]:
-                op = condition_item["op"] if condition_item["op"] != "=" else "eq"
                 separator_filters.append(
                     {
                         "fieldindex": condition_item["index"],
                         "word": condition_item["key"],
-                        "op": op,
+                        "op": condition_item["op"],
                         "logic_op": logic_op,
                     }
                 )

@@ -581,6 +581,8 @@ class PluginParamLogicOpEnum(ChoicesEnum):
 
 
 class PluginParamOpEnum(ChoicesEnum):
+    OP_OLD_EQ = "="
+    OP_OLD_NEQ = "!="
     OP_EQ = "eq"
     OP_NEQ = "neq"
     OP_INCLUDE = "include"
