@@ -113,7 +113,8 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     const asideEl = this.bkResizeLayoutRef.$el.querySelector('.bk-resize-layout-aside');
     asideEl.style.height = `${height}px`;
     this.asideHeight = height;
-    this.handleAfterResize();
+    // this.handleAfterResize();
+    this.handleAfterResizeImmediately();
     enableAnimation &&
       setTimeout(() => {
         this.needAnimation = false;
