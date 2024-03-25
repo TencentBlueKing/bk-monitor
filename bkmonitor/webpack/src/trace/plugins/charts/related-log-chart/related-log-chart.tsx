@@ -659,7 +659,7 @@ export default defineComponent({
                             {this.intervalList.map(item => (
                               <Select.Option
                                 key={item.id}
-                                value={item.name}
+                                id={item.name}
                               >
                                 {item.name}
                               </Select.Option>
