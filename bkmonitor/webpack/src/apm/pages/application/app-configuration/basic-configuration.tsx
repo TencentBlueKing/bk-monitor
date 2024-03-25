@@ -582,11 +582,13 @@ export default class BasicInfo extends tsc<IProps> {
       application_db_config: this.appInfo.application_db_config,
       application_db_system: this.appInfo.application_db_system
     };
+    console.log('samplerPercentage--', samplerPercentage);
 
     // 处理采样配置
     if (params.application_sampler_config.sampler_type === 'random') {
       params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
     } else if (params.application_sampler_config.sampler_type === 'tail') {
+      params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
       params.application_sampler_config.tail_conditions = this.samplingRules
         .map(item => {
           // eslint-disable-next-line @typescript-eslint/naming-convention
