@@ -150,12 +150,11 @@ class RowCollectorScenario(CollectorScenario):
                 logic_op = "and" if len(config["local"][0]["filters"]) <= 1 else "or"
                 for filter_item in config["local"][0]["filters"]:
                     for condition_item in filter_item["conditions"]:
-                        op = condition_item["op"] if condition_item["op"] != "=" else "eq"
                         separator_filters.append(
                             {
                                 "fieldindex": condition_item["index"],
                                 "word": condition_item["key"],
-                                "op": op,
+                                "op": condition_item["op"],
                                 "logic_op": logic_op,
                             }
                         )
