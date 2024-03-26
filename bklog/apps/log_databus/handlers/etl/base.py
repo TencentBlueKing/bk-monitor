@@ -185,10 +185,25 @@ class EtlHandler(object):
             )
             if clustering_handler.data.bkdata_etl_processing_id:
                 DataAccessHandler().create_or_update_bkdata_etl(self.data.collector_config_id, fields, etl_params)
-            etl_params["etl_flat"] = True
-            log_clustering_fields = CollectorScenario.log_clustering_fields(cluster_info["cluster_config"]["version"])
-            fields = CollectorScenario.fields_insert_field_index(source_fields=fields, dst_fields=log_clustering_fields)
             update_clustering_clean.delay(index_set_id=clustering_handler.data.index_set_id)
+
+            if clustering_handler.data.bkdata_data_id != self.data.bk_data_id:
+                # 旧版聚类链路，由于入库链路不是独立的，需要更新 transfer 的结果表配置；新版则无需更新
+                etl_params["etl_flat"] = True
+                etl_params["separator_node_action"] = ""
+                log_clustering_fields = CollectorScenario.log_clustering_fields(
+                    cluster_info["cluster_config"]["version"]
+                )
+                fields = CollectorScenario.fields_insert_field_index(
+                    source_fields=fields, dst_fields=log_clustering_fields
+                )
+
+                # 涉及到字段映射的，需要把前缀去掉，比如 bk_separator_object.abc => abc
+                for field in fields:
+                    if "option" in field and "real_path" in field["option"]:
+                        field["option"]["real_path"] = field["option"]["real_path"].replace(
+                            f"{EtlStorage.separator_node_name}.", ""
+                        )
 
         # 判断是否已存在同result_table_id
         if CollectorConfig(table_id=table_id).get_result_table_by_id():

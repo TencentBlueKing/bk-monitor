@@ -15,16 +15,19 @@ import math
 import shutil
 import time
 import traceback
+from typing import Any, Dict
 
 import arrow
 from celery.task import task
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.dataflow.constant import (
+    FLINK_KEY_WORDS,
     METRIC_RECOMMENDATION_SCENE_NAME,
     AccessStatus,
     VisualType,
@@ -42,7 +45,6 @@ from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
-from bkmonitor.utils.local import local
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.user import set_local_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -59,6 +61,7 @@ from monitor_web.constants import (
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP,
 )
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
+from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.strategies.built_in import run_build_in
@@ -67,9 +70,50 @@ from utils import business, count_md5
 logger = logging.getLogger("monitor_web")
 
 
-def set_client_user():
-    biz_set = business.get_all_activate_business()
-    local.username = business.maintainer(biz_set[0])
+@task(ignore_result=True)
+def record_login_user(username: str, source: str, last_login: float, space_info: Dict[str, Any]):
+    logger.info(
+        "[record_login_user] task start: username -> %s, source -> %s, last_login -> %s, space_info -> %s",
+        username,
+        last_login,
+        source,
+        last_login,
+    )
+
+    try:
+        user = get_user_model().objects.get(username=username)
+        user.last_login = datetime.datetime.now()
+        user.save()
+
+        UserAccessRecord.objects.update_or_create_by_space(username, source, space_info)
+    except Exception:  # noqa
+        logger.exception(
+            "[record_login_user] failed to record: username -> %s, source -> %s, last_login -> %s, space_info -> %s",
+            username,
+            last_login,
+            source,
+            last_login,
+        )
+
+
+@task(ignore_result=True)
+def active_business(username: str, space_info: Dict[str, Any]):
+    logger.info("[active_business] task start: username -> %s, space_info -> %s", username, space_info)
+    try:
+        business.activate(int(space_info["bk_biz_id"]), username)
+    except Exception:  # noqa
+        logger.exception(
+            "[active_business] activate error: biz_id -> %s, username -> %s", space_info["bk_biz_id"], username
+        )
+
+
+@task(ignore_result=True)
+def cache_space_data(username: str, space_info: Dict[str, Any]):
+    logger.info("[cache_space_data] task start: username -> %s", username)
+    try:
+        resource.cc.fetch_allow_biz_ids_by_user.refresh(username)
+    except Exception:  # noqa
+        logger.exception("[cache_space_data] error: username -> %s, space_info -> %s", username, space_info)
 
 
 @task(ignore_result=True)
@@ -541,6 +585,12 @@ def access_aiops_by_strategy_id(strategy_id):
     # 3. 创建智能检测dataflow
     metric_field = rt_query_config.metric_field
     value_fields = ["`{}`".format(f) for f in rt_query_config.agg_dimension[:]]
+    group_by_fields = []
+    for field in rt_query_config.agg_dimension:
+        if field.upper() in FLINK_KEY_WORDS:
+            group_by_fields.append(f"`{field}`")
+            continue
+        group_by_fields.append(field)
     value_fields.append(
         "%(method)s(`%(field)s`) as `%(field)s`" % dict(field=metric_field, method=rt_query_config.agg_method)
     )
@@ -549,7 +599,7 @@ def access_aiops_by_strategy_id(strategy_id):
         DataQueryHandler(rt_query_config.data_source_label, rt_query_config.data_type_label)
         .table(bk_data_result_table_id)
         .filter(**rt_scope)
-        .group_by(*rt_query_config.agg_dimension)
+        .group_by(*group_by_fields)
         .agg_condition(rt_query_config.agg_condition)
         .values(*value_fields)
         .query.sql_with_params()
@@ -900,7 +950,7 @@ def parse_scene_metrics(plan_args):
                 result_table_id=metric.result_table_id,
                 metric_field=metric.metric_field,
             ),
-            "name": metric.metric_field_name,
+            "name": _(metric.metric_field_name),
             "unit": metric.unit,
             "metric_name": metric.bkmonitor_metric_fullname,
         }
@@ -917,8 +967,8 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
     @return:
     """
 
+    from bkmonitor.aiops.utils import AiSetting
     from bkmonitor.data_source.handler import DataQueryHandler
-    from monitor_web.aiops.ai_setting.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=bk_biz_id)
@@ -1057,7 +1107,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
 
     :param access_bk_biz_id: 待接入的业务id
     """
-    from monitor_web.aiops.ai_setting.utils import AiSetting
+    from bkmonitor.aiops.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=access_bk_biz_id)
@@ -1074,6 +1124,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
         metric_recommend_task.create_flow()
         metric_recommend_task.start_flow(consuming_mode=ConsumingMode.Current)
         metric_recommend.is_enabled = True
+        metric_recommend.result_table_id = metric_recommend_task.node_list[-1].output_table_name
         ai_setting.save()
         # 此处记得从继续启动
     except Exception as e:  # noqa

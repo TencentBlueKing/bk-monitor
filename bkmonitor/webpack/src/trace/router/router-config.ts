@@ -36,9 +36,19 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'home'
   },
   {
+    id: 'rotation',
+    name: '轮值',
+    route: 'rotation'
+  },
+  {
     id: 'alarm-shield',
     name: 'route-屏蔽',
     route: 'alarm-shield'
+  },
+  {
+    id: 'profiling',
+    name: 'Profiling',
+    route: 'profiling'
   }
 ];
 

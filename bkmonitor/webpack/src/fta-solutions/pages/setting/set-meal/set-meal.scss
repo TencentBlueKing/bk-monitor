@@ -5,6 +5,9 @@
   padding: 24px;
   // max-height: calc(100vh - 100px);
   margin-bottom: 45px;
+  .mr-6 {
+    margin-right: 6px;
+  }
 
   @include flex-column;
   .header-message {

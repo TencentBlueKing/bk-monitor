@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { checkClusterHealth, registerCluster, updateRegisteredCluster } from 'monitor-api/modules/commons';
+import { random } from 'monitor-common/utils';
 
-import { checkClusterHealth, registerCluster, updateRegisteredCluster } from '../../../monitor-api/modules/commons';
-import { random } from '../../../monitor-common/utils';
 import { SPACE_TYPE_MAP } from '../../common/constant';
 
 import ClusterMoreConfig from './cluster-config/cluster-more-config';
@@ -438,8 +438,8 @@ export default class ClusterConfig extends tsc<{}> {
     this.connectionStatus = !!res ? ConnectionStatus.success : ConnectionStatus.fail;
   }
   /* 资源类型为日志的查询实例列表 */
-  handleSearchInstanceList(type: string) {
-    console.log(type);
+  handleSearchInstanceList() {
+    // console.log(type);
     // TODO 调用接口
   }
   /* 用途多选checkbox校验、清除错误信息 */

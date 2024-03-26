@@ -26,11 +26,11 @@
 import { CreateElement } from 'vue';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { domain } from 'monitor-common/regex/domain';
+import { v4, v6 } from 'monitor-common/regex/ip';
+import { copyText } from 'monitor-common/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import { domain } from '../../../../../monitor-common/regex/domain';
-import { v4, v6 } from '../../../../../monitor-common/regex/ip';
-import { copyText } from '../../../../../monitor-common/utils';
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog';
 import MonitorIpSelector from '../../../../components/monitor-ip-selector/monitor-ip-selector';
 import { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
 import { transformMonitorToValue, transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';

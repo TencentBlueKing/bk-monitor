@@ -31,11 +31,10 @@
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
-import { Collapse, CollapseItem, Input, Popover } from 'bk-magic-vue';
-
-import { getMainlineObjectTopo } from '../../../monitor-api/modules/commons';
-import { getGraphQueryConfig } from '../../../monitor-api/modules/data_explorer';
-import { getFunctions } from '../../../monitor-api/modules/grafana';
+import { CancelToken } from 'monitor-api/index';
+import { getMainlineObjectTopo } from 'monitor-api/modules/commons';
+import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
+import { getFunctions } from 'monitor-api/modules/grafana';
 import {
   createFavorite,
   createFavoriteGroup,
@@ -44,21 +43,24 @@ import {
   listByGroupFavorite,
   updateFavorite,
   updateFavoriteGroup
-} from '../../../monitor-api/modules/model';
+} from 'monitor-api/modules/model';
 import {
   getMetricListV2,
   getScenarioList,
   promqlToQueryConfig,
   queryConfigToPromql
-} from '../../../monitor-api/modules/strategies';
-import { monitorDrag } from '../../../monitor-common/utils/drag-directive';
-import { copyText, deepClone, getUrlParam, random } from '../../../monitor-common/utils/utils';
-import PromqlEditor from '../../../monitor-ui/promql-editor/promql-editor';
+} from 'monitor-api/modules/strategies';
+import { monitorDrag } from 'monitor-common/utils/drag-directive';
+import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
+
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
+import PromqlEditor from '../../components/promql-editor/promql-editor';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import {
   DEFAULT_TIME_RANGE,
@@ -304,16 +306,20 @@ export default class DataRetrieval extends tsc<{}> {
   eventSelectTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
+  cancelFn = null; // 取消查询接口
 
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+  @Debounce(200)
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value: TimeRangeType) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
-    this.compareValue.tools.timeRange = value;
-    this.showRestore = true;
-    this.handleQueryProxy();
+    if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
+      this.compareValue.tools.timeRange = value;
+      this.showRestore = true;
+      this.handleQueryProxy();
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
@@ -493,8 +499,8 @@ export default class DataRetrieval extends tsc<{}> {
           vm.handleRouteQueryDataOfEvent(targetsList, type);
         } else if (targets && from.name !== 'view-detail') {
           // 跳转数据检索
-          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-            item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+          const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+            item?.data?.query_configs?.find?.(set => !!set.metrics)
           )
             ? 'performance-detail'
             : 'grafana';
@@ -542,7 +548,6 @@ export default class DataRetrieval extends tsc<{}> {
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
     this.compareValue.tools.timezone = getDefautTimezone();
-    console.info(this.compareValue.tools.timezone, '----------');
     if (timezone) {
       this.compareValue.tools.timezone = timezone as string;
       updateTimezone(timezone as string);
@@ -558,8 +563,8 @@ export default class DataRetrieval extends tsc<{}> {
         this.handleRouteQueryDataOfEvent(targetsList, type);
       } else if (targets && from.name !== 'view-detail') {
         // 跳转数据检索
-        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(
-          item => item?.data?.query_configs?.find?.(set => !!set.metrics)
+        const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
+          item?.data?.query_configs?.find?.(set => !!set.metrics)
         )
           ? 'performance-detail'
           : 'grafana';
@@ -651,7 +656,7 @@ export default class DataRetrieval extends tsc<{}> {
     const param = { type: this.favoriteSearchType, order_type };
     return await listByGroupFavorite(param)
       .then(res => {
-        this.favoriteIndexRef.emptyStatusType = 'empty';
+        this.favoriteIndexRef && (this.favoriteIndexRef.emptyStatusType = 'empty');
         const provideFavorite = res[0];
         const publicFavorite = res[res.length - 1];
         const sortFavoriteList = res.slice(1, res.length - 1).sort((a, b) => a.name.localeCompare(b.name));
@@ -676,7 +681,7 @@ export default class DataRetrieval extends tsc<{}> {
       })
       .catch(err => {
         console.warn(err);
-        this.favoriteIndexRef.emptyStatusType = '500';
+        this.favoriteIndexRef && (this.favoriteIndexRef.emptyStatusType = '500');
         this.favList[this.tabActive] = [];
       })
       .finally(() => {
@@ -806,6 +811,8 @@ export default class DataRetrieval extends tsc<{}> {
     } else if (opt === 'delete') {
       if (this.promqlData.length > 1) {
         this.promqlData.splice(index, 1);
+      } else if (this.promqlData.length === 1) {
+        this.promqlData[0].code = '';
       }
     } else if (opt === 'enable') {
       item.enable = !item.enable;
@@ -1632,7 +1639,8 @@ export default class DataRetrieval extends tsc<{}> {
         }
       };
     }
-    getGraphQueryConfig(params)
+    this.cancelFn?.();
+    getGraphQueryConfig(params, { cancelToken: new CancelToken(c => (this.cancelFn = c)) })
       .then(data => {
         this.queryTimeRange = +new Date() - queryStartTime;
         this.queryResult = data.panels;
@@ -1941,20 +1949,25 @@ export default class DataRetrieval extends tsc<{}> {
                 bk_biz_id: this.bizId,
                 page: 1,
                 page_size: 1,
-                conditions: metricFields.map((field, index) => {
-                  const res = {
-                    key: field,
-                    value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
-                  };
-                  if (field === 'metrics[0].field') {
-                    res.key = 'metric_field';
-                    res.value = query.metrics[0].field;
-                  }
-                  if (field === 'table') {
-                    res.key = 'result_table_id';
-                  }
-                  return res;
-                }),
+                conditions: metricFields
+                  .map((field, index) => {
+                    const res = {
+                      key: field,
+                      value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
+                    };
+                    if (field === 'data_label' && !res.value) {
+                      return undefined;
+                    }
+                    if (field === 'metrics[0].field') {
+                      res.key = 'metric_field';
+                      res.value = query.metrics[0].field;
+                    }
+                    if (field === 'table') {
+                      res.key = 'result_table_id';
+                    }
+                    return res;
+                  })
+                  .filter(Boolean),
                 search_value: '',
                 tag: ''
               })
@@ -2290,25 +2303,36 @@ export default class DataRetrieval extends tsc<{}> {
    * @description: 添加策略
    */
   handleAddStrategy() {
-    const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
-    const epxList = this.localValue.filter(item => !item.isMetric) as IDataRetrieval.IExpressionItem[];
-    const queryConfigs = metricList.map(item => ({
-      data_source_label: item.data_source_label,
-      data_type_label: item.data_type_label,
-      filter_dict: {},
-      functions: item.functions,
-      group_by: item.agg_dimension,
-      index_set_id: item.index_set_id,
-      interval: item.agg_interval,
-      table: item.result_table_id,
-      item: item.time_field,
-      where: item.agg_condition,
-      metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }]
-    }));
-    const queryData = {
-      expression: epxList?.[0]?.value?.toLocaleLowerCase?.(),
-      query_configs: queryConfigs
-    };
+    let queryData = null;
+    if (this.editMode === 'PromQL') {
+      queryData = {
+        mode: 'code',
+        data: this.promqlData.map(item => ({
+          promql: item.code,
+          step: item.step
+        }))
+      };
+    } else {
+      const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
+      const epxList = this.localValue.filter(item => !item.isMetric) as IDataRetrieval.IExpressionItem[];
+      const queryConfigs = metricList.map(item => ({
+        data_source_label: item.data_source_label,
+        data_type_label: item.data_type_label,
+        filter_dict: {},
+        functions: item.functions,
+        group_by: item.agg_dimension,
+        index_set_id: item.index_set_id,
+        interval: item.agg_interval,
+        table: item.result_table_id,
+        item: item.time_field,
+        where: item.agg_condition,
+        metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }]
+      }));
+      queryData = {
+        expression: epxList?.[0]?.value?.toLocaleLowerCase?.(),
+        query_configs: queryConfigs
+      };
+    }
     window.open(
       `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(
         JSON.stringify(queryData)
@@ -2588,9 +2612,6 @@ export default class DataRetrieval extends tsc<{}> {
   }
   // 切换业务
   handleChangeBizId(v: number) {
-    window.cc_biz_id = v;
-    window.bk_biz_id = v;
-    window.space_uid = this.$store.getters.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
     this.$store.commit('app/SET_BIZ_ID', v);
     const { navId } = this.$route.meta;
     // 所有页面的子路由在切换业务的时候都统一返回到父级页面
@@ -2726,7 +2747,10 @@ export default class DataRetrieval extends tsc<{}> {
     this.promqlData[index].code = value;
   }
   /* promql code 失焦 */
-  handlePromqlDataBlur() {
+  handlePromqlDataBlur(isErr: boolean) {
+    if (isErr) {
+      return;
+    }
     if (this.isNeedQueryOfAuto()) this.handleQueryProxy();
   }
   handlePromqlDataFocus(index: number) {
@@ -2751,7 +2775,7 @@ export default class DataRetrieval extends tsc<{}> {
     this.metricSelectorShow = v;
   }
   handleSelectMetric(value) {
-    const copyStr = (value.metric_id || '').replace(/\./g, ':').replace('::', ':');
+    const copyStr = value.promql_metric;
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
@@ -2765,7 +2789,10 @@ export default class DataRetrieval extends tsc<{}> {
     });
   }
 
-  handlePromqlDataEnter() {
+  handlePromqlDataEnter(hasError: boolean) {
+    if (hasError) {
+      return;
+    }
     if (this.isNeedQueryOfAuto()) this.handleQueryProxy();
   }
 
@@ -2804,8 +2831,8 @@ export default class DataRetrieval extends tsc<{}> {
               opt !== 'enable'
                 ? this.optionIconName[opt]
                 : item.enable
-                ? this.optionIconName[opt]
-                : 'icon-mc-invisible';
+                  ? this.optionIconName[opt]
+                  : 'icon-mc-invisible';
             const sourceAcitve = opt === 'source' && metricItem.showSource ? 'is-source' : '';
             /** 不支持多指标的不支持源码编辑 */
             const display =
@@ -2836,21 +2863,17 @@ export default class DataRetrieval extends tsc<{}> {
               metricItem.showSource ? (
                 // 源码模式编辑
                 <div class='source-mode-wrap'>
-                  <div class={['source-mode', { 'is-error': metricItem.sourceCodeError }]}>
-                    {metricItem.loading ? undefined : (
-                      <PromqlEditor
-                        ref={`promql-editor-${index}`}
-                        class='promql-editor'
-                        value={metricItem.sourceCode}
-                        executeQuery={(hasError: boolean) =>
-                          this.handlePromqlError(hasError, 'enter', metricItem, index)
-                        }
-                        onBlur={(val, hasError: boolean) => this.handlePromqlError(hasError, 'blur', metricItem, index)}
-                        onFocus={() => this.handlePromqlFocus(metricItem)}
-                        onChange={val => this.handlePromsqlChange(metricItem, val)}
-                      />
-                    )}
-                  </div>
+                  {metricItem.loading ? undefined : (
+                    <PromqlEditor
+                      ref={`promql-editor-${index}`}
+                      value={metricItem.sourceCode}
+                      isError={metricItem.sourceCodeError}
+                      executeQuery={(hasError: boolean) => this.handlePromqlError(hasError, 'enter', metricItem, index)}
+                      onBlur={(val, hasError: boolean) => this.handlePromqlError(hasError, 'blur', metricItem, index)}
+                      onFocus={() => this.handlePromqlFocus(metricItem)}
+                      onChange={val => this.handlePromsqlChange(metricItem, val)}
+                    />
+                  )}
                 </div>
               ) : (
                 <DataRetrievalItem
@@ -2917,7 +2940,7 @@ export default class DataRetrieval extends tsc<{}> {
                 style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
               ></i>
             )}
-            {/* <Popover
+            {/* <bk-popover
               ref="autoQueryPopover"
               theme="light"
               trigger="click"
@@ -2925,14 +2948,14 @@ export default class DataRetrieval extends tsc<{}> {
               <i class="icon-monitor icon-menu-setting" onClick={() => this.handleIseeCache()}></i>
               <div slot="content" class="setting-pop-centent">
                 <span class="text">{this.$t('是否开启自动查询')}</span>
-                <Switcher
+                <bk-switcher
                   vModel={this.autoQuery}
-                  class="switcher" size="small" theme="primary" onChange={this.handleAutoQueryChange}></Switcher>
+                  class="switcher" size="small" theme="primary" onChange={this.handleAutoQueryChange}></bk-switcher>
                 { this.isShowTips
                   ? <span class="i-see-btn" onClick={() => this.handleIseeCache(true)}>{this.$t('知道了!')}</span>
                   : undefined }
               </div>
-            </Popover> */}
+            </bk-popover> */}
             {/* <span class="icon-monitor icon-double-down"
                   onClick={() => this.handleLeftHiddenAndShow(false)}></span> */}
           </div>
@@ -2950,7 +2973,7 @@ export default class DataRetrieval extends tsc<{}> {
       </div>
     );
     const metricRetrieval = () => [
-      <Collapse
+      <bk-collapse
         class='collapse-wrap collapse-wrap-data'
         vModel={this.expandedData}
       >
@@ -2969,7 +2992,7 @@ export default class DataRetrieval extends tsc<{}> {
               onDragenter={() => this.handleDragEnter(index)}
               onDragover={evt => this.handleDragOver(evt)}
             >
-              <CollapseItem
+              <bk-collapse-item
                 v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 class='collapse-item'
                 name={item.key}
@@ -2977,11 +3000,11 @@ export default class DataRetrieval extends tsc<{}> {
                   default: () => titleSlot(item, index),
                   content: () => contentSlot(item, index)
                 }}
-              ></CollapseItem>
+              ></bk-collapse-item>
             </li>
           ))}
         </transition-group>
-      </Collapse>,
+      </bk-collapse>,
       <div class='query-add-btn-wrap'>
         <span
           class='query-add-btn'
@@ -3029,7 +3052,7 @@ export default class DataRetrieval extends tsc<{}> {
           onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
           onSelected={this.handleSelectMetric}
         ></MetricSelector>
-        <Collapse
+        <bk-collapse
           class='collapse-wrap collapse-wrap-data'
           v-model={this.promqlExpandedData}
         >
@@ -3038,7 +3061,7 @@ export default class DataRetrieval extends tsc<{}> {
               class='drag-item'
               key={item.key}
             >
-              <CollapseItem
+              <bk-collapse-item
                 class='collapse-item'
                 name={item.key}
                 scopedSlots={{
@@ -3058,8 +3081,8 @@ export default class DataRetrieval extends tsc<{}> {
                             opt !== 'enable'
                               ? this.optionIconName[opt]
                               : item.enable
-                              ? this.optionIconName[opt]
-                              : 'icon-mc-invisible';
+                                ? this.optionIconName[opt]
+                                : 'icon-mc-invisible';
                           return (
                             <i
                               key={opt}
@@ -3076,20 +3099,18 @@ export default class DataRetrieval extends tsc<{}> {
                   content: () => (
                     <div class='collapse-item-content promql'>
                       <div class='source-mode-wrap'>
-                        <div class={['source-mode source-mode-h80']}>
-                          <PromqlEditor
-                            ref={'promql-mode-editor'}
-                            class='promql-editor'
-                            value={item.code}
-                            onChange={val => this.handlePromqlDataCodeChange(val, index)}
-                            executeQuery={this.handlePromqlDataEnter}
-                            onFocus={() => this.handlePromqlDataFocus(index)}
-                            onBlur={(val, hasError: boolean) => this.handlePromqlDataBlur(hasError, index)}
-                          />
-                        </div>
+                        <PromqlEditor
+                          ref={'promql-mode-editor'}
+                          value={item.code}
+                          minHeight={80}
+                          onChange={val => this.handlePromqlDataCodeChange(val, index)}
+                          executeQuery={this.handlePromqlDataEnter}
+                          onFocus={() => this.handlePromqlDataFocus(index)}
+                          onBlur={(val, hasError: boolean) => this.handlePromqlDataBlur(hasError, index)}
+                        />
                       </div>
                       <span class='step-content'>
-                        <Input
+                        <bk-input
                           class='step-input'
                           value={item.step}
                           onChange={value => this.handleSourceStepChange(value, index)}
@@ -3109,16 +3130,16 @@ export default class DataRetrieval extends tsc<{}> {
                               }}
                             ></span>
                           </div>
-                        </Input>
+                        </bk-input>
                       </span>
                       {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
                     </div>
                   )
                 }}
-              ></CollapseItem>
+              ></bk-collapse-item>
             </li>
           ))}
-        </Collapse>
+        </bk-collapse>
         <div class='query-add-btn-wrap'>
           <span
             class='query-add-btn'

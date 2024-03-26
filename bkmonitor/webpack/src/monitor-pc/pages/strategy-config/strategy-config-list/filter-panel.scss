@@ -22,7 +22,7 @@
 
   &-body {
     height: calc(100% - 26px);
-    overflow: auto; 
+    overflow: auto;
 
     &::-webkit-scrollbar-thumb {
       display: none;
@@ -86,17 +86,13 @@
           font-size: 16px;
           color: #c4c6cc;
         }
-      }      
+      }
 
       .label-text {
-        min-width: 120px;
+        flex: 1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-
-      .label-count {
-        margin: 0 0 0 auto;
       }
     }
   }

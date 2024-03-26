@@ -114,6 +114,7 @@
       v-show="loading"
     >
       <img
+        alt=""
         class="loading-img"
         src="../../../static/images/svg/spinner.svg"
       > {{ $t('正加载更多内容…') }}
@@ -121,7 +122,7 @@
   </ul>
 </template>
 <script>
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 export default {
   name: 'AlarmLogList',
@@ -224,31 +225,31 @@ export default {
 </script>
 <style lang="scss" scoped>
 .log-list {
-  padding: 20px 20px 10px 55px;
   display: flex;
   flex-direction: column;
-  color: #63656e;
+  padding: 20px 20px 10px 55px;
   font-size: 12px;
+  color: #63656e;
   background-color: #fff;
 
   &-item {
+    position: relative;
     display: flex;
     flex-direction: column;
     min-height: 70px;
-    position: relative;
     margin-bottom: 2px;
 
     .item-title {
-      flex: 0 0 30px;
-      margin-left: -14px;
       display: flex;
+      flex: 0 0 30px;
       align-items: center;
+      margin-left: -14px;
 
       &-set {
         position: absolute;
+        left: -36px;
         font-size: 16px;
         color: #98999f;
-        left: -36px;
 
         &:hover {
           color: #707279;
@@ -257,90 +258,90 @@ export default {
       }
 
       &-icon {
-        height: 30px;
-        width: 30px;
-        background-color: #c4c6cc;
-        color: #fff;
-        border-radius: 50%;
-        font-size: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 30px;
+        height: 30px;
         margin-right: 10px;
+        font-size: 16px;
+        color: #fff;
+        background-color: #c4c6cc;
+        border-radius: 50%;
       }
     }
 
     .item-content {
+      position: relative;
       flex: 1 0 40px;
+      padding-left: 24px;
       margin-top: 2px;
       border-left: 2px solid #dcdee5;
-      padding-left: 24px;
-      position: relative;
 
       &-desc {
         margin-bottom: 16px;
 
         .tip-dashed {
           padding-bottom: 2px;
-          border-bottom: 1px dashed;
-          border-color: #c4c6cc;
           cursor: pointer;
+          border-color: #c4c6cc;
+          border-bottom: 1px dashed;
         }
 
         .notice-group {
-          padding-left: 9px;
+          display: inline-block;
+          height: 20px;
           padding-right: 9px;
+          padding-left: 9px;
+          margin-left: 4px;
+          line-height: 20px;
+          color: #313238;
+          text-align: center;
           background-color: #f1f1f1;
           border-radius: 2px;
-          height: 20px;
-          line-height: 20px;
-          display: inline-block;
-          text-align: center;
-          color: #313238;
-          margin-left: 4px;
         }
 
         .notice-status {
-          color: #878787;
           display: inline-block;
           margin-left: 4px;
+          color: #878787;
         }
 
         .alarm-ack {
-          color: #313238;
           display: inline-block;
           margin-left: 2px;
+          color: #313238;
         }
 
         .can-click {
-          color: #3a84ff;
           margin-left: 4px;
+          color: #3a84ff;
           cursor: pointer;
         }
       }
 
       .item-border {
-        border: 1px dashed #dcdee5;
-        height: 0;
         position: absolute;
         right: 20px;
-        left: 24px;
         bottom: 7px;
+        left: 24px;
+        height: 0;
+        border: 1px dashed #dcdee5;
       }
     }
   }
 
   &-loading {
-    background-color: #ebedf0;
-    border-radius: 2px;
     display: flex;
-    width: 160px;
-    height: 32px;
     align-items: center;
     justify-content: center;
+    width: 160px;
+    height: 32px;
     margin: auto;
-    color: #979ba5;
     margin-top: 16px;
+    color: #979ba5;
+    background-color: #ebedf0;
+    border-radius: 2px;
 
     .loading-img {
       width: 16px;

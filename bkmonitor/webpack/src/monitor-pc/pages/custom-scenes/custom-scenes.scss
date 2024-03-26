@@ -1,59 +1,71 @@
 .custom-scenes-page {
+  position: relative;
   width: 100%;
   height: 100%;
-  position: relative;
+
   .custom-scenes-page-wrapper {
     width: 100%;
     height: calc(100% - 50px);
     overflow-y: auto;
+
     .table-wrapper {
-      border-radius: 2px;
-      background: #fff;
-      box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
-      margin: 16px;
       padding: 16px;
       padding-bottom: 0;
+      margin: 16px;
+      background: #fff;
+      border-radius: 2px;
+      box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
+
       .wrapper-header {
         display: flex;
         align-items: center;
         margin-bottom: 16px;
+
         .header-select-list {
           display: flex;
-          width: 112px;
           flex-direction: column;
+          width: 112px;
+
           .list-item {
             display: flex;
             flex: 0 0 32px;
-            padding-left: 12px;
             align-items: center;
+            padding-left: 12px;
             color: #63656e;
             cursor: pointer;
+
             &:hover {
               color: #3a84ff;
               background: rgba(225,236,255,.60);
             }
           }
         }
+
         .search-wrapper-input {
           width: 328px;
           margin: 0 0 0 auto;
         }
       }
+
       .column-name {
         font-size: 12px;
         line-height: 20px;
+
         .title {
           color: #3a84ff;
           cursor: pointer;
         }
+
         .subtitle {
           color: #979ba5;
         }
       }
+
       .column-count {
         display: flex;
         justify-content: flex-end;
       }
+
       .column-status {
         .common-status-wrap {
           .common-status-icon {
@@ -62,10 +74,18 @@
           }
         }
       }
+
       .bk-table-fixed-right {
         /* stylelint-disable-next-line declaration-no-important */
         right: 3px !important;
       }
     }
+  }
+
+  .spinner {
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    background: url(../../static//images//svg/spinner.svg);
   }
 }

@@ -132,15 +132,14 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
+import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
-import dayjs from 'dayjs';
-import { addListener, removeListener, ResizeCallback } from 'resize-detector';
+import { hexToRgbA } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce } from 'throttle-debounce';
-
-import { hexToRgbA } from '../../monitor-common/utils/utils';
-import MonitorDialog from '../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import ChartAnnotation from './components/chart-annotation.vue';
 import ChartLegend from './components/chart-legend.vue';
@@ -218,7 +217,7 @@ export default class MonitorEcharts extends Vue {
       return window.graph_watermark ? `url('${watermarkMaker(window.user_name || window.username)}')` : '';
     }
   })
-  backgroundUrl: String;
+    backgroundUrl: String;
   // 图表title
   @Prop({ default: '' })  title: string;
   // 图表单位
@@ -252,14 +251,14 @@ export default class MonitorEcharts extends Vue {
     ]
   })
   // 图标系列颜色集合
-  colors: string[];
+    colors: string[];
 
   @Prop({
     default() {
       return '查无数据';
     }
   })
-  emptyText: string;
+    emptyText: string;
 
 
   // 监控图表默认配置
@@ -393,7 +392,7 @@ export default class MonitorEcharts extends Vue {
     this.chart = chart;
     this.chartUnit = this.unit;
     if (this.autoresize) {
-      const handler = debounce(300, false, () => this.resize());
+      const handler = debounce(300, () => this.resize());
       this.resizeHandler = async () => {
         await this.$nextTick();
         this.chartRef?.offsetParent !== null && handler();

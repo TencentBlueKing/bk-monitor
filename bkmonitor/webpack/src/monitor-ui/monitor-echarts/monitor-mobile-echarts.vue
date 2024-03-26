@@ -99,10 +99,10 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
+import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
-import dayjs from 'dayjs';
-import { addListener, removeListener, ResizeCallback } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import ChartLegend from './components/chart-legend.vue';
@@ -180,7 +180,7 @@ export default class MonitorMobileEcharts extends Vue {
       return window.graph_watermark ? `url('${watermarkMaker(window.user_name || window.username)}')` : '';
     }
   })
-  backgroundUrl: String;
+    backgroundUrl: String;
 
   // 获取图标数据
   @Prop() getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;
@@ -189,14 +189,14 @@ export default class MonitorMobileEcharts extends Vue {
     default: () => colorList
   })
   // 图标系列颜色集合
-  colors: string[];
+    colors: string[];
 
   @Prop({
     default() {
       return '查无数据';
     }
   })
-  emptyText: string;
+    emptyText: string;
 
   // 图表高度
   @Prop({ default: 310 }) height: number | string;
@@ -308,7 +308,7 @@ export default class MonitorMobileEcharts extends Vue {
     this.chart = chart;
     this.chartUnit = this.unit;
     if (this.autoresize) {
-      const handler = debounce(300, false, () => this.resize());
+      const handler = debounce(300, () => this.resize());
       this.resizeHandler = async () => {
         await this.$nextTick();
         this.chartRef?.offsetParent !== null && handler();
@@ -445,7 +445,6 @@ export default class MonitorMobileEcharts extends Vue {
       }, 320);
     }).catch(console.log);
   }
-
   // 设置tooltip
   handleSetTooltip(params) {
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {

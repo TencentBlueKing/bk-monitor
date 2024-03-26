@@ -25,8 +25,8 @@
  */
 import { computed, defineComponent, ref, toRefs } from 'vue';
 import { Button, Input, Loading, Popover } from 'bkui-vue';
+import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
-import loadingImg from '../../../../monitor-pc/static/images/svg/spinner.svg';
 import { useTraceStore } from '../../../store/modules/trace';
 
 import './handle-btn.scss';
@@ -135,6 +135,7 @@ export default defineComponent({
                 <img
                   src={loadingImg}
                   class='status-loading'
+                  alt=''
                 />
               ) : (
                 <span class={`icon-monitor icon-${this.autoQuery ? 'weibiaoti519' : 'kaishi11'}`}></span>

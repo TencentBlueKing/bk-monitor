@@ -261,5 +261,20 @@ export default {
   模糊检索使用通配符: 'Fuzzy search using wild-card',
   规则名不能为空: 'Rule name cannot be empty',
   匹配规则重复了: 'The matching rule is duplicated',
-  '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000'
+  '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000',
+  生效起始时间必填: 'Effective start time is required',
+  轮值规则必须添加人员: 'The rotation rule requires adding personnel',
+  最少添加一条轮值规则: 'Add at least one rotation rule',
+  请选择值班规则: 'Please select the duty rule',
+  请输入企业微信群ID: 'Please enter the group ID of enterprise wechat',
+  'validate-暂无数据': 'No data available',
+  轮值规则必须添加单班时间: 'The rotation rule must add a single shift time',
+  轮值规则名称长度不能超过128个字符: 'The length of the rotation rule name cannot exceed 128 characters',
+  生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time',
+  请确保企业微信群ID为32个字符: 'Please ensure that the corporate wechat Group ID is 32 characters',
+  生效结束时间不能小于今天: 'The effective end time cannot be less than today',
+  通知升级必须填写时间间隔以及用户组: 'Notification upgrade must fill in the time interval and user group',
+  通知升级的用户组不能包含第一次接收告警的用户组:
+    'The user group notified of the upgrade cannot include the user group that received the alarm for the first time',
+  暂不支持设置两个智能算法: 'Setting two intelligent algorithms is currently not supported'
 };

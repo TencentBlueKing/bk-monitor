@@ -64,11 +64,11 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { addTaskUptimeCheckGroup,   changeStatusUptimeCheckTask, cloneUptimeCheckTask,
+  createUptimeCheckGroup, destroyUptimeCheckGroup,   destroyUptimeCheckTask, updateUptimeCheckGroup } from 'monitor-api/modules/model';
 import { debounce } from 'throttle-debounce';
 
-import { addTaskUptimeCheckGroup,   changeStatusUptimeCheckTask, cloneUptimeCheckTask,
-  createUptimeCheckGroup, destroyUptimeCheckGroup,   destroyUptimeCheckTask, updateUptimeCheckGroup } from '../../../../../monitor-api/modules/model';
 import DeleteSubtitle from '../../../strategy-config/strategy-config-common/delete-subtitle';
 
 import GroupCards from './group-cards.vue';
@@ -261,18 +261,19 @@ export default {
 <style lang="scss" scoped>
 .empty-search-data {
   display: flex;
-  height: 42px;
-  border: 1px solid #dcdee5;
-  background: #fff;
-  border-radius: 2px;
   align-items: center;
   justify-content: center;
-  color: #63656e;
+  height: 42px;
   font-size: 14px;
+  color: #63656e;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
   i {
-    color: #979ba5;
-    font-size: 18px;
     margin-right: 8px;
+    font-size: 18px;
+    color: #979ba5;
   }
 }
 </style>

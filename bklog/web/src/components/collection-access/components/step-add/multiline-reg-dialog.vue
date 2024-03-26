@@ -30,35 +30,53 @@
     :width="getDialogWidth"
     header-position="left"
     @confirm="handleSave"
-    @value-change="handleValueChange">
+    @value-change="handleValueChange"
+  >
     <div class="multiline-reg-dialog-content">
-      <bk-form :label-width="getLabelWidth" :model="formData" ref="formRef">
+      <bk-form
+        ref="formRef"
+        :label-width="getLabelWidth"
+        :model="formData"
+      >
         <bk-form-item
           :label="$t('日志样例')"
           :required="true"
           :rules="notEmptyRule"
           property="log_sample"
-          style="margin-bottom: 20px;">
-          <bk-input v-model.trim="formData.log_sample" type="textarea" :rows="6"></bk-input>
+          style="margin-bottom: 20px"
+        >
+          <bk-input
+            v-model.trim="formData.log_sample"
+            type="textarea"
+            :rows="6"
+          ></bk-input>
         </bk-form-item>
         <bk-form-item
           :label="$t('行首正则表达式')"
           :required="true"
           :rules="notEmptyRule"
           property="multiline_pattern"
-          style="margin-bottom: 20px;">
+          style="margin-bottom: 20px"
+        >
           <bk-input v-model.trim="formData.multiline_pattern"></bk-input>
         </bk-form-item>
       </bk-form>
-      <div class="test-container" :style="`padding-left: ${getLabelWidth}px;`">
+      <div
+        class="test-container"
+        :style="`padding-left: ${getLabelWidth}px;`"
+      >
         <bk-button
           theme="primary"
           class="mr15"
           :loading="isMatchLoading"
-          @click="handleMatch">
+          @click="handleMatch"
+        >
           {{ $t('匹配验证') }}
         </bk-button>
-        <div v-if="matchLines !== null" class="test-result">
+        <div
+          v-if="matchLines !== null"
+          class="test-result"
+        >
           <span :class="matchLines ? 'bk-icon icon-check-circle-shape' : 'bk-icon icon-close-circle-shape'"></span>
           <template v-if="matchLines">
             <i18n path="成功匹配 {0} 条日志">
@@ -77,12 +95,13 @@ export default {
   props: {
     showDialog: {
       type: Boolean,
-      default: false,
+      default: false
     },
-    oldPattern: { // 父组件输入的行首正则内容
+    oldPattern: {
+      // 父组件输入的行首正则内容
       type: String,
-      default: '',
-    },
+      default: ''
+    }
   },
   data() {
     const top = (window.innerHeight - 380) / 2;
@@ -92,13 +111,15 @@ export default {
       isMatchLoading: false, // 匹配验证
       formData: {
         log_sample: '', // 日志样例
-        multiline_pattern: '', // 行首正则表达式
+        multiline_pattern: '' // 行首正则表达式
       },
-      notEmptyRule: [{
-        required: true,
-        trigger: 'blur',
-      }],
-      matchLines: null, // 匹配条数
+      notEmptyRule: [
+        {
+          required: true,
+          trigger: 'blur'
+        }
+      ],
+      matchLines: null // 匹配条数
     };
   },
   computed: {
@@ -107,14 +128,16 @@ export default {
     },
     getLabelWidth() {
       return this.$store.getters.isEnLanguage ? 215 : 124;
-    },
+    }
   },
   methods: {
     handleValueChange(val) {
       this.$emit('update:showDialog', val);
-      if (val) { // 打开时填入采集页行首正则内容
+      if (val) {
+        // 打开时填入采集页行首正则内容
         this.formData.multiline_pattern = this.oldPattern;
-      } else { // 关闭时重置数据
+      } else {
+        // 关闭时重置数据
         this.formData.log_sample = '';
         this.formData.multiline_pattern = '';
         this.matchLines = null;
@@ -127,9 +150,9 @@ export default {
         this.isMatchLoading = true;
         const res = await this.$http.request('collect/regexDebug', {
           params: {
-            collector_id: Number(this.$route.params.collectorId),
+            collector_id: Number(this.$route.params.collectorId)
           },
-          data: this.formData,
+          data: this.formData
         });
         this.matchLines = res.data.match_lines;
       } catch (e) {
@@ -141,55 +164,55 @@ export default {
     },
     handleSave() {
       this.$emit('update:oldPattern', this.formData.multiline_pattern);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/scroller';
+@import '@/scss/mixins/scroller';
 
-  .multiline-reg-dialog-content {
-    .test-container {
+.multiline-reg-dialog-content {
+  .test-container {
+    display: flex;
+    align-items: center;
+
+    .test-result {
       display: flex;
       align-items: center;
+      line-height: 20px;
 
-      .test-result {
-        display: flex;
-        align-items: center;
-        line-height: 20px;
+      .bk-icon {
+        margin-right: 6px;
+        font-size: 12px;
+      }
 
-        .bk-icon {
-          font-size: 12px;
-          margin-right: 6px;
-        }
+      .icon-check-circle-shape {
+        color: #2dcb56;
+      }
 
-        .icon-check-circle-shape {
-          color: #2dcb56;
-        }
+      .icon-close-circle-shape {
+        color: #ea3636;
+      }
 
-        .icon-close-circle-shape {
-          color: #ea3636;
-        }
-
-        .match-counts {
-          margin: 0 4px;
-          color: #3a84ff;
-          font-weight: bold;
-        }
+      .match-counts {
+        margin: 0 4px;
+        font-weight: bold;
+        color: #3a84ff;
       }
     }
-
-    :deep(.bk-label-text) {
-      color: #313238;
-    }
-
-    :deep(.bk-form-textarea) {
-      @include scroller($backgroundColor: #C4C6CC, $width:4px);
-    }
   }
 
-  :deep(.bk-dialog-wrapper .bk-dialog-header) {
-    line-height: 1.3;
+  :deep(.bk-label-text) {
+    color: #313238;
   }
+
+  :deep(.bk-form-textarea) {
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+  }
+}
+
+:deep(.bk-dialog-wrapper .bk-dialog-header) {
+  line-height: 1.3;
+}
 </style>

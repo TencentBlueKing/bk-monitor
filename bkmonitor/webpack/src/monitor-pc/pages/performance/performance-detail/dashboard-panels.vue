@@ -253,14 +253,14 @@
 import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
-
 // import { handleTimeRange } from '../../../utils/index';
-import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafana';
-import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
-import { deepClone, random } from '../../../../monitor-common/utils/utils.js';
-import { handleRelateAlert } from '../../../../monitor-ui/chart-plugins/utils';
-import MonitorEcharts from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
-import { echartsConnect, echartsDisconnect } from '../../../../monitor-ui/monitor-echarts/utils';
+import { graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
+import { fetchItemStatus } from 'monitor-api/modules/strategies';
+import { deepClone, random } from 'monitor-common/utils/utils.js';
+import { handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
+import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
+
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import authorityStore from '../../../store/modules/authority';
 import { getCollectVariable, setCollectVariable } from '../../collector-config/collector-view/variable-set';
@@ -313,16 +313,16 @@ export default class DashboardPanels extends Vue {
   @Inject('authorityMap') authorityMap;
   @InjectReactive('downSampleRange') downSampleRange;
   @InjectReactive('readonly') readonly;
-  private activeName = [];
-  private groupList = [];
-  private collectList = [];
-  private collectShow = false;
-  private totalCount = 0;
-  private isSingleChart = false;
-  private showViewDetail = false;
-  private viewQueryConfig = {};
-  private errorMsg = '';
-  private onlyChartHeight = 210;
+  activeName = [];
+  groupList = [];
+  collectList = [];
+  collectShow = false;
+  totalCount = 0;
+  isSingleChart = false;
+  showViewDetail = false;
+  viewQueryConfig = {};
+  errorMsg = '';
+  onlyChartHeight = 210;
   get chartOptions() {
     return deepMerge(
       {
@@ -877,9 +877,14 @@ export default class DashboardPanels extends Vue {
       display: flex;
       margin-right: 10px;
       margin-bottom: 10px;
-      border: 0;
+      border: 2px solid transparent;
       border-radius: 2px;
       box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+
+      &.scroll-in {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-color: #3a84ff !important;
+      }
 
       &.has-child {
         padding-right: 0;
@@ -940,7 +945,7 @@ export default class DashboardPanels extends Vue {
         display: none;
         border-color: #dcdee5 #dcdee5 transparent transparent;
         border-style: solid;
-        border-width: 16px;
+        border-width: 12px;
         border-radius: 2px;
 
         &::after {

@@ -24,7 +24,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { formatDatetime } from '../../monitor-common/utils/utils';
+import { formatDatetime } from 'monitor-common/utils/utils';
+
 import store from '../store/store';
 /**
  * 通用跳转页面
@@ -329,6 +330,7 @@ const memberSelectorMixin = {
         <div class={parentClass}>
           {node.logo ? (
             <img
+              alt=''
               class={avatarClass}
               src={node.logo}
             />

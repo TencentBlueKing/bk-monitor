@@ -208,10 +208,10 @@ class MultivariateAnomalyDetectionSerializer(serializers.Serializer):
 
     class MetricListSerializer(serializers.ListSerializer):
         class MetricSerializer(serializers.Serializer):
-            metric_id = serializers.CharField(required=True, label=_("指标ID"))
-            name = serializers.CharField(required=True, label=_("指标中文名"))
-            unit = serializers.CharField(required=True, label=_("单位"))
-            metric_name = serializers.CharField(required=True, label=_("指标英文名"))
+            metric_id = serializers.CharField(required=True, label="指标ID")
+            name = serializers.CharField(required=True, label="指标中文名")
+            unit = serializers.CharField(required=True, label="单位")
+            metric_name = serializers.CharField(required=True, label="指标英文名")
 
         child = MetricSerializer()
 

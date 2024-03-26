@@ -26,7 +26,6 @@
 /* eslint-disable new-cap */
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
-
 import {
   getConvergeFunction,
   getDimensions,
@@ -34,10 +33,10 @@ import {
   getPluginTemplates,
   getTemplateDetail,
   getVariables
-} from '../../../monitor-api/modules/action';
-import { createActionConfig, retrieveActionConfig, updateActionConfig } from '../../../monitor-api/modules/model';
-import { getNoticeWay } from '../../../monitor-api/modules/notice_group';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/action';
+import { createActionConfig, retrieveActionConfig, updateActionConfig } from 'monitor-api/modules/model';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
 const { i18n } = window;
 export interface ISetMealAddState {
@@ -290,6 +289,7 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   public setNoticeWay(data) {
     this.noticeWayList = data.map(item => {
       const data = {
+        ...item,
         type: item.type,
         label: item.label,
         icon: item.icon,

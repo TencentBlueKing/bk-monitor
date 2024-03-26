@@ -1491,35 +1491,20 @@ class DataFlowHandler(BaseAiopsHandler):
             clustering_config.filter_rules, all_fields_dict, clustering_config.clustering_fields
         )
 
-        # alias_name ==> field_name
-        format_transform_fields = []
-        dst_transform_fields = [i.replace("`", "") for i in dst_transform_fields]
-        mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
-        for field in dst_transform_fields:
-            if field not in mapping_all_fields_dict:
-                if field == clustering_fields:
-                    if field == DEFAULT_CLUSTERING_FIELD:
-                        format_transform_fields.append(f"`{field}`")
-                    else:
-                        format_transform_fields.append("`{}` as `{}`".format(DEFAULT_CLUSTERING_FIELD, field))
-                else:
-                    if field == DEFAULT_CLUSTERING_FIELD:
-                        if clustering_config.collector_config_id:
-                            format_transform_fields.append(f"`{field}`")
-                        else:
-                            format_transform_fields.append("`{}` as `{}`".format(field, clustering_fields))
-                    elif field not in all_fields_dict:
-                        format_transform_fields.append(f"`{field}`")
-                    else:
-                        continue
-            else:
-                if field != mapping_all_fields_dict[field]:
-                    if mapping_all_fields_dict[field] == DEFAULT_TIME_FIELD:
-                        format_transform_fields.append(f"`{field}`")
-                    else:
-                        format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
-                else:
-                    format_transform_fields.append(f"`{field}`")
+        is_dimension_fields = [
+            DEFAULT_CLUSTERING_FIELD if field == clustering_fields else field for field in is_dimension_fields
+        ]
+        reverse_all_fields_dict = {dst_field: src_field for src_field, dst_field in all_fields_dict.items()}
+        is_dimension_fields_map = {
+            field: clustering_fields if field == DEFAULT_CLUSTERING_FIELD else field for field in is_dimension_fields
+        }
+        for src_field, dst_field in is_dimension_fields_map.items():
+            is_dimension_fields_map[src_field] = reverse_all_fields_dict.get(dst_field, dst_field)
+        format_transform_fields = [
+            f"`{src_field}`" if src_field == dst_field else f"`{src_field}` as `{dst_field}`"
+            for src_field, dst_field in is_dimension_fields_map.items()
+            if dst_field not in [DEFAULT_TIME_FIELD]
+        ]
 
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
         table_name_no_id = result_table_id.split("_", 1)[1]
@@ -1710,6 +1695,7 @@ class DataFlowHandler(BaseAiopsHandler):
         result_table_id: str,
         bk_biz_id: int,
         index_set_id: int,
+        clustering_config: ClusteringConfig,
     ):
         """
         初始化 create_log_count_aggregation_flow
@@ -1733,6 +1719,8 @@ class DataFlowHandler(BaseAiopsHandler):
                 table_name=f"bklog_{index_set_id}_agg",
                 result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_agg",
                 filter_rule=log_count_signatures_filter_rule,
+                # TODO: group by 字段需要转换为原始字段名称
+                groups=", ".join(clustering_config.group_fields),
             ),
             tspider_storage=TspiderStorageCls(
                 cluster=self.conf.get("tspider_cluster"), expires=self.conf.get("log_count_tspider_expires")
@@ -1757,6 +1745,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 result_table_id=result_table_id,
                 bk_biz_id=clustering_config.bk_biz_id,  # 当前业务id
                 index_set_id=clustering_config.index_set_id,
+                clustering_config=clustering_config,
             )
         )
         log_count_aggregation_flow = self._render_template(
@@ -1781,3 +1770,42 @@ class DataFlowHandler(BaseAiopsHandler):
         ]
         clustering_config.save()
         return result
+
+    def update_log_count_aggregation_flow(self, index_set_id):
+        """
+        update_log_count_aggregation_flow
+        @param index_set_id:
+        @return:
+        """
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        if not clustering_config.log_count_aggregation_flow_id:
+            logger.info(f"update agg flow not found: index_set_id -> {index_set_id}")
+            return
+        logger.info(f"update agg flow beginning: flow_id -> {clustering_config.log_count_aggregation_flow_id}")
+        flow_id = clustering_config.log_count_aggregation_flow_id
+        # 画布结构
+        flow_graph = self.get_flow_graph(flow_id=flow_id)
+        # 根据画布结构  更新节点
+        nodes = flow_graph["nodes"]
+        result_table_id = clustering_config.predict_flow["clustering_predict"]["result_table_id"]
+        log_count_aggregation_flow_dict = asdict(
+            self._init_log_count_aggregation_flow(
+                result_table_id=result_table_id,
+                bk_biz_id=clustering_config.bk_biz_id,  # 当前业务id
+                index_set_id=clustering_config.index_set_id,
+                clustering_config=clustering_config,
+            )
+        )
+        log_count_aggregation_flow = self._render_template(
+            flow_mode=FlowMode.LOG_COUNT_AGGREGATION_FLOW.value,
+            render_obj={"log_count_aggregation": log_count_aggregation_flow_dict},
+        )
+        flow = json.loads(log_count_aggregation_flow)
+        # 更新画布结构
+        self.deal_predict_flow(nodes=nodes, flow=flow)
+
+        # 重启 flow
+        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
+        clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
+        clustering_config.save(update_fields=["log_count_aggregation_flow"])
+        logger.info(f"update agg flow success: flow_id -> {clustering_config.log_count_aggregation_flow_id}")

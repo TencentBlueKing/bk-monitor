@@ -15,13 +15,11 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union
 
 from django.conf import settings
-from monitor.constants import AGENT_STATUS
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
-from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.host import Host as OldHost
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
@@ -30,6 +28,7 @@ from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import HOST_SCENARIO, TargetFieldType
 from core.drf_resource import api
+from monitor.constants import AGENT_STATUS
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +76,9 @@ def agent_status(cc_biz_id, host_list, ip_info_list=None):
     return result
 
 
-@using_cache(CacheType.CC)
 def topo_tree(bk_biz_id):
+    # api.cmdb.get_topo_tree 已开启 API 缓存并由 alarm_backends.core.api_cache.library.cmdb_api_list 每分钟刷新
+    # 此处无需再设置「用户」级别的缓存 - using_cache(CacheType.CC)，两级缓存容易落后
     result = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
     return to_dict(result)
 
@@ -554,17 +554,21 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
         target = target[0][0]["value"]
 
     # 如果没有聚合任何目标字段，则不过滤目标
-    if {"bk_target_service_instance_id", "service_instance_id"} & set(dimensions):
+    is_service_instance, is_host_id, is_ip = False, False, False
+    if "bk_target_service_instance_id" in dimensions or "service_instance_id" in dimensions:
         is_service_instance = True
-    elif {"bk_target_ip", "ip", "bk_host_id"} & set(dimensions):
-        is_service_instance = False
+    elif "bk_host_id" in dimensions:
+        is_host_id = True
+    elif "bk_target_ip" in dimensions or "ip" in dimensions:
+        is_ip = True
     else:
         return []
+
+    result = {"bk_host_id": set(), "service_instance_id": set(), "ip": defaultdict(set)}
 
     topo_nodes = defaultdict(list)
     service_template_id = []
     set_template_id = []
-    instances = []
     bk_host_ids = []
 
     for node in target:
@@ -573,49 +577,28 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
                 service_template_id.append(node["bk_inst_id"])
             elif node["bk_obj_id"].upper() == TargetNodeType.SET_TEMPLATE:
                 set_template_id.append(node["bk_inst_id"])
+            elif node["bk_obj_id"].upper() == "BIZ":
+                return []
             else:
                 topo_nodes[node["bk_obj_id"]].append(node["bk_inst_id"])
         elif ("bk_target_service_instance_id" in node or "service_instance_id" in node) and is_service_instance:
             service_instance_id = str(node.get("service_instance_id") or node["bk_target_service_instance_id"])
-            if "bk_target_service_instance_id" in dimensions:
-                instances.append({"bk_target_service_instance_id": service_instance_id})
+            result["service_instance_id"].add(service_instance_id)
+        elif "bk_host_id" in node:
+            if is_host_id:
+                result["bk_host_id"].add(str(node["bk_host_id"]))
             else:
-                instances.append({"service_instance_id": service_instance_id})
-        elif ("bk_target_ip" in node or "ip" in node or "bk_host_id" in node) and not is_service_instance:
-            if node.get("bk_host_id"):
-                if "bk_host_id" in dimensions:
-                    instances.append({"bk_host_id": str(node["bk_host_id"])})
-                    continue
-                else:
-                    bk_host_ids.append(node["bk_host_id"])
-                continue
-
+                bk_host_ids.append(node["bk_host_id"])
+        elif ("bk_target_ip" in node or "ip" in node) and is_ip:
             ip = node.get("bk_target_ip") or node["ip"]
             bk_cloud_id = str(node.get("bk_cloud_id") or node.get("bk_target_cloud_id", 0))
-
-            if "bk_target_ip" in dimensions:
-                host = {"bk_target_ip": ip}
-                if "bk_target_cloud_id" in dimensions:
-                    host["bk_target_cloud_id"] = bk_cloud_id
-            else:
-                host = {"ip": ip}
-                if "bk_cloud_id" in dimensions:
-                    host["bk_cloud_id"] = bk_cloud_id
-            instances.append(host)
+            result["ip"][str(bk_cloud_id)].add(ip)
 
     # 处理主机ID
     if bk_host_ids:
         hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=bk_host_ids)
         for host in hosts:
-            if "bk_target_ip" in dimensions:
-                instance = {"bk_target_ip": host.bk_host_innerip}
-                if "bk_target_cloud_id" in dimensions:
-                    instance["bk_target_cloud_id"] = str(host.bk_cloud_id)
-            else:
-                instance = {"ip": host.bk_host_innerip}
-                if "bk_cloud_id" in dimensions:
-                    instance["bk_cloud_id"] = str(host.bk_cloud_id)
-            instances.append(instance)
+            result["ip"][str(host.bk_cloud_id)].add(host.bk_host_innerip)
 
     # 根据实例类型设置查询方法
     if is_service_instance:
@@ -649,22 +632,34 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
 
     for node in instance_nodes:
         if is_service_instance:
-            if "bk_target_service_instance_id" in dimensions:
-                instances.append({"bk_target_service_instance_id": str(node.service_instance_id)})
-            else:
-                instances.append({"service_instance_id": str(node.service_instance_id)})
+            result["service_instance_id"].add(str(node.service_instance_id))
+        elif is_host_id:
+            result["bk_host_id"].add(str(node.bk_host_id))
+        elif is_ip:
+            result["ip"][str(node.bk_cloud_id)].add(node.bk_host_innerip)
+
+    # 处理返回值
+    instances = []
+    if is_host_id:
+        instances = [{"bk_host_id": result["bk_host_id"]}]
+    elif is_service_instance:
+        if "bk_target_service_instance_id" in dimensions:
+            instances = [{"bk_target_service_instance_id": result["service_instance_id"]}]
         else:
-            if "bk_host_id" in dimensions:
-                instance = {"bk_host_id": str(node.bk_host_id)}
-            elif "bk_target_ip" in dimensions:
-                instance = {"bk_target_ip": node.bk_host_innerip}
-                if "bk_target_cloud_id" in dimensions:
-                    instance["bk_target_cloud_id"] = str(node.bk_cloud_id)
+            instances = [{"service_instance_id": result["service_instance_id"]}]
+    elif is_ip:
+        for bk_cloud_id, ips in result["ip"].items():
+            if "bk_target_ip" in dimensions:
+                instance = {"bk_target_ip": ips}
             else:
-                instance = {"ip": node.bk_host_innerip}
-                if "bk_cloud_id" in dimensions:
-                    instance["bk_cloud_id"] = str(node.bk_cloud_id)
-            instances.append(instance)
+                instance = {"ip": ips}
+
+            if "bk_target_cloud_id" in dimensions:
+                instance["bk_target_cloud_id"] = bk_cloud_id
+            elif "bk_cloud_id" in dimensions:
+                instance["bk_cloud_id"] = bk_cloud_id
+    else:
+        instances = []
 
     # 如果target有值但是没有返回，外部应返回空值，避免因过滤条件为空导致过滤失效
     if target and not instances:

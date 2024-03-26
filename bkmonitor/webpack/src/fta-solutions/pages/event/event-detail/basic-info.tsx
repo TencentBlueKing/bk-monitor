@@ -26,10 +26,11 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { bkTag } from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 
 import { toPerformanceDetail } from '../../../common/go-link';
+import { getOperatorDisabled } from '../utils';
 
 import { IDetail } from './type';
 
@@ -42,10 +43,7 @@ interface IEvents {
   onAlarmDispatch?: () => void;
 }
 @Component({
-  name: 'BasicInfo',
-  components: {
-    bkTag
-  }
+  name: 'BasicInfo'
 })
 export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   @Prop({ type: Object, default: () => ({}) }) basicInfo: IDetail;
@@ -80,6 +78,21 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     return this.basicInfo.dimensions?.filter(item => !(this.cloudIdMap.includes(item.key) && item.value === 0));
   }
 
+  /* bk_collect_config_id */
+  get bkCollectConfigId() {
+    const labels = this.basicInfo?.extra_info?.strategy?.labels || [];
+    const need = labels.some(item => ['集成内置', 'Datalink BuiltIn'].includes(item));
+    return need
+      ? this.basicInfo.dimensions?.find(
+          item => item.key === 'bk_collect_config_id' || item.key === 'tags.bk_collect_config_id'
+        )?.value
+      : '';
+  }
+
+  get followerDisabled() {
+    return getOperatorDisabled(this.basicInfo.follower, this.basicInfo.assignee);
+  }
+
   @Emit('strategy-detail')
   toStrategyDetail() {
     return true;
@@ -103,7 +116,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   handleToShield() {
     if (!this.basicInfo.shield_id?.[0]) return;
     window.open(
-      `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/trace/alarm-shield-edit/${this.basicInfo.shield_id[0]}`
+      `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/trace/alarm-shield/edit/${this.basicInfo.shield_id[0]}`
     );
   }
 
@@ -160,6 +173,29 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         ])
       : '--';
   }
+
+  handleToCollectDetail() {
+    window.open(
+      `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}#/collect-config/detail/${this.bkCollectConfigId}?tab=${CollectorTabEnum.TargetDetail}`
+    );
+  }
+  /* 关注人 */
+  getFollowerInfo() {
+    return (
+      <span class='follower-info'>
+        <span>{this.basicInfo?.follower?.join(',') || '--'}</span>
+        {!!this.basicInfo?.follower?.length && !!this.bkCollectConfigId && (
+          <span
+            class='fenxiang-btn'
+            onClick={this.handleToCollectDetail}
+          >
+            <span>{this.$t('变更')}</span>
+            <span class='icon-monitor icon-fenxiang'></span>
+          </span>
+        )}
+      </span>
+    );
+  }
   // 基本信息表单
   getDetailFormComponent() {
     const {
@@ -175,7 +211,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       // is_ack, // 是否确认
       // is_shielded, // 是否屏蔽
       // is_handled // 是否已处理
-      stage_display // 处理阶段
+      stage_display, // 处理阶段
+      appointee
     } = this.basicInfo;
     // 处理阶段 优先级: is_shielded > is_ack > is_handled
     // const handleStatus = () => (is_shielded ? this.$t('已屏蔽') : false)
@@ -271,11 +308,18 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             title: this.$t('告警产生时间'),
             content: dayjs.tz(create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
             timeZone: dayjs.tz(create_time * 1000).format('Z')
+          },
+          {
+            title: this.$t('负责人'),
+            content: appointee?.join(',') || '--'
           }
         ]
       },
       {
-        children: [{ title: this.$t('持续时间'), content: duration }]
+        children: [
+          { title: this.$t('持续时间'), content: duration },
+          { title: this.$t('关注人'), content: this.getFollowerInfo() }
+        ]
       }
     ];
     const bottomItems = [
@@ -311,7 +355,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                       <span
                         on-click={item.click ? item.click : false}
                         class={['icon-monitor', item.icon]}
-                        v-bk-tooltips={{ content: item.iconTip }}
+                        v-bk-tooltips={{ content: item.iconTip, allowHTML: false }}
                       >
                         <span class='icon-title'>{item?.iconText || ''}</span>
                       </span>
@@ -337,7 +381,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                   <span
                     on-click={item.click ? item.click : false}
                     class={['icon-monitor', item.icon]}
-                    v-bk-tooltips={{ content: item.iconTip }}
+                    v-bk-tooltips={{ content: item.iconTip, allowHTML: false }}
                   >
                     <span class='icon-title'>{item.iconText || ''}</span>
                   </span>
@@ -468,7 +512,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           ></span>
           <div class='status-text'>{iconText}</div>
         </div>
-        {operateDom || undefined}
+        {!this.followerDisabled ? operateDom || undefined : undefined}
       </div>
     );
   }
@@ -484,7 +528,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               {this.getTagComponent(severity)}
               <span
                 class='basic-title-name'
-                v-bk-tooltips={{ content: alert_name }}
+                v-bk-tooltips={{ content: alert_name, allowHTML: false }}
               >
                 {alert_name}
               </span>

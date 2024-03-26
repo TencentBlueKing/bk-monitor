@@ -33,8 +33,13 @@
     :value="datePickerValue"
     @change="handleDateChange"
     @shortcut-change="handleShortcutChange"
-    @open-change="handleOpenChange">
-    <div v-if="shortText" slot="trigger" @click.stop="togglePicker">
+    @open-change="handleOpenChange"
+  >
+    <div
+      v-if="shortText"
+      slot="trigger"
+      @click.stop="togglePicker"
+    >
       <div :class="['bk-date-picker-editor', { 'is-focus': isShowDatePicker }]">
         {{ shortText }}
       </div>
@@ -50,147 +55,165 @@ export default {
   props: {
     isDaily: {
       type: Boolean,
-      default: false,
+      default: false
     },
-    timeRange: { // 显示自定义时间范围，customized 显示组件默认选择范围
+    timeRange: {
+      // 显示自定义时间范围，customized 显示组件默认选择范围
       type: String,
-      required: true,
+      required: true
     },
     datePickerValue: {
       type: Array,
-      required: true,
+      required: true
     },
     pickerType: {
       type: String,
-      default: 'datetimerange',
-    },
+      default: 'datetimerange'
+    }
   },
   data() {
     return {
       isShowDatePicker: false,
       dateHistory: {}, // 日期组件历史值，每次开启记录，关闭比较，变化就搜索
-      shortTextEnum: this.isDaily ? {
-        customized: '',
-        '7d': this.$t('近{n}天', { n: 7 }),
-        '14d': this.$t('近{n}天', { n: 14 }),
-        '30d': this.$t('近{n}天', { n: 30 }),
-        [this.$t('近{n}天', { n: 7 })]: '7d',
-        [this.$t('近{n}天', { n: 14 })]: '14d',
-        [this.$t('近{n}天', { n: 30 })]: '30d',
-      } : {
-        customized: '',
-        '5s': this.$t('近 5 秒'),
-        '5m': this.$t('近 5 分钟'),
-        '15m': this.$t('近 15 分钟'),
-        '30m': this.$t('近 30 分钟'),
-        '1h': this.$t('近 1 小时'),
-        '4h': this.$t('近 4 小时'),
-        '12h': this.$t('近 12 小时'),
-        '1d': this.$t('近 1 天'),
-        [this.$t('近 5 秒')]: '5s',
-        [this.$t('近 5 分钟')]: '5m',
-        [this.$t('近 15 分钟')]: '15m',
-        [this.$t('近 30 分钟')]: '30m',
-        [this.$t('近 1 小时')]: '1h',
-        [this.$t('近 4 小时')]: '4h',
-        [this.$t('近 12 小时')]: '12h',
-        [this.$t('近 1 天')]: '1d',
-      },
-      shortcuts: this.isDaily ? [{
-        text: this.$t('近{n}天', { n: 7 }),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 7 * 86400 * 1000);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近{n}天', { n: 14 }),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 14 * 86400 * 1000);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近{n}天', { n: 30 }),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 30 * 86400 * 1000);
-          return [start, end];
-        },
-      }] : [{
-        text: this.$t('近 5 秒'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 5 * 1000);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近 5 分钟'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 1000 * 5 * 60);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近 15 分钟'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 1000 * 15 * 60);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近 30 分钟'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 1000 * 30 * 60);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近 1 小时'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 1000 * 60 * 60);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近 4 小时'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 1000 * 60 * 60 * 4);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近 12 小时'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 1000 * 60 * 60 * 12);
-          return [start, end];
-        },
-      }, {
-        text: this.$t('近 1 天'),
-        value() {
-          const end = new Date();
-          const start = new Date();
-          start.setTime(start.getTime() - 1000 * 60 * 60 * 24);
-          return [start, end];
-        },
-      }],
+      shortTextEnum: this.isDaily
+        ? {
+            customized: '',
+            '7d': this.$t('近{n}天', { n: 7 }),
+            '14d': this.$t('近{n}天', { n: 14 }),
+            '30d': this.$t('近{n}天', { n: 30 }),
+            [this.$t('近{n}天', { n: 7 })]: '7d',
+            [this.$t('近{n}天', { n: 14 })]: '14d',
+            [this.$t('近{n}天', { n: 30 })]: '30d'
+          }
+        : {
+            customized: '',
+            '5s': this.$t('近 5 秒'),
+            '5m': this.$t('近 5 分钟'),
+            '15m': this.$t('近 15 分钟'),
+            '30m': this.$t('近 30 分钟'),
+            '1h': this.$t('近 1 小时'),
+            '4h': this.$t('近 4 小时'),
+            '12h': this.$t('近 12 小时'),
+            '1d': this.$t('近 1 天'),
+            [this.$t('近 5 秒')]: '5s',
+            [this.$t('近 5 分钟')]: '5m',
+            [this.$t('近 15 分钟')]: '15m',
+            [this.$t('近 30 分钟')]: '30m',
+            [this.$t('近 1 小时')]: '1h',
+            [this.$t('近 4 小时')]: '4h',
+            [this.$t('近 12 小时')]: '12h',
+            [this.$t('近 1 天')]: '1d'
+          },
+      shortcuts: this.isDaily
+        ? [
+            {
+              text: this.$t('近{n}天', { n: 7 }),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 7 * 86400 * 1000);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近{n}天', { n: 14 }),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 14 * 86400 * 1000);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近{n}天', { n: 30 }),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 30 * 86400 * 1000);
+                return [start, end];
+              }
+            }
+          ]
+        : [
+            {
+              text: this.$t('近 5 秒'),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 5 * 1000);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近 5 分钟'),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 1000 * 5 * 60);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近 15 分钟'),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 1000 * 15 * 60);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近 30 分钟'),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 1000 * 30 * 60);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近 1 小时'),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 1000 * 60 * 60);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近 4 小时'),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 1000 * 60 * 60 * 4);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近 12 小时'),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 1000 * 60 * 60 * 12);
+                return [start, end];
+              }
+            },
+            {
+              text: this.$t('近 1 天'),
+              value() {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 1000 * 60 * 60 * 24);
+                return [start, end];
+              }
+            }
+          ]
     };
   },
   computed: {
     shortText() {
       return this.shortTextEnum[this.timeRange];
-    },
+    }
   },
   methods: {
     togglePicker() {
@@ -202,11 +225,13 @@ export default {
       this.$emit('update:datePickerValue', date);
     },
     handleShortcutChange(data) {
-      if (data !== undefined) { // 快捷键事件
+      if (data !== undefined) {
+        // 快捷键事件
         const timeRange = this.shortTextEnum[data.text];
         this.$emit('update:timeRange', timeRange);
         this.isShowDatePicker = false;
-      } else { // 日期选择事件
+      } else {
+        // 日期选择事件
         this.$emit('update:timeRange', 'customized');
       }
     },
@@ -218,15 +243,18 @@ export default {
           this.dateHistory = {
             timeRange: this.timeRange,
             time0: this.datePickerValue[0],
-            time1: this.datePickerValue[1],
+            time1: this.datePickerValue[1]
           };
-        } else { // 关闭日期组件，检查值是否变化
+        } else {
+          // 关闭日期组件，检查值是否变化
           const { timeRange, time0, time1 } = this.dateHistory;
-          if (this.timeRange !== 'customized') { // 快捷键模式
+          if (this.timeRange !== 'customized') {
+            // 快捷键模式
             if (timeRange !== this.timeRange) {
               this.$emit('datePickerChange');
             }
-          } else { // 正常模式
+          } else {
+            // 正常模式
             const [newTime0, newTime1] = this.datePickerValue;
             if (time0 !== newTime0 || time1 !== newTime1) {
               this.$emit('datePickerChange');
@@ -234,33 +262,33 @@ export default {
           }
         }
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .king-date-picker {
-    width: 320px;
+.king-date-picker {
+  width: 320px;
 
-    &.daily {
-      width: 220px;
-    }
+  &.daily {
+    width: 220px;
+  }
 
-    :deep(.bk-date-picker-editor) {
-      background: #fff;
-      line-height: 30px;
+  :deep(.bk-date-picker-editor) {
+    line-height: 30px;
+    background: #fff;
 
-      &.is-focus {
-        border-color: #3a84ff;
-      }
-    }
-
-    :deep(.icon-date-picker) {
-      position: absolute;
-      left: 7px;
-      top: 7px;
-      font-size: 18px;
+    &.is-focus {
+      border-color: #3a84ff;
     }
   }
+
+  :deep(.icon-date-picker) {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    font-size: 18px;
+  }
+}
 </style>

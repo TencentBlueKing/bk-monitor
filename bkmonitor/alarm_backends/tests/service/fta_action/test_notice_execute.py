@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 import fakeredis
 import mock
 import pytest
-from dateutil.relativedelta import relativedelta
+import pytz
 from django.conf import settings
 from django.db import IntegrityError
 from django.test import TestCase, TransactionTestCase
@@ -36,7 +36,6 @@ from alarm_backends.core.cache.key import (
     NOISE_REDUCE_ABNORMAL_KEY,
 )
 from alarm_backends.core.context import ActionContext
-from alarm_backends.core.i18n import i18n
 from alarm_backends.service.alert.manager.checker.shield import ShieldStatusChecker
 from alarm_backends.service.converge.processor import ConvergeProcessor
 from alarm_backends.service.converge.shield.shield_obj import AlertShieldObj
@@ -60,24 +59,22 @@ from alarm_backends.service.fta_action.tasks import (
     check_timeout_actions,
     create_actions,
     create_interval_actions,
-    manage_duty_arrange_plan,
-    manage_duty_arrange_snap,
 )
-from alarm_backends.service.fta_action.utils import AlertAssignee, DutyCalendar
+from alarm_backends.service.fta_action.utils import AlertAssignee
 from alarm_backends.service.fta_action.webhook.processor import (
     ActionProcessor as WebhookProcessor,
 )
 from alarm_backends.tests.service.access.data.config import STRATEGY_CONFIG_V3
 from api.cmdb.define import Business, Host
 from bkmonitor.action.serializers import DutyArrange
-from bkmonitor.documents import AlertLog, EventDocument
-from bkmonitor.models import (
-    ActionPlugin,
-    CacheRouter,
-    DutyArrangeSnap,
-    DutyPlan,
-    UserGroup,
+from bkmonitor.aiops.alert.utils import (
+    DimensionDrillLightManager,
+    RecommendMetricManager,
 )
+from bkmonitor.aiops.utils import ReadOnlyAiSetting
+from bkmonitor.documents import AlertLog, EventDocument
+from bkmonitor.models import ActionPlugin, CacheRouter, DutyPlan, UserGroup
+from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.models.fta.action import (
     ActionConfig,
     ActionInstance,
@@ -92,6 +89,7 @@ from bkmonitor.utils.template import (
     NoticeRowRenderer,
 )
 from bkmonitor.utils.text import cut_line_str_by_max_bytes
+from constants import alert as alert_constants
 from constants.action import (
     ALL_CONVERGE_DIMENSION,
     ActionPluginType,
@@ -103,7 +101,9 @@ from constants.action import (
     NoticeChannel,
     NoticeWay,
     NotifyStep,
+    UserGroupType,
 )
+from constants.aiops import DIMENSION_DRILL
 from constants.alert import EventSeverity, EventStatus
 from constants.data_source import KubernetesResultTableLabel
 from core.errors.alarm_backends import EmptyAssigneeError
@@ -589,7 +589,6 @@ mock.patch("alarm_backends.service.fta_action.tasks.run_action.delay", return_va
 mock.patch("alarm_backends.service.converge.tasks.run_converge.apply_async", return_value=11111).start()
 mock.patch("alarm_backends.service.fta_action.tasks.run_noise_reduce_task.apply_async", return_value=11111).start()
 mock.patch("alarm_backends.service.fta_action.tasks.create_action.need_poll", return_value=True).start()
-mock.patch("alarm_backends.service.fta_action.tasks.manage_duty_arrange_snap.delay", return_value="").start()
 
 
 def converge_actions(instances, action_type=ConvergeType.ACTION, is_enabled=True, alerts=None):
@@ -660,6 +659,7 @@ class TestActionProcessor(TransactionTestCase):
         DutyPlan.objects.all().delete()
         UserGroup.objects.all().delete()
         DutyArrange.objects.all().delete()
+        AIFeatureSettings.objects.all().delete()
         register_builtin_plugins()
         settings.ENABLE_MESSAGE_QUEUE = False
         settings.MESSAGE_QUEUE_DSN = ""
@@ -725,7 +725,7 @@ class TestActionProcessor(TransactionTestCase):
             MagicMock(return_value={"info": {"recommended_metric_count": 0}, "recommended_metrics": []}),
         )
         self.get_anomaly_dimensions = patch(
-            "bkmonitor.aiops.alert.utils.DimensionDrillManager.fetch_aiops_result",
+            "bkmonitor.aiops.alert.utils.DimensionDrillLightManager.fetch_aiops_result",
             MagicMock(
                 return_value={
                     "info": {"anomaly_dimension_count": 2, "anomaly_dimension_value_count": 2},
@@ -797,6 +797,8 @@ class TestActionProcessor(TransactionTestCase):
             "desc": "用户组的说明用户组的说明用户组的说明用户组的说明用户组的说明",
             "bk_biz_id": 2,
             "need_duty": True,
+            "duty_rules": [1],
+            "timezone": "Asia/Shanghai",
             "mention_list": [{"type": "group", "id": "all"}, {"type": "user", "id": "admin"}],
             "alert_notice": [  # 告警通知配置
                 {
@@ -839,6 +841,7 @@ class TestActionProcessor(TransactionTestCase):
             "desc": "用户组的说明用户组的说明用户组的说明用户组的说明用户组的说明",
             "bk_biz_id": 2,
             "need_duty": True,
+            "duty_rules": [1],
             "mention_list": [{"type": "group", "id": "all"}],
             "channels": [NoticeChannel.USER, NoticeChannel.WX_BOT, NoticeChannel.BK_CHAT],
             "alert_notice": [  # 告警通知配置
@@ -888,13 +891,16 @@ class TestActionProcessor(TransactionTestCase):
             ],
         }
         self.duty_arranges = []
+        local_timezone = pytz.timezone("Asia/Shanghai")
+        today_begin = time_tools.datetime2str(datetime.now(tz=local_timezone), "%Y-%m-%d 00:00")
+        today_end = time_tools.datetime2str(datetime.now(tz=local_timezone), "%Y-%m-%d 23:59")
         self.duty_plans = [
             {
-                "duty_arrange_id": 123,
-                "is_active": True,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "duty_rule_id": 1,
+                "is_effective": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
+                "finished_time": time_tools.datetime2str(datetime.now(tz=local_timezone) + timedelta(hours=1)),
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "order": 1,
                 "users": [
                     {"id": "admin", "display_name": "admin", "logo": "", "type": "user"},
@@ -902,12 +908,12 @@ class TestActionProcessor(TransactionTestCase):
                 ],
             },
             {
-                "duty_arrange_id": 124,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": None,
-                "is_active": True,
+                "duty_rule_id": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
+                "finished_time": "",
+                "is_effective": 1,
                 "order": 2,
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "users": [{"id": "lisa", "display_name": "xxxxx", "logo": "", "type": "user"}],
             },
         ]
@@ -1101,13 +1107,12 @@ class TestActionProcessor(TransactionTestCase):
             DutyPlan.objects.create(**duty)
         event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})
         appointee = ["lisa1", "lisa2"]
-        alert = AlertDocument(**{"event": event, "severity": 1, "appointee": ["lisa1", "lisa2"]})
+        alert = AlertDocument(**{"event": event, "severity": 1, "appointee": appointee})
         notice_info = AlertAssignee(alert, [group.id]).get_notice_receivers()
         users = ["admin", "andy", "lisa"]
-        notifiers = users + appointee
-        self.assertEqual(notice_info["mail"], notifiers)
-        self.assertEqual(notice_info["weixin"], notifiers)
-        self.assertEqual(notice_info["voice"], [users, appointee])
+        self.assertEqual(notice_info["mail"], users)
+        self.assertEqual(notice_info["weixin"], users)
+        self.assertEqual(notice_info["voice"], [users])
 
     def test_create_ack_action(self):
         """
@@ -2082,6 +2087,65 @@ class TestActionProcessor(TransactionTestCase):
             in render_content
         )
 
+    def _test_user_content_with_custom_title(self, use_custom_title: bool):
+        alert = AlertDocument(**self.alert_info)
+        ac_data = copy.deepcopy(self.ac_data)
+
+        for template in ac_data["execute_config"]["template_detail"]["template"]:
+            template["title_tmpl"] = (
+                alert_constants.DEFAULT_TITLE_TEMPLATE,
+                "custom" + alert_constants.DEFAULT_TITLE_TEMPLATE,
+            )[use_custom_title]
+
+        action = ActionInstance.objects.create(
+            alerts=[alert.id],
+            signal="abnormal",
+            strategy_id=0,
+            alert_level=alert.severity,
+            status=ActionStatus.SUCCESS,
+            bk_biz_id=2,
+            inputs={},
+            action_config=ac_data,
+            action_config_id=0,
+            action_plugin={
+                "plugin_type": ActionPluginType.NOTICE,
+                "name": "通知",
+                "plugin_key": ActionPluginType.NOTICE,
+            },
+        )
+
+        for notice_way in [NoticeWay.WX_BOT, NoticeWay.MAIL, "rtx"]:
+            alert_context = ActionContext(action=action, alerts=[alert], use_alert_snap=True, notice_way=notice_way)
+            context = alert_context.get_dictionary()
+
+            # 没有使用自定义标题的，内容模板不加标题模板
+            if not use_custom_title:
+                self.assertEqual(
+                    context["content_template"],
+                    ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                )
+                continue
+
+            if notice_way not in [NoticeWay.MAIL, "rtx"]:
+                self.assertEqual(
+                    context["content_template"],
+                    "\n".join(
+                        [
+                            ac_data["execute_config"]["template_detail"]["template"][0]["title_tmpl"],
+                            ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                        ]
+                    ),
+                )
+            else:
+                self.assertEqual(
+                    context["content_template"],
+                    ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                )
+
+    def test_user_content_with_custom_title(self):
+        self._test_user_content_with_custom_title(use_custom_title=False)
+        self._test_user_content_with_custom_title(use_custom_title=True)
+
     def test_en_sender(self):
         language = "zh-cn"
         mail_content_path = Sender.get_language_template_path("notice/abnormal/action/mail_content.jinja", language)
@@ -2162,7 +2226,6 @@ class TestActionProcessor(TransactionTestCase):
         context_dict = context.get_dictionary()
         context_dict["alarm"].log_related_info = related_info
         user_content = NoticeRowRenderer.render(Jinja2Renderer.render(context.DEFAULT_TEMPLATE, context_dict), {})
-        print(user_content)
         expected_content = (
             "**首次异常: **{current_time}\n"
             "**最近异常: **{current_time}\n"
@@ -2170,7 +2233,9 @@ class TestActionProcessor(TransactionTestCase):
             "**所属空间: **[2]蓝鲸 (业务)\n"
             "**目标: **[127.0.0.1]({host}route/?bizId=2&route_path={route_path})\n"
             "**维度: **\\n> 云区域ID=2\\n> 主机IP=127.0.0.1\\n> backend=1\\n\n"
-            "**关联信息: **集群() 模块()\\n> {related_info}\\n"
+            "**关联信息: **集群() 模块()\\n> {related_info}\\n\n"
+            "**关联指标: **0 个指标,0 个维度\n"
+            "**维度下钻: **异常维度 2，异常维度值 2"
         ).format(
             host=settings.BK_MONITOR_HOST,
             route_path=base64.b64encode(b"#/performance/detail/127.0.0.1-0").decode("utf8"),
@@ -2202,6 +2267,24 @@ class TestActionProcessor(TransactionTestCase):
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx").get_dictionary()
         content = Jinja2Renderer.render("{{content.recommended_metrics}}", context)
         self.assertEqual(content, "关联指标: 0 个指标,0 个维度")
+
+    def test_ai_setting__config_exist(self):
+        alert = AlertDocument(**self.alert_info)
+        DimensionDrillLightManager(alert)
+        action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx")
+        ai_setting_config = action_context.alarm.ai_setting_config
+        ai_setting_config[DIMENSION_DRILL]["is_enabled"] = True
+
+        manager = DimensionDrillLightManager(alert, ReadOnlyAiSetting(alert.event["bk_biz_id"], ai_setting_config))
+        assert manager.is_enable() is True
+
+    def test_ai_setting__config_not_exist(self):
+        alert = AlertDocument(**self.alert_info)
+        action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx")
+        assert action_context.alarm.ai_setting_config is None
+
+        manager = RecommendMetricManager(alert, ReadOnlyAiSetting(alert.event["bk_biz_id"], None))
+        assert manager.is_enable() is False
 
     def test_render_content_length(self):
         alert = AlertDocument(**self.alert_info)
@@ -2459,9 +2542,9 @@ class TestActionProcessor(TransactionTestCase):
 
         self.converge_actions(ActionInstance.objects.all())
 
-        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.SKIPPED).count(), 5)
-        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.EXECUTED).count(), 5)
-        self.assertEqual(ConvergeRelation.objects.filter(is_primary=True).count(), 5)
+        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.SKIPPED).count(), 4)
+        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.EXECUTED).count(), 4)
+        self.assertEqual(ConvergeRelation.objects.filter(is_primary=True).count(), 4)
 
         converged_condition_display = []
 
@@ -2483,9 +2566,176 @@ class TestActionProcessor(TransactionTestCase):
         ac = ActionContext(ActionInstance.objects.get(id=primary_relation.related_id))
         self.assertEqual(description, ac.action_instance.converged_description)
 
-        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED).count(), 5)
+        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED).count(), 4)
 
-        self.assertEqual(ActionInstance.objects.filter(signal=ActionSignal.COLLECT).count(), 5)
+        self.assertEqual(ActionInstance.objects.filter(signal=ActionSignal.COLLECT).count(), 4)
+
+        ActionInstance.objects.filter(is_parent_action=True).update(status=ActionStatus.FAILURE)
+
+        collect_action = [
+            ai
+            for ai in ActionInstance.objects.filter(signal=ActionSignal.COLLECT)
+            if ai.inputs["notice_way"][0] == NoticeWay.WX_BOT
+        ][0]
+        ac = ActionContext(action=collect_action).get_dictionary()
+        user_set = {"admin", "lisa"}
+
+        self.assertEqual(
+            {chatid: set(users) for chatid, users in ac["mentioned_users"].items()},
+            {"hihihihihh": user_set, "hihihiashihi": user_set},
+        )
+
+        ap = CollectActionProcessor(ActionInstance.objects.filter(signal=ActionSignal.COLLECT).first().id)
+        ap.collect()
+
+        self.assertEqual(
+            ActionInstance.objects.filter(signal=ActionSignal.COLLECT, status__in=ActionStatus.END_STATUS).count(), 1
+        )
+
+        related_action_status = {r_a.real_status for r_a in ap.related_actions}
+        self.assertEqual(related_action_status, {ap.action.status})
+
+        mget_alert_patch.stop()
+        get_alert_patch.stop()
+        action_config_patch.stop()
+        self.send_wxwork_bot_patcher.stop()
+
+    def test_follow_notice_collect(self):
+        """
+        测试关注人通知汇总
+        :return:
+        """
+        self.send_wxwork_bot_patcher.start()
+        duty_arranges = [
+            {
+                "users": [{"id": "lisa", "display_name": "管理员", "logo": "", "type": "user"}],
+            },
+        ]
+        group = UserGroup.objects.create(**self.user_group_data)
+        group.need_duty = False
+        group.save()
+        for duty in duty_arranges:
+            duty.update({"user_group_id": group.id})
+            DutyArrange.objects.create(**duty)
+
+        notice_action_config = {
+            "execute_config": {
+                "template_detail": {
+                    "interval_notify_mode": "standard",  # 间隔模式
+                    "notify_interval": 7200,  # 通知间隔
+                    "template": notice_template(),
+                }
+            },
+            "id": 55555,
+            "plugin_id": 1,
+            "plugin_type": "notice",
+            "is_enabled": True,
+            "bk_biz_id": 2,
+            "name": "test_notice",
+        }
+        strategy_dict = {
+            "id": 1,
+            "type": "monitor",
+            "bk_biz_id": 2,
+            "scenario": "os",
+            "name": "测试新策略",
+            "labels": [],
+            "is_enabled": True,
+            "items": [],
+            "detects": [],
+            "notice": {  # 通知设置
+                "id": 1,
+                "config_id": 55555,  # 套餐ID，如果不选套餐请置为0
+                "user_groups": [group.id],  # 告警组ID
+                "user_type": UserGroupType.FOLLOWER,
+                "signal": ["abnormal", "recovered"],
+                # 触发信号，abnormal-异常，recovered-恢复，closed-关闭，execute-执行动作时, execute_success-执行成功, execute_failed-执行失败
+                "options": {
+                    "converge_config": {
+                        "is_enabled": True,
+                        "converge_func": "collect",
+                        "timedelta": 60,
+                        "count": 1,
+                        "condition": [
+                            {"dimension": "strategy_id", "value": ["self"]},
+                            {"dimension": "dimensions", "value": ["self"]},
+                            {"dimension": "alert_level", "value": ["self"]},
+                            {"dimension": "signal", "value": ["self"]},
+                            {"dimension": "bk_biz_id", "value": ["self"]},
+                            {"dimension": "notice_receiver", "value": ["self"]},
+                            {"dimension": "notice_way", "value": ["self"]},
+                            {"dimension": "notice_info", "value": ["self"]},
+                        ],
+                        "need_biz_converge": True,
+                        "sub_converge_config": {
+                            "timedelta": 60,
+                            "count": 2,
+                            "condition": [
+                                {"dimension": "bk_biz_id", "value": ["self"]},
+                                {"dimension": "notice_receiver", "value": ["self"]},
+                                {"dimension": "notice_way", "value": ["self"]},
+                                {"dimension": "alert_level", "value": ["self"]},
+                                {"dimension": "signal", "value": ["self"]},
+                            ],
+                            "converge_func": "collect_alarm",
+                        },
+                    },
+                    "start_time": "00:00:00",
+                    "end_time": "23:59:59",
+                },
+                "config": notice_action_config["execute_config"]["template_detail"],
+            },
+            "actions": [],
+        }
+        self.alert_info["extra_info"].update(strategy=strategy_dict)
+        alert = AlertDocument(**self.alert_info)
+        mget_alert_patch = patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert]))
+        get_alert_patch = patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert))
+
+        action_config_patch = patch(
+            "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id",
+            MagicMock(return_value=notice_action_config),
+        )
+        mget_alert_patch.start()
+        get_alert_patch.start()
+        action_config_patch.start()
+
+        actions0 = create_actions(1, "abnormal", alerts=[alert])
+        self.assertEqual(len(actions0), 6)
+        time.sleep(2)
+        actions1 = create_actions(1, "abnormal", alerts=[alert])
+        self.assertEqual(len(actions1), 6)
+        actions0.extend(actions1)
+
+        self.converge_actions(ActionInstance.objects.all())
+
+        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.SKIPPED).count(), 4)
+        self.assertEqual(ConvergeRelation.objects.filter(converge_status=ConvergeStatus.EXECUTED).count(), 4)
+        self.assertEqual(ConvergeRelation.objects.filter(is_primary=True).count(), 4)
+
+        converged_condition_display = []
+
+        primary_relation = ConvergeRelation.objects.filter(is_primary=True).first()
+        converge_inst = ConvergeInstance.objects.get(id=primary_relation.converge_id)
+        for converged_condition_key in converge_inst.converge_config["converged_condition"]:
+            if converged_condition_key == "action_id":
+                continue
+            converged_condition_display.append(
+                str(ALL_CONVERGE_DIMENSION.get(converged_condition_key, converged_condition_key))
+            )
+
+        description = "在{}分钟内，当具有相同{}的告警超过{}条以上，在执行相同的处理套餐时，进行告警防御".format(
+            converge_inst.converge_config["timedelta"] // 60,
+            ",".join(converged_condition_display),
+            converge_inst.converge_config["count"],
+        )
+        self.assertEqual(description, converge_inst.description)
+        ac = ActionContext(ActionInstance.objects.get(id=primary_relation.related_id))
+        self.assertEqual(description, ac.action_instance.converged_description)
+
+        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED).count(), 4)
+
+        self.assertEqual(ActionInstance.objects.filter(signal=ActionSignal.COLLECT).count(), 4)
 
         ActionInstance.objects.filter(is_parent_action=True).update(status=ActionStatus.FAILURE)
 
@@ -3489,7 +3739,7 @@ class TestActionProcessor(TransactionTestCase):
         alert_log = p_action.get_content()
         print(alert_log)
         self.assertTrue("查看屏蔽策略" in alert_log["text"])
-        self.assertIsNotNone(alert_log["url"])
+        self.assertIsNotNone(alert_log["routerInfo"])
 
         settings.GLOBAL_SHIELD_ENABLED = False
 
@@ -3551,7 +3801,7 @@ class TestActionProcessor(TransactionTestCase):
         alert_log = p_action.get_content()
         print(alert_log)
         self.assertTrue("查看屏蔽策略" in alert_log["text"])
-        self.assertIsNotNone(alert_log["url"])
+        self.assertIsNotNone(alert_log["routerInfo"])
 
         settings.GLOBAL_SHIELD_ENABLED = False
 
@@ -4091,505 +4341,18 @@ class TestActionProcessor(TransactionTestCase):
         get_alert_patch.stop()
 
 
-class TestDutyArrangePlan(TestCase):
-    def setUp(self):
-        DutyArrange.objects.all().delete()
-        DutyArrangeSnap.objects.all().delete()
-        DutyPlan.objects.all().delete()
-        UserGroup.objects.create(id=1, need_duty=True)
-        register_builtin_plugins()
-
-    def tearDown(self):
-        DutyArrange.objects.all().delete()
-        DutyArrangeSnap.objects.all().delete()
-        DutyPlan.objects.all().delete()
-        UserGroup.objects.all().delete()
-
-    def test_get_weekly_end_time(self):
-        today = datetime.now(tz=timezone.utc)
-        monday = today - timedelta(days=today.weekday())
-        monday = datetime.strptime(monday.strftime("%Y-%m-%d 08:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(timezone.utc)
-
-        wednesday = monday + timedelta(days=2)
-
-        # 分支一， 交接日在周三以后 周五 12：00 交接班
-        handoff_time = {"date": 5, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_weekly_rotation_end_time(wednesday, handoff_time).timestamp()),
-            (wednesday + timedelta(days=2)).strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在周三 且交接时间大于开始时间
-        handoff_time = {"date": 3, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_weekly_rotation_end_time(wednesday, handoff_time).timestamp()),
-            wednesday.strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在周三以前
-        handoff_time = {"date": 2, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_weekly_rotation_end_time(wednesday, handoff_time).timestamp()),
-            (wednesday + timedelta(days=6)).strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在周三 且交接时间小于开始时间
-        handoff_time = {"date": 3, "time": "00:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_weekly_rotation_end_time(wednesday, handoff_time).timestamp()),
-            (wednesday + timedelta(days=7)).strftime("%Y-%m-%d 00:00:00"),
-        )
-
-    def test_get_monthly_end_time(self):
-        today = datetime.now(tz=timezone.utc)
-        begin_day = datetime.strptime(today.strftime("%Y-%m-03 08:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(
-            tz=timezone.utc
-        )
-        next_month_day = begin_day.date() + relativedelta(months=1)
-        next_month_first_day = datetime.strptime(
-            next_month_day.strftime("%Y-%m-01 08:00:00"), "%Y-%m-%d %H:%M:%S"
-        ).astimezone(tz=timezone.utc)
-
-        # 分支一， 交接日期大于开始日期
-        handoff_time = {"date": 28, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            (begin_day + timedelta(days=25)).strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在同一天 且交接时间大于开始时间
-        handoff_time = {"date": 3, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            begin_day.strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在每月3号 且交接时间小于开始时间
-        handoff_time = {"date": 3, "time": "00:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            next_month_first_day.strftime("%Y-%m-03 00:00:00"),
-        )
-
-        # 交接日在每月1日
-        handoff_time = {"date": 1, "time": "12:00"}
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            next_month_first_day.strftime("%Y-%m-%d 12:00:00"),
-        )
-
-        # 交接日在每月特殊日期 31日 大月情况
-        handoff_time = {"date": 31, "time": "00:00"}
-
-        march_day = datetime.strptime(today.strftime("%Y-03-31 08:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(
-            tz=timezone.utc
-        )
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(march_day, handoff_time).timestamp()),
-            march_day.strftime("%Y-04-30 00:00:00"),
-        )
-
-        march_day = datetime.strptime(today.strftime("%Y-03-31 00:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(
-            tz=timezone.utc
-        )
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(march_day, handoff_time).timestamp()),
-            march_day.strftime("%Y-04-30 00:00:00"),
-        )
-
-        # 交接日在每月特殊日期 31日， 小月情况
-
-        begin_day = datetime.strptime(today.strftime("%Y-04-30 08:00:00"), "%Y-%m-%d %H:%M:%S").astimezone(
-            tz=timezone.utc
-        )
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(begin_day, handoff_time).timestamp()),
-            begin_day.strftime("%Y-05-31 00:00:00"),
-        )
-
-        # 交接日在每月特殊日期 31日， 小月情况
-
-        jan_day = datetime.strptime("2023-01-31 08:00:00", "%Y-%m-%d %H:%M:%S").astimezone(tz=timezone.utc)
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(jan_day, handoff_time).timestamp()),
-            jan_day.strftime("2023-02-28 00:00:00"),
-        )
-
-        # 交接日在每月特殊日期 31日， 闰月情况
-        jan_day = datetime.strptime("2024-01-31 08:00:00", "%Y-%m-%d %H:%M:%S").astimezone(tz=timezone.utc)
-
-        self.assertEqual(
-            time_tools.utc2datetime(DutyCalendar.get_monthly_rotation_end_time(jan_day, handoff_time).timestamp()),
-            jan_day.strftime("2024-02-29 00:00:00"),
-        )
-
-    def test_manage_rotation_duty_snap(self):
-        """
-        需要轮班管理测试
-        :return:
-        """
-        current_time = datetime.now(tz=timezone.utc)
-        current_time = (
-            current_time - timedelta(seconds=current_time.second) - timedelta(microseconds=current_time.microsecond)
-        )
-        effective_time = current_time - timedelta(seconds=current_time.second)
-
-        duty_data = {
-            "user_group_id": 1,
-            "need_rotation": True,
-            "effective_time": effective_time,
-            "handoff_time": {"rotation_type": "weekly", "date": 1, "time": "08:00"},
-            "duty_time": [{"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"}],
-            "backups": [
-                {
-                    "users": [
-                        {
-                            "display_name": "运维人员",
-                            "logo": "",
-                            "id": "bk_biz_maintainer",
-                            "type": "group",
-                            "members": [{"id": "admin", "display_name": "admin"}],
-                        }
-                    ],
-                    "begin_time": "2022-03-11 00:00:00",
-                    "end_time": "2022-03-13 00:00:00",
-                    "duty_time": {"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"},
-                    "exclude_settings": [{"date": "2021-11-09", "time": "10:00--11:00"}],
-                }
-            ],
-            "duty_users": [
-                [
-                    {
-                        "display_name": "运维人员",
-                        "logo": "",
-                        "id": "bk_biz_maintainer",
-                        "type": "group",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                    {"display_name": "admin", "logo": "", "id": "admin", "type": "user"},
-                ],
-                [
-                    {
-                        "display_name": "开发人员",
-                        "logo": "",
-                        "id": "admin",
-                        "type": "bk_biz_developer",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                ],
-            ],
-        }
-        duty_obj = DutyArrange.objects.create(**duty_data)
-        task_time = effective_time + timedelta(minutes=1)
-
-        manage_duty_arrange_snap(task_time, is_delay=False)
-        snap = DutyArrangeSnap.objects.get(duty_arrange_id=duty_obj.id)
-        self.assertEqual(snap.first_effective_time, effective_time)
-        self.assertEqual(snap.next_plan_time, effective_time)
-
-        manage_duty_arrange_plan(current_time, snap.id)
-        snap.refresh_from_db()
-
-        self.assertEqual(DutyPlan.objects.filter(duty_arrange_id=duty_obj.id).count(), 2)
-        plans = DutyPlan.objects.filter(duty_arrange_id=duty_obj.id, is_active=True).order_by("id")
-        self.assertNotEqual(
-            time_tools.strftime_local(plans[1].begin_time), time_tools.strftime_local(plans[1].end_time)
-        )
-        self.assertEqual(time_tools.strftime_local(plans[0].begin_time), time_tools.strftime_local(effective_time))
-
-        self.assertEqual(snap.next_plan_time.isoweekday(), 1)
-
-    def test_manage_rotation_duty_past_snap(self):
-        """
-        需要轮班管理测试
-        :return:
-        """
-        current_time = datetime.now(tz=timezone.utc)
-        current_time = (
-            current_time - timedelta(seconds=current_time.second) - timedelta(microseconds=current_time.microsecond)
-        )
-        effective_time = current_time - timedelta(minutes=2)
-
-        duty_data = {
-            "user_group_id": 1,
-            "need_rotation": True,
-            "effective_time": effective_time,
-            "handoff_time": {"rotation_type": "weekly", "date": 1, "time": "08:00"},
-            "duty_time": [{"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"}],
-            "backups": [
-                {
-                    "users": [
-                        {
-                            "display_name": "运维人员",
-                            "logo": "",
-                            "id": "bk_biz_maintainer",
-                            "type": "group",
-                            "members": [{"id": "admin", "display_name": "admin"}],
-                        }
-                    ],
-                    "begin_time": "2022-03-11 00:00:00",
-                    "end_time": "2022-03-13 00:00:00",
-                    "duty_time": {"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"},
-                    "exclude_settings": [{"date": "2021-11-09", "time": "10:00--11:00"}],
-                }
-            ],
-            "duty_users": [
-                [
-                    {
-                        "display_name": "运维人员",
-                        "logo": "",
-                        "id": "bk_biz_maintainer",
-                        "type": "group",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                    {"display_name": "admin", "logo": "", "id": "admin", "type": "user"},
-                ],
-                [
-                    {
-                        "display_name": "开发人员",
-                        "logo": "",
-                        "id": "admin",
-                        "type": "bk_biz_developer",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                ],
-            ],
-        }
-        duty_obj = DutyArrange.objects.create(**duty_data)
-
-        manage_duty_arrange_snap(current_time + timedelta(minutes=1), is_delay=False)
-        snap = DutyArrangeSnap.objects.get(duty_arrange_id=duty_obj.id)
-        self.assertEqual(snap.first_effective_time, current_time)
-        self.assertEqual(snap.next_plan_time, current_time)
-
-        manage_duty_arrange_plan(current_time, snap.id)
-        snap.refresh_from_db()
-
-        self.assertEqual(DutyPlan.objects.filter(duty_arrange_id=duty_obj.id).count(), 2)
-        plans = DutyPlan.objects.filter(duty_arrange_id=duty_obj.id, is_active=True).order_by("id")
-        self.assertNotEqual(
-            time_tools.strftime_local(plans[1].begin_time), time_tools.strftime_local(plans[1].end_time)
-        )
-        self.assertEqual(time_tools.strftime_local(plans[0].begin_time), time_tools.strftime_local(current_time))
-
-        self.assertEqual(snap.next_plan_time.isoweekday(), 1)
-
-    def test_manage_rotation_duty_future_snap(self):
-        """
-        需要轮班管理测试
-        :return:
-        """
-        current_time = datetime.now(tz=timezone.utc)
-        current_time = (
-            current_time - timedelta(seconds=current_time.second) - timedelta(microseconds=current_time.microsecond)
-        )
-        effective_time = current_time + timedelta(minutes=2)
-
-        duty_data = {
-            "user_group_id": 1,
-            "need_rotation": True,
-            "effective_time": effective_time,
-            "handoff_time": {"rotation_type": "weekly", "date": 1, "time": "08:00"},
-            "duty_time": [{"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"}],
-            "backups": [
-                {
-                    "users": [
-                        {
-                            "display_name": "运维人员",
-                            "logo": "",
-                            "id": "bk_biz_maintainer",
-                            "type": "group",
-                            "members": [{"id": "admin", "display_name": "admin"}],
-                        }
-                    ],
-                    "begin_time": "2022-03-11 00:00:00",
-                    "end_time": "2022-03-13 00:00:00",
-                    "duty_time": {"work_type": "weekly", "work_days": [1, 2, 3, 4, 5], "work_time": "08:00--18:00"},
-                    "exclude_settings": [{"date": "2021-11-09", "time": "10:00--11:00"}],
-                }
-            ],
-            "duty_users": [
-                [
-                    {
-                        "display_name": "运维人员",
-                        "logo": "",
-                        "id": "bk_biz_maintainer",
-                        "type": "group",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                    {"display_name": "admin", "logo": "", "id": "admin", "type": "user"},
-                ],
-                [
-                    {
-                        "display_name": "开发人员",
-                        "logo": "",
-                        "id": "admin",
-                        "type": "bk_biz_developer",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                ],
-            ],
-        }
-        duty_obj = DutyArrange.objects.create(**duty_data)
-
-        manage_duty_arrange_snap(effective_time, is_delay=False)
-        snap = DutyArrangeSnap.objects.get(duty_arrange_id=duty_obj.id)
-        self.assertEqual(snap.first_effective_time, effective_time)
-        self.assertEqual(snap.next_plan_time, effective_time)
-
-        duty_snap = snap.duty_snap
-        for index, users in enumerate(duty_snap["duty_users"]):
-            DutyPlan.objects.create(
-                user_group_id=snap.user_group_id,
-                duty_arrange_id=snap.duty_arrange_id,
-                duty_time=duty_snap["duty_time"],
-                is_active=True,
-                order=duty_snap["order"],
-                begin_time=current_time,
-                end_time=effective_time + timedelta(days=1) if index > 0 else current_time,
-                users=users,
-            )
-
-        manage_duty_arrange_plan(current_time, snap.id)
-        snap.refresh_from_db()
-
-        self.assertEqual(DutyPlan.objects.filter(duty_arrange_id=duty_obj.id, is_active=True).count(), 3)
-        plans = DutyPlan.objects.filter(
-            duty_arrange_id=duty_obj.id, is_active=True, begin_time__gte=effective_time
-        ).order_by("id")
-
-        self.assertNotEqual(
-            time_tools.strftime_local(plans[1].begin_time), time_tools.strftime_local(plans[1].end_time)
-        )
-        self.assertEqual(time_tools.strftime_local(plans[0].begin_time), time_tools.strftime_local(effective_time))
-
-        self.assertEqual(snap.next_plan_time.isoweekday(), 1)
-
-    def test_manage_no_rotation_duty_snap(self):
-        """
-        不需要轮班测试
-        :return:
-        """
-        now_time = datetime.now(tz=timezone.utc)
-        effective_time = now_time - timedelta(seconds=now_time.second)
-        start_time = time_tools.strftime_local(effective_time, "%H:%M")
-        end_time = time_tools.strftime_local(effective_time + timedelta(hours=6), "%H:%M")
-        duty_data = {
-            "user_group_id": 1,
-            "need_rotation": False,
-            "effective_time": effective_time,
-            "handoff_time": {},
-            "duty_time": [
-                {
-                    "work_type": "weekly",
-                    "work_days": [1, 2, 3, 4, 5],
-                    "work_time": "{}--{}".format(start_time, end_time),
-                }
-            ],
-            "backups": [
-                {
-                    "users": [
-                        {
-                            "display_name": "运维人员",
-                            "logo": "",
-                            "id": "bk_biz_maintainer",
-                            "type": "group",
-                            "members": [{"id": "admin", "display_name": "admin"}],
-                        }
-                    ],
-                    "begin_time": "2022-03-11 00:00:00",
-                    "end_time": "2022-03-13 00:00:00",
-                    "duty_time": {
-                        "work_type": "weekly",
-                        "work_days": [1, 2, 3, 4, 5],
-                        "work_time": "{}--{}".format(start_time, end_time),
-                    },
-                    "exclude_settings": [{"date": "2021-11-09", "time": "10:00--11:00"}],
-                }
-            ],
-            "duty_users": [
-                [
-                    {
-                        "display_name": "运维人员",
-                        "logo": "",
-                        "id": "bk_biz_maintainer",
-                        "type": "group",
-                        "members": [{"id": "admin", "display_name": "admin"}],
-                    },
-                    {"display_name": "admin", "logo": "", "id": "admin", "type": "user"},
-                ]
-            ],
-        }
-        duty_obj = DutyArrange.objects.create(**duty_data)
-        manage_duty_arrange_snap(effective_time, is_delay=False)
-        self.assertEqual(DutyArrangeSnap.objects.filter(duty_arrange_id=duty_obj.id).count(), 1)
-
-        snap = DutyArrangeSnap.objects.get(duty_arrange_id=duty_obj.id)
-
-        manage_duty_arrange_plan(effective_time, snap.id)
-        snap.refresh_from_db()
-
-        self.assertEqual(DutyPlan.objects.filter(duty_arrange_id=duty_obj.id).count(), 1)
-        self.assertIsNone(snap.next_plan_time)
-
-        duty_plan = DutyPlan.objects.get(duty_arrange_id=duty_obj.id)
-        if effective_time.isoweekday() in [6, 7]:
-            self.assertFalse(duty_plan.is_active_plan(effective_time))
-        else:
-            self.assertTrue(duty_plan.is_active_plan(effective_time))
-
-    def test_get_notify_item(self):
-        i18n.set_biz(2)
-        now_time = time_tools.strftime_local(datetime.now(), _format="%H:%M")
-        notice_config = [  # 告警通知配置
-            {
-                "time_range": "00:00:00--{}:59".format(now_time),  # 生效时间段
-                "notify_config": [  # 通知方式配置
-                    {
-                        "level": 3,  # 级别
-                        "type": [  # 通知渠道列表
-                            "mail",
-                            "weixin",
-                            "voice",
-                        ],
-                    },
-                    {"level": 2, "type": ["mail", "voice"]},
-                    {"level": 1, "type": ["mail", "weixin", "voice"]},
-                ],
-            }
-        ]
-        # 时分秒格式测试
-        notify_item = AlertAssignee.get_notify_item(notice_config, 2)
-        self.assertEqual(notify_item, notice_config[0])
-        # 时分测试
-        notice_config[0]["time_range"] = "00:00 -- {}".format(now_time)
-        notify_item = AlertAssignee.get_notify_item(notice_config, 2)
-        self.assertEqual(notify_item, notice_config[0])
-        # 跨天测试
-        notice_config[0]["time_range"] = "{} -- 00:00".format(now_time)
-        notify_item = AlertAssignee.get_notify_item(notice_config, 2)
-        self.assertEqual(notify_item, notice_config[0])
-
-
 class TestNoiseReduce(TestCase):
+    databases = {"monitor_api", "default"}
+
     def setUp(self):
         redis = fakeredis.FakeRedis(decode_responses=True)
         redis.flushall()
+
         NOISE_REDUCE_ABNORMAL_KEY.client.flushall()
         self.create_alert_patch = patch("bkmonitor.documents.AlertDocument.bulk_create", MagicMock(return_value=True))
         self.create_alert_patch.start()
+        self.create_alert_log_patch = patch("bkmonitor.documents.AlertLog.bulk_create", MagicMock(return_value=True))
+        self.create_alert_log_patch.start()
         ActionInstance.objects.all().delete()
         register_builtin_plugins()
         self.alert_info = {
@@ -4647,6 +4410,7 @@ class TestNoiseReduce(TestCase):
     def tearDown(self) -> None:
         ActionInstance.objects.all().delete()
         self.create_alert_patch.stop()
+        self.create_alert_log_patch.stop()
 
     def test_noise_reduce_init_true(self):
         strategy_dict = copy.deepcopy(STRATEGY_CONFIG_V3)
@@ -4693,14 +4457,17 @@ class TestNoiseReduce(TestCase):
             get_alert_patch.stop()
 
         strategy_dict = copy.deepcopy(STRATEGY_CONFIG_V3)
+        timezone = "Asia/Shanghai"
+        today_begin = time_tools.datetime2str(datetime.now(tz=pytz.timezone(timezone)), format="%Y-%m-%d 00:00")
+        today_end = time_tools.datetime2str(datetime.now(), format="%Y-%m-%d 23:59")
 
         duty_plans = [
             {
-                "duty_arrange_id": 123,
-                "is_active": True,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "duty_rule_id": 1,
+                "is_effective": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=pytz.timezone(timezone))),
+                "finished_time": time_tools.datetime2str(datetime.now(tz=pytz.timezone(timezone)) + timedelta(hours=1)),
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "order": 1,
                 "users": [{"id": "admin", "display_name": "admin", "logo": "", "type": "user"}],
             }
@@ -4710,6 +4477,7 @@ class TestNoiseReduce(TestCase):
             "desc": "用户组的说明用户组的说明用户组的说明用户组的说明用户组的说明",
             "bk_biz_id": 2,
             "need_duty": True,
+            "duty_rules": [1],
             "alert_notice": [  # 告警通知配置
                 {
                     "time_range": "00:00:00--23:59:59",  # 生效时间段
@@ -4727,6 +4495,7 @@ class TestNoiseReduce(TestCase):
                     ],
                 }
             ],
+            "timezone": "Asia/Shanghai",
             "action_notice": [  # 执行通知配置
                 {
                     "time_range": "00:00:00--23:59:59",  # 生效时间段
@@ -4783,16 +4552,18 @@ class TestNoiseReduce(TestCase):
             set(ActionInstance.objects.filter(is_parent_action=True).values_list("dimension_hash", flat=True)), {""}
         )
 
-        # 三个子通知
+        # 每波三个子通知，一共6个
         self.assertEqual(ActionInstance.objects.filter(is_parent_action=False).count(), 6)
 
         converge_actions(ActionInstance.objects.filter(is_parent_action=False))
 
+        # 两个语音通知不参与收敛流程，直接设置状态为CONVERGED
+
         self.assertEqual(
-            ActionInstance.objects.filter(status=ActionStatus.CONVERGED, is_parent_action=False).count(), 3
+            ActionInstance.objects.filter(status=ActionStatus.CONVERGED, is_parent_action=False).count(), 4
         )
 
-        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED, is_parent_action=False).count(), 3)
+        self.assertEqual(ActionInstance.objects.filter(status=ActionStatus.SKIPPED, is_parent_action=False).count(), 2)
         # 收敛的处理，默认执行次数会+1
         self.assertEqual(
             ActionInstance.objects.filter(status=ActionStatus.SKIPPED, is_parent_action=False).first().execute_times, 1

@@ -71,7 +71,7 @@ export default class HistoryDialog extends tsc<IHistoryDialogProps> {
       <div
         class='history-container'
         onClick={this.handleHistoryClick}
-        v-bk-tooltips={{ content: this.title }}
+        v-bk-tooltips={{ content: this.title, allowHTML: false }}
       >
         <span class='icon-monitor icon-lishijilu icon'></span>
         <ViewParam

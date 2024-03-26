@@ -62,5 +62,5 @@ export default {
   getCloudAreaList,
   downloadLog,
   getRealTimeLog,
-  getContentLog,
+  getContentLog
 };

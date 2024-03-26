@@ -28,7 +28,7 @@
 import Vue from 'vue';
 import VueRouter, { Route, RouteConfig } from 'vue-router';
 
-import { getUrlParam, random } from '../../monitor-common/utils/utils';
+import { getUrlParam, random } from 'monitor-common/utils/utils';
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
@@ -48,6 +48,7 @@ import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 import dashboardRoutes from './dashboard';
 // import spaceData from './space';
 import { isInCommonRoute, setLocalStoreRoute } from './router-config';
+import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 
 const EmailSubscriptionsName = 'email-subscriptions';
 Vue.use(VueRouter);
@@ -76,7 +77,7 @@ const router = new VueRouter({
   mode: 'hash',
   routes
 });
-const isAuthority = async (page: string | string[]) => {
+export const isAuthority = async (page: string | string[]) => {
   const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
     action_ids: Array.isArray(page) ? page : [page]
   });
@@ -103,8 +104,9 @@ router.beforeEach(async (to, from, next) => {
     !window.__BK_WEWEB_DATA__?.token &&
     !['no-business', 'event-center', 'event-center-detail', 'event-center-action-detail', 'share'].includes(to.name) &&
     !store.getters.bizList?.length
-  )
+  ) {
     return next({ name: 'no-business' });
+  }
   if ((document.body as any).___zrEVENTSAVED) {
     /* 图表tip异常问题解决办法 */
     (document.body as any).___zrEVENTSAVED = null;
@@ -121,7 +123,7 @@ router.beforeEach(async (to, from, next) => {
       next();
     } else {
       const { origin, pathname } = location;
-      const bizid = localStorage.getItem('__biz_id__') || -1;
+      const bizid = localStorage.getItem(LOCAL_BIZ_STORE_KEY) || -1;
       location.href = `${origin}${pathname}?bizId=${bizid}#${to.fullPath}`;
       return;
     }

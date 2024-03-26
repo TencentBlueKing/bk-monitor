@@ -27,21 +27,19 @@ import { RouteConfig } from 'vue-router';
 
 const AiSettings = () => import(/* webpackChunkName: 'ai-settigns' */ '../../pages/ai-settings/ai-settings');
 export default [
-  window.enable_aiops
-    ? {
-        name: 'ai-settings',
-        path: '/ai-settings',
-        components: {
-          noCache: AiSettings
-        },
-        meta: {
-          title: 'AI设置',
-          noNavBar: false,
-          navId: 'ai-settings',
-          route: {
-            parent: 'manager'
-          }
-        }
+  {
+    name: 'ai-settings',
+    path: '/ai-settings',
+    components: {
+      noCache: AiSettings
+    },
+    meta: {
+      title: 'AI设置',
+      noNavBar: false,
+      navId: 'ai-settings',
+      route: {
+        parent: 'manager'
       }
-    : undefined
+    }
+  }
 ].filter(Boolean) as RouteConfig[];

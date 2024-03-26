@@ -91,7 +91,7 @@ import {
   bkVirtualScroll,
   bkOverflowTips,
   bkDivider,
-  bkSpin,
+  bkSpin
 } from 'bk-magic-vue';
 
 // bkDiff 组件体积较大且不是很常用，因此注释掉。如果需要，打开注释即可
@@ -161,7 +161,7 @@ Vue.use(bkTooltips);
 Vue.use(bkLoading);
 Vue.use(bkDivider);
 bkOverflowTips.setDefaultProps({
-  delay: [400, 0],
+  delay: [400, 0]
 });
 Vue.use(bkOverflowTips);
 

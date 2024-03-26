@@ -25,13 +25,11 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Sideslider, Table, TableColumn } from 'bk-magic-vue';
-// import { copyText } from '../../../../../monitor-common/utils/utils'
+// import { copyText } from 'monitor-common/utils/utils'
 import dayjs from 'dayjs';
-
-import { tailEventPluginData } from '../../../../../monitor-api/modules/event_plugin';
-import { copyText } from '../../../../../monitor-common/utils/utils';
-import MonacoEditor from '../../../../../monitor-pc/components/editors/monaco-editor';
+import { tailEventPluginData } from 'monitor-api/modules/event_plugin';
+import { copyText } from 'monitor-common/utils/utils';
+import MonacoEditor from 'monitor-pc/components/editors/monaco-editor.vue';
 
 import './data-status.scss';
 
@@ -83,32 +81,6 @@ export default class RulesViewer extends tsc<IDataStatus> {
         this.sourceData = data;
       })
       .finally(() => (this.sourceDataLoading = false));
-    // this.sourceData = [
-    //   {
-    //     bk_ingest_time: 1618280218,
-    //     data: [
-    //       {
-    //         alert_name: 'CPU使用率告警',
-    //         description: 'sum(单点可用率) > 95%, 当前值98%',
-    //         event_id: 2,
-    //         target: '10.0.0.2',
-    //         time: 1618226718
-    //       }
-    //     ]
-    //   },
-    //   {
-    //     bk_ingest_time: 1618232223,
-    //     data: [
-    //       {
-    //         alert_name: 'CPU使用率告警',
-    //         description: 'sum(单点可用率) > 95%, 当前值100%',
-    //         event_id: 2,
-    //         target: '10.0.0.2',
-    //         time: 1618226728
-    //       }
-    //     ]
-    //   }
-    // ]
   }
 
   handleRefresh() {
@@ -148,24 +120,24 @@ export default class RulesViewer extends tsc<IDataStatus> {
         if (prop === 'handle') {
           return (
             <div>
-              <Button
+              <bk-button
                 style='margin-right: 5px;'
                 text={true}
                 onClick={() => this.handleCopy(JSON.stringify(row.data))}
               >
                 {this.$t('复制')}
-              </Button>
-              <Button
+              </bk-button>
+              <bk-button
                 text={true}
                 onClick={() => this.handleShowSource(row)}
               >
                 {this.$t('查看上报日志')}
-              </Button>
+              </bk-button>
             </div>
           );
         }
         if (prop === 'data') {
-          if (!row.data || !row.data.length) return '--';
+          if (!row.data?.length) return '--';
           return (
             <div
               class='data-item-list'
@@ -209,18 +181,18 @@ export default class RulesViewer extends tsc<IDataStatus> {
               {i18n.t('button-刷新')}
             </span>
           </div>
-          <Table data={this.sourceData}>
+          <bk-table data={this.sourceData}>
             {this.sourceDataTableColumn.map((item, i) => (
-              <TableColumn
+              <bk-table-column
                 key={i}
                 label={item.label}
                 prop={item.prop}
                 width={item.width}
                 resizable={false}
                 {...{ scopedSlots }}
-              ></TableColumn>
+              ></bk-table-column>
             ))}
-          </Table>
+          </bk-table>
         </div>
         {/* <MonacoEditor
             class="code-viewer"
@@ -229,7 +201,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
             options={{ readOnly: true }}
             style="height: calc(100vh - 61px)">
         </MonacoEditor> */}
-        <Sideslider
+        <bk-sideslider
           ext-cls='data-status-sideslider'
           transfer={true}
           isShow={this.sideslider.isShow}
@@ -243,7 +215,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
             class='sideslider-title'
           >
             <span>{this.sideslider.title + this.$t('上报日志详情')}</span>
-            <Button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</Button>
+            <bk-button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</bk-button>
           </div>
           <div slot='content'>
             <MonacoEditor
@@ -254,7 +226,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
               style='height: calc(100vh - 60px)'
             ></MonacoEditor>
           </div>
-        </Sideslider>
+        </bk-sideslider>
       </div>
     );
   }

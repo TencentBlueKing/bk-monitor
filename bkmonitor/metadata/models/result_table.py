@@ -467,17 +467,7 @@ class ResultTable(models.Model):
         # 如果实际创建数据库失败，会有异常抛出，则所有数据统一回滚
         # NOTE: 添加参数标识是否创建存储，以便于可以兼容不需要存储或者已经存在的场景
         if create_storage:
-            result_table.create_storage(
-                result_table.default_storage,
-                is_sync_db,
-                external_storage=external_storage,
-                **default_storage_config,
-            )
-            logger.info(
-                "result_table->[{}] has create real storage on type->[{}]".format(
-                    table_id, result_table.default_storage
-                )
-            )
+            result_table.check_and_create_storage(is_sync_db, external_storage, option, default_storage_config)
         # 6. 更新数据写入 consul
         result_table.refresh_etl_config()
 
@@ -503,6 +493,31 @@ class ResultTable(models.Model):
             logger.error("create es storage index error, %s", e)
 
         return result_table
+
+    def check_and_create_storage(
+        self,
+        is_sync_db: bool,
+        external_storage: Optional[Dict] = None,
+        option: Optional[Dict] = None,
+        default_storage_config: Optional[Dict] = None,
+    ) -> bool:
+        """检测并创建存储
+        NOTE: 针对 influxdb 类型的存储，如果功能开关设置为禁用，则禁用所有新建结果表 influxdb 写入
+        """
+        storage_enabled = True
+        if self.default_storage == ClusterInfo.TYPE_INFLUXDB and not settings.ENABLE_INFLUXDB_STORAGE:
+            storage_enabled = False
+
+        if storage_enabled:
+            # 当 default_storage_config 值为 None 时，需要设置为 {}
+            default_storage_config = default_storage_config or {}
+            self.create_storage(
+                self.default_storage,
+                is_sync_db,
+                external_storage=external_storage,
+                **default_storage_config,
+            )
+            logger.info("result_table:[%s] has create storage on type:[%s]", self.table_id, self.default_storage)
 
     @classmethod
     def get_result_table_storage_info(cls, table_id, storage_type):
@@ -972,7 +987,12 @@ class ResultTable(models.Model):
                 )
                 raise ValueError(_("存储类型[%s]暂不支持，请确认后重试") % default_storage)
 
-            if not real_storage_class.objects.filter(table_id=self.table_id).exists():
+            # 如果启用influxdb，当存储类型为influxdb时，校验存储路由存在, 否则，忽略校验
+            if (
+                settings.ENABLE_INFLUXDB_STORAGE
+                and default_storage == ClusterInfo.TYPE_INFLUXDB
+                and not real_storage_class.objects.filter(table_id=self.table_id).exists()
+            ):
                 logger.error(
                     "user->[%s] try to set default_storage to->[%s] but is not in storage_list.",
                     operator,
@@ -1488,7 +1508,7 @@ class ResultTableField(models.Model):
     }
 
     table_id = models.CharField("结果表名", max_length=128)
-    field_name = models.CharField("字段名", max_length=255)
+    field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     field_type = models.CharField("字段类型", max_length=32, choices=FIELD_TYPE_CHOICES)
     description = models.TextField("字段描述")
     # 单位存在默认值，默认为空
@@ -2465,7 +2485,7 @@ class ResultTableFieldOption(OptionBase):
     OPTION_INFLUXDB_DISABLED = "influxdb_disabled"
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
-    field_name = models.CharField("字段名", max_length=255)
+    field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     name = models.CharField(
         "option名称",
         choices=(

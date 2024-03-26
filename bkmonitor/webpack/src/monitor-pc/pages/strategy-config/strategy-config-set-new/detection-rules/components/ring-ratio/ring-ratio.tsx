@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone, isPostiveInt } from 'monitor-common/utils';
 
-import { deepClone, isPostiveInt } from '../../../../../../../monitor-common/utils';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
 
 import './ring-ratio.scss';
@@ -292,7 +292,8 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
                   name={level.name}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
-                    disabled: !level.disabled
+                    disabled: !level.disabled,
+                    allowHTML: false
                   }}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>
@@ -319,7 +320,8 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
                     content: this.$t('已有相同算法,设置为{name}级别', {
                       name: this.levelList[this.localData.level - 1].name
                     }),
-                    disabled: !type.disabled
+                    disabled: !type.disabled,
+                    allowHTML: false
                   }}
                 >
                   {type.name}

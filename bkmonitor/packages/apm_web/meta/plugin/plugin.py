@@ -195,7 +195,7 @@ class PluginBase:
 
 
 class Opentelemetry(PluginBase):
-    name = _("Opentelemetry")
+    name = "Opentelemetry"
     id = "opentelemetry"
     tags = ["opentelemetry", "Traces", _("应用性能监控"), _("服务")]
     short_description = _(

@@ -11,9 +11,9 @@ specific language governing permissions and limitations under the License.
 import base64
 import copy
 import re
-from collections import OrderedDict
-from functools import lru_cache
-from typing import Optional
+from collections import OrderedDict, defaultdict
+from functools import cmp_to_key, lru_cache
+from typing import Dict, List, Optional, Union
 
 import arrow
 from django.conf import settings
@@ -119,6 +119,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
     def current_version(self):
         """
         获取当前版本
+        ⚠️ 不要在 for 循环里调用，会引发 n+1 查询导致额外耗时
         """
         release_version = self.release_version
         if release_version:
@@ -131,6 +132,33 @@ class CollectorPluginMeta(OperateRecordModelBase):
             debug_version = self.generate_version(config_version=1, info_version=1)
 
         return debug_version
+
+    @classmethod
+    def fetch_id__current_version_id_map(cls, ids: List[str]) -> Dict[str, int]:
+        version_infos: List[Dict[str, Union[int, str]]] = PluginVersionHistory.objects.filter(plugin_id__in=ids).values(
+            "plugin_id", "id", "stage"
+        )
+        # 排序规则：Release > DEBUG/UNREGISTER
+
+        def _version_comparator(_left: Dict[str, Union[int, str]], _right: Dict[str, Union[int, str]]) -> int:
+            """stage 相同时 ID 优先，stage 不同时，stage=RELEASE 优先"""
+            if _left["stage"] == _right["stage"]:
+                return (1, -1)[_left["id"] < _right["id"]]
+            return (1, -1)[_right["stage"] == PluginVersionHistory.Stage.RELEASE]
+
+        version_infos_gby_plugin_id: Dict[str, List[Dict[str, Union[int, str]]]] = defaultdict(list)
+        for version_info in version_infos:
+            version_infos_gby_plugin_id[version_info["plugin_id"]].append(version_info)
+
+        id__current_version_id_map: Dict[str, int] = {}
+        for plugin_id, version_infos in version_infos_gby_plugin_id.items():
+            ordered_version_infos: List[Dict[str, Union[int, str]]] = sorted(
+                version_infos, key=cmp_to_key(_version_comparator)
+            )
+            # 取出最新版本
+            id__current_version_id_map[plugin_id] = ordered_version_infos[-1]["id"]
+
+        return id__current_version_id_map
 
     def get_version(self, config_version, info_version):
         """

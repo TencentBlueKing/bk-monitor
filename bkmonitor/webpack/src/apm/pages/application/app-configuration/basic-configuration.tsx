@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,38 +27,61 @@
 
 import { Component, Emit, Inject, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Button,
-  DropdownMenu,
-  Form,
-  FormItem,
-  Icon,
-  Input,
-  Option,
-  RadioButton,
-  RadioGroup,
-  Select,
-  Switcher
-} from 'bk-magic-vue';
-
+import dayjs from 'dayjs';
 import {
   getDataEncoding,
   instanceDiscoverKeys,
   queryBkDataToken,
+  samplingOptions,
   setup,
   start,
   stop
-} from '../../../../monitor-api/modules/apm_meta';
-import ChangeRcord from '../../../../monitor-pc/components/change-record/change-record';
-import { IIpV6Value, INodeType, TargetObjectType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
-import { transformValueToMonitor } from '../../../../monitor-pc/components/monitor-ip-selector/utils';
-import StrategyIpv6 from '../../../../monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
+} from 'monitor-api/modules/apm_meta';
+import { getFieldOptionValues } from 'monitor-api/modules/apm_trace';
+import { deepClone, typeTools } from 'monitor-common/utils/utils';
+import ChangeRcord from 'monitor-pc/components/change-record/change-record';
+// import CycleInput from '../../../components/cycle-input/cycle-input';
+import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
+// import {
+// defaultCycleOptionMicroSec,
+// defaultCycleOptionMillisec,
+// defaultCycleOptionMin,
+// defaultCycleOptionSec
+// } from 'monitor-pc/components/cycle-input/utils';
+import { IIpV6Value, INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
+import { CONDITION } from 'monitor-pc/constant/constant';
+import SimpleSelectInput from 'monitor-pc/pages/alarm-shield/components/simple-select-input';
+import SelectMenu from 'monitor-pc/pages/strategy-config/strategy-config-set-new/components/select-menu';
+import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
+
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
 
-import { IApdexConfig, IAppInfo, IApplicationSamplerConfig, IInstanceOption } from './type';
+import { IApdexConfig, IAppInfo, IApplicationSamplerConfig, IInstanceOption, ISamplingRule } from './type';
 
+const TIME_CONDITION_METHOD_LIST = [
+  { id: 'gt', name: '>' },
+  { id: 'gte', name: '>=' },
+  { id: 'lt', name: '<' },
+  { id: 'lte', name: '<=' }
+];
+const STRING_CONDITION_METHOD_LIST = [
+  { id: 'eq', name: '=' },
+  { id: 'gt', name: '>' },
+  { id: 'gte', name: '>=' },
+  { id: 'lt', name: '<' },
+  { id: 'lte', name: '<=' },
+  { id: 'neq', name: '!=' },
+  { id: 'reg', name: 'regex' },
+  { id: 'nreg', name: 'nregex' }
+];
+const nullOptions = {
+  // 下拉选项第一为空值
+  id: '',
+  name: `- ${window.i18n.tc('空')} -`
+};
 interface IProps {
   appInfo: IAppInfo;
   recordData: Record<string, string>;
@@ -78,6 +102,12 @@ type IFormData = IApdexConfig &
       bk_biz_id: number | string;
     };
   };
+
+type ISamplingOption = {
+  name: string;
+  id: string;
+  type: string;
+};
 
 @Component
 export default class BasicInfo extends tsc<IProps> {
@@ -115,6 +145,7 @@ export default class BasicInfo extends tsc<IProps> {
     apdex_messaging: 0,
     sampler_type: '',
     sampler_percentage: 0,
+    tail_conditions: [],
     plugin_config: {
       target_nodes: [],
       paths: [''],
@@ -154,14 +185,13 @@ export default class BasicInfo extends tsc<IProps> {
     ],
     'plugin_config.target_nodes': [
       {
-        required: true,
+        validator: (val: []) => val?.length,
         message: window.i18n.tc('必填项'),
         trigger: 'change'
       }
     ],
     'plugin_config.paths': [
       {
-        required: true,
         validator: (val: []) => val.every(item => !!item),
         message: window.i18n.tc('必填项'),
         trigger: 'blur'
@@ -183,9 +213,15 @@ export default class BasicInfo extends tsc<IProps> {
     { id: 'apdex_messaging', name: window.i18n.tc('消息队列') },
     { id: 'apdex_backend', name: window.i18n.tc('后台任务') }
   ];
-  samplingTypeList = [{ id: 'random', name: window.i18n.tc('随机') }];
+  samplingTypeList = [
+    { id: 'random', name: window.i18n.tc('随机') },
+    { id: 'tail', name: window.i18n.tc('尾部采样') },
+    { id: 'empty', name: window.i18n.tc('不采样') }
+  ];
   samplingTypeMaps = {
-    random: window.i18n.tc('随机')
+    random: window.i18n.tc('随机'),
+    tail: window.i18n.tc('尾部采样'),
+    empty: window.i18n.tc('不采样')
   };
   localInstanceList: IInstanceOption[] = [];
   dimessionList = [
@@ -257,6 +293,25 @@ export default class BasicInfo extends tsc<IProps> {
     origin: '原始命令'
   };
 
+  samplingRules: ISamplingRule[] = [];
+  samplingRulesGroup: ISamplingRule[][] = []; // 用于渲染必采规则根据or按行排列
+  samplingRuleOptions: ISamplingOption[] = [];
+
+  samplingRuleValueMap: Record<string, { id: string; name: string }[]> = {};
+
+  curSelectTarget = null;
+  showSelectMenu = false;
+  menuList = [];
+  curGroupConditionIndex = -1;
+  curConditionIndex = -1;
+  curConditionProp = '';
+  // cycleInputOptions = [
+  //   { id: 'μs', name: window.i18n.tc('微秒'), children: defaultCycleOptionMicroSec },
+  //   { id: 'ms', name: window.i18n.tc('毫秒'), children: defaultCycleOptionMillisec },
+  //   { id: 's', name: window.i18n.tc('秒'), children: defaultCycleOptionSec },
+  //   { id: 'm', name: window.i18n.tc('分'), children: defaultCycleOptionMin }
+  // ];
+
   /** 应用ID */
   get appId() {
     return Number(this.$route.params?.id || 0);
@@ -281,6 +336,25 @@ export default class BasicInfo extends tsc<IProps> {
   @Watch('appInfo', { immediate: true, deep: true })
   handleAppInfoChange(data: IAppInfo) {
     this.localInstanceList = [...data.application_instance_name_config?.instance_name_composition];
+
+    if (data.application_sampler_config.sampler_type === 'tail') {
+      // 尾部采样处理展示规则
+      const { tail_conditions: conditions } = data.application_sampler_config;
+      this.samplingRules.splice(
+        0,
+        this.samplingRules.length,
+        ...conditions.map(item => {
+          if (item.type === 'string') {
+            this.getSamplingVariableValueList(item.key);
+          }
+          return {
+            ...item,
+            value: item.type === 'time' ? Number(item.value[0] / Math.pow(10, 6)) : item.value
+          };
+        })
+      );
+      this.handleConditionChange();
+    }
   }
 
   @Emit('change')
@@ -329,6 +403,8 @@ export default class BasicInfo extends tsc<IProps> {
         }
       ];
     });
+    this.getSamplingOptions();
+    this.handleConditionChange();
   }
 
   /**
@@ -355,8 +431,9 @@ export default class BasicInfo extends tsc<IProps> {
   /**
    * @desc 开关前置校验
    * @param { boolean } val 当前开关状态
+   * @param { string } val 事件类型
    */
-  handleEnablePreCheck(val: boolean) {
+  handleEnablePreCheck(val: boolean, eventType: string) {
     if (!this.authority.MANAGE_AUTH) {
       this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
       return Promise.reject();
@@ -370,7 +447,7 @@ export default class BasicInfo extends tsc<IProps> {
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         confirmFn: async () => {
           const api = val ? stop : start;
-          const isPass = await api({ application_id: applicationId })
+          const isPass = await api({ application_id: applicationId, type: eventType })
             .then(() => {
               this.handleBaseInfoChange();
               return true;
@@ -389,11 +466,16 @@ export default class BasicInfo extends tsc<IProps> {
     this.showInstanceSelector = !show;
     if (show) {
       if (!this.logAsciiList.length && this.isShowLog2TracesFormItem) this.fetchEncodingList();
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { app_alias: appAlias, description, plugin_config } = this.appInfo;
+      const { app_alias: appAlias, description, plugin_config, application_sampler_config } = this.appInfo;
       const apdexConfig = this.appInfo.application_apdex_config || {};
-      const samplerConfig = this.appInfo.application_sampler_config || {};
-      Object.assign(this.formData, apdexConfig, samplerConfig, { app_alias: appAlias, description, plugin_config });
+      const samplerConfig = Object.assign({}, application_sampler_config, {
+        sampler_percentage: application_sampler_config.sampler_percentage || 0
+      });
+      Object.assign(this.formData, apdexConfig, samplerConfig, {
+        app_alias: appAlias,
+        description,
+        plugin_config
+      });
     }
     if (!isSubmit) {
       this.localInstanceList = [...this.appInfo.application_instance_name_config?.instance_name_composition];
@@ -485,14 +567,13 @@ export default class BasicInfo extends tsc<IProps> {
     } = this.formData;
     Object.keys(apdexConfig).map(val => (apdexConfig[val] = Number(apdexConfig[val])));
     const instanceList = this.localInstanceList.map(item => item.name);
-    const params = {
+    const params: Record<string, any> = {
       application_id: this.appInfo.application_id,
       is_enabled: this.appInfo.is_enabled,
       app_alias: appAlias,
       description,
       application_sampler_config: {
-        sampler_type: samplerType,
-        sampler_percentage: Number(samplerPercentage)
+        sampler_type: samplerType
       },
       application_apdex_config: apdexConfig,
       application_instance_name_config: {
@@ -501,6 +582,22 @@ export default class BasicInfo extends tsc<IProps> {
       application_db_config: this.appInfo.application_db_config,
       application_db_system: this.appInfo.application_db_system
     };
+
+    // 处理采样配置
+    if (params.application_sampler_config.sampler_type === 'random') {
+      params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
+    } else if (params.application_sampler_config.sampler_type === 'tail') {
+      params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
+      params.application_sampler_config.tail_conditions = this.samplingRules
+        .map(item => {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          const { key_alias, type, ...rest } = item;
+          // 时间类型输入组件默认单位为秒 后端传参要求单位为纳秒
+          return { ...rest, value: type === 'time' ? [String(rest.value * Math.pow(10, 6))] : rest.value };
+        })
+        .filter(item => item.value.length);
+    }
+
     if (this.isShowLog2TracesFormItem) {
       plugin_config.bk_data_id = this.appInfo.plugin_config.bk_data_id;
       // @ts-ignore
@@ -612,284 +709,595 @@ export default class BasicInfo extends tsc<IProps> {
     if (Array.isArray(encodingList)) this.logAsciiList = encodingList;
   }
 
+  /** 采样规则条件key值改变 */
+  async handleRuleKeyChange(item: ISamplingRule, v: string, gIndex: number, index: number) {
+    await this.$nextTick();
+    if (!v && this.samplingRules.length > 1) this.handleDeleteKey(gIndex, index);
+    item.key_alias = v;
+
+    let id = v;
+    this.samplingRuleOptions.forEach(opt => {
+      if (opt.id === v || opt.name === v) {
+        id = opt.id as string;
+        item.type = opt.type;
+      }
+    });
+    if (item.key !== id) {
+      item.value = item.type === 'time' ? 10 : [];
+    }
+    item.key = id;
+    if (item.type === 'string' && id && !this.samplingRuleValueMap[id]) {
+      await this.getSamplingVariableValueList(id);
+    }
+
+    if (
+      item.type === 'time' &&
+      (item.method === '' || !TIME_CONDITION_METHOD_LIST.some(val => val.id === item.method))
+    ) {
+      item.method = 'gt';
+    } else if (item.method === '') {
+      item.method = 'eq';
+    }
+
+    this.samplingRules = this.samplingRules.slice();
+    this.handleConditionChange();
+  }
+
+  /** 获取采样配置常量 */
+  async getSamplingOptions() {
+    await samplingOptions().then(data => {
+      this.samplingTypeList = this.samplingTypeList.filter(item => (data?.sampler_types || []).includes(item.id));
+      this.samplingRuleOptions = (data?.tail_sampling_options || []).map(item => {
+        return {
+          id: item.key,
+          ...item
+        };
+      });
+    });
+  }
+
+  // 获取采样规则候选值列表数据
+  async getSamplingVariableValueList(keyId: string) {
+    const params = {
+      app_name: this.appInfo.app_name,
+      start_time: dayjs().add(-1, 'h').unix(),
+      end_time: dayjs().unix(),
+      bk_biz_id: window.bk_biz_id,
+      fields: [keyId]
+      // mode: 'span' // TODO
+    };
+    const data = await getFieldOptionValues(params).catch(() => []);
+    const result = (data?.[keyId] || []).map(item => ({ name: item.text, id: item.value })) || [];
+    this.samplingRuleValueMap[keyId] = result || [];
+  }
+
+  /* 弹出条件选择 */
+  handleToggleCondition(e, { gIndex, index, prop }) {
+    this.curSelectTarget = e.target;
+    this.showSelectMenu = true;
+    this.menuList = CONDITION;
+    this.curGroupConditionIndex = gIndex;
+    this.curConditionIndex = index;
+    this.curConditionProp = prop;
+  }
+
+  /* 弹出判断方式 */
+  handleToggleMethod(e, { gIndex, index, prop }) {
+    this.curSelectTarget = e.target;
+    this.showSelectMenu = true;
+    const { key } = this.samplingRulesGroup[gIndex][index];
+    const { type } = this.samplingRuleOptions.find(item => item.id === key) || { type: 'string' };
+    this.menuList = this.handleGetMethodList(type as any);
+    this.curGroupConditionIndex = gIndex;
+    this.curConditionIndex = index;
+    this.curConditionProp = prop;
+    this.handleConditionChange();
+  }
+
+  handleGetMethodNameById(id: string) {
+    return STRING_CONDITION_METHOD_LIST.find(item => item.id === id)?.name || '';
+  }
+
+  // value变化时触发
+  async handleSamplingRuleValueChange(item, v: string[] | number) {
+    await this.$nextTick();
+    if (typeTools.isNumber(v)) {
+      item.value = v;
+    } else {
+      if (item.value.includes(nullOptions.id)) {
+        if ((v as any).length > 1) {
+          item.value = (v as any).filter(str => str !== nullOptions.id);
+        } else {
+          item.value = v;
+        }
+      } else {
+        if ((v as any).includes(nullOptions.id)) {
+          item.value = [nullOptions.id];
+        } else {
+          item.value = v;
+        }
+      }
+    }
+
+    this.samplingRules = this.samplingRules.slice();
+    this.handleConditionChange();
+  }
+
+  handleSamplingRuleValueUnitChange(item, v) {
+    item.unit = v;
+    this.samplingRules = this.samplingRules.slice();
+    this.handleConditionChange();
+  }
+
+  /**
+   * @description: 维度数据类型不同所需的method
+   * @param {*} type 维度的数据类型
+   */
+  handleGetMethodList(type: 'string' | 'time') {
+    if (type === 'time') {
+      return TIME_CONDITION_METHOD_LIST;
+    }
+    return STRING_CONDITION_METHOD_LIST;
+  }
+
+  /** 选中条件下拉值 */
+  handelMenuSelect(item) {
+    const condition = this.samplingRulesGroup[this.curGroupConditionIndex][this.curConditionIndex];
+    if (!condition) return;
+    condition[this.curConditionProp] = item?.id;
+    this.handleConditionChange();
+  }
+
+  /** 隐藏条件下拉选框 */
+  handleMenuHidden() {
+    this.curSelectTarget = null;
+    this.menuList = [];
+    this.showSelectMenu = false;
+  }
+
+  /**
+   * @description: 添加条件
+   */
+  async handleAddCondition(gIndex) {
+    const key = this.samplingRulesGroup[gIndex][this.samplingRulesGroup[gIndex].length - 1]?.key;
+    const keyIndex = this.samplingRules.findIndex(item => item.key === key);
+    this.samplingRules.splice(keyIndex + 1, 0, this.handleGetDefaultCondition('and'));
+
+    this.handleConditionChange();
+    setTimeout(() => {
+      (
+        this.$refs[`selectInput-${gIndex}-${this.samplingRulesGroup[gIndex].length - 1}`] as SimpleSelectInput
+      ).inputWrapRef.click();
+      (
+        this.$refs[`selectInput-${gIndex}-${this.samplingRulesGroup[gIndex].length - 1}`] as SimpleSelectInput
+      ).inputRef.focus();
+    }, 100);
+  }
+
+  /** 添加默认规则 */
+  handleGetDefaultCondition(condition = '') {
+    return Object.assign(
+      {},
+      {
+        key: '',
+        method: '',
+        value: [],
+        key_alias: '',
+        type: ''
+      },
+      condition ? { condition } : {}
+    );
+  }
+
+  /* 删除条件 */
+  handleDeleteKey(gIndex: number, index: number) {
+    const groups = deepClone(this.samplingRulesGroup);
+    const groupItem = groups[gIndex];
+    const deleteList = groupItem.splice(index, 1);
+
+    // if (!gIndex && !groupItem.length && groups.length === 1) {
+    //   groups.push([this.handleGetDefaultCondition(false)]);
+    // }
+
+    if (groupItem[index]) {
+      if (gIndex === 0) {
+        delete groupItem[index].condition;
+      } else if (index === 0) {
+        groupItem[index].condition = 'or';
+      }
+    }
+
+    if (!!deleteList?.[0]) {
+      const list = groups.reduce((prev, cur) => prev.concat(cur), []);
+      if (list[0]?.condition === 'or') {
+        delete list[0].condition;
+      }
+      this.samplingRules.splice(0, this.samplingRules.length, ...list);
+      this.handleConditionChange();
+    }
+  }
+
+  /** 格式化规则列表渲染 */
+  handleConditionChange() {
+    this.samplingRules = this.samplingRules.map((item, index) => {
+      const result = item;
+      if (index && !item.condition) {
+        result.condition = 'and';
+      }
+      return result;
+    });
+
+    let groupIndex = 0;
+    const parseList = [];
+
+    this.samplingRules.forEach(item => {
+      const curIndex = item.condition === 'or' ? groupIndex + 1 : groupIndex;
+      groupIndex = curIndex;
+      if (!parseList[curIndex]) {
+        parseList.push([]);
+      }
+
+      parseList[groupIndex].push(item);
+    });
+    this.samplingRulesGroup.splice(0, this.samplingRulesGroup.length, ...parseList);
+  }
+
+  /** 是否显示添加规则按钮 */
+  showRuleAdd(index) {
+    if (!this.samplingRules.length) return false;
+    const { key, value } = this.samplingRulesGroup[index][this.samplingRulesGroup[index].length - 1];
+    return key && (typeTools.isNumber(value) ? value : (value as any)?.length > 0);
+  }
+
+  /** 修改采样类型 */
+  handleSamplerTypeChange() {
+    if (this.formData.sampler_type === 'tail') {
+      this.samplingRules = this.formData.tail_conditions || [];
+      // if (!this.samplingRules.length) {
+      //   this.samplingRules.push(this.handleGetDefaultCondition(false));
+      //   this.handleConditionChange();
+      // }
+    }
+  }
+
+  /** 添加新的一行采样规则 */
+  handleNewRowCondition() {
+    const condition = this.samplingRules.length ? 'or' : '';
+    this.samplingRules.push(this.handleGetDefaultCondition(condition));
+    this.handleConditionChange();
+  }
+
   render() {
     return (
       <div class='conf-content base-info-wrap'>
         <PanelItem title={this.$t('基础信息')}>
-          <div
-            slot='titleExtend'
-            style='display: flex;align-items: center;'
-          >
-            {/* <EditableFormItem
-              label={this.$t('启/停')}
-              value={this.appInfo.is_enabled}
-              formType='switch'
-              authority={this.authority.MANAGE_AUTH}
-              preCheckSwitcher={val => this.handleEnablePreCheck(val)}
-            /> */}
-            <Switcher
-              v-model={this.appInfo.is_enabled}
-              v-authority={{ active: !this.authority.MANAGE_AUTH }}
-              class='switcher-self'
-              theme='primary'
-              size='small'
-              pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled)}
-            />
-            <span class='switcher-text'>{this.$t('启/停')}</span>
-          </div>
           <div class='form-content'>
-            <div class='item-row'>
-              <EditableFormItem
-                label={this.$t('应用名')}
-                value={this.appInfo.app_name}
-                formType='input'
-                showEditable={false}
-              />
-              {!this.isEditing && (
-                <EditableFormItem
-                  label={this.$t('应用别名')}
-                  value={this.appInfo.app_alias}
-                  formType='input'
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
-                  showEditable={false}
-                />
-              )}
-              {this.isEditing && (
-                <EditableFormItem
-                  label={this.$t('所有者')}
-                  value={this.appInfo.create_user}
-                  formType='input'
-                  showEditable={false}
-                />
-              )}
-            </div>
-            <div class='item-row'>
-              <EditableFormItem
-                label={this.$t('支持插件')}
-                value={this.pluginIdMapping[this.appInfo.plugin_id]}
-                formType='input'
-                authority={this.authority.MANAGE_AUTH}
-                authorityName={authorityMap.MANAGE_AUTH}
-                showEditable={false}
-              />
-              {!this.isEditing && this.isShowLog2TracesFormItem && (
-                <EditableFormItem
-                  label={this.$t('采集目标')}
-                  value={this.$t(this.selectedTargetTips[this.appInfo?.plugin_config?.target_node_type], [
-                    this.appInfo?.plugin_config?.target_nodes?.length || 0
-                  ])}
-                  formType='input'
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
-                  showEditable={false}
-                />
-              )}
-              {this.isEditing && (
-                <EditableFormItem
-                  label='Token'
-                  value={this.secureKey}
-                  formType='password'
-                  showEditable={false}
-                  authority={this.authority.MANAGE_AUTH}
-                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                  updateValue={() => this.handleUpdateValue()}
-                />
-              )}
-            </div>
-            {!this.isEditing && (
-              <div>
-                {this.isShowLog2TracesFormItem && (
+            {this.isEditing
+              ? [
                   <div class='item-row'>
-                    {/* <EditableFormItem
-                    label={this.$t('日志路径')}
-                    value={'todo'}
-                    formType='input'
-                    authority={this.authority.MANAGE_AUTH}
-                    authorityName={authorityMap.MANAGE_AUTH}
-                    showEditable={false}
-                  /> */}
-                    <div class='log-path-item-row'>
-                      <div class='label'>{this.$t('日志路径')}</div>
-                      <div class='value-container'>
-                        {this.appInfo.plugin_config.paths.map(path => (
-                          <div class='value'>{path}</div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div class='item-row'>
-                  {this.isShowLog2TracesFormItem && (
                     <EditableFormItem
-                      label={this.$t('日志字符集')}
-                      value={this.appInfo.plugin_config.data_encoding}
+                      label={this.$t('应用名')}
+                      value={this.appInfo.app_name}
+                      formType='input'
+                      showEditable={false}
+                    />
+                    <EditableFormItem
+                      label='Token'
+                      value={this.secureKey}
+                      formType='password'
+                      showEditable={false}
+                      authority={this.authority.MANAGE_AUTH}
+                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                      updateValue={() => this.handleUpdateValue()}
+                    />
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('所有者')}
+                      value={this.appInfo.create_user}
+                      formType='input'
+                      showEditable={false}
+                    />
+                  </div>,
+                  <bk-form
+                    class='edit-config-form'
+                    {...{
+                      props: {
+                        model: this.formData,
+                        rules: this.rules
+                      }
+                    }}
+                    label-width={116}
+                    ref='editInfoForm'
+                  >
+                    <bk-form-item
+                      label={this.$t('应用别名')}
+                      required
+                      property='app_alias'
+                      error-display-type='normal'
+                    >
+                      <bk-input
+                        v-model={this.formData.app_alias}
+                        class='alias-name-input'
+                      />
+                    </bk-form-item>
+                    <bk-form-item
+                      label={this.$t('描述')}
+                      property='description'
+                    >
+                      <bk-input
+                        v-model={this.formData.description}
+                        type='textarea'
+                        class='description-input'
+                        show-word-limit
+                        maxlength='100'
+                      />
+                    </bk-form-item>
+                    <div
+                      class='item-row'
+                      style='margin: 12px 0;'
+                    >
+                      <bk-form-item label={`Tracing ${this.$t('启/停')}`}>
+                        <bk-switcher
+                          v-model={this.appInfo.is_enabled}
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                          theme='primary'
+                          size='small'
+                          pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled, 'tracing')}
+                        />
+                      </bk-form-item>
+                      <bk-form-item
+                        label={`Profiling ${this.$t('启/停')}`}
+                        class='form-flex-item'
+                      >
+                        <bk-switcher
+                          v-model={this.appInfo.is_enabled_profiling}
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                          theme='primary'
+                          size='small'
+                          pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled_profiling, 'profiling')}
+                        />
+                      </bk-form-item>
+                    </div>
+                    <div class='item-row'>
+                      <bk-form-item label={this.$t('Tracing 的插件')}>
+                        <bk-checkbox
+                          value={true}
+                          disabled
+                        >
+                          <div
+                            class='underline-text'
+                            v-bk-tooltips='说明文案'
+                          >
+                            {this.pluginIdMapping[this.appInfo.plugin_id]}
+                          </div>
+                        </bk-checkbox>
+                      </bk-form-item>
+                    </div>
+                  </bk-form>
+                ]
+              : [
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('应用名')}
+                      value={this.appInfo.app_name}
+                      formType='input'
+                      showEditable={false}
+                    />
+                    <EditableFormItem
+                      label={this.$t('应用别名')}
+                      value={this.appInfo.app_alias}
                       formType='input'
                       authority={this.authority.MANAGE_AUTH}
                       authorityName={authorityMap.MANAGE_AUTH}
                       showEditable={false}
                     />
-                  )}
-                  <EditableFormItem
-                    label={this.$t('描述')}
-                    value={this.appInfo.description}
-                    formType='input'
-                    authority={this.authority.MANAGE_AUTH}
-                    authorityName={authorityMap.MANAGE_AUTH}
-                    showEditable={false}
-                  />
-                </div>
-                <div class='item-row'>
-                  <EditableFormItem
-                    label={this.$t('所有者')}
-                    value={this.appInfo.create_user}
-                    formType='input'
-                    showEditable={false}
-                  />
-                  <EditableFormItem
-                    label='Token'
-                    value={this.secureKey}
-                    formType='password'
-                    showEditable={false}
-                    authority={this.authority.MANAGE_AUTH}
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                    updateValue={() => this.handleUpdateValue()}
-                  />
-                </div>
-              </div>
-            )}
-            {this.isEditing && (
-              <Form
-                class='edit-config-form'
-                {...{
-                  props: {
-                    model: this.formData,
-                    rules: this.rules
-                  }
-                }}
-                label-width={116}
-                ref='editInfoForm'
-              >
-                <FormItem
-                  label={this.$t('应用别名')}
-                  required
-                  property='app_alias'
-                  error-display-type='normal'
-                >
-                  <Input
-                    v-model={this.formData.app_alias}
-                    class='alias-name-input'
-                  />
-                </FormItem>
-                {this.isShowLog2TracesFormItem && (
-                  <FormItem
-                    label={this.$t('采集目标')}
-                    required
-                    property='plugin_config.target_nodes'
-                    error-display-type='normal'
-                  >
-                    <div style='display: flex;align-items: center;'>
-                      <bk-button
-                        theme='default'
-                        icon='plus'
-                        class='btn-target-collect'
-                        onClick={() => (this.selectorDialog.isShow = true)}
-                      >
-                        {this.$t('选择目标')}
-                      </bk-button>
-                      {this.formData.plugin_config.target_nodes.length > 0 && (
-                        <i18n
-                          path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
-                          style='margin-left: 8px;'
-                        >
-                          <span style='color: #4e99ff;'>{this.formData.plugin_config.target_nodes.length}</span>
-                        </i18n>
-                      )}
-                    </div>
-                  </FormItem>
-                )}
-                {this.isShowLog2TracesFormItem && (
-                  <FormItem
-                    label={this.$t('日志路径')}
-                    required
-                    property='plugin_config.paths'
-                    error-display-type='normal'
-                  >
-                    {this.formData.plugin_config.paths.map((path, index) => (
-                      <div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            marginBottom: index > 0 && index < this.formData.plugin_config.paths.length - 1 && '20px'
-                          }}
-                        >
-                          <bk-input
-                            v-model={this.formData.plugin_config.paths[index]}
-                            placeholder={this.$t('请输入')}
-                            style='width: 490px;'
-                          />
-                          <Icon
-                            class='log-path-icon log-path-icon-plus'
-                            type='plus-circle-shape'
-                            onClick={() => this.formData.plugin_config.paths.push('')}
-                          />
-                          <Icon
-                            class={{
-                              'log-path-icon': true,
-                              'log-path-icon-minus': true,
-                              disabled: this.formData.plugin_config.paths.length <= 1
-                            }}
-                            type='minus-circle-shape'
-                            onClick={() =>
-                              this.formData.plugin_config.paths.length > 1 &&
-                              this.formData.plugin_config.paths.splice(index, 1)
-                            }
-                          />
-                        </div>
-                        {index === 0 && <div class='log-path-hint'>{this.$t('日志文件为绝对路径，可使用通配符')}</div>}
-                      </div>
-                    ))}
-                  </FormItem>
-                )}
-                {this.isShowLog2TracesFormItem && (
-                  <FormItem
-                    label={this.$t('日志字符集')}
-                    required
-                    property='plugin_config.data_encoding'
-                    error-display-type='normal'
-                  >
-                    <bk-select
-                      v-model={this.formData.plugin_config.data_encoding}
-                      disabled={this.isFetchingEncodingList}
-                      style='width: 490px;'
-                    >
-                      {this.logAsciiList.map(item => (
-                        <bk-option
-                          key={item.id}
-                          id={item.id}
-                          name={item.name}
-                        ></bk-option>
-                      ))}
-                    </bk-select>
-                  </FormItem>
-                )}
-                <FormItem
-                  label={this.$t('描述')}
-                  property='description'
-                >
-                  <Input
-                    v-model={this.formData.description}
-                    type='textarea'
-                    class='description-input'
-                    show-word-limit
-                    maxlength='100'
-                  />
-                </FormItem>
-              </Form>
-            )}
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('所有者')}
+                      value={this.appInfo.create_user}
+                      formType='input'
+                      showEditable={false}
+                    />
+                    <EditableFormItem
+                      label='Token'
+                      value={this.secureKey}
+                      formType='password'
+                      showEditable={false}
+                      authority={this.authority.MANAGE_AUTH}
+                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                      updateValue={() => this.handleUpdateValue()}
+                    />
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('描述')}
+                      value={this.appInfo.description}
+                      formType='input'
+                      authority={this.authority.MANAGE_AUTH}
+                      authorityName={authorityMap.MANAGE_AUTH}
+                      showEditable={false}
+                    />
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label='Tracing'
+                      value={this.appInfo.is_enabled ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      tagTheme={this.appInfo.is_enabled ? 'success' : ''}
+                      formType='tag'
+                      showEditable={false}
+                    />
+                    <EditableFormItem
+                      label='Profiling'
+                      value={this.appInfo.is_enabled_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
+                      tagTheme={this.appInfo.is_enabled_profiling ? 'success' : ''}
+                      formType='tag'
+                      showEditable={false}
+                    />
+                  </div>,
+                  <div class='item-row'>
+                    <EditableFormItem
+                      label={this.$t('Tracing 的插件')}
+                      value={this.pluginIdMapping[this.appInfo.plugin_id]}
+                      formType='input'
+                      authority={this.authority.MANAGE_AUTH}
+                      authorityName={authorityMap.MANAGE_AUTH}
+                      showEditable={false}
+                    />
+                  </div>
+                ]}
           </div>
         </PanelItem>
+        {this.isShowLog2TracesFormItem && (
+          <PanelItem
+            title='Logs to Traces'
+            flexDirection='column'
+          >
+            <div class='form-content'>
+              {this.isEditing
+                ? [
+                    <bk-form
+                      class='edit-config-form'
+                      {...{
+                        props: {
+                          model: this.formData,
+                          rules: this.rules
+                        }
+                      }}
+                      label-width={116}
+                      ref='editInfoForm'
+                    >
+                      <bk-form-item
+                        label={this.$t('采集目标')}
+                        required
+                        property='plugin_config.target_nodes'
+                        error-display-type='normal'
+                      >
+                        <div style='display: flex;align-items: center;'>
+                          <bk-button
+                            theme='default'
+                            icon='plus'
+                            class='btn-target-collect'
+                            onClick={() => (this.selectorDialog.isShow = true)}
+                          >
+                            {this.$t('选择目标')}
+                          </bk-button>
+                          {this.formData.plugin_config.target_nodes.length > 0 && (
+                            <i18n
+                              path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
+                              style='margin-left: 8px;'
+                            >
+                              <span style='color: #4e99ff;'>{this.formData.plugin_config.target_nodes.length}</span>
+                            </i18n>
+                          )}
+                        </div>
+                      </bk-form-item>
+                      <bk-form-item
+                        label={this.$t('日志路径')}
+                        required
+                        property='plugin_config.paths'
+                        error-display-type='normal'
+                      >
+                        {this.formData.plugin_config.paths.map((path, index) => (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                marginBottom:
+                                  index > 0 && index < this.formData.plugin_config.paths.length - 1 && '20px'
+                              }}
+                            >
+                              <bk-input
+                                v-model={this.formData.plugin_config.paths[index]}
+                                placeholder={this.$t('请输入')}
+                                style='width: 490px;'
+                              />
+                              <bk-icon
+                                class='log-path-icon log-path-icon-plus'
+                                type='plus-circle-shape'
+                                onClick={() => this.formData.plugin_config.paths.push('')}
+                              />
+                              <bk-icon
+                                class={{
+                                  'log-path-icon': true,
+                                  'log-path-icon-minus': true,
+                                  disabled: this.formData.plugin_config.paths.length <= 1
+                                }}
+                                type='minus-circle-shape'
+                                onClick={() =>
+                                  this.formData.plugin_config.paths.length > 1 &&
+                                  this.formData.plugin_config.paths.splice(index, 1)
+                                }
+                              />
+                            </div>
+                            {index === 0 && (
+                              <div class='log-path-hint'>{this.$t('日志文件为绝对路径，可使用通配符')}</div>
+                            )}
+                          </div>
+                        ))}
+                      </bk-form-item>
+                      <bk-form-item
+                        label={this.$t('日志字符集')}
+                        required
+                        property='plugin_config.data_encoding'
+                        error-display-type='normal'
+                      >
+                        <bk-select
+                          v-model={this.formData.plugin_config.data_encoding}
+                          disabled={this.isFetchingEncodingList}
+                          style='width: 490px;'
+                        >
+                          {this.logAsciiList.map(item => (
+                            <bk-option
+                              key={item.id}
+                              id={item.id}
+                              name={item.name}
+                            ></bk-option>
+                          ))}
+                        </bk-select>
+                      </bk-form-item>
+                    </bk-form>
+                  ]
+                : [
+                    <div class='item-row'>
+                      <EditableFormItem
+                        label={this.$t('采集目标')}
+                        value={this.$t(this.selectedTargetTips[this.appInfo?.plugin_config?.target_node_type], [
+                          this.appInfo?.plugin_config?.target_nodes?.length || 0
+                        ])}
+                        formType='input'
+                        authority={this.authority.MANAGE_AUTH}
+                        authorityName={authorityMap.MANAGE_AUTH}
+                        showEditable={false}
+                      />
+                    </div>,
+                    <div class='item-row'>
+                      <div class='log-path-item-row'>
+                        <div class='label'>{this.$t('日志路径')}</div>
+                        <div class='value-container'>
+                          {this.appInfo.plugin_config.paths.map(path => (
+                            <div class='value'>{path}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>,
+                    <div class='item-row'>
+                      <EditableFormItem
+                        label={this.$t('日志字符集')}
+                        value={this.appInfo.plugin_config.data_encoding}
+                        formType='input'
+                        authority={this.authority.MANAGE_AUTH}
+                        authorityName={authorityMap.MANAGE_AUTH}
+                        showEditable={false}
+                      />
+                    </div>
+                  ]}
+              <div class='item-row'></div>
+            </div>
+          </PanelItem>
+        )}
         <PanelItem
           title={this.$t('Apdex设置')}
           flexDirection='column'
@@ -916,7 +1324,7 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
           <div class='form-content'>
             {this.isEditing ? (
-              <Form
+              <bk-form
                 class='edit-config-form grid-form'
                 {...{
                   props: {
@@ -928,12 +1336,12 @@ export default class BasicInfo extends tsc<IProps> {
                 ref='editApdexForm'
               >
                 {this.apdexOptionList.map(apdex => (
-                  <FormItem
+                  <bk-form-item
                     label={apdex.name}
                     property={apdex.id}
                     error-display-type='normal'
                   >
-                    <Input
+                    <bk-input
                       v-model={this.formData[apdex.id]}
                       class='apdex-input'
                       type='number'
@@ -942,10 +1350,10 @@ export default class BasicInfo extends tsc<IProps> {
                       <template slot='append'>
                         <div class='right-unit'>ms</div>
                       </template>
-                    </Input>
-                  </FormItem>
+                    </bk-input>
+                  </bk-form-item>
                 ))}
-              </Form>
+              </bk-form>
             ) : (
               <div class='grid-form'>
                 {this.apdexOptionList.map(apdex => (
@@ -973,7 +1381,7 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
           <div class='form-content'>
             {this.isEditing ? (
-              <Form
+              <bk-form
                 class='edit-config-form'
                 {...{
                   props: {
@@ -984,60 +1392,229 @@ export default class BasicInfo extends tsc<IProps> {
                 label-width={116}
                 ref='editSamplerForm'
               >
-                <FormItem
+                <bk-form-item
                   label={this.$t('采样类型')}
                   property='sampler_type'
                   error-display-type='normal'
                 >
-                  <Select
+                  <bk-select
                     class='sampling-type-select'
                     vModel={this.formData.sampler_type}
                     clearable={false}
+                    onChange={this.handleSamplerTypeChange}
                   >
                     {this.samplingTypeList.map(option => (
-                      <Option
+                      <bk-option
                         key={option.id}
                         id={option.id}
                         name={option.name}
-                      ></Option>
+                      ></bk-option>
                     ))}
-                  </Select>
-                </FormItem>
-                <FormItem
-                  label={this.$t('采样比例')}
-                  property='sampler_percentage'
-                  error-display-type='normal'
-                >
-                  <Input
-                    v-model={this.formData.sampler_percentage}
-                    class='sampling-rate-input'
-                    type='number'
-                    show-controls={false}
+                  </bk-select>
+                  <i class='icon-monitor icon-hint sampling-hint'>
+                    <span>{this.$t('单个 trace 中 30 分钟没有 span 上报，会自动结束；单个 trace 最大时长 1 天')}</span>
+                  </i>
+                </bk-form-item>
+                {this.formData.sampler_type !== 'empty' ? (
+                  <bk-form-item
+                    label={this.$t('采样比例')}
+                    property='sampler_percentage'
+                    error-display-type='normal'
                   >
-                    <template slot='append'>
-                      <div class='right-unit'>%</div>
-                    </template>
-                  </Input>
-                </FormItem>
+                    <bk-input
+                      v-model={this.formData.sampler_percentage}
+                      class='sampling-rate-input'
+                      type='number'
+                      show-controls={false}
+                    >
+                      <template slot='append'>
+                        <div class='right-unit'>%</div>
+                      </template>
+                    </bk-input>
+                    <i class='icon-monitor icon-hint sampling-hint'>
+                      <span>{this.$t('对非必采的部分按TraceID进行采样')}</span>
+                    </i>
+                  </bk-form-item>
+                ) : (
+                  ''
+                )}
+                {this.formData.sampler_type === 'tail' ? (
+                  <bk-form-item
+                    label={this.$t('必采规则')}
+                    property='sampler_rules'
+                    class='sampling-rule-form-item'
+                  >
+                    <div style='position:relative;'>
+                      {this.samplingRulesGroup.length > 1 ? (
+                        <div class='sampling-rule-brackets'>
+                          <div class='or-condition'>OR</div>
+                        </div>
+                      ) : (
+                        ''
+                      )}
+                      {this.samplingRulesGroup.map((group, gIndex) => (
+                        <div class='sampling-rule-item'>
+                          {group.map((item, index) => [
+                            item.condition && item.key && index > 0 ? (
+                              <input
+                                style={{ display: item.condition ? 'block' : 'none' }}
+                                key={`condition-${index}-${item.key}`}
+                                class='condition-item-condition'
+                                readonly
+                                value={item.condition.toLocaleUpperCase()}
+                              />
+                            ) : undefined,
+                            <SimpleSelectInput
+                              ref={`selectInput-${gIndex}-${index}`}
+                              placeholder={window.i18n.t('请输入') as string}
+                              value={item.key_alias}
+                              list={this.samplingRuleOptions}
+                              v-bk-tooltips={{
+                                content: item.key,
+                                trigger: 'mouseenter',
+                                zIndex: 9999,
+                                disabled: !item.key,
+                                boundary: document.body,
+                                allowHTML: false
+                              }}
+                              onChange={v => this.handleRuleKeyChange(item, v, gIndex, index)}
+                            >
+                              <div
+                                slot='extension'
+                                class='extension'
+                                on-click={() => this.handleDeleteKey(gIndex, index)}
+                              >
+                                <i class='icon-monitor icon-chahao'></i>
+                                <span>{this.$t('删除')}</span>
+                              </div>
+                            </SimpleSelectInput>,
+                            item.key_alias
+                              ? [
+                                  <span
+                                    class='condition-item-method'
+                                    key={`method-${index}-${item.key}`}
+                                    on-click={e => this.handleToggleMethod(e, { gIndex, index, prop: 'method' })}
+                                  >
+                                    {this.handleGetMethodNameById(item.method)}
+                                  </span>,
+                                  item.type === 'time' ? (
+                                    // <CycleInput
+                                    //   class='form-interval'
+                                    //   v-model={item.value}
+                                    //   needAuto={false}
+                                    //   options={this.cycleInputOptions}
+                                    //   defaultUnit={'ms'}
+                                    //   onUnitChange={(v: string) => this.handleSamplingRuleValueUnitChange(item, v)}
+                                    //   onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
+                                    // />
+                                    <CycleInput
+                                      class='form-interval'
+                                      v-model={item.value}
+                                      needAuto={false}
+                                      minSec={1}
+                                      onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
+                                    />
+                                  ) : (
+                                    <bk-tag-input
+                                      key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
+                                        this.samplingRuleValueMap[item.key] || []
+                                      )}`}
+                                      class='condition-item-value'
+                                      list={
+                                        this.samplingRuleValueMap[item.key] ? this.samplingRuleValueMap[item.key] : []
+                                      }
+                                      trigger='focus'
+                                      has-delete-icon
+                                      allow-create
+                                      allow-auto-match
+                                      value={item.value}
+                                      // paste-fn={v => this.handlePaste(v, item)}
+                                      on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
+                                    ></bk-tag-input>
+                                  )
+                                ]
+                              : undefined
+                          ])}
+                          <span
+                            class='condition-add'
+                            style={{ display: this.showRuleAdd(gIndex) ? 'flex' : 'none' }}
+                            on-click={() => this.handleAddCondition(gIndex)}
+                          >
+                            <i class='bk-icon icon-plus'></i>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <bk-button
+                      theme='primary'
+                      icon='plus'
+                      class='add-rule-btn'
+                      size='small'
+                      outline
+                      text
+                      on-click={() => this.handleNewRowCondition()}
+                    >
+                      {this.$t('添加规则')}
+                    </bk-button>
+                  </bk-form-item>
+                ) : (
+                  ''
+                )}
                 {/* <div class="panel-tips">
                 <label>{this.$t('强调说明')}</label>
                 <span>{this.$t('错误的Span一定会采集')}</span>
               </div> */}
-              </Form>
+              </bk-form>
             ) : (
               <div class='grid-form'>
                 <div class='display-item'>
                   <label>{this.$t('采样类型')}</label>
                   <span>{this.samplingTypeMaps[this.appInfo.application_sampler_config?.sampler_type] || '--'}</span>
                 </div>
-                <div class='display-item'>
-                  <label>{this.$t('采样比例')}</label>
-                  <span>
-                    {this.appInfo.application_sampler_config?.sampler_percentage
-                      ? `${this.appInfo.application_sampler_config?.sampler_percentage}%`
-                      : '--'}
-                  </span>
-                </div>
+                {this.appInfo.application_sampler_config.sampler_type !== 'empty' ? (
+                  <div class='display-item'>
+                    <label>{this.$t('采样比例')}</label>
+                    <span>
+                      {this.appInfo.application_sampler_config?.sampler_percentage
+                        ? `${this.appInfo.application_sampler_config?.sampler_percentage}%`
+                        : '--'}
+                    </span>
+                  </div>
+                ) : (
+                  ''
+                )}
+                {this.appInfo.application_sampler_config.sampler_type === 'tail' ? (
+                  <div class='display-item sampling-rules-item'>
+                    <label>{this.$t('必采规则')}</label>
+                    <div class='sampling-rules'>
+                      {this.samplingRulesGroup.length > 1 ? (
+                        <div class='sampling-rule-brackets'>
+                          <div class='or-condition'>OR</div>
+                        </div>
+                      ) : (
+                        ''
+                      )}
+                      {this.samplingRulesGroup.map(group => (
+                        <div class='rule-item'>
+                          {group.map((item, index) => (
+                            <span class='condition-item'>
+                              {index && item.condition ? (
+                                <span class='and-condition'>{item.condition.toLocaleUpperCase()}</span>
+                              ) : (
+                                ''
+                              )}
+                              <span>{item.key_alias}</span>
+                              <span class='method'>{this.handleGetMethodNameById(item.method)}</span>
+                              <span>{item.type === 'string' ? item.value.join(',') : `${item.value}s`}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  ''
+                )}
               </div>
             )}
           </div>
@@ -1110,13 +1687,14 @@ export default class BasicInfo extends tsc<IProps> {
                       }
                       v-bk-tooltips={{
                         content: this.$t('已经没有可用的维度'),
-                        disabled: this.instanceOptionList.length !== this.localInstanceList.length
+                        disabled: this.instanceOptionList.length !== this.localInstanceList.length,
+                        allowHTML: false
                       }}
                     >
                       <span class='icon-monitor icon-plus-line'></span>
                     </div>
                     {this.showInstanceSelector && (
-                      <Select
+                      <bk-select
                         class='instance-select'
                         ext-popover-cls='instance-select-popover'
                         searchable
@@ -1125,7 +1703,7 @@ export default class BasicInfo extends tsc<IProps> {
                         onChange={v => this.handleSelectInstance(v)}
                       >
                         {this.instanceOptionList.map(option => (
-                          <Option
+                          <bk-option
                             key={option.id}
                             id={option.id}
                             name={option.name}
@@ -1135,15 +1713,16 @@ export default class BasicInfo extends tsc<IProps> {
                               class='instance-config-option'
                               v-bk-tooltips={{
                                 content: this.$t('已经添加'),
-                                disabled: !this.localInstanceList.some(val => val.id === option.id)
+                                disabled: !this.localInstanceList.some(val => val.id === option.id),
+                                allowHTML: false
                               }}
                             >
                               <span class='instance-name'>{option.name}</span>
                               <span class='instance-alias'>{option.alias}</span>
                             </div>
-                          </Option>
+                          </bk-option>
                         ))}
-                      </Select>
+                      </bk-select>
                     )}
                   </li>
                 )}
@@ -1168,17 +1747,17 @@ export default class BasicInfo extends tsc<IProps> {
               <div class='db-config-title-container'>
                 <div style='display: flex;align-items: center;margin-bottom: 12px;'>
                   <span>{this.$t('DB类型')}</span>
-                  <DropdownMenu trigger='click'>
-                    <Button
+                  <bk-dropdown-menu trigger='click'>
+                    <bk-button
                       text
                       size='small'
                       slot='dropdown-trigger'
                     >
                       <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                        <Icon type='plus-circle' />
+                        <bk-icon type='plus-circle' />
                         <span style='margin-left: 5px;'>{this.$t('指定DB')}</span>
                       </div>
-                    </Button>
+                    </bk-button>
 
                     <ul
                       class='bk-dropdown-list'
@@ -1203,7 +1782,7 @@ export default class BasicInfo extends tsc<IProps> {
                         );
                       })}
                     </ul>
-                  </DropdownMenu>
+                  </bk-dropdown-menu>
                 </div>
 
                 <div class='card-list-container'>
@@ -1218,7 +1797,7 @@ export default class BasicInfo extends tsc<IProps> {
                         >
                           <span class='text'>{card.db_system || this.$t('默认')}</span>
                           {index > 0 && (
-                            <Icon
+                            <bk-icon
                               class='close'
                               type='close'
                               onClick={() => this.deleteCurrentConfigCard(index)}
@@ -1228,7 +1807,7 @@ export default class BasicInfo extends tsc<IProps> {
 
                         <div class='card-container'>
                           <div>
-                            <Form
+                            <bk-form
                               label-width={120}
                               {...{
                                 props: {
@@ -1238,33 +1817,33 @@ export default class BasicInfo extends tsc<IProps> {
                               }}
                               ref={`cardForm${index}`}
                             >
-                              <FormItem
+                              <bk-form-item
                                 label={this.$t('存储方式')}
                                 required
                                 property='trace_mode'
                                 error-display-type='normal'
                               >
-                                <RadioGroup v-model={card.trace_mode}>
-                                  <RadioButton value='origin'>{this.$t('原始命令')}</RadioButton>
-                                  <RadioButton value='no_parameters'>{this.$t('无参数命令')}</RadioButton>
-                                  <RadioButton value='closed'>{this.$t('不储存')}</RadioButton>
-                                </RadioGroup>
-                              </FormItem>
-                              <FormItem
+                                <bk-radio-group v-model={card.trace_mode}>
+                                  <bk-radio-button value='origin'>{this.$t('原始命令')}</bk-radio-button>
+                                  <bk-radio-button value='no_parameters'>{this.$t('无参数命令')}</bk-radio-button>
+                                  <bk-radio-button value='closed'>{this.$t('不储存')}</bk-radio-button>
+                                </bk-radio-group>
+                              </bk-form-item>
+                              <bk-form-item
                                 label={this.$t('启用慢语句')}
                                 required={card.enabled_slow_sql}
                                 property='threshold'
                                 error-display-type='normal'
                               >
                                 <div class='low-sql-container'>
-                                  <Switcher
+                                  <bk-switcher
                                     v-model={card.enabled_slow_sql}
                                     theme='primary'
                                     size='small'
                                     onChange={() =>
                                       (this.DBTypeRules[index].threshold[0].required = card.enabled_slow_sql)
                                     }
-                                  ></Switcher>
+                                  ></bk-switcher>
                                   <span
                                     class='text'
                                     style='margin-left: 16px;'
@@ -1272,7 +1851,7 @@ export default class BasicInfo extends tsc<IProps> {
                                     {this.$t('命令执行时间')}
                                   </span>
                                   <span>{'>'}</span>
-                                  <Input
+                                  <bk-input
                                     v-model={card.threshold}
                                     behavior='simplicity'
                                     class='excution-input'
@@ -1284,11 +1863,11 @@ export default class BasicInfo extends tsc<IProps> {
                                       // eslint-disable-next-line no-param-reassign
                                       if (!card.threshold) card.threshold = 0;
                                     }}
-                                  ></Input>
+                                  ></bk-input>
                                   <span class='text'>ms</span>
                                 </div>
-                              </FormItem>
-                              <FormItem
+                              </bk-form-item>
+                              <bk-form-item
                                 label={this.$t('语句长度')}
                                 required
                                 property='length'
@@ -1297,17 +1876,17 @@ export default class BasicInfo extends tsc<IProps> {
                                 <div class='sql-length-container'>
                                   <span class='text'>{this.$t('截断')}</span>
                                   <span>{'>'}</span>
-                                  <Input
+                                  <bk-input
                                     v-model={card.length}
                                     behavior='simplicity'
                                     class='sql-cut-input'
                                     type='number'
                                     min={0}
-                                  ></Input>
+                                  ></bk-input>
                                   <span class='text'>{this.$t('字符')}</span>
                                 </div>
-                              </FormItem>
-                            </Form>
+                              </bk-form-item>
+                            </bk-form>
                           </div>
                         </div>
                       </div>
@@ -1383,7 +1962,7 @@ export default class BasicInfo extends tsc<IProps> {
       </PanelItem> */}
         <div class='header-tool'>
           {!this.isEditing && (
-            <Button
+            <bk-button
               class='edit-btn'
               theme='primary'
               size='normal'
@@ -1394,11 +1973,11 @@ export default class BasicInfo extends tsc<IProps> {
               }}
             >
               {this.$t('编辑')}
-            </Button>
+            </bk-button>
           )}
           <div
             class='history-btn'
-            v-bk-tooltips={{ content: this.$t('变更记录') }}
+            v-bk-tooltips={{ content: this.$t('变更记录'), allowHTML: false }}
             onClick={() => (this.record.show = true)}
           >
             <i class='icon-monitor icon-lishijilu'></i>
@@ -1406,15 +1985,15 @@ export default class BasicInfo extends tsc<IProps> {
         </div>
         {this.isEditing ? (
           <div class='submit-handle'>
-            <Button
+            <bk-button
               class='mr10'
               theme='primary'
               loading={this.isLoading}
               onClick={() => this.handleSubmit()}
             >
               {this.$t('保存')}
-            </Button>
-            <Button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</Button>
+            </bk-button>
+            <bk-button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</bk-button>
           </div>
         ) : (
           <div></div>
@@ -1436,6 +2015,15 @@ export default class BasicInfo extends tsc<IProps> {
             onCloseDialog={v => (this.selectorDialog.isShow = v)}
           ></StrategyIpv6>
         )}
+
+        <SelectMenu
+          show={this.showSelectMenu}
+          target={this.curSelectTarget}
+          list={this.menuList}
+          min-width={60}
+          on-on-select={item => this.handelMenuSelect(item)}
+          on-on-hidden={() => this.handleMenuHidden()}
+        ></SelectMenu>
       </div>
     );
   }

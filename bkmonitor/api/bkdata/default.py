@@ -13,13 +13,39 @@ specific language governing permissions and limitations under the License.
 import abc
 
 import six
-from constants.dataflow import AutoOffsetResets
-from core.drf_resource import APIResource
 from django.conf import settings
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request
+from constants.dataflow import AutoOffsetResets
+from core.drf_resource import APIResource
+
+
+class UseSaaSAuthInfoMixin:
+
+    """
+    计算平台当前是按 AppCode 分配 data token，考虑到监控在企业版二进制部署模式下后台和 Web AppCode 独立
+    当前情况下依赖 BKDATA_DATA_TOKEN 的接口都使用 SaaS 侧应用认证信息进行请求
+    Q：后台如何获取 SaaS 侧应用认证信息
+    A：packages/monitor_web/apps.py ready 时由 web 进程写入 GlobalSettings，为通用逻辑
+    """
+
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(UseSaaSAuthInfoMixin, self).full_request_data(validated_request_data)
+        validated_request_data.update(
+            {
+                "bk_app_code": settings.SAAS_APP_CODE,
+                "bk_app_secret": settings.SAAS_SECRET_KEY,
+            }
+        )
+        return validated_request_data
+
+    def get_headers(self):
+        headers = super(UseSaaSAuthInfoMixin, self).get_headers()
+        headers["X-Bk-App-Code"] = settings.SAAS_APP_CODE
+        headers["X-Bk-App-Secret"] = settings.SAAS_SECRET_KEY
+        return headers
 
 
 class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
@@ -37,6 +63,10 @@ class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     def get_request_url(self, validated_request_data):
         return super(BkDataAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
+
+
+class BkDataQueryAPIGWResource(BkDataAPIGWResource):
+    base_url = settings.BKDATA_QUERY_API_BASE_URL or BkDataAPIGWResource.base_url
 
 
 class ListResultTableResource(BkDataAPIGWResource):
@@ -90,7 +120,7 @@ class GetResultTableResource(BkDataAPIGWResource):
         )
 
 
-class QueryDataResource(BkDataAPIGWResource):
+class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
     """
     查询数据
     """
@@ -100,18 +130,25 @@ class QueryDataResource(BkDataAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         sql = serializers.CharField(required=True, label="查询SQL语句")
+        prefer_storage = serializers.CharField(required=False, label="查询引擎", allow_blank=True)
+        _user_request = serializers.BooleanField(required=False, label="是否指定使用 user 鉴权请求接口", default=False)
 
     def perform_request(self, params):
-        if settings.BKDATA_DATA_TOKEN:
-            params["bkdata_authentication_method"] = "token"
-            params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-        else:
+        if params.get("_user_request", False):
             params["bkdata_authentication_method"] = "user"
             self.bk_username = settings.COMMON_USERNAME
-            try:
-                params["_origin_user"] = get_request().user.username
-            except Exception:
-                pass
+            params.pop("_user_request", None)
+        else:
+            if settings.BKDATA_DATA_TOKEN:
+                params["bkdata_authentication_method"] = "token"
+                params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+            else:
+                params["bkdata_authentication_method"] = "user"
+                self.bk_username = settings.COMMON_USERNAME
+                try:
+                    params["_origin_user"] = get_request().user.username
+                except Exception:
+                    pass
         return super(QueryDataResource, self).perform_request(params)
 
 
@@ -338,7 +375,7 @@ class GetReleaseModelInfo(DataAccessAPIResource):  # noqa
         model_release_id = serializers.IntegerField(required=True, label="发布模型ID")
 
 
-class ApiServingExecute(DataAccessAPIResource):  # noqa
+class ApiServingExecute(UseSaaSAuthInfoMixin, DataAccessAPIResource):  # noqa
     """
     执行模型API Serving并获取算法执行结果
     """
@@ -361,6 +398,54 @@ class ApiServingExecute(DataAccessAPIResource):  # noqa
 ####################################
 #          数据接入 相关接口          #
 ####################################
+class DeployPlanRequestSerializer(CommonRequestSerializer):
+    class AccessRawDataSerializer(serializers.Serializer):
+        raw_data_name = serializers.CharField(required=True, label="数据源名称，数据英文标识")
+        raw_data_alias = serializers.CharField(required=True, label="数据别名（中文名）")
+        maintainer = serializers.CharField(required=True, label="数据维护者")
+        data_source = serializers.CharField(required=True, label="数据接入方式")
+        data_encoding = serializers.CharField(required=True, label="字符集编码")
+        sensitivity = serializers.CharField(required=True, label="数据敏感度")
+        description = serializers.CharField(required=False, label="数据源描述")
+        tags = serializers.ListField(required=False, label="数据标签")
+        data_source_tags = serializers.ListField(required=False, label="数据源标签")
+        data_region = serializers.CharField(required=False, label="地区")
+        preassigned_data_id = serializers.IntegerField(required=False, label="DataId(互认方式下适用)")
+
+    class AccessConfInfoSerializer(serializers.Serializer):
+        class CollectionModelSerializer(serializers.Serializer):
+            collection_type = serializers.CharField(required=True, label="接入方式")
+            start_at = serializers.IntegerField(default=1, label="开始接入时位置")
+            period = serializers.CharField(required=True, label="采集周期")
+
+        class ConfResourceSerializer(serializers.Serializer):
+            class KafkaConfScopeSerializer(serializers.Serializer):
+                master = serializers.CharField(required=True, label="kafka的broker地址")
+                group = serializers.CharField(required=True, label="消费者组")
+                topic = serializers.CharField(required=True, label="消费topic")
+                tasks = serializers.CharField(required=True, label="最大并发度")
+                use_sasl = serializers.BooleanField(required=True, label="是否加密")
+                security_protocol = serializers.CharField(required=False, label="安全协议")
+                sasl_mechanism = serializers.CharField(required=False, label="SASL机制")
+                user = serializers.CharField(required=False, allow_blank=True, label="用户名")
+                password = serializers.CharField(required=False, allow_blank=True, label="密码")
+
+            type = serializers.CharField(required=True, label="数据源类型")
+            # 这里的scope配置，固定只写了kafka的配置，如果有其他接入方式，需要增加对应的serializer
+            scope = serializers.ListField(required=True, child=KafkaConfScopeSerializer(), label="接入对象")
+
+        collection_model = CollectionModelSerializer(required=True, label="数据采集接入方式配置")
+        resource = ConfResourceSerializer(required=True, label="接入对象资源")
+
+    data_scenario = serializers.CharField(required=True, label="接入场景")
+    data_scenario_id = serializers.CharField(required=False, label="接入场景ID")
+    bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+    access_raw_data = AccessRawDataSerializer(required=True, label="接入源数据信息")
+    access_conf_info = AccessConfInfoSerializer(required=False, label="接入配置信息")
+    description = serializers.CharField(required=False, allow_blank=True, label="接入数据备注")
+    bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+
+
 class AccessDeployPlan(DataAccessAPIResource):
     """
     提交接入部署计划(数据源接入)
@@ -369,49 +454,19 @@ class AccessDeployPlan(DataAccessAPIResource):
     action = "/v3/access/deploy_plan/"
     method = "POST"
 
-    class RequestSerializer(CommonRequestSerializer):
-        class AccessRawDataSerializer(serializers.Serializer):
-            raw_data_name = serializers.CharField(required=True, label="数据源名称，数据英文标识")
-            raw_data_alias = serializers.CharField(required=True, label="数据别名（中文名）")
-            maintainer = serializers.CharField(required=True, label="数据维护者")
-            data_source = serializers.CharField(required=True, label="数据接入方式")
-            data_encoding = serializers.CharField(required=True, label="字符集编码")
-            sensitivity = serializers.CharField(required=True, label="数据敏感度")
-            description = serializers.CharField(required=False, label="数据源描述")
-            tags = serializers.ListField(required=False, label="数据标签")
-            data_source_tags = serializers.ListField(required=False, label="数据源标签")
+    RequestSerializer = DeployPlanRequestSerializer
 
-        class AccessConfInfoSerializer(serializers.Serializer):
-            class CollectionModelSerializer(serializers.Serializer):
-                collection_type = serializers.CharField(required=True, label="接入方式")
-                start_at = serializers.IntegerField(default=1, label="开始接入时位置")
-                period = serializers.CharField(required=True, label="采集周期")
 
-            class ConfResourceSerializer(serializers.Serializer):
-                class KafkaConfScopeSerializer(serializers.Serializer):
-                    master = serializers.CharField(required=True, label="kafka的broker地址")
-                    group = serializers.CharField(required=True, label="消费者组")
-                    topic = serializers.CharField(required=True, label="消费topic")
-                    tasks = serializers.CharField(required=True, label="最大并发度")
-                    use_sasl = serializers.BooleanField(required=True, label="是否加密")
-                    security_protocol = serializers.CharField(required=False, label="安全协议")
-                    sasl_mechanism = serializers.CharField(required=False, label="SASL机制")
-                    user = serializers.CharField(required=False, allow_blank=True, label="用户名")
-                    password = serializers.CharField(required=False, allow_blank=True, label="密码")
+class UpdateDeployPlan(DataAccessAPIResource):
+    """
+    更新部署计划(数据源更新)
+    """
 
-                type = serializers.CharField(required=True, label="数据源类型")
-                # 这里的scope配置，固定只写了kafka的配置，如果有其他接入方式，需要增加对应的serializer
-                scope = serializers.ListField(required=True, child=KafkaConfScopeSerializer(), label="接入对象")
+    action = "/v3/access/deploy_plan/{raw_data_id}"
+    method = "PUT"
 
-            collection_model = CollectionModelSerializer(required=True, label="数据采集接入方式配置")
-            resource = ConfResourceSerializer(required=True, label="接入对象资源")
-
-        data_scenario = serializers.CharField(required=True, label="接入场景")
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        access_raw_data = AccessRawDataSerializer(required=True, label="接入源数据信息")
-        access_conf_info = AccessConfInfoSerializer(required=True, label="接入配置信息")
-        description = serializers.CharField(required=False, allow_blank=True, label="接入数据备注")
-        bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+    class RequestSerializer(DeployPlanRequestSerializer):
+        raw_data_id = serializers.CharField(required=True, label="数据源ID")
 
 
 class DatabusCleans(DataAccessAPIResource):
@@ -440,6 +495,8 @@ class DatabusCleans(DataAccessAPIResource):
         fields = serializers.ListField(required=True, child=FieldSerializer(), label="输出字段列表")
         description = serializers.CharField(default="", label="清洗配置描述信息")
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+        result_table_id = serializers.CharField(required=False, allow_blank=True, label="结果表 ID")
+        processing_id = serializers.CharField(required=False, allow_blank=True, label="数据处理 ID")
 
 
 class GetDatabusCleans(DataAccessAPIResource):
@@ -496,6 +553,7 @@ class StartDatabusCleans(DataAccessAPIResource):
         result_table_id = serializers.CharField(required=True, label="清洗结果表名称")
         storages = serializers.ListField(default=["kafka"], label="分发任务的存储列表")
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+        processing_id = serializers.CharField(required=False, allow_blank=True, label="数据处理 ID")
 
 
 class StopDatabusCleans(DataAccessAPIResource):
@@ -926,3 +984,38 @@ class GetKafkaInfo(DataAccessAPIResource):
 
     class RequestSerializer(CommonRequestSerializer):
         tags = serializers.CharField(required=False, default="bkmonitor_outer", label="tag标识")
+
+
+class QueryResourceList(DataAccessAPIResource):
+    """获取资源管理系统集群信息"""
+
+    action = "/v3/resourcecenter/clusters/query_digest/"
+    method = "GET"
+
+
+class CreateResourceSet(DataAccessAPIResource):
+    """创建资源"""
+
+    action = "/v3/resourcecenter/resource_sets/"
+    method = "POST"
+
+
+class GetOrCreateResourceSet(DataAccessAPIResource):
+    """创建或获取资源(如果资源存在 则返回的是已存在资源的信息)"""
+
+    action = "/v3/resourcecenter/resource_sets/get_or_create/"
+    method = "POST"
+
+
+class UpdateResourceSet(DataAccessAPIResource):
+    """更新资源"""
+
+    action = "/v3/resourcecenter/resource_sets/{resource_set_id}/"
+    method = "PATCH"
+
+
+class GetResourceSet(DataAccessAPIResource):
+    """获取资源详情"""
+
+    action = "/v3/resourcecenter/resource_sets/{resource_set_id}/"
+    method = "GET"

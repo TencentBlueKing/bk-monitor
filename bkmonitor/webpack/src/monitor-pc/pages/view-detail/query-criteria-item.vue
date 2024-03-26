@@ -108,9 +108,9 @@
                 <div class="edit-wrap">
                   <promql-editor
                     :value="queryConfigItem.promql"
+                    :min-height="80"
                     @change="handlePromqlDataCodeChange"
                     @blur="handlePromqlDataCodeBlur"
-                    class="promql-editor"
                   />
                 </div>
                 <div class="step-wrap">
@@ -259,16 +259,16 @@
 
 <script lang="ts">
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { dimensionUnifyQuery } from 'monitor-api/modules/grafana';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { deepClone } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
-import { dimensionUnifyQuery } from '../../../monitor-api/modules/grafana';
-import { getMetricListV2 } from '../../../monitor-api/modules/strategies';
-import { deepClone } from '../../../monitor-common/utils/utils';
-import CustomSelect from '../../../monitor-pc/components/custom-select/custom-select.tsx';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
-import PromqlEditor from '../../../monitor-ui/promql-editor/promql-editor';
 import { strategyMapMixin } from '../../common/mixins';
+import CustomSelect from '../../components/custom-select/custom-select';
 import CycleInput from '../../components/cycle-input/cycle-input';
 import { secToString } from '../../components/cycle-input/utils';
+import PromqlEditor from '../../components/promql-editor/promql-editor';
 // import { handleTimeRange } from '../../utils/index';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { CONDITION_METHOD_LIST } from '../../constant/constant';
@@ -530,11 +530,11 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
 
   .retrieval-title {
     display: flex;
+    align-items: center;
     height: 40px;
     padding: 0 14px;
     color: #313238;
     cursor: pointer;
-    align-items: center;
 
     .icon-arrow-down {
       margin-right: 6px;
@@ -544,8 +544,8 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
     }
 
     .retrieval-active {
-      transform: rotate(-90deg);
       transition: .3s;
+      transform: rotate(-90deg);
     }
   }
 
@@ -570,20 +570,20 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
 
         .item-agg-dimension {
           display: flex;
+          align-items: center;
+          justify-content: center;
           min-height: 24px;
           margin: 0 4px 2px 0;
           line-height: 16px;
           text-align: left;
           border-radius: 2px;
-          align-items: center;
-          justify-content: center;
         }
 
         .item-agg-condition {
           display: flex;
+          flex-wrap: wrap;
           text-align: left;
           background: #fff;
-          flex-wrap: wrap;
         }
       }
     }
@@ -615,38 +615,24 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
 
   .promql-content {
     .edit-wrap {
-      min-height: 80px;
-      background-color: #fff;
-      overflow-y: auto;
-      border: 1px solid #dcdee5;
-      margin: 0 24px;
       position: relative;
-
-      .promql-editor {
-        border: 0;
-        height: 100%;
-        min-height: 80px;
-
-        .cm-content {
-          padding: 8px 20px 8px 18px;
-        }
-      }
+      margin: 0 24px;
     }
 
     .step-wrap {
-      margin: 10px 0 10px 24px;
       display: block;
+      margin: 10px 0 10px 24px;
 
       .step-input {
         width: 205px;
 
         .step-input-prepend {
-          width: 96px;
-          font-size: 12px;
-          height: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
+          width: 96px;
+          height: 100%;
+          font-size: 12px;
 
           .icon-hint {
             margin-left: 8px;
@@ -677,9 +663,9 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
 
     .add-convergence-trigger {
       display: flex;
+      align-items: center;
       color: #3a84ff;
       cursor: pointer;
-      align-items: center;
     }
 
     .icon-mc-plus-fill {

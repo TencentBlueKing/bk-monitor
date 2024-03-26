@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { random } from 'monitor-common/utils';
 import { throttle } from 'throttle-debounce';
 
-import { random } from '../../../../../monitor-common/utils';
 import { getEventPaths } from '../../../../utils';
 
 import './target-compare-select.scss';
@@ -126,7 +126,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   /* 初始化 */
   created() {
     this.init();
-    this.throttleOverflow = throttle(300, false, this.handleOverflow);
+    this.throttleOverflow = throttle(300, this.handleOverflow);
   }
   init() {
     const value = [];

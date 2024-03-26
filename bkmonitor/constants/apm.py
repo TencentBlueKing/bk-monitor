@@ -356,6 +356,7 @@ class SpanStandardField:
 
     @classmethod
     def list_standard_fields(cls):
+        """按照层级获取标准字段"""
         base_fields = []
         advances_fields = []
 
@@ -382,7 +383,6 @@ class SpanStandardField:
 
         advances_child = []
         for category, items in child_mapping.items():
-
             advances_child.append(
                 {"id": category, "name": StandardFieldCategory.get_label_by_key(category), "children": items}
             )
@@ -394,6 +394,27 @@ class SpanStandardField:
                 "children": advances_child,
             }
         )
+
+        return res
+
+    @classmethod
+    def flat_list(cls):
+        """获取打平的标准字段列表"""
+
+        res = []
+        # 基础字段放在前面 高级字段放在后面
+        base_fields = [i for i in cls.COMMON_STANDARD_FIELDS if i.display_level == StandardFieldDisplayLevel.BASE]
+        ad_fields = [i for i in cls.COMMON_STANDARD_FIELDS if i.display_level == StandardFieldDisplayLevel.ADVANCES]
+
+        for item in base_fields + ad_fields:
+            k = f"{item.source}.{item.key}" if item.source != item.key else item.key
+            res.append(
+                {
+                    "name": f"{item.value}({k})",
+                    "key": k,
+                    "type": "string",
+                }
+            )
 
         return res
 
@@ -458,6 +479,26 @@ class TraceListQueryMode:
         ]
 
 
+class TraceWaterFallDisplayKey:
+    """trace瀑布列表显示勾选项"""
+
+    # 来源: OT
+    SOURCE_CATEGORY_OPENTELEMETRY = "source_category_opentelemetry"
+    # 来源: EBPF
+    SOURCE_CATEGORY_EBPF = "source_category_ebpf"
+
+    # 虚拟节点
+    VIRTUAL_SPAN = "virtual_span"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.SOURCE_CATEGORY_OPENTELEMETRY, "OT"),
+            (cls.SOURCE_CATEGORY_EBPF, "EBPF"),
+            (cls.VIRTUAL_SPAN, _("虚拟节点")),
+        ]
+
+
 class SpanKindKey:
     """Span类型标识(用于collector处识别)"""
 
@@ -469,8 +510,85 @@ class SpanKindKey:
     CONSUMER = "SPAN_KIND_CONSUMER"
 
 
+class TrpcAttributes:
+    """for trpc"""
+
+    TRPC_NAMESPACE = "trpc.namespace"
+    TRPC_CALLER_SERVICE = "trpc.caller_service"
+    TRPC_CALLEE_SERVICE = "trpc.callee_service"
+    TRPC_CALLER_METHOD = "trpc.caller_method"
+    TRPC_CALLEE_METHOD = "trpc.callee_method"
+    TRPC_STATUS_TYPE = "trpc.status_type"
+    TRPC_STATUS_CODE = "trpc.status_code"
+
+
 class IndexSetSource(TextChoices):
     """日志索引集来源类型"""
 
     HOST_COLLECT = "host_collect", _("主机采集项")
     SERVICE_RELATED = "service_related", _("服务关联")
+
+
+class FlowType(TextChoices):
+    """Flow类型"""
+
+    TAIL_SAMPLING = "tail_sampling", _("尾部采样Flow")
+
+
+class TailSamplingSupportMethod(TextChoices):
+    """计算平台-尾部采样中采样规则支持配置的操作符"""
+
+    GT = "gt", _("gt")
+    GTE = "gte", _("gte")
+    LT = "lt", _("lt")
+    LTE = "lte", _("lte")
+    EQ = (
+        "eq",
+        _("eq"),
+    )
+    NEQ = "neq", _("neq")
+    REG = "reg", _("reg")
+    NREG = "nreg", _("nreg")
+
+
+class DataSamplingLogTypeChoices:
+    """走datalink的数据采样类型"""
+
+    TRACE = "trace"
+    METRIC = "metric"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.TRACE, cls.TRACE),
+            (cls.METRIC, cls.METRIC),
+        ]
+
+
+class ApmMetrics:
+    """
+    APM内置指标
+    格式: (指标名，描述，单位)
+    """
+
+    BK_APM_DURATION = "bk_apm_duration", _("trace请求耗时"), "ns"
+    BK_APM_COUNT = "bk_apm_count", _("trace分钟请求数"), ""
+    BK_APM_TOTAL = "bk_apm_total", _("trace总请求数"), ""
+    BK_APM_DURATION_MAX = "bk_apm_duration_max", _("trace分钟请求最大耗时"), "ns"
+    BK_APM_DURATION_MIN = "bk_apm_duration_min", _("trace分钟请求最小耗时"), "ns"
+    BK_APM_DURATION_SUM = "bk_apm_duration_sum", _("trace总请求耗时"), "ns"
+    BK_APM_DURATION_DELTA = "bk_apm_duration_delta", _("trace分钟总请求耗时"), "ns"
+    BK_APM_DURATION_BUCKET = "bk_apm_duration_bucket", _("trace总请求耗时bucket"), "ns"
+
+    @classmethod
+    def all(cls):
+        return [
+            cls.BK_APM_DURATION,
+            cls.BK_APM_COUNT,
+            cls.BK_APM_TOTAL,
+            cls.BK_APM_DURATION_MAX,
+            cls.BK_APM_DURATION_MIN,
+            cls.BK_APM_DURATION_SUM,
+            cls.BK_APM_DURATION_DELTA,
+            cls.BK_APM_DURATION_BUCKET,
+        ]

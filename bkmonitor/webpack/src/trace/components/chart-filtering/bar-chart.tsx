@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, onBeforeUnmount, onMounted, PropType, ref, shallowRef, watch, WatchStopHandle } from 'vue';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import type { EChartOption, ECharts } from 'echarts';
 import * as echarts from 'echarts';
-import { addListener, removeListener } from 'resize-detector';
 
 export const BarChartProps = {
   // echart 配置

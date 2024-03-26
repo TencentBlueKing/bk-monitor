@@ -27,12 +27,26 @@
     :title="title"
     :show-footer="false"
     header-position="left"
-    @value-change="handleVisibilityChange">
-    <div style="padding-bottom: 20px;min-height: 200px;">
-      <bk-table v-if="value" :data="filterList" :max-height="320">
-        <bk-table-column label="ID" prop="id"></bk-table-column>
-        <bk-table-column label="Name" prop="name"></bk-table-column>
-        <bk-table-column label="Host" prop="host"></bk-table-column>
+    @value-change="handleVisibilityChange"
+  >
+    <div style="min-height: 200px; padding-bottom: 20px">
+      <bk-table
+        v-if="value"
+        :data="filterList"
+        :max-height="320"
+      >
+        <bk-table-column
+          label="ID"
+          prop="id"
+        ></bk-table-column>
+        <bk-table-column
+          label="Name"
+          prop="name"
+        ></bk-table-column>
+        <bk-table-column
+          label="Host"
+          prop="host"
+        ></bk-table-column>
       </bk-table>
     </div>
   </bk-dialog>
@@ -43,37 +57,37 @@ export default {
   props: {
     value: {
       type: Boolean,
-      default: false,
+      default: false
     },
     list: {
       type: Array,
       default() {
         return [];
-      },
+      }
     },
     type: {
       type: String,
-      default: 'hot',
+      default: 'hot'
     },
     formData: {
       type: Object,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
-      title: '',
+      title: ''
     };
   },
   computed: {
     filterList() {
-      return this.list.filter((item) => {
+      return this.list.filter(item => {
         if (this.type === 'hot') {
           return item.attr === this.formData.hot_attr_name && item.value === this.formData.hot_attr_value;
         }
         return item.attr === this.formData.warm_attr_name && item.value === this.formData.warm_attr_value;
       });
-    },
+    }
   },
   watch: {
     value(val) {
@@ -83,12 +97,12 @@ export default {
         const value = isHot ? this.formData.hot_attr_value : this.formData.warm_attr_value;
         this.title = this.$t('包含属性 {n} 的节点列表', { n: `${name}:${value}` });
       }
-    },
+    }
   },
   methods: {
     handleVisibilityChange(val) {
       this.$emit('input', val);
-    },
-  },
+    }
+  }
 };
 </script>

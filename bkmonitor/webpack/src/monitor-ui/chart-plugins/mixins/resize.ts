@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
-import { addListener, removeListener } from 'resize-detector';
-
-import { Debounce } from '../../../monitor-common/utils/utils';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { Debounce } from 'monitor-common/utils/utils';
 
 @Component
 export default class ResizeMixin extends Vue {
@@ -44,7 +43,7 @@ export default class ResizeMixin extends Vue {
     if (this.$refs.chart) {
       /** display: none后dom的宽高为0 */
       const { height = 0, width = 0 } = (this.$refs.chart as Element).getBoundingClientRect();
-      if (height > 32 && width > 32) {
+      if (height > 32 && width >= 0) {
         this.height = height;
         this.width = width;
       }

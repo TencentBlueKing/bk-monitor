@@ -102,6 +102,7 @@
             class="mc-btn-add"
             style="margin-right: 8px"
           >
+            <span class="icon-monitor icon-plus-line mr-6" />
             {{ $t('新建') }}
           </bk-button>
           <!-- <bk-button theme="default" @click="handleToLogCollection"> {{ $t('日志采集') }} </bk-button> -->
@@ -176,6 +177,7 @@
                       src="../../static/images/svg/spinner.svg"
                       v-if="scope.row.doingStatus"
                       class="status-loading"
+                      alt=""
                     >
                     <div
                       v-if="['FAILED', 'WARNING', 'SUCCESS', 'STOPPED'].includes(scope.row.taskStatus)"
@@ -387,16 +389,16 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-import { addListener, removeListener } from 'resize-detector';
-// import { isCancel } from 'axios'
-import { debounce } from 'throttle-debounce';
-
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import {
   collectConfigList,
   deleteCollectConfig,
   // cloneCollectConfig,
   fetchCollectConfigStat
-} from '../../../monitor-api/modules/collecting';
+} from 'monitor-api/modules/collecting';
+// import { isCancel } from 'axios'
+import { debounce } from 'throttle-debounce';
+
 import introduce from '../../common/introduce';
 import { commonPageSizeMixin } from '../../common/mixins';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';
@@ -646,6 +648,9 @@ export default {
   },
   activated() {
     this.isLeave = false;
+    setTimeout(() => {
+      !this.loading && this.initPageData();
+    }, 50);
   },
   deactivated() {
     this.isLeave = true;
@@ -1014,9 +1019,15 @@ export default {
         update.data = data;
       }
     },
-    handleShowDetail({ id, name, status }) {
-      this.side.data = { id, name, status };
-      this.side.show = true;
+    handleShowDetail({ id /*  name, status */ }) {
+      // this.side.data = { id, name, status };
+      // this.side.show = true;
+      this.$router.push({
+        name: 'collect-config-detail',
+        params: {
+          id
+        }
+      });
     },
     handleChangeCollectName(id, name) {
       const curCollect = this.table.data.find(item => item.id === id);
@@ -1291,6 +1302,10 @@ export default {
   lang="scss"
   scoped
 >
+.mr-6 {
+  margin-right: 6px;
+}
+
 .collector-config {
   margin: 24px;
   font-size: 12px;

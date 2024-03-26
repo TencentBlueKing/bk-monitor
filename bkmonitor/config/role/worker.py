@@ -127,7 +127,10 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.cmdb.service_template", "*/10 * * * *", "global"),
     ("alarm_backends.core.cache.cmdb.set_template", "*/10 * * * *", "global"),
     # model cache
-    ("alarm_backends.core.cache.strategy", "* * * * *", "global"),
+    # 策略全量更新频率降低
+    ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),
+    # 策略增量更新
+    ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
     ("alarm_backends.core.cache.shield", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
@@ -159,10 +162,12 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
-    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每十分钟触发
-    ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/10 * * * *", "global"),
+    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每半小时触发
+    ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/30 * * * *", "global"),
     # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发
     ("apm_ebpf.task.tasks.cluster_discover_cron", "*/10 * * * *", "global"),
+    # apm_profile 定时发现profile服务 每十分钟触发
+    ("apm.task.tasks.profile_discover_cron", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
@@ -204,6 +209,8 @@ ACTION_TASK_CRONTAB = [
     ("alarm_backends.service.fta_action.tasks.dispatch_demo_action_tasks", "* * * * *", "global"),
     # 定期进行告警索引轮转 隔天创建，时间稍微拉长一点，避免短时间任务堵塞的时候容易过期，导致创建不成功
     ("bkmonitor.documents.tasks.rollover_indices", "*/24 * * * *", "global"),
+    # 定期清理停用的ai 策略对应的flow任务(每天2点半)
+    ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
 ]
 
 if os.getenv("DISABLE_METADATA_TASK") != "True":
@@ -270,6 +277,8 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
         # 同步空间路由数据，1小时更新一次
         ("metadata.task.sync_space.push_and_publish_space_router_task", "* */1 * * *", "global"),
+        # 检查并执行接入vm命令, 每天执行一次
+        ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
     ]
 
 # Timeout for image exporter service, default set to 10 seconds

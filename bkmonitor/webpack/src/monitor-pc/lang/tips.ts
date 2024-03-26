@@ -186,8 +186,20 @@ export default {
     'Local space mask: Mask all notifications that contain this space in an alarm',
   '数值越大，优先级越高，完全相同的一条数据检测到异常时以优先级高的策略为主。':
     'The larger the value, the higher the priority. When an abnormality is detected in the same piece of data, the strategy with the higher priority will be used.',
+  排在前面的规则优先级高: 'The rule that comes first has a high priority',
+  '时间段冲突，优先执行节假日排班': 'Time conflict, priority for the implementation of the holiday schedule',
   主机当前状态: 'Host current status',
+  可对当前采集内容进行检索: 'The current collection can be retrieved',
+  去检索: 'To retrieve',
   '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
     'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
-  'tips-采集状态': 'Collection Status'
+  存在关联的告警组: 'There is an associated alarm group',
+  '10分钟内无数据': 'No data within 10 minutes',
+  '直接进行 精准查询，定位到 Trace 详情': 'Directly perform precise queries and locate Trace details',
+  '可以切换到 范围查询，根据条件筛选 Trace': 'You can switch to range query, filter Trace according to conditions',
+  点击上传或将文件拖到此处: 'Click to upload or drag the file here',
+  '文件解析可能耗费较长时间，可先选择已解析文件查看':
+    'File parsing may take a long time, you can select the parsed file first to view',
+  请上传文件后查看: 'Please upload the file and view it after that',
+  已选: 'selected'
 };

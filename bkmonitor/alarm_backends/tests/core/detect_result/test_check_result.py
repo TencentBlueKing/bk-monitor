@@ -22,6 +22,9 @@ DIMENSION = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": 0}
 
 
 class TestDetectResult(TestCase):
+
+    databases = {"monitor_api", "default"}
+
     def setUp(self):
         CacheNode.refresh_from_settings()
         self.redis_patcher = patch(ALARM_BACKENDS_REDIS, return_value=fakeredis.FakeRedis(decode_responses=True))
@@ -34,9 +37,7 @@ class TestDetectResult(TestCase):
         check_result = CheckResult(
             strategy_id=1, item_id=1, dimensions_md5=count_md5(DIMENSION), level=2, service_type="detect"
         )
-        dimension_key = "{service_type}.{strategy_id}.{item_id}".format(
-            service_type="detect", strategy_id=1, item_id=1, dimensions_md5=count_md5(DIMENSION)
-        )
+        dimension_key = "{service_type}.{strategy_id}.{item_id}".format(service_type="detect", strategy_id=1, item_id=1)
         self.assertTrue(check_result.md5_to_dimension_key.endswith(dimension_key))
 
     def test_get_dimension_by_key(self):

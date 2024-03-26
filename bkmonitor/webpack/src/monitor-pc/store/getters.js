@@ -58,6 +58,7 @@ const getters = {
   navRouteList: state => state.app.navRouteList,
   // biz bg color
   bizBgColor: state => state.app.bizBgColor,
-  lang: state => state.app.lang
+  lang: state => state.app.lang,
+  bizIdChangePedding: state => state.app.bizIdChangePedding
 };
 export default getters;

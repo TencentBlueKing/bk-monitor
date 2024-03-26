@@ -33,6 +33,7 @@ class CMDBCacheManager(CacheManager):
     type = "cmdb"
     CACHE_KEY = ""
     CACHE_TIMEOUT = 7 * CONST_ONE_DAY
+    ObjectClass = None
 
     @classmethod
     def serialize(cls, obj):
@@ -46,6 +47,8 @@ class CMDBCacheManager(CacheManager):
         """
         反序列化数据
         """
+        if cls.ObjectClass and string.startswith("{"):
+            return cls.ObjectClass(**json.loads(string))
         return pickle.loads(string.encode("latin1"))
 
     @classmethod
@@ -89,8 +92,9 @@ class CMDBCacheManager(CacheManager):
         获取单个对象
         """
         key = cls.key_to_internal_value(*args, **kwargs)
-        if key in mem_cache:
-            return mem_cache.get(key)
+        local_key = f"{cls.CACHE_KEY}_{key}"
+        if local_key in mem_cache:
+            return mem_cache.get(local_key)
 
         obj = cls.cache.hget(cls.CACHE_KEY, key)
 
@@ -98,7 +102,7 @@ class CMDBCacheManager(CacheManager):
             cls.logger.warning("unknown {}: {}".format(cls.__name__.replace("Manager", ""), key))
         else:
             obj = cls.deserialize(obj)
-        mem_cache.set(key, obj)
+        mem_cache.set(local_key, obj)
         return obj
 
     @classmethod
@@ -228,8 +232,8 @@ class RefreshByBizMixin(object):
         # biz_cache_key 存储的就是最新的Keys列表，在后面与old keys做差量比对
         # 存储结构
         # {
-        #   '2': ['10.0.0.1|0', '10.0.0.2|0'],
-        #   '3': ['10.0.0.3|0'],
+        #   '2': ['127.0.0.1|0', '127.0.0.2|0'],
+        #   '3': ['127.0.0.3|0'],
         # }
         new_keys = []
         for keys in list(biz_cache_keys.values()):

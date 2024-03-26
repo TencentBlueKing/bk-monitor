@@ -133,9 +133,9 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { deepClone } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import PerformanceModule, { ICurNode } from '../../../store/modules/performance';
 import { IQueryOption } from '../performance-type';
 
@@ -305,13 +305,13 @@ export default class HostList extends Vue {
       instance_type: 'host',
       remove_empty_nodes: false
     });
-    this.handleSearch = debounce(300, false, (v) => {
+    this.handleSearch = debounce(300, (v) => {
     //   PerformanceModule.setKeyWord(v)
       this.bkBigTreeRef?.filter(v);
     });
   }
   mounted() {
-    this.handleResizeTreeDebounce = debounce(300, false, this.handleResizeTree);
+    this.handleResizeTreeDebounce = debounce(300, this.handleResizeTree);
   }
   activated() {
     this.refHostList?.resize();

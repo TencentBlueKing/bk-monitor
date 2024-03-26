@@ -9,37 +9,113 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from rest_framework import permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from bkmonitor.action import serializers
+from bkmonitor.action.serializers import DutySwitchSlz
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.models import UserGroup
+from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class UserGroupViewSet(viewsets.ModelViewSet):
-    """用户组配置视图"""
-
-    queryset = UserGroup.objects.all()
-    serializer_class = serializers.UserGroupDetailSlz
-
-    filter_fields = {
-        "bk_biz_id": ["exact", "in"],
-        "name": ["exact", "icontains"],
-    }
-    pagination_class = None
-
-    def get_serializer_class(self):
-        if self.action == "list":
-            return serializers.UserGroupSlz
-        return self.serializer_class
-
+class UserGroupPermissionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
+        """
+        获取权限
+        """
         if self.request.method in permissions.SAFE_METHODS:
             return [BusinessActionPermission([ActionEnum.VIEW_NOTIFY_TEAM])]
         return [BusinessActionPermission([ActionEnum.MANAGE_NOTIFY_TEAM])]
 
 
+class UserGroupViewSet(UserGroupPermissionViewSet):
+    """用户组配置视图"""
+
+    queryset = UserGroup.objects.all()
+    serializer_class = serializers.UserGroupDetailSlz
+
+    filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
+    pagination_class = None
+
+    def get_queryset(self):
+        """
+        增加对轮值规则的过滤
+        """
+        queryset = super(UserGroupViewSet, self).get_queryset()
+        if self.request.query_params.get("duty_rules"):
+            queryset = queryset.filter(duty_rules__contains=self.request.query_params["duty_rules"])
+        return queryset
+
+    def get_serializer_class(self):
+        """
+        根据不同的action获取
+        """
+        if self.action == "list":
+            return serializers.UserGroupSlz
+        return self.serializer_class
+
+
+class DutyRuleViewSet(UserGroupPermissionViewSet):
+    """用户组配置视图"""
+
+    queryset = DutyRule.objects.all()
+    serializer_class = serializers.DutyRuleDetailSlz
+
+    filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
+    pagination_class = None
+
+    def get_serializer_class(self):
+        """
+        根据不同的action获取
+        """
+        if self.action == "list":
+            return serializers.DutyRuleSlz
+        return self.serializer_class
+
+    def get_queryset(self):
+        """
+        增加对轮值标签的过滤
+        """
+        queryset = super(DutyRuleViewSet, self).get_queryset()
+        if self.request.query_params.get("labels"):
+            queryset = queryset.filter(labels__contains=self.request.query_params["labels"])
+        return queryset
+
+    @action(detail=False, methods=['post'])
+    def switch(self, request):
+        """
+        启停开关
+        """
+        serializer = DutySwitchSlz(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        request_data = serializer.data
+        enabled = request_data.pop("enabled")
+        # 过滤出来有效的数据
+        rule_ids = list(
+            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request_data["bk_biz_id"]).values_list(
+                "id", flat=True
+            )
+        )
+        if rule_ids:
+            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request_data["bk_biz_id"]).update(
+                enabled=enabled
+            )
+            if enabled is False:
+                # 关闭掉之后，直接关闭掉对应的计划
+                DutyRuleSnap.objects.filter(duty_rule_id__in=rule_ids).update(enabled=False)
+                DutyPlan.objects.filter(duty_rule_id__in=rule_ids).update(is_effective=False)
+        return Response({"rule_ids": rule_ids})
+
+
 class BkchatGroupViewSet(ResourceViewSet):
     resource_routes = [ResourceRoute("GET", resource.user_group.get_bkchat_group, endpoint="get_bkchat_group")]
+
+
+class DutyPlanViewSet(ResourceViewSet):
+    resource_routes = [
+        ResourceRoute("POST", resource.user_group.preview_duty_rule_plan, endpoint="preview_duty_rule_plan"),
+        ResourceRoute("POST", resource.user_group.preview_user_group_plan, endpoint="preview_user_group_plan"),
+    ]

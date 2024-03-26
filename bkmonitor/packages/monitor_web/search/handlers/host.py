@@ -110,7 +110,7 @@ class HostSearchHandler(BaseSearchHandler):
             search_results.append(
                 SearchResultItem(
                     bk_biz_id=host.bk_biz_id,
-                    title=_("{bk_cloud_id}:{ip}").format(bk_cloud_id=host.bk_cloud_id, ip=host.ip),
+                    title="{bk_cloud_id}:{ip}".format(bk_cloud_id=host.bk_cloud_id, ip=host.ip),
                     view="performance-detail",
                     view_args={"params": {"id": f"{host.ip}-{host.bk_cloud_id}"}},
                     temp_share_url=f"{settings.BK_MONITOR_HOST}?bizId={host.bk_biz_id}/#/share/{enabled_token}"

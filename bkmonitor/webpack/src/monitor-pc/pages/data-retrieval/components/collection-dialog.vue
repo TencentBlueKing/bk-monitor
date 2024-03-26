@@ -84,11 +84,15 @@
               <div
                 class="input-icon"
                 @click="handleAddDashboard(group.id)"
-              ><i class="bk-icon icon-check-1" /></div>
+              >
+                <i class="bk-icon icon-check-1" />
+              </div>
               <div
                 class="input-icon"
                 @click="handleCloseDashboard"
-              ><i class="icon-monitor icon-mc-close" /></div>
+              >
+                <i class="icon-monitor icon-mc-close" />
+              </div>
             </div>
             <div
               class="dashboard-group-child add-new"
@@ -129,11 +133,15 @@
         <div
           class="input-icon"
           @click="handleAddDashboardGroup"
-        ><i class="bk-icon icon-check-1" /></div>
+        >
+          <i class="bk-icon icon-check-1" />
+        </div>
         <div
           class="input-icon"
           @click="handleCloseDashboardGroup"
-        ><i class="icon-monitor icon-mc-close" /></div>
+        >
+          <i class="icon-monitor icon-mc-close" />
+        </div>
       </div>
       <div
         class="dashboard-group-title add-new"
@@ -165,9 +173,9 @@
 </template>
 <script lang="ts">
 import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import { createDashboardOrFolder, getDirectoryTree, saveToDashboard } from 'monitor-api/modules/grafana';
+import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
 
-import { createDashboardOrFolder, getDirectoryTree, saveToDashboard } from '../../../../monitor-api/modules/grafana';
-import { filterDictConvertedToWhere } from '../../../../monitor-ui/chart-plugins/utils';
 import { Debounce } from '../../../components/ip-selector/common/util';
 import { DASHBOARD_ID_KEY } from '../../../constant/constant';
 import collapseMixin from '../../../mixins/collapseMixin';
@@ -273,7 +281,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
       type: 'dashboard',
       folderId: id
     };
-    const { uid } =  await createDashboardOrFolder(params).catch(() => {});
+    const { uid } = await createDashboardOrFolder(params).catch(() => {});
     await this.getDashboardTree();
 
     const groupItem = this.searchDashBoardList.find(item => item.id === id);
@@ -312,10 +320,10 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
       queries: item.targets.map((set) => {
         const { data } = set;
         data.query_configs = data.query_configs.map(queryConfig => filterDictConvertedToWhere(queryConfig));
-        return ({
+        return {
           ...data,
           alias: set.alias || ''
-        });
+        };
       })
     }));
     saveToDashboard({
@@ -382,11 +390,11 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
 }
 </script>
 <style lang="scss" scoped>
-
-
 .collection-dialog {
   // border-top: 1px solid #f0f1f5;
+  height: 500px;
   padding-bottom: 28px;
+  overflow-y: auto;
 
   :deep(.bk-dialog-wrapper .bk-dialog-header) {
     padding: 3px 24px 14px;

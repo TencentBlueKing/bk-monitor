@@ -1,0 +1,119 @@
+.rotation-calendar-preview-component {
+  width: 100%;
+  min-width: 806px;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    background: #fafbfd;
+
+    .week-item {
+      flex: 1;
+      padding-left: 12px;
+      font-size: 14px;
+      color: #63656e;
+    }
+  }
+
+  .calendar-content {
+    .week-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 120px;
+      background: #fff;
+      border-top: 1px solid #dcdee5;
+
+      .day-col {
+        position: relative;
+        flex: 1;
+        height: 100%;
+
+        .day-label {
+          position: absolute;
+          top: 5px;
+          left: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 30px;
+          height: 30px;
+          font-size: 16px;
+          line-height: 30px;
+
+          &.check {
+            width: 30px;
+            height: 30px;
+            color: #fff;
+            background: #3a84ff;
+            border-radius: 50%;
+          }
+
+          &.other {
+            color: #c4c6cc;
+          }
+        }
+
+        &:not(:first-of-type) {
+          &::before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 100%;
+            content: '';
+            background: #dcdee5;
+          }
+        }
+      }
+
+      .user-item {
+        position: absolute;
+        top: 48px;
+
+        .user-header {
+          width: 100%;
+          height: 3px;
+        }
+
+        .user-content {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 19px;
+          background: #f5f7fa;
+
+          & > span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+
+        &.no-user {
+          height: 22px;
+          background: #f5f7fa;
+          border: 1px dashed #dcdee5;
+        }
+      }
+    }
+  }
+}
+
+.rotation-calendar-preview-component-user-item-pop {
+  .time {
+    font-weight: Bold;
+  }
+
+  .time,
+  .users {
+    line-height: 16px;
+    color: #63656e;
+    word-break: break-all;
+    white-space: normal;
+  }
+}

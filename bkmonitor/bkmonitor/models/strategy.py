@@ -8,8 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 
+import pytz
 from django.contrib import admin
 from django.db import models
 from django.db.models import Model, Q
@@ -17,12 +18,12 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.middlewares.source import get_source_app_code
+from bkmonitor.utils import time_tools
 from bkmonitor.utils.model_manager import AbstractRecordModel
-from bkmonitor.utils.range import DUTY_TIME_MATCH_CLASS_MAP
-from bkmonitor.utils.range.period import TimeMatchByDay, TimeMatchBySingle
+from bkmonitor.utils.range.period import TimeMatchByDay
 from bkmonitor.utils.request import get_source_app
 from constants.action import NoticeWay
-from constants.common import SourceApp
+from constants.common import DutyGroupType, SourceApp
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 
@@ -44,6 +45,10 @@ __all__ = [
     "DutyPlan",
     "DutyArrange",
     "UserGroup",
+    "DutyRule",
+    "DutyRuleSnap",
+    "DutyRuleRelation",
+    "DutyPlanSendRecord",
     "DutyArrangeSnap",
     "DefaultStrategyBizAccessModel",
 ]
@@ -251,7 +256,6 @@ class QueryConfigModel(Model):
         """
         根据source_app来源获取对应的策略ID
         :param source_app:来源app
-        :param bk_biz_id:业务ID
         :return:
         """
         source_app = source_app or get_source_app()
@@ -407,7 +411,7 @@ class StrategyHistoryModel(Model):
     """
 
     strategy_id = models.IntegerField("关联策略ID", db_index=True)
-    create_time = models.DateTimeField("创建时间", auto_now_add=True)
+    create_time = models.DateTimeField("创建时间", auto_now_add=True, db_index=True)
     create_user = models.CharField("创建者", max_length=32)
     content = models.JSONField("保存内容", default=dict)
     operate = models.CharField(
@@ -447,6 +451,7 @@ class UserGroup(AbstractRecordModel):
 
     name = models.CharField(max_length=128, verbose_name="用户组名称")
     bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
+    timezone = models.CharField(verbose_name="时区", default="Asia/Shanghai", max_length=32)
 
     desc = models.TextField(verbose_name="说明/备注")
     source = models.CharField(verbose_name="来源系统", default=get_source_app_code, max_length=32)
@@ -461,7 +466,11 @@ class UserGroup(AbstractRecordModel):
 
     alert_notice = models.JSONField("告警通知配置", default=list)
     action_notice = models.JSONField("执行通知配置", default=list)
+    duty_notice = models.JSONField("轮值通知配置", default=dict)
     webhook_action_id = models.IntegerField("回调套餐ID", default=0)
+
+    # 对应的轮值规则， need_duty为True的情况下必填
+    duty_rules = models.JSONField("轮值规则", default=list)
 
     app = models.CharField("所属应用", max_length=128, default="", blank=True, null=True)
     path = models.CharField("资源路径", max_length=128, default="", blank=True, null=True)
@@ -481,7 +490,23 @@ class UserGroup(AbstractRecordModel):
 
     @cached_property
     def duty_plans(self):
-        return DutyPlan.objects.filter(user_group_id=self.id, is_active=True).order_by("order")
+        """
+        轮值安排
+        """
+        valid_plans = []
+        for plan in DutyPlan.objects.filter(user_group_id=self.id, is_effective=1).order_by("id"):
+            valid_work_times = [
+                work_time for work_time in plan.work_times if f'{work_time["start_time"]}:00' < plan.finished_time
+            ]
+            if valid_work_times:
+                plan.work_times = valid_work_times
+                plan.start_time = min([work_time["start_time"] for work_time in plan.work_times])
+                work_finished_time = max([work_time["end_time"] for work_time in plan.work_times])
+                # plan的结束时间，以工作时间和当前排班结束时间的最小值为准
+                plan_finish_time = plan.finished_time[:-3]
+                plan.finished_time = min(work_finished_time, plan_finish_time)
+                valid_plans.append(plan)
+        return valid_plans
 
     @staticmethod
     def translate_notice_ways(notify_config):
@@ -526,26 +551,137 @@ class UserGroup(AbstractRecordModel):
         notify_config["type"] = list(old_ways)
         return notify_config
 
+    @property
+    def tz_info(self):
+        """
+        用户组时区信息
+        """
+        try:
+            return pytz.timezone(self.timezone)
+        except pytz.exceptions.UnknownTimeZoneError:
+            return pytz.timezone("Asia/Shanghai")
+
+
+class DutyRule(AbstractRecordModel):
+    """
+    轮值规则
+    """
+
+    bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
+    name = models.CharField("轮值规则名称", max_length=128)
+    enabled = models.BooleanField("是否开启", default=False)
+    category = models.CharField(
+        "轮值类型",
+        choices=(
+            ("regular", _lazy("常规值班")),
+            ("handoff", _lazy("交替轮值")),
+        ),
+        default="regular",
+        max_length=64,
+    )
+    labels = models.JSONField("标签", default=list)
+
+    # 配置生效时间, 有时区控制，所以存为charfield
+    effective_time = models.CharField("配置生效时间", max_length=32, null=True, db_index=True)
+    end_time = models.CharField("配置截止时间", null=True, max_length=32, blank=True, db_index=True)
+    hash = models.CharField("原始配置摘要", max_length=64, default="", blank=True, null=True)
+
+    app = models.CharField("所属应用", max_length=128, default="", blank=True, null=True)
+    path = models.CharField("资源路径", max_length=128, default="", blank=True, null=True)
+    code_hash = models.CharField("配置摘要(ascode)", max_length=64, default="", blank=True, null=True)
+    snippet = models.TextField("配置片段", default="", blank=True, null=True)
+
+    class Meta:
+        verbose_name = "轮值规则"
+        verbose_name_plural = "轮值规则"
+        db_table = "duty_rule"
+        ordering = ["-update_time"]
+
+
+class DutyRuleSnap(Model):
+    """
+    告警规则快照
+    """
+
+    duty_rule_id = models.IntegerField("轮值组ID", null=False, db_index=True)
+    user_group_id = models.IntegerField("用户组ID", null=False, db_index=True)
+    first_effective_time = models.CharField("首次生效时间", null=True, max_length=32)
+    next_plan_time = models.CharField("下一次生效时间", null=True, max_length=32)
+    end_time = models.CharField("结束时间", null=True, max_length=32)
+    next_user_index = models.IntegerField("下一次轮岗用户组", default=0)
+    rule_snap = models.JSONField(verbose_name="当前快照的配置内容", default=dict)
+    enabled = models.BooleanField("是否生效状态", default=False)
+
+    class Meta:
+        verbose_name = "轮值规则快照"
+        verbose_name_plural = "轮值规则快照"
+        db_table = "duty_rule_snap"
+
+
+class DutyRuleRelation(models.Model):
+    """
+    轮值用户组关系表
+    """
+
+    bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
+    user_group_id = models.IntegerField("用户组ID", db_index=True)
+    duty_rule_id = models.IntegerField("规则ID", db_index=True)
+    order = models.IntegerField("规则的顺序", default=0)
+
+    class Meta:
+        verbose_name = "用户组轮值关系表"
+        verbose_name_plural = "用户组轮值关系表"
+        db_table = "duty_rule_relation"
+
+
+class DutyPlanSendRecord(models.Model):
+    """
+    用户组轮值排班发送计划
+    """
+
+    user_group_id = models.IntegerField("用户组ID", db_index=True)
+    last_send_time = models.IntegerField("最后发送时间戳", default=0)
+    notice_config = models.JSONField("发送通知配置信息(留作记录)", default=dict)
+
+    class Meta:
+        verbose_name = "用户组排班计划发送表"
+        verbose_name_plural = "用户组排班计划发送表"
+        db_table = "duty_plan_send_record"
+        ordering = ["-id"]
+
 
 class DutyArrange(AbstractRecordModel):
     """
     轮班配置
     """
 
-    user_group_id = models.IntegerField("关联的告警组", null=False, db_index=True)
-
+    user_group_id = models.IntegerField("关联的告警组", null=True, db_index=True)
+    duty_rule_id = models.IntegerField("轮值规则ID", null=True, db_index=True)
     # 时间范围
     work_time = models.CharField("工作时间段", default="always", max_length=128)
     users = models.JSONField(verbose_name="告警处理值班人员", default=dict)
-    duty_users = models.JSONField(verbose_name="轮班用户", default=dict)
 
+    # 轮值用户组， 当group_type为auto的时候，仅支持第一个列表
+    duty_users = models.JSONField(verbose_name="轮班用户", default=dict)
+    # 用户分组类型
+    group_type = models.CharField(
+        "分组类型",
+        choices=DutyGroupType.CHOICE,
+        default="specified",
+        max_length=64,
+    )
+
+    group_number = models.IntegerField("每班人数", default=0)
+
+    # 是否需要交接
     need_rotation = models.BooleanField("是否轮班", default=False)
 
     # 配置生效时间
     effective_time = models.DateTimeField("配置生效时间", null=True, db_index=True)
     # handoff_time: {"date": 1, "time": "10:00"  } 根据rotation_type进行切换
     handoff_time = models.JSONField(verbose_name="轮班交接时间安排", default=dict)
-    # duty_time: [{"work_type": "daily|month|week", "work_days":[1,2,3], "work_time"}]
+    # 工作时间段 duty_time: [{"work_type": "daily|month|week|work_day|weekend|custom", "work_days":[1,2,3],
+    # "work_time_type":"time_range| datetime_range","work_time":""}]
     duty_time = models.JSONField(verbose_name="轮班时间安排", default=dict)
     order = models.IntegerField("轮班组的顺序", default=0)
     """ backups: [{users:[],"begin_time":"2021-03-21 00:00",
@@ -554,10 +690,68 @@ class DutyArrange(AbstractRecordModel):
    "exclude_days": ["2021-03-21"]}]"""
     backups = models.JSONField(verbose_name="备份安排", default=dict)
 
+    hash = models.CharField("原始配置摘要", max_length=64, default="", blank=True, null=True)
+
     class Meta:
         verbose_name = "告警组时间安排"
         verbose_name_plural = "告警组时间安排"
         db_table = "duty_arrange"
+
+    @classmethod
+    def bulk_create(cls, duty_arranges, instance):
+        """
+        批量创建轮值项
+        """
+        for index, duty_arrange in enumerate(duty_arranges):
+            # 根据排序给出顺序表
+            duty_arrange["order"] = index + 1
+
+        duty_arranges = {duty_arrange["hash"]: duty_arrange for duty_arrange in duty_arranges}
+        existed_duty_queryset = DutyArrange.objects.all()
+        instance_id_key = "duty_rule_id"
+        if isinstance(instance, UserGroup):
+            # 如果关联关系是用户组，则过滤告警组相关的内容
+            existed_duty_queryset = existed_duty_queryset.filter(user_group_id=instance.id)
+            instance_id_key = "user_group_id"
+        elif isinstance(instance, DutyRule):
+            # 如果关联关系是轮值规则， 则过滤轮值规则内容
+            existed_duty_queryset = existed_duty_queryset.filter(duty_rule_id=instance.id)
+        else:
+            # 如果不是这两种类型的其中一种，直接返回，否则后面是危险的删除操作，会删掉所有的轮值记录
+            return
+
+        existed_duty_instances = {duty.hash: duty for duty in existed_duty_queryset}
+
+        existed_duty = {
+            duty_hash: duty_arrange
+            for duty_hash, duty_arrange in duty_arranges.items()
+            if duty_hash in existed_duty_instances
+        }
+
+        # 如果hash不在更新列表中的，直接删除
+        deleted_duty_ids = [duty.id for duty in existed_duty_queryset if duty.hash not in existed_duty]
+
+        new_duty_arranges = [
+            duty_arrange for duty_hash, duty_arrange in duty_arranges.items() if duty_hash not in existed_duty
+        ]
+
+        # delete old duty arranges
+        cls.objects.filter(id__in=deleted_duty_ids).delete()
+
+        # update old duty arranges
+        for duty_hash, duty_data in existed_duty.items():
+            duty = existed_duty_instances[duty_hash]
+            for attr, value in duty_data.items():
+                setattr(duty, attr, value)
+            duty.save()
+
+        # create new duty arranges
+        duty_arrange_instances = []
+        for duty_arrange in new_duty_arranges:
+            duty_arrange[instance_id_key] = instance.id
+            duty_arrange_instances.append(cls(**duty_arrange))
+        if duty_arrange_instances:
+            cls.objects.bulk_create(duty_arrange_instances)
 
 
 class MetricMappingConfigModel(Model):
@@ -603,77 +797,55 @@ class DutyPlan(Model):
 
     id = models.BigAutoField("主键", primary_key=True)
     user_group_id = models.IntegerField("关联的告警组", null=False, db_index=True)
-    duty_arrange_id = models.IntegerField("轮值组ID", null=False, db_index=True)
+    duty_rule_id = models.IntegerField("关联的告警信息", null=True, db_index=True)
+    duty_arrange_id = models.IntegerField("轮值组ID", null=True, db_index=True)
     order = models.IntegerField("轮班组的顺序")
-    is_active = models.BooleanField("是否生效状态", default=False)
+    user_index = models.IntegerField("轮班用户的分组", default=0)
+
+    is_active = models.BooleanField("是否生效状态（已废弃）", default=False)
+
+    # 是否有效，替换原来的is_active字段，这样可以设置索引
+    is_effective = models.IntegerField("是否有效", default=0, db_index=True)
+    start_time = models.CharField("当前轮班生效开始时间", null=False, max_length=32, default="1970-01-01 00:00:00")
+    finished_time = models.CharField("当前轮班生效结束时间", null=True, max_length=32)
+
     users = models.JSONField(verbose_name="当前告警处理值班人员", default=dict)
-    begin_time = models.DateTimeField("当前轮班生效开始时间", null=False)
+    work_times = models.JSONField("工作时间段", default=list)
+    timezone = models.CharField("时区", default="Asia/Shanghai", max_length=64)
+
+    # 存UTC时间，根据用户组配置的时区进行调整
+    begin_time = models.DateTimeField("当前轮班生效开始时间", null=True)
     end_time = models.DateTimeField("当前轮班生效结束时间", null=True)
+
+    # 最近一次排班计划的起始时间点，记录时间戳, 为0的话表示从来没有发送过
+    last_send_time = models.IntegerField("最近一次发送通知时间", default=0)
 
     # duty_time: [{"work_type": "daily|month|week", "work_days":[1,2,3], "work_time"}]
     duty_time = models.JSONField(verbose_name="轮班时间安排", default=dict)
 
-    @staticmethod
-    def is_effective_time(begin_time, end_time, data_time=None):
-        """
-        是否为有效区间
-        """
-        if begin_time is None:
-            return False
-
-        if end_time is None:
-            # 没有结束时间，给一个大值
-            end_time = datetime.strptime("3000-12-31", "%Y-%m-%d")
-
-        begin_time = TimeMatchByDay.convert_datetime_to_arrow(begin_time)
-        end_time = TimeMatchByDay.convert_datetime_to_arrow(end_time)
-        return TimeMatchBySingle({}, begin_time, end_time).is_match(data_time)
-
-    @staticmethod
-    def is_time_match(work_time, begin_datetime, end_datetime, data_time=None):
-        """
-        当前时间是否在匹配范围内
-        """
-        begin_datetime = TimeMatchByDay.convert_datetime_to_arrow(
-            datetime.strptime(begin_datetime, "%Y-%m-%d %H:%M:%S")
-        )
-        end_datetime = TimeMatchByDay.convert_datetime_to_arrow(datetime.strptime(end_datetime, "%Y-%m-%d %H:%M:%S"))
-        try:
-            [start_time, end_time] = work_time.split("--")
-        except ValueError:
-            start_time = "00:00"
-            end_time = "23:59"
-
-        cycle = {
-            "week_list": [],
-            "day_list": [],
-            "begin_time": "{}:00".format(start_time),
-            "end_time": "{}:59".format(end_time),
-        }
-        return TimeMatchByDay(cycle, begin_datetime, end_datetime).is_match(data_time)
-
     def is_active_plan(self, data_time=None):
-        # 复用了屏蔽判断的代码
-        data_time = TimeMatchByDay.convert_datetime_to_arrow(data_time or datetime.now(tz=timezone.utc))
-        if not self.is_active or not self.is_effective_time(self.begin_time, self.end_time, data_time):
+        """
+        当前排班是否命中
+        """
+        # 结束时间没有的话，认为一直有效a
+        try:
+            tz_info = pytz.timezone(self.timezone)
+        except Exception:
+            # 当有异常的时候，默认用中国时区，怕用户乱填
+            tz_info = pytz.timezone("Asia/Shanghai")
+
+        data_time = data_time or time_tools.datetime2str(datetime.now(tz=tz_info))
+        finished_time = self.finished_time or "3000-01-01 00:00:00"
+
+        if finished_time < self.start_time or not self.start_time <= data_time <= finished_time:
+            # 如果当前时间不满足区间条件，则直接
             return False
 
-        for item in self.duty_time:
-            try:
-                [start_time, end_time] = item["work_time"].split("--")
-            except ValueError:
-                start_time = "00:00"
-                end_time = "23:59"
-
-            work_days = item.get("work_days", [])
-            cycle = {
-                "week_list": work_days,
-                "day_list": work_days,
-                "begin_time": "{}:00".format(start_time),
-                "end_time": "{}:59".format(end_time),
-            }
-            duty_match_cls = DUTY_TIME_MATCH_CLASS_MAP.get(item["work_type"], TimeMatchByDay)
-            if duty_match_cls(cycle).is_match(data_time):
+        for work_time in self.work_times:
+            start_time = f'{work_time["start_time"]}:00'
+            end_time = f'{work_time["end_time"]}:59'
+            if start_time <= data_time <= end_time:
+                # 当满足区间条件的时候
                 return True
         return False
 
@@ -724,9 +896,9 @@ class DefaultStrategyBizAccessModel(Model):
         null=False,
         blank=False,
         choices=(
-            ("os", _lazy("os")),
-            ("gse", _lazy("gse")),
-            ("k8s", _lazy("k8s")),
+            ("os", "os"),
+            ("gse", "gse"),
+            ("k8s", "k8s"),
         ),
     )
 

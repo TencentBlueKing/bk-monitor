@@ -145,7 +145,8 @@
                     content: wxworkBotTips,
                     showOnInit: false,
                     duration: 200,
-                    placements: ['right']
+                    placements: ['right'],
+                    allowHTML: false
                   }"
                 />
               </div>
@@ -306,19 +307,18 @@
 <script lang="ts">
 import VueI18n, { TranslateResult } from 'vue-i18n';
 import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
-import { bkForm, bkFormItem } from 'bk-magic-vue';
-import Sortable from 'sortablejs';
-
-import { getNoticeWay } from '../../../monitor-api/modules/notice_group';
+import { getDashboardList } from 'monitor-api/modules/grafana';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import {
-  graphsListByBiz,
   groupList,
   reportContent,
   reportCreateOrUpdate,
   reportTest
-} from '../../../monitor-api/modules/report';
-import { deepClone, transformDataKey } from '../../../monitor-common/utils/utils';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+} from 'monitor-api/modules/report';
+import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { Sortable } from 'sortablejs';
+
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
 import memberSelector from '../alarm-group/alarm-group-add/member-selector.vue';
 
@@ -355,8 +355,8 @@ interface ITimeRangeObj {
 })
 export default class SubscriptionsSet extends Vue {
   @Prop({ default: '', type: [Number, String] }) readonly id: number | string;
-  @Ref('validateForm')readonly validateFormRef: bkForm;
-  @Ref('reportContentsFormItem')reportContentsFormItemRef: bkFormItem;
+  @Ref('validateForm')readonly validateFormRef: any;
+  @Ref('reportContentsFormItem')reportContentsFormItemRef: any;
   @Ref('receiverTarget')receiverTargetRef: Element;
 
   isLoading = false;
@@ -730,7 +730,9 @@ export default class SubscriptionsSet extends Vue {
   async setFullReportContents(ids: string[]) {
     const graghsList = await this.getGraphsListByBiz(ids);
     this.formData.fullReportContents.forEach((item: any) => {
-      const bizGraph = graghsList.find(graph => graph[item.curBizId]);
+      const bizGraph = graghsList.find((graph) => {
+        return graph[item.curBizId];
+      });
       if (bizGraph) {
         item.curGrafanaName = bizGraph[item.curBizId].find(graph => graph.uid === item.curGrafana)?.text
         || item.curGrafana;
@@ -743,7 +745,7 @@ export default class SubscriptionsSet extends Vue {
     if (ids.length) {
       await Promise.all(ids.map(async (id) => {
         const graphBiziId = {};
-        const res = await graphsListByBiz({ bk_biz_id: id });
+        const res = await getDashboardList({ bk_biz_id: id }).catch(() => []);
         graphBiziId[id] = res;
         promiseList.push(graphBiziId);
       }));

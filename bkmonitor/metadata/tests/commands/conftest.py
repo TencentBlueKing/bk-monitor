@@ -18,6 +18,7 @@ from metadata import models
 DEFAULT_NAME = "test_query.base"
 DEFAULT_NAME_ONE = "cluster_name_one"
 DEFAULT_DATA_ID = 11000
+DEFAULT_DATA_ID_ONE = 110001
 DEFAULT_BIZ_ID = 1
 DEFAULT_MQ_CLUSTER_ID = 10000
 DEFAULT_MQ_CLUSTER_ID_ONE = 10001
@@ -58,6 +59,15 @@ def create_and_delete_record(mocker):
     models.DataSource.objects.create(
         bk_data_id=DEFAULT_DATA_ID,
         data_name=DEFAULT_NAME,
+        mq_cluster_id=DEFAULT_MQ_CLUSTER_ID,
+        mq_config_id=kafka_topic_info.id,
+        etl_config="test",
+        is_custom_source=False,
+    )
+
+    models.DataSource.objects.create(
+        bk_data_id=DEFAULT_DATA_ID_ONE,
+        data_name=f"{DEFAULT_NAME}_1",
         mq_cluster_id=DEFAULT_MQ_CLUSTER_ID,
         mq_config_id=kafka_topic_info.id,
         etl_config="test",

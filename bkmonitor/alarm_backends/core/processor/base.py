@@ -28,6 +28,7 @@ class BaseAbnormalPushProcessor(six.with_metaclass(ABCMeta, object)):
         anomaly_count = 0
         anomaly_signal_list = anomaly_signal_list or []
         pipeline = key.ANOMALY_LIST_KEY.client.pipeline(transaction=False)
+
         for item_id, outputs in six.iteritems(outputs):
             if outputs:
                 outputs_data = [json.dumps(i) for i in outputs]
@@ -38,10 +39,15 @@ class BaseAbnormalPushProcessor(six.with_metaclass(ABCMeta, object)):
                 pipeline.lpush(anomaly_queue_key, *outputs_data)
                 pipeline.expire(anomaly_queue_key, key.ANOMALY_LIST_KEY.ttl)
 
-        if anomaly_signal_list:
-            anomaly_signal_key = key.ANOMALY_SIGNAL_KEY.get_key()
-            pipeline.lpush(anomaly_signal_key, *anomaly_signal_list)
-            pipeline.expire(anomaly_signal_key, key.ANOMALY_SIGNAL_KEY.ttl)
-            pipeline.execute()
-        print(anomaly_signal_list)
+        if not anomaly_signal_list:
+            return anomaly_count
+        # 先推送anomaly list的数据
+        pipeline.execute()
+
+        # 再进行一次信号的推送，保证数据ready了之后再推送信号
+        signal_pipeline = key.ANOMALY_SIGNAL_KEY.client.pipeline(transaction=False)
+        anomaly_signal_key = key.ANOMALY_SIGNAL_KEY.get_key()
+        signal_pipeline.lpush(anomaly_signal_key, *anomaly_signal_list)
+        signal_pipeline.expire(anomaly_signal_key, key.ANOMALY_SIGNAL_KEY.ttl)
+        signal_pipeline.execute()
         return anomaly_count

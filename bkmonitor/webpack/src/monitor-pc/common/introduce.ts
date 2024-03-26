@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { type RouteConfig } from 'vue-router';
+import { spaceIntroduce } from 'monitor-api/modules/commons';
 
-import { spaceIntroduce } from '../../monitor-api/modules/commons';
 import { ISPaceIntroduceData } from '../types';
 
 export enum IntroduceRouteKey {
@@ -54,6 +54,12 @@ class IntroduceStore {
         introduce: null,
         loading: false
       };
+    }
+  }
+  clear() {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const key in IntroduceRouteKey) {
+      this.data[key].introduce = null;
     }
   }
   // 通过 tag 参数获取介绍数据

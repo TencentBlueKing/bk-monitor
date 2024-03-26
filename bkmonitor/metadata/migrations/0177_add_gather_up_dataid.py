@@ -18,10 +18,11 @@ from metadata.migration_util import (
     add_datasource_token,
     add_datasourceresulttable,
     add_influxdbstorage,
+    add_result_table_option,
     add_resulttable,
-    add_resulttablefield,
     models,
 )
+from metadata.models.common import OptionBase
 
 
 def add_gather_up_datasource(apps, *args, **kwargs):
@@ -37,7 +38,7 @@ def add_gather_up_datasource(apps, *args, **kwargs):
     # data_id对应的名称
     data_name = f"{settings.AGGREGATION_BIZ_ID}_bkmonitorbeat_gather_up"
     # 结果表id
-    table_id = "bkmonitorbeat_gather_up.base"
+    table_id = "bkmonitorbeat_gather_up.__default__"
     # 结果表名称
     table_name_zh = "bkmonitorbeat 采集任务状态指标"
     # 数据清洗类型
@@ -57,7 +58,7 @@ def add_gather_up_datasource(apps, *args, **kwargs):
     # 实际influxdb对应的数据库名
     database = "bkmonitorbeat_gather_up"
     # 实际influxdb对应的表名
-    real_table_name = "base"
+    real_table_name = "__default__"
     # rp过期时间
     source_duration_time = "30d"
 
@@ -67,8 +68,8 @@ def add_gather_up_datasource(apps, *args, **kwargs):
         {"name": "disable_metric_cutter", "value": "true", "value_type": "string"},  # 上报influxdb的时候不打散metric field
     ]
 
-    field_item_list = [
-        {"field_name": "time", "field_type": "timestamp", "unit": "", "tag": "timestamp", "description": "上报时间"},
+    result_table_options = [
+        {"name": "is_split_measurement", "value": "true", "value_type": OptionBase.TYPE_BOOL},  # 单表单指标
     ]
 
     add_datasource(models, data_id, data_name, etl_config, source_label, type_label, user, is_custom_source)
@@ -76,7 +77,6 @@ def add_gather_up_datasource(apps, *args, **kwargs):
     add_resulttable(
         models, table_id, table_name_zh, label, default_storage, is_custom_table, schema_type, user, bk_biz_id
     )
-    add_resulttablefield(models, table_id, field_item_list, user)
     add_influxdbstorage(table_id, database, real_table_name, source_duration_time)
     # 给datasource增加token
     add_datasource_token(models, data_id)
@@ -96,6 +96,7 @@ def add_gather_up_datasource(apps, *args, **kwargs):
         table_id=table_id,
         time_series_group_name="bkmonitorbeat gather up metrics",
     )
+    add_result_table_option(models, table_id, user, result_table_options)
 
 
 class Migration(migrations.Migration):

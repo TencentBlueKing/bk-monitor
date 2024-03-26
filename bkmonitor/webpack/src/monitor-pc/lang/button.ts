@@ -346,6 +346,8 @@ export default {
   添加监控策略: 'Add Alert Rule',
   添加监控项: 'Add Monitoring Item',
   添加采集插件运行主机: 'Add Hosts for Running Collection Plugins',
+  新增值班组: 'Addition Duty Team',
+  新增值班: 'Addition Duty',
 
   // 编辑
   编辑告警组: 'Edit',
@@ -406,6 +408,8 @@ export default {
   进程配置: 'Process Configuration',
   Span检索: 'Span search',
   观测: 'Observe',
+  使用文档: 'Documents',
+  'Profile 接入指引': 'Profile Access Guide',
 
   更新执行历史: 'Update Execution History',
   告警分析: 'Analysis',
@@ -422,5 +426,26 @@ export default {
   原始命令: 'Original Command',
   无参数命令: 'Command Without Parameters',
   不储存: 'Do Not Save',
-  指定DB: 'Specify DB'
+  指定DB: 'Specify DB',
+  值班规则: 'Duty Rules',
+  值班通知设置: 'On-duty notification settings',
+  新增轮值排班: 'New shift rotation',
+  排班预览: 'Schedule Preview',
+  显示未排班: 'Show unscheduled',
+  排班明细: 'Schedule details',
+  轮值历史: 'Rotation history',
+  确认启用: 'Confirm Enable',
+  确认停用: 'Confirm Disable',
+  确认删除: 'Confirm Delete',
+  手动分组: 'Manual grouping',
+  自动分组: 'Automatic grouping',
+  查看应用: 'View Application',
+  新增接入: 'Add Access',
+  上传: 'Upload',
+  取消上传: 'Cancel Upload',
+  设为当前空间: 'Set as current space',
+  复制主机IP: 'Copy host IP',
+  复制服务实例: 'Copy service instance',
+  当前空间: 'Current space',
+  平台数据: 'Platform data'
 };

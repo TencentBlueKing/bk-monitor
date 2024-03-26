@@ -486,7 +486,11 @@ class GenericViewSetParser(BaseParser):
             pk_placeholder = uniqid()
             if is_detail:
                 kwargs = {viewset_cls.lookup_field: pk_placeholder}
-            request_url = reverse(url_name, kwargs=kwargs).replace(pk_placeholder, "{pk}")
+            try:
+                request_url = reverse(url_name, kwargs=kwargs).replace(pk_placeholder, "{pk}")
+            except Exception as error:
+                print(error)
+                continue
 
             api_name = underscore_to_camel(methodname)
             function_name = api_name[0].lower() + api_name[1:]

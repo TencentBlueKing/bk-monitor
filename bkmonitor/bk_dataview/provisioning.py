@@ -134,21 +134,6 @@ class SimpleProvisioning(BaseProvisioning):
                                     continue
                                 yield Dashboard(title=title, dashboard=dashboard)
 
-    def upsert_dashboards(self, org_id, org_name, dashboard_mapping):
-        from monitor.models import ApplicationConfig
-
-        dashboard_keys = set(dashboard_mapping.keys())
-        created = set(
-            ApplicationConfig.objects.filter(key__in=dashboard_keys, cc_biz_id=org_name, value="created").values_list(
-                "key", flat=True
-            )
-        )
-        not_created = dashboard_keys - created
-        for i in not_created:
-            # 不存在则进行创建
-            if self.create_default_dashboard(org_id, f"{dashboard_mapping[i]}.json"):
-                ApplicationConfig.objects.get_or_create(cc_biz_id=org_name, key=i, value="created")
-
     @classmethod
     def create_default_dashboard(cls, org_id, json_name, folder_id=0, bk_biz_id=None):
         """
@@ -161,7 +146,7 @@ class SimpleProvisioning(BaseProvisioning):
         :param bk_biz_id: 业务 id ==> org_name
         """
         datasources = api.grafana.get_all_data_source(org_id=org_id)["data"]
-        if not datasources:
+        if not datasources and bk_biz_id:
             org_name = str(bk_biz_id)
             provisioning = SimpleProvisioning()
             ds_list = []
@@ -171,6 +156,10 @@ class SimpleProvisioning(BaseProvisioning):
                 ds_list.append(ds)
             sync_data_sources(org_id, ds_list)
             datasources = api.grafana.get_all_data_source(org_id=org_id)["data"]
+
+        if not datasources:
+            logger.error("组织({})创建默认仪表盘({})失败: 未找到数据源".format(org_id, json_name))
+            return False
 
         path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards/{json_name}")
         try:

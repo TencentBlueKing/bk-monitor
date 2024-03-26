@@ -53,7 +53,7 @@ export default [
     }
   },
   {
-    path: '/email-subscriptions-history',
+    path: '/email-subscriptions/history',
     name: 'email-subscriptions-history',
     components: {
       noCache: EmailSubscriptionsHistory

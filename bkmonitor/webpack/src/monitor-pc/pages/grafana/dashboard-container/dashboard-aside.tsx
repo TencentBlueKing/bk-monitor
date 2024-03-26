@@ -25,9 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Icon } from 'bk-magic-vue';
-
-import { listStickySpaces } from '../../../../monitor-api/modules/commons';
+import { listStickySpaces } from 'monitor-api/modules/commons';
 import {
   createDashboardOrFolder,
   deleteDashboard,
@@ -37,9 +35,10 @@ import {
   renameFolder,
   starDashboard,
   unstarDashboard
-} from '../../../../monitor-api/modules/grafana';
-import bus from '../../../../monitor-common/utils/event-bus';
-import { deepClone, random } from '../../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/grafana';
+import bus from 'monitor-common/utils/event-bus';
+import { deepClone, random } from 'monitor-common/utils/utils';
+
 import BizSelect from '../../../components/biz-select/biz-select';
 import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -130,7 +129,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   ].filter(Boolean);
 
   /** 我的收藏列表 */
-  favList = [];
+  favList: IFavListItem[] = [];
   /** 仪表盘列表 */
   grafanaList: ITreeMenuItem[] = [];
   /** 置顶的空间列表 */
@@ -262,7 +261,10 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     }
   }
   handleResetChecked() {
-    if (this.$route.name === 'grafana-home') {
+    if (this.$store.getters.bizIdChangePedding) {
+      const list = this.$store.getters.bizIdChangePedding?.split('/') || [];
+      this.checked = list.length < 2 ? GRAFANA_HOME_ID : list[2] || GRAFANA_HOME_ID;
+    } else if (this.$route.name === 'grafana-home') {
       this.checked = GRAFANA_HOME_ID;
     } else if (this.$route.name === 'favorite-dashboard') {
       this.checked = this.$route.params?.url || '';
@@ -279,7 +281,6 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       return [];
     });
     this.grafanaList = this.handleGrafanaTreeData(list);
-    console.info(this.grafanaList);
     this.grafanaList.unshift({
       id: 99999,
       title: 'Home',
@@ -639,7 +640,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               onChange={this.handleBizChange}
             />
           </div>
-          {!!this.favList.length && (
+          {/* 如果没有收藏仪表盘，就不显示空列表。 */}
+          {!!this.favList?.[0]?.children?.length && (
             <div class='grafana-fav'>
               <FavList
                 checked={this.checked}
@@ -663,7 +665,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 class='search-icon'
                 onClick={this.handleShowSearch}
               >
-                <Icon
+                <bk-icon
                   slot='icon'
                   type='search'
                 />
@@ -675,7 +677,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                   options={this.addOptions}
                   onSelected={this.handleAdd}
                 >
-                  <Icon
+                  <bk-icon
                     slot='icon'
                     class='add-icon'
                     type='plus'
@@ -737,7 +739,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 <span
                   v-bk-tooltips={{
                     content: item.tips,
-                    extCls: 'garfana-link-tips'
+                    extCls: 'garfana-link-tips',
+                    allowHTML: false
                   }}
                   class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}

@@ -74,6 +74,7 @@ INSTALLED_APPS += (
     "fta_web",
     "audit",
     "apigw_manager",
+    'bk_notice_sdk',
 )
 
 MIDDLEWARE = (
@@ -104,8 +105,7 @@ MIDDLEWARE = (
     "bkmonitor.middlewares.authentication.ApiGatewayJWTExternalMiddleware",
     "apigw_manager.apigw.authentication.ApiGatewayJWTAppMiddleware",
     "common.middlewares.TimeZoneMiddleware",
-    "common.middlewares.ActiveBusinessMiddleware",
-    "common.middlewares.RecordLoginUserMiddleware",
+    "common.middlewares.TrackSiteVisitMiddleware",
     "version_log.middleware.VersionLogMiddleware",
     "monitor_api.middlewares.MonitorAPIMiddleware",
     "bkm_space.middleware.ParamInjectMiddleware",
@@ -458,7 +458,6 @@ GRAFANA = {
     "PROVISIONING_PATH": BASE_DIR + "/packages/monitor_web/grafana/provisioning",  # noqa
     "PROVISIONING_CLASSES": [
         "monitor_web.grafana.provisioning.BkMonitorProvisioning",
-        "monitor_web.grafana.provisioning.ApmEbpfProvisioning",
     ],
     "PERMISSION_CLASSES": ["monitor_web.grafana.permissions.DashboardPermission"],
     "CODE_INJECTIONS": {
@@ -499,23 +498,6 @@ var _wr = function(type) {
       window.parent.postMessage({ pathname: this.location.pathname }, "*");
     });
   });
-   window.addEventListener('message', function(e) {
-        if(e && e.data ) {
-        var dom = null;
-        switch(e.data) {
-            case 'create':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(2) a');
-            break;
-            case 'folder':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(3) a');
-            break;
-            case 'import':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(4) a');
-            break;
-        }
-        dom && dom.click()
-        }
-    })
 </script>
 """,
     },
@@ -534,39 +516,12 @@ BK_SUPPLIER_ID = 0
 # 登录缓存时间配置, 单位秒（与django cache单位一致）
 LOGIN_CACHE_EXPIRED = 60
 
-# 解决多级nginx代理下遇到的最外层nginx的`X-Forwarded-Host`设置失效问题
-X_FORWARDED_WEIXIN_HOST = "HTTP_X_FORWARDED_WEIXIN_HOST"
-
-# 是否开启使用
-USE_WEIXIN = os.environ.get("BKAPP_USE_WEIXIN", None) == "1"
-# 是否为企业微信
-IS_QY_WEIXIN = os.environ.get("BKAPP_IS_QY_WEIXIN", None) == "1"
-# django 配置, 可使用自定义HOST
-USE_X_FORWARDED_HOST = USE_WEIXIN
-# 微信公众号的app id/企业微信corp id
-WEIXIN_APP_ID = os.environ.get("BKAPP_WEIXIN_APP_ID", "")
-# 微信公众号的app secret/企业微信应用的secret
-WEIXIN_APP_SECRET = os.environ.get("BKAPP_WEIXIN_APP_SECRET", "")
-# 该蓝鲸应用对外暴露的外网域名，即配置的微信能回调或访问的域名，如：test.bking.com
-WEIXIN_APP_EXTERNAL_HOST = os.environ.get("BKAPP_WEIXIN_APP_EXTERNAL_HOST", "")
-
-# 应用授权作用域
-# snsapi_base （不弹出授权页面，直接跳转，只能获取用户openid），
-# snsapi_userinfo （弹出授权页面，可通过openid拿到昵称、性别、所在地。并且， 即使在未关注的情况下，只要用户授权，也能获取其信息 ）
-WEIXIN_SCOPE = "snsapi_userinfo"
-
 # 蓝鲸微信请求URL前缀
 WEIXIN_SITE_URL = os.environ.get("BKAPP_WEIXIN_SITE_URL", SITE_URL + "weixin/")
 # 蓝鲸微信本地静态文件请求URL前缀
 WEIXIN_STATIC_URL = os.environ.get("BKAPP_WEIXIN_STATIC_URL", STATIC_URL + "weixin/")
-# 蓝鲸微信登录的URL
-WEIXIN_LOGIN_URL = SITE_URL + "weixin/login/"
-# 微信分享地址
-WEIXIN_SHARE_URL = WEIXIN_APP_EXTERNAL_HOST + SITE_URL
-
 # 微信调试开关
 WX_USER = os.environ.get("BKAPP_WX_USER", None) == 1
-
 # 微信Console开关
 ENABLE_CONSOLE = os.environ.get("BKAPP_ENABLE_CONSOLE", None) == 1
 

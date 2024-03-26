@@ -23,34 +23,45 @@
 <template>
   <bk-popover
     ref="eventPopover"
+    ext-cls="event-tippy"
     :class="['retrieve-event-popover', { 'is-inline': !isCluster }]"
-    :ext-cls="`event-tippy${!isCluster ? ' is-cluster' : ''}`"
     :trigger="trigger"
     :placement="placement"
     :tippy-options="tippyOptions"
     :on-show="handlePopoverShow"
     :on-hide="handlePopoverHide"
-    theme="light">
+    theme="light"
+  >
     <slot />
-    <div slot="content" class="event-icons">
-      <span
-        v-if="isCluster"
-        class="icon bk-icon icon-eye"
-        v-bk-tooltips.top="{ content: $t('查询命中pattern的日志'), delay: 300 }"
-        @click="handleClick('show original')">
-      </span>
-      <!-- <span
-        v-if="isCluster"
-        class="icon log-icon icon-chart"
-        v-bk-tooltips.top="{ content: $t(''), delay: 300 }"
-        @click="handleClick('a')">
-      </span> -->
-      <span
-        v-if="isHavePattern"
-        class="icon log-icon icon-copy"
-        v-bk-tooltips.top="{ content: $t('复制'), delay: 300 }"
-        @click="handleClick('copy')">
-      </span>
+    <div
+      slot="content"
+      class="event-icons"
+    >
+      <div class="event-box">
+        <span
+          class="event-btn"
+          @click="handleClick('show original')"
+        >
+          <i class="icon bk-icon icon-eye"></i>
+          <span>{{ $t('查询命中pattern的日志') }}</span>
+        </span>
+        <div
+          v-bk-tooltips="$t('新开标签页')"
+          class="new-link"
+          @click.stop="handleClick('show original', true)"
+        >
+          <i class="log-icon icon-jump"></i>
+        </div>
+      </div>
+      <div class="event-box">
+        <span
+          class="event-btn"
+          @click="handleClick('copy')"
+        >
+          <i class="icon log-icon icon-copy"></i>
+          <span>{{ $t('复制') }}</span>
+        </span>
+      </div>
     </div>
   </bk-popover>
 </template>
@@ -60,33 +71,33 @@ export default {
   props: {
     placement: {
       type: String,
-      default: 'bottom',
+      default: 'bottom'
     },
     trigger: {
       type: String,
-      default: 'click',
+      default: 'click'
     },
     isCluster: {
       type: Boolean,
-      default: true,
+      default: true
     },
     tippyOptions: {
       type: Object,
-      default: () => {},
+      default: () => {}
     },
     context: {
       type: String,
-      require: true,
-    },
+      require: true
+    }
   },
   computed: {
     isHavePattern() {
       return this.context !== '';
-    },
+    }
   },
   methods: {
-    handleClick(id) {
-      this.$emit('eventClick', id);
+    handleClick(id, isLink = false) {
+      this.$emit('eventClick', id, isLink);
     },
     unregisterOberver() {
       if (this.intersectionObserver) {
@@ -100,8 +111,8 @@ export default {
       if (this.intersectionObserver) {
         this.unregisterOberver();
       }
-      this.intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
           if (this.intersectionObserver) {
             if (entry.intersectionRatio <= 0) {
               this.$refs.eventPopover.instance.hide();
@@ -116,87 +127,105 @@ export default {
     },
     handlePopoverHide() {
       this.unregisterOberver();
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
+@import '@/scss/mixins/flex.scss';
+
+.event-tippy {
   .event-icons {
-    position: relative;
+    flex-direction: column;
+
+    @include flex-center();
   }
 
-  .event-tippy {
-    .event-icons {
-      min-height: 24px;
-      display: flex;
-      align-items: center;
+  .event-box {
+    height: 32px;
+    min-width: 240px;
+    padding: 0 10px;
+    font-size: 12px;
+    cursor: pointer;
+
+    @include flex-center();
+
+    &:hover {
+      background: #eaf3ff;
+    }
+  }
+
+  .new-link {
+    width: 24px;
+    height: 24px;
+
+    @include flex-center();
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .event-btn {
+    flex: 1;
+    align-items: center;
+
+    @include flex-justify(left);
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .tippy-tooltip {
+    padding: 6px 2px;
+  }
+
+  .icon {
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .icon-eye {
+    margin-right: 6px;
+  }
+
+  .icon-copy {
+    margin-left: -4px;
+    font-size: 24px;
+  }
+
+  .icon-copy:before {
+    content: '\e109';
+  }
+}
+
+.retrieve-event-popover {
+  .bk-tooltip-ref {
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  mark {
+    color: #313238;
+    background: #f0f1f5;
+  }
+
+  &.is-inline {
+    display: inline;
+
+    .bk-tooltip-ref {
+      display: inline;
     }
 
     .tippy-tooltip {
-      padding: 4px 0 2px 8px;
-    }
-
-    .icon {
-      display: inline-block;
-      margin-right: 8px;
-      font-size: 14px;
-      cursor: pointer;
-
-      &:hover {
-        color: #3a84ff;
-      }
-    }
-
-    .log-icon {
-      font-size: 12px;
-    }
-
-    .icon-chart {
-      margin-right: 4px;
-    }
-
-    .icon-copy {
-      margin-right: 3px;
-      font-size: 24px;
-
-      &::before {
-        /* stylelint-disable-next-line declaration-no-important */
-        content: '\e109' !important;
-      }
-    }
-
-    &.is-cluster {
-      .tippy-tooltip {
-        padding-left: 4px;
-      }
+      padding-left: 0;
     }
   }
-
-  .retrieve-event-popover {
-    .bk-tooltip-ref {
-      cursor: pointer;
-
-      &:hover {
-        color: #3a84ff;
-      }
-    }
-
-    mark {
-      color: #313238;
-      background: #f0f1f5;
-    }
-
-    &.is-inline {
-      display: inline;
-
-      .bk-tooltip-ref {
-        display: inline;
-      }
-
-      .tippy-tooltip {
-        padding-left: 0;
-      }
-    }
-  }
+}
 </style>

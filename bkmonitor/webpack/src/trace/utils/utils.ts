@@ -25,6 +25,7 @@
  */
 
 import dayjs from 'dayjs';
+import { xssFilter } from 'monitor-common/utils/xss';
 
 import { IExtendMetricData } from '../plugins/typings';
 
@@ -148,12 +149,12 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   const curElList = (elList as any)[curActive] || [...options];
   let content =
     curActive === 'bk_log_search_time_series'
-      ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
-      : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
+      ? `<div class="item">${xssFilter(data.related_name)}.${xssFilter(data.metric_field)}</div>\n`
+      : `<div class="item">${xssFilter(data.result_table_id)}.${xssFilter(data.metric_field)}</div>\n`;
   if (data.collect_config) {
     const collectorConfig = data.collect_config
       .split(';')
-      .map(item => `<div>${item}</div>`)
+      .map(item => `<div>${xssFilter(item)}</div>`)
       .join('');
     curElList.splice(0, 0, { label: window.i18n.t('采集配置'), val: collectorConfig });
   }
@@ -163,7 +164,9 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
     curElList.splice(index, 1);
   }
   curElList.forEach((item: { label: any; val: any }) => {
-    content += `<div class="item"><div>${item.label}：${item.val || '--'}</div></div>\n`;
+    content += `<div class="item"><div>${item.label}：${
+      window.i18n.t('采集配置') === item.label ? item.val : xssFilter(item.val) || '--'
+    }</div></div>\n`;
   });
   return content;
 };
@@ -199,4 +202,27 @@ export const getSpanKindIcon = (kind: number) => {
     default:
       return '';
   }
+};
+
+/**
+ * 把Byte数值转换成最适合的单位数值
+ * @param size 大小
+ * @returns 最终结果
+ */
+export const transformByte = (size: number) => {
+  const units = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  let index = 0;
+  let number = size;
+
+  if (isNaN(size) || size < 0) {
+    return '-';
+  }
+
+  while (number > 1024 && index < units.length - 1) {
+    number /= 1024;
+    index += 1;
+  }
+
+  number = Math.round(number * 100) / 100;
+  return `${number}${units[index]}`;
 };

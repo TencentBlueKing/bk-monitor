@@ -26,9 +26,8 @@
 import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { TagInput } from 'bkui-vue';
-
-import { listUsersUser } from '../../../../monitor-api/modules/model';
-import { debounce, random } from '../../../../monitor-common/utils';
+import { listUsersUser } from 'monitor-api/modules/model';
+import { debounce, random } from 'monitor-common/utils';
 
 import './member-selector.scss';
 
@@ -169,8 +168,8 @@ export default defineComponent({
       const data = await getUserList(params);
       setUsers(data);
     }
-    function handleFocus(v) {
-      console.log(v);
+    function handleFocus() {
+      // console.log(v);
     }
     function handleBlur() {
       key.value = random(8);
@@ -178,7 +177,9 @@ export default defineComponent({
     }
 
     async function getUserList(params: Record<string, any>) {
-      return await listUsersUser(params)
+      return await listUsersUser(params, {
+        needCancel: true
+      })
         .then(res => res?.results || [])
         .catch(() => []);
     }
@@ -204,6 +205,7 @@ export default defineComponent({
                 <img
                   class='user-logo'
                   src={node.logo}
+                  alt=''
                 ></img>
               );
             }
@@ -227,6 +229,7 @@ export default defineComponent({
                 <img
                   class='user-logo'
                   src={obj.logo}
+                  alt=''
                 ></img>
               );
             }

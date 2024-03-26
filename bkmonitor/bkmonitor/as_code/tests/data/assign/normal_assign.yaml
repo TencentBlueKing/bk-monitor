@@ -1,5 +1,6 @@
 name: "分派测试"
 priority: 1
+id: 1
 rules:
   - user_groups: ["日常运维"]
     enabled: true

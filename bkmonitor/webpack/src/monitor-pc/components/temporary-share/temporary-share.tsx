@@ -27,16 +27,15 @@ import { VNode } from 'vue';
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
+import { copyText } from 'monitor-common/utils/utils';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import { createShareToken, deleteShareToken, updateShareToken } from '../../../monitor-api/modules/share';
-import { copyText } from '../../../monitor-common/utils/utils';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog';
 import { NavBarMode } from '../../pages/monitor-k8s/components/common-nav-bar';
 import { INavItem } from '../../pages/monitor-k8s/typings';
 import TimeRangeComponent, { TimeRangeType } from '../time-range/time-range';
-import { CUSTOM_TIME_RANGE_REG, shortcuts, TimeRange } from '../time-range/utils';
+import { shortcuts, TimeRange } from '../time-range/utils';
 import TimeSelect, { ITimeListItem } from '../time-select/time-select';
 
 import HistoryShareManage from './history-share-manage';
@@ -133,7 +132,6 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   }
   setDefaultSettings() {
     const { from, to, timezone } = this.$route.query as Record<string, string>;
-    console.info(from, to, '-----------');
     this.querySettings = [
       {
         id: 'time',
@@ -143,7 +141,6 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
         timezone: timezone || window.timezone
       }
     ];
-    console.info(this.querySettings, from, to, '-----------');
   }
   // 通用api查询参数
   getShareTokenParams() {
@@ -302,7 +299,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       });
       hasErr = !!errMsg;
     });
-    if (!hasErr) this.$bkMessage({ theme: 'success', message: this.$t('复制成功') });
+    if (!hasErr) this.$bkMessage({ theme: 'success', zIndex: this.zIndex + 1, message: this.$t('复制成功') });
   }
   /** 点击快捷时间选项 */
   handleShortcutChange(data) {
@@ -451,7 +448,6 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   }
   handleTableTimezoneChange(val: string, row) {
     row.timezone = val;
-    console.info('row', row, val);
     this.updateShareToken();
   }
   handleCanChange(v, row) {
@@ -534,14 +530,14 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
               {this.commonItem(
                 this.$t('查询设置'),
                 this.show && (
-                  <Table data={this.querySettings}>
-                    <TableColumn
+                  <bk-table data={this.querySettings}>
+                    <bk-table-column
                       label={this.$t('变量名称')}
                       scopedSlots={{
                         default: () => <span>{this.$t('时间选择')}</span>
                       }}
-                    ></TableColumn>
-                    <TableColumn
+                    ></bk-table-column>
+                    <bk-table-column
                       label={this.$t('是否可更改')}
                       scopedSlots={{
                         default: ({ row }) => (
@@ -552,8 +548,8 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                           ></bk-switcher>
                         )
                       }}
-                    ></TableColumn>
-                    <TableColumn
+                    ></bk-table-column>
+                    <bk-table-column
                       label={this.$t('默认选项')}
                       width={386}
                       scopedSlots={{
@@ -569,8 +565,8 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                           </div>
                         )
                       }}
-                    ></TableColumn>
-                  </Table>
+                    ></bk-table-column>
+                  </bk-table>
                 )
               )}
             </div>

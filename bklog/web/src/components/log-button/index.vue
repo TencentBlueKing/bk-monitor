@@ -21,14 +21,18 @@
   -->
 
 <template>
-  <section v-bk-tooltips="tooltips" class="log-button">
+  <section
+    v-bk-tooltips="tooltips"
+    class="log-button"
+  >
     <bk-button
+      v-cursor="{ active: cursorActive }"
       :theme="theme"
       :text="text"
       :ext-cls="extCls"
       :disabled="disabled"
-      v-cursor="{ active: cursorActive }"
-      @click.stop="handleClick">
+      @click.stop="handleClick"
+    >
       {{ buttonText }}
     </bk-button>
   </section>
@@ -39,33 +43,33 @@ export default {
   props: {
     theme: {
       type: String,
-      default: 'dark',
+      default: 'dark'
     },
     buttonText: {
       type: String,
-      default: '',
+      default: ''
     },
     text: {
       type: Boolean,
-      default: false,
+      default: false
     },
     extCls: {
       type: String,
-      default: '',
+      default: ''
     },
     disabled: {
       type: Boolean,
-      default: false,
+      default: false
     },
     cursorActive: {
       type: Boolean,
-      default: false,
+      default: false
     },
     tipsConf: {
       // eslint-disable-next-line vue/require-prop-type-constructor
       type: Object | String,
-      default: '',
-    },
+      default: ''
+    }
   },
   computed: {
     tooltips() {
@@ -73,21 +77,20 @@ export default {
       return {
         ...conf,
         delay: 100,
-        disabled: !this.disabled || conf.content === '',
+        disabled: !this.disabled || conf.content === ''
       };
-    },
+    }
   },
   methods: {
     handleClick() {
       this.$emit('on-click');
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .log-button {
-    display: inline-block;
-  }
+.log-button {
+  display: inline-block;
+}
 </style>
-

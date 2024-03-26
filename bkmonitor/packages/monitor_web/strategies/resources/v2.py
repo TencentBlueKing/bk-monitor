@@ -8,7 +8,7 @@ import typing
 from collections import defaultdict
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, Callable, Dict, List, Optional, Tuple, Set
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import arrow
 from django.conf import settings
@@ -19,6 +19,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Host, Module, Set, TopoTree
 from bkmonitor.action.utils import get_strategy_user_group_dict
+from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import Functions, UnifyQuery, load_data_source
 from bkmonitor.dataflow.constant import (
@@ -51,22 +52,15 @@ from bkmonitor.strategy.new_strategy import (
 )
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
-from bkmonitor.utils.user import get_global_user
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
-from constants.strategy import (
-    SPLIT_DIMENSIONS,
-    AdvanceConditionMethod,
-    DataTarget,
-    TargetFieldType,
-)
+from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from monitor.models import ApplicationConfig
-from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 from monitor_web.models import (
     CollectorPluginMeta,
@@ -222,14 +216,14 @@ class GetStrategyListV2Resource(Resource):
                     data_sources.append((category["data_source_label"], category["data_type_label"]))
                     break
             if not data_sources:
-                filter_strategy_ids_set.intersection_update(set([]))
+                filter_strategy_ids_set.intersection_update(set())
             else:
                 data_source_strategy_ids = (
                     QueryConfigModel.objects.filter(
                         reduce(
                             lambda x, y: x | y, [Q(data_source_label=ds, data_type_label=dt) for ds, dt in data_sources]
                         ),
-                        strategy_id__in=filter_strategy_ids_set
+                        strategy_id__in=filter_strategy_ids_set,
                     )
                     .values_list("strategy_id", flat=True)
                     .distinct()
@@ -272,8 +266,7 @@ class GetStrategyListV2Resource(Resource):
         if filter_dict["algorithm_type"]:
             algorithm_strategy_ids = (
                 AlgorithmModel.objects.filter(
-                    type__in=filter_dict["algorithm_type"],
-                    strategy_id__in=filter_strategy_ids_set
+                    type__in=filter_dict["algorithm_type"], strategy_id__in=filter_strategy_ids_set
                 )
                 .values_list("strategy_id", flat=True)
                 .distinct()
@@ -286,8 +279,7 @@ class GetStrategyListV2Resource(Resource):
         if filter_dict["invalid_type"]:
             algorithm_strategy_ids = (
                 StrategyModel.objects.filter(
-                    invalid_type__in=filter_dict["invalid_type"],
-                    id__in=filter_strategy_ids_set
+                    invalid_type__in=filter_dict["invalid_type"], id__in=filter_strategy_ids_set
                 )
                 .values_list("id", flat=True)
                 .distinct()
@@ -296,7 +288,7 @@ class GetStrategyListV2Resource(Resource):
 
     @classmethod
     def filter_strategy_ids_by_event_group(
-            cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
+        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
     ):
         """过滤自定义事件组ID"""
         if filter_dict["custom_event_group_id"] or filter_dict["bk_event_group_id"]:
@@ -388,8 +380,7 @@ class GetStrategyListV2Resource(Resource):
         if filter_dict["metric_id"]:
             metric_strategy_ids = set(
                 QueryConfigModel.objects.filter(
-                    metric_id__in=filter_dict["metric_id"],
-                    strategy_id__in=filter_strategy_ids_set
+                    metric_id__in=filter_dict["metric_id"], strategy_id__in=filter_strategy_ids_set
                 )
                 .values_list("strategy_id", flat=True)
                 .distinct()
@@ -402,8 +393,7 @@ class GetStrategyListV2Resource(Resource):
         if filter_dict["uptime_check_task_id"]:
             filter_dict["uptime_check_task_id"] = [str(task_id) for task_id in filter_dict["uptime_check_task_id"]]
             uptime_check_query_configs = QueryConfigModel.objects.filter(
-                metric_id__startswith="bk_monitor.uptimecheck.",
-                strategy_id__in=filter_strategy_ids_set
+                metric_id__startswith="bk_monitor.uptimecheck.", strategy_id__in=filter_strategy_ids_set
             )
 
             uptime_check_strategy_ids = set()
@@ -426,8 +416,7 @@ class GetStrategyListV2Resource(Resource):
         """过滤告警级别"""
         if filter_dict["level"]:
             level_strategy_ids = DetectModel.objects.filter(
-                strategy_id__in=filter_strategy_ids_set,
-                level__in=filter_dict["level"]
+                strategy_id__in=filter_strategy_ids_set, level__in=filter_dict["level"]
             ).values_list('strategy_id', flat=True)
             filter_strategy_ids_set.intersection_update(set(level_strategy_ids))
 
@@ -478,7 +467,7 @@ class GetStrategyListV2Resource(Resource):
                 value = [value]
             filter_dict[key].extend(value)
 
-        filter_strategy_ids_set: Set = set(strategies.values_list("id", flat=True).distinct())
+        filter_strategy_ids_set = set(strategies.values_list("id", flat=True).distinct())
 
         filter_methods: List[Tuple] = [
             (cls.filter_strategy_ids_by_id, (filter_dict, filter_strategy_ids_set)),
@@ -496,8 +485,7 @@ class GetStrategyListV2Resource(Resource):
             (cls.filter_strategy_ids_by_plugin_id, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
             (cls.filter_strategy_ids_by_metric_id, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_strategy_ids_by_uct_id, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_level, (filter_dict, filter_strategy_ids_set))
-
+            (cls.filter_strategy_ids_by_level, (filter_dict, filter_strategy_ids_set)),
         ]
         for filter_method, args in filter_methods:
             filter_method(*args)
@@ -527,8 +515,7 @@ class GetStrategyListV2Resource(Resource):
                     result_table_id_strategy_ids.extend(
                         list(
                             QueryConfigModel.objects.filter(
-                                config__result_table_id=query,
-                                strategy_id__in=filter_strategy_ids_set
+                                config__result_table_id=query, strategy_id__in=filter_strategy_ids_set
                             )
                             .values_list("strategy_id", flat=True)
                             .distinct()
@@ -1195,6 +1182,12 @@ class GetMetricListV2Resource(Resource):
         (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
     )
 
+    PromqlDataSourcePrefix = {
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES): "bkmonitor",
+        (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES): "custom",
+        (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES): "bkdata",
+    }
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         data_source_label = serializers.ListField(default=[], label="指标数据源", child=serializers.CharField())
@@ -1235,6 +1228,10 @@ class GetMetricListV2Resource(Resource):
             "related_id",
             "related_name",
         ]
+
+        # 过滤为空的data_label条件
+        if "data_label" in filter_dict:
+            filter_dict["data_label"] = [label for label in filter_dict["data_label"] if label]
 
         # 直接过滤字段
         metrics = metrics.filter(
@@ -1550,6 +1547,21 @@ class GetMetricListV2Resource(Resource):
         return metric
 
     @classmethod
+    def get_promql_format_metric(cls, metric: Dict) -> str:
+        """
+        获取promql风格的指标名
+        """
+        data_source = (metric["data_source_label"], metric["data_type_label"])
+        if data_source not in cls.PromqlDataSourcePrefix:
+            return ""
+
+        prefix = cls.PromqlDataSourcePrefix[data_source]
+        if metric["readable_name"]:
+            return f"{prefix}:{metric['readable_name'].replace('.', ':')}"
+
+        return f"{prefix}:{metric['result_table_id'].replace('.', ':')}:{metric['metric_field']}"
+
+    @classmethod
     def get_metric_list(cls, bk_biz_id: int, metrics: QuerySet):
         """
         指标数据
@@ -1606,6 +1618,9 @@ class GetMetricListV2Resource(Resource):
                 "disabled": False,
                 "data_target": metric.data_target,
             }
+
+            # promql指标名
+            data["promql_metric"] = cls.get_promql_format_metric(data)
 
             # 拨测指标特殊处理
             if metric.result_table_id.startswith("uptimecheck."):
@@ -1737,74 +1752,6 @@ class SaveStrategyV2Resource(Resource):
     RequestSerializer = Strategy.Serializer
 
     @classmethod
-    def access_aiops(cls, strategy: Strategy):
-        """
-        智能监控接入
-        (目前仅支持监控时序、计算平台时序数据)
-
-        - 监控时序数据(以监控管理员身份配置)
-            1. 走kafka接入，配置好清洗规则，接入到计算平台
-            2. 走dataflow，进行downsample操作，得到一张结果表，保存到metadata的bkdatastorage表中
-            3. 走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
-        - 计算平台数据(根据用户身份配置)
-            1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
-        """
-        from bkmonitor.models import AlgorithmModel
-
-        # 未开启计算平台接入，则直接返回
-        if not settings.IS_ACCESS_BK_DATA:
-            return
-
-        has_intelligent_algorithm = False
-        for algorithm in chain(*(item.algorithms for item in strategy.items)):
-            if algorithm.type in AlgorithmModel.AIOPS_ALGORITHMS:
-                has_intelligent_algorithm = True
-                break
-
-        if not has_intelligent_algorithm:
-            return
-
-        # 判断数据来源
-        for query_config in chain(*(item.query_configs for item in strategy.items)):
-            if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
-                continue
-
-            from monitor_web.tasks import access_aiops_by_strategy_id
-
-            need_access = False
-
-            if query_config.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR:
-                # 如果查询条件中存在特殊的方法，查询条件置为空
-                for condition in query_config.agg_condition:
-                    if condition["method"] in AdvanceConditionMethod:
-                        raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
-                need_access = True
-
-            elif query_config.data_source_label == DataSourceLabel.BK_DATA:
-                # 1. 先授权给监控项目(以创建或更新策略的用户来请求一次授权)
-                from bkmonitor.dataflow import auth
-
-                auth.ensure_has_permission_with_rt_id(
-                    bk_username=get_global_user() or settings.BK_DATA_PROJECT_MAINTAINER,
-                    rt_id=query_config.result_table_id,
-                    project_id=settings.BK_DATA_PROJECT_ID,
-                )
-                # 2. 然后再创建异常检测的dataflow
-                need_access = True
-
-            if need_access:
-                intelligent_detect = getattr(query_config, "intelligent_detect", {})
-                intelligent_detect["status"] = AccessStatus.PENDING
-                intelligent_detect["retries"] = 0
-                intelligent_detect["message"] = ""
-                query_config.intelligent_detect = intelligent_detect
-                query_config.save()
-
-                if settings.ROLE == "web":
-                    # 只有 web 运行模式下，才允许触发 celery 异步接入任务
-                    access_aiops_by_strategy_id.delay(strategy.id)
-
-    @classmethod
     def validate_cmdb_level(cls, strategy: Strategy):
         """
         校验cmdb节点聚合配置是否合法
@@ -1867,9 +1814,6 @@ class SaveStrategyV2Resource(Resource):
 
         # 编辑后需要重置AsCode相关配置
         StrategyModel.objects.filter(id=strategy.id).update(hash="", snippet="")
-
-        # 计算平台接入
-        self.access_aiops(strategy)
         return strategy.to_dict()
 
 
@@ -2489,7 +2433,7 @@ class PromqlToQueryConfig(Resource):
                 raise ValidationError(_("只能进行一次维度聚合，如sum、avg等"))
 
             # 判断时间聚合方法是否符合预期
-            time_function = query["time_aggregation"]["function"]
+            time_function = query["time_aggregation"].get("function")
             if time_function:
                 if time_function[:-10] not in cls.aggr_ops and (
                     time_function not in Functions or not Functions[time_function].time_aggregation
@@ -2531,7 +2475,7 @@ class PromqlToQueryConfig(Resource):
                     if method == "mean":
                         method = "avg"
                     method = method.upper()
-                    dimensions = function["dimensions"] or []
+                    dimensions = function.get("dimensions") or []
                 else:
                     functions.append(
                         {
@@ -2539,7 +2483,7 @@ class PromqlToQueryConfig(Resource):
                             "params": [
                                 {"id": param.id, "value": str(value)}
                                 for param, value in zip(
-                                    Functions[function["method"]].params, function["vargs_list"] or []
+                                    Functions[function["method"]].params, function.get("vargs_list") or []
                                 )
                             ],
                         }
@@ -2557,7 +2501,7 @@ class PromqlToQueryConfig(Resource):
                         "params": [
                             {"id": param.id, "value": str(value)}
                             for param, value in zip(
-                                Functions[time_function["function"]].params, time_function["vargs_list"] or []
+                                Functions[time_function["function"]].params, time_function.get("vargs_list") or []
                             )
                         ],
                     }
@@ -2570,10 +2514,10 @@ class PromqlToQueryConfig(Resource):
                     functions.append(function)
             else:
                 interval = 60
-                method = f"{method}_without_time".lower()
+                method = f"{method or 'avg'}_without_time".lower()
 
             # offset方法解析
-            if query["offset"]:
+            if query.get("offset"):
                 time_shift_value = duration_string(parse_duration(query["offset"]))
                 functions.append(
                     {
@@ -2581,7 +2525,7 @@ class PromqlToQueryConfig(Resource):
                         "params": [
                             {
                                 "id": "n",
-                                "value": "-" + time_shift_value if query["offset_forward"] else time_shift_value,
+                                "value": "-" + time_shift_value if query.get("offset_forward") else time_shift_value,
                             }
                         ],
                     }
@@ -2589,7 +2533,7 @@ class PromqlToQueryConfig(Resource):
 
             # 条件解析
             conditions = []
-            for index, field in enumerate(query["conditions"]["field_list"]):
+            for index, field in enumerate(query.get("conditions", {}).get("field_list", [])):
                 condition = {
                     "key": field["field_name"],
                     "method": cls.condition_op_mapping[field["op"]],
@@ -2599,15 +2543,14 @@ class PromqlToQueryConfig(Resource):
                     condition["condition"] = "and"
                 conditions.append(condition)
 
-            # 按表名判断所属数据源类型
-
             # 根据table_id格式判定是否为data_label二段式
+            table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(query["table_id"].split(".")) == 1:
-                data_label = query["table_id"]
+            if len(table_id.split(".")) == 1:
+                data_label = table_id
             else:
-                result_table_id = query["table_id"]
+                result_table_id = table_id
             if (result_table_id and cls.re_custom_time_series.match(result_table_id)) or query[
                 "data_source"
             ] == DataSourceLabel.CUSTOM:

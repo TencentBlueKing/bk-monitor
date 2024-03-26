@@ -1,26 +1,31 @@
 .monitor-collapse-wrap {
   position: relative;
-  will-change: height;
   overflow: hidden;
+  will-change: height;
+
   &.animation {
     transition: height .3s ease-in-out;
   }
+
   &.is-overflow {
     overflow-y: auto;
   }
+
   .monitor-collapse-close {
     position: absolute;
     right: 16px;
     bottom: 8px;
     font-size: 20px;
     color: #dcdee5;
-    transform: rotate(0deg);
     cursor: pointer;
-    will-change: transform;
     transition: transform .3s ease-in-out;
+    transform: rotate(0deg);
+    will-change: transform;
+
     &:hover {
       color: #3a84ff;
     }
+
     &.is-expand {
       transform: rotate(-180deg);
     }

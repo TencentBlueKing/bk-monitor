@@ -25,11 +25,11 @@
  */
 import { Component, Mixins } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
-import { Button, DropdownMenu, Input } from 'bk-magic-vue';
+import axios from 'axios';
+import { getLabel } from 'monitor-api/modules/commons';
+import { getObservationSceneList, getObservationSceneStatusList } from 'monitor-api/modules/scene_view';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { getLabel } from '../../../monitor-api/modules/commons';
-import { getObservationSceneList, getObservationSceneStatusList } from '../../../monitor-api/modules/scene_view';
-import { Debounce } from '../../../monitor-common/utils/utils';
 import introduce from '../../common/introduce';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
@@ -119,6 +119,10 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
   loading = false;
   authorityMap = { ...authMap };
   emptyStatusType: EmptyStatusType = 'empty';
+  /* status loading  */
+  statusLoading = false;
+
+  cancelTokenSource = null;
   // 是否显示引导页
   get showGuidePage() {
     return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
@@ -193,18 +197,33 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
       scenarioName: this.scenarioLabels?.[item.scenario] || '--'
     }));
     const sceneViewIds = this.tableData.data.map(item => item.scene_view_id);
+    this.cancelTokenSource?.cancel?.();
     this.setAsyncStatusData(sceneViewIds);
   }
 
   /* 异步加载 */
   setAsyncStatusData(sceneViewIds = []) {
-    getObservationSceneStatusList({ scene_view_ids: sceneViewIds }).then(res => {
-      this.tableData.data.forEach(item => {
-        if (res[item.scene_view_id as string]?.status) {
-          item.status = res[item.scene_view_id as string].status;
+    this.statusLoading = true;
+    this.cancelTokenSource = axios.CancelToken.source();
+    getObservationSceneStatusList(
+      { scene_view_ids: sceneViewIds },
+      {
+        cancelToken: this.cancelTokenSource.token
+      }
+    )
+      .then(res => {
+        this.statusLoading = false;
+        this.tableData.data.forEach(item => {
+          if (res[item.scene_view_id as string]?.status) {
+            item.status = res[item.scene_view_id as string].status;
+          }
+        });
+      })
+      .catch(error => {
+        if (!axios.isCancel(error)) {
+          this.statusLoading = false;
         }
       });
-    });
   }
 
   /* 点击新建 */
@@ -387,14 +406,14 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
         <div class='custom-scenes-page-wrapper'>
           <div class='table-wrapper'>
             <div class='wrapper-header'>
-              <DropdownMenu positionFxed>
-                <Button
+              <bk-dropdown-menu positionFxed>
+                <bk-button
                   slot='dropdown-trigger'
                   icon='plus'
                   theme='primary'
                 >
                   {this.$t('新建')}
-                </Button>
+                </bk-button>
                 <ul
                   class='header-select-list'
                   slot='dropdown-content'
@@ -408,8 +427,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                     </li>
                   ))}
                 </ul>
-              </DropdownMenu>
-              <Input
+              </bk-dropdown-menu>
+              <bk-input
                 class='search-wrapper-input'
                 placeholder={window.i18n.t('搜索')}
                 v-model={this.keyword}
@@ -437,27 +456,30 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                     <div class='subtitle'>{row.sub_name}</div>
                   </div>
                 ),
-                status: (row: ITableItem) => (
-                  <div class='column-status'>
-                    {row.status ? (
-                      <CommonStatus
-                        type={row.status}
-                        text={STATUS_TYPE[row.status]}
-                      ></CommonStatus>
-                    ) : (
-                      '--'
-                    )}
-                  </div>
-                ),
+                status: (row: ITableItem) =>
+                  this.statusLoading ? (
+                    <div class='spinner'></div>
+                  ) : (
+                    <div class='column-status'>
+                      {row.status ? (
+                        <CommonStatus
+                          type={row.status}
+                          text={STATUS_TYPE[row.status]}
+                        ></CommonStatus>
+                      ) : (
+                        '--'
+                      )}
+                    </div>
+                  ),
                 strategy: (row: ITableItem) => (
                   <div class='column-count'>
                     {row.strategy_count > 0 ? (
-                      <Button
+                      <bk-button
                         text
                         onClick={() => this.handleToStrategy(row)}
                       >
                         {row.strategy_count}
-                      </Button>
+                      </bk-button>
                     ) : (
                       '--'
                     )}
@@ -466,12 +488,12 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 collector: (row: ITableItem) => (
                   <div class='column-count'>
                     {row.collect_config_count > 0 ? (
-                      <Button
+                      <bk-button
                         text
                         onClick={() => this.handleToCollect(row)}
                       >
                         {row.collect_config_count}
-                      </Button>
+                      </bk-button>
                     ) : (
                       '--'
                     )}
@@ -479,13 +501,13 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 ),
                 operate: (row: ITableItem) => [
                   row.scene_type === ESceneType.plugin ? (
-                    <Button
+                    <bk-button
                       style={{ marginLeft: '10px' }}
                       text
                       onClick={() => this.handleAddItem(row)}
                     >
                       {window.i18n.t('新建采集')}
-                    </Button>
+                    </bk-button>
                   ) : (
                     ''
                   )

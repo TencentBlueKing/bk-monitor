@@ -1,0 +1,10 @@
+bkpkg: v1
+name: bk_log_search
+type: smart
+description: 日志平台应用
+contains:
+relations:
+- rationale: "日志平台API"
+  requires:
+  - bklog=__SAME_VERSION__
+bkimports:

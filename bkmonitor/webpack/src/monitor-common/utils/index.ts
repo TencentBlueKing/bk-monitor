@@ -54,8 +54,9 @@ export const setGlobalBizId = () => {
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
   const bizList = window.space_list || [];
   const authList = bizList.filter(item => !item.is_demo);
-  const hasAuth = id => authList.some(item => +id === +item.id);
-  const isDemo = id => bizList.some(item => +item.id === +id && item.is_demo);
+  const hasAuth = id => authList.some(item => +id === +item.bk_biz_id);
+  const isInSpaceList = id => bizList.some(item => +id === +item.bk_biz_id);
+  const isDemo = id => bizList.some(item => +item.bk_biz_id === +id && item.is_demo);
   const spaceUid = getUrlParam('space_uid');
   const spaceItem = spaceUid ? bizList.find(item => item.space_uid === spaceUid) : undefined;
   const isCanAllIn =
@@ -76,6 +77,19 @@ export const setGlobalBizId = () => {
     }
     return false;
   };
+  if (bizId !== window.bk_biz_id && !isInSpaceList(bizId) && hasAuth(window.bk_biz_id)) {
+    if (hasAuth(localBizId)) {
+      window.bk_biz_id = +localBizId;
+      window.cc_biz_id = +localBizId;
+    }
+    const url = new URL(window.location.href);
+    const { searchParams } = url;
+    searchParams.set('bizId', window.bk_biz_id.toString());
+    url.search = searchParams.toString();
+    url.hash = '#/';
+    history.replaceState({}, '', url.toString());
+    bizId = window.bk_biz_id;
+  }
   if (!isCanAllIn && !bizList?.length && !isNoBusiness) {
     location.href = `${location.origin}${location.pathname}#/no-business`;
     return true;
@@ -84,14 +98,14 @@ export const setGlobalBizId = () => {
     if (isNoBusiness && !bizList.length) {
       return true;
     }
-    const newBizId = spaceItem?.id || window.cc_biz_id;
+    const newBizId = spaceItem?.bk_biz_id || window.cc_biz_id;
     // search with space_uid
     if (spaceUid) {
       window.space_uid = spaceUid;
       return setLocationSearch(newBizId);
     }
-    if (bizList.length && !bizList.some(item => +item.id === +newBizId)) {
-      return setLocationSearch(bizList[0].id);
+    if (bizList.length && !bizList.some(item => +item.bk_biz_id === +newBizId)) {
+      return setLocationSearch(bizList[0].bk_biz_id);
     }
     if (newBizId && newBizId !== -1) {
       return setLocationSearch(newBizId);
@@ -127,13 +141,13 @@ export const setGlobalBizId = () => {
           return ['#/no-business'].includes(location.hash.replace(/\?.*/, '')) ? bizId : false;
         }
       } else if (!bizId) {
-        bizId = +bizList[0].id;
+        bizId = +bizList[0].bk_biz_id;
         location.href = `${location.origin}${location.pathname}?bizId=${bizId}#/`;
         return false;
       } else if (!hasAuth(bizId)) {
         setBizId(bizId);
       } else {
-        const isDemoBizId = bizList.some(item => +item.id === +bizId && item.is_demo);
+        const isDemoBizId = bizList.some(item => +item.bk_biz_id === +bizId && item.is_demo);
         if (!isDemoBizId) {
           location.href = `${location.origin}${location.pathname}?bizId=${bizId}#/no-business`;
           return false;
@@ -175,6 +189,7 @@ export const lightenDarkenColor = (color: string, amt: number): string => {
   // 返回修改后的颜色，格式与输入颜色相同（"#" 开头或不带 "#"）
   return (color.startsWith('#') ? '#' : '') + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 };
-
 export * from './constant';
+export * from './docs-link';
 export * from './utils';
+export * from './xss';

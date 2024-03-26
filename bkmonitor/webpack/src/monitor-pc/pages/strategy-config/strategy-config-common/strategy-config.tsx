@@ -26,33 +26,22 @@
  */
 import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
-import {
-  Badge,
-  Button,
-  Checkbox,
-  DropdownMenu,
-  Pagination,
-  Popover,
-  SearchSelect,
-  Switcher,
-  Table,
-  TableColumn
-} from 'bk-magic-vue';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
-import { addListener, removeListener } from 'resize-detector';
-import { debounce } from 'throttle-debounce';
-
-import { CancelToken } from '../../../../monitor-api/index';
-import { exportConfigFile } from '../../../../monitor-api/modules/as_code';
-import { noticeGroupList } from '../../../../monitor-api/modules/notice_group';
-import { disableShield } from '../../../../monitor-api/modules/shield';
+import { CancelToken } from 'monitor-api/index';
+import { exportConfigFile } from 'monitor-api/modules/as_code';
+import { noticeGroupList } from 'monitor-api/modules/notice_group';
+import { disableShield } from 'monitor-api/modules/shield';
 import {
   deleteStrategyV2,
   getScenarioList,
   getStrategyListV2,
   getTargetDetail,
   updatePartialStrategyV2
-} from '../../../../monitor-api/modules/strategies';
+} from 'monitor-api/modules/strategies';
+import { xssFilter } from 'monitor-common/utils/xss';
+import { debounce } from 'throttle-debounce';
+
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
@@ -748,7 +737,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         id: 'operator'
       }
     };
-    this.header.handleSearch = debounce(300, false, () => {
+    this.header.handleSearch = debounce(300, () => {
       this.handleGetListData(false, 1);
     });
     this.createdConditionList();
@@ -1714,7 +1703,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   }
   // 处理监控项tooltips
   handleDescTips(data) {
-    const tips = data.map(item => item.tip).join('');
+    const tips = data.map(item => `<div>${xssFilter(item.tip)}</div>`).join('');
     const res = `<div class="item-description">${tips}</div>`;
     return res;
   }
@@ -1776,7 +1765,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                 content: props.row.strategyName,
                 boundary: 'window',
                 delay: 200,
-                allowHtml: false
+                allowHTML: false
               }}
             >
               <router-link
@@ -1795,7 +1784,12 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             {[
               props.row.isInvalid ? (
                 <i
-                  v-bk-tooltips={{ placements: ['right'], boundary: 'window', content: `${props.row.invalidType}` }}
+                  v-bk-tooltips={{
+                    placements: ['right'],
+                    boundary: 'window',
+                    content: `${props.row.invalidType}`,
+                    allowHTML: false
+                  }}
                   class='icon-monitor icon-shixiao'
                 ></i>
               ) : undefined,
@@ -1805,7 +1799,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   v-bk-tooltips={{
                     placements: ['right'],
                     boundary: 'window',
-                    content: `${this.$t('当前有{n}个未恢复事件', { n: props.row.abnormalAlertCount })}`
+                    content: `${this.$t('当前有{n}个未恢复事件', { n: props.row.abnormalAlertCount })}`,
+                    allowHTML: false
                   }}
                   onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row))}
                 >
@@ -1819,7 +1814,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   v-bk-tooltips={{
                     placements: ['right'],
                     boundary: 'window',
-                    content: `${this.$t('当前有{n}个已屏蔽事件', { n: props.row.shieldAlertCount })}`
+                    content: `${this.$t('当前有{n}个已屏蔽事件', { n: props.row.shieldAlertCount })}`,
+                    allowHTML: false
                   }}
                   onClick={tsx.modifiers.stop(() => this.handleToEventCenter(props.row, 'SHIELDED_ABNORMAL'))}
                 >
@@ -1855,11 +1851,10 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         <span
           class='table-monitor-desc'
           v-bk-tooltips={{
-            html: this.handleDescTips(props.row.itemDescription),
+            content: this.handleDescTips(props.row.itemDescription),
             delay: 200,
             boundary: 'window',
-            content: '.item-description',
-            allowHtml: true
+            allowHTML: true
           }}
         >
           {props.row.itemDescription.map((item, index) => [
@@ -1902,7 +1897,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               placements: ['top-start'],
               boundary: 'window',
               content: () => customTip || props.row[type].join('、 '),
-              delay: 200
+              delay: 200,
+              allowHTML: false
             }}
           >
             {props.row[type].map((item, index) => (
@@ -1945,7 +1941,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     placements: ['top-start'],
                     boundary: 'window',
                     content: () => props.row.labels.join('、 '),
-                    delay: 200
+                    delay: 200,
+                    allowHTML: false
                   }}
                 >
                   ...
@@ -1969,7 +1966,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               placements: ['top-start'],
               boundary: 'window',
               content: () => props.row.noticeGroupNameList.join('、'),
-              delay: 200
+              delay: 200,
+              allowHTML: false
             }}
           >
             {props.row.noticeGroupNameList.map(item => (
@@ -2016,13 +2014,13 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     };
     const enabledDom = (props, type: 'enabled' | 'needPoll' | 'noDataEnabled' /* 通用开关样式 */) => (
       <div class='switch-wrap'>
-        <Switcher
+        <bk-switcher
           key={props.row.id}
           v-model={props.row[type]}
           size='small'
           theme='primary'
           pre-check={() => this.handlePreSwitchChange(props.row, type)}
-        ></Switcher>
+        ></bk-switcher>
         {!this.authority.MANAGE_AUTH ? (
           <div
             v-authority={{ active: !this.authority.MANAGE_AUTH }}
@@ -2054,7 +2052,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             boundary: 'boundary',
             content: () => this.$t('连续{0}个周期内不满足条件表示恢复', [props.row.recovery]),
             disabled: props.row.recovery === '--' /* 兼容关联告警 */,
-            delay: 200
+            delay: 200,
+            allowHTML: false
           }}
         >
           {props.row.recovery}
@@ -2077,7 +2076,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   ])
                 : '',
             disabled: !props.row.triggerConfig,
-            delay: 200
+            delay: 200,
+            allowHTML: false
           }}
         >
           {props.row.trigger}
@@ -2095,11 +2095,16 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       default: props => (
         <div class='col-operator'>
           <span
-            class='col-operator-btn'
+            class={['col-operator-btn', { 'col-operator-disabled': !props.row.editAllowed }]}
             v-authority={{ active: !this.authority.MANAGE_AUTH }}
+            v-bk-tooltips={{
+              placements: ['top'],
+              content: this.$t('内置策略不允许修改'),
+              disabled: props.row.editAllowed
+            }}
             onClick={() =>
               this.authority.MANAGE_AUTH
-                ? this.handleEditStrategy(props.row)
+                ? props.row.editAllowed && this.handleEditStrategy(props.row)
                 : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
             }
           >
@@ -2161,7 +2166,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       app
     } = this.fieldSettingData;
     return (
-      <Table
+      <bk-table
         class='strategy-table'
         empty-text={this.$t('无数据')}
         v-bkloading={{ isLoading: this.table.loading }}
@@ -2184,203 +2189,203 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             onOperation={this.handleOperation}
           />
         </div>
-        <TableColumn
+        <bk-table-column
           type='selection'
           align='center'
           width='50'
-        ></TableColumn>
+        ></bk-table-column>
         {id.checked && (
-          <TableColumn
+          <bk-table-column
             label='ID'
             prop='id'
             width='75'
             scopedSlots={idSlot}
             key='id'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {strategyName.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('策略名')}
             min-width='200'
             scopedSlots={strategyNameSlot}
             key='strategyName'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {itemDescription.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('监控项')}
             min-width='200'
             scopedSlots={itemDescriptionSlot}
             key='itemDescription'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {dataOrigin.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('数据来源')}
             width='110'
             scopedSlots={dataOriginSlot}
             key='dataOrigin'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {target.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('监控目标')}
             width='150'
             scopedSlots={targetSlot}
             key='target'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {labels.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('标签')}
             scopedSlots={labelsSlot}
             key='labels'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {noticeGroupList.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('告警组')}
             scopedSlots={noticeGroupListSlot}
             key='noticeGroupList'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {updator.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('更新记录')}
             width='150'
             scopedSlots={updatorSlot}
             key='updator'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {enabled.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('启/停')}
             width='100'
             scopedSlots={enabledSlot}
             key='enabled'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {dataTypeLabelName.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('策略类型')}
             width='80'
             scopedSlots={{ default: props => props.row.dataTypeLabelName }}
             key='dataTypeLabelName'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {intervalNotifyMode.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('通知间隔类型')}
             width='105'
             scopedSlots={{ default: props => props.row.intervalNotifyMode }}
             key='intervalNotifyMode'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {dataMode.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('查询类型')}
             width='105'
             scopedSlots={{ default: props => props.row.dataMode }}
             key='dataMode'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {notifyInterval.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('通知间隔')}
             width='105'
             scopedSlots={{ default: props => `${props.row.notifyInterval}${this.$t('分钟')}` }}
             key='notifyInterval'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {trigger.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('触发条件')}
             width='105'
             scopedSlots={triggerSlot}
             key='trigger'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {recovery.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('恢复条件')}
             width='105'
             scopedSlots={recoverySlot}
             key='recovery'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {needPoll.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('告警风暴')}
             width='80'
             scopedSlots={needPollSlot}
             key='needPoll'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {noDataEnabled.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('无数据')}
             width='80'
             scopedSlots={noDataEnabledSlot}
             key='noDataEnabled'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {signals.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('通知场景')}
             width='150'
             scopedSlots={signalsSlot}
             key='signals'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {levels.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('级别')}
             width='150'
             scopedSlots={levelsSlot}
             key='levels'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {detectionTypes.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('检测规则类型')}
             width='150'
             scopedSlots={detectionTypesSlot}
             key='detectionTypes'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {mealNames.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('处理套餐')}
             width='150'
             scopedSlots={mealNamesSlot}
             key='mealNames'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {configSource.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('配置来源')}
             width='100'
             scopedSlots={configSourceSlot}
             key='configSource'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {app.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('配置分组')}
             width='100'
             scopedSlots={appSlot}
             key='app'
-          ></TableColumn>
+          ></bk-table-column>
         )}
         {operator.checked && (
-          <TableColumn
+          <bk-table-column
             label={this.$t('操作')}
             width={this.$store.getters.lang === 'en' ? 220 : 150}
             scopedSlots={operatorSlot}
             key='operator'
-          ></TableColumn>
+          ></bk-table-column>
         )}
-      </Table>
+      </bk-table>
     );
   }
 
@@ -2423,11 +2428,16 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             </li>
           )}
           <li
-            class='operator-group-btn'
+            class={['operator-group-btn', { 'btn-disabled': !this.popover.data.editAllowed }]}
             v-authority={{ active: !this.authority.MANAGE_AUTH }}
+            v-bk-tooltips={{
+              placements: ['right', 'left'],
+              content: this.$t('内置策略不允许修改'),
+              disabled: this.popover.data.editAllowed
+            }}
             onClick={() =>
               this.authority.MANAGE_AUTH
-                ? this.handleDeleteRow()
+                ? this.popover.data.editAllowed && this.handleDeleteRow()
                 : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
             }
           >
@@ -2534,7 +2544,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             class='content-right'
           >
             <div class='strategy-config-header'>
-              <Badge
+              <bk-badge
                 class='badge'
                 dot
                 theme='success'
@@ -2547,8 +2557,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                 >
                   <i class='icon-monitor icon-double-up'></i>
                 </span>
-              </Badge>
-              <Button
+              </bk-badge>
+              <bk-button
                 class='header-btn mc-btn-add'
                 theme='primary'
                 v-authority={{ active: !this.authority.MANAGE_AUTH }}
@@ -2558,9 +2568,10 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
                 }
               >
+                <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
-              </Button>
-              <DropdownMenu
+              </bk-button>
+              <bk-dropdown-menu
                 class='header-select'
                 on-show={() => (this.header.dropdownShow = true)}
                 on-hide={() => (this.header.dropdownShow = false)}
@@ -2594,7 +2605,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                         boundary: 'window',
                         disabled: !this.isBatchItemDisabled(option),
                         content: () => this.batchItemDisabledTip(option),
-                        delay: 200
+                        delay: 200,
+                        allowHTML: false
                       }}
                       onClick={() =>
                         this.authority.MANAGE_AUTH &&
@@ -2606,8 +2618,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                     </li>
                   ))}
                 </ul>
-              </DropdownMenu>
-              <SearchSelect
+              </bk-dropdown-menu>
+              <bk-search-select
                 class='header-search'
                 v-model={this.header.keywordObj}
                 show-condition={false}
@@ -2617,11 +2629,11 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                 on-change={this.header.handleSearch}
                 on-clear={this.header.handleSearch}
                 clearable
-              ></SearchSelect>
+              ></bk-search-select>
             </div>
             <div class='strategy-config-wrap'>
               <div class='config-wrap-setting'>
-                <Popover
+                <bk-popover
                   placement='bottom'
                   width='515'
                   theme='light strategy-setting'
@@ -2638,13 +2650,13 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   >
                     <div class='tool-popover-title'>
                       {this.$t('字段显示设置')}
-                      <Checkbox
+                      <bk-checkbox
                         class='all-selection'
                         value={this.fieldAllSelected}
                         onChange={this.handleFieldAllSelected}
                       >
                         {this.$t('全选')}
-                      </Checkbox>
+                      </bk-checkbox>
                     </div>
                     <ul class='tool-popover-content'>
                       {Object.keys(this.fieldSettingData).map(key => (
@@ -2652,22 +2664,22 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                           key={this.fieldSettingData[key].id}
                           class='tool-popover-content-item'
                         >
-                          <Checkbox
+                          <bk-checkbox
                             value={this.fieldSettingData[key].checked}
                             onChange={() => this.handleCheckColChange(this.fieldSettingData[key])}
                             disabled={this.fieldSettingData[key].disable}
                           >
                             {this.fieldSettingData[key].name}
-                          </Checkbox>
+                          </bk-checkbox>
                         </li>
                       ))}
                     </ul>
                   </div>
-                </Popover>
+                </bk-popover>
               </div>
               {this.getTableComponent()}
               {this.table.data?.length ? (
-                <Pagination
+                <bk-pagination
                   v-show={this.tableInstance.total}
                   class='strategy-pagination list-pagination'
                   align='right'
@@ -2680,7 +2692,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   on-change={this.handlePageChange}
                   on-limit-change={this.handleLimitChange}
                   show-total-count
-                ></Pagination>
+                ></bk-pagination>
               ) : undefined}
             </div>
           </div>

@@ -309,6 +309,7 @@ class RealTimeCls(object):
     table_name: str
     result_table_id: str
     filter_rule: Any
+    groups: str = ""
 
 
 @dataclass

@@ -227,13 +227,14 @@ class StatisticsResource(Resource):
 
         return sort_func
 
-    def perform_request(self, validated_request_data):
-        username = get_request_username()
-        permission = Permission(username)
+    @classmethod
+    def is_simple_search(cls, request_data: Dict[str, Any]) -> bool:
+        # 同时满足以下条件，认为该统计是简单查询：无需关键字搜索、分页
+        if all([not request_data.get("search"), request_data["page"] != 0 and request_data["page_size"] <= 15]):
+            return True
 
-        # 优化思路： api.cmdb.get_business 存在对象 <-> dict 来回转换的性能损失
-        # 监控目前的管理粒度为「空间」，采用请求耗时较短的 list_spaces 替换
-        # 逻辑优化：空间总量可能过万，大部分用户都非超管，拉取全部业务 -> 改为拉取有权限的空间，减少带宽损失
+    @classmethod
+    def get_space_data_by_api(cls) -> Dict[str, Any]:
         space_list: List[Dict[str, Any]] = []
         try:
             space_list = resource.commons.list_spaces()
@@ -241,10 +242,41 @@ class StatisticsResource(Resource):
             logger.exception("[StatisticsResource] list_spaces failed")
 
         biz_id__space_map: Dict[int, Dict[str, Any]] = {space["bk_biz_id"]: space for space in space_list}
-        total_biz_ids: Set[int] = set(biz_id__space_map.keys())
-        allowed_biz_ids: Set[int] = set(
-            permission.filter_biz_ids_by_action(action=ActionEnum.VIEW_BUSINESS, bk_biz_ids=total_biz_ids)
-        )
+        allowed_biz_ids: Set[int] = set(biz_id__space_map.keys())
+
+        return {"biz_id__space_map": biz_id__space_map, "allowed_biz_ids": allowed_biz_ids}
+
+    @classmethod
+    def get_space_data_by_cache(cls) -> Dict[str, Any]:
+        username: str = get_request_username()
+        allowed_biz_ids = set(resource.cc.fetch_allow_biz_ids_by_user(username))
+        return {"biz_id__space_map": {}, "allowed_biz_ids": allowed_biz_ids}
+
+    @classmethod
+    def collect_biz_id__space_map(cls, bk_biz_id: int, biz_id__space_map: Dict[int, Dict[str, Any]]):
+        try:
+            space: Dict[str, Any] = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id).to_dict()
+        except Exception:  # noqa
+            return
+        biz_id__space_map[bk_biz_id] = space
+
+    def perform_request(self, validated_request_data):
+        username = get_request_username()
+
+        # 优化思路： pi.cmdb.get_business 存在对象 <-> dict 来回转换的性能损失
+        # 监控目前的管理粒度为「空间」，采用请求耗时较短的 list_spaces 替换
+        # 逻辑优化：空间总量可能过万，大部分用户都非超管，拉取全部业务 -> 改为拉取有权限的空间，减少带宽损失
+        # ---
+        # 缓存优化（get_space_data_by_cache）：对于简单查询来说，仅需空间 ID 和单页的空间信息
+        # 中间件（TrackSiteVisitMiddleware）提前预热「有权限空间 ID 列表」缓存，执行排序分页后拉取单页空间信息，节省全量拉空间的时间消耗
+
+        if self.is_simple_search(validated_request_data):
+            space_data: Dict[str, Any] = self.get_space_data_by_cache()
+        else:
+            space_data: Dict[str, Any] = self.get_space_data_by_api()
+
+        allowed_biz_ids: Set[int] = space_data["allowed_biz_ids"]
+        biz_id__space_map: Dict[int, Dict[str, Any]] = space_data["biz_id__space_map"]
 
         # 依赖数据获取
         favorite_biz_ids: Set[int] = set()
@@ -262,7 +294,7 @@ class StatisticsResource(Resource):
 
         all_data: Dict[str, Any] = resource.home.all_biz_statistics(days=validated_request_data["days"])
 
-        filtered_biz_ids: Set[int] = total_biz_ids
+        filtered_biz_ids: Set[int] = allowed_biz_ids
         filtered_biz_ids: Set[int] = self._filter_by_favorite_only(
             validated_request_data, filtered_biz_ids, favorite_biz_ids
         )
@@ -273,11 +305,6 @@ class StatisticsResource(Resource):
         filtered_biz_ids = self._filter_by_sticky_only(validated_request_data, filtered_biz_ids, sticky_biz_ids)
         filtered_biz_ids = self._filter_by_life_cycle(validated_request_data, filtered_biz_ids)
         filtered_biz_ids = self._filter_by_alert_filter(validated_request_data, filtered_biz_ids, all_data)
-
-        # 少数场景：当 demo / 选中业务不在空间列表内时补偿获取，用于优化之前拉取全部的逻辑
-        for biz_id in [int(settings.DEMO_BIZ_ID), validated_request_data.get("bk_biz_id")]:
-            if biz_id and biz_id in filtered_biz_ids and biz_id not in biz_id__space_map:
-                biz_id__space_map[biz_id] = SpaceApi.get_space_detail(bk_biz_id=biz_id).to_dict()
 
         # 排序：当前业务 > 置顶业务 > 有权限的任务 > 普通业务 > DEMO 业务
         def _get_biz_weight(_biz_id: int):
@@ -300,6 +327,15 @@ class StatisticsResource(Resource):
         if page != 0:
             ordered_filtered_biz_ids = ordered_filtered_biz_ids[(page - 1) * page_size : page * page_size]
 
+        # 补偿拉取不在列表中的空间
+        th_list: List[InheritParentThread] = [
+            InheritParentThread(target=self.collect_biz_id__space_map, args=(biz_id, biz_id__space_map))
+            for biz_id in ordered_filtered_biz_ids
+            if biz_id not in biz_id__space_map
+        ]
+        if th_list:
+            run_threads(th_list)
+
         overview_data: Dict[str, Union[float]] = {
             "biz_count": 0,
             "event_count": 0,
@@ -317,6 +353,7 @@ class StatisticsResource(Resource):
         detail_map = self._get_detail_map(
             all_data,
             allowed_biz_ids,
+            ordered_filtered_biz_ids,
             overview_data,
             filtered_biz_ids,
             favorite_biz_ids,
@@ -464,6 +501,7 @@ class StatisticsResource(Resource):
     def _get_detail_map(
         all_data: Dict[str, Any],
         allowed_biz_ids: Set[int],
+        ordered_filtered_biz_ids: List[int],
         overview_data: Dict[str, Union[int, float]],
         filtered_biz_ids: Set[int],
         favorite_biz_ids: Set[int],
@@ -488,13 +526,7 @@ class StatisticsResource(Resource):
                     "count_recover_duration": 0,
                 },
             )
-            biz_action_data: Dict[str, int] = all_data["action"].get(
-                biz_id_str,
-                {
-                    "count": 0,
-                    "auto_recovery_count": 0,
-                },
-            )
+            biz_action_data: Dict[str, int] = all_data["action"].get(biz_id_str, {"count": 0, "auto_recovery_count": 0})
 
             # 仅统计有权限且非 DEMO 业务的总数
             if biz_id in allowed_biz_ids and biz_id != int(settings.DEMO_BIZ_ID):
@@ -510,8 +542,9 @@ class StatisticsResource(Resource):
                 overview_data["sum_recover_duration"] += biz_alert_data["sum_recover_duration"]
                 overview_data["count_recover_duration"] += biz_alert_data["count_recover_duration"]
 
-            if biz_id not in biz_id__space_map:
+            if biz_id not in ordered_filtered_biz_ids or biz_id not in biz_id__space_map:
                 continue
+
             space: Dict[str, Any] = biz_id__space_map[biz_id]
 
             # 展示过滤业务

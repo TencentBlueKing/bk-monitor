@@ -196,7 +196,7 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 class EsQueryScrollAttrSerializer(serializers.Serializer):
     indices = serializers.CharField(required=False)
     scenario_id = serializers.ChoiceField(choices=Scenario.CHOICES)
-    storage_cluster_id = serializers.IntegerField()
+    storage_cluster_id = serializers.IntegerField(required=False, default=-1, allow_null=True)
     scroll_id = serializers.CharField(required=True)
     scroll = serializers.CharField(required=False, default=SCROLL)
 
@@ -329,6 +329,8 @@ class EsQueryDslAttrSerializer(serializers.Serializer):
 
     scenario_id = serializers.CharField(required=False, default="log", allow_null=True, allow_blank=True)
     storage_cluster_id = serializers.IntegerField(required=False, default=-1, allow_null=True)
+    # 添加scroll参数
+    scroll = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     bkdata_authentication_method = serializers.CharField(required=False)
     bkdata_data_token = serializers.CharField(required=False)

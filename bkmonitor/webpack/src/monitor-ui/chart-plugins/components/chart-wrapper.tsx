@@ -25,14 +25,13 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+// import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
+import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { PanelToolsType } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { IQueryOption } from '../../../monitor-pc/pages/performance/performance-type';
-import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-// import ViewDetail from '../../../monitor-pc/pages/view-detail/view-detail.vue';
-import ViewDetail from '../../../monitor-pc/pages/view-detail/view-detail-new';
-import watermarkMaker from '../../monitor-echarts/utils/watermarkMaker';
 import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
@@ -51,6 +50,7 @@ import PercentageBarChart from '../plugins/percentage-bar/percentage-bar';
 import PerformanceChart from '../plugins/performance-chart/performance-chart';
 import PieEcharts from '../plugins/pie-echart/pie-echart';
 import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
+import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
 import RelationGraph from '../plugins/relation-graph/relation-graph';
@@ -70,6 +70,8 @@ import './chart-wrapper.scss';
 
 interface IChartWrapperProps {
   panel: PanelModel;
+  chartChecked?: boolean;
+  collapse?: boolean;
   detectionConfig?: IDetectionConfig;
   needHoverStryle?: boolean;
   needCheck?: boolean;
@@ -94,6 +96,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Object }) detectionConfig: IDetectionConfig;
   /* 是否可选中图表 */
   @Prop({ type: Boolean, default: true }) needCheck: boolean;
+  @Prop({ type: Boolean, default: undefined }) collapse: boolean;
+  @Prop({ type: Boolean, default: undefined }) chartChecked: boolean;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -140,11 +144,14 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
     return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
   }
 
-  mounted() {
-    if (window.graph_watermark) {
-      this.waterMaskImg = watermarkMaker(window.user_name || window.username);
-    }
+  get isChecked() {
+    return this.chartChecked === undefined ? this.panel.checked : this.chartChecked;
   }
+
+  get isCollapsed() {
+    return this.collapse === undefined ? this.panel.collapsed : this.collapse;
+  }
+
   /**
    * @description: 供子组件更新loading的状态
    * @param {boolean} loading
@@ -193,11 +200,11 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
   @Emit('chartCheck')
   handleChartCheck() {
-    return !this.panel.checked;
+    return !this.isChecked;
   }
   @Emit('collapse')
   handleCollapsed() {
-    return !this.panel.collapsed;
+    return !this.isCollapsed;
   }
   @Emit('changeHeight')
   handleChangeHeight(height: number) {
@@ -416,6 +423,15 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             clearErrorMsg={this.handleClearErrorMsg}
           />
         );
+      case 'profiling':
+        return (
+          <ProfilinGraph
+            panel={this.panel}
+            onLoading={this.handleChangeLoading}
+            onErrorMsg={this.handleErrorMsgChange}
+            clearErrorMsg={this.handleClearErrorMsg}
+          />
+        );
       case 'related-log-chart':
         return (
           <RelatedLogChart
@@ -497,8 +513,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         class={{
           'chart-wrapper': true,
           'grafana-check': this.panel.canSetGrafana,
-          'is-checked': this.panel.checked,
-          'is-collapsed': this.panel.collapsed,
+          'is-checked': this.isChecked,
+          'is-collapsed': this.isCollapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
           'row-chart': this.panel.type === 'row'
         }}
@@ -511,6 +527,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           <img
             class='loading-icon'
             src={loadingIcon}
+            alt=''
           ></img>
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
@@ -527,10 +544,12 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             on-close-modal={this.handleCloseViewDetail}
           />
         )}
-        {!!this.waterMaskImg && (
+        {!!window.graph_watermark && (
           <div
             class='wm'
-            style={{ backgroundImage: `url('${this.waterMaskImg}')` }}
+            v-watermark={{
+              text: window.user_name || window.username
+            }}
           ></div>
         )}
         {!!this.errorMsg && (
@@ -539,7 +558,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             v-bk-tooltips={{
               content: this.errorMsg,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start'
+              placement: 'top-start',
+              allowHTML: false
             }}
           ></span>
         )}

@@ -25,12 +25,11 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { VirtualRender } from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import { Debounce } from 'monitor-common/utils/utils';
+import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import { deleteItem, itemList } from '../../../monitor-api/modules/calendar';
-import { Debounce } from '../../../monitor-common/utils/utils';
-import StatusTab from '../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { Storage } from '../../utils';
@@ -61,11 +60,7 @@ interface IEvents {
 /**
  * 日历服务事项列表
  */
-@Component({
-  components: {
-    VirtualRender
-  }
-})
+@Component
 export default class CalendarList extends tsc<IProps, IEvents> {
   /** 日历列表 */
   @Prop({ type: Array, default: () => [] }) calendarList: IOptionsItem[];

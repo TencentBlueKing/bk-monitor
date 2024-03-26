@@ -192,10 +192,10 @@
 </template>
 <script lang="ts">
 import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import { getMetricList } from 'monitor-api/modules/strategies';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce, throttle } from 'throttle-debounce';
 
-import { getMetricList } from '../../../../../monitor-api/modules/strategies';
-import MonitorDialog from '../../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
 import documentLinkMixin from '../../../../mixins/documentLinkMixin';
 import MonitorVue from '../../../../types/index';
 import {
@@ -333,8 +333,8 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
 
   created() {
     this.searchObj.data = this.getSearchOptions();
-    this.handleSearch = debounce(300, false, this.filterMetric);
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.handleSearch = debounce(300, this.filterMetric);
+    this.throttledScroll = throttle(300, this.handleScroll);
     this.dataSource = {
       bk_monitor_time_series: {
         count: 0,

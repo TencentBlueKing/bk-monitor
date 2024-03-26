@@ -97,7 +97,7 @@ export interface DateTime extends Object {
 
 export const setLocale = (language: string) => {
   dayjs.locale();
-}
+};
 
 export const toUtc = (input?, formatInput?): DateTime => dayjs.utc(input, formatInput) as unknown as DateTime;
 
@@ -107,14 +107,10 @@ export const dateTime = (input?, formatInput?): DateTime => dayjs(input, formatI
 
 export const dateTimeAsMoment = (input?: DateTimeInput) => dateTime(input);
 
-export const dateTimeForTimeZone = (
-  timezone?,
-  input?: DateTimeInput,
-  formatInput?: FormatInput
-): DateTime => {
+export const dateTimeForTimeZone = (timezone?, input?: DateTimeInput, formatInput?: FormatInput): DateTime => {
   if (timezone === 'utc') {
     return toUtc(input, formatInput);
   }
 
   return dateTime(input, formatInput);
-}
+};

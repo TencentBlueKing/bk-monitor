@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { deepClone } from '../../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import { IBkSeachSelectValue, IQueryDataSearch, IWhere } from '../typings';
 
 /** 视图的设置页面的弹层层级 */

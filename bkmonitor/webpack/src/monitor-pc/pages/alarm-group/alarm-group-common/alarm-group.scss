@@ -1,92 +1,170 @@
-.alarm-group-list-wrap {
-  padding: 20px 24px 0;
-  font-size: 12px;
+/* stylelint-disable declaration-no-important */
+.alarm-group-list-page {
+  margin: 0 !important;
 
-  &.pd0 {
-    padding: 0;
-  }
-
-  .alarm-group-tool {
+  .alarm-group-list-page-header {
     display: flex;
-
-    .tool-btn {
-      margin-right: auto;
-    }
-
-    .tool-search {
-      width: 360px;
-    }
+    align-items: center;
+    width: 100%;
+    height: 52px;
+    padding-left: 24px;
+    font-size: 16px;
+    color: #313238;
+    background: #fff;
+    box-shadow: 0 3px 4px 0 #0000000a;
   }
 
-  .alarm-group-table {
-    margin-top: 16px;
+  .alarm-group-list-page-content {
+    max-height: calc(100vh - 104px);
+    overflow: auto;
+  }
 
-    .col {
-      &-appstrategy {
-        width: 59px;
-        text-align: right;
+  .alarm-group-list-wrap {
+    padding: 24px;
+    margin: 24px;
+    font-size: 12px;
+    background: #fff;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    .mr-6 {
+      margin-right: 6px;
+    }
+
+    &.pd0 {
+      padding: 0;
+    }
+
+    .alarm-group-tool {
+      display: flex;
+
+      .tool-btn {
+        margin-right: auto;
+      }
+
+      .tool-search {
+        width: 360px;
+        background: #fff;
       }
     }
 
-    .notice-group-name {
-      color: #3a84ff;
-      cursor: pointer;
-    }
+    .alarm-group-table {
+      margin-top: 16px;
 
-    .strategy-num {
-      color: #3a84ff;
-      cursor: pointer;
-    }
-
-    .btn-disabled {
-      color: #c4c6cc;
-      cursor: not-allowed;
-
-      &:hover {
-        cursor: not-allowed;
-        background: transparent;
+      .col {
+        &-appstrategy {
+          width: 59px;
+          text-align: right;
+        }
       }
 
-      i {
+      .notice-group-name {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .strategy-num {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .btn-disabled {
         color: #c4c6cc;
+        cursor: not-allowed;
+
+        &:hover {
+          cursor: not-allowed;
+          background: transparent;
+        }
+
+        i {
+          color: #c4c6cc;
+        }
+      }
+
+      .col-btn {
+        margin-right: 8px;
+      }
+
+      .col-name {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: 58px;
+
+        &-label {
+          margin-bottom: 3px;
+        }
       }
     }
 
-    .col-btn {
-      margin-right: 8px;
-    }
+    .alarm-group-pagination {
+      .config-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        height: 60px;
+        padding: 0 20px;
+        background: #fff;
 
-    .col-name {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      height: 58px;
+        // border: 1px solid #dcdee5;
+        border-top: 0;
 
-      &-label {
-        margin-bottom: 3px;
+        .bk-page-count {
+          margin-right: auto !important;
+        }
       }
     }
-  }
 
-  .alarm-group-pagination {
-    .config-pagination {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      height: 60px;
-      padding: 0 20px;
-      background: #fff;
-      border: 1px solid #dcdee5;
-      border-top: 0;
+    .bk-button-text {
+      padding-left: 0;
+    }
 
-      .bk-page-count {
-        /* stylelint-disable-next-line declaration-no-important */
-        margin-right: auto !important;
+    .col-rules {
+      position: relative;
+      height: 30px;
+
+      &-wrap {
+        margin-right: 25px;
+        overflow: hidden;
+
+        .wrap-label {
+          float: left;
+          max-width: 100%;
+          height: 24px;
+          padding: 0 5px;
+          margin: 3px;
+          font-size: 12px;
+          line-height: 24px;
+          background: #fafbfd;
+          border: 1px solid #dcdee5;
+          border-radius: 2px;
+
+          &:first-child {
+            margin-left: 0;
+          }
+
+          .label-name {
+            display: inline-block;
+            height: 24px;
+            padding: 0 7px;
+            line-height: 24px;
+            text-align: center;
+
+            &:first-child {
+              background: #fff;
+              border-right: 1px solid #dcdee5;
+            }
+          }
+        }
+
+        .text-overflow {
+          display: inline-block;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       }
     }
-  }
-
-  .bk-button-text {
-    padding-left: 0;
   }
 }

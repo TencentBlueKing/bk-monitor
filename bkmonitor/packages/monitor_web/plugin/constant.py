@@ -183,7 +183,7 @@ PLUGIN_REVERSED_DIMENSION = [
     ("bk_cloud_id", _("采集器云区域ID")),
     ("ip", _("采集器IP")),
     ("bk_cmdb_level", _("CMDB层级信息")),
-    ("bk_agent_id", _("Agent ID")),
+    ("bk_agent_id", "Agent ID"),
 ]
 
 

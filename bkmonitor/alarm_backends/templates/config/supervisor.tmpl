@@ -31,19 +31,6 @@ stopasgroup=true
 killasgroup=true
 
 
-[program:healthz]
-command=bash -c "sleep 10 && exec python manage.py run_service -s selfmonitor healthz"
-numprocs=1                    ; number of processes copies to start (def 1)
-priority=100                  ; the relative start priority (default 999)
-startsecs=0                   ; number of secs prog must stay running (def. 1)
-autostart=false
-autorestart=true
-stdout_logfile=/dev/null
-redirect_stderr=true
-stopasgroup=true
-killasgroup=true
-
-
 [program:healthz_daemon]
 command=bash -c "sleep 10 && exec python manage.py healthz -d -i 600"
 numprocs=1                    ; number of processes copies to start (def 1)
@@ -316,4 +303,4 @@ programs=celery_beat,celery_worker_service,celery_worker_cron,celery_image_expor
 programs=access_data,access_real_time_data,access_gse_event,access_custom_event,detect,nodata,trigger,event_generator,event_manager,action
 
 [group:selfmonitor]
-programs=healthz,logging,healthz_daemon
+programs=logging,healthz_daemon

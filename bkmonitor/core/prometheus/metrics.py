@@ -436,7 +436,7 @@ ALARM_CACHE_TASK_TIME = Histogram(
     name="bkmonitor_alarm_cache_task_time",
     documentation="数据缓存任务执行耗时",
     labelnames=("bk_biz_id", "type", "exception"),
-    buckets=(10, 30, 60, INF),
+    buckets=(1, 3, 5, 10, 30, 60, 300, INF),
 )
 
 # mail report
@@ -451,6 +451,18 @@ MAIL_REPORT_SEND_COUNT = Counter(
     name="bkmonitor_mail_report_send_count",
     documentation="邮件订阅报表发送数量",
     labelnames=("item_id", "status", "exception"),
+)
+
+CELERY_TASK_EXECUTE_TIME = Histogram(
+    name="bkmonitor_celery_task_execute_time",
+    documentation="celery 任务执行耗时",
+    labelnames=("task_name", "queue", "exception"),
+    buckets=(0.1, 0.5, 1, 3, 5, 10, 30, 60, 300, 1800, INF),
+)
+
+
+ALARM_CONTEXT_GET_FIELD_TIME = Histogram(
+    name="bkmonitor_alarm_context_get_field_time", documentation="处理套餐上下文字段获取耗时", labelnames=("field", "exception")
 )
 
 TOTAL_TAG = "__total__"

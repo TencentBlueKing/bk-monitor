@@ -331,5 +331,8 @@ export default {
     "Datadog is a one-stop cloud performance monitoring platform with rich collection capabilities. BlueKing Monitoring is compatible with Datadog's collection capabilities, and currently users cannot customize plug-ins. Because Datadog is written by python, it needs a python executable environment and does not need to occupy a port",
   '事件内容，必需项': 'Event content, required',
   '指标，必需项': 'Metrics, Required',
-  '来源标识如IP，必需项': 'Source identification such as IP, required'
+  '来源标识如IP，必需项': 'Source identification such as IP, required',
+  '单个 trace 中 30 分钟没有 span 上报，会自动结束；单个 trace 最大时长 1 天':
+    'If no span is reported for 30 minutes in a single trace, it will end automatically; the maximum duration of a single trace is 1 day',
+  对非必采的部分按TraceID进行采样: 'Sampling non-essential parts according to TraceID'
 };

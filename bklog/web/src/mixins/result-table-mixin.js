@@ -21,10 +21,8 @@
  */
 
 import { mapState } from 'vuex';
-import { formatDate, random, copyMessage } from '@/common/util';
+import { formatDate, random, copyMessage, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
-import EventPopover from '@/views/retrieve/result-comp/event-popover.vue';
-import RegisterColumn from '@/views/retrieve/result-comp/register-column.vue';
 import TextHighlight from 'vue-text-highlight';
 import OperatorTools from '@/views/retrieve/result-table-panel/original-log/operator-tools';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
@@ -36,87 +34,115 @@ import OriginalLightHeight from '@/views/retrieve/result-comp/original-light-hei
 
 export default {
   components: {
-    EventPopover,
     TextHighlight,
     OperatorTools,
     RetrieveLoader,
     TableColumn,
     ExpandView,
-    RegisterColumn,
     EmptyView,
     TimeFormatterSwitcher,
-    OriginalLightHeight,
+    OriginalLightHeight
   },
   mixins: [tableRowDeepViewMixin],
   props: {
     tableList: {
       type: Array,
-      required: true,
+      required: true
     },
     originTableList: {
       type: Array,
-      required: true,
+      required: true
     },
     totalFields: {
       type: Array,
-      required: true,
+      required: true
     },
     visibleFields: {
       type: Array,
-      required: true,
+      required: true
     },
     showFieldAlias: {
       type: Boolean,
-      default: false,
+      default: false
     },
     fieldAliasMap: {
       type: Object,
-      default: () => { },
+      default: () => {}
     },
     isWrap: {
       type: Boolean,
-      default: false,
+      default: false
     },
     retrieveParams: {
       type: Object,
-      required: true,
+      required: true
     },
     tableLoading: {
       type: Boolean,
-      required: true,
+      required: true
     },
     isPageOver: {
       type: Boolean,
-      required: false,
+      required: false
     },
     timeField: {
       type: String,
-      default: '',
+      default: ''
     },
     operatorConfig: {
       type: Object,
-      required: true,
+      required: true
     },
-    handleClickTools: Function,
+    handleClickTools: Function
   },
   data() {
     return {
       formatDate,
-      curHoverIndex: -1, // 当前鼠标hover行的索引
       cacheExpandStr: [], // 记录展开收起的行
       cacheOverFlowCol: [], // 记录超出四行高度的列
       tableRandomKey: '',
       /** 原始日志复制弹窗实例 */
       originStrInstance: null,
       /** 当前需要复制的原始日志 */
-      hoverOriginStr: '',
+      hoverOriginStr: ''
     };
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
+    ...mapState(['isNotVisibleFieldsShow', 'clearTableWidth']),
     showHandleOption() {
-      return Boolean(this.visibleFields.length);
+      return Boolean(this.tableList.length);
     },
+    getOperatorToolsWidth() {
+      return this.operatorConfig?.bcsWebConsole?.is_active ? '84' : '58';
+    },
+    getShowTableVisibleFields() {
+      this.tableRandomKey = random(6);
+      return this.isNotVisibleFieldsShow ? this.fullQuantityFields : this.visibleFields;
+    },
+    /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
+    fullQuantityFields() {
+      const dataFields = [];
+      const indexSetFields = [];
+      const logFields = [];
+      this.totalFields.forEach(item => {
+        if (item.field_type === 'date') {
+          dataFields.push(item);
+        } else if (item.field_name === 'log' || item.field_alias === 'original_text') {
+          logFields.push(item);
+        } else if (!(item.field_type === '__virtual__' || item.is_built_in)) {
+          indexSetFields.push(item);
+        }
+      });
+      const sortIndexSetFieldsList = indexSetFields.sort((a, b) => {
+        const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+        const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+        return sortA.localeCompare(sortB);
+      });
+      const sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      setDefaultTableWidth(sortFieldsList, this.tableList);
+      return sortFieldsList;
+    }
   },
   watch: {
     retrieveParams: {
@@ -124,35 +150,42 @@ export default {
       handler() {
         this.cacheExpandStr = [];
         this.cacheOverFlowCol = [];
-      },
+      }
     },
-    '$route.params.indexId'() { // 切换索引集重置状态
+    '$route.params.indexId'() {
+      // 切换索引集重置状态
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
     },
-    visibleFields: {
-      deep: true,
-      handler(list) {
-        this.tableRandomKey = random(6);
-        if (list.length !== 0) {
-          const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-          const { params: { indexId }, query: { bizId } } = this.$route;
-          let widthObj = {};
+    clearTableWidth() {
+      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      const {
+        params: { indexId },
+        query: { bizId }
+      } = this.$route;
+      if (columnObj === null || JSON.stringify(columnObj) === '{}') {
+        return;
+      }
+      const isHaveBizId = Object.keys(columnObj).some(el => el === bizId);
 
-          for (const bizKey in columnObj) {
-            if (bizKey === bizId) {
-              for (const fieldKey in columnObj[bizId].fields) {
-                fieldKey === indexId && (widthObj = columnObj[bizId].fields[indexId]);
-              }
+      if (!isHaveBizId || columnObj[bizId].fields[indexId] === undefined) {
+        return;
+      }
+
+      for (const bizKey in columnObj) {
+        if (bizKey === bizId) {
+          for (const fieldKey in columnObj[bizKey].fields) {
+            if (fieldKey === indexId) {
+              delete columnObj[bizId].fields[indexId];
+              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexId, 1));
+              columnObj[bizId].indexsetIds.length === 0 && delete columnObj[bizId];
             }
           }
-
-          list.forEach((el, index) => {
-            el.width = widthObj[index] || el.width;
-          });
         }
-      },
-    },
+      }
+
+      localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
+    }
   },
   methods: {
     handleShowWhole(index) {
@@ -170,8 +203,7 @@ export default {
 
       const markVal = content.match(/(<mark>).*?(<\/mark>)/g) || [];
       if (markVal.length) {
-        markList = markVal.map(item => item.replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, ''));
+        markList = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
       }
 
       return markList;
@@ -182,7 +214,8 @@ export default {
 
       const markVal = content.match(/(<mark>).*?(<\/mark>)/g) || [];
       if (markVal.length) {
-        value = String(value).replace(/<mark>/g, '')
+        value = String(value)
+          .replace(/<mark>/g, '')
           .replace(/<\/mark>/g, '');
       }
 
@@ -193,24 +226,17 @@ export default {
       if (column.className && column.className.includes('original-str')) return;
       const ele = this.$refs.resultTable;
       ele.toggleRowExpansion(row);
-      this.curHoverIndex = -1;
-    },
-    handleMouseEnter(index) {
-      this.curHoverIndex = index;
-    },
-    handleMouseLeave() {
-      this.curHoverIndex = -1;
     },
     handleHeaderDragend(newWidth, oldWidth, { index }) {
-      const { params: { indexId }, query: { bizId } } = this.$route;
+      const {
+        params: { indexId },
+        query: { bizId }
+      } = this.$route;
       if (index === undefined || bizId === undefined || indexId === undefined) {
         return;
       }
       // 缓存其余的宽度
-      const widthObj = this.visibleFields.reduce((pre, cur, index) => {
-        pre[index] = cur.width;
-        return pre;
-      }, {});
+      const widthObj = {};
       widthObj[index] = Math.ceil(newWidth);
 
       let columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
@@ -243,82 +269,89 @@ export default {
     },
     // eslint-disable-next-line no-unused-vars
     renderHeaderAliasName(h, { column, $index }) {
-      const field = this.visibleFields[$index - 1];
-      const isShowSwitcher = field.field_type === 'date';
+      const field = this.getShowTableVisibleFields[$index - 1];
+      const isShowSwitcher = field?.field_type === 'date';
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
         const fieldIcon = this.getFieldIcon(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
 
-        return h('div', {
-          class: 'render-header',
-        }, [
-          h('span', {
-            class: `field-type-icon ${fieldIcon}`,
-            style: {
-              marginRight: '4px',
-            },
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: content,
+        return h(
+          'div',
+          {
+            class: 'render-header'
+          },
+          [
+            h('span', {
+              class: `field-type-icon ${fieldIcon}`,
+              style: {
+                marginRight: '4px'
               },
-            ],
-          }),
-          h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [fieldName]),
-          h(TimeFormatterSwitcher, {
-            class: 'timer-formatter',
-            style: {
-              display: isShowSwitcher ? 'inline-block' : 'none',
-            },
-          }),
-          h('i', {
-            class: `bk-icon icon-minus-circle-shape toggle-display ${this.visibleFields.length === 1 ? 'is-hidden' : ''}`,
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('将字段从表格中移除'),
-              },
-            ],
-            on: {
-              click: (e) => {
-                e.stopPropagation();
-                const displayFieldNames = [];
-                this.visibleFields.forEach((field) => {
-                  if (field.field_name !== fieldName) {
-                    displayFieldNames.push(field.field_name);
-                  }
-                });
-                this.$emit('fieldsUpdated', displayFieldNames, undefined, false);
-              },
-            },
-          }),
-        ]);
+              directives: [
+                {
+                  name: 'bk-tooltips',
+                  value: content
+                }
+              ]
+            }),
+            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [fieldName]),
+            h(TimeFormatterSwitcher, {
+              class: 'timer-formatter',
+              style: {
+                display: isShowSwitcher ? 'inline-block' : 'none'
+              }
+            }),
+            h('i', {
+              class: `bk-icon icon-minus-circle-shape toggle-display ${this.isNotVisibleFieldsShow ? 'is-hidden' : ''}`,
+              directives: [
+                {
+                  name: 'bk-tooltips',
+                  value: this.$t('将字段从表格中移除')
+                }
+              ],
+              on: {
+                click: e => {
+                  e.stopPropagation();
+                  const displayFieldNames = [];
+                  this.visibleFields.forEach(field => {
+                    if (field.field_name !== fieldName) {
+                      displayFieldNames.push(field.field_name);
+                    }
+                  });
+                  this.$emit('fieldsUpdated', displayFieldNames, undefined, false);
+                }
+              }
+            })
+          ]
+        );
       }
     },
-    handleIconClick(type, content, field, row) {
+    handleIconClick(type, content, field, row, isLink) {
       let value = field.field_type === 'date' ? row[field.field_name] : content;
-      value = String(value).replace(/<mark>/g, '')
+      value = String(value)
+        .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
-      if (type === 'search') { // 将表格单元添加到过滤条件
-        this.$emit('addFilterCondition', field.field_name, 'eq', value);
-      } else if (type === 'copy') { // 复制单元格内容
+      if (type === 'search') {
+        // 将表格单元添加到过滤条件
+        this.$emit('addFilterCondition', field.field_name, 'eq', value, isLink);
+      } else if (type === 'copy') {
+        // 复制单元格内容
         copyMessage(value);
       } else if (['is', 'is not'].includes(type)) {
-        this.$emit('addFilterCondition', field.field_name, type, value === '--' ? '' : value.toString());
+        this.$emit('addFilterCondition', field.field_name, type, value === '--' ? '' : value.toString(), isLink);
       }
     },
     getFieldIcon(fieldType) {
       return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
     },
-    handleMenuClick(option) {
+    handleMenuClick(option, isLink) {
       switch (option.operation) {
         case 'is':
         case 'is not':
           // eslint-disable-next-line no-case-declarations
           const { fieldName, operation, value } = option;
-          this.$emit('addFilterCondition', fieldName, operation, value === '--' ? '' : value.toString());
+          this.$emit('addFilterCondition', fieldName, operation, value === '--' ? '' : value.toString(), isLink);
           break;
         case 'copy':
           copyMessage(option.value);
@@ -331,32 +364,6 @@ export default {
       }
     },
     /**
-     * @desc: 鼠标放到原始日志上
-     * @param {Element} e hover的dom
-     * @param {String} originStr hover的原始日志的字符串
-     */
-    handleHoverFavoriteName(e, originStr = '') {
-      if (!this.originStrInstance) {
-        this.hoverOriginStr = originStr;
-        this.originStrInstance = this.$bkPopover(e.target, {
-          content: this.$refs.copyTools,
-          arrow: true,
-          placement: 'top',
-          offset: '0, -50',
-          theme: 'light',
-          allowHTML: true,
-          interactive: true,
-          appendTo: 'parent',
-          boundary: this.scrollContent,
-          onHidden: () => {
-            this.originStrInstance?.destroy();
-            this.originStrInstance = null;
-          },
-        });
-        this.originStrInstance.show(500);
-      }
-    },
-    /**
      * @desc: 单条字段排序
      * @param {Object} column 字段信息
      * @param {String} order 排序
@@ -364,10 +371,10 @@ export default {
     handleSortTable({ column, order }) {
       const sortMap = {
         ascending: 'asc',
-        descending: 'desc',
+        descending: 'desc'
       };
       const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
       this.$emit('shouldRetrieve', { sort_list: sortList }, false);
-    },
-  },
+    }
+  }
 };

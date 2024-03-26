@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import kafka
 import requests
@@ -34,18 +34,39 @@ class ResultTableAndDataSource:
         self.bcs_cluster_id = bcs_cluster_id
 
     def get_detail(self):
+        detail = self.get_basic_detail(self.bk_data_id)
         # 获取table id和data id
-        bk_data_id_list, table_id_list = self.get_data_and_table_id_list()
+        try:
+            table_id_data_id = self.get_table_id_data_id()
+        except Exception as e:
+            logger.error("get table_id and data_id error, error: %s", e)
+            table_id_data_id = {}
+
+        # 如果都不存在，则直接返回
+        if not (detail or table_id_data_id):
+            return []
+
+        # 如果存在数据源基本信息，但是没有对应后续的链路信息，则直接返回
+        if detail and not table_id_data_id:
+            return [detail]
+        # 组装获取数据详情
         data = []
-        for data_id, table_id in list(zip(bk_data_id_list, table_id_list)):
-            data_source = self.get_data_source(data_id)
-            detail = {"data_source": data_source}
-            detail.update(self.get_biz_info(table_id, data_source))
-            detail.update(self.get_clusters(data_id))
+        for table_id, data_id in table_id_data_id.items():
+            if not detail:
+                detail = self.get_basic_detail(data_id)
+            detail.update(self.get_biz_info(table_id, detail["data_source"]))
             detail.update(self.get_storage_cluster(table_id))
             detail.update(self.get_influxdb_instance_cluster(table_id))
             data.append(detail)
         return data
+
+    def get_basic_detail(self, data_id: int) -> Dict:
+        detail = {}
+        # 如果传递的数据源，则查询数据源信息
+        if data_id:
+            detail = {"data_source": self.get_data_source(data_id)}
+            detail.update(self.get_clusters(data_id))
+        return detail
 
     def get_data_source(self, bk_data_id: int) -> Dict:
         """获取数据源信息
@@ -60,44 +81,32 @@ class ResultTableAndDataSource:
 
         return {"bk_data_id": ds.bk_data_id, "bk_data_name": ds.data_name, "space_uid": ds.space_uid}
 
-    def get_data_and_table_id_list(self) -> Tuple[List, List]:
-        """获取数据源ID和结果表ID"""
-        table_id_list, bk_data_id_list = [], []
+    def get_table_id_data_id(self) -> Dict:
+        """
+        获取数据源ID和结果表ID
+
+        1. 如果结果表存在，则以结果表查询数据源，这里仅存在一个
+        2. 否则，如果数据源存在，则通过数据源查询结果表，这里可能会存在多个
+        3. 否则，则按照过滤对应的数据源，然后查询到相应的结果表，一个集群会存在两个必要数据源
+        """
         if self.table_id:
-            bk_data_id_list.append(self.get_bk_data_id())
-            table_id_list.append(self.table_id)
+            obj = models.DataSourceResultTable.objects.get(table_id=self.table_id)
+            return {obj.table_id: obj.bk_data_id}
         elif self.bk_data_id:
-            bk_data_id_list.append(self.bk_data_id)
-            table_id_list.extend(self.get_table_id())
+            return {
+                obj.table_id: obj.bk_data_id
+                for obj in models.DataSourceResultTable.objects.filter(bk_data_id=self.bk_data_id)
+            }
         else:
-            bk_data_id_list, table_id_list = self.get_data_and_table_id_by_cluster()
-
-        return bk_data_id_list, table_id_list
-
-    def get_table_id(self) -> List:
-        if self.table_id:
-            return self.table_id
-        return list(
-            models.DataSourceResultTable.objects.filter(bk_data_id=self.bk_data_id).values_list("table_id", flat=True)
-        )
-
-    def get_bk_data_id(self) -> int:
-        if self.bk_data_id:
-            return self.bk_data_id
-        dr = models.DataSourceResultTable.objects.get(table_id=self.table_id)
-        return dr.bk_data_id
-
-    def get_data_and_table_id_by_cluster(self) -> Tuple[List, List]:
-        cluster_record = models.BCSClusterInfo.objects.get(cluster_id=self.bcs_cluster_id)
-        bk_data_id_list = [
-            cluster_record.K8sMetricDataID,
-            cluster_record.CustomMetricDataID,
-            cluster_record.K8sEventDataID,
-        ]
-        table_id_list = []
-        for data_id in bk_data_id_list:
-            table_id_list.append(models.DataSourceResultTable.objects.get(bk_data_id=data_id).table_id)
-        return bk_data_id_list, table_id_list
+            cluster_record = models.BCSClusterInfo.objects.get(cluster_id=self.bcs_cluster_id)
+            bk_data_id_list = [
+                cluster_record.K8sMetricDataID,
+                cluster_record.CustomMetricDataID,
+            ]
+            return {
+                obj.table_id: obj.bk_data_id
+                for obj in models.DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_id_list)
+            }
 
     def get_biz_info(self, table_id: str, data_source: Dict) -> Dict:
         try:
@@ -176,6 +185,8 @@ class ResultTableAndDataSource:
                 "bk_base_data_id": obj.bk_base_data_id,
                 "vm_result_table_id": obj.vm_result_table_id,
             }
+        else:
+            storage_dict[models.ClusterInfo.TYPE_VM] = {}
 
         return storage_dict
 

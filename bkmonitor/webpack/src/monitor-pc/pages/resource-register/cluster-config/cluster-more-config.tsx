@@ -25,7 +25,6 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Option, Select } from 'bk-magic-vue';
 
 import SpaceSelect from '../../../components/space-select/space-select';
 import { EScopes, EsSpaceScopes } from '../type';
@@ -149,19 +148,19 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                       ))}
                     </bk-radio-group>
                     {this.localFormData.elasticsearch.scope === EScopes.spaceType ? (
-                      <Select
+                      <bk-select
                         v-model={this.localFormData.elasticsearch.space}
                         multiple
                         onChange={this.handleEmitChange}
                       >
                         {this.spaceTypes.map(item => (
-                          <Option
+                          <bk-option
                             key={item.id}
                             id={item.id}
                             name={item.name}
-                          ></Option>
+                          ></bk-option>
                         ))}
-                      </Select>
+                      </bk-select>
                     ) : (
                       <SpaceSelect
                         value={this.localFormData.elasticsearch.space}
@@ -180,19 +179,19 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                     >
                       <div class='time-select-wrap'>
                         <div class='left-wrap'>{this.$tc('默认')}</div>
-                        <Select
+                        <bk-select
                           v-model={this.localFormData.elasticsearch.expires.default}
                           allow-create
                           onChange={this.handleEmitChange}
                         >
                           {defalutTimes.map(item => (
-                            <Option
+                            <bk-option
                               key={item.id}
                               id={item.id}
                               name={item.name}
-                            ></Option>
+                            ></bk-option>
                           ))}
-                        </Select>
+                        </bk-select>
                       </div>
                     </FormItem>
                     <FormItem
@@ -201,19 +200,19 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                     >
                       <div class='time-select-wrap'>
                         <div class='left-wrap'>{this.$tc('最大')}</div>
-                        <Select
+                        <bk-select
                           v-model={this.localFormData.elasticsearch.expires.max}
                           allow-create
                           onChange={this.handleEmitChange}
                         >
                           {defalutTimes.map(item => (
-                            <Option
+                            <bk-option
                               key={item.id}
                               id={item.id}
                               name={item.name}
-                            ></Option>
+                            ></bk-option>
                           ))}
-                        </Select>
+                        </bk-select>
                       </div>
                     </FormItem>
                   </div>

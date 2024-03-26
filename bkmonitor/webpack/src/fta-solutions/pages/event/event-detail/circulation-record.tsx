@@ -25,9 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
-import EmptyStatus from '../../../../monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../../monitor-pc/components/empty-status/types';
 import EventDetail from '../../../store/modules/event-detail';
 
 import LoadingBox from './loading-box';
@@ -207,20 +207,35 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
   }
 
   /**
-   * @description 兼容流转记录旧的告警屏蔽链接
+   * @description 含router_info的由前端拼接url
    * @param list
    * @returns
    */
   listLinkCompatibility(list) {
     return list.map(item => {
-      if (!!item?.url) {
+      if (!!item?.routerInfo) {
+        const routerName = item.routerInfo?.routerName;
+        const params = item.routerInfo?.params;
+        if (routerName === 'alarm-shield-detail') {
+          return {
+            ...item,
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/trace/alarm-shield/edit/${params?.shieldId}`
+          };
+        }
+        if (routerName === 'alarm-dispatch') {
+          return {
+            ...item,
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`
+          };
+        }
+      } else if (!!item?.url) {
         if (typeof item.url === 'string') {
           const match = item.url.match(/\/alarm-shield-detail\/(\d+)/);
           const id = match?.[1];
           if (!!id) {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield-edit/${id}`
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`
             };
           }
         }
@@ -326,7 +341,8 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             v-bk-tooltips={{
               placement: 'top',
               content: showTip ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
-              disabled: !showTip
+              disabled: !showTip,
+              allowHTML: false
             }}
             class={{
               'tip-dashed': showTip
@@ -355,7 +371,8 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             v-bk-tooltips={{
               placement: 'top',
               content: item.sourceTime ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
-              disabled: !item.sourceTime
+              disabled: !item.sourceTime,
+              allowHTML: false
             }}
             on-click={() => item.isMultiple && this.beforeCollapseChange(item)}
             class={{ 'tip-dashed': item.operate === 'CREATE' || item.operate === 'CONVERGE' }}
@@ -422,7 +439,8 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
               v-bk-tooltips={{
                 placement: 'top',
                 content: item.sourceTime ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
-                disabled: !item.sourceTime
+                disabled: !item.sourceTime,
+                allowHTML: false
               }}
               class='tip-dashed'
             >

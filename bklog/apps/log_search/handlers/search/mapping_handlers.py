@@ -24,6 +24,7 @@ import re
 from collections import defaultdict
 from typing import Any, Dict, List
 
+import arrow
 from django.conf import settings
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -41,6 +42,7 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     LOG_ASYNC_FIELDS,
     OPERATORS,
+    FieldBuiltInEnum,
     FieldDataTypeEnum,
     SearchScopeEnum,
 )
@@ -149,7 +151,10 @@ class MappingHandlers(object):
     def add_clustered_fields(self, field_list):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
         if clustering_config and clustering_config.clustered_rt:
-            field_list.extend(PATTERN_SEARCH_FIELDS)
+            all_field_names = [field["field_name"] for field in field_list if "field_name" in field]
+            for field in PATTERN_SEARCH_FIELDS:
+                if field["field_name"] not in all_field_names:
+                    field_list.append(field)
             return field_list
         return field_list
 
@@ -206,6 +211,7 @@ class MappingHandlers(object):
         mapping_list: list = self._get_mapping()
         property_dict: dict = self.find_merged_property(mapping_list)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
+        built_in_fields = FieldBuiltInEnum.get_choices()
         fields_list: list = [
             {
                 "field_type": field["field_type"],
@@ -217,13 +223,21 @@ class MappingHandlers(object):
                 "es_doc_values": field.get("es_doc_values", False),
                 "is_analyzed": field.get("is_analyzed", False),
                 "field_operator": OPERATORS.get(field["field_type"], []),
+                "is_built_in": field["field_name"].lower() in built_in_fields,
             }
             for field in fields_result
         ]
         fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
         fields_list = self._combine_description_field(fields_list)
-        return self._combine_fields(fields_list)
+        fields_list = self._combine_fields(fields_list)
+
+        for field in fields_list:
+            # 判断是否为内置字段
+            field_name = field.get("field_name", "").lower()
+            field["is_built_in"] = field_name in built_in_fields or field_name.startswith("__ext.")
+
+        return fields_list
 
     def get_all_fields_by_index_id(self, scope=SearchScopeEnum.DEFAULT.value, is_union_search=False):
         """
@@ -310,8 +324,13 @@ class MappingHandlers(object):
     ):
         """默认字段排序规则"""
         time_field = cls.get_time_field(index_set_id)
-        if scope in ["trace_detail", "trace_scatter"]:
-            return [[time_field, "asc"]]
+
+        # 先看索引集有没有配排序字段
+        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        sort_fields = log_index_set_obj.sort_fields if log_index_set_obj else []
+        if sort_fields:
+            return [[field, "desc"] for field in sort_fields]
+
         if default_sort_tag and scenario_id == Scenario.BKDATA:
             return [[time_field, "desc"], ["gseindex", "desc"], ["_iteration_idx", "desc"]]
         if default_sort_tag and scenario_id == Scenario.LOG:
@@ -385,19 +404,34 @@ class MappingHandlers(object):
         return type_keyword_fields[:2]
 
     def _get_mapping(self):
-        return self._get_latest_mapping(index_set_id=self.index_set_id)
+        # 当没有指定时间范围时，默认获取最近一天的mapping
+        if not self.start_time and not self.end_time:
+            start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+        else:
+            try:
+                start_time = arrow.get(int(self.start_time)).to(self.time_zone)
+                end_time = arrow.get(int(self.end_time)).to(self.time_zone)
+            except ValueError:
+                start_time = arrow.get(self.start_time, tzinfo=self.time_zone)
+                end_time = arrow.get(self.end_time, tzinfo=self.time_zone)
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}")
-    def _get_latest_mapping(self, *, index_set_id):  # noqa
-        start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
+        start_time_format = start_time.floor("hour").strftime("%Y-%m-%d %H:%M:%S")
+        end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
+
+        return self._get_latest_mapping(
+            index_set_id=self.index_set_id, start_time=start_time_format, end_time=end_time_format
+        )
+
+    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
+    def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
         latest_mapping = BkLogApi.mapping(
             {
                 "indices": self.indices,
                 "scenario_id": self.scenario_id,
                 "storage_cluster_id": self.storage_cluster_id,
                 "time_zone": self.time_zone,
-                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "start_time": start_time,
+                "end_time": end_time,
             }
         )
         return latest_mapping

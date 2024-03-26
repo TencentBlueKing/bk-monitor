@@ -104,4 +104,4 @@ class TestMultivariateAnomalyDetection(TestCase):
         anomaly_sort = parse_anomaly(datapoint_1.values["anomaly_sort"], config)
         print(anomaly_result[0].anomaly_message)
         assert len(anomaly_result) == 1
-        assert anomaly_result[0].anomaly_message.startswith(f"主机场景智能检测发现{len(anomaly_sort)}个指标异常")
+        assert anomaly_result[0].anomaly_message.startswith(f"主机智能异常检测 发现{len(anomaly_sort)}个指标异常")

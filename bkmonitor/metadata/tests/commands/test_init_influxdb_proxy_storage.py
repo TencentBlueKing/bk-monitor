@@ -20,12 +20,21 @@ from .conftest import consul_client
 pytestmark = pytest.mark.django_db
 
 
+PROXY_STORAGE_CLUSTER_ID = 100001
+
+
 @pytest.fixture
 def create_and_delete_records(mocker):
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
-    models.InfluxDBStorage.objects.filter(table_id__in=["test.rt", "test.rt1", "test.rt2", "test.rt3"]).delete()
+    models.InfluxDBStorage.objects.filter(
+        table_id__in=["test.rt", "test.rt1", "test.rt2", "test.rt3", "test.rt4"]
+    ).delete()
     models.ClusterInfo.objects.filter(cluster_id__in=[101, 102, 103, 104]).delete()
     models.InfluxDBProxyStorage.objects.all().delete()
+
+    models.InfluxDBProxyStorage.objects.create(
+        id=PROXY_STORAGE_CLUSTER_ID, proxy_cluster_id=104, service_name="bkmonitorv3", instance_cluster_name="cluster3"
+    )
     router_list = [
         models.InfluxDBStorage(
             table_id="test.rt",
@@ -54,6 +63,14 @@ def create_and_delete_records(mocker):
             real_table_name="rt3",
             database="test",
             proxy_cluster_name="cluster3",
+        ),
+        models.InfluxDBStorage(
+            table_id="test.rt4",
+            storage_cluster_id=104,
+            real_table_name="rt4",
+            database="test",
+            proxy_cluster_name="cluster3",
+            influxdb_proxy_storage_id=PROXY_STORAGE_CLUSTER_ID,
         ),
     ]
     models.InfluxDBStorage.objects.bulk_create(router_list)
@@ -98,7 +115,9 @@ def create_and_delete_records(mocker):
     ]
     models.ClusterInfo.objects.bulk_create(cluster_list)
     yield
-    models.InfluxDBStorage.objects.filter(table_id__in=["test.rt", "test.rt1", "test.rt2", "test.rt3"]).delete()
+    models.InfluxDBStorage.objects.filter(
+        table_id__in=["test.rt", "test.rt1", "test.rt2", "test.rt3", "test.rt4"]
+    ).delete()
     models.ClusterInfo.objects.filter(cluster_id__in=[101, 102, 103, 104]).delete()
     models.InfluxDBProxyStorage.objects.all().delete()
 

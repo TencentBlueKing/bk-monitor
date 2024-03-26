@@ -26,9 +26,9 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Debounce } from 'monitor-common/utils/utils';
 
-import { Debounce } from '../../../monitor-common/utils/utils';
-import { SPACE_TYPE_MAP } from '../../common/constant';
+import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
 import authorityStore from '../../store/modules/authority';
 import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
@@ -126,6 +126,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     preDisable: false
   };
 
+  firstCodeBgColor = '';
+
   created() {
     this.localValue = this.value;
     this.bizBgColor = this.$store.getters.bizBgColor || this.getRandomColor();
@@ -141,6 +143,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
       styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {}
     }));
+    this.getFirstCodeBgColor();
   }
   mounted() {
     this.storage = new Storage();
@@ -180,6 +183,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   valueChange(val: number) {
     this.localValue = val;
     this.bizBgColor = this.getRandomColor();
+    this.getFirstCodeBgColor();
   }
   @Watch('isShrink')
   isShrinkChange(val: boolean) {
@@ -197,6 +201,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   handleBizChange(id: number) {
     this.popoverRef.instance.hide();
     this.localValue = id;
+    this.getFirstCodeBgColor();
     this.handleCacheBizId(id);
     return id;
   }
@@ -230,7 +235,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       if ((show && keyword) || (!this.searchTypeId && !show)) {
         show =
           item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
+          item.py_text.indexOf(keyword) > -1 ||
+          item.pyf_text.indexOf(keyword) > -1 ||
           `${item.id}`.includes(keyword) ||
           `${item.space_id}`.toLocaleLowerCase().includes(keyword);
       }
@@ -455,11 +461,26 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     });
   }
 
+  /* 当前业务的tag颜色 多个tag取第一个 */
+  getFirstCodeBgColor() {
+    let tags = [];
+    this.bizList.forEach(item => {
+      if (item.id === this.localValue) {
+        tags = [item.space_type_id];
+        if (item.space_type_id === 'bkci' && item.space_code) {
+          tags.push('bcs');
+        }
+      }
+    });
+    this.firstCodeBgColor =
+      SPACE_FIRST_CODE_COLOR_MAP[tags?.[0] || 'default']?.[this.theme]?.backgroundColor || '#63656E';
+  }
+
   render() {
     const firstCode = (
       <span
         class='biz-name-first-code'
-        style={{ backgroundColor: '#3799BA' }}
+        style={{ backgroundColor: this.firstCodeBgColor }}
       >
         {this.bizSortNameKey}
       </span>
@@ -482,6 +503,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
             onShow: this.handleSetListWidth,
             onHide: () => {
               this.showBizList = false;
+              this.handleBizSearch('');
               return true;
             }
           }}

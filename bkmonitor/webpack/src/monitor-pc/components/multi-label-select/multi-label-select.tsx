@@ -32,10 +32,9 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { strategyLabelList } from 'monitor-api/modules/strategies';
+import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
-
-import { strategyLabelList } from '../../../monitor-api/modules/strategies';
-import { deepClone, transformDataKey } from '../../../monitor-common/utils/utils';
 
 import LabelTree from './label-tree/label-tree';
 import { IAddWrapSize, ITreeItem, TBehavior, TMode } from './types';
@@ -191,7 +190,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
       this.resizeObsever();
       this.dropDownInstance = this.selectDropdownRef?.instance;
       this.handleOverflow();
-      this.handleOverflowDebounce = debounce(300, false, this.handleOverflow);
+      this.handleOverflowDebounce = debounce(300, this.handleOverflow);
     }
   }
   beforeDestroy() {
@@ -415,8 +414,8 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
    * 移除超出提示
    */
   removeOverflow() {
-    const overflowList = this.tagListRef.querySelectorAll('.tag-overflow');
-    if (!overflowList.length) return;
+    const overflowList = this.tagListRef?.querySelectorAll('.tag-overflow');
+    if (!overflowList?.length) return;
     overflowList.forEach(item => {
       this.tagListRef.removeChild(item);
     });

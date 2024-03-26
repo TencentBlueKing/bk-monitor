@@ -25,19 +25,19 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input, Option, Select } from 'bk-magic-vue';
 import dayjs from 'dayjs';
+import { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
+import { initUnit } from 'fta-solutions/pages/home/home';
+import { fetchBusinessInfo } from 'monitor-api/modules/commons';
+import { statistics } from 'monitor-api/modules/home';
+import MonitorDialog from 'monitor-ui/monitor-dialog';
 import { throttle } from 'throttle-debounce';
 
-import { IData as IBusinessCard } from '../../../fta-solutions/pages/home/business-item';
-import { initUnit } from '../../../fta-solutions/pages/home/home';
-import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
-import { statistics } from '../../../monitor-api/modules/home';
-import MonitorDialog from '../../../monitor-ui/monitor-dialog';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import NoBussiness from '../no-business/no-business.vue';
 
+import BusinessItemBigSkeleton from './skeleton/business-item-big-skeleton';
 import BusinessItemBig from './business-item-big';
 import NoBusinessItem from './no-business-item';
 import OverviewContent, { IData as IDataOverviewData } from './overview-content';
@@ -195,6 +195,7 @@ export default class Home extends tsc<{}> {
   loading = false;
 
   oldSearchValue = '';
+
   showGuide = false;
   throttledScroll: Function = () => {};
 
@@ -214,7 +215,7 @@ export default class Home extends tsc<{}> {
   }
 
   mounted() {
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.throttledScroll = throttle(300, this.handleScroll);
     const targetEl: HTMLDivElement = document.querySelector('.page-container');
     targetEl.addEventListener('scroll', this.throttledScroll as any);
   }
@@ -333,7 +334,7 @@ export default class Home extends tsc<{}> {
 
   async handleScroll(e: any) {
     if (this.isEnd) return;
-    if (this.scrollLoading) return;
+    if (this.scrollLoading || this.loading) return;
     const { scrollHeight, scrollTop, clientHeight } = e.target;
     // 大屏有误差所以要+1
     const isEnd = scrollHeight - scrollTop <= clientHeight + 1 && scrollTop !== 0;
@@ -429,7 +430,7 @@ export default class Home extends tsc<{}> {
                   <span class='msg'>{this.updataTimeStr}</span>
                 </span>
                 <span class='right'>
-                  <Select
+                  <bk-select
                     v-model={this.dataOverview.timeChecked}
                     ext-cls='time-select'
                     clearable={false}
@@ -437,19 +438,19 @@ export default class Home extends tsc<{}> {
                     on-change={() => this.init(true)}
                   >
                     {this.dataOverview.timeOption.map(option => (
-                      <Option
+                      <bk-option
                         key={option.id}
                         id={option.id}
                         name={option.name}
-                      ></Option>
+                      ></bk-option>
                     ))}
-                  </Select>
-                  <Button
+                  </bk-select>
+                  <bk-button
                     theme={'primary'}
                     onClick={this.handleOpenGuide}
                   >
                     {this.$t('button-接入指引')}
-                  </Button>
+                  </bk-button>
                 </span>
               </div>
               <OverviewContent data={this.dataOverview.data}></OverviewContent>
@@ -461,36 +462,56 @@ export default class Home extends tsc<{}> {
                   <span class='msg'>{this.updataTimeStr}</span>
                 </span>
                 <span class='right'>
-                  <Input
+                  <bk-input
                     placeholder={this.$t('输入空间ID、空间名')}
                     right-icon='bk-icon icon-search'
                     v-model={this.businessOverview.searchValue}
                     on-right-icon-click={() => this.isCanSearch() && this.init()}
                     on-enter={() => this.isCanSearch() && this.init()}
                     on-blur={() => this.isCanSearch() && this.init()}
-                  ></Input>
-                  <Select
+                  ></bk-input>
+                  <bk-select
                     v-model={this.businessOverview.filterItem}
                     clearable={false}
                     ext-cls='filter-select'
                     on-change={() => this.init()}
                   >
                     {this.businessOverview.filterList.map(option => (
-                      <Option
+                      <bk-option
                         key={option.id}
                         id={option.id}
                         name={option.name}
-                      ></Option>
+                      ></bk-option>
                     ))}
-                  </Select>
+                  </bk-select>
                 </span>
               </div>
-              {this.businessOverview.data.length ? (
+              {this.businessOverview.data.length || this.loading ? (
                 <div
                   class='overview-content'
-                  v-bkloading={{ isLoading: this.businessLoading }}
+                  // v-bkloading={{ isLoading: this.businessLoading }}
                 >
-                  {this.businessOverview.data.map(item =>
+                  {(() => {
+                    if (this.loading) {
+                      return new Array(this.firstPageSize)
+                        .fill(null)
+                        .map((_item, index) => <BusinessItemBigSkeleton key={index}></BusinessItemBigSkeleton>);
+                    }
+                    return this.businessOverview.data.map(item =>
+                      item.isAllowed ? (
+                        <BusinessItemBig
+                          key={item.id}
+                          data={item}
+                          homeDays={this.homeDays}
+                          onSticky={() => this.handleSticky()}
+                          onToEvent={this.handleToEvent}
+                        ></BusinessItemBig>
+                      ) : (
+                        <NoBusinessItem data={{ ...item }}></NoBusinessItem>
+                      )
+                    );
+                  })()}
+                  {/* {this.businessOverview.data.map(item =>
                     item.isAllowed ? (
                       <BusinessItemBig
                         key={item.id}
@@ -502,7 +523,7 @@ export default class Home extends tsc<{}> {
                     ) : (
                       <NoBusinessItem data={{ ...item }}></NoBusinessItem>
                     )
-                  )}
+                  )} */}
                 </div>
               ) : (
                 <EmptyStatus

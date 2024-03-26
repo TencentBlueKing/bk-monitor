@@ -3,52 +3,66 @@
     padding: 0;
     border: 1px solid rgba(0, 0, 0, 0);
   }
+
   .bk-tab.bk-tab-border-card .bk-tab-header {
     border-top: 0;
     border-right: 0;
     border-left: 0;
   }
+
   .bk-tab-label-wrapper {
     overflow: inherit;
     overflow-x: clip;
+
     .bk-tab-add-custom {
       border-bottom: 0;
+
       .custom-add {
-        font-size: 12px;
-        color: #3a84ff;
-        line-height: 20px;
-        height: 41px;
         display: flex;
         align-items: center;
-        cursor: pointer;
+        height: 41px;
         padding: 0 16px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #3a84ff;
+        cursor: pointer;
+
         .jia {
-          font-size: 20px;
           margin-right: 10px;
+          font-size: 20px;
         }
+
         .add-jia {
-          width: 30px;
-          height: 30px;
-          background: #fff;
-          border-radius: 50%;
-          box-shadow: 0px 2px 4px 0px rgba(0,0,0,.10);
-          margin: 0 10px;
           display: flex;
           align-items: center;
           justify-content: center;
+          width: 30px;
+          height: 30px;
+          margin: 0 10px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0px 2px 4px 0px rgba(0,0,0,.10);
+        }
+
+        &.disabled {
+          color: #dcdee5;
+          cursor: not-allowed;
         }
       }
     }
   }
+
   .bk-tab.bk-tab-border-card .bk-tab-header {
     z-index: 1;
 
     /* stylelint-disable-next-line declaration-no-important */
     background-image: linear-gradient(transparent 48px, rgb(220, 222, 229) 51px) !important;
+
     .bk-tab-label {
       /* stylelint-disable-next-line declaration-no-important */
       font-size: 12px !important;
     }
+
     .bk-tab-label-item {
       &.active {
         .bk-tab-label {
@@ -58,34 +72,41 @@
       }
     }
   }
+
   .time-wrap {
     position: relative;
   }
+
   .period-wrap {
     .bk-tab-label-item {
       padding: 0;
     }
+
     .bk-tab.bk-tab-border-card .bk-tab-header {
       z-index: 1;
   
       /* stylelint-disable-next-line declaration-no-important */
       background-image: linear-gradient(transparent 62px, rgb(220, 222, 229) 65px) !important;
     }
+
     .time-wrap {
       position: relative;
-      background: #fafbfd;
-      padding: 4px 16px 0 14px;
       height: 62px;
+      padding: 4px 16px 0 14px;
+      background: #fafbfd;
       border: 1px solid #0000;
       transition: all .2s;
+
       &.border-active {
-        border: 1px solid #699df4;
         height: 64px;
-        margin-top: -2px;
         padding-top: 6px;
+        margin-top: -2px;
+        border: 1px solid #699df4;
       }
+
       &.active {
         background: #fff;
+
         &:hover {
           .del-btn {
             display: block;
@@ -93,62 +114,74 @@
           }
         }
       }
+
       &.noactive {
         &:hover {
           background: #f0f1f5;
+
           .del-btn {
             display: block;
           }
         }
       }
+
       .del-btn {
         position: absolute;
         top: -15px;
         right: 10px;
-        color: #ff5656;
         display: none;
+        color: #ff5656;
       }
+
       .time-title {
-        color: #63656e;
-        font-size: 12px;
         height: 16px;
+        font-size: 12px;
         line-height: 24px;
+        color: #63656e;
         text-align: left;
       }
+
       .time-input {
-        width: 170px;
         display: block;
+        width: 170px;
+
         .bk-date-picker-rel .bk-date-picker-editor {
           background: #fff0;
         }
       }
     }
   }
+
   .period-wrap-01 {
     .bk-tab-label-item {
       padding: 0;
     }
+
     .bk-tab.bk-tab-border-card .bk-tab-header {
       z-index: 1;
   
       /* stylelint-disable-next-line declaration-no-important */
       background-image: linear-gradient(transparent 40px, rgb(220, 222, 229) 43px) !important;
     }
+
     .time-wrap-01 {
       position: relative;
-      background: #fafbfd;
-      padding: 4px 16px 0 14px;
       height: 40px;
+      padding: 4px 16px 0 14px;
+      background: #fafbfd;
       border: 1px solid #0000;
       transition: all .2s;
+
       &.border-active {
-        border: 1px solid #699df4;
         height: 42px;
-        margin-top: -2px;
         padding-top: 6px;
+        margin-top: -2px;
+        border: 1px solid #699df4;
       }
+
       &.active {
         background: #fff;
+
         &:hover {
           .del-btn {
             display: block;
@@ -156,33 +189,39 @@
           }
         }
       }
+
       &.noactive {
         &:hover {
           background: #f0f1f5;
+
           .del-btn {
             display: block;
           }
         }
       }
+
       .del-btn {
         position: absolute;
         top: -2px;
         right: 10px;
-        color: #ff5656;
         z-index: 1;
         display: none;
+        color: #ff5656;
       }
+
       .time-title {
         display: none;
       }
+
       .time-input {
+        display: block;
         // width: 170px;
         width: 130px;
-        display: block;
+
         .bk-date-picker-rel .bk-date-picker-editor {
+          font-size: 14px;
           background: #fff0;
           border: 0;
-          font-size: 14px;
         }
       }
     }

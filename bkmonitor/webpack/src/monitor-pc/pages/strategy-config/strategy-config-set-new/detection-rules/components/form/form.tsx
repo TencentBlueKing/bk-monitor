@@ -425,7 +425,7 @@ export default class Form extends tsc<IProps, IEvents> {
               {!!formItem.description && (
                 <i
                   class='icon-monitor icon-hint'
-                  v-bk-tooltips={{ content: formItem.description }}
+                  v-bk-tooltips={{ content: formItem.description, allowHTML: false }}
                 ></i>
               )}
             </div>

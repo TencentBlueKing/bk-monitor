@@ -27,7 +27,7 @@ export default {
       maxIntroWidth: 480, // 默认最大宽度
       introWidth: 400, // 侧边栏宽度
       isDraging: false, // 是否正在拖拽
-      currentTreeBoxWidth: null, // 当前侧边宽度
+      currentTreeBoxWidth: null // 当前侧边宽度
     };
   },
   methods: {
@@ -56,6 +56,6 @@ export default {
       window.removeEventListener('mousemove', this.dragMoving);
       window.removeEventListener('mouseup', this.dragStop);
       this.$store.commit('updateChartSize');
-    },
-  },
+    }
+  }
 };

@@ -14,7 +14,6 @@ import abc
 
 import requests
 import six
-from django.utils.translation import ugettext as _
 
 from common.log import logger
 
@@ -115,13 +114,13 @@ class QyWeiXinApi(ApiMixin):
     """企业微信应用登录认证"""
 
     # 企业微信：获取access_token
-    QY_WEIXIN_GET_ACCESS_TOKEN_URL = "https://qyapi.weixin.qq.com/cgi-bin/gettoken"
+    QY_WEIXIN_GET_ACCESS_TOKEN_URL = f"{weixin_settings.WEIXIN_QY_API_DOMAIN}/cgi-bin/gettoken"
     # 企业微信：获取访问用户身份
-    QY_WEIXIN_GET_USER_INFO_URL = "https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo"
+    QY_WEIXIN_GET_USER_INFO_URL = f"{weixin_settings.WEIXIN_QY_API_DOMAIN}/cgi-bin/user/getuserinfo"
     # 企业微信：读取成员
-    QY_WEIXIN_GET_USER_URL = "https://qyapi.weixin.qq.com/cgi-bin/user/get"
+    QY_WEIXIN_GET_USER_URL = f"{weixin_settings.WEIXIN_QY_API_DOMAIN}/cgi-bin/user/get"
     # 企业微信userid -> 微信openid
-    QY_WEIXIN_CONVERT_TO_OPENID = "https://qyapi.weixin.qq.com/cgi-bin/user/convert_to_openid"
+    QY_WEIXIN_CONVERT_TO_OPENID = f"{weixin_settings.WEIXIN_QY_API_DOMAIN}/cgi-bin/user/convert_to_openid"
 
     def __init__(self):
         super(QyWeiXinApi, self).__init__()

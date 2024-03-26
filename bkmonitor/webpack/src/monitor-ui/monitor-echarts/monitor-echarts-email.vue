@@ -105,11 +105,11 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
+import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
-import dayjs from 'dayjs';
-import { addListener, removeListener, ResizeCallback } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import ChartAnnotation from './components/chart-annotation.vue';
@@ -192,7 +192,7 @@ export default class MonitorEcharts extends Vue {
       return `url('${watermarkMaker(window.user_name || window.username)}')`;
     }
   })
-  backgroundUrl: String;
+    backgroundUrl: String;
 
   // 获取图标数据
   @Prop() getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;
@@ -258,14 +258,14 @@ export default class MonitorEcharts extends Vue {
     ]
   })
   // 图标系列颜色集合
-  colors: string[];
+    colors: string[];
 
   @Prop({
     default() {
       return '查无数据';
     }
   })
-  emptyText: string;
+    emptyText: string;
 
   // 图表高度
   @Prop({ default: 310 }) height: number | string;
@@ -328,7 +328,7 @@ export default class MonitorEcharts extends Vue {
           appendToBody: true,
           formatter: this.handleSetTooltip,
           position: (pos, params, dom, rect, size) => {
-            if (!this.chartInView || this.chartInView.chartInTop === undefined) {
+            if (this.chartInView?.chartInTop === undefined) {
               const domRect = this.$el.getBoundingClientRect();
               if (!this.chartInView) {
                 this.chartInView = new ChartInView(domRect.y < 100, domRect.bottom + 20 >= window.innerHeight);
@@ -455,7 +455,7 @@ export default class MonitorEcharts extends Vue {
       const chart: any = echarts.init(this.chartRef);
       this.chart = chart;
       if (this.autoresize) {
-        const handler = debounce(300, false, () => this.resize());
+        const handler = debounce(300, () => this.resize());
         this.resizeHandler = async () => {
           await this.$nextTick();
           this.chartRef?.offsetParent !== null && handler();

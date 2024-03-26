@@ -14,9 +14,10 @@ import json
 import logging
 import time
 from collections import defaultdict
+from datetime import datetime, timedelta
 from itertools import chain, groupby
 from operator import itemgetter
-from typing import Callable, Dict, Iterable, List, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Set, Tuple, Union
 
 import arrow
 from django.conf import settings
@@ -31,7 +32,7 @@ from alarm_backends.core.cache.cmdb import (
     TopoManager,
 )
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.models import MetricListCache, StrategyModel
+from bkmonitor.models import MetricListCache, StrategyHistoryModel, StrategyModel
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
@@ -69,8 +70,8 @@ class StrategyCacheManager(CacheManager):
     FTA_ALERT_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".fta_alert_strategy_ids"
     # 策略分组
     STRATEGY_GROUP_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".strategy_group"
-    # 策略分组interval
-    STRATEGY_GROUP_INTERVAL_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".strategy_group_interval"
+    # 最近增量更新时间
+    LAST_UPDATED_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".last_updated"
     # 事件型时序检测周期(默认60s)
     fake_event_agg_interval = 60
     # 实例维度
@@ -308,10 +309,11 @@ class StrategyCacheManager(CacheManager):
                     del value["bk_cloud_id"]
 
     @classmethod
-    def get_strategies(cls) -> List[Dict]:
+    def get_strategies(cls, filter_dict: Union[Dict, None] = None) -> List[Dict]:
         """
         获取全部策略配置
         """
+        filter_dict: Dict = filter_dict or {}
         # 初始化策略失效检测信息
         invalid_strategy_dict = {
             # 已检测的指标id缓存
@@ -333,7 +335,7 @@ class StrategyCacheManager(CacheManager):
 
         strategy_configs_map = {
             strategy.id: strategy.to_dict()
-            for strategy in Strategy.from_models(StrategyModel.objects.filter(is_enabled=True))
+            for strategy in Strategy.from_models(StrategyModel.objects.filter(is_enabled=True).filter(**filter_dict))
         }
 
         result_map = {}
@@ -650,32 +652,41 @@ class StrategyCacheManager(CacheManager):
         return json.loads(data)
 
     @classmethod
-    def get_strategy_group_interval(cls, strategy_group_key):
-        data = cls.cache.hget(cls.STRATEGY_GROUP_INTERVAL_CACHE_KEY, strategy_group_key) or "[]"
-        return json.loads(data)
-
-    @classmethod
-    def refresh_strategy_ids(cls, strategies: List[Dict]):
+    def refresh_strategy_ids(cls, strategies: List[Dict], to_be_deleted_strategy_ids=None):
         """
         刷新策略ID列表缓存
         """
-        old_strategy_ids = cls.get_strategy_ids()
-        new_strategy_ids = [strategy["id"] for strategy in strategies]
+        updated_strategy_ids: Set = {strategy["id"] for strategy in strategies}
+        old_strategy_ids: Set = set(cls.get_strategy_ids())
+        if to_be_deleted_strategy_ids is not None:
+            # 增量更新
+            # 原列表(old_strategy_ids) - 删除(to_be_deleted_strategy_ids) + 更新(updated_strategy_ids) -> 去重
+            updated_strategy_ids |= old_strategy_ids - set(to_be_deleted_strategy_ids)
 
-        # 缓存策略列表
-        cls.cache.set(cls.IDS_CACHE_KEY, json.dumps(new_strategy_ids), cls.CACHE_TIMEOUT)
-
+        cls.cache.set(cls.IDS_CACHE_KEY, json.dumps(list(updated_strategy_ids)), cls.CACHE_TIMEOUT)
         for strategy_id in old_strategy_ids:
-            if strategy_id not in new_strategy_ids:
+            if strategy_id not in updated_strategy_ids:
+                logger.info(f"[smart_strategy_cache]: refresh_strategy_ids delete strategy: {strategy_id}")
                 cls.cache.delete(cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id))
 
     @classmethod
-    def refresh_bk_biz_ids(cls, strategies: List[Dict]):
+    def refresh_bk_biz_ids(cls, strategies: List[Dict], partial=None):
         """
         刷新配置了策略的业务ID列表
         """
         bk_biz_ids = {strategy["bk_biz_id"] for strategy in strategies}
-        cls.cache.set(cls.BK_BIZ_IDS_CACHE_KEY, json.dumps(bk_biz_ids), cls.CACHE_TIMEOUT)
+        if partial is None:
+            # 全量刷新
+            return cls.cache.set(cls.BK_BIZ_IDS_CACHE_KEY, json.dumps(bk_biz_ids), cls.CACHE_TIMEOUT)
+
+        # 增量刷新
+        old_bk_biz_ids = cls.get_all_bk_biz_ids()
+        logger.info(f"[smart_strategy_cache]: refresh_bk_biz_ids old_bk_biz_ids: {len(old_bk_biz_ids)}")
+        for biz_id in bk_biz_ids:
+            if biz_id not in old_bk_biz_ids:
+                old_bk_biz_ids.append(biz_id)
+        logger.info(f"[smart_strategy_cache]: refresh_bk_biz_ids new_bk_biz_ids: {len(old_bk_biz_ids)}")
+        return cls.cache.set(cls.BK_BIZ_IDS_CACHE_KEY, json.dumps(old_bk_biz_ids), cls.CACHE_TIMEOUT)
 
     @classmethod
     def refresh_real_time_strategy_ids(cls, strategies: List[Dict]):
@@ -723,34 +734,6 @@ class StrategyCacheManager(CacheManager):
         cls.cache.set(cls.GSE_ALARM_CACHE_KEY, json.dumps(gse_event_strategy_ids), cls.CACHE_TIMEOUT)
 
     @classmethod
-    def refresh_strategy_group_interval(cls, strategies: List[Dict]):
-        """
-        更新策略分组周期
-        :param strategies: 策略
-        """
-        query_md5_interval = defaultdict(list)
-
-        pipeline = cls.cache.pipeline()
-        for strategy in strategies:
-
-            for item in strategy["items"]:
-                # 补充周期缓存
-                if item.get("query_configs", []):
-                    for config in item["query_configs"]:
-                        if config.get("agg_interval"):
-                            query_md5_interval[item["query_md5"]].append(config["agg_interval"])
-
-        old_groups = cls.cache.hkeys(cls.STRATEGY_GROUP_INTERVAL_CACHE_KEY)
-        for query_md5 in old_groups:
-            if query_md5 not in query_md5_interval:
-                pipeline.hdel(cls.STRATEGY_GROUP_INTERVAL_CACHE_KEY, query_md5)
-        for query_md5 in query_md5_interval:
-            pipeline.hset(cls.STRATEGY_GROUP_INTERVAL_CACHE_KEY, query_md5, json.dumps(query_md5_interval[query_md5]))
-        pipeline.expire(cls.STRATEGY_GROUP_INTERVAL_CACHE_KEY, cls.CACHE_TIMEOUT)
-
-        pipeline.execute()
-
-    @classmethod
     def refresh_fta_alert_strategy_ids(cls, strategies: List[Dict]):
         """
         刷新自愈策略列表缓存
@@ -791,7 +774,7 @@ class StrategyCacheManager(CacheManager):
         cls.cache.expire(cls.FTA_ALERT_CACHE_KEY, cls.CACHE_TIMEOUT)
 
     @classmethod
-    def refresh_strategy(cls, strategies: List[Dict]):
+    def refresh_strategy(cls, strategies: List[Dict], old_groups=None):
         """
         刷新策略缓存
         """
@@ -824,9 +807,15 @@ class StrategyCacheManager(CacheManager):
                         except (TypeError, ValueError, AssertionError):
                             continue
 
-        old_groups = cls.cache.hkeys(cls.STRATEGY_GROUP_CACHE_KEY)
+        refresh_all = old_groups is None
+        if refresh_all:
+            # 全量更新
+            old_groups = cls.cache.hkeys(cls.STRATEGY_GROUP_CACHE_KEY)
+
         for query_md5 in old_groups:
             if query_md5 not in strategy_groups:
+                if not refresh_all:
+                    logger.info(f"[smart_strategy_cache]: refresh_strategy delete old group: {query_md5}")
                 pipeline.hdel(cls.STRATEGY_GROUP_CACHE_KEY, query_md5)
         for query_md5 in strategy_groups:
             pipeline.hset(cls.STRATEGY_GROUP_CACHE_KEY, query_md5, json.dumps(strategy_groups[query_md5]))
@@ -954,7 +943,6 @@ class StrategyCacheManager(CacheManager):
             cls.refresh_real_time_strategy_ids,
             cls.refresh_gse_alarm_strategy_ids,
             cls.refresh_fta_alert_strategy_ids,
-            cls.refresh_strategy_group_interval,
         ]
 
         for processor in processors:
@@ -965,6 +953,98 @@ class StrategyCacheManager(CacheManager):
                 exc = e
 
         duration = time.time() - start_time
+        metrics.ALARM_CACHE_TASK_TIME.labels("0", "strategy", str(exc)).observe(duration)
+        metrics.report_all()
+
+    @classmethod
+    def smart_refresh(cls):
+        """
+        增量更新，默认300s内变更的业务将被更新。 更新后将设置最后更新时间。
+        """
+        start_time = time.time()
+        exc = None
+        # 拿最近更新成功时间
+        last_updated = cls.cache.get(cls.LAST_UPDATED_CACHE_KEY) or 0
+        # 增量更新范围（默认5min）
+        timeshift = 300
+        if last_updated:
+            timeshift = start_time - int(last_updated)
+        # 获取策略列表并缓存
+        histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.now() - timedelta(seconds=timeshift))
+        if not histories.exists():
+            logger.info(f"[smart_strategy_cache]: no active strategy found in the past {timeshift} seconds, do nothing")
+            duration = time.time() - start_time
+            metrics.ALARM_CACHE_TASK_TIME.labels("0", "smart_strategy", str(exc)).observe(duration)
+            metrics.report_all()
+            return
+        logger.info(f"[smart_strategy_cache]: active strategy found in the past {timeshift} seconds")
+        target_biz_set = set()
+        to_be_deleted_strategy_ids: Set[Tuple] = set()
+        for history in histories:
+            # 变更的策略，需要判定is_enabled变化
+            if history.operate != "delete":
+                # 本次增量更新的业务列表
+                target_biz_set.add(history.content["bk_biz_id"])
+                is_enabled = history.content["is_enabled"]
+                if is_enabled:
+                    continue
+            # 删除的策略，需要记录对应的策略id和对应的group key
+            strategy_id = history.strategy_id
+            query_md5 = ""
+            strategy = cls.get_strategy_by_id(strategy_id)
+            if not strategy:
+                # 先禁用，再删除的情况下，不一定有缓存，此时不需要处理
+                continue
+            for item in strategy["items"]:
+                query_config = item["query_configs"][0]
+                data_source_label = query_config["data_source_label"]
+                data_type_label = query_config["data_type_label"]
+                is_series = data_type_label in [DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG]
+                is_custom_event = data_source_label == DataSourceLabel.CUSTOM and data_type_label == DataTypeLabel.EVENT
+                is_fta_event = data_source_label == DataSourceLabel.BK_FTA and data_type_label == DataTypeLabel.EVENT
+                if any([is_series, is_custom_event, is_fta_event]):
+                    query_md5 = cls.get_query_md5(strategy["bk_biz_id"], item)
+            to_be_deleted_strategy_ids.add((strategy_id, query_md5))
+
+        if to_be_deleted_strategy_ids:
+            logger.info(f"[smart_strategy_cache]: to_be_deleted_strategy_ids: {to_be_deleted_strategy_ids}")
+
+        try:
+            strategies = cls.get_strategies({"bk_biz_id__in": target_biz_set})
+        except Exception as e:  # noqa
+            logger.info(f"[smart_strategy_cache]: get target strategies error: {e}")
+            strategies = []
+            exc = e
+        logger.info(f"[smart_strategy_cache]: {len(strategies)} strategy to be processed")
+
+        def refresh_strategy_ids(_strategies):
+            return cls.refresh_strategy_ids(_strategies, [ids[0] for ids in to_be_deleted_strategy_ids])
+
+        def refresh_bk_biz_ids(_strategies):
+            return cls.refresh_bk_biz_ids(_strategies, partial=target_biz_set)
+
+        def refresh_strategy(_strategies):
+            return cls.refresh_strategy(
+                _strategies, old_groups=[ids[1] for ids in to_be_deleted_strategy_ids if ids[1]]
+            )
+
+        processors: List[Callable[[List[Dict]], None]] = [
+            cls.add_target_shield_condition,
+            cls.add_enabled_cluster_condition,
+            refresh_strategy_ids,
+            refresh_bk_biz_ids,
+            refresh_strategy,
+        ]
+
+        for processor in processors:
+            try:
+                processor(strategies)
+            except Exception as e:
+                logger.exception(f"[smart_strategy_cache]: refresh strategy error when {processor.__name__}")
+                exc = e
+        duration = time.time() - start_time
+        logger.info(f"[smart_strategy_cache]: cache strategy done, cost: {duration}")
+        cls.cache.set(cls.LAST_UPDATED_CACHE_KEY, int(start_time), cls.CACHE_TIMEOUT)
         metrics.ALARM_CACHE_TASK_TIME.labels("0", "strategy", str(exc)).observe(duration)
         metrics.report_all()
 
@@ -1099,6 +1179,10 @@ class TargetShieldProcessor:
                 )
 
         strategy["items"][0]["target"] = new_conditions
+
+
+def smart_refresh():
+    StrategyCacheManager.smart_refresh()
 
 
 def main():

@@ -21,13 +21,13 @@
   .masking-rule {
     width: 100%;
     height: 32px;
-    background: #f5f7fa;
-    font-size: 12px;
-    border-radius: 2px;
-    align-items: center;
     padding: 0 16px;
     margin-top: 4px;
+    font-size: 12px;
     cursor: pointer;
+    background: #f5f7fa;
+    border-radius: 2px;
+    align-items: center;
 
     @include flex-justify(space-between);
 
@@ -40,21 +40,21 @@
     }
 
     .rule-name {
+      display: inline-block;
       width: 160px;
       color: #313238;
-      display: inline-block;
     }
 
     .rule-value {
-      flex: 1;
-      color: #63656e;
       display: inline-block;
+      color: #63656e;
+      flex: 1;
     }
 
     .rule-icon {
+      display: inline-block;
       font-size: 14px;
       color: #979ba5;
-      display: inline-block;
       visibility: hidden;
     }
   }
@@ -88,18 +88,18 @@
 
     .bk-form-input {
       display: block;
-      border-top-left-radius: 0;
       border-bottom-left-radius: 0;
+      border-top-left-radius: 0;
     }
   }
 
   .submit-box {
-    width: 640px;
-    height: 48px;
     position: fixed;
-    z-index: 99;
     right: 0;
     bottom: 0;
+    z-index: 99;
+    width: 640px;
+    height: 48px;
     padding-left: 24px;
     background: #fafbfd;
     box-shadow: 0 -1px 0 0 #dcdee5;
@@ -163,9 +163,9 @@
 
   .title {
     display: inline-block;
+    margin-bottom: 10px;
     font-size: 16px;
     line-height: 24px;
-    margin-bottom: 10px;
     color: #313238;
   }
 }

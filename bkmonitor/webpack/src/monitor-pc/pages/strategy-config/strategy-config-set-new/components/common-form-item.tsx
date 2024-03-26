@@ -48,7 +48,8 @@ export default class CommonFormItem extends tsc<ICommonFormItemProp> {
 
   public tooltips = {
     content: this.tips,
-    placements: ['top']
+    placements: ['top'],
+    allowHTML: false
   };
 
   render() {

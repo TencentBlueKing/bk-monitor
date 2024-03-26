@@ -15,6 +15,9 @@ import datetime
 import logging
 import time
 
+from django.conf import settings
+from django.db.models import Q
+
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
@@ -22,12 +25,17 @@ from apm.core.application_config import ApplicationConfig
 from apm.core.discover.base import TopoHandler
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm.core.handlers.virtual_metric.metric_handler import BkBaseVirtualMetricHandler
+from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
+from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
+from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
 from apm.core.platform_config import PlatformConfig
-from apm.models import ApmApplication, EbpfApplicationConfig, MetricDataSource
+from apm.models import (
+    ApmApplication,
+    EbpfApplicationConfig,
+    MetricDataSource,
+    ProfileDataSource,
+)
 from core.errors.alarm_backends import LockError
-from django.conf import settings
-from django.db.models import Q
 
 logger = logging.getLogger("apm")
 
@@ -87,13 +95,22 @@ def refresh_apm_application_config(bk_biz_id, app_name):
 
 @app.task(ignore_result=True, queue="celery_cron")
 def create_virtual_metric(bk_biz_id, app_name):
+    """创建APM应用在计算平台的虚拟指标计算Flow"""
+    logger.info(f"[create_virtual_metric] start create virtual metric, bk_biz_id: {bk_biz_id} app_name: {app_name}")
     metric = MetricDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
     if not metric:
+        logger.info(f"[create_virtual_metric] bk_biz_id: {bk_biz_id} app_name: {app_name} metric table not found, skip")
         return
 
     # 空间下应用不创建虚拟指标
     if int(metric.bk_biz_id) > 0 and settings.IS_ACCESS_BK_DATA:
-        BkBaseVirtualMetricHandler(metric).update_or_create()
+        VirtualMetricFlow(metric).update_or_create()
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def create_or_update_tail_sampling(trace_datasource, data):
+    """创建/更新尾部采样Flow"""
+    TailSamplingFlow(trace_datasource, data).start()
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -109,3 +126,30 @@ def check_apm_consul_config():
     logger.info(f"[check_apm_consul_config] start {datetime.datetime.now()}")
     ConsulHandler.check_update()
     logger.info(f"[check_apm_consul_config] end {datetime.datetime.now()}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def profile_handler(bk_biz_id: int, app_name: str):
+    logger.info(f"[profile_handler] ({bk_biz_id}){app_name} start at {datetime.datetime.now()}")
+    try:
+        ProfileDiscoverHandler(bk_biz_id, app_name).discover()
+    except Exception as e:  # noqa
+        logger.error(f"[profile_handler] occur exception of {bk_biz_id}-{app_name}: {e}")
+    logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")
+
+
+def profile_discover_cron():
+    """定时发现profile服务"""
+    logger.info(f"[profile_discover_cron] start at {datetime.datetime.now()}")
+    apps = [
+        (i["bk_biz_id"], i["app_name"])
+        for i in ApmApplication.objects.filter(is_enabled=True).values("bk_biz_id", "app_name")
+    ]
+    apps = [i for i in ProfileDataSource.objects.all() if (i.bk_biz_id, i.app_name) in apps]
+
+    for item in apps:
+        logger.info(f"[profile_discover_cron] start handle. ({item.bk_biz_id}){item.app_name}")
+        profile_handler(item.bk_biz_id, item.app_name)
+        logger.info(f"[profile_discover_cron] finished handle. ({item.bk_biz_id}){item.app_name}")
+
+    logger.info(f"[profile_discover_cron] end at {datetime.datetime.now()}")

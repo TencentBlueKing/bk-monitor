@@ -28,11 +28,10 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input } from 'bk-magic-vue';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { getEventPaths } from 'monitor-pc/utils';
 
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
-import { getEventPaths } from '../../../monitor-pc/utils';
 import debounceDecorator from '../../common/debounce-decorator';
 import EventModuleStore from '../../store/modules/event';
 
@@ -93,7 +92,12 @@ class FilterText {
   separator = ' ';
   fieldKey: FilterText;
   fieldValue: FilterText;
-  constructor(public text: string, public startOffset: number, public dataType: string, separator?: string) {
+  constructor(
+    public text: string,
+    public startOffset: number,
+    public dataType: string,
+    separator?: string
+  ) {
     this.endOffset = startOffset + text.length;
     this.separator = separator || ' ';
     if (dataType === 'field' && /\./.test(text)) {
@@ -252,6 +256,10 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         name: this.$t('通知人')
       },
       {
+        id: 'follower',
+        name: this.$t('关注人')
+      },
+      {
         id: 'strategy_name',
         name: this.$t('策略名称')
       },
@@ -265,7 +273,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       },
       {
         id: 'tags',
-        name: this.$t('标签'),
+        name: this.$t('维度'),
         special: true
       },
       {
@@ -274,7 +282,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       },
       {
         id: 'plugin_id',
-        name: this.$t('告警源')
+        name: this.$t('告警来源')
       }
     ];
     // 事件建议字段列表
@@ -1068,7 +1076,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
               ]}
             {id === 'favorite' &&
               item.edit && [
-                <Input
+                <bk-input
                   ref={`favorite-input-${item.id}`}
                   class='favorite-input'
                   type='text'

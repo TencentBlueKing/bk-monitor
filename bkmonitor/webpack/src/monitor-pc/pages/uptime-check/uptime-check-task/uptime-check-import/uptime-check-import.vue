@@ -215,9 +215,8 @@
 </template>
 
 <script>
-import XLSX from 'xlsx';
-
-import { fileImportUptimeCheck, fileParse } from '../../../../../monitor-api/modules/uptime_check';
+import { fileImportUptimeCheck, fileParse } from 'monitor-api/modules/uptime_check';
+import { read, utils } from 'xlsx';
 
 export default {
   name: 'UptimeCheckImport',
@@ -456,12 +455,12 @@ export default {
         fileReader.onload = (ev) => {
           try {
             const data = ev.target.result;
-            const workbook = XLSX.read(data, {
+            const workbook = read(data, {
               type: 'binary' // 以二进制流方式读取得到整份excel表格对象
             });
             Object.keys(workbook.Sheets).forEach((sheet, index) => {
               if (index === 0) {
-                res.data.push(...XLSX.utils.sheet_to_json(workbook.Sheets[sheet]));
+                res.data.push(...utils.sheet_to_json(workbook.Sheets[sheet]));
               }
             });
             setTimeout(() => {

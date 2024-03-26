@@ -1,0 +1,46 @@
+.time-select-component {
+  .input-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+    background: #fff;
+    border-radius: 2px;
+
+    .left {
+      padding-left: 8px;
+
+      .placeholder {
+        color: #c4c6cc;
+      }
+    }
+
+    .right {
+      display: flex;
+      align-items: center;
+
+      .icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+
+        .icon-arrow-down {
+          font-size: 20px;
+
+          &.active {
+            transform: rotate(180deg);
+          }
+        }
+      }
+    }
+  }
+}
+
+.timezone-select-component-pop {
+  .timezone-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+}

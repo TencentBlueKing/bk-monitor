@@ -10,6 +10,18 @@
   font-size: $font-size-base;
   color: $font-color-base;
 
+  .bk-navigation {
+    height: calc(100vh - var(--notice-alert-height)) !important;
+
+    .container-content {
+      max-height: calc(100vh - 52px - var(--notice-alert-height)) !important
+    }
+
+    .nav-slider-list {
+      height: calc(100vh - 108px - var(--notice-alert-height)) !important;
+    }
+  }
+
   @include flex-column;
 
   &-header {
@@ -34,8 +46,8 @@
         height: 100%;
         padding: 0 22px;
         margin-right: 10px;
-        color: #acb5c6;
         font-size: 14px;
+        color: #acb5c6;
         border-bottom: 3px solid transparent;
 
         @include flex-center;
@@ -73,15 +85,15 @@
       }
 
       .list-append {
-        flex: 0 0 40px;
-        height: 40px;
         display: flex;
+        flex: 0 0 40px;
         align-items: center;
         justify-content: center;
-        background-color: #fafbfd;
-        border-top: 1px solid #dcdee5;
+        height: 40px;
         font-size: 12px;
         cursor: pointer;
+        background-color: #fafbfd;
+        border-top: 1px solid #dcdee5;
     
         .bk-icon {
           margin-right: 4px;
@@ -91,10 +103,10 @@
 
     .header-more {
       display: flex;
-      width: 60px;
-      height: 52px;
       align-items: center;
       justify-content: center;
+      width: 60px;
+      height: 52px;
       font-size: 14px;
       color: white;
       color: #acb5c6;
@@ -111,12 +123,12 @@
 
       .list-item {
         display: flex;
-        height: 32px;
+        align-items: center;
         min-width: 60px;
+        height: 32px;
         padding: 0 12px;
         font-size: 12px;
         color: #63656e;
-        align-items: center;
 
         &.item-active,
         &:hover {
@@ -134,16 +146,16 @@
 
     .biz-select {
       &::after {
-        content: ' ';
         position: absolute;
-        left: 0px;
-        right: 0px;
         top: 52px;
-        height: 1px;
-        border-radius: 2px;
-        background: rgba(44,53,77,.00);
-        box-shadow: 0 1px 0 0 rgba(255,255,255,.10);
+        right: 0px;
+        left: 0px;
         z-index: 0;
+        height: 1px;
+        content: ' ';
+        background: rgba(44,53,77,.00);
+        border-radius: 2px;
+        box-shadow: 0 1px 0 0 rgba(255,255,255,.10);
       }
     }
 
@@ -155,18 +167,18 @@
       .menu-select {
         position: relative;
         display: flex;
+        flex: 1;
         height: 32px;
         background-color: rgba(255,255,255,.05);
         border: 1px solid #2c354d;
         border-radius: 2px;
-        flex: 1;
 
         &-name {
           position: relative;
+          flex: 1;
           min-width: 227px;
           padding: 0 36px 0 10px;
           color: #acb2c6;
-          flex: 1;
 
           @include flex-align(center);
 
@@ -184,24 +196,24 @@
           left: 16px;
           z-index: 99;
           display: flex;
+          flex-direction: column;
           overflow: auto;
           background-color: #363f56;
           border-radius: 2px;
-          box-shadow: 0px 2px 6px 0px rgba(0,0,0,.20);
-          flex-direction: column;;
+          box-shadow: 0px 2px 6px 0px rgba(0,0,0,.20);;
 
           .biz-list {
             display: flex;
-            max-height: 240px;
+            flex-direction: column;
             min-width: 270px;
+            max-height: 240px;
             padding: 6px 0;
             overflow: auto;
-            flex-direction: column;
 
             .list-empty,
             %list-empty {
-              height: 32px;
               flex: 0 0 32px;
+              height: 32px;
               padding: 0 16px;
               color: #acb5c6;
   
@@ -237,9 +249,9 @@
         }
 
         &-search {
+          flex: 1;
           width: inherit;
           margin: 0 5px;
-          flex: 1;
 
           .bk-form-input {
             color: #acb5c6;
@@ -257,15 +269,15 @@
       }
 
       .menu-title {
+        flex: 1;
         width: 32px;
-        height: 32px;
-        max-width: 32px;
         min-width: 32px;
+        max-width: 32px;
+        height: 32px;
         font-weight: bold;
         color: #f4f7fa;
         background: #a09e21;
         border-radius: 4px;
-        flex: 1;
 
         @include flex-center;
       }
@@ -288,11 +300,11 @@
 
     .disabled-event {
       display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 0;
       pointer-events: none;
       cursor: initial;
-      justify-content: center;
-      align-items: center;
 
       .navigation-menu-item-default {
         display: none;
@@ -317,8 +329,8 @@
     .nav-menu-item {
       .nav-menu-item-beta {
         margin-left: 10px;
-        color: #ff9c01;
         font-size: 12px;
+        color: #ff9c01;
       }
     }
   }
@@ -380,11 +392,11 @@
     overflow: inherit !important;
 
     .page-container {
+      flex: 1;
       width: 100%;
       height: 100%;
       overflow: auto;
       overflow-x: hidden;
-      flex: 1;
 
       &.no-overflow {
         overflow-x: visible;
@@ -426,13 +438,13 @@
 
   .monitor-navigation-footer {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     width: 100%;
     height: 52px;
     font-size: 12px;
     color: #63656e;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
 
     .footer-link {
       margin-bottom: 6px;
@@ -448,9 +460,9 @@
 
   .monitor-footer {
     position: fixed;
-    left: 0;
     right: 0;
     bottom: 0;
+    left: 0;
     z-index: 999;
     background-color: #f5f7fa;
   }

@@ -27,40 +27,33 @@
 // 链路列表
 const getLinkList = {
   url: '/databus/data_link/',
-  method: 'get',
+  method: 'get'
 };
 // 链路详情
 const getLinkDetail = {
   url: '/databus/data_link/:data_link_id/',
-  method: 'get',
+  method: 'get'
 };
 // 创建链路
 const createLink = {
   url: '/databus/data_link/',
-  method: 'post',
+  method: 'post'
 };
 // 更新链路
 const updateLink = {
   url: '/databus/data_link/:data_link_id/',
-  method: 'put',
+  method: 'put'
 };
 // 删除链路
 const deleteLink = {
   url: '/databus/data_link/:data_link_id/',
-  method: 'delete',
+  method: 'delete'
 };
 
 // 集群列表
 const getClusterList = {
   url: '/databus/data_link/get_cluster_list/',
-  method: 'get',
+  method: 'get'
 };
 
-export {
-  getLinkList,
-  getLinkDetail,
-  createLink,
-  updateLink,
-  deleteLink,
-  getClusterList,
-};
+export { getLinkList, getLinkDetail, createLink, updateLink, deleteLink, getClusterList };

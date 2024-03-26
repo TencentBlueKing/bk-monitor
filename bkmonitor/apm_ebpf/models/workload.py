@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
 
 from apm_ebpf.constants import WorkloadType
 
@@ -28,7 +27,7 @@ class DeepflowWorkload(models.Model):
     update_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        verbose_name = _("deepflow集群管理表")
+        verbose_name = "deepflow集群管理表"
 
 
 class ClusterRelation(models.Model):
@@ -41,8 +40,16 @@ class ClusterRelation(models.Model):
     update_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
-        verbose_name = _("BCS集群关联信息表")
+        verbose_name = "BCS集群关联信息表"
 
     @classmethod
     def all_cluster_ids(cls):
         return list(ClusterRelation.objects.all().values_list("cluster_id", flat=True).distinct())
+
+
+class DeepflowDashboardRecord(models.Model):
+    bk_biz_id = models.IntegerField("监控的容器项目业务ID 可能为负数")
+    name = models.CharField("仪表盘名称", max_length=526)
+
+    class Meta:
+        verbose_name = "deepflow仪表盘安装记录"

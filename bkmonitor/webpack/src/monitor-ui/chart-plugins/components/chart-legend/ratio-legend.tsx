@@ -54,7 +54,6 @@ class RatioLegend extends CommonLegend {
   }
 
   render() {
-    console.log(this.legendData);
     return (
       <div class='ratio-legend'>
         {this.legendData.map((legend, index) => {

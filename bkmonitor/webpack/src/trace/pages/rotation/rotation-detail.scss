@@ -1,0 +1,152 @@
+.rotation-detail-side {
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .width-806 {
+    width: 806px;
+  }
+
+  .muti-text {
+    line-height: 32px;
+    color: #313238;
+  }
+
+  .rotation-config-form-item .form-item-label {
+    width: 115px;
+    min-width: 115px;
+  }
+
+  .rotation-detail-side-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      margin: 0 24px 0 auto;
+    }
+  }
+
+  .rotation-detail-side-content {
+    padding: 28px 0 24px 0;
+    overflow-x: hidden;
+
+    .detail-text {
+      display: inline-block;
+      margin-top: 8px;
+      color: #313238;
+    }
+
+    .text-wrap {
+      word-break: break-all;
+    }
+
+    .regular-form-item-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rule-item-wrap {
+      width: 760px;
+      padding: 12px 16px 4px;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+
+      & + .rule-item-wrap {
+        margin-top: 8px;
+      }
+
+      .rule-item {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+
+        .col-separate {
+          width: 1px;
+          height: 16px;
+          margin: 0 8px;
+          background-color: #313238;
+        }
+
+        &-index,
+        &-title {
+          margin-bottom: 8px;
+          font-size: 12px;
+          color: #313238;
+        }
+
+        &-title {
+          margin-right: 8px;
+        }
+
+        &-period {
+          margin: 0 0 8px 8px;
+        }
+
+        &-time-tag {
+          padding: 0 8px;
+          margin: 0 4px 8px 0;
+          line-height: 22px;
+          color: #63656e;
+          background: #f0f1f5;
+          border-radius: 2px;
+        }
+      }
+
+      .auto-group {
+        margin-bottom: 8px;
+      }
+
+      .notice-user-list {
+        .notice-user-item {
+          position: relative;
+          display: flex;
+          flex-wrap: wrap;
+          padding-left: 12px;
+
+          &.no-pl {
+            padding-left: 0;
+          }
+
+          .has-color {
+            position: absolute;
+            top: 2px;
+            left: 0;
+            width: 4px;
+            height: calc(100% - 12px);
+          }
+
+          .personnel-choice {
+            display: flex;
+            align-items: center;
+            margin: 0 12px 8px 0;
+
+            .user-color {
+              width: 4px;
+              height: calc(100% - 4px);
+              margin-right: 10px;
+            }
+
+            img {
+              width: 20px;
+              height: 20px;
+              margin-right: 5px;
+              border-radius: 16px;
+            }
+
+            .no-img {
+              margin-right: 5px;
+              font-size: 20px;
+              color: #c4c6cc;
+              background: #fafbfd;
+              border-radius: 16px;
+            }
+          }
+        }
+      }
+    }
+  }
+}

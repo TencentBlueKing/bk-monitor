@@ -116,7 +116,7 @@ class Permission(object):
 
     @classmethod
     def get_iam_client(cls):
-        app_info = (settings.SAAS_APP_CODE, settings.SECRET_KEY)
+        app_info = (settings.APP_CODE, settings.SECRET_KEY)
         if settings.ROLE in ["api", "worker"]:
             # 后台api模式下使用SaaS身份
             app_info = (settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY)

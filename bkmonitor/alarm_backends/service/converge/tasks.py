@@ -13,14 +13,16 @@ import logging
 import time
 
 from celery.task import task
+from django.db import OperationalError
 
+from alarm_backends.constants import CONST_HALF_MINUTE
 from core.prometheus import metrics
 
 logger = logging.getLogger("fta_action.converge")
 
 
 @task(ignore_result=True, queue="celery_converge")
-def run_converge(converge_config, instance_id, instance_type, converge_context=None, alerts=None):
+def run_converge(converge_config, instance_id, instance_type, converge_context=None, alerts=None, retry_times=0):
     """
     执行收敛动作
     :param converge_context:收敛上下文
@@ -48,11 +50,30 @@ def run_converge(converge_config, instance_id, instance_type, converge_context=N
         logger.info(
             "end to converge %s, %s, due to can not get converge lock  %s", instance_type, instance_id, str(error)
         )
+    except OperationalError as error:
+        exc = error
+        logger.exception("execute converge %s, %s error: %s", instance_type, instance_id, error)
     except Exception as error:
         exc = error
         logger.exception("execute converge %s, %s error: %s", instance_type, instance_id, error)
     else:
         logger.info("--end converge action(%s_%s)--  result %s", instance_id, instance_type, converge_handler.status)
+
+    if exc:
+        # 如果产生了异常，可以重试，至多3次
+        if retry_times < 3:
+            # 如果当前重试次数没有达到3次，可以重发任务
+            task_id = run_converge.apply_async(
+                (converge_config, instance_id, instance_type, converge_context, alerts, retry_times + 1),
+                countdown=CONST_HALF_MINUTE,
+            )
+            logger.info(
+                "[run_converge] retry to push %s(%s) to converge queue again, delay %s, task_id(%s)",
+                instance_type,
+                instance_id,
+                CONST_HALF_MINUTE,
+                task_id,
+            )
 
     cost = time.time() - start_time
     metrics.CONVERGE_PROCESS_TIME.labels(

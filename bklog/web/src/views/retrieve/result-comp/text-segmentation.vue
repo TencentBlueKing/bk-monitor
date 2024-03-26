@@ -22,90 +22,143 @@
 
 <template>
   <span class="log-content-wrapper">
-    <text-highlight
-      v-if="!isNeedSegment"
-      style="word-break: break-all;"
-      :queries="markList">
-      {{formatterStr(content)}}
-    </text-highlight>
-    <span v-else class="segment-content">
-      <template
-        v-for="(item, index) in splitList">
+    <span
+      v-if="isVirtual"
+      class="null-item"
+      >{{ content }}</span
+    >
+    <span
+      v-else-if="!isNeedSegment"
+      class="valid-text"
+    >
+      <template v-for="(item, index) in markItem">
+        <mark
+          v-if="item.isMark"
+          :key="index"
+          @click="handleClick($event, item.str)"
+          >{{ item.str }}</mark
+        >
+        <span
+          v-else
+          :key="index"
+          class="null-item"
+          @click="handleClick($event, item.str)"
+          >{{ item.str }}</span
+        >
+      </template>
+    </span>
+    <span
+      v-else
+      class="segment-content"
+    >
+      <template v-for="(item, index) in splitList">
         <!-- 换行 -->
-        <br :key="index" v-if="item === '\n'">
+        <br
+          v-if="item === '\n'"
+          :key="index"
+        />
         <!-- 分割符 -->
-        <template v-else-if="segmentReg.test(item)">{{item}}</template>
+        <template v-else-if="segmentReg.test(item)">{{ item }}</template>
         <!-- 高亮 -->
         <mark
-          :key="index"
           v-else-if="checkMark(item)"
-          @click="handleClick($event, item)">{{item}}</mark>
+          :key="index"
+          @click="handleClick($event, item)"
+          >{{ item }}</mark
+        >
         <!-- 可操作分词 -->
         <span
+          v-else-if="index < segmentLimitIndex"
           :key="index"
-          v-else-if="index < (segmentLimitIndex)"
           class="valid-text"
-          @click="handleClick($event, item)">{{item}}</span>
-        <template v-else>{{item}}</template>
+          @click="handleClick($event, item)"
+          >{{ item }}</span
+        >
+        <template v-else>{{ item }}</template>
       </template>
     </span>
 
     <div v-show="false">
-      <div ref="moreTools" class="event-icons">
-        <span
-          class="icon bk-icon icon-close-circle"
-          v-bk-tooltips.top="{ content: `${fieldName} = ${curValue}`, delay: 300 }"
-          @click="handleMenuClick('is')">
-        </span>
-        <span
-          class="icon bk-icon icon-minus-circle"
-          v-bk-tooltips.top="{ content: `${fieldName} != ${curValue}`, delay: 300 }"
-          @click="handleMenuClick('not')">
-        </span>
-        <span
-          class="icon log-icon icon-copy"
-          v-bk-tooltips.top="{ content: $t('复制'), delay: 300 }"
-          @click="handleMenuClick('copy')">
-        </span>
+      <div
+        ref="moreTools"
+        class="event-icons"
+      >
+        <div class="event-box">
+          <span
+            class="event-btn"
+            @click="handleMenuClick('copy')"
+          >
+            <i class="icon log-icon icon-copy"></i>
+            <span>{{ $t('复制') }}</span>
+          </span>
+        </div>
+        <div class="event-box">
+          <span
+            class="event-btn"
+            @click="handleMenuClick('is')"
+          >
+            <i class="icon bk-icon icon-plus-circle"></i>
+            <span>{{ $t('添加到本次检索') }}</span>
+          </span>
+          <div
+            v-bk-tooltips="$t('新开标签页')"
+            class="new-link"
+            @click.stop="handleMenuClick('is', true)"
+          >
+            <i class="log-icon icon-jump"></i>
+          </div>
+        </div>
+        <div class="event-box">
+          <span
+            class="event-btn"
+            @click="handleMenuClick('not')"
+          >
+            <i class="icon bk-icon icon-minus-circle"></i>
+            <span>{{ $t('从本次检索中排除') }}</span>
+          </span>
+          <div
+            v-bk-tooltips="$t('新开标签页')"
+            class="new-link"
+            @click.stop="handleMenuClick('not', true)"
+          >
+            <i class="log-icon icon-jump"></i>
+          </div>
+        </div>
       </div>
     </div>
   </span>
 </template>
 
 <script>
-import TextHighlight from 'vue-text-highlight';
-
 export default {
-  components: {
-    TextHighlight,
-  },
   props: {
     content: {
       type: [String, Number],
-      required: true,
-    },
-    fieldName: {
-      type: String,
-      default: '',
+      required: true
     },
     fieldType: {
       type: String,
-      default: '',
+      default: ''
     },
-    menuClick: Function,
+    menuClick: Function
   },
   data() {
     return {
       curValue: '', // 当前选中分词
       segmentReg: /<mark>(.*?)<\/mark>|([,&*+:;?^=!$<>'"{}()|[\]/\\|\s\r\n\t]|[-])/,
+      originalMarkReg: /<mark>(.*?)<\/mark>/g,
       segmentLimitIndex: 0, // 分词超出最大数量边界下标
       limitCount: 256, // 支持分词最大数量
       currentEvent: null,
+      intersectionObserver: null
     };
   },
   computed: {
     isNeedSegment() {
       return ['text'].includes(this.fieldType);
+    },
+    isVirtual() {
+      return this.fieldType === '__virtual__';
     },
     splitList() {
       const value = this.content;
@@ -117,11 +170,37 @@ export default {
     markList() {
       let markVal = this.content.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
       if (markVal.length) {
-        markVal = markVal.map(item => item.replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, ''));
+        markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
       }
       return markVal;
     },
+    /** 检索的高亮列表 */
+    markItem() {
+      let splitList = this.content
+        .toString()
+        .split(this.originalMarkReg)
+        .filter(Boolean)
+        .map(item => ({
+          str: item,
+          isMark: false
+        }));
+      // 过滤切割的数组 判断所有的值filter(Boolean)清空所有空字符串后 若为空数组 则补一个空字符串展示位
+      if (!splitList.length)
+        splitList = [
+          {
+            str: '',
+            isMark: false
+          }
+        ];
+      let markVal = this.content.toString().match(this.originalMarkReg);
+      if (markVal?.length) {
+        splitList.forEach(el => {
+          markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
+          markVal.includes(el.str) && (el.isMark = true); // 给匹配到的数据 mark高亮设置为true
+        });
+      }
+      return splitList;
+    }
   },
   beforeDestroy() {
     this.handleDestroy();
@@ -146,7 +225,8 @@ export default {
       // 匹配高亮标签
       let value = content;
       if (this.markList.length) {
-        value = String(value).replace(/<mark>/g, '')
+        value = String(value)
+          .replace(/<mark>/g, '')
           .replace(/<\/mark>/g, '');
       }
 
@@ -161,104 +241,158 @@ export default {
       }
     },
     handleClick(e, value) {
+      if (!value.toString()) return;
       this.handleDestroy();
       this.curValue = value;
       this.popoverInstance = this.$bkPopover(e.target, {
         content: this.$refs.moreTools,
         trigger: 'click',
-        placement: 'bottom',
+        placement: 'bottom-start',
         arrow: true,
         theme: 'light',
         interactive: true,
         extCls: 'event-tippy-content',
         onHidden: () => {
+          this.unregisterObserver();
           this.popoverInstance && this.popoverInstance.destroy();
           this.popoverInstance = null;
           this.currentEvent.classList.remove('focus-text');
         },
         onShow: () => {
+          setTimeout(this.registerObserver, 20);
           this.currentEvent = e.target;
           this.currentEvent.classList.add('focus-text');
-        },
+        }
       });
       this.popoverInstance && this.popoverInstance.show(10);
+    },
+    // 注册Intersection监听
+    registerObserver() {
+      if (this.intersectionObserver) this.unregisterObserver();
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (this.intersectionObserver) {
+            if (entry.intersectionRatio <= 0) {
+              this.popoverInstance.hide();
+            }
+          }
+        });
+      });
+      this.intersectionObserver.observe(this.$el);
+    },
+    unregisterObserver() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.unobserve(this.$el);
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = null;
+      }
     },
     checkMark(splitItem) {
       if (!this.markList.length) return false;
       // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-      return this.markList.some(item => item === splitItem
-       || splitItem.startsWith(`.${item}`)
-       || splitItem.endsWith(`${item}.`),
+      return this.markList.some(
+        item => item === splitItem || splitItem.startsWith(`.${item}`) || splitItem.endsWith(`${item}.`)
       );
     },
-    handleMenuClick(event) {
-      this.menuClick(event, this.curValue);
+    handleMenuClick(event, isLink = false) {
+      this.menuClick(event, this.curValue, isLink);
       this.handleDestroy();
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .event-tippy-content {
-    .event-icons {
-      display: flex;
-      align-items: center;
-    }
+@import '@/scss/mixins/flex.scss';
 
-    .tippy-tooltip {
-      padding: 4px 0 2px 8px;
-    }
+.event-tippy-content {
+  .event-icons {
+    flex-direction: column;
 
-    .icon {
-      display: inline-block;
-      margin-right: 10px;
-      font-size: 14px;
-      cursor: pointer;
+    @include flex-center();
+  }
 
-      &:hover {
-        color: #3a84ff;
-      }
-    }
+  .event-box {
+    height: 32px;
+    min-width: 240px;
+    padding: 0 10px;
+    font-size: 12px;
+    cursor: pointer;
 
-    .bk-icon {
-      transform: rotate(45deg);
-    }
+    @include flex-center();
 
-    .icon-minus-circle {
-      transform: rotate(0);
-    }
-
-    .icon-minus-circle,
-    .icon-chart {
-      margin-right: 4px;
-    }
-
-    .icon-copy {
-      margin-right: 3px;
-      font-size: 24px;
+    &:hover {
+      background: #eaf3ff;
     }
   }
 
-  .log-content-wrapper {
-    word-break: break-all;
+  .new-link {
+    width: 24px;
+    height: 24px;
 
-    .segment-content {
-      white-space: normal;
-    }
+    @include flex-center();
 
-    .menu-list {
-      display: none;
-      position: absolute;
-    }
-
-    .valid-text {
-      cursor: pointer;
-
-      &.focus-text,
-      &:hover {
-        color: #3a84ff;
-      }
+    &:hover {
+      color: #3a84ff;
     }
   }
+
+  .event-btn {
+    flex: 1;
+    align-items: center;
+
+    @include flex-justify(left);
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .tippy-tooltip {
+    padding: 6px 2px;
+  }
+
+  .icon {
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .icon-minus-circle,
+  .icon-plus-circle {
+    margin-right: 6px;
+  }
+
+  .icon-copy {
+    margin-left: -4px;
+    font-size: 24px;
+  }
+}
+
+.log-content-wrapper {
+  word-break: break-all;
+
+  .segment-content {
+    white-space: normal;
+  }
+
+  .menu-list {
+    position: absolute;
+    display: none;
+  }
+
+  .valid-text {
+    cursor: pointer;
+
+    &.focus-text,
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .null-item {
+    display: inline;
+    min-width: 6px;
+  }
+}
 </style>

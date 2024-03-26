@@ -25,8 +25,8 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
 import {
   ChartTitleMenuType,
   CurrentTargetType,
@@ -85,6 +85,15 @@ interface IChartTitleEvent {
   onAllMetricClick: () => void;
 }
 
+enum AlarmStatus {
+  /** 没有配置策略 */
+  not_confit_strategy = 0,
+  /** 已经配置策略 */
+  already_config_strategy = 1,
+  /** 告警中 */
+  on_warning = 2
+}
+
 @Component
 export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> {
   @Prop({ default: '' }) title: string;
@@ -123,14 +132,14 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     const { status, alert_number, strategy_number } = this.alarmStatus;
     let content = '';
     switch (status) {
-      case 1:
-        content = window.i18n.t('已设置 {0} 个告警', [strategy_number]).toString();
+      case AlarmStatus.already_config_strategy:
+        content = window.i18n.t('已设置 {0} 个策略', [strategy_number]).toString();
         break;
-      case 2:
+      case AlarmStatus.on_warning:
         content = window.i18n.t('告警中，告警数量：{0}', [alert_number]).toString();
         break;
       default:
-      case 0:
+      case AlarmStatus.not_confit_strategy:
         content = window.i18n.t('未配置策略').toString();
         break;
     }
@@ -138,7 +147,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       content,
       showOnInit: false,
       trigger: 'mouseenter',
-      placements: ['top']
+      placements: ['top'],
+      allowHTML: false
     };
   }
   /** aiops title高度不一致，需要特殊向上偏移 */
@@ -309,7 +319,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             {this.showMetricAlarm && this.showTitleIcon ? (
               <i
                 v-bk-tooltips={this.alarmTips}
-                class={`icon-monitor icon-mc-chart-alert alarm-icon icon-btn status-${this.alarmStatus.status + 1}`}
+                class={[
+                  'icon-monitor',
+                  'alarm-icon',
+                  'icon-btn',
+                  this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-mc-strategy status-strategy',
+                  this.alarmStatus.status === AlarmStatus.not_confit_strategy &&
+                    'icon-mc-strategy status-strategy-not-config',
+                  this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3'
+                ]}
                 onClick={modifiers.stop(this.handleAlarmClick)}
               />
             ) : undefined}

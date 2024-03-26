@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
+import { random } from 'monitor-common/utils/utils';
 
-import { random } from '../../../monitor-common/utils/utils';
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 
@@ -54,7 +54,7 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
   }
   async beforeRouteLeave(to, from, next) {
     const allowJumpMap = ['alarm-group-add', 'alarm-group-edit', 'strategy-config', 'set-meal-add', 'set-meal-edit'];
-    if (this.needCheck && !allowJumpMap.includes(to.name)) {
+    if (this.needCheck && !allowJumpMap.includes(to.name) && this.$store.getters.bizIdChangePedding !== to.name) {
       const needNext = await this.handleCancel(false);
       if (needNext) {
         destroyTimezone();

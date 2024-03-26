@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { RouteConfig } from 'vue-router';
+import * as HomeAuth from 'monitor-pc/pages/home/authority-map';
 
-import * as HomeAuth from '../../../monitor-pc/pages/home/authority-map';
-
-const Home = () => import(/* webpackChunkName: "home" */ '../../pages/home/home');
+const Home = () => import(/* webpackChunkName: "Home" */ '../../pages/home/home');
 
 export default [
   {

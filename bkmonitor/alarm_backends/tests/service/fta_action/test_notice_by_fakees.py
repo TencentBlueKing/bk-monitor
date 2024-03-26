@@ -1,6 +1,8 @@
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
+import mock as _mock
+import pytz
 from django.conf import settings
 from django.test import TestCase
 from elasticsearch_dsl import AttrDict
@@ -22,16 +24,17 @@ from alarm_backends.tests.service.fta_action.test_notice_execute import (
 )
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
 from bkmonitor.models import ActionInstance, DutyPlan, UserGroup
+from bkmonitor.utils import time_tools
 from bkmonitor.utils.elasticsearch.fake_elasticsearch import FakeElasticsearchBucket
 from constants.action import ActionSignal, ActionStatus
 from constants.alert import EventStatus
 from monitor_web.tests import mock
 
-mock.patch(
+_mock.patch(
     "elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()
 ).start()
-mock.patch("alarm_backends.service.fta_action.tasks.run_webhook_action.apply_async", return_value=11111).start()
-mock.patch("alarm_backends.service.fta_action.tasks.run_action.apply_async", return_value=11111).start()
+_mock.patch("alarm_backends.service.fta_action.tasks.run_webhook_action.apply_async", return_value=11111).start()
+_mock.patch("alarm_backends.service.fta_action.tasks.run_action.apply_async", return_value=11111).start()
 
 
 def clear_index():
@@ -61,13 +64,17 @@ class TestActionFakeESProcessor(TestCase):
 
     def test_job_with_appointees(self):
         register_builtin_plugins()
+
+        local_timezone = pytz.timezone("Asia/Shanghai")
+        today_begin = time_tools.datetime2str(datetime.now(tz=local_timezone), "%Y-%m-%d 00:00")
+        today_end = time_tools.datetime2str(datetime.now(tz=local_timezone), "%Y-%m-%d 23:59")
         duty_plans = [
             {
-                "duty_arrange_id": 123,
-                "is_active": True,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "duty_rule_id": 1,
+                "is_effective": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
+                "finished_time": time_tools.datetime2str(datetime.now(tz=local_timezone) + timedelta(hours=1)),
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "order": 1,
                 "users": [
                     {"id": "admin", "display_name": "admin", "logo": "", "type": "user"},
@@ -75,12 +82,12 @@ class TestActionFakeESProcessor(TestCase):
                 ],
             },
             {
-                "duty_arrange_id": 124,
-                "begin_time": datetime.now(tz=timezone.utc),
-                "end_time": None,
-                "is_active": True,
+                "duty_rule_id": 1,
+                "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
+                "finished_time": "",
+                "is_effective": 1,
                 "order": 2,
-                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "work_times": [{'start_time': today_begin, 'end_time': today_end}],
                 "users": [{"id": "lisa", "display_name": "xxxxx", "logo": "", "type": "user"}],
             },
         ]
@@ -90,6 +97,7 @@ class TestActionFakeESProcessor(TestCase):
             "desc": "用户组的说明用户组的说明用户组的说明用户组的说明用户组的说明",
             "bk_biz_id": 2,
             "need_duty": True,
+            "duty_rules": [1],
             "alert_notice": [  # 告警通知配置
                 {
                     "time_range": "00:00:00--23:59:59",  # 生效时间段

@@ -26,8 +26,7 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable import/prefer-default-export */
 import { CancelToken } from 'axios';
-
-import { random } from '../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
 
 import axios from './axios/axios';
 import { bkMessage, makeMessage } from './utils/index';

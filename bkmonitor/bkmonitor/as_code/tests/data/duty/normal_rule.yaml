@@ -1,0 +1,23 @@
+name: "轮值规则测试"
+labels: [test, aaa]
+enabled: true
+effective_time: "2023-11-24 17:35:00"
+arranges:
+  - users: [[group#bk_operator, xxx]]
+    time:
+      - work:
+          days: []
+          date_range: []
+          time_range: ["00:00--23:59"]
+        type: daily
+    group:
+      type: specified
+  - users: [ [ group#bk_operator, xxx ] ]
+    time:
+      - work:
+          days: [1,2,3,4,5]
+          date_range: [ ]
+          datetime_range: [ "01 00:00--05 23:59"]
+        type: weekly
+    group:
+      type: specified

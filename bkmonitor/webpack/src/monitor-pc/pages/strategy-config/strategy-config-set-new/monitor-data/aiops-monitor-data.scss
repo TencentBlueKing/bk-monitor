@@ -25,6 +25,7 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
       display: flex;
       align-items: center;
       height: 18px;
+      color: #3a84ff;
       cursor: pointer;
     }
 
@@ -44,6 +45,11 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
       color: #3a84ff;
     }
 
+    .icon-bianji {
+      font-size: 28px;
+      cursor: pointer;
+    }
+
     .icon-mc-tv {
       color: #979ba5;
     }
@@ -54,12 +60,12 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
   }
 
   .bk-form-content {
-    min-height: 16px;;
-    line-height: 16px;;
+    min-height: 16px;
+    line-height: 16px;
   }
 
   .form-wrap {
-    .bk-form-item+.bk-form-item {
+    .bk-form-item + .bk-form-item {
       margin-top: 16px;
     }
 
@@ -75,10 +81,10 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
 
     .bk-select {
       width: 320px;
-      line-height: 24px;;
+      line-height: 24px;
 
       .bk-select-name {
-        height: 24px;;
+        height: 24px;
         padding-left: 0px;
       }
     }
@@ -86,28 +92,28 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
 
   .bk-label {
     min-height: 16px;
-    padding-right: 10px;;
-    font-size: 12px;;
-    font-weight: 700;;
+    padding-right: 10px;
+    font-size: 12px;
+    font-weight: 700;
     line-height: 16px;
 
     .bk-label-text {
-      line-height: 16px;;
+      line-height: 16px;
     }
   }
 
   .aiops-monitor-data-text {
-    line-height: 16px;;
+    line-height: 16px;
   }
 
   .aiops-tag-wrap {
-    padding-left: 110px;;
-    margin: 8px 0px 16px;;
+    padding-left: 110px;
+    margin: 8px 0px 16px;
 
     .aiops-tag-content {
       position: relative;
       display: flex;
-      align-items: flex-start;;
+      align-items: flex-start;
       min-height: 38px;
       padding: 8px 43px 8px 8px;
       line-height: 22px;
@@ -115,11 +121,11 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
       border-radius: 2px;
 
       .aiops-tag-list {
-        height: 22px;;
+        height: 22px;
         overflow: hidden;
 
         .bk-tag {
-          margin: 0px 6px 0px 0px;;
+          margin: 0px 6px 0px 0px;
           background: #fafbfd;
           border: 1px solid #979ba54d;
         }
@@ -131,7 +137,7 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
         height: auto;
 
         .bk-tag {
-          margin-bottom: 3px;;
+          margin-bottom: 3px;
         }
       }
     }
@@ -168,15 +174,15 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
 
     .bk-checkbox-text {
       height: 16px;
-      margin: 0px;;
+      margin: 0px;
 
       span {
-        font-size: 12px;;
+        font-size: 12px;
       }
     }
 
     .level-check {
-      margin-right: 32px;;
+      margin-right: 32px;
     }
   }
 

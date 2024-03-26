@@ -1,0 +1,44 @@
+.expand-wrapper-component {
+  width: 100%;
+
+  .wrap-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 42px;
+    cursor: pointer;
+    background: #f0f1f5;
+    border: 1px solid #dcdee5;
+    border-radius: 2px 2px 0 0;
+
+    &.active {
+      border-bottom: 1px solid #f0f1f5;
+    }
+
+    .expan-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 100%;
+    }
+
+    .icon-mc-triangle-down {
+      font-size: 20px;
+      transform: rotate(-90deg);
+
+      &.active {
+        transform: rotate(0deg);
+      }
+    }
+  }
+
+  .wrap-content {
+    display: none;
+    min-height: 42px;
+
+    &.show {
+      display: block;
+    }
+  }
+}

@@ -1,4 +1,3 @@
-
 @mixin header {
   display: flex;
   align-items: flex-start;
@@ -9,15 +8,15 @@
   }
 
   .right {
-    cursor: pointer;
     color: #3a84ff;
+    cursor: pointer;
   }
 }
 
 @mixin bold-color($color: #3a84ff) {
-  color: $color;
-  font-weight: bold;
   margin: 0 4px;
+  font-weight: bold;
+  color: $color;
 }
 
 @mixin help-list {
@@ -25,15 +24,15 @@
     color: #3a84ff;
 
     .help-item {
-      margin-top: 12px;
       display: flex;
       align-items: center;
-      cursor: pointer;
+      margin-top: 12px;
       line-height: 16px;
+      cursor: pointer;
 
       .icon-monitor {
-        font-size: 16px;
         margin-right: 8px;
+        font-size: 16px;
       }
     }
   }
@@ -43,13 +42,13 @@
   .robot-img {
     position: fixed;
     z-index: 1;
+    z-index: 2000;
     width: 64px;
     height: 64px;
-    box-shadow: 0 4px 10px 0 rgba(0,0,0,.20);
-    border-radius: 50%;
-    z-index: 2000;
-    background-repeat: round;
     cursor: move;
+    background-repeat: round;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px 0 rgba(0, 0, 0, .2);
     transition: 50ms all;
 
     &.blue {
@@ -69,6 +68,7 @@
 .ai-small-whale-tip-content {
   min-width: 240px;
   padding: 12px 16px;
+  font-size: 12px;
   color: #63656e;
 
   .blue-bold {
@@ -76,11 +76,11 @@
   }
 
   .red-bold {
-    @include bold-color(#EA3636);
+    @include bold-color(#ea3636);
   }
 
   .grey-bold {
-    @include bold-color(#68696D);
+    @include bold-color(#68696d);
   }
 
   .link {
@@ -136,13 +136,13 @@
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          color: #3a84ff;
           margin-top: 10px;
+          color: #3a84ff;
 
           .option {
-            margin-left: 16px;
             display: flex;
             align-items: center;
+            margin-left: 16px;
             cursor: pointer;
 
             .icon-monitor {
@@ -151,16 +151,16 @@
             }
 
             .icon-back-left {
-              font-size: 24px;
               margin-right: 0;
+              font-size: 24px;
             }
           }
         }
 
         .icon-mc-copy {
+          margin-left: 2px;
           font-size: 14px;
           color: #aeb0b4;
-          margin-left: 2px;
           cursor: pointer;
         }
       }
@@ -170,17 +170,17 @@
       line-height: 22px;
 
       .icon-fenxiang {
+        margin-left: 4px;
         font-size: 12px;
         color: #3a84ff;
-        margin-left: 4px;
         cursor: pointer;
       }
 
       .icon-double-down {
-        font-size: 20px;
-        color: #3a84ff;
         position: relative;
         top: 2px;
+        font-size: 20px;
+        color: #3a84ff;
         cursor: pointer;
       }
     }

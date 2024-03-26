@@ -32,18 +32,14 @@ from alarm_backends.service.fta_action import (
     ActionAlreadyFinishedError,
     BaseActionProcessor,
 )
-from alarm_backends.service.fta_action.utils import (
-    DutyCalendar,
-    PushActionProcessor,
-    to_document,
-)
+from alarm_backends.service.fta_action.utils import PushActionProcessor, to_document
 from alarm_backends.service.scheduler.tasks import perform_sharding_task
+from bkmonitor.action.duty_manage import GroupDutyRuleManager
+from bkmonitor.action.serializers import DutyRuleDetailSlz
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import ActionInstance, ConvergeRelation
-from bkmonitor.models.strategy import DutyArrange, DutyArrangeSnap, DutyPlan, UserGroup
-from bkmonitor.utils import time_tools
-from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.models.strategy import DutyRule, DutyRuleRelation, UserGroup
 from constants.action import ActionSignal, ActionStatus, ConvergeType, FailureType
 from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
@@ -126,8 +122,9 @@ def run_action(action_type, action_info):
 
     metrics.ACTION_EXECUTE_TIME.labels(**labels).observe(time.time() - start_time)
     metrics.ACTION_EXECUTE_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc, **labels).inc()
-    if is_finished and action_instance:
+    if is_finished and action_instance and not action_instance.is_parent_action:
         # 结束之后统计任务的执行情况
+        # 统计是否成功失败的指标，忽略掉主任务（主任务没有真正执行的内容）
         status_labels = {
             "status": metrics.StatusEnum.FAILED
             if action_instance.status == ActionStatus.FAILURE
@@ -418,180 +415,54 @@ def clear_mysql_action_data(days=7, count=5000):
 
 def generate_duty_plan_task():
     """
-    生成值班周期任务
-    :return:
+    周期维护
     """
-    current_time = datetime.now(tz=timezone.utc)
-    current_time = (
-        current_time - timedelta(seconds=current_time.second) - timedelta(microseconds=current_time.microsecond)
-    )
-    task_time = current_time + timedelta(minutes=1)
-    logger.info(
-        "[generate_duty_plan_task]generate_duty_plan_task for current_time(%s)", time_tools.localtime(task_time)
-    )
-    # 当前计算上一分钟之内应该生效的内容
-    manage_duty_arrange_snap.delay(task_time)
-
-    # 针对最近一小时内删除的轮值信息进行更新，缩小查找范围
-    deleted_duties = list(
-        DutyArrange.origin_objects.filter(
-            is_deleted=True, update_time__gte=current_time - timedelta(hours=1)
-        ).values_list("id", flat=True)
-    )
-    logger.info(
-        "[delete_duty_plan_task]delete duty snap and plan from current_time(%s)， deleted arranges(%s)",
-        time_tools.localtime(task_time),
-        len(deleted_duties),
-    )
-    if deleted_duties:
-        DutyArrangeSnap.objects.filter(duty_arrange_id__in=deleted_duties, is_active=True).update(is_active=False)
-        DutyPlan.objects.filter(duty_arrange_id__in=deleted_duties, is_active=True).update(is_active=False)
+    duty_rule_ids = set(DutyRuleRelation.objects.all().values_list("duty_rule_id", flat=True))
+    duty_rule_dict = {
+        d["id"]: d
+        for d in DutyRuleDetailSlz(instance=DutyRule.objects.filter(id__in=list(duty_rule_ids)), many=True).data
+    }
+    managers = []
+    for user_group in UserGroup.objects.filter(need_duty=True).only(
+        "id", "bk_biz_id", "duty_rules", "duty_notice", "timezone"
+    ):
+        # 获取有轮值关联的用户组进行任务管理
+        group_duties = [duty_rule_dict[rule_id] for rule_id in user_group.duty_rules if rule_id in duty_rule_dict]
+        if not group_duties:
+            logger.info("[generate_duty_plan_task] empty duty group(%s), turn to next one", user_group.id)
+            continue
+        duty_manager = GroupDutyRuleManager(user_group, group_duties)
+        manage_group_duty_snap.delay(duty_manager)
+        if user_group.duty_notice and any(
+            [
+                user_group.duty_notice.get("plan_notice", {}).get("enabled"),
+                user_group.duty_notice.get("personal_notice", {}).get("enabled"),
+            ]
+        ):
+            # 当有需要进行通知任务的时候，才推送通知任务
+            manage_group_duty_notice.delay(duty_manager)
+        managers.append(duty_manager)
+    return managers
 
 
 @task(ignore_result=True, queue="celery_action_cron")
-def manage_duty_arrange_snap(task_time, is_delay=True):
+def manage_group_duty_snap(duty_manager: GroupDutyRuleManager):
     """
-    :param is_delay:
-    :param task_time:
-    :return:
+    单个任务组的排班计划管理
     """
-    new_duty_snaps = {}
-    logger.info(
-        "[manage_duty_arrange_snap] begin to manage duty snap for current_time(%s)", time_tools.localtime(task_time)
-    )
-    current_time = datetime.now(tz=timezone.utc)
-    current_time = (
-        current_time - timedelta(seconds=current_time.second) - timedelta(microseconds=current_time.microsecond)
-    )
-    task_time = max(current_time, task_time)
-    duty_groups = UserGroup.objects.filter(need_duty=True).values_list("id", flat=True)
-    for duty_arrange in DutyArrange.objects.filter(effective_time__lte=task_time, user_group_id__in=duty_groups):
-        effective_time = max(duty_arrange.effective_time, current_time)
-        new_duty_snaps.update(
-            {
-                duty_arrange.id: DutyArrangeSnap(
-                    is_active=True,
-                    next_plan_time=effective_time,
-                    first_effective_time=effective_time,
-                    duty_arrange_id=duty_arrange.id,
-                    user_group_id=duty_arrange.user_group_id,
-                    duty_snap=dict(
-                        order=duty_arrange.order,
-                        duty_time=duty_arrange.duty_time,
-                        duty_users=duty_arrange.duty_users,
-                        users=duty_arrange.users,
-                        handoff_time=duty_arrange.handoff_time,
-                        need_rotation=duty_arrange.need_rotation,
-                    ),
-                )
-            }
-        )
-    no_change_duty_arrange_ids = []
-    duty_arrange_ids = set(new_duty_snaps.keys())
-    for duty_snap in DutyArrangeSnap.objects.filter(duty_arrange_id__in=new_duty_snaps.keys(), is_active=True):
-        new_snap = new_duty_snaps[duty_snap.duty_arrange_id].duty_snap
-        new_order = new_snap.pop("order", None)
-        duty_snap.duty_snap.pop("order", None)
-        if count_md5(new_snap, list_sort=False) == count_md5(duty_snap.duty_snap, list_sort=False):
-            # 如果没有发生任何变化，不做改动
-            no_change_duty_arrange_ids.append(duty_snap.duty_arrange_id)
-        new_snap["order"] = new_order
-    duty_arrange_ids = set(duty_arrange_ids).difference(set(no_change_duty_arrange_ids))
-
-    if duty_arrange_ids:
-        logger.info(
-            "[manage_duty_arrange_snap] delete history duty arrange plan for %s",
-            ",".join([str(item) for item in duty_arrange_ids]),
-        )
-        # 删除掉需要更改的的快照
-        DutyArrangeSnap.objects.filter(duty_arrange_id__in=duty_arrange_ids).delete()
-        DutyArrangeSnap.objects.bulk_create([new_duty_snaps[duty_id] for duty_id in duty_arrange_ids])
-
-    duty_snaps = DutyArrangeSnap.objects.filter(next_plan_time__lte=task_time, is_active=True).values(
-        "id", "duty_arrange_id"
-    )
-    duty_snap_ids = [snap["id"] for snap in duty_snaps]
-
-    if is_delay is False:
-        return
-
-    for snap_id in duty_snap_ids:
-        # 生成新的任务
-        manage_duty_arrange_plan.delay(current_time, snap_id)
-
-    logger.info(
-        "[manage_duty_arrange_snap] begin to manage duty snap for current_time(%s)", time_tools.localtime(task_time)
-    )
+    # 每天做一次管理检查
+    logger.info("start to manage group(%s)'s duty plan", duty_manager.user_group.id)
+    task_time = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+    duty_manager.manage_duty_rule_snap(task_time)
+    logger.info("finished to manage group(%s)'s duty plan", duty_manager.user_group.id)
 
 
 @task(ignore_result=True, queue="celery_action_cron")
-def manage_duty_arrange_plan(current_time, snap_id):
-    # step 1 当前分组的原计划都设置为False
-    logger.info("[manage_duty_arrange_plan] begin to manage duty plan for snap(%s)", snap_id)
-    try:
-        duty_arrange_snap = DutyArrangeSnap.objects.get(id=snap_id, is_active=True)
-    except DutyArrangeSnap.DoesNotExist:
-        logger.warning("[manage_duty_arrange_plan] duty snap(%s) not existed", snap_id)
-        return
-
-    try:
-        duty_arrange = DutyArrange.objects.get(id=duty_arrange_snap.duty_arrange_id)
-    except DutyArrange.DoesNotExist:
-        # 如果不存在，则表示已经删除
-        logger.warning(
-            "[manage_duty_arrange_plan] duty arrange(%s|%s) not existed", duty_arrange_snap.duty_arrange_id, snap_id
-        )
-        DutyPlan.objects.filter(duty_arrange_id=duty_arrange_snap.duty_arrange_id, is_active=True).update(
-            is_active=False
-        )
-        duty_arrange_snap.is_active = False
-        duty_arrange_snap.save()
-        return
-
-    # step 2 根据当前的轮值模式生成新的计划
-    duty_snap = duty_arrange_snap.duty_snap
-    duty_plans = []
-    handoff_time = duty_snap["handoff_time"]
-    begin_time = max(current_time, duty_arrange_snap.next_plan_time)
-
-    # 当前已经结束或者未来不会生效的直接设置为False
-    DutyPlan.objects.filter(duty_arrange_id=duty_arrange.id, is_active=True).filter(
-        Q(end_time__lte=current_time) | Q(begin_time__gte=begin_time)
-    ).update(is_active=False)
-
-    # 当前还要继续生效的设置结束为当前snap的开始时间
-    DutyPlan.objects.filter(duty_arrange_id=duty_arrange.id, is_active=True).filter(
-        Q(end_time__gt=begin_time) | Q(end_time=None)
-    ).update(end_time=begin_time)
-
-    end_time = None
-    for users in duty_snap["duty_users"]:
-        if duty_snap["need_rotation"] and handoff_time:
-            end_time = getattr(
-                DutyCalendar,
-                "get_{}_rotation_end_time".format(handoff_time["rotation_type"]),
-                DutyCalendar.get_daily_rotation_end_time,
-            )(begin_time, handoff_time)
-        duty_plans.append(
-            DutyPlan(
-                user_group_id=duty_arrange_snap.user_group_id,
-                duty_arrange_id=duty_arrange_snap.duty_arrange_id,
-                duty_time=duty_snap["duty_time"],
-                is_active=True,
-                order=duty_arrange.order,
-                begin_time=begin_time,
-                end_time=end_time,
-                users=users,
-            )
-        )
-        begin_time = end_time
-
-    DutyPlan.objects.bulk_create(duty_plans)
-    duty_arrange_snap.next_plan_time = end_time
-    duty_arrange_snap.save(update_fields=["next_plan_time"])
-
-    logger.info(
-        "[manage_duty_arrange_plan] end to manage duty plan for snap(%s), next_plan_time(%s)",
-        snap_id,
-        time_tools.localtime(end_time) if end_time else "no ending",
-    )
+def manage_group_duty_notice(duty_manager: GroupDutyRuleManager):
+    """
+    单个任务组的排班计划管理
+    """
+    # 每天做一次管理检查
+    logger.info("start to manage group(%s)'s duty notice", duty_manager.user_group.id)
+    duty_manager.manage_duty_notice()
+    logger.info("finished to manage group(%s)'s duty notice", duty_manager.user_group.id)

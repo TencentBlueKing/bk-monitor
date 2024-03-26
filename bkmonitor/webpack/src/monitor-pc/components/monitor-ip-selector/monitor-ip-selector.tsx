@@ -25,7 +25,6 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import create from '@blueking/ip-selector/dist/index.esm';
-
 import {
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
@@ -44,7 +43,7 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig
-} from '../../../monitor-api/modules/model';
+} from 'monitor-api/modules/model';
 
 import {
   CommomParams,
@@ -76,7 +75,6 @@ const BkIpSelector = create({
   version: '3',
   serviceConfigError: false
 });
-console.log('BkIpSelector', BkIpSelector);
 export interface IMonitorIpSelectorProps {
   panelList?: string[];
   value?: IIpV6Value;
@@ -320,7 +318,6 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   // }
   // 获取服务模板列表
   async fetchServiceTemplates(params: Record<string, any>): Promise<Array<ITemplateItem>[]> {
-    console.log('fetchServiceTemplates = ', params);
     return await templatesIpChooserTemplate(
       this.transformParams({
         scope_list: this.scopeList,

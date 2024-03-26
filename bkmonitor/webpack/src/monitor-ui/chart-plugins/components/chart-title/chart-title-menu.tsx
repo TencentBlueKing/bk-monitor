@@ -220,7 +220,8 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                     content: child.id,
                     placement: 'right',
                     boundary: document.body,
-                    disabled: !child.needTips
+                    disabled: !child.needTips,
+                    allowHTML: false
                   }}
                   class={['child-list-item', { active: child.id === item.childValue }]}
                   onClick={() => this.handleSelectChild(item, child)}
@@ -293,7 +294,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 <span class='field-name'>{item.metric_field_name}</span>
                 <i
                   class='bk-icon icon-info-circle tips-icon'
-                  v-bk-tooltips={{ content: createMetricTitleTooltips(item) }}
+                  v-bk-tooltips={{ content: createMetricTitleTooltips(item), allowHTML: true }}
                 ></i>
               </li>
             ))}

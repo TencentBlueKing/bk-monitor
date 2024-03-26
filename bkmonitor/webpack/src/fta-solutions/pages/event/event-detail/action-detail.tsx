@@ -25,11 +25,9 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Table, TableColumn } from 'bk-magic-vue';
 import dayjs from 'dayjs';
-
-import { actionDetail, searchAlert } from '../../../../monitor-api/modules/alert';
-import { isZh } from '../../../../monitor-pc/common/constant';
+import { actionDetail, searchAlert } from 'monitor-api/modules/alert';
+import { isZh } from 'monitor-pc/common/constant';
 
 import { getStatusInfo } from './type';
 
@@ -77,6 +75,7 @@ interface ITableData {
 }
 interface IActiveDetail {
   id?: string;
+  bizId?: number;
 }
 interface IDetailInfo {
   id?: string;
@@ -104,6 +103,7 @@ interface IDetailInfo {
 })
 export default class ActiveDetail extends tsc<IActiveDetail> {
   @Prop({ type: String, default: '' }) id: string;
+  @Prop({ type: [Number, String], default: +window.bk_biz_id }) bizId: number;
 
   detailInfo: IDetailInfo = {};
   tableData: { trigger: ITableData[]; defense: ITableData[] } = {
@@ -120,7 +120,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
 
   async created() {
     this.loading = true;
-    this.detailInfo = await actionDetail({ id: this.id }).catch(() => ({}));
+    this.detailInfo = await actionDetail({ id: this.id, bk_biz_id: this.bizId }).catch(() => ({}));
     const oneDay = 60 * 24 * 60;
     const params = {
       conditions: [],
@@ -131,7 +131,8 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
       record_history: false,
       show_aggs: false,
       show_overview: false,
-      start_time: this.detailInfo.create_time - oneDay
+      start_time: this.detailInfo.create_time - oneDay,
+      bk_biz_ids: [Number(this.bizId) || this.bizId]
     };
     const triggerData = await searchAlert({
       ...params,
@@ -231,27 +232,27 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
       </div>
     );
     return (
-      <Table data={tableData}>
-        <TableColumn
+      <bk-table data={tableData}>
+        <bk-table-column
           label={this.$t('告警ID')}
           width='150'
           scopedSlots={{ default: props => props.row.id }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           label={this.$t('告警名称')}
           width='200'
           scopedSlots={{ default: props => props.row.alert_name }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           label={this.$t('告警级别')}
           width='100'
           scopedSlots={{ default: props => severity(props.row.severity) }}
-        ></TableColumn>
-        <TableColumn
+        ></bk-table-column>
+        <bk-table-column
           label={this.$t('告警内容')}
           scopedSlots={{ default: props => alertContent(props.row.dimensions, props.row.description) }}
-        ></TableColumn>
-      </Table>
+        ></bk-table-column>
+      </bk-table>
     );
   }
   render() {

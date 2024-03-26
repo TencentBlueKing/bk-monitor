@@ -857,11 +857,11 @@ X-BK-TOKEN=$TOKEN
 import { CreateElement } from 'vue';
 import { Component, Mixins, Ref } from 'vue-property-decorator';
 import dayjs from 'dayjs';
-
 import {   createOrUpdateGroupingRule,  customTsGroupingRuleList,
   modifyCustomTsGroupingRuleList,
   validateCustomEventGroupLabel,
-  validateCustomTsGroupLabel } from '../../../monitor-api/modules/custom_report';
+  validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
+
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
 import MonitorExport from '../../components/monitor-export/monitor-export.vue';
 import MonitorImport from '../../components/monitor-import/monitor-import.vue';
@@ -1160,7 +1160,6 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       },
       on: {
         change: (v) => {
-          console.log(v);
           setTimeout(() => {
             this.pagination.page = 1;
             this.groupFilterList = v;

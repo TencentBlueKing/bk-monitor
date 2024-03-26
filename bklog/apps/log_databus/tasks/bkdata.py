@@ -240,8 +240,11 @@ def get_collector_maintainers_and_platform_username(
     if ADMIN_REQUEST_USER in result["maintainers"] and len(result["maintainers"]) > 1:
         result["maintainers"].discard(ADMIN_REQUEST_USER)
 
+    # 如果创建人在业务运维人员中，则使用创建人
+    if collector_config.created_by in result["maintainers"]:
+        result["platform_username"] = collector_config.created_by
     # 如果指定了平台运维人员，且在业务运维人员中，则使用指定的平台运维人员, 否则使用业务运维人员中的一个
-    if not platform_username or platform_username not in result["maintainers"]:
+    elif not platform_username or platform_username not in result["maintainers"]:
         result["platform_username"] = list(result["maintainers"])[0]
     else:
         result["platform_username"] = platform_username

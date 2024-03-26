@@ -86,8 +86,7 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
-
-import { getAuthorityDetail } from '../../../monitor-api/modules/iam';
+import { getAuthorityDetail } from 'monitor-api/modules/iam';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from '../../components/access-request-dialog';
 Component.registerHooks(['beforeRouteEnter']);
@@ -171,26 +170,26 @@ export default class ExceptionPage extends Vue {
 @import '../../theme/mixin.scss';
 
 .exception-page {
-  height: 100%;
-  display: flex;
   position: relative;
+  display: flex;
   justify-content: center;
+  height: 100%;
 
   @include permission-fix;
 
   .exception-title {
-    margin-bottom: 15px;
     display: flex;
     align-items: center;
-    font-size: 14px;
     justify-content: center;
+    margin-bottom: 15px;
+    font-size: 14px;
   }
 
   &-img {
     position: absolute;
     top: 40%;
-    transform: translateY(-50%);
     max-width: 800px;
+    transform: translateY(-50%);
 
     .exception-btn {
       margin-left: 10px;

@@ -15,14 +15,13 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
-from apm_web.constants import SpanSourceCategory, TraceWaterFallDisplayKey, EbpfSignalSourceType
 from opentelemetry.semconv.resource import ResourceAttributes
 
-from constants.apm import OtlpKey
+from apm_web.constants import EbpfSignalSourceType, SpanSourceCategory
+from constants.apm import OtlpKey, TraceWaterFallDisplayKey
 
 
 class CategoryEbpfFilter:
-
     NAME = TraceWaterFallDisplayKey.SOURCE_CATEGORY_EBPF
 
     EBPF_SDK_NAMES = ["deepflow"]
@@ -33,7 +32,6 @@ class CategoryEbpfFilter:
 
 
 class CategoryOpentelemetryFilter:
-
     NAME = TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY
 
     @classmethod
@@ -43,7 +41,6 @@ class CategoryOpentelemetryFilter:
 
 
 class DisplayProcessorContainer:
-
     processors = {
         CategoryEbpfFilter.NAME: CategoryEbpfFilter,
         CategoryOpentelemetryFilter.NAME: CategoryOpentelemetryFilter,

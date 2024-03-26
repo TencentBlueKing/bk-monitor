@@ -7,17 +7,17 @@
 
   .time-range-trigger {
     display: flex;
-    align-items: center;
-    color: #63656e;
-    padding: 0 10px;
     height: 28px;
+    padding: 0 10px;
+    color: #63656e;
     cursor: pointer;
+    align-items: center;
 
     &.simple,
     &.border {
       .icon-clock {
-        font-size: 15px;
         margin-right: 6px;
+        font-size: 15px;
       }
 
       .icon-angle-down {
@@ -27,19 +27,19 @@
 
     &.border {
       height: 32px;
+      padding-right: 3px;
       border: 1px solid #c4c6cc;
       border-radius: 2px;
-      padding-right: 3px;
     }
 
     &.active {
-      border-radius: 2px;
       background-color: #e1ecff;
+      border-radius: 2px;
     }
 
     .icon-clock {
-      font-size: 18px;
       margin-right: 10px;
+      font-size: 18px;
     }
   }
 }
@@ -51,11 +51,11 @@
 
   .time-range-custom {
     display: flex;
+    height: 46px;
+    padding: 0 150px 0 16px;
+    border-bottom: 1px solid #dcdee5;
     align-items: center;
     justify-content: space-between;
-    padding: 0 150px 0 16px;
-    height: 46px;
-    border-bottom: 1px solid #dcdee5;
 
     .custom-input {
       width: 200px;
@@ -64,8 +64,8 @@
 
   .time-range-footer {
     height: 42px;
-    line-height: 42px;
     padding: 0 146px 0 6px;
+    line-height: 42px;
     text-align: right;
   }
 
@@ -75,9 +75,9 @@
 
     .shortcuts-item {
       height: 32px;
+      padding: 0 16px;
       line-height: 32px;
       color: #63656e;
-      padding: 0 16px;
       cursor: pointer;
 
       &:hover {
@@ -90,8 +90,8 @@
 
 .time-range-tips-theme {
   .time-range-tips-content {
-    text-align: center;
     line-height: 20px;
+    text-align: center;
   }
 }
 

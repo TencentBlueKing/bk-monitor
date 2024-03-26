@@ -27,29 +27,29 @@ import { VNode } from 'vue';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import Schema, { ErrorList, Rules, ValidateSource } from 'async-validator';
-
-import CustomTab, {
-  IPanels
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import CustomTab, { IPanels } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import NoticeModeNew, {
   INoticeWayValue,
   robot
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
 import {
   defaultAddTimeRange,
   executionNotifyConfigChange,
   getNotifyConfig,
   timeRangeValidate,
   timeTransform
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealAddStore from '../../../../../fta-solutions/store/modules/set-meal-add';
-import { getReceiver } from '../../../../../monitor-api/modules/notice_group';
-import { getBkchatGroup } from '../../../../../monitor-api/modules/user_groups';
-import { deepClone, random } from '../../../../../monitor-common/utils/utils';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
+import { createUserGroup, retrieveUserGroup, updateUserGroup } from 'monitor-api/modules/model';
+import { getReceiver } from 'monitor-api/modules/notice_group';
+import { getBkchatGroup } from 'monitor-api/modules/user_groups';
+import { deepClone, random } from 'monitor-common/utils/utils';
+
+// import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
-import { createUserGroup, retrieveUserGroup, updateUserGroup } from '../../.././../../monitor-api/modules/model';
-import DutyArranges, { dutyDataTransform, IDutyItem, paramsTransform } from '../../duty-arranges/duty-arranges';
-import MemberSelector from '../member-selector';
+import { IDutyItem } from '../../duty-arranges/duty-arranges';
+import RotationConfig from '../../rotation/rotation-config';
+import MemberSelector from '../member-selector.vue';
 
 import './alarm-group-add.scss';
 
@@ -85,6 +85,7 @@ interface IFormData {
   action_notice: IAlert[]; // 执行通知
   needDuty?: boolean;
   channels: string[];
+  timezone: string;
 }
 interface IUserItem {
   id: string; // 用户id
@@ -114,7 +115,8 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
 
   @Ref('alertNotice') alertNoticeRef: NoticeModeNew;
   @Ref('actionNotice') actionNoticeRef: NoticeModeNew;
-  @Ref('dutyArranges') dutyArrangesRef: DutyArranges;
+  // @Ref('dutyArranges') dutyArrangesRef: DutyArranges;
+  @Ref('rotationConfig') rotationConfigRef: RotationConfig;
 
   loading = false;
   isShowOverInput = false;
@@ -130,6 +132,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     users: [],
     mention_list: [{ id: mentListDefaultItem.id, type: mentListDefaultItem.type }],
     desc: '',
+    timezone: '',
     [ALERT_NOTICE]: [
       // 初始告警通知数据
       {
@@ -205,6 +208,18 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   defaultUserList: IUserItem[] = []; // 切换轮值时默认用户
   bkchatList = [];
 
+  /* 轮值数据 ---- 新 */
+  rotationData = {
+    dutyArranges: [],
+    dutyNotice: {
+      plan_notice: { enabled: false, days: 7, chat_ids: [''], type: 'weekly', date: 1, time: '00:00' },
+      personal_notice: { enabled: false, hours_ago: 168, duty_rules: [] }
+    },
+    rendreKey: random(8)
+  };
+
+  pageTitle = '';
+
   get memberSelectorKey(): string {
     return `${random(8)}-${this.defaultGroupList.length}`;
   }
@@ -258,6 +273,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   async created() {
     this.updateNavData(this.groupId ? this.$tc('编辑') : this.$tc('新增告警组'));
     this.formData.bizId = this.$store.getters.bizId;
+    this.formData.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     this.bizIdLIst = this.$store.getters.bizList;
     this.alertActive = this.formData.alert_notice[0].key;
     this.alertData = this.formData.alert_notice[0];
@@ -318,6 +334,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           name,
           desc,
           channels,
+          timezone,
           bk_biz_id: bizId,
           alert_notice: alertNotice,
           action_notice: actionNotice,
@@ -327,9 +344,11 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         } = data;
         // this.type === 'monitor' && this.$store.commit('app/SET_NAV_TITLE', `${this.$t('编辑')} - #${id} ${name}`);
         this.updateNavData(`${this.$t('编辑')} ${name}`);
+        this.pageTitle = `#${this.groupId} ${name}`;
         this.formData.name = name;
         this.formData.desc = desc;
         this.formData.bizId = bizId;
+        this.formData.timezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         this.formData.channels = channels || ['user'];
         this.channels = channels || ['user'];
         // 通知类型回显
@@ -337,8 +356,16 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           item.selected = this.channels.includes(item.id);
         });
         if (needDuty) {
-          this.dutyArranges = dutyDataTransform(data.duty_arranges);
+          // this.dutyArranges = dutyDataTransform(data.duty_arranges);
           this.dutyPlans = data.duty_plans;
+          this.rotationData.dutyArranges = data.duty_rules;
+          if (data.duty_notice?.personal_notice) {
+            this.rotationData.dutyNotice.personal_notice = data.duty_notice.personal_notice;
+          }
+          if (data.duty_notice?.plan_notice) {
+            this.rotationData.dutyNotice.plan_notice = data.duty_notice.plan_notice;
+          }
+          this.rotationData.rendreKey = random(8);
         } else {
           const users = [];
           data.duty_arranges.forEach(item => {
@@ -538,10 +565,18 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           const obj = {
             ...way
           };
-          way.receivers &&
-            Object.assign(obj, {
-              receivers: Array.isArray(way.receivers) ? way.receivers : way.receivers.replace(/\s*/g, '').split(',')
-            });
+          if (way.receivers) {
+            // 使用 .trim() 移除字符串两端的换行符和其他空白字符，然后基于换行符或逗号分割字符串
+            const receivers =
+              typeof way.receivers === 'string'
+                ? way.receivers
+                    .trim()
+                    .split(/\s*[\n,]+\s*/)
+                    .filter(Boolean)
+                : way.receivers;
+
+            obj.receivers = receivers;
+          }
           return obj;
         })
       }))
@@ -557,15 +592,17 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   async handleSubmit() {
     const res = await this.validate().catch(err => console.log(err));
     const noticeRes = await this.noticeValidate().catch(() => false);
-    const dutyValidate = !this.formData.needDuty || (await this.dutyArrangesRef.validate().catch(() => false));
+    const dutyValidate = !this.formData.needDuty || (await this.rotationConfigRef.validate().catch(() => false));
     if (!(res && noticeRes && dutyValidate)) return;
     const { name, desc, needDuty } = this.formData;
     const params: any = {
       name,
       desc,
+      // timezone: this.formData.timezone,
       need_duty: needDuty,
       duty_arranges: needDuty
-        ? paramsTransform(this.dutyArranges)
+        ? // ? paramsTransform(this.dutyArranges)
+          undefined
         : [
             {
               duty_type: 'always',
@@ -573,6 +610,18 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               users: this.handleNoticeReceiver()
             }
           ],
+      duty_rules: needDuty ? this.rotationData.dutyArranges : undefined,
+      duty_notice: needDuty
+        ? {
+            ...this.rotationData.dutyNotice,
+            plan_notice: this.rotationData.dutyNotice.plan_notice.enabled
+              ? this.rotationData.dutyNotice.plan_notice
+              : undefined,
+            personal_notice: this.rotationData.dutyNotice.personal_notice.enabled
+              ? this.rotationData.dutyNotice.personal_notice
+              : undefined
+          }
+        : undefined,
       alert_notice: this.noticeParams(ALERT_NOTICE),
       action_notice: this.noticeParams(ACTION_NOTICE),
       // 有些项可能会被删掉，这里做一次处理
@@ -782,8 +831,6 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     });
   }
   handleSelectMentionUser(user) {
-    console.log('handleSelectMentionUser', user);
-
     if (this.formData.mention_list.map(item => item.id).includes(user.username)) return;
     this.formData.mention_list.push({
       id: user.id,
@@ -814,12 +861,13 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     return (
       <div
         class='alarm-group-add-wrap'
+        title={!!this.groupId ? this.pageTitle : ''}
         v-bkloading={{ isLoading: this.loading }}
       >
         <bk-form label-width={this.$store.getters.lang === 'en' ? 150 : 100}>
           <bk-form-item label={this.$t('所属')}>
             <bk-select
-              class='biz-id-select'
+              class='width-508'
               clearable={false}
               readonly
               v-model={this.formData.bizId}
@@ -839,15 +887,26 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
             required
             property='name'
           >
-            <div class='input-item'>
+            <div class='input-item width-508'>
               <bk-input
-                class='input-name'
                 v-model={this.formData.name}
                 onFocus={() => (this.errorsMsg.name = '')}
               ></bk-input>
               {this.errorsMsg.name && <div class='error-msg'>{this.errorsMsg.name}</div>}
             </div>
           </bk-form-item>
+          {/* <bk-form-item
+            label={this.$t('时区')}
+            required
+            property='name'
+          >
+            <div class='width-508'>
+              <TimezoneSelect
+                value={this.formData.timezone}
+                onChange={v => (this.formData.timezone = v)}
+              ></TimezoneSelect>
+            </div>
+          </bk-form-item> */}
           {/* <bk-form-item label={this.$t('开启轮值')}>*/}
           {/*  <div class="input-duty">*/}
           {/*    <bk-switcher v-model={this.formData.needDuty}*/}
@@ -894,6 +953,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 {this.isShowOverInput && (
                   <div class='over-input'>
                     <img
+                      alt=''
                       src={this.loadingSvg}
                       class='status-loading'
                     />
@@ -973,7 +1033,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               label={this.$t('轮值设置')}
               required
             >
-              <div class='item-duty'>
+              {/* <div class='item-duty'>
                 <DutyArranges
                   ref='dutyArranges'
                   value={this.dutyArranges}
@@ -982,7 +1042,18 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                   defaultUserList={this.defaultUserList}
                   onChange={this.handleDutyArranges}
                 ></DutyArranges>
-              </div>
+              </div> */}
+              <RotationConfig
+                ref={'rotationConfig'}
+                defaultGroupList={this.defaultGroupList}
+                dutyArranges={this.rotationData.dutyArranges}
+                dutyNotice={this.rotationData.dutyNotice}
+                rendreKey={this.rotationData.rendreKey}
+                alarmGroupId={this.groupId}
+                dutyPlans={this.dutyPlans}
+                onDutyChange={v => (this.rotationData.dutyArranges = v)}
+                onNoticeChange={v => (this.rotationData.dutyNotice = v)}
+              ></RotationConfig>
             </bk-form-item>
           )}
           {this.channels.includes('wxwork-bot') && (

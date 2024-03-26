@@ -527,6 +527,7 @@ class DataSource(models.Model):
                 try:
                     space_type_id, space_id = space_uid.split(SPACE_UID_HYPHEN)
                     data_source.space_uid = space_uid
+                    data_source.space_type_id = space_type_id
                     data_source.save()
                     logger.info(
                         "data_id->[{}] now set space uid->[{}]".format(data_source.bk_data_id, data_source.space_uid)
@@ -536,6 +537,8 @@ class DataSource(models.Model):
 
             # 创建option配置
             option = {} if option is None else option
+            # 添加允许指标为空时，丢弃记录选项
+            option.update({DataSourceOption.OPTION_DROP_METRICS_ETL_CONFIGS: True})
             for option_name, option_value in list(option.items()):
                 DataSourceOption.create_option(
                     bk_data_id=data_source.bk_data_id, name=option_name, value=option_value, creator=operator
@@ -546,21 +549,8 @@ class DataSource(models.Model):
                     )
                 )
 
-            # 判断是否NS支持的etl配置，如果是，则需要追加option内容
-            if etl_config in cls.NS_TIMESTAMP_ETL_CONFIG:
-                DataSourceOption.create_option(
-                    bk_data_id=data_source.bk_data_id,
-                    name=DataSourceOption.OPTION_TIMESTAMP_UNIT,
-                    value="ms",
-                    creator=operator,
-                )
-                logger.info(
-                    "bk_data_id->[{}] etl_config->[{}] so is has now has option->[{}] with value->[ns]".format(
-                        data_source.bk_data_id,
-                        DataSourceOption.OPTION_TIMESTAMP_UNIT,
-                        DataSourceOption.OPTION_TIMESTAMP_UNIT,
-                    )
-                )
+            # 添加时间 option
+            cls._add_time_unit_options(operator, data_source.bk_data_id, etl_config)
 
         # 写入 空间与数据源的关系表，如果 data id 为全局不需要记录
         try:
@@ -585,6 +575,38 @@ class DataSource(models.Model):
 
         # 6. 返回新实例
         return data_source
+
+    @classmethod
+    def _add_time_unit_options(cls, operator: str, bk_data_id: int, etl_config: str):
+        """添加时间相关 option"""
+        # 判断是否NS支持的etl配置，如果是，则需要追加option内容
+        # NOTE: 这里实际的时间单位为 ms, 为防止其它未预料问题，其它类型单独添加为毫秒
+        if etl_config in cls.NS_TIMESTAMP_ETL_CONFIG:
+            DataSourceOption.create_option(
+                bk_data_id=bk_data_id,
+                name=DataSourceOption.OPTION_TIMESTAMP_UNIT,
+                value="ms",
+                creator=operator,
+            )
+            logger.info(
+                "bk_data_id->[%s] etl_config->[%s] so is has now has option->[%s] with value->[ms]",
+                bk_data_id,
+                etl_config,
+                DataSourceOption.OPTION_TIMESTAMP_UNIT,
+            )
+        else:
+            # 时间单位统一为毫秒
+            DataSourceOption.create_option(
+                bk_data_id=bk_data_id,
+                name=DataSourceOption.OPTION_ALIGN_TIME_UNIT,
+                value="ms",
+                creator=operator,
+            )
+            logger.info(
+                "bk_data_id->[%s] has time unit option->[%s] with value->[ms]",
+                bk_data_id,
+                DataSourceOption.OPTION_ALIGN_TIME_UNIT,
+            )
 
     def update_config(
         self,
@@ -859,7 +881,9 @@ class DataSource(models.Model):
         hash_consul = consul_tools.HashConsul()
 
         # 2. 刷新当前data_id的配置
-        hash_consul.put(key=self.consul_config_path, value=self.to_json(is_consul_config=True))
+        hash_consul.put(
+            key=self.consul_config_path, value=self.to_json(is_consul_config=True), bk_data_id=self.bk_data_id
+        )
         logger.info(
             "data_id->[{}] has update config to ->[{}] success".format(self.bk_data_id, self.consul_config_path)
         )
@@ -1035,6 +1059,10 @@ class DataSourceOption(OptionBase):
     OPTION_TIMESTAMP_UNIT = "timestamp_precision"
     # 是否基于指标名切分
     OPTION_IS_SPLIT_MEASUREMENT = "is_split_measurement"
+    # 时间单位统一到选项
+    OPTION_ALIGN_TIME_UNIT = "align_time_unit"
+    # 允许指标为空时，丢弃记录选项, 值为 bool 型
+    OPTION_DROP_METRICS_ETL_CONFIGS = "drop_metrics_etl_configs"
 
     # 增加option标记内容
     bk_data_id = models.IntegerField("数据源ID", db_index=True)

@@ -54,7 +54,7 @@ DATA_CATEGORY = [
     },
     {
         "type": "prometheus_time_series",
-        "name": _lazy("Prometheus"),
+        "name": "Prometheus",
         "data_type_label": DataTypeLabel.TIME_SERIES,
         "data_source_label": DataSourceLabel.PROMETHEUS,
     },
@@ -126,7 +126,7 @@ DATA_CATEGORY = [
     },
     {
         "type": "bk_apm_trace",
-        "name": _lazy("Trace"),
+        "name": "Trace",
         "data_type_label": DataTypeLabel.LOG,
         "data_source_label": DataSourceLabel.BK_APM,
     },
@@ -207,4 +207,8 @@ RECOVERY = "recovery"
 UnifyQueryDataSources = [
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+]
+# 灰度统一查询模块数据源
+GrayUnifyQueryDataSources = [
+    (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
 ]

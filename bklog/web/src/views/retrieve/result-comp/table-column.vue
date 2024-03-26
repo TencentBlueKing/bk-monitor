@@ -21,87 +21,58 @@
   -->
 
 <template>
-  <div :class="['td-log-container', { 'is-wrap': isWrap }]" @click.stop>
+  <div
+    :class="['td-log-container', { 'is-wrap': isWrap }]"
+    @click.stop
+  >
     <!-- eslint-disable vue/no-v-html -->
     <span
-      :class="[
-        'field-container',
-        'add-to',
-        { 'active': hasClickEvent },
-        { 'mark': markList.includes(formatterStr(content)) }
-      ]"
+      v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
+      :class="['field-container', 'add-to', { active: hasClickEvent }]"
       @click.stop="handleClickContent"
-      v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }">
+    >
       <text-segmentation
-        v-if="isInViewPort"
         :content="content"
-        :field-name="fieldName"
         :field-type="fieldType"
-        :menu-click="handleMenuClick" />
-      <!-- <span v-else>{{ formatterStr(content) }}</span> -->
-      <text-highlight
-        v-else
-        style="word-break: break-all;"
-        :queries="markList">
-        {{formatterStr(content)}}
-      </text-highlight>
+        :menu-click="handleMenuClick"
+      />
     </span>
   </div>
 </template>
 
 <script>
 import TextSegmentation from './text-segmentation';
-import TextHighlight from 'vue-text-highlight';
 
 export default {
   components: {
-    TextSegmentation,
-    TextHighlight,
+    TextSegmentation
   },
   props: {
     isWrap: {
       type: Boolean,
-      default: false,
+      default: false
     },
     content: {
       type: [String, Number, Boolean],
-      required: true,
+      required: true
     },
     hasClickEvent: {
       type: Boolean,
-      default: false,
+      default: false
     },
     fieldName: {
       type: String,
-      default: '',
+      default: ''
     },
     fieldType: {
       type: String,
-      default: '',
-    },
+      default: ''
+    }
   },
   data() {
     return {
-      isInViewPort: false,
+      isInViewPort: false
     };
-  },
-  computed: {
-    // isInViewPort() {
-    //   const {
-    //     top,
-    //     bottom,
-    //   } = this.$el.getBoundingClientRect();
-    //   return (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);;
-    // },
-    // 高亮
-    markList() {
-      let markVal = this.content.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
-      if (markVal.length) {
-        markVal = markVal.map(item => item.replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, ''));
-      }
-      return markVal;
-    },
   },
   mounted() {
     setTimeout(this.registerObserver, 20);
@@ -110,28 +81,16 @@ export default {
     this.unregisterOberver();
   },
   methods: {
-    formatterStr(content) {
-      // 匹配高亮标签
-      let value = content;
-      const markVal = content.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
-      if (markVal.length) {
-        value = String(value).replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, '');
-      }
-
-      return value;
-    },
     handleClickContent() {
       if (this.hasClickEvent) this.$emit('contentClick');
     },
-    handleMenuClick(option, content) {
+    handleMenuClick(option, content, isLink = false) {
       const operator = option === 'not' ? 'is not' : option;
-      this.$emit('iconClick', operator, content);
+      this.$emit('iconClick', operator, content, isLink);
     },
     unregisterOberver() {
       if (this.intersectionObserver) {
         this.intersectionObserver.unobserve(this.$el);
-        // console.info('unobserve : ', this.$el, this.intersectionObserver);
         this.intersectionObserver.disconnect();
         this.intersectionObserver = null;
       }
@@ -141,72 +100,69 @@ export default {
       if (this.intersectionObserver) {
         this.unregisterOberver();
       }
-      this.intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
           if (this.intersectionObserver) {
-            if (entry.boundingClientRect.height > 72) {
-              this.$emit('computedHeight');
-            }
-            this.isInViewPort = entry.intersectionRatio > 0;
+            if (entry.boundingClientRect.height > 72) this.$emit('computedHeight');
           }
         });
       });
       this.intersectionObserver.observe(this.$el);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .td-log-container {
-    position: relative;
-    line-height: 21px;
+.td-log-container {
+  position: relative;
+  line-height: 21px;
 
-    &.is-wrap {
-      padding-bottom: 3px;
-    }
+  &.is-wrap {
+    padding-bottom: 3px;
+  }
 
-    .field-container {
-      &.active:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &.mark {
-        background: #f3e186;
-        color: black;
-      }
-    }
-
-    .icon-search-container {
-      display: none;
-      justify-content: center;
-      align-items: center;
-      vertical-align: bottom;
-      width: 14px;
-      height: 14px;
-      margin-left: 5px;
+  .field-container {
+    &.active:hover {
+      color: #3a84ff;
       cursor: pointer;
-      background: #3a84ff;
-
-      .icon {
-        font-size: 12px;
-        font-weight: bold;
-        color: #fff;
-        background: #3a84ff;
-        transform: scale(.6);
-
-        &.icon-copy {
-          font-size: 14px;
-          transform: scale(1);
-        }
-      }
     }
 
-    &:hover {
-      .icon-search-container {
-        display: inline-flex;
+    &.mark {
+      color: black;
+      background: #f3e186;
+    }
+  }
+
+  .icon-search-container {
+    display: none;
+    width: 14px;
+    height: 14px;
+    margin-left: 5px;
+    vertical-align: bottom;
+    cursor: pointer;
+    background: #3a84ff;
+    justify-content: center;
+    align-items: center;
+
+    .icon {
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      background: #3a84ff;
+      transform: scale(0.6);
+
+      &.icon-copy {
+        font-size: 14px;
+        transform: scale(1);
       }
     }
   }
+
+  &:hover {
+    .icon-search-container {
+      display: inline-flex;
+    }
+  }
+}
 </style>

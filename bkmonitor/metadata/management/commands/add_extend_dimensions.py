@@ -88,6 +88,26 @@ class Command(BaseCommand):
             "unit": "",
             "alias_name": "db_type",
         },
+        {
+            "field_name": "cluster_type",
+            "field_type": "string",
+            "tag": "dimension",
+            "default_value": None,
+            "is_config_by_user": True,
+            "description": "cluster type",
+            "unit": "",
+            "alias_name": "cluster_type",
+        },
+        {
+            "field_name": "instance_port",
+            "field_type": "string",
+            "tag": "dimension",
+            "default_value": None,
+            "is_config_by_user": True,
+            "description": "instance port",
+            "unit": "",
+            "alias_name": "instance_port",
+        },
     ]
     extend_options = {
         "enable_dbm_meta": True,

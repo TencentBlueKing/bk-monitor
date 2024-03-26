@@ -50,9 +50,7 @@
 <script lang="ts">
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 import BkUserSelector from '@blueking/user-selector';
-
-import { deepClone } from '../../../../monitor-common/utils/utils';
-
+import { deepClone } from 'monitor-common/utils/utils';
 @Component({
   name: 'member-selector',
   components: {
@@ -136,7 +134,6 @@ export default class MemberSelector extends Vue {
   }
   // tag提示
   handleTabTips(val) {
-    console.log(val);
     return this.getDefaultUsername(this.groupList, val) || val;
   }
   // 查找display_name

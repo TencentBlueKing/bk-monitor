@@ -13,6 +13,7 @@
 
     .vue-grid-item {
       touch-action: none;
+      border: 2px solid transparent !important;
       transition: none !important;
 
       &.resizing {
@@ -47,6 +48,10 @@
         }
       }
 
+      &.scroll-in:not(.row-panel) {
+        border-color: #3a84ff !important;
+      }
+
       &:hover {
         z-index: 9;
       }
@@ -56,13 +61,13 @@
   .single-chart-content {
     height: 100%;
     padding: 16px;
+    overflow: hidden;
 
     .single-chart-main {
       height: 100%;
       background-color: #fff;
-      box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
       border-radius: 2px;
-      overflow: hidden;
+      box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
 
       &.has-btn {
         height: calc(100% - 20px);
@@ -91,8 +96,8 @@
 
       .icon-double-up {
         display: inline-block;
-        font-size: 24px;
         margin-top: 1px;
+        font-size: 24px;
         transform: rotate(-90deg);
       }
     }
@@ -127,14 +132,19 @@
     &-item {
       display: flex;
       height: 256px;
-      margin-bottom: 8px;
       margin-right: 16px;
+      margin-bottom: 8px;
+      border: 2px solid transparent;
+
+      &.scroll-in:not(.row-panel) {
+        border-color: #3a84ff !important;
+      }
 
       &.row-panel {
+        flex: 100% !important;
         width: 100% !important;
         max-width: 100% !important;
         height: 32px !important;
-        flex: 100% !important;
       }
     }
   }

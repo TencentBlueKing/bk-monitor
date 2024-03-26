@@ -25,8 +25,8 @@
  */
 /* eslint-disable camelcase */
 
-import { INodeType, TargetObjectType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
-import { IPanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 export interface IApdexConfig {
   apdex_default: number;
@@ -37,9 +37,19 @@ export interface IApdexConfig {
   apdex_messaging: number;
 }
 
+export interface ISamplingRule {
+  key: string;
+  method: string;
+  value: any;
+  key_alias: string;
+  condition?: string;
+  type: string;
+}
+
 export interface IApplicationSamplerConfig {
   sampler_type: string;
-  sampler_percentage: number;
+  sampler_percentage?: number;
+  tail_conditions: ISamplingRule[];
 }
 
 export interface IApplicationInstanceNameConfig {
@@ -91,9 +101,12 @@ export interface IAppInfo {
   app_name: string;
   app_alias: string;
   description: string;
+  enable_profiling: boolean;
+  enable_tracing: boolean;
   application_apdex_config: IApdexConfig;
   owner: string;
   is_enabled: boolean;
+  is_enabled_profiling: boolean;
   es_storage_index_name: string;
   application_datasource_config: IDatasourceConfig;
   create_user: string;

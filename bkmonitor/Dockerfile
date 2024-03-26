@@ -24,17 +24,19 @@ RUN if [ ${replace_debian_source} ] ; then \
     fi
 
 # install node and pnpm
-RUN apt-get update && apt-get install -y curl && curl -sL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
+RUN apt-get update && apt-get install -y curl && curl -sL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
 RUN npm install -g pnpm
 
 WORKDIR /app
 
 # install python packages
 COPY ./requirements.txt /app
+# betterproto has dependency conflicts in dataclasses with opentelemetry-sdk when installing from requirements.txt
 RUN python -m venv venv \
 && /app/venv/bin/pip install --upgrade pip \
 && /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ \
-&& rm -rf /app/requirements.txt
+&& rm -rf /app/requirements.txt \
+&& /app/venv/bin/pip install --no-cache-dir betterproto==2.0.0b5 -i https://mirrors.tencent.com/pypi/simple/
 
 # build frontend
 COPY ./webpack /app/webpack
@@ -67,7 +69,7 @@ RUN install -m644 /app/fonts/SourceHanSansSC-VF.ttf /usr/share/fonts/truetype/ \
 
 # install vim and chromium
 RUN apt-get update  \
-    && apt-get install -y vim chromium wget strace \
+    && apt-get install -y vim chromium wget strace graphviz \
     && groupadd -r ${username}  \
     && useradd -r -g ${username} ${username}  \
     && mkdir -p /data/ /app/ /home/${username} \

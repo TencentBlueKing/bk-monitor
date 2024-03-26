@@ -25,25 +25,25 @@
  */
 import { Component, Inject, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input } from 'bk-magic-vue';
-
-import CustomTab from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
-import { templateSignalName } from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealAddStore from '../../../../fta-solutions/store/modules/set-meal-add';
-import { getConvergeFunction } from '../../../../monitor-api/modules/action';
-import { strategySnapshot } from '../../../../monitor-api/modules/alert';
-import { listCalendar } from '../../../../monitor-api/modules/calendar';
-import { listActionConfig, listUserGroup } from '../../../../monitor-api/modules/model';
+import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import { templateSignalName } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
+import { getConvergeFunction } from 'monitor-api/modules/action';
+import { strategySnapshot } from 'monitor-api/modules/alert';
+import { listCalendar } from 'monitor-api/modules/calendar';
+import { listActionConfig, listUserGroup } from 'monitor-api/modules/model';
 import {
   getMetricListV2,
   getScenarioList,
   getStrategyV2,
   getTargetDetail,
   strategyLabelList
-} from '../../../../monitor-api/modules/strategies';
-import { deepClone, random, transformDataKey } from '../../../../monitor-common/utils/utils';
-import PromqlEditor from '../../../../monitor-ui/promql-editor/promql-editor';
+} from 'monitor-api/modules/strategies';
+import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
+
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
+import PromqlMonacoEditor from '../../../components/promql-editor/promql-editor';
 import { ISpaceItem } from '../../../types';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
@@ -504,8 +504,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.getBaseInfo(this.detailData);
     this.targetsDesc = handleSetTargetDesc(
       this.targetDetail.target_detail,
-      this.metricData[0]?.targetType,
-      this.metricData[0]?.objectType,
+      this.metricData[0]?.targetType || this.targetDetail?.node_type || '',
+      this.metricData[0]?.objectType || this.targetDetail?.instance_type || '',
       this.checkedTarget.node_count,
       this.checkedTarget.instance_count
     );
@@ -1023,17 +1023,20 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                 </div>,
                 { marginTop: 0 },
                 [
-                  <Button
+                  <bk-button
                     theme={'primary'}
                     outline
                     style={{ width: '88px', margin: '0 8px 0 24px' }}
                     v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                    disabled={!this.detailData?.edit_allowed}
                     onClick={() =>
-                      this.authority.MANAGE_AUTH ? this.handleToEdit() : this.handleShowAuthorityDetail()
+                      this.authority.MANAGE_AUTH
+                        ? !!this.detailData?.edit_allowed && this.handleToEdit()
+                        : this.handleShowAuthorityDetail()
                     }
                   >
                     {this.$t('编辑')}
-                  </Button>,
+                  </bk-button>,
                   <HistoryDialog list={this.historyList} />
                 ]
               )}
@@ -1063,14 +1066,19 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         return (
                           <div class='promql-content'>
                             <div class='edit-wrap'>
-                              <PromqlEditor
+                              <PromqlMonacoEditor
+                                minHeight={160}
+                                value={this.sourceData.sourceCode}
+                                readonly={true}
+                              ></PromqlMonacoEditor>
+                              {/* <PromqlEditor
                                 class='promql-editor'
                                 readonly={true}
                                 value={this.sourceData.sourceCode}
-                              ></PromqlEditor>
+                              ></PromqlEditor> */}
                             </div>
                             <div class='step-wrap'>
-                              <Input
+                              <bk-input
                                 class='step-input'
                                 type='number'
                                 min={10}
@@ -1090,7 +1098,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                                     }}
                                   ></span>
                                 </div>
-                              </Input>
+                              </bk-input>
                             </div>
                           </div>
                         );
@@ -1519,8 +1527,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
           >
             <strategy-target-table
               tableData={this.targetsTableData}
-              targetType={this.metricData[0]?.targetType}
-              objType={this.metricData[0]?.objectType}
+              targetType={this.metricData[0]?.targetType || this.targetDetail?.node_type || ''}
+              objType={this.metricData[0]?.objectType || this.targetDetail?.instance_type || ''}
             />
           </bk-dialog>
         ) : undefined}

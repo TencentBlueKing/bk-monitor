@@ -25,22 +25,23 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { listSpaces, listStickySpaces, stickSpace } from 'monitor-api/modules/commons';
+import { getAuthorityDetail } from 'monitor-api/modules/iam';
+import { Debounce, mergeSpaceList, random } from 'monitor-common/utils';
+import bus from 'monitor-common/utils/event-bus';
 
-import { listSpaces, listStickySpaces, stickSpace } from '../../../monitor-api/modules/commons';
-import { getAuthorityDetail } from '../../../monitor-api/modules/iam';
-import { Debounce, mergeSpaceList, random } from '../../../monitor-common/utils';
-import bus from '../../../monitor-common/utils/event-bus';
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import { ETagsType } from '../../components/biz-select/list';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { ISpaceItem } from '../../types';
-import CommonStatus from '../monitor-k8s/components/common-status/common-status';
+import CommonStatus from '../monitor-k8s/components/common-status/common-status'; /** 监听空间置顶列表数据事件key */
 
-import { WATCH_SPACE_STICKY_LIST } from './../app';
 import SpaceAddList from './space-add-list/space-add-list';
 
 import './space-manage.scss';
+
+export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST';
 
 const SPACE_FEATURE_LIST = [
   {

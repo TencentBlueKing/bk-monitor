@@ -1,0 +1,213 @@
+.replace-rotation-table-item-component {
+  background: #fff;
+
+  .step-wrapper.replace-rotation {
+    padding: 24px;
+    vertical-align: top;
+
+    .classes-list {
+      .classes-item {
+        display: flex;
+
+        & + .classes-item {
+          margin-top: 12px;
+        }
+
+        .week-select-wrapper-component {
+          min-width: 0;
+        }
+      }
+    }
+
+    .tab-list {
+      .tab-list-item {
+        width: 64px;
+        height: 26px;
+        line-height: 26px;
+        background: #fff;
+        border: 1px solid #c4c6cc;
+
+        &:first-child {
+          border-right: none;
+          border-radius: 2px 0 0 2px;
+        }
+
+        &:last-child {
+          border-left: none;
+          border-radius: 0 2px 2px 0;
+        }
+
+        &.active {
+          color: #3a84ff;
+          background: #e1ecff;
+          border: 1px solid #3a84ff;
+        }
+      }
+    }
+
+    .expiration-date-form-item {
+      .form-item-content {
+        display: flex;
+      }
+
+      .date-type-select {
+        width: 88px;
+        min-width: 88px;
+        margin-right: 8px;
+      }
+
+      .date-value-select {
+        flex: 1;
+      }
+    }
+
+    .classes-duration-form-item {
+      .form-item-content {
+        display: flex;
+        column-gap: 8px;
+      }
+
+      .bk-input,
+      .bk-select {
+        width: 88px;
+      }
+    }
+  }
+
+  .flip-list-move {
+    transition: transform .5s;
+  }
+
+  .specified-group-wrap {
+    .specified-group-item {
+      display: flex;
+
+      & + .specified-group-item {
+        margin-top: 12px;
+      }
+
+      .member-select-component {
+        flex: 1;
+      }
+
+      .member-select-prefix {
+        display: flex;
+        align-items: center;
+        height: calc(100% + 2px);
+        padding-left: 4px;
+        cursor: pointer;
+        border-left: 4px solid transparent;
+        transform: translate(-1px, -1px);
+      }
+    }
+  }
+
+  .auto-group-wrap {
+    .auto-group-tag-color {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      cursor: pointer;
+    }
+  }
+
+  .user-panel-wrap {
+    .group-tab {
+      margin-bottom: 12px;
+      background: #fff;
+
+      .item {
+        box-sizing: content-box;
+        width: 62px;
+        height: 24px;
+        line-height: 26px;
+        text-align: center;
+        cursor: pointer;
+        border: 1px solid #c4c6cc;
+
+        &.active {
+          color: #3a84ff;
+          background: #e1ecff;
+          border-color: #3a84ff;
+        }
+
+        &:first-child {
+          border-right-width: 0px;
+          border-radius: 2px 0 0 2px;
+
+          &.active {
+            border-right-width: 1px;
+          }
+        }
+
+        &:last-child {
+          border-left-width: 0px;
+          border-radius: 0 2px 2px 0;
+
+          &.active {
+            border-left-width: 1px;
+          }
+        }
+      }
+    }
+  }
+
+  td {
+    border: 1px solid #dcdee5;
+  }
+
+  .flex {
+    display: flex;
+  }
+
+  .rotation-config-form-item + .rotation-config-form-item {
+    margin-top: 12px;
+  }
+
+  .form-item-label {
+    width: auto;
+    min-width: auto;
+  }
+
+  .form-item-content {
+    flex: 1;
+  }
+
+  .mr8 {
+    margin-right: 8px;
+  }
+
+  .separator-to {
+    margin: 0 12px;
+    line-height: 32px;
+  }
+
+  .del-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    min-width: 22px;
+    margin-left: 8px;
+    color: #ff5656;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  .add-btn {
+    margin-top: 12px;
+  }
+
+  .add-icon {
+    margin-right: 6px;
+  }
+
+  .err-msg {
+    margin: 0;
+    font-size: 12px;
+    color: #ea3636;
+  }
+}

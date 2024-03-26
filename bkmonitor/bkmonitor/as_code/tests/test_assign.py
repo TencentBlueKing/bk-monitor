@@ -39,6 +39,7 @@ def test_assign_parse():
     code_config = p.check(code_config)
     config = p.parse(code_config)
     assert config
+    assert config.get("id") is None
     assert config["bk_biz_id"] == 2
     rule = config["rules"][0]
     assert rule["is_enabled"]

@@ -45,5 +45,5 @@ export default interface MonitorVue extends Vue {
   $bkInfo: any;
   $bus: any;
 }
-export * from '../../monitor-common/typings/index';
 export * from './common/common';
+export * from 'monitor-common/typings/index';

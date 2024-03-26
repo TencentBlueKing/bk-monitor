@@ -52,7 +52,7 @@ const components = layout.keys().reduce<ILayoutComponents>((pre, next) => {
     && props
     && Object.keys(props).forEach((key) => {
       if (optionsSet.has(key)) {
-        !abstractProp.includes(key) && console.info('');
+        !abstractProp.includes(key);
       } else {
         optionsSet.add(key);
       }
@@ -93,10 +93,11 @@ export default class SelectorContent extends Vue {
 </script>
 <style lang="scss" scoped>
 .selector-content {
+  height: 100%;
   padding: 24px 24px 0 24px;
   overflow: hidden;
-  height: 100%;
   background: #fff;
+
   .layout {
     height: 100%;
   }

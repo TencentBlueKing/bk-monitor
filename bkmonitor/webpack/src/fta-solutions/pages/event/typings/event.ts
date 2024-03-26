@@ -93,6 +93,8 @@ export interface IEventItem {
   shield_operator?: string[];
   ack_operator?: string;
   failure_type?: string;
+  follower?: string[];
+  followerDisabled?: boolean;
 }
 
 export interface IPagination {
@@ -124,7 +126,8 @@ export type AnlyzeField =
   | 'strategy_id'
   | 'assignee'
   | 'bk_service_instance_id'
-  | 'ipv6';
+  | 'ipv6'
+  | 'plugin_id';
 export type ActionAnlyzeField =
   | 'action_name'
   | 'strategy_name'

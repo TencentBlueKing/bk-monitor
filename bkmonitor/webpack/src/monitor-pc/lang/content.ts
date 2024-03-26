@@ -104,7 +104,7 @@ export default {
   '最大{max}天': 'Max {max} Days',
   '触发次数(近 7 天)': 'Trigger times (last 7 days)',
   '剩余 {n} 条数据': 'Remaining {n} pieces of data',
-  '已设置 {0} 个告警': 'Already Set {0} Alarms',
+  '已设置 {0} 个策略': 'Already Set {0} Strategy',
   '从 {0} 至 {1}': 'From {0} to {1}',
   '有{n}个关联的策略': '{n} associated rules',
   '已选{count}个': 'selected: {count}',
@@ -182,5 +182,8 @@ export default {
   均值: 'Avg',
   瞬间值: 'Last',
   '来源：{0}': 'Source: {0}',
-  内部通知人: 'Internal Notifier'
+  内部通知人: 'Internal Notifier',
+  '支持{0}等文件格式': 'File formats such as {0} are supported',
+  通知人员类型: 'Notification person type',
+  到底了: 'In the end'
 };

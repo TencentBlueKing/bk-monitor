@@ -12,7 +12,7 @@ import logging
 import os
 from typing import Dict, List, Set
 
-from packages.utils.redis_client import RedisClient
+from utils.redis_client import RedisClient
 
 logger = logging.getLogger("metadata")
 

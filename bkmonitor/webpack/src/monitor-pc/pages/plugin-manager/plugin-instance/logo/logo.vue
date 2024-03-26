@@ -127,62 +127,69 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-@import "../../../../theme/index";
+@import '../../../../theme/index';
 
 .log-wrapper {
   position: relative;
-  border: 1px dashed #dcdee5;
+  z-index: 2;
   width: 84px;
   height: 84px;
-  border-radius: 2px;
   background-color: #fafbfd;
-  z-index: 2;
+  border: 1px dashed #dcdee5;
+  border-radius: 2px;
 
   @include content-center;
+
   &.solid {
     border-style: solid;
   }
+
   .mask {
     position: absolute;
-    left: -1px;
     top: -1px;
+    left: -1px;
     width: 84px;
     height: 84px;
+    font-size: 12px;
+    color: #fff;
     background-color: #63656e;
     opacity: .6;
-    color: #fff;
-    font-size: 12px;
 
     @include content-center;
   }
+
   &:hover {
     cursor: pointer;
+
     .text {
       display: none;
     }
   }
+
   .log {
     width: 78px;
     height: 78px;
-    text-align: center;
-    line-height: 78px;
-    border-radius: 50%;
-    border: 1px dashed #dcdee5;
     font-size: 12px;
-    background-color: #fff;
+    line-height: 78px;
     color: #979ba5;
+    text-align: center;
+    background-color: #fff;
+    border: 1px dashed #dcdee5;
+    border-radius: 50%;
   }
+
   .log-img {
     width: 78px;
     height: 78px;
   }
+
   .word-logo {
     width: 78px;
     height: 78px;
     font-size: 36px;
-    background-color: #63656e;
     color: #fff;
     cursor: pointer;
+    background-color: #63656e;
 
     @include content-center;
   }

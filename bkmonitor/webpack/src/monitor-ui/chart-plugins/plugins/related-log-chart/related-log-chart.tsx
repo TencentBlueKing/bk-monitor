@@ -27,16 +27,15 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import { Alert, Button, Exception, Input, Option, Select } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
+import { Debounce, random } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import { Debounce, random } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
-import { ITableColumn } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { PanelModel } from '../../typings';
 import { ITableDataItem } from '../../typings/table-chart';
@@ -129,8 +128,6 @@ class RelatedLogChart extends CommonSimpleChart {
     this.unregisterOberver();
     this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
-    console.log(this.panel.options?.related_log_chart?.defaultKeyword, 2333);
-
     this.keyword = this.panel.options?.related_log_chart?.defaultKeyword ?? this.keyword;
     // 先用 log_predicate 接口判断日志类型 蓝鲸日志平台 or 第三方其他日志
     const predicateLogTarget = this.panel.targets.find(item => item.dataType === 'log_predicate');
@@ -370,10 +367,14 @@ class RelatedLogChart extends CommonSimpleChart {
    * @desc 关联日志
    */
   handleRelated() {
-    const { app_name: appName, service_name: serviceName } = this.viewOptions as Record<string, string>;
-    const hash = `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`;
-    const url = location.href.replace(location.hash, hash);
-    window.open(url, '_blank');
+    // const { app_name: appName, service_name: serviceName } = this.viewOptions as Record<string, string>;
+    // const hash = `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`;
+    // const url = location.href.replace(location.hash, hash);
+    // window.open(url, '_blank');
+    const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
+      this.bkBizId || this.relatedBkBizId
+    }`;
+    window.open(url);
   }
   /** 选择索引集 */
   handleSelectIndexSet(v) {
@@ -397,7 +398,7 @@ class RelatedLogChart extends CommonSimpleChart {
           <div style='position:relative;height:100%;'>
             <div class='related-alert-info'>
               {this.alertText && (
-                <Alert showIcon={false}>
+                <bk-alert showIcon={false}>
                   <div slot='title'>
                     <span class='alter-text'>{this.alertText}</span>
                     {this.isBkLog ? (
@@ -418,7 +419,7 @@ class RelatedLogChart extends CommonSimpleChart {
                       </span>
                     )}
                   </div>
-                </Alert>
+                </bk-alert>
               )}
             </div>
             {this.isBkLog && (
@@ -430,7 +431,7 @@ class RelatedLogChart extends CommonSimpleChart {
                       {!this.emptyChart && (
                         <div class='title-tool'>
                           <span class='interval-label'>{this.$t('汇聚周期')}</span>
-                          <Select
+                          <bk-select
                             class='interval-select'
                             size='small'
                             behavior='simplicity'
@@ -439,15 +440,15 @@ class RelatedLogChart extends CommonSimpleChart {
                             onChange={this.handleIntervalChange}
                           >
                             {this.intervalList.map(item => (
-                              <Option
+                              <bk-option
                                 id={item.id}
                                 key={item.id}
                                 name={item.name}
                               >
                                 {item.name}
-                              </Option>
+                              </bk-option>
                             ))}
-                          </Select>
+                          </bk-select>
                         </div>
                       )}
                     </span>
@@ -482,7 +483,7 @@ class RelatedLogChart extends CommonSimpleChart {
                   </div>
                 </div>
                 <div class='query-tool'>
-                  <Select
+                  <bk-select
                     class='table-search-select'
                     v-model={this.relatedIndexSetId}
                     clearable={false}
@@ -490,29 +491,30 @@ class RelatedLogChart extends CommonSimpleChart {
                     v-bk-tooltips={{
                       content: this.selectedOptionAlias,
                       theme: 'light',
-                      placement: 'top-start'
+                      placement: 'top-start',
+                      allowHTML: false
                     }}
                   >
                     {this.relatedIndexSetList.map(option => (
-                      <Option
+                      <bk-option
                         key={option.index_set_id}
                         id={option.index_set_id}
                         name={option.index_set_name}
-                      ></Option>
+                      ></bk-option>
                     ))}
-                  </Select>
-                  <Input
+                  </bk-select>
+                  <bk-input
                     class='table-search-input'
                     vModel={this.keyword}
                     onEnter={this.handleSearchChange}
                     onClear={() => this.handleSearchChange('')}
                   />
-                  <Button
+                  <bk-button
                     theme='primary'
                     onClick={this.handleQueryTable}
                   >
                     {this.$t('查询')}
-                  </Button>
+                  </bk-button>
                 </div>
                 {this.columns.length ? (
                   <CommonTable
@@ -539,18 +541,18 @@ class RelatedLogChart extends CommonSimpleChart {
             {this.emptyText ? (
               this.emptyText
             ) : (
-              <Exception type='building'>
+              <bk-exception type='building'>
                 <span>{this.$t('暂无关联日志')}</span>
                 <div class='text-wrap'>
                   <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
-                  <Button
+                  <bk-button
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
-                    {this.$t('关联日志')}
-                  </Button>
+                    {this.$t('日志采集')}
+                  </bk-button>
                 </div>
-              </Exception>
+              </bk-exception>
             )}
           </div>
         )}

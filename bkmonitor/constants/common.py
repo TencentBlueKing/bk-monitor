@@ -19,19 +19,46 @@ class SourceApp:
 ALL_DAY = "00:00--23:59"
 
 
+class DutyCategory:
+    """
+    轮值规则模式
+    """
+
+    REGULAR = "regular"
+    HANDOFF = "handoff"
+    DutyCategory_DISPLAY_DICT = {REGULAR: _lazy("常规"), HANDOFF: _lazy("交替")}
+
+
 class RotationType:
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
     ALWAYS = "always"
+    WORK_DAY = "work_day"
+    WEEKEND = "weekend"
+    DATE_RANGE = "date_range"
 
     ROTATION_TYPE_DISPLAY_DICT = {
         DAILY: _lazy("每天"),
         WEEKLY: _lazy("每周"),
         MONTHLY: _lazy("每月"),
+        WORK_DAY: _lazy("工作日"),
+        WEEKEND: _lazy("周末"),
+        DATE_RANGE: _lazy("日期范围"),
     }
 
+    WEEK_MODE = [WEEKLY, WORK_DAY, WEEKEND]
+
     ROTATION_TYPE_CHOICE = [(key, display) for key, display in ROTATION_TYPE_DISPLAY_DICT.items()]
+
+
+class WorkTimeType:
+    TIME_RANGE = "time_range"
+    DATETIME_RANGE = "datetime_range"
+
+    WORK_TYME_TYPE_DISPLAY_DICT = {TIME_RANGE: _lazy("时间范围"), DATETIME_RANGE: _lazy("起止时间")}
+
+    WORK_TYME_TYPE_CHOICE = [(key, display) for key, display in WORK_TYME_TYPE_DISPLAY_DICT.items()]
 
 
 class DutyType:
@@ -48,6 +75,17 @@ class DutyType:
     }
 
     DUTY_TYPE_CHOICE = [(key, display) for key, display in DUTY_TYPE_DISPLAY_DICT.items()]
+
+
+class DutyGroupType:
+    """ """
+
+    SPECIFIED = "specified"
+    AUTO = "auto"
+
+    DISPLAY_DICT = {SPECIFIED: _lazy("手动指定"), AUTO: _lazy("自动")}
+
+    CHOICE = [(key, display) for key, display in DISPLAY_DICT.items()]
 
 
 class IsoWeekDay:

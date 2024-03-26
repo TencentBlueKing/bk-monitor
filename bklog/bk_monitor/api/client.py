@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import time
-import logging
 import json
+import logging
+import time
 
 from bk_monitor.api.http import http_get, http_post
-from bk_monitor.exceptions import MonitorReportResultException
 from bk_monitor.constants import ErrorEnum
+from bk_monitor.exceptions import MonitorReportResultException
 
 logger = logging.getLogger("bk_monitor")
 
@@ -22,12 +22,14 @@ class Client(object):
         self._report_host = report_host
 
     def _call_esb_api(self, http_func, path, data, timeout=None):
-        headers = {}
+        api_headers = {
+            "bk_app_code": self._bk_app_code,
+            "bk_app_secret": self._bk_app_secret,
+            "bk_username": self._bk_username,
+        }
+        headers = {"X-Bkapi-Authorization": json.dumps(api_headers)}
         data.update(
             {
-                "bk_app_code": self._bk_app_code,
-                "bk_app_secret": self._bk_app_secret,
-                "bk_username": self._bk_username,
                 "operator": self._operator,
             }
         )

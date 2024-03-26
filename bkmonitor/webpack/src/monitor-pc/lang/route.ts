@@ -34,7 +34,7 @@ export default {
   'route-指标检索': 'Metrics',
   'route-日志检索': 'Logs',
   'route-事件检索': 'Events',
-  'route-Trace检索': 'Traces',
+  'route-Tracing 检索': 'Traces',
   'route-综合拨测': 'Synthetics',
   'route-APM': 'APM',
   'route-Kubernetes': 'Kubernetes',
@@ -59,6 +59,7 @@ export default {
   'route-指标插件': 'Metric Plugins',
   'route-告警源': 'Alarm Sources',
   'route-数据采集': 'Data Collection',
+  'route-采集详情': 'Collection Detail',
   'route-自定义指标': 'Custom Metrics',
   'route-自定义事件': 'Custom Events',
   'route-共享': 'Sharing',
@@ -99,6 +100,7 @@ export default {
   'route-指标管理': 'Metrics Manage',
   'route-配置应用': 'Configuration Application',
   'route-应用监控': 'Application Monitoring',
+  'route-轮值': 'Rotation',
   'route-管理': 'Management',
   // 面包屑 标题定位
   'route-新建策略': 'New Alert Rules',
@@ -134,6 +136,9 @@ export default {
   'route-链路管理': 'Link Management',
   'route-加载中...': 'Loading...',
   'route-数据源管理': 'DataSource Management',
+  'route-Profiling 检索': 'Profiling',
+  'route-编辑轮值': 'Edit Rotation',
+  'route-新增轮值': 'Add Rotation',
 
   // 功能页面标题
 
@@ -197,6 +202,7 @@ export default {
   'influxdb 集群': 'influxdb Set',
   'ES 集群': 'ES Set',
   资源注册: 'Resource registration',
+  'route-资源注册': 'Resource registration',
   编辑集群: 'Edit cluster',
   新增集群: 'Add cluster'
 };

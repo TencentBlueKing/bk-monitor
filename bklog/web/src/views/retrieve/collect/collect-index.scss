@@ -4,22 +4,22 @@
   overflow: hidden;
 
   .drag-border {
+    position: absolute;
+    right: 0;
+    z-index: 99;
     width: 5px;
     height: 100vh;
-    right: 0;
-    position: absolute;
-    z-index: 99;
-    user-select: none;
     cursor: col-resize;
+    user-select: none;
 
     &::after {
-      content: ' ';
       position: absolute;
       right: 0px;
       display: inline-block;
-      background-color: #dbdce0;
       width: 1px;
       height: 100%;
+      background-color: #dbdce0;
+      content: ' ';
     }
 
     &.drag-ing,

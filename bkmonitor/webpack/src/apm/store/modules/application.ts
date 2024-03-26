@@ -31,8 +31,8 @@
 /* eslint-disable new-cap */
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
+import { applicationInfoByAppName, metaConfigInfo } from 'monitor-api/modules/apm_meta';
 
-import { applicationInfoByAppName, metaConfigInfo } from '../../../monitor-api/modules/apm_meta';
 import { IAppSelectOptItem } from '../../pages/home/app-select';
 
 export interface IApplicationState {

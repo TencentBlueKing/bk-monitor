@@ -25,21 +25,21 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tab, TabPanel } from 'bk-magic-vue';
-
 import NoticeModeNew, {
   INoticeWayValue
-} from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
 import {
   executionNotifyConfigChange,
   getNotifyConfig
-} from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
-import { getBkchatGroup } from '../../../../monitor-api/modules/user_groups';
-import { random } from '../../../../monitor-common/utils/utils';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import { listDutyRule, retrieveUserGroup } from 'monitor-api/modules/model';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { getBkchatGroup, previewUserGroupPlan } from 'monitor-api/modules/user_groups';
+import { random } from 'monitor-common/utils/utils';
+
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-import { retrieveUserGroup } from '../.././../../monitor-api/modules/model';
-import DutyArranges, { dutyDataTransform, IDutyItem } from '../duty-arranges/duty-arranges';
+import RotationPreview from '../rotation/rotation-preview';
+import { getCalendarOfNum, setPreviewDataOfServer } from '../rotation/utils';
 
 import './alarm-group-detail.scss';
 
@@ -79,6 +79,11 @@ interface INotice {
   actionActive: string;
 }
 
+const noticeTypeMap = {
+  weekly: window.i18n.t('每周'),
+  monthly: window.i18n.t('每月')
+};
+
 @Component
 export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   @Prop({ type: [String, Number], default: 0 }) id: number | string;
@@ -117,7 +122,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   noticeWayList = [];
 
   /* 轮值数据 */
-  dutyArranges: IDutyItem[] = [];
+  // dutyArranges: IDutyItem[] = [];
   dutyPlans = [];
   dutyArrangesKey = random(8);
   refreshKey = {
@@ -129,6 +134,28 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   editAllowed = false;
 
   receiverList = [];
+
+  /* 轮值数据 --- 新 */
+  previewData = [];
+  previewLoading = false;
+  dutyList = [];
+
+  /* 值班通知设置  */
+  dutyNotice = {
+    plan_notice: {
+      enabled: false,
+      chat_ids: ['apsojgldjgngmfmdkgjfhdhsjfkdjfld'],
+      days: 7,
+      type: 'weekly',
+      date: 1,
+      time: '00:00'
+    },
+    personal_notice: {
+      enabled: false,
+      hours_ago: 0,
+      duty_rules: []
+    }
+  };
 
   get title() {
     return `${this.$t('告警组详情')} - #${this.id} ${this.formData.name}`;
@@ -197,9 +224,18 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
         }
         this.channels = channels || ['user'];
         const users = [];
+        this.dutyNotice.plan_notice.enabled = false;
+        this.dutyNotice.personal_notice.enabled = false;
         if (needDuty) {
-          this.dutyArranges = dutyDataTransform(data.duty_arranges);
+          // this.dutyArranges = dutyDataTransform(data.duty_arranges);
           this.dutyPlans = data.duty_plans;
+          this.getPreviewData(data.duty_rules);
+          if (data.duty_notice?.plan_notice?.enabled) {
+            this.dutyNotice.plan_notice = data.duty_notice.plan_notice;
+          }
+          if (data.duty_notice?.personal_notice?.enabled) {
+            this.dutyNotice.personal_notice = data.duty_notice.personal_notice;
+          }
         } else {
           data.duty_arranges.forEach(item => {
             item.users && users.push(...item.users);
@@ -219,6 +255,52 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
         this.refreshKey.actionKey = true;
         this.loading = false;
       });
+  }
+
+  async getPreviewData(list) {
+    const dutyList = [];
+    const allDutyList = (await listDutyRule().catch(() => [])) as any;
+    const sets = new Set(list);
+    allDutyList.forEach(item => {
+      if (sets.has(item.id)) {
+        item.isCheck = true;
+        dutyList.push(item);
+      }
+    });
+    this.dutyList = list
+      .map(l => {
+        const temp = dutyList.find(d => String(d.id) === String(l));
+        return temp;
+      })
+      .filter(l => !!l);
+    const startTime = getCalendarOfNum()[0];
+    const beginTime = `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
+    const params = {
+      source_type: 'DB',
+      id: this.id,
+      days: 7,
+      begin_time: beginTime
+      // config: {
+      //   duty_rules: list
+      // }
+    };
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
+  }
+  async handleStartTimeChange(startTime) {
+    const params = {
+      source_type: 'DB',
+      id: this.id,
+      days: 7,
+      begin_time: startTime
+      // config: {
+      //   duty_rules: this.dutyList.map(d => d.id)
+      // }
+    };
+    this.previewLoading = true;
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewLoading = false;
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
 
   /**
@@ -406,41 +488,98 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
               {this.$t('通知对象')}
             </div>
             <div class='alarm-details-item alarm-details-person'>
-              {this.formData.needDuty ? (
-                <div class='duty-wrap'>
-                  <DutyArranges
+              {(() => {
+                if (this.formData.needDuty) {
+                  return (
+                    <div class='duty-wrap'>
+                      {/* <DutyArranges
                     value={this.dutyArranges}
                     readonly={true}
                     key={this.dutyArrangesKey}
                     dutyPlans={this.dutyPlans}
-                  ></DutyArranges>
-                </div>
-              ) : this.formData.users?.length ? (
-                this.formData.users.map(item => (
-                  <div
-                    class='person-box'
-                    key={item.id}
-                  >
-                    <div class='person-image'>
-                      {[
-                        item.logo ? <img src={item.logo} /> : undefined,
-                        !item.logo && item.type === 'group' ? (
-                          <i class='icon-monitor icon-mc-user-group no-img' />
-                        ) : undefined,
-                        !item.logo && item.type === 'user' ? (
-                          <i class='icon-monitor icon-mc-user-one no-img' />
-                        ) : undefined
-                      ]}
+                  ></DutyArranges> */}
+                      <RotationPreview
+                        v-bkloading={{ isLoading: this.previewLoading }}
+                        value={this.previewData}
+                        dutyPlans={this.dutyPlans}
+                        alarmGroupId={this.id}
+                        onStartTimeChange={this.handleStartTimeChange}
+                      ></RotationPreview>
+                      {/* 值班通知设置 */}
+                      {this.dutyNotice.plan_notice.enabled && (
+                        <div class='duty-notice'>
+                          <div class='mt-16'>{this.$t('排班表发送')}</div>
+                          <div class='mt-16'>
+                            <span class='notice-label'>{this.$t('发送时间')}</span>
+                            <span>
+                              <span>{noticeTypeMap[this.dutyNotice.plan_notice.type]}</span>
+                              <span class='mr-8'>{this.dutyNotice.plan_notice.date}</span>
+                              <span>{this.dutyNotice.plan_notice.time}</span>
+                            </span>
+                          </div>
+                          <div class='mt-16'>
+                            <span class='notice-label'>{this.$t('发送内容')}</span>
+                            <span>
+                              <i18n path={'近{0}天的排班结果'}>{this.dutyNotice.plan_notice.days}</i18n>
+                            </span>
+                          </div>
+                          <div class='mt-16'>
+                            <span class='notice-label'>{this.$t('企业微信群ID')}</span>
+                            <span>{this.dutyNotice.plan_notice.chat_ids.join(',')}</span>
+                          </div>
+                        </div>
+                      )}
+                      {this.dutyNotice.personal_notice.enabled && (
+                        <div class='duty-notice'>
+                          <div class='mt-16'>{this.$t('个人轮值通知')}</div>
+                          <div class='mt-16'>
+                            <i18n
+                              class='notice-label'
+                              path={'值班开始前{0}天收到通知'}
+                            >
+                              {this.dutyNotice.personal_notice.hours_ago / 24}
+                            </i18n>
+                          </div>
+                          <div class='mt-16'>
+                            <span class='notice-label'>{this.$t('指定轮值规则')}</span>
+                            <span>{this.dutyList.map(item => item.name).join(',')}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <span class='person-name'>
-                      {item.id}
-                      {`(${item.display_name})`}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <span class='notice-empty'>--</span>
-              )}
+                  );
+                }
+                if (this.formData.users?.length) {
+                  return this.formData.users.map(item => (
+                    <div
+                      class='person-box'
+                      key={item.id}
+                    >
+                      <div class='person-image'>
+                        {[
+                          item.logo ? (
+                            <img
+                              src={item.logo}
+                              alt=''
+                            />
+                          ) : undefined,
+                          !item.logo && item.type === 'group' ? (
+                            <i class='icon-monitor icon-mc-user-group no-img' />
+                          ) : undefined,
+                          !item.logo && item.type === 'user' ? (
+                            <i class='icon-monitor icon-mc-user-one no-img' />
+                          ) : undefined
+                        ]}
+                      </div>
+                      <span class='person-name'>
+                        {item.id}
+                        {`(${item.display_name})`}
+                      </span>
+                    </div>
+                  ));
+                }
+                return '--';
+              })()}
             </div>
           </div>
           {!!this.formData.mention_list.length && (
@@ -463,7 +602,12 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                   >
                     <div class='person-image'>
                       {[
-                        item.logo ? <img src={item.logo} /> : undefined,
+                        item.logo ? (
+                          <img
+                            src={item.logo}
+                            alt=''
+                          />
+                        ) : undefined,
                         !item.logo && item.type === 'group' ? (
                           <i class='icon-monitor icon-mc-user-group no-img' />
                         ) : undefined,
@@ -492,7 +636,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
               <div class='alarm-details-item notice'>
                 <div class='notice-title'>{this.$t('告警阶段')}</div>
                 <div class='notice-item-wrap'>
-                  <Tab
+                  <bk-tab
                     active={this.notice.alertActive}
                     labelHeight={42}
                     on-tab-change={(v: string) => {
@@ -505,13 +649,13 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                       key: item.key,
                       label: item.time_range.replace('--', '-')
                     })).map(item => (
-                      <TabPanel
+                      <bk-tab-panel
                         key={item.key}
                         name={item.key}
                         label={item.label}
-                      ></TabPanel>
+                      ></bk-tab-panel>
                     ))}
-                  </Tab>
+                  </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew
                       noticeWay={this.noticeWayList}
@@ -531,7 +675,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                   {this.$t('执行通知')}
                 </div>
                 <div class='notice-item-wrap'>
-                  <Tab
+                  <bk-tab
                     active={this.notice.actionActive}
                     labelHeight={42}
                     on-tab-change={(v: string) => {
@@ -544,13 +688,13 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                       key: item.key,
                       label: item.time_range.replace('--', '-')
                     })).map(item => (
-                      <TabPanel
+                      <bk-tab-panel
                         key={item.key}
                         name={item.key}
                         label={item.label}
-                      ></TabPanel>
+                      ></bk-tab-panel>
                     ))}
-                  </Tab>
+                  </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew
                       noticeWay={this.noticeWayList}

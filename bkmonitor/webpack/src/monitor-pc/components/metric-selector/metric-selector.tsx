@@ -26,13 +26,15 @@
 
 import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
+import { addCustomMetric } from 'monitor-api/modules/custom_report';
+import { getMetricListV2, updateMetricListByBiz } from 'monitor-api/modules/strategies';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { copyText, Debounce, deepClone, docCookies } from 'monitor-common/utils/utils';
+import { xssFilter } from 'monitor-common/utils/xss';
 
-import { queryAsyncTaskResult } from '../../../monitor-api/modules/commons';
-import { addCustomMetric } from '../../../monitor-api/modules/custom_report';
-import { getMetricListV2, updateMetricListByBiz } from '../../../monitor-api/modules/strategies';
-import { LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils/constant';
-import { copyText, Debounce, deepClone, docCookies } from '../../../monitor-common/utils/utils';
 import { handleGotoLink } from '../../common/constant';
+import { isEn } from '../../i18n/i18n';
 import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
@@ -172,6 +174,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
 
   /** 滚动计时器 */
   scrollEndTimer;
+
+  /* 当前选中的指标 */
+  selectedMetric: MetricDetail = null;
 
   /** 当前的指标类型 */
   get currentDataTypeLabel() {
@@ -321,6 +326,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       .then(({ metric_list = [], tag_list = [], scenario_list = [], data_source_list = [], count = 0 }) => {
         const metricList = metric_list.map(item => new MetricDetail(item));
         this.metricList = page === 1 ? metricList : [...this.metricList, ...metricList];
+        this.getSelectedMetric();
         page > 1 && (this.pagination.page += 1);
         this.pagination.total = count;
         if (this.tag.value) {
@@ -370,9 +376,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   /* 复制指标名 */
-  handleCopyMetricMame(value: string) {
+  handleCopyMetricMame(metric: MetricDetail) {
+    const copyStr = metric.promql_metric;
     let hasErr = false;
-    copyText(value, errMsg => {
+    copyText(copyStr, errMsg => {
       this.$bkMessage({
         message: errMsg,
         theme: 'error'
@@ -614,7 +621,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   getMetricTipsTpl(data) {
     return `
     <div class="metric-tips-wrap">
-      ${data.reduce((total, item) => `${total}<div>${item.label}：${item.value}</div>`, '')}
+      ${data.reduce((total, item) => `${total}<div>${xssFilter(item.label)}：${xssFilter(item.value)}</div>`, '')}
     </div>
     `;
   }
@@ -642,7 +649,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           placement: 'right',
           boundary: 'window',
           disabled: this.isScrolling,
-          content: this.getMetricTipsTpl(data)
+          content: this.getMetricTipsTpl(data),
+          allowHTML: true
         }}
       >
         <span>{item.metric_field_name}</span>
@@ -685,7 +693,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           placement: 'right',
           boundary: 'window',
           disabled: this.isScrolling,
-          content: this.getMetricTipsTpl(data)
+          content: this.getMetricTipsTpl(data),
+          allowHTML: true
         }}
       >
         <div class='log-name'>{item.metric_field_name}</div>
@@ -736,7 +745,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             }}
             onClick={e => {
               e.stopPropagation();
-              this.handleCopyMetricMame(obj.id);
+              this.handleCopyMetricMame(item);
             }}
           ></span>
           {/* <span class="icon-monitor icon-fenxiang"
@@ -792,6 +801,47 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     }
   }
 
+  /**
+   * @description 获取当前选中的指标
+   */
+  async getSelectedMetric() {
+    if (!this.metricId || this.type !== MetricType.TimeSeries) return;
+    let selectedMetric = null;
+    this.metricList.forEach(item => {
+      if (item.metric_id === this.metricId) {
+        selectedMetric = new MetricDetail(item);
+      }
+    });
+    const delIndex = this.metricList.findIndex(item => item.metric_id === this.metricId);
+    if (delIndex >= 0) {
+      this.metricList.splice(delIndex, 1);
+    }
+    if (!selectedMetric) {
+      const params = {
+        ...this.handleMetricParams(),
+        conditions: [
+          {
+            key: 'metric_id',
+            value: this.metricId
+          }
+        ],
+        page: 1,
+        tag: '',
+        result_table_label: [],
+        data_source: undefined
+      };
+      const data = await getMetricListV2(params).catch(() => ({
+        metric_list: []
+      }));
+      data?.metric_list?.forEach(item => {
+        if (item.metric_id === this.metricId) {
+          selectedMetric = new MetricDetail(item);
+        }
+      });
+    }
+    this.selectedMetric = selectedMetric;
+  }
+
   render() {
     return (
       <MetricPopover
@@ -845,6 +895,28 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                 onScroll={this.handleScrollContent}
                 onMousemove={this.handleMousemove}
               >
+                {!!this.selectedMetric && (
+                  <div
+                    class={[
+                      'metric-item',
+                      'pin-top-top',
+                      {
+                        'common-type': this.type === MetricType.TimeSeries
+                      }
+                    ]}
+                  >
+                    <div class='selected-label'>
+                      <div class='blue-bg'>
+                        {!isEn ? (
+                          <span class='text'>{this.$t('已选')}</span>
+                        ) : (
+                          <span class='icon-monitor icon-mc-check-small'></span>
+                        )}
+                      </div>
+                    </div>
+                    {this.metricItem(this.selectedMetric)}
+                  </div>
+                )}
                 {this.metricList.length ? (
                   [
                     this.metricList.map((item, index) => (

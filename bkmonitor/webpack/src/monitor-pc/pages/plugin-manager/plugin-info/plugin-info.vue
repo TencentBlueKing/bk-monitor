@@ -95,6 +95,7 @@
                     class="logo-img"
                     v-if="pluginInfo.logo"
                     :src="`data:image/png;base64,${pluginInfo.logo}`"
+                    alt=""
                   >
                   <div
                     class="logo-text"
@@ -414,10 +415,10 @@
 </template>
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { retrieveCollectorPlugin } from 'monitor-api/modules/model';
+import Viewer from 'monitor-ui/markdown-editor/viewer.tsx';
 
-import { retrieveCollectorPlugin } from '../../../../monitor-api/modules/model';
-import Viewer from '../../../../monitor-ui/markdown-editor/viewer.tsx';
 import MonacoEditor from '../../../components/editors/monaco-editor';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import ViewParam from '../../../components/history-dialog/view-param.vue';
@@ -742,7 +743,7 @@ export default {
   }
 
   .plugin-detail-content {
-    height: calc(100% - 52px);
+    height: calc(100% - 52px - var(--notice-alert-height));
     padding: 16px;
 
     .hint-alert {

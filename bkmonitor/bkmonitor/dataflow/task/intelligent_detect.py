@@ -8,13 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import os
-
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from bkmonitor.dataflow.node.machine_learning import (
-    ModelApiServingNode,
     MultivariateAnomalySceneServiceNode,
     SceneServiceNode,
     SimilarMetricClusteringServiceNode,
@@ -29,7 +26,7 @@ from bkmonitor.dataflow.node.processor import (
 from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import HDFSStorageNode, TSpiderStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
-from monitor_web.aiops.ai_setting.constant import SceneSet
+from constants.aiops import SceneSet
 
 
 class StrategyIntelligentModelDetectTask(BaseTask):
@@ -346,22 +343,12 @@ class MetricRecommendTask(BaseTask):
             parent=similar_metric_clustering_service_node,
         )
 
-        recommend_api_node = ModelApiServingNode(
-            access_bk_biz_id=access_bk_biz_id,
-            # TODO: release_id 需要动态获取
-            model_release_id=os.getenv("BKAPP_METRIC_RECOMMEND_MODEL_RELEASE_ID", 0),
-            input_node=similar_metric_clustering_storage_node,
-            predict_args={},
-            app_name_key_word=settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX,
-        )
-
         self.node_list = [
             system_stream_source_node,
             biz_filter_realtime_node,
             biz_filter_storage_node,
             similar_metric_clustering_service_node,
             similar_metric_clustering_storage_node,
-            recommend_api_node,
         ]
 
     @property

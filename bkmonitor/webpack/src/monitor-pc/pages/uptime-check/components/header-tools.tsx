@@ -25,9 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Input } from 'bk-magic-vue';
-
-import { Debounce } from '../../../../monitor-common/utils/utils';
+import { Debounce } from 'monitor-common/utils/utils';
 
 import './header-tools.scss';
 
@@ -85,7 +83,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
       <div class='uptime-check-header-tools'>
         <div class='left'>
           {this.option.showNode && (
-            <Button
+            <bk-button
               class='left-btn'
               theme='primary'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
@@ -95,11 +93,12 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
                   : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建节点')}
-            </Button>
+            </bk-button>
           )}
           {this.option.showTask && (
-            <Button
+            <bk-button
               class='left-btn'
               theme='primary'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
@@ -107,22 +106,24 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
                 this.authority.MANAGE_AUTH ? this.handleCreate('createTask') : this.handleShowAuthorityDetail()
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建拨测')}
-            </Button>
+            </bk-button>
           )}
           {this.option.showGroup && (
-            <Button
+            <bk-button
               class='left-btn'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
               on-click={() =>
                 this.authority.MANAGE_AUTH ? this.handleCreate('createGroup') : this.handleShowAuthorityDetail()
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建任务组')}
-            </Button>
+            </bk-button>
           )}
           {this.option.showImport && (
-            <Button
+            <bk-button
               class='left-btn'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
               on-click={() =>
@@ -130,18 +131,18 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
               }
             >
               {this.$t('导入拨测任务')}
-            </Button>
+            </bk-button>
           )}
         </div>
         <div class='right'>
-          <Input
+          <bk-input
             class='search-input'
             placeholder={this.$t('输入')}
             right-icon='bk-icon icon-search'
             v-model={this.searchValue}
             clearable
             on-change={(v: string) => this.handleSearch(v)}
-          ></Input>
+          ></bk-input>
         </div>
       </div>
     );

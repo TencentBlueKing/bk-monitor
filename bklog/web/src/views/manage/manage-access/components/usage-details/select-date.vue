@@ -32,7 +32,8 @@
     :open="isShowDatePicker"
     :value="datePickerValue"
     @change="handleDateChange"
-    @open-change="handleOpenChange">
+    @open-change="handleOpenChange"
+  >
   </bk-date-picker>
 </template>
 
@@ -41,17 +42,17 @@ export default {
   props: {
     disabled: {
       type: Boolean,
-      default: false,
+      default: false
     },
     datePickerValue: {
       type: Array,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
       isShowDatePicker: false,
-      dateHistory: {}, // 日期组件历史值，每次开启记录，关闭比较，变化就搜索
+      dateHistory: {} // 日期组件历史值，每次开启记录，关闭比较，变化就搜索
     };
   },
   methods: {
@@ -70,9 +71,10 @@ export default {
         if (state === true) {
           this.dateHistory = {
             time0: this.datePickerValue[0],
-            time1: this.datePickerValue[1],
+            time1: this.datePickerValue[1]
           };
-        } else { // 关闭日期组件，检查值是否变化
+        } else {
+          // 关闭日期组件，检查值是否变化
           const { time0, time1 } = this.dateHistory;
           const [newTime0, newTime1] = this.datePickerValue;
           if (time0 !== newTime0 || time1 !== newTime1) {
@@ -80,23 +82,23 @@ export default {
           }
         }
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .king-date-picker {
-    width: 320px;
-    font-weight: normal;
+.king-date-picker {
+  width: 320px;
+  font-weight: normal;
 
-    :deep(.bk-date-picker-editor) {
-      background: #fff;
-      line-height: 30px;
+  :deep(.bk-date-picker-editor) {
+    line-height: 30px;
+    background: #fff;
 
-      &.is-focus {
-        border-color: #3a84ff;
-      }
+    &.is-focus {
+      border-color: #3a84ff;
     }
   }
+}
 </style>

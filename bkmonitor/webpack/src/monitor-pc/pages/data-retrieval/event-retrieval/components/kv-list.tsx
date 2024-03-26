@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { copyText } from 'monitor-common/utils/utils';
 
-import { copyText } from '../../../../../monitor-common/utils/utils';
 import { EventRetrievalViewType } from '../../typings';
 
 import TextSegmentation from './text-segmentation';
@@ -113,7 +113,7 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
               {this.toolMenuList.map(option => (
                 <span
                   class={`icon ${option.icon} ${this.checkDisable(option.id, item.field)}`}
-                  v-bk-tooltips={{ content: this.getIconPopover(option.id, item.field), delay: 300 }}
+                  v-bk-tooltips={{ content: this.getIconPopover(option.id, item.field), delay: 300, allowHTML: false }}
                   onClick={() => this.handleMenuClick(option.id, item.value, item.field)}
                 ></span>
               ))}

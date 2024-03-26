@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional //EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>BK Monitor Personal Duty Plan</title>
+        <style>
+            * {
+                 margin: 0;
+                 padding: 0;
+                 box-sizing: border-box;
+                 font-family: 'Microsoft YaHei';
+            }
+             p {
+                 margin: 0;
+            }
+             .email {
+                 width: 840px;
+                 margin: 0 auto;
+                 border: 1px solid #e1e1e1;
+            }
+             .email-header {
+                 background-color: #fafafa;
+            }
+             .email-header-strap {
+                 height: 5px;
+            }
+             .email-header-title {
+                 height: 75px;
+                 line-height: 75px;
+                 padding: 0 23px 0 30px;
+                 border-bottom: 1px solid #e1e1e1;
+                 background-color: #fafafa;
+                 font-size: 20px;
+                 overflow: hidden;
+            }
+             .email-header-left {
+                 float: left;
+            }
+             .alarm-status-level1 {
+                 color: #ff8686;
+            }
+             .alarm-status-level2 {
+                 color: #86b1ff;
+            }
+             .email-header-right {
+                 float: right;
+            }
+             .email-content {
+                 border-bottom: 1px solid #e1e1e1;
+                 padding: 0 0 0 40px;
+                 overflow: auto;
+            }
+             .email-row {
+                 font-size: 14px;
+                 line-height: 40px;
+                 width: 100%;
+                 overflow: auto;
+            }
+             .email-row-title {
+                 float: left;
+                 color: #bbb;
+            }
+             .email-row-content {
+                 float: left;
+                 margin-left: 15px;
+                 color: #666;
+            }
+             .email-footer {
+                 text-align: center;
+                 padding: 20px 0;
+            }
+             .email-btn {
+                 padding: 15px 35px;
+                 border: none;
+                 box-shadow: none;
+                 border-radius: 5px;
+                 color: #fff;
+                 background-color: #4d9cff;
+                 outline: none;
+                 cursor: pointer;
+            }
+            .alarm_chart {
+                margin: 0 auto;
+                padding: 0 0 0 40px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="email">
+            <div class="email-header">
+                <p class="email-header-strap"></p>
+                <div class="email-header-title">
+                    <div class="email-header-left">
+                         [BK Monitor] Personal Duty Notice
+                    </div>
+                    <div class="email-header-right">
+                        <!--<img src="cid:">-->
+                    </div>
+                </div>
+            </div>
+            <div class="email-content">
+                <p class="email-row">
+                    <span class="email-row-title">Group Name: </span>
+                    <span class="email-row-content">{{ group_name }}</span>
+                </p>
+                <p class="email-row">
+                    <span class="email-row-title">Start Time: </span>
+                    <span class="email-row-content">{{start_time}}</span>
+                </p>
+                {% if description %}
+                    <p class="email-row">
+                        <span class="email-row-title">Duty Plan: </span>
+                        <span class="email-row-content">{{ plan_content }}</span>
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </body>
+</html>

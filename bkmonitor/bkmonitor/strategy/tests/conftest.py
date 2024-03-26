@@ -10,30 +10,33 @@ specific language governing permissions and limitations under the License.
 """
 
 import pytest
+from django.test import TestCase
 
 from bkmonitor.models import (
-    StrategyModel,
-    ItemModel,
     Action,
+    ActionConfig,
     ActionNoticeMapping,
-    DetectModel,
-    QueryConfigModel,
     AlgorithmModel,
+    DetectModel,
+    ItemModel,
     NoticeTemplate,
+    QueryConfigModel,
     StrategyActionConfigRelation,
+    StrategyModel,
 )
 
 pytestmark = pytest.mark.django_db
 
 
 def pytest_configure():
-    pass
+    TestCase.databases = {"default", "monitor_api"}
 
 
 def _clean_all_model():
     StrategyModel.objects.all().delete()
     ItemModel.objects.all().delete()
     Action.objects.all().delete()
+    ActionConfig.objects.all().delete()
     ActionNoticeMapping.objects.all().delete()
     DetectModel.objects.all().delete()
     QueryConfigModel.objects.all().delete()

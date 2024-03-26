@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 // import mermaid from '../../../../mermaid/packages/mermaid/dist/mermaid.core.mjs';
 import mermaid from 'fork-mermaid';
-import { addListener, removeListener } from 'resize-detector';
+import { traceDiagram } from 'monitor-api/modules/apm_trace.js';
+import { random } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram } from '../../../../monitor-api/modules/apm_trace.js';
-import { random } from '../../../../monitor-common/utils/utils';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
 
@@ -271,7 +271,6 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
           showException.value = false;
           await nextTick();
           const rest = transformData(data.diagram_data);
-          console.info(rest, 'rest');
           graphDefinition.value = rest || '';
           const { svg } = await mermaid.render(graphId, graphDefinition.value);
           svgString.value = svg;

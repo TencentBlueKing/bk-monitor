@@ -28,29 +28,30 @@
 
 // eslint-disable-next-line simple-import-sort/imports
 import './public-path';
-import '../monitor-common/polyfill';
+import 'monitor-common/polyfill';
 import Vue from 'vue';
 import i18n from './i18n/i18n';
 
 import './common/import-magicbox-ui';
-import '@blueking/bk-weweb';
-import '../monitor-ui/directive/index';
+import 'monitor-ui/directive/index';
 import './common/global';
-import '../monitor-static/svg-icons';
+import 'monitor-static/svg-icons';
 
-import Api from '../monitor-api/api';
-import Axios from '../monitor-api/axios/axios';
-import { setVue } from '../monitor-api/utils/index';
-import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
-import { getUrlParam, mergeSpaceList, setGlobalBizId } from '../monitor-common/utils';
+import Api from 'monitor-api/api';
+import Axios from 'monitor-api/axios/axios';
+import { setVue } from 'monitor-api/utils/index';
+import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
-import '../monitor-static/icons/monitor-icons.css';
+import 'monitor-static/icons/monitor-icons.css';
 import './static/css/reset.scss';
 import './static/css/global.scss';
+// todo: 子应用externals
+// import './common/externals';
 // app 标识
 window.source_app = 'monitor';
 // 全局图表数量变量
@@ -90,6 +91,7 @@ if (hasRouteHash) {
           window[key.toLocaleLowerCase()] = data[key];
         });
         mergeSpaceList(window.space_list);
+        window.user_name = window.uin;
         window.username = window.uin;
         window.user_name = window.uin;
         window.cc_biz_id = +window.bk_biz_id;
@@ -140,8 +142,10 @@ if (hasRouteHash) {
               collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE
             });
           });
-        serviceWorker.register();
       })
-      .catch(e => console.error(e));
+      .catch(e => console.error(e))
+      .finally(() => {
+        serviceWorker.immediateRegister();
+      });
   }
 }

@@ -56,7 +56,7 @@
           <span class="title">{{ item.name }}</span>
           <span
             class="des"
-            v-bk-tooltips="{ content: handleBelonging(item), delay: 300 }"
+            v-bk-tooltips="{ content: handleBelonging(item), delay: 300, allowHTML: false }"
           >&nbsp;{{ `- ${$t('所属:')}${handleBelonging(item)}` }}</span>
         </span>
         <span
@@ -184,10 +184,10 @@
 
 <script lang="ts">
 import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
+import { getDashboardList } from 'monitor-api/modules/grafana';
+import { buildInMetric, getPanelsByDashboard } from 'monitor-api/modules/report';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { getDashboardList } from '../../../../monitor-api/modules/grafana';
-import { buildInMetric, getPanelsByDashboard } from '../../../../monitor-api/modules/report';
-import { deepClone } from '../../../../monitor-common/utils/utils';
 import SpaceSelect from '../../../components/space-select/space-select';
 import { IAddChartToolData, IChartDataItem, IChartListAllItem, IDefaultRadioList, IGraphValueItem } from '../types';
 

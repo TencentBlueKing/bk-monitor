@@ -25,14 +25,14 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
-
 import {
   deleteCalendar,
   editCalendar,
   getParentItemList,
   getTimeZone,
   listCalendar
-} from '../../../monitor-api/modules/calendar';
+} from 'monitor-api/modules/calendar';
+
 import CustomSelect from '../../components/custom-select/custom-select';
 
 import CalendarInfo from './components/calendar-info/calendar-info';
@@ -233,8 +233,7 @@ export default class Calendar extends tsc<{}> {
   }
 
   /** 合并日历 */
-  async handleMergeCalendar(id: string | string[]) {
-    console.log(id);
+  async handleMergeCalendar() {
     await this.$nextTick();
     this.curCalendarInfo.selectedId = '';
   }

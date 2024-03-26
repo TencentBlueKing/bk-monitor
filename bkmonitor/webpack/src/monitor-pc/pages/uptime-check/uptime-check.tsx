@@ -25,9 +25,9 @@
  */
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { random } from 'monitor-common/utils/utils';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { random } from '../../../monitor-common/utils/utils';
-import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
 import authorityMixinCreate from '../../mixins/authorityMixin';
@@ -121,22 +121,20 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
         // 从详情页面回来时保留缓存值
         vm.active = to.query.dashboardId || 'uptime-check-task';
         vm.handleResetRouteQuery();
-        vm.isActiveSet = true;
         return;
       }
       const query = from.name ? from.query : to.query;
       vm.dashboardMode = query.dashboardMode || 'chart';
       vm.active = query.dashboardId || 'uptime-check-task';
-      vm.isActiveSet = true;
       vm.$nextTick(() => {
         /* 无需缓存任务组展开状态 */
         (vm.$refs.uptimeCheckTaskRef as any)?.handleBackGroup?.();
       });
     });
   }
-
   // 分屏start
-  mounted() {
+  activated() {
+    this.isActiveSet = true;
     this.defaultPanelWidth = this.$el.getBoundingClientRect().width / 2;
     this.splitPanelWidth = this.defaultPanelWidth;
   }
@@ -240,7 +238,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
       case 'uptime-check-node':
         return (
           <UptimeCheckNode
-            refreshKey={this.refreshKeys[UPTIME_CHECK_LIST[1].id]}
+            refreshKey={`${this.refreshKeys[UPTIME_CHECK_LIST[1].id]}__${this.$store.getters.bizId}`}
             onLoading={(v: boolean) => (this.loading = v)}
             onNameChange={this.handleNodeNameChange}
           ></UptimeCheckNode>
@@ -249,7 +247,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
         return (
           <UptimeCheckTask
             ref='uptimeCheckTaskRef'
-            refreshKey={this.refreshKeys[UPTIME_CHECK_LIST[0].id]}
+            refreshKey={`${this.refreshKeys[UPTIME_CHECK_LIST[0].id]}__${this.$store.getters.bizId}`}
             isCard={this.dashboardMode === 'chart'}
             nodeName={this.nodeName}
             onLoading={(v: boolean) => (this.loading = v)}

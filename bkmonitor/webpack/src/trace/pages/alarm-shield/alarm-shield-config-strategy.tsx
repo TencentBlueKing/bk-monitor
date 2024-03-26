@@ -26,14 +26,8 @@
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Checkbox, Loading, Select, Table } from 'bkui-vue';
-
-import {
-  getMetricListV2,
-  getStrategyListV2,
-  getStrategyV2,
-  plainStrategyList
-} from '../../../monitor-api/modules/strategies';
-import { random } from '../../../monitor-common/utils';
+import { getMetricListV2, getStrategyListV2, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
+import { random } from 'monitor-common/utils';
 
 import DimensionConditionInput from './components/dimension-input';
 import FormItem from './components/form-item';
@@ -382,8 +376,8 @@ export default defineComponent({
                 {this.strategyList.map(item => (
                   <Select.Option
                     key={item.id}
-                    label={item.name}
-                    value={item.id}
+                    name={item.name}
+                    id={item.id}
                   >
                     {{
                       default: () => (

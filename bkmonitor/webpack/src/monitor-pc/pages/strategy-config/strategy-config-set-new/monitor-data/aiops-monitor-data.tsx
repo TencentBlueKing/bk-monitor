@@ -25,10 +25,9 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox, Form, FormItem, Icon, Option, Select, Tag } from 'bk-magic-vue';
+import { multivariateAnomalyScenes } from 'monitor-api/modules/strategies';
+import { random, transformDataKey } from 'monitor-common/utils/utils';
 
-import { multivariateAnomalyScenes } from '../../../../../monitor-api/modules/strategies';
-import { random, transformDataKey } from '../../../../../monitor-common/utils/utils';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import { handleSetTargetDesc } from '../../common';
@@ -60,7 +59,8 @@ export default class AiopsMonitorData extends tsc<IProps> {
   @Prop({ default: () => ({ target_detail: [] }), type: Object }) defaultCheckedTarget: any;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
-  @Ref('createForm') createForm: Form;
+  @Ref('createForm') createForm: any;
+  @Ref('tagListRef') tagListRef: HTMLDivElement;
   /** 表单数据 */
   formModel = {
     level: 0,
@@ -92,7 +92,11 @@ export default class AiopsMonitorData extends tsc<IProps> {
       }
     ]
   };
+  // 展开/收起
   tagOpen = false;
+  // 是否展示 展开/收起 按钮
+  showTagOpen = false;
+
   /** 场景列表 */
   scenes = [];
   /* 当前场景 */
@@ -173,7 +177,19 @@ export default class AiopsMonitorData extends tsc<IProps> {
   handleScenSelected(value) {
     this.formModel.scene = value;
     this.scene = this.scenes.find(item => item.scene_id === this.formModel.scene);
+    this.$nextTick(() => {
+      this.handleCalcShowOpenTag();
+    });
     this.handleChange();
+  }
+  /** 计算指标是否存在多行情况 */
+  handleCalcShowOpenTag() {
+    const { height, top: parentTop } = this.tagListRef.getBoundingClientRect();
+    // 单行不展示 展开/收起 按钮
+    this.showTagOpen = Array.from(this.tagListRef.querySelectorAll('.bk-tag')).some(ele => {
+      const { top } = ele.getBoundingClientRect();
+      return top >= height + parentTop;
+    });
   }
   /** 或去场景 */
   multivariateAnomalyScenes() {
@@ -229,7 +245,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
         class='aiops-monitor-data'
         v-bkloading={{ isLoading: this.isLoading && this.readonly, zIndex: 10 }}
       >
-        <Form
+        <bk-form
           class='form-wrap'
           ref='createForm'
           labelWidth={110}
@@ -240,10 +256,10 @@ export default class AiopsMonitorData extends tsc<IProps> {
             }
           }}
         >
-          <FormItem label={`${this.$t('监控项')}：`}>
+          <bk-form-item label={`${this.$t('监控项')}：`}>
             <span class='aiops-monitor-data-text'>{this.$t('场景智能检测')}</span>
-          </FormItem>
-          <FormItem
+          </bk-form-item>
+          <bk-form-item
             label={`${this.$t('观测场景')}：`}
             class='scene-select'
             error-display-type='normal'
@@ -252,7 +268,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
             {this.readonly ? (
               <span>{this.scene?.scene_name}</span>
             ) : (
-              <Select
+              <bk-select
                 loading={this.isLoading}
                 value={this.formModel.scene}
                 clearable={false}
@@ -260,17 +276,17 @@ export default class AiopsMonitorData extends tsc<IProps> {
                 onSelected={this.handleScenSelected}
               >
                 {this.scenes.map(scene => (
-                  <Option
+                  <bk-option
                     id={scene.scene_id}
                     name={scene.scene_name}
                     key={scene.scene_id}
                   >
                     {scene.scene_name}
-                  </Option>
+                  </bk-option>
                 ))}
-              </Select>
+              </bk-select>
             )}
-          </FormItem>
+          </bk-form-item>
           <div class='aiops-tag-wrap'>
             {this.scene?.metrics?.length > 0 && (
               <div class={['aiops-tag-content', this.tagOpen && 'aiops-tag-content-open']}>
@@ -287,25 +303,30 @@ export default class AiopsMonitorData extends tsc<IProps> {
                   </span>
                 </i18n>
                 ：
-                <div class='aiops-tag-list'>
+                <div
+                  class='aiops-tag-list'
+                  ref='tagListRef'
+                >
                   {this.scene.metrics.map(metric => (
-                    <Tag>{metric.name}</Tag>
+                    <bk-tag>{metric.name}</bk-tag>
                   ))}
                 </div>
-                <span
-                  class='aiops-tag-toggle nowrap'
-                  onClick={() => (this.tagOpen = !this.tagOpen)}
-                >
-                  <Icon
-                    style='font-size: 18px;'
-                    type={!this.tagOpen ? 'angle-double-down' : 'angle-double-up'}
-                  />
-                  {this.$t(this.tagOpen ? '收起' : '展开')}
-                </span>
+                {this.showTagOpen && (
+                  <span
+                    class='aiops-tag-toggle nowrap'
+                    onClick={() => (this.tagOpen = !this.tagOpen)}
+                  >
+                    <bk-icon
+                      style='font-size: 18px;'
+                      type={!this.tagOpen ? 'angle-double-down' : 'angle-double-up'}
+                    />
+                    {this.$t(this.tagOpen ? '收起' : '展开')}
+                  </span>
+                )}
               </div>
             )}
           </div>
-          <FormItem
+          <bk-form-item
             label={`${this.$t('监控目标')}：`}
             error-display-type='normal'
           >
@@ -334,16 +355,24 @@ export default class AiopsMonitorData extends tsc<IProps> {
                       {this.target.desc.message}
                       {this.target.desc.subMessage}
                     </span>,
-                    <span
-                      class='ip-wrapper-title'
-                      on-click={this.handleAddTarget}
-                    >
-                      {this.$t(this.readonly ? '查看监控目标' : '修改监控目标')}
-                    </span>
+
+                    this.readonly ? (
+                      <span
+                        class='ip-wrapper-title'
+                        onClick={this.handleAddTarget}
+                      >
+                        {this.$t('查看监控目标')}
+                      </span>
+                    ) : (
+                      <span
+                        class='icon-monitor icon-bianji'
+                        onClick={this.handleAddTarget}
+                      ></span>
+                    )
                   ]}
             </div>
-          </FormItem>
-          <FormItem
+          </bk-form-item>
+          <bk-form-item
             label={`${this.$t('过滤告警级别')}：`}
             property={'level'}
             error-display-type='normal'
@@ -361,7 +390,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
                       </span>
                     ))
                 : this.levelList.map(item => (
-                    <Checkbox
+                    <bk-checkbox
                       class='level-check'
                       value={this.formModel.level === item.id || this.formModel.level > item.id ? item.id : 0}
                       disabled={this.formModel.level > item.id}
@@ -375,11 +404,11 @@ export default class AiopsMonitorData extends tsc<IProps> {
                     >
                       <i class={['icon-monitor', item.icon, `status-${item.id}`]}></i>
                       <span>{item.name}</span>
-                    </Checkbox>
+                    </bk-checkbox>
                   ))}
             </div>
-          </FormItem>
-        </Form>
+          </bk-form-item>
+        </bk-form>
         {this.metricData.some(item => item.canSetTarget) && this.ipSelect()}
       </div>
     );

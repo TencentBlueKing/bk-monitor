@@ -12,15 +12,21 @@ import base64
 import copy
 import json
 import logging
-from urllib.parse import urljoin, urlparse
+from typing import Any, Dict, Optional
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import AttrDict
 
-from bkmonitor.aiops.alert.utils import DimensionDrillManager, RecommendMetricManager
+from bkmonitor.aiops.alert.utils import (
+    DimensionDrillLightManager,
+    RecommendMetricManager,
+)
+from bkmonitor.aiops.utils import ReadOnlyAiSetting
 from bkmonitor.documents import AlertLog
+from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.time_tools import (
@@ -37,9 +43,11 @@ from constants.alert import (
     EventTargetType,
 )
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
+from core.errors.alert import AIOpsFunctionAccessedError
 
 from ...service.converge.shield.shielder import AlertShieldConfigShielder
 from . import BaseContextObject
+from .utils import context_field_timer
 
 logger = logging.getLogger("fta_action.run")
 
@@ -215,6 +223,7 @@ class Alarm(BaseContextObject):
 
         # 拓扑维度特殊处理
         display_dimensions = copy.deepcopy(self.display_dimensions)
+
         dimension_string_list = []
         if self.parent.alert.agg_dimensions:
             # 当存在agg_dimensions的顺序列表是，直接使用
@@ -426,35 +435,31 @@ class Alarm(BaseContextObject):
         )
 
     @cached_property
-    def quick_ack_url(self):
-        if self.parent.is_external_channel:
+    def operate_allowed(self):
+        """
+        是否允许操作
+        """
+        if self.parent.is_external_channel or self.parent.followed:
             # 如果有channel信息，并且不是内部渠道，直接忽略链接
-            return None
-        return f"{self.detail_url}&batchAction=ack"
+            # 如果有关注人，也不出现
+            return False
+        return True
+
+    @cached_property
+    def quick_ack_url(self):
+        if self.operate_allowed:
+            return f"{self.detail_url}&batchAction=ack"
+        return None
 
     @cached_property
     def quick_shield_url(self):
-        if self.parent.is_external_channel:
+        if not self.operate_allowed:
             # 如果有channel信息，并且不是内部渠道，直接忽略链接
             return None
         if self.collect_count > 1:
             # 当有汇总的告警多余1个的时候，直接返回空
             return None
         return f"{self.detail_url}&batchAction=shield"
-
-    @cached_property
-    def quick_action_path(self):
-        monitor_host = settings.BK_MONITOR_HOST
-        if getattr(self.parent, "notice_way", None) in settings.ALARM_MOBILE_NOTICE_WAY and settings.ALARM_MOBILE_URL:
-            mobile_host = urlparse(settings.ALARM_MOBILE_URL)
-            if urlparse(monitor_host).hostname != mobile_host.hostname:
-                # 如果域名不一致，则认为是微信端的独立域名
-                monitor_host = "{}://{}".format(mobile_host.scheme, mobile_host.hostname)
-            else:
-                monitor_host = urljoin(monitor_host, "weixin/")
-            return urljoin(monitor_host, "rest/v1/event/")
-        else:
-            return urljoin(monitor_host, "fta/alert/")
 
     @cached_property
     def notice_from(self):
@@ -670,6 +675,11 @@ class Alarm(BaseContextObject):
         alert_dict["event"].pop("extra_info", None)
         alert_dict["is_shielded"] = self.is_shielded
         alert_dict.update({"current_value": self.current_value, "description": self.description})
+
+        # 日志或事件关联信息
+        alert_dict["log_related_info"] = self.log_related_info
+        # 整体关联信息，包含了CMDB 和 日志信息
+        alert_dict["related_info"] = self.related_info
         return json.dumps(alert_dict)
 
     @cached_property
@@ -704,6 +714,24 @@ class Alarm(BaseContextObject):
         if not self.parent.alert:
             return ""
         return ",".join(self.parent.alert.assignee)
+
+    @cached_property
+    def receivers(self):
+        """
+        通知人列表
+        """
+        if not self.parent.alert:
+            return []
+        return self.parent.alert.assignee or []
+
+    @cached_property
+    def appointees(self):
+        """
+        负责人列表
+        """
+        if not self.parent.alert:
+            return []
+        return self.parent.alert.appointee or []
 
     @cached_property
     def ack_operator(self):
@@ -755,8 +783,9 @@ class Alarm(BaseContextObject):
     @cached_property
     def assign_detail(self):
         if not self.latest_assign_group:
+            # 最近一次没有的话，表示没有命中分派
             return None
-        route_path = base64.b64encode(f"#/alarm-dispatch-config/{self.latest_assign_group}".encode("utf8")).decode(
+        route_path = base64.b64encode(f"#/alarm-dispatch?group_id={self.latest_assign_group}".encode("utf8")).decode(
             "utf8"
         )
         return urljoin(
@@ -773,34 +802,53 @@ class Alarm(BaseContextObject):
         return False
 
     @cached_property
+    def ai_setting_config(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        try:
+            return AIFeatureSettings.objects.get(bk_biz_id=self.parent.alert.event["bk_biz_id"]).config
+        except AIFeatureSettings.DoesNotExist:
+            return None
+
+    @cached_property
+    @context_field_timer
     def anomaly_dimensions(self):
         if not self.parent.alert:
             return None
         try:
-            result = DimensionDrillManager().fetch_aiops_result(self.parent.alert)
+            result = DimensionDrillLightManager(
+                self.parent.alert, ReadOnlyAiSetting(self.parent.alert.event["bk_biz_id"], self.ai_setting_config)
+            ).fetch_aiops_result()
+        except AIOpsFunctionAccessedError:
+            # 功能未开启通过指标暴露，不额外打日志
+            raise
         except Exception as e:
             logger.exception(
                 f"alert({self.parent.alert.id})-action("
                 f"{self.parent.action.id if self.parent.action else ''}) aiops维度下钻接口请求异常: {e}"
             )
-            return None
+            raise
 
         anomaly_dimension_count = result["info"]["anomaly_dimension_count"]
         anomaly_dimension_value_count = result["info"]["anomaly_dimension_value_count"]
         return f"异常维度 {anomaly_dimension_count}，异常维度值 {anomaly_dimension_value_count}"
 
     @cached_property
+    @context_field_timer
     def recommended_metrics(self):
         if not self.parent.alert:
             return None
         try:
-            result = RecommendMetricManager().fetch_aiops_result(self.parent.alert)
+            result = RecommendMetricManager(
+                self.parent.alert, ReadOnlyAiSetting(self.parent.alert.event["bk_biz_id"], self.ai_setting_config)
+            ).fetch_aiops_result()
+        except AIOpsFunctionAccessedError:
+            # 功能未开启通过指标暴露，不额外打日志
+            raise
         except Exception as e:
             logger.exception(
                 f"alert({self.parent.alert.id})-action("
                 f"{self.parent.action.id if self.parent.action else ''}) aiops关联指标接口请求异常: {e}"
             )
-            return None
+            raise
         # 推荐指标维度数
         recommended_metric_dimension_count = result["info"]["recommended_metric_count"]
         # 推荐指标数

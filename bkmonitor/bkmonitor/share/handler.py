@@ -12,14 +12,6 @@ import copy
 import json
 
 from django.db.models import Q
-from fta_web.alert.handlers.alert_log import AlertLogHandler
-from monitor_web.models import (
-    CollectConfigMeta,
-    CollectorPluginMeta,
-    CustomEventGroup,
-    CustomTSTable,
-)
-from monitor_web.plugin.constant import PluginType
 
 from bkmonitor.models import ApiAuthToken, MetricListCache
 from bkmonitor.utils.request import get_request
@@ -28,6 +20,14 @@ from core.errors.share import (
     ParamsPermissionDeniedError,
     SearchLockedError,
 )
+from fta_web.alert.handlers.alert_log import AlertLogHandler
+from monitor_web.models import (
+    CollectConfigMeta,
+    CollectorPluginMeta,
+    CustomEventGroup,
+    CustomTSTable,
+)
+from monitor_web.plugin.constant import PluginType
 
 scene_params_mapping = {"sceneId": "scene_id", "sceneType": "type", "dashboardId": "id"}
 
@@ -186,7 +186,6 @@ class HostApiAuthChecker(BaseApiAuthChecker):
                     "correct_params": list(check_metrics),
                 }
             )
-        super(HostApiAuthChecker, self).query_configs_check(query_configs)
 
 
 class UptimeCheckApiAuthChecker(BaseApiAuthChecker):
@@ -385,7 +384,7 @@ class KubernetesApiAuthChecker(BaseApiAuthChecker):
                         {"key": f"where.{key}", "error_params": where_item["value"], "correct_params": check_value}
                     )
         if need_check_params_key:
-            raise InvalidParamsError({"key": f"query_configs.where"})
+            raise InvalidParamsError({"key": "query_configs.where"})
 
     def params_check(self, request_data):
         # 通用参数校验

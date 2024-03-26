@@ -25,24 +25,23 @@
  */
 // eslint-disable-next-line simple-import-sort/imports
 import './public-path.ts';
-import '../monitor-common/polyfill';
+import 'monitor-common/polyfill';
 import Vue from 'vue';
 import i18n from './i18n/i18n';
-import '@blueking/bk-weweb';
 import './common/import-magicbox-ui';
-import '../monitor-ui/directive/index';
+import 'monitor-ui/directive/index';
 
-import Api from '../monitor-api/api';
-import { setVue } from '../monitor-api/utils/index';
-import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
-import { getUrlParam, mergeSpaceList, setGlobalBizId } from '../monitor-common/utils';
+import Api from 'monitor-api/api';
+import { setVue } from 'monitor-api/utils/index';
+import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
 
-import '../monitor-static/icons/monitor-icons.css';
+import 'monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
 
 Vue.config.devtools = process.env.NODE_ENV === 'development';
@@ -121,7 +120,9 @@ if (window.__BK_WEWEB_APP_KEY__) {
             window[key.toLocaleLowerCase()] = data[key];
           });
         });
-      serviceWorker.register();
     })
-    .catch(e => console.error(e));
+    .catch(e => console.error(e))
+    .finally(() => {
+      serviceWorker.immediateRegister();
+    });
 }

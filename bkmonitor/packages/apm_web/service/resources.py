@@ -14,6 +14,11 @@ import itertools
 import operator
 import re
 
+from django.utils.translation import ugettext as _
+from django.utils.translation import ugettext_lazy as _lazy
+from rest_framework import serializers
+
+from api.cmdb.define import Business
 from apm_web.constants import (
     CategoryEnum,
     CMDBCategoryIconMap,
@@ -38,13 +43,9 @@ from apm_web.service.serializers import (
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
 )
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
-from rest_framework import serializers
-
-from api.cmdb.define import Business
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource, api
 
 
@@ -130,16 +131,38 @@ class ServiceInfoResource(Resource):
         app_name = validated_request_data["app_name"]
         service_name = validated_request_data["service_name"]
 
+        query_instance_param = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": [service_name],
+            "filters": {
+                "instance_topo_kind": TopoNodeKind.SERVICE,
+            },
+        }
+        pool = ThreadPool()
+        topo_node_res = pool.apply_async(
+            api.apm_api.query_topo_node, kwds={"bk_biz_id": bk_biz_id, "app_name": app_name}
+        )
+        instance_res = pool.apply_async(api.apm_api.query_instance, kwds=query_instance_param)
+        app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
+        log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))
+        cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
+        uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
+        operate_record = pool.apply_async(self.get_operate_record, args=(bk_biz_id, app_name, service_name))
+        pool.close()
+        pool.join()
+
         # 获取服务信息
         service_info = {"extra_data": {}, "topo_key": service_name}
-        service_info.update(self.get_operate_record(bk_biz_id, app_name, service_name))
-        resp = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
-        # 获取关联信息
+        service_info.update(operate_record.get())
+
+        resp = topo_node_res.get()
+
         service_info["relation"] = {
-            "app_relation": self.get_app_relation_info(bk_biz_id, app_name, service_name),
-            "log_relation": self.get_log_relation_info(bk_biz_id, app_name, service_name),
-            "cmdb_relation": self.get_cmdb_relation_info(bk_biz_id, app_name, service_name),
-            "uri_relation": self.get_uri_relation_info(bk_biz_id, app_name, service_name),
+            "app_relation": app_relation.get(),
+            "log_relation": log_relation.get(),
+            "cmdb_relation": cmdb_relation.get(),
+            "uri_relation": uri_relation.get(),
             "apdex_relation": self.get_apdex_relation_info(bk_biz_id, app_name, service_name, resp),
         }
 
@@ -161,16 +184,7 @@ class ServiceInfoResource(Resource):
         if second_category:
             service_info["extra_data"]["predicate_value_icon"] = get_icon(second_category)
         # 实例数
-        instance_map = api.apm_api.query_instance(
-            {
-                "bk_biz_id": bk_biz_id,
-                "app_name": app_name,
-                "service_name": [service_name],
-                "filters": {
-                    "instance_topo_kind": TopoNodeKind.SERVICE,
-                },
-            }
-        )
+        instance_map = instance_res.get()
         service_info["instance_count"] = instance_map.get("total", 0)
         # 响应
         return service_info

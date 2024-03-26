@@ -1,0 +1,92 @@
+.time-tag-picker-wrapper-component {
+  display: flex;
+  width: 100%;
+  font-size: 12px;
+  color: #63656e;
+
+  .label {
+    padding: 7px 0;
+    text-align: center;
+    background: #fafbfd;
+    border: 1px solid #c4c6cc;
+    border-right: none;
+    border-radius: 2px 0 0 2px;
+    border-radius: 2px 0 0 2px;
+  }
+
+  .time-picker {
+    width: 100%;
+
+    .bk-date-picker-rel {
+      height: 100%;
+    }
+  }
+
+  .content {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    height: 100%;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    .icon {
+      margin: 7px;
+      font-size: 15.75px;
+      color: #c4c6cc;
+    }
+
+    .time-tag-list {
+      display: flex;
+      flex: 1;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-content: flex-start;
+      padding: 4px 0;
+
+      .time-tag {
+        height: 22px;
+        margin: 0;
+        cursor: pointer;
+      }
+
+      .placeholder {
+        display: none;
+        align-items: center;
+        height: 100%;
+        font-size: 12px;
+        color: #c4c6cc;
+
+        &.show {
+          display: flex;
+        }
+      }
+
+      .custom-input {
+        max-width: 200px;
+        height: 22px;
+        padding: 0;
+        border: 0;
+        outline: none;
+      }
+
+      .edit-custom-input {
+        height: 22px;
+        padding: 0;
+        background-color: transparent;
+        border: 0;
+        outline: none;
+      }
+    }
+  }
+
+  .text-width-test {
+    position: fixed;
+    top: -99999px;
+    z-index: -9999999;
+    padding: 0 4px;
+    visibility: hidden;
+  }
+}

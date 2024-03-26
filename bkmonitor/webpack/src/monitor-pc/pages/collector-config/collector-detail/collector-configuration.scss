@@ -1,0 +1,160 @@
+.collector-configuration-component {
+  position: relative;
+
+  .mt-24 {
+    margin-top: 24px;
+  }
+
+  .mt-12 {
+    margin-top: 12px;
+  }
+
+  .width-150 {
+    width: 150px;
+  }
+
+  .width-840 {
+    width: 840px;
+  }
+
+  .width-88 {
+    width: 88px;
+  }
+
+  .mt--6 {
+    margin-top: -6px;
+  }
+
+  .mt-10 {
+    margin-top: 10px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .split-line {
+    width: 100%;
+    height: 1px;
+    background: #eaebf0;
+  }
+
+  .header-right-link {
+    position: absolute;
+    top: 0px;
+    right: 0;
+  }
+
+  .detail-wrap-item {
+    .wrap-item-title {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 22px;
+      color: #63656e;
+    }
+
+    .wrap-item-content {
+      .form-item {
+        display: flex;
+        align-items: flex-start;
+        margin-top: 12px;
+        line-height: 20px;
+
+        .item-label {
+          width: 92px;
+          min-width: 92px;
+          color: #63656e;
+          text-align: right;
+        }
+
+        & > .item-content {
+          min-width: 0;
+          padding-left: 8px;
+          color: #313238;
+
+          .process {
+            display: block;
+            width: 100%;
+            min-width: 840px;
+            margin-top: -2px;
+
+            .match-title {
+              margin-bottom: 10px;
+            }
+          }
+
+          .param-list {
+            min-width: 840px;
+            border: 1px solid #dcdee5;
+            border-radius: 2px;
+  
+            &-item {
+              position: relative;
+              display: flex;
+              align-items: stretch;
+  
+              &:not(:last-child) {
+                border-bottom: 1px solid #dcdee5;
+              }
+  
+              .item-name {
+                width: 50%;
+                min-height: 30px;
+                padding-right: 20px;
+                padding-left: 20px;
+                line-height: 32px;
+                color: #979ba5;
+                white-space: nowrap;
+                background: #fafbfd;
+                border-right: 1px solid #dcdee5;
+              }
+  
+              .item-content {
+                width: 50%;
+                padding: 6px 20px;
+                word-break: break-all;
+              }
+            }
+          }
+        }
+      }
+
+      .classifiy-label {
+        display: inline-block;
+        margin: 3px;
+        font-size: 12px;
+        background: #fafbfd;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+
+        .label-name {
+          display: inline-block;
+          height: 24px;
+          padding: 0 7px;
+          line-height: 24px;
+          text-align: center;
+
+          &:first-child {
+            background: #fff;
+            border-right: 1px solid #dcdee5;
+          }
+        }
+      }
+    }
+
+    .edit-span {
+      display: flex;
+      align-items: center;
+    }
+
+    .edit-input {
+      margin-top: -6px;
+    }
+
+    .icon-bianji {
+      font-size: 24px;
+      color: #dcdee5;
+      cursor: pointer;
+    }
+  }
+}

@@ -27,7 +27,7 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './duty-preview.scss';
-// import { Button } from 'bk-magic-vue';
+//
 
 export interface IUserGroup {
   // 用户组 一维为行 二维为个
@@ -240,7 +240,8 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
                           content: r.time,
                           theme: 'light',
                           placement: 'top',
-                          extCls: 'duty-preview-component-leisure-tip'
+                          extCls: 'duty-preview-component-leisure-tip',
+                          allowHTML: false
                         }}
                       ></div>
                     ))}
@@ -293,7 +294,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
             <div class='time'>{this.popover.time}</div>
             <div class='users'>{this.popover.users.map(item => `${item.id} (${item.name})`).join(', ')}</div>
             {/* <div class="operate">
-              <Button size="small" title="primary" text>{this.$t('临时换班')}</Button>
+              <bk-button size="small" title="primary" text>{this.$t('临时换班')}</bk-button>
             </div> */}
           </div>
         </div>

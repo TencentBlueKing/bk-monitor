@@ -25,8 +25,8 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { deepClone, isPostiveInt } from 'monitor-common/utils';
 
-import { deepClone, isPostiveInt } from '../../../../../../../monitor-common/utils';
 import { SIMPLE_METHOD_LIST } from '../../../../../../constant/constant';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
 
@@ -322,7 +322,8 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                   name={level.name}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
-                    disabled: !level.disabled
+                    disabled: !level.disabled,
+                    allowHTML: false
                   }}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>
@@ -349,7 +350,8 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                     content: this.$t('已有相同算法,设置为{name}级别', {
                       name: this.levelList[this.localData.level - 1].name
                     }),
-                    disabled: !type.disabled
+                    disabled: !type.disabled,
+                    allowHTML: false
                   }}
                 >
                   {type.name}

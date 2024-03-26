@@ -15,13 +15,13 @@ from typing import Dict, List
 
 import xxhash
 import yaml
-from monitor_web.grafana.auth import GrafanaAuthSync
 from rest_framework.exceptions import ValidationError
 from schema import SchemaError
 
 from bkmonitor.action.serializers import (
     ActionConfigDetailSlz,
     BatchSaveAssignRulesSlz,
+    DutyRuleDetailSlz,
     UserGroupDetailSlz,
 )
 from bkmonitor.action.utils import (
@@ -33,6 +33,7 @@ from bkmonitor.action.utils import (
 from bkmonitor.as_code.parse_yaml import (
     ActionConfigParser,
     AssignGroupRuleParser,
+    DutyRuleParser,
     NoticeGroupConfigParser,
     StrategyConfigParser,
 )
@@ -41,6 +42,7 @@ from bkmonitor.models import (
     ActionPlugin,
     AlertAssignGroup,
     AlertAssignRule,
+    DutyRule,
     StrategyModel,
     UserGroup,
 )
@@ -48,6 +50,7 @@ from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.dict import nested_update
 from constants.action import ActionPluginType
 from core.drf_resource import api
+from monitor_web.grafana.auth import GrafanaAuthSync
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +60,7 @@ def convert_notices(
     app: str,
     configs: Dict[str, Dict],
     snippets: Dict[str, Dict],
+    duty_rules: Dict[str, Dict],
     overwrite: bool = False,
 ) -> List[Dict]:
     """
@@ -71,9 +75,9 @@ def convert_notices(
     path_user_groups = {user_group.path: user_group for user_group in user_groups.filter(app=app)}
     name_user_groups = {user_group.name.lower(): user_group for user_group in user_groups}
 
-    parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id)
-
+    parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules)
     records = []
+    duties = []
     for path, config in configs.items():
         snippet = snippets.get(config.pop("snippet", ""), "")
         if snippet:
@@ -101,6 +105,8 @@ def convert_notices(
                 old_user_group = name_user_groups[config["name"].lower()]
 
             if not parse_error:
+                if "duties" in config:
+                    duties.append(config["duties"])
                 instance = None
                 if old_user_group:
                     config["id"] = old_user_group.id
@@ -114,7 +120,7 @@ def convert_notices(
 
         records.append(
             {
-                "path": f"{path}",
+                "path": path,
                 "obj": slz,
                 "hash": hash_str,
                 "snippet": snippet,
@@ -441,6 +447,66 @@ def convert_assign_groups(
     return records
 
 
+def convert_duty_rules(
+    bk_biz_id: int, app: str, configs: Dict[str, Dict], snippets: Dict[str, Dict], overwrite: bool = False
+):
+    """
+    转换轮值规则
+    """
+    duty_rules = DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "code_hash", "name")
+    path_duty_rules = {rule.path: rule for rule in duty_rules.filter(app=app)}
+    name_rules = {duty_rule.name.lower(): duty_rule for duty_rule in duty_rules}
+    parser = DutyRuleParser(bk_biz_id)
+    records = []
+    for path, config in configs.items():
+        snippet = snippets.get(config.get("snippet", ""), "")
+        if snippet:
+            config = nested_update(config, snippet)
+            config["snippet"] = snippet
+        hash_str = xxhash.xxh3_128_hexdigest(json.dumps(config))
+        old_rule = path_duty_rules.get(path)
+        if old_rule and hash_str == old_rule.code_hash:
+            continue
+        schema_error = parse_error = validate_error = obj = None
+        try:
+            config = parser.check(config)
+        except SchemaError as e:
+            schema_error = e
+
+        if not schema_error:
+            try:
+                config = parser.parse(config)
+            except Exception as e:
+                logger.exception(e)
+                parse_error = e
+
+            if not parse_error:
+                config["app"] = app
+                config["code_hash"] = hash_str
+                config["path"] = path
+                if overwrite and config["name"].lower() in name_rules:
+                    old_rule = name_rules[config["name"].lower()]
+                serializer = DutyRuleDetailSlz(data=config, instance=old_rule)
+                try:
+                    serializer.is_valid(raise_exception=True)
+                    obj = serializer
+                except ValidationError as e:
+                    validate_error = e
+
+        records.append(
+            {
+                "path": path,
+                "obj": obj,
+                "hash": hash_str,
+                "snippet": snippet,
+                "schema_error": schema_error,
+                "parse_error": parse_error,
+                "validate_error": validate_error,
+            }
+        )
+    return records
+
+
 def get_errors(records) -> Dict[str, str]:
     errors = {}
     for record in records:
@@ -466,6 +532,8 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
 
     assign_configs = {}
     assign_snippets = {}
+    duty_snippets = {}
+    duty_configs = {}
 
     for path, data in configs.items():
         if path.endswith(".yaml") or path.endswith(".yml"):
@@ -479,6 +547,10 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
             rule_snippets[path[len("rule/snippets/") :]] = config
         elif path.startswith("rule/"):
             rule_configs[path[len("rule/") :]] = config
+        elif path.startswith("duty/snippets/"):
+            duty_snippets[path[len("duty/snippets/") :]] = config
+        elif path.startswith("duty/"):
+            duty_configs[path[len("duty/") :]] = config
         elif path.startswith("notice/snippets/"):
             notice_snippets[path[len("notice/snippets/") :]] = config
         elif path.startswith("notice/"):
@@ -495,9 +567,31 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
             assign_snippets[path[len("assign_group/snippets") :]] = config
 
     # 配置转换及检查
+    # 轮值规则
+    duty_records = convert_duty_rules(
+        bk_biz_id=bk_biz_id, app=app, snippets=duty_snippets, configs=duty_configs, overwrite=overwrite
+    )
+    errors: Dict[str, str] = get_errors(duty_records)
+    if errors:
+        return errors
+
+    for record in duty_records:
+        record["obj"].save()
+
+    duty_rules = {}
+    for duty_rule in DutyRule.objects.all().only("name", "id", "path"):
+        if duty_rule.path and duty_rule.app == app:
+            duty_rules[duty_rule.path] = duty_rule.id
+        duty_rules[duty_rule.name] = duty_rule.id
+
     # 通知组
     notice_records = convert_notices(
-        bk_biz_id=bk_biz_id, app=app, snippets=notice_snippets, configs=notice_configs, overwrite=overwrite
+        bk_biz_id=bk_biz_id,
+        app=app,
+        snippets=notice_snippets,
+        configs=notice_configs,
+        duty_rules=duty_rules,
+        overwrite=overwrite,
     )
 
     # 处理套餐
@@ -558,6 +652,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
         return errors
 
     for record in rule_records:
+        record["obj"].convert()
         record["obj"].save()
         StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id=record["obj"].id).update(
             app=app, snippet=record["snippet"], hash=record["hash"], path=record["path"]

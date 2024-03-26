@@ -26,96 +26,96 @@
 
 const list = {
   url: '/databus/storage/',
-  method: 'get',
+  method: 'get'
 };
 const logList = {
   url: '/databus/storage/log_cluster/',
-  method: 'get',
+  method: 'get'
 };
 
 const scenario = {
   url: '/meta/scenario/',
-  method: 'get',
+  method: 'get'
 };
 
 const create = {
   url: '/databus/storage/?bk_biz_id=:bk_biz_id',
-  method: 'post',
+  method: 'post'
 };
 
 const getProperty = {
   url: '/bizs/get_property/',
-  method: 'get',
+  method: 'get'
 };
 
 const deleteEs = {
   url: '/databus/storage/:cluster_id/?bk_biz_id=:bk_biz_id',
-  method: 'delete',
+  method: 'delete'
 };
 
 const remove = {
   url: '/source/:source_id/',
-  method: 'delete',
+  method: 'delete'
 };
 
 const update = {
   url: '/databus/storage/:cluster_id/?bk_biz_id=:bk_biz_id',
-  method: 'put',
+  method: 'put'
 };
 
 const info = {
   url: '/databus/storage/:cluster_id/?bk_biz_id=:bk_biz_id',
-  method: 'get',
+  method: 'get'
 };
 
 const connectivityDetect = {
   url: '/esb/databus/storage/connectivity_detect/',
-  method: 'post',
+  method: 'post'
 };
 
 // 连通性测试之后获取集群中各节点属性
 const getNodeAttrs = {
   url: '/databus/storage/node_attrs/',
-  method: 'post',
+  method: 'post'
 };
 
 const connectionStatus = {
   url: '/databus/storage/batch_connectivity_detect/',
-  method: 'post',
+  method: 'post'
 };
 // 数据采集相关接口
 const getCollectList = {
   url: '/databus/collectors/',
-  method: 'get',
+  method: 'get'
 };
 /**
  * 轮询-批量获取采集项订阅状态
  */
 const getCollectStatus = {
   url: '/databus/collectors/batch_subscription_status/',
-  method: 'get',
+  method: 'get'
 };
 
 const createCollection = {
   url: '/databus/storage/',
-  method: 'post',
+  method: 'post'
 };
 const deleteCollection = {
   url: '/collectors/:collector_config_id/',
-  method: 'delete',
+  method: 'delete'
 };
 const startCollection = {
   url: '/collectors/:collector_config_id/start/',
-  method: 'post',
+  method: 'post'
 };
 const stopCollection = {
   url: '/collectors/:collector_config_id/stop/',
-  method: 'post',
+  method: 'post'
 };
 // 采集下发 列表&轮询共用同一接口
 const getIssuedClusterList = {
   url: '/databus/collectors/:collector_config_id/task_status/',
-  method: 'get',
+  method: 'get'
 };
 
 /**
@@ -124,40 +124,40 @@ const getIssuedClusterList = {
 
 const detailsList = {
   url: '/databus/collectors/:collector_config_id/',
-  method: 'get',
+  method: 'get'
 };
 
 // 物理索引
 const getIndexes = {
   url: '/databus/collectors/:collector_config_id/indices_info/',
-  method: 'get',
+  method: 'get'
 };
 
 const collectList = {
   url: '/databus/collectors/:collector_config_id/subscription_status/',
-  method: 'get',
+  method: 'get'
 };
 
 const retryList = {
   url: '/databus/collectors/:collector_config_id/retry/',
-  method: 'post',
+  method: 'post'
 };
 
 const dataList = {
   url: '/esb/databus/collectors/:collector_config_id/tail/',
-  method: 'get',
+  method: 'get'
 };
 
 // 采集下发 - 重试
 const issuedRetry = {
   url: '/databus/collectors/:collector_config_id/subscription_run/',
-  method: 'post',
+  method: 'post'
 };
 
 // es集群
 const getEsList = {
   url: '/databus/storage/cluster_groups',
-  method: 'get',
+  method: 'get'
 };
 
 export {
@@ -188,5 +188,5 @@ export {
   issuedRetry,
   scenario,
   getProperty,
-  getEsList,
+  getEsList
 };

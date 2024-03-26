@@ -748,7 +748,11 @@ class TimeSeriesDataSource(DataSource):
         # 聚合方法参数
         query_list = []
         for metric in self.metrics:
-            table = self.table.lower()
+            if self.data_source_label == DataSourceLabel.BK_DATA:
+                # 计算平台表名大小写敏感
+                table = self.table
+            else:
+                table = self.table.lower()
 
             # 如果接入了数据平台，且是cmdb level表的查询，则需要去除后缀
             if settings.IS_ACCESS_BK_DATA and self.is_cmdb_level_query(
@@ -925,6 +929,7 @@ class TimeSeriesDataSource(DataSource):
             order_by=self.order_by,
             start_time=start_time,
             end_time=end_time,
+            interval=kwargs.get("interval"),
         )
         records = self._filter_by_advance_method(q.raw_data)
         return [record[dimension_field] for record in records]
@@ -1030,6 +1035,13 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
                 logger.error(f"用户请求bkdata数据源无权限(result_table_id:{self.table}, 业务id: {bk_biz_id})")
                 raise PermissionDeniedError(action_name=bk_biz_id)
 
+    def to_unify_query_config(self) -> List[Dict]:
+        # unify 定义 bkdata 查询配置制定data_source字段
+        query_list = super().to_unify_query_config()
+        for query in query_list:
+            query["data_source"] = "bkdata"
+        return query_list
+
     @classmethod
     def _get_queryset(cls, *, metrics: List[Dict] = None, **kwargs):
         # 计算平台查询的指标使用反引号，避免与关键字冲突
@@ -1075,9 +1087,6 @@ class CustomTimeSeriesDataSource(TimeSeriesDataSource):
 
     def __init__(self, *args, **kwargs):
         super(CustomTimeSeriesDataSource, self).__init__(*args, **kwargs)
-
-        if judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table):
-            self.filter_dict["bk_biz_id"] = str(kwargs["bk_biz_id"])
 
 
 class LogSearchTimeSeriesDataSource(TimeSeriesDataSource):
@@ -1505,6 +1514,7 @@ class BkMonitorLogDataSource(DataSource):
             start_time=start_time,
             end_time=end_time,
             query_string=self.query_string,
+            interval=kwargs.get("interval"),
         )
         records = self._remove_dimensions_prefix(q.raw_data)
         records = self._filter_by_advance_method(records)

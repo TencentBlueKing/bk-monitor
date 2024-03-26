@@ -27,30 +27,36 @@
       class="chart-title"
       tabindex="0"
       @click="handleShowMenu"
-      @blur="showMenu = false">
+      @blur="showMenu = false"
+    >
       <div class="main-title">
-        <span 
+        <span
           class="bk-icon icon-down-shape"
-          :class="{ 'is-flip': !isExpand }" 
-          @click.stop="toggleExpand">
+          :class="{ 'is-flip': !isExpand }"
+          @click.stop="toggleExpand"
+        >
         </span>
-        <div class="title-name">{{title}}</div>
+        <div class="title-name">{{ title }}</div>
       </div>
-      <div v-if="subtitle" class="sub-title">
-        {{subtitle}}
+      <div
+        v-if="subtitle"
+        class="sub-title"
+      >
+        {{ subtitle }}
       </div>
     </div>
     <chart-menu
       v-show="showMenu"
       :list="menuList"
       @menu-click="handleMenuClick"
-      :style="{ left: menuLeft + 'px' }" />
+      :style="{ left: menuLeft + 'px' }"
+    />
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop, Ref } from 'vue-property-decorator'
-import ChartMenu from './chart-menu.vue'
+import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
+import ChartMenu from './chart-menu.vue';
 @Component({
   name: 'chart-title',
   components: {
@@ -58,103 +64,101 @@ import ChartMenu from './chart-menu.vue'
   }
 })
 export default class ChartTitle extends Vue {
-  @Prop({ default: '' }) title: string
-  @Prop({ default: '' }) subtitle: string
-  @Prop({ default: () => [] }) menuList: string[]
-  @Ref('chartTitle') chartTitleRef: HTMLDivElement
-  private showMenu = false
-  private menuLeft = 0
-  isExpand: Boolean = true
+  @Prop({ default: '' }) title: string;
+  @Prop({ default: '' }) subtitle: string;
+  @Prop({ default: () => [] }) menuList: string[];
+  @Ref('chartTitle') chartTitleRef: HTMLDivElement;
+  private showMenu = false;
+  private menuLeft = 0;
+  isExpand: Boolean = true;
   handleShowMenu(e: MouseEvent) {
-    this.showMenu = !this.showMenu
-    const rect = this.chartTitleRef.getBoundingClientRect()
-    this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
+    this.showMenu = !this.showMenu;
+    const rect = this.chartTitleRef.getBoundingClientRect();
+    this.menuLeft = rect.width - 185 < e.layerX ? rect.width - 185 : e.layerX;
   }
   handleMenuClick(item) {
-    this.showMenu = false
-    this.$emit('menu-click', item)
+    this.showMenu = false;
+    this.$emit('menu-click', item);
   }
   toggleExpand() {
-    this.isExpand = !this.isExpand
-    this.$emit('toggle-expand', this.isExpand)
+    this.isExpand = !this.isExpand;
+    this.$emit('toggle-expand', this.isExpand);
   }
 }
 </script>
 
 <style lang="scss" scoped>
-  .title-wrapper {
-    width: 100%;
-    flex: 1;
+.title-wrapper {
+  width: 100%;
+  flex: 1;
 
-    .chart-title {
-      padding: 5px 10px;
-      margin-left: -10px;
-      border-radius: 2px;
-      color: #63656e;
-      font-size: 12px;
+  .chart-title {
+    padding: 5px 10px;
+    margin-left: -10px;
+    font-size: 12px;
+    color: #63656e;
+    border-radius: 2px;
 
-      &:hover {
-        background-color: #f0f1f5;
-        cursor: pointer;
+    .main-title {
+      display: flex;
+      font-weight: 700;
+      align-items: center;
+      flex-wrap: nowrap;
 
-        .main-title {
-          color: black;
-
-          &::after {
-            display: flex;
-          }
-        }
-      }
-
-      .main-title {
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        flex-wrap: nowrap;
-
-        .title-name {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          line-height: 20px;
-          height: 20px;
-        }
-
-        .icon-down-shape {
-          font-size: 16px;
-          margin-right: 8px;
-          color: #c4c6cc;
-          transition: transform .3s;
-
-          &.is-flip {
-            transform: rotate(-90deg);
-            transition: transform .3s;
-          }
-        }
-
-        &::after {
-          /* stylelint-disable-next-line declaration-no-important */
-          font-family: 'icon-monitor' !important;
-          content: '\e61c';
-          font-size: 20px;
-          width: 24px;
-          height: 16px;
-          align-items: center;
-          justify-content: center;
-          color: #979ba5;
-          margin-right: auto;
-          display: none;
-        }
-      }
-
-      .sub-title {
-        line-height: 16px;
-        height: 16px;
-        color: #979ba5;
+      .title-name {
+        height: 20px;
         overflow: hidden;
+        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+
+      .icon-down-shape {
+        margin-right: 8px;
+        font-size: 16px;
+        color: #c4c6cc;
+        transition: transform 0.3s;
+
+        &.is-flip {
+          transform: rotate(-90deg);
+          transition: transform 0.3s;
+        }
+      }
+
+      &::after {
+        display: none;
+        width: 24px;
+        height: 16px;
+        margin-right: auto;
+        font-size: 20px;
+        color: #979ba5;
+        content: '\e61c';
+        align-items: center;
+        justify-content: center;
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: #f0f1f5;
+
+      .main-title {
+        color: black;
+
+        &::after {
+          display: flex;
+        }
+      }
+    }
+
+    .sub-title {
+      height: 16px;
+      overflow: hidden;
+      line-height: 16px;
+      color: #979ba5;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
+}
 </style>

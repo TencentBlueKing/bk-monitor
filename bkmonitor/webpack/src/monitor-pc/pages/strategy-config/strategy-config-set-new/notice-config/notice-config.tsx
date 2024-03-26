@@ -25,18 +25,17 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox, CheckboxGroup, Input, Option, Popover, Select, Switcher } from 'bk-magic-vue';
-
-import ResizeContainer from '../../../../../fta-solutions/components/resize-container/resize-container';
-import AutoInput from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
-import CustomTab from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import ResizeContainer from 'fta-solutions/components/resize-container/resize-container';
+import AutoInput from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
+import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import {
   intervalModeTips,
   templateSignalName
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealDeail from '../../../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
-import SetMealAddStore from '../../../../../fta-solutions/store/modules/set-meal-add';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import TemplateInput from '../../strategy-config-set/strategy-template-input/strategy-template-input';
 import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview';
 import StrategyVariateList from '../../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
@@ -213,7 +212,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
     interval: '', // 通知间隔
     template: '', // 模板
     noise_reduce_config: '', // 降噪设置
-    notice: ''
+    notice: '',
+    upgrade: '' // 通知升级
   };
 
   /* 排除通知方式下拉是否展开 */
@@ -378,6 +378,19 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
         this.errMsg.noise_reduce_config = window.i18n.tc('开启降噪设置必须设置维度且比例值为1-100之间');
         reject();
       }
+      if (this.data.options.upgrade_config.is_enabled) {
+        if (
+          !this.data.options.upgrade_config.upgrade_interval ||
+          !this.data.options.upgrade_config.user_groups.length
+        ) {
+          this.errMsg.upgrade = window.i18n.tc('通知升级必须填写时间间隔以及用户组');
+          reject();
+        }
+        if (this.data.options.upgrade_config.user_groups.some(upgrade => this.data.user_groups.includes(upgrade))) {
+          this.errMsg.upgrade = window.i18n.tc('通知升级的用户组不能包含第一次接收告警的用户组');
+          reject();
+        }
+      }
       resolve(true);
     });
   }
@@ -387,7 +400,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
       interval: '',
       template: '',
       noise_reduce_config: '',
-      notice: ''
+      notice: '',
+      upgrade: ''
     };
   }
 
@@ -533,18 +547,18 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
           show-semicolon
         >
           <span class='effective-conditions'>
-            <CheckboxGroup
+            <bk-checkbox-group
               value={this.data.signal}
               on-change={v => this.handleSignalChange(v, 'notice')}
             >
               {noticeOptions.map(item => (
-                <Checkbox
+                <bk-checkbox
                   v-en-style='width: 160px'
                   value={item.key}
                   disabled={this.readonly}
                 >
                   {hasExcludeNoticeWayOptions.includes(item.key) ? (
-                    <Popover
+                    <bk-popover
                       placement='top'
                       extCls='notice-config-new-component-exclude-way-pop'
                       tippyOptions={{
@@ -567,7 +581,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         onMouseleave={() => this.handleExcludeMouseleave(item.key)}
                       >
                         <span>{window.i18n.tc('明确排除通知方式')}</span>
-                        <Select
+                        <bk-select
                           v-model={this.data.options.exclude_notice_ways[item.key]}
                           behavior='simplicity'
                           multiple
@@ -575,21 +589,21 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           onToggle={v => this.handleExcludeToggle(v, item.key)}
                         >
                           {this.noticeWayList.map(way => (
-                            <Option
+                            <bk-option
                               key={way.type}
                               id={way.type}
                               name={way.label}
-                            ></Option>
+                            ></bk-option>
                           ))}
-                        </Select>
+                        </bk-select>
                       </span>
-                    </Popover>
+                    </bk-popover>
                   ) : (
                     <span>{item.text}</span>
                   )}
-                </Checkbox>
+                </bk-checkbox>
               ))}
-            </CheckboxGroup>
+            </bk-checkbox-group>
           </span>
         </CommonItem>
         <CommonItem
@@ -597,20 +611,20 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
           show-semicolon
         >
           <span class='effective-conditions'>
-            <CheckboxGroup
+            <bk-checkbox-group
               value={this.data.signal}
               on-change={v => this.handleSignalChange(v, 'action')}
             >
               {actionOption.map(item => (
-                <Checkbox
+                <bk-checkbox
                   v-en-style='width: 160px'
                   value={item.key}
                   disabled={this.readonly}
                 >
                   {item.text}
-                </Checkbox>
+                </bk-checkbox>
               ))}
-            </CheckboxGroup>
+            </bk-checkbox-group>
           </span>
         </CommonItem>
         {/* <CommonItem title={this.$t('告警组')} show-semicolon>
@@ -680,61 +694,67 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 title={this.$t('通知升级')}
                 show-semicolon
                 style={{
-                  alignItems: this.data.options.upgrade_config.is_enabled ? 'inherit' : 'flex-end'
+                  alignItems: this.data.options.upgrade_config.is_enabled ? 'inherit' : 'flex-end',
+                  marginBottom: this.errMsg.upgrade ? '15px' : 0
                 }}
               >
-                <div class='upgrade-warp'>
-                  <Switcher
-                    theme='primary'
-                    size='small'
-                    v-model={this.data.options.upgrade_config.is_enabled}
-                  ></Switcher>
-                  {this.data.options.upgrade_config.is_enabled && (
-                    <i18n
-                      class='text'
-                      tag='div'
-                      path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
-                    >
-                      <Select
-                        v-model={this.data.options.upgrade_config.upgrade_interval}
-                        behavior='simplicity'
-                        style='width: 78px'
-                        zIndex={99999}
-                        placeholder={this.$t('输入')}
-                        allow-create
-                        allow-enter
-                        class='notice-select'
+                <VerifyItem errorMsg={this.errMsg.upgrade}>
+                  <div class='upgrade-warp'>
+                    <bk-switcher
+                      theme='primary'
+                      size='small'
+                      v-model={this.data.options.upgrade_config.is_enabled}
+                      onChange={this.clearError}
+                    ></bk-switcher>
+                    {this.data.options.upgrade_config.is_enabled && (
+                      <i18n
+                        class='text'
+                        tag='div'
+                        path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
                       >
-                        <Option
-                          id={1}
-                          name={1}
-                        />
-                        <Option
-                          id={5}
-                          name={5}
-                        />
-                        <Option
-                          id={10}
-                          name={10}
-                        />
-                        <Option
-                          id={30}
-                          name={30}
-                        />
-                      </Select>
-                    </i18n>
+                        <bk-select
+                          v-model={this.data.options.upgrade_config.upgrade_interval}
+                          behavior='simplicity'
+                          style='width: 78px'
+                          zIndex={99999}
+                          placeholder={this.$t('输入')}
+                          allow-create
+                          allow-enter
+                          class='notice-select'
+                          onChange={this.clearError}
+                        >
+                          <bk-option
+                            id={1}
+                            name={1}
+                          />
+                          <bk-option
+                            id={5}
+                            name={5}
+                          />
+                          <bk-option
+                            id={10}
+                            name={10}
+                          />
+                          <bk-option
+                            id={30}
+                            name={30}
+                          />
+                        </bk-select>
+                      </i18n>
+                    )}
+                  </div>
+                  {this.data.options.upgrade_config.is_enabled && (
+                    <AlarmGroup
+                      v-model={this.data.options.upgrade_config.user_groups}
+                      class='alarm-group'
+                      list={this.userList}
+                      readonly={this.readonly}
+                      showAddTip={false}
+                      strategyId={this.strategyId}
+                      onChange={this.clearError}
+                    ></AlarmGroup>
                   )}
-                </div>
-                {this.data.options.upgrade_config.is_enabled && (
-                  <AlarmGroup
-                    v-model={this.data.options.upgrade_config.user_groups}
-                    class='alarm-group'
-                    list={this.userList}
-                    readonly={this.readonly}
-                    showAddTip={false}
-                    strategyId={this.strategyId}
-                  ></AlarmGroup>
-                )}
+                </VerifyItem>
               </CommonItem>
             </NoticeItem>
           </VerifyItem>
@@ -779,7 +799,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         <span class='bold'>{this.data.config.notify_interval}</span>
                       ]
                     : [
-                        <Select
+                        <bk-select
                           v-en-style='width: 100px'
                           class='select select-inline'
                           clearable={false}
@@ -789,26 +809,26 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           onChange={this.handleChange}
                         >
                           {intervalModeList.map(item => (
-                            <Option
+                            <bk-option
                               key={item.id}
                               id={item.id}
                               name={item.name}
-                            ></Option>
+                            ></bk-option>
                           ))}
-                        </Select>,
-                        <Input
+                        </bk-select>,
+                        <bk-input
                           class='input-inline input-center'
                           behavior='simplicity'
                           v-model={this.data.config.notify_interval}
                           type='number'
                           size='small'
                           onInput={this.handleChange}
-                        ></Input>
+                        ></bk-input>
                       ]}
                 </i18n>
                 <span
                   class='icon-monitor icon-hint'
-                  v-bk-tooltips={{ content: intervalModeTips[this.data.config.interval_notify_mode] }}
+                  v-bk-tooltips={{ content: intervalModeTips[this.data.config.interval_notify_mode], allowHTML: false }}
                   style={{ color: '#979ba5', marginTop: '-3px' }}
                 ></span>
               </span>
@@ -819,13 +839,13 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
             show-semicolon
           >
             <span class='alarm-storm'>
-              <Switcher
+              <bk-switcher
                 v-model={this.data.options.converge_config.need_biz_converge}
                 theme='primary'
                 size='small'
                 disabled={this.readonly}
                 on-change={this.handleChange}
-              ></Switcher>
+              ></bk-switcher>
               <i class='icon-monitor icon-hint'></i>
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}
@@ -839,19 +859,19 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
             >
               <VerifyItem errorMsg={this.errMsg.noise_reduce_config}>
                 <span class={['noise-reduce', { mt5: !this.data.options.noise_reduce_config.is_enabled }]}>
-                  <Switcher
+                  <bk-switcher
                     v-model={this.data.options.noise_reduce_config.is_enabled}
                     theme='primary'
                     size='small'
                     disabled={this.readonly}
                     on-change={this.handleChange}
-                  ></Switcher>
+                  ></bk-switcher>
                   {this.data.options.noise_reduce_config.is_enabled ? (
                     <i18n
                       path='基于维度{0},当前策略异常告警达到比例{1}%才进行发送通知。'
                       class='noise-content'
                     >
-                      <Select
+                      <bk-select
                         class='select select-inline'
                         clearable={false}
                         behavior='simplicity'
@@ -866,12 +886,13 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           trigger: 'mouseenter',
                           zIndex: 9999,
                           boundary: document.body,
-                          disabled: !this.data.options.noise_reduce_config.dimensions.length
+                          disabled: !this.data.options.noise_reduce_config.dimensions.length,
+                          allowHTML: false
                         }}
                         onSelected={this.handleDimensionsSelected}
                       >
                         {[{ id: 'all', name: window.i18n.tc('全部') }, ...this.legalDimensionList].map(item => (
-                          <Option
+                          <bk-option
                             key={item.id}
                             id={item.id}
                             name={item.name}
@@ -881,12 +902,13 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                               zIndex: 9999,
                               boundary: document.body,
                               appendTo: document.body,
-                              disabled: item.id === 'all'
+                              disabled: item.id === 'all',
+                              allowHTML: false
                             }}
-                          ></Option>
+                          ></bk-option>
                         ))}
-                      </Select>
-                      <Input
+                      </bk-select>
+                      <bk-input
                         class='input-inline input-center'
                         behavior='simplicity'
                         showControls={false}
@@ -894,7 +916,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         type='number'
                         size='small'
                         onInput={this.handleChange}
-                      ></Input>
+                      ></bk-input>
                     </i18n>
                   ) : undefined}
                 </span>
@@ -936,7 +958,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 <span class='label'>
                   <span>{this.$t('告警通知模板')}</span>
                   <span class='need-img-check'>
-                    <Checkbox
+                    <bk-checkbox
                       v-bk-tooltips={{
                         content: this.$t('蓝鲸监控机器人发送图片全局设置已关闭'),
                         placements: ['top'],
@@ -947,7 +969,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                       on-change={this.handleChange}
                     >
                       {this.$t('是否附带图片')}
-                    </Checkbox>
+                    </bk-checkbox>
                   </span>
                 </span>
                 <div class='wrap-right'>

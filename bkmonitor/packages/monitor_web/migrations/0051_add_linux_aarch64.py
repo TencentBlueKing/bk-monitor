@@ -38,6 +38,7 @@ def add_initial_obj(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [
         ("monitor_web", "0050_merge_20210428_1352"),
+        ("bkmonitor", "0014_auto_20200616_1143"),
     ]
 
     operations = [migrations.RunPython(add_initial_obj)]

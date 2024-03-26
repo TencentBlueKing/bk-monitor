@@ -25,9 +25,8 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Tab, TabPanel, TimePicker } from 'bk-magic-vue';
+import { deepClone } from 'monitor-common/utils/utils';
 
-import { deepClone } from '../../../../../../monitor-common/utils/utils';
 import { defaultAddTimeRange } from '../meal-content/meal-content-data';
 
 import './custom-tab.scss';
@@ -180,7 +179,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           ></span>
         ) : undefined}
         <div class='time-title'>{this.$tc('生效时段')}</div>
-        <TimePicker
+        <bk-time-picker
           style={{ 'pointer-events': this.curActive !== key ? 'none' : 'auto' }}
           v-model={item.timeValue}
           format={this.minIsMinute ? 'HH:mm' : 'HH:mm:ss'}
@@ -192,7 +191,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           transfer={true}
           allowCrossDay={true}
           on-open-change={state => this.handleOpenChange(state, item)}
-        ></TimePicker>
+        ></bk-time-picker>
       </div>
     );
   }
@@ -202,7 +201,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
       const timeClass = ['period-wrap', 'period-wrap-01'];
       return (
         <div class={timeClass[this.timeStyleType]}>
-          <Tab
+          <bk-tab
             ref='time-tab'
             active={this.curActive}
             labelHeight={timeHeight[this.timeStyleType]}
@@ -213,41 +212,45 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
             {this.timeStyleType === 1 ? (
               <div
                 slot='add'
-                style={{ cursor: this.isCanAdd ? 'pointer' : 'not-allowed' }}
-                class='custom-add'
+                class={['custom-add', { disabled: !this.isCanAdd }]}
                 onClick={() => this.handleAddPanel()}
               >
                 <div class='jia'>+</div>
-                <span v-bk-tooltips={{ content: this.$t('已配置全天24小时生效时段，无需额外添加生效时段') }}>
+                <span
+                  v-bk-tooltips={{
+                    content: this.$t('已配置全天24小时生效时段，无需额外添加生效时段'),
+                    disabled: this.isCanAdd
+                  }}
+                >
                   {this.$t('生效时段')}
                 </span>
               </div>
             ) : undefined}
             {this.curPanels.map(item => (
-              <TabPanel
+              <bk-tab-panel
                 key={item.key}
                 name={item.key}
                 renderLabel={(h, name) => this.renderLabel(name, item)}
-              ></TabPanel>
+              ></bk-tab-panel>
             ))}
-          </Tab>
+          </bk-tab>
         </div>
       );
     }
     if (this.type === 'text') {
       return (
-        <Tab
+        <bk-tab
           active={this.curActive}
           on-tab-change={this.handleChange}
         >
           {this.curPanels.map(item => (
-            <TabPanel
+            <bk-tab-panel
               key={item.key}
               name={item.key}
               label={item.label}
-            ></TabPanel>
+            ></bk-tab-panel>
           ))}
-        </Tab>
+        </bk-tab>
       );
     }
   }
