@@ -82,6 +82,12 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Boolean, default: false }) isPromql: boolean;
   /* 默认选择的监控对象 */
   @Prop({ type: String, default: '' }) defaultScenario: string;
+  /* 使用指定的指标列表 */
+  @Prop({ type: Array, default: () => null }) customMetrics: MetricDetail[];
+  /* 是否多选 */
+  @Prop({ type: Boolean, default: false }) multiple: boolean;
+  /* 指标唯一id(多选) */
+  @Prop({ type: Array, default: () => [] }) metricIds: string[];
   @Ref() metricScrollWrap: HTMLElement;
 
   loading = false;
@@ -234,6 +240,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     return page * pageSize >= total;
   }
 
+  /* 是否使用指定指标数据 */
+  get isCustomMetrics() {
+    return !!this.customMetrics;
+  }
+
   beforeDestroy() {
     clearTimeout(this.timer);
   }
@@ -266,7 +277,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     } else {
       this.checkededValue = {};
     }
-    this.metricList = [];
+    if (!this.isCustomMetrics) {
+      this.metricList = [];
+    }
     if (!this.isRefreshSuccess) {
       this.search = '';
     }
@@ -322,29 +335,79 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     }
     const params = this.handleMetricParams();
     params.page = page;
-    getMetricListV2(params)
-      .then(({ metric_list = [], tag_list = [], scenario_list = [], data_source_list = [], count = 0 }) => {
-        const metricList = metric_list.map(item => new MetricDetail(item));
-        this.metricList = page === 1 ? metricList : [...this.metricList, ...metricList];
-        this.getSelectedMetric();
-        page > 1 && (this.pagination.page += 1);
-        this.pagination.total = count;
-        if (this.tag.value) {
-          if (tag_list.findIndex(item => item.id === this.tag.value) < 0) {
-            const activeItem = this.tag.list.find(item => item.id === this.tag.value);
-            if (activeItem) this.tag.activeItem = deepClone(activeItem);
-          } else {
-            this.tag.activeItem = null;
-          }
-        }
-        this.tag.list = tag_list;
-        this.localScenarioList = scenario_list;
-        this.dataSourceList = data_source_list;
-      })
-      .finally(() => {
+    /* 自定义指标列表 */
+    if (this.isCustomMetrics) {
+      this.metricList = this.customMetrics.map(item => new MetricDetail(item));
+      const search = this.search.trim();
+      if (!!search) {
+        this.metricList = this.metricList.filter(
+          item =>
+            item.metric_field_name.indexOf(search) >= 0 ||
+            item.metric_field.indexOf(search) >= 0 ||
+            item.metric_id.toString().indexOf(search) >= 0
+        );
+      }
+      if (params.tag.length) {
+        this.metricList = [];
+      }
+      const sourceObj = {};
+      const scenarioObj = {};
+      this.metricList.forEach(item => {
+        sourceObj[item.data_source_label] = (sourceObj?.[item.data_source_label] || 0) + 1;
+        scenarioObj[item.result_table_label] = (scenarioObj?.[item.result_table_label] || 0) + 1;
+        const metricIds = new Set(this.metricIds);
+        item.setChecked(metricIds.has(item.metric_id as string));
+      });
+      if (this.localScenarioList.length) {
+        this.localScenarioList = this.localScenarioList.map(item => ({
+          ...item,
+          count: scenarioObj?.[item.id] || 0
+        }));
+        this.dataSourceList = this.dataSourceList.map(item => ({
+          ...item,
+          count: sourceObj?.[item.data_source_label] || 0
+        }));
         this.loading = false;
         this.nextPageLoading = false;
-      });
+      } else {
+        getMetricListV2(params).then(({ tag_list = [], scenario_list = [], data_source_list = [] }) => {
+          this.tag.list = tag_list;
+          this.localScenarioList = scenario_list.map(item => ({
+            ...item,
+            count: scenarioObj?.[item.id] || 0
+          }));
+          this.dataSourceList = data_source_list.map(item => ({
+            ...item,
+            count: sourceObj?.[item.data_source_label] || 0
+          }));
+          this.loading = false;
+          this.nextPageLoading = false;
+        });
+      }
+    } else {
+      getMetricListV2(params)
+        .then(({ metric_list = [], tag_list = [], scenario_list = [], data_source_list = [], count = 0 }) => {
+          const metricList = metric_list.map(item => new MetricDetail(item));
+          this.metricList = page === 1 ? metricList : [...this.metricList, ...metricList];
+          page > 1 && (this.pagination.page += 1);
+          this.pagination.total = count;
+          if (this.tag.value) {
+            if (tag_list.findIndex(item => item.id === this.tag.value) < 0) {
+              const activeItem = this.tag.list.find(item => item.id === this.tag.value);
+              if (activeItem) this.tag.activeItem = deepClone(activeItem);
+            } else {
+              this.tag.activeItem = null;
+            }
+          }
+          this.tag.list = tag_list;
+          this.localScenarioList = scenario_list;
+          this.dataSourceList = data_source_list;
+        })
+        .finally(() => {
+          this.loading = false;
+          this.nextPageLoading = false;
+        });
+    }
   }
 
   /* 关键字高亮 */
@@ -582,7 +645,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
 
   @Emit('selected')
   handleSelectMetric(metric: MetricDetail) {
-    this.handleShowChange(false);
+    if (this.multiple) {
+      this.handleCheckMetric(metric, !metric.checked);
+    } else {
+      this.handleShowChange(false);
+    }
     return {
       ...metric,
       dimensions: metric.rawDimensions || [],
@@ -610,6 +677,14 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     this.pagination.page = 1;
     this.metricScrollWrap.scrollTo({ top: 0 });
     this.getMetricList();
+  }
+
+  handleCheckMetric(item: MetricDetail, v: boolean) {
+    item.setChecked(v);
+    this.$emit('checked', {
+      checked: item.checked,
+      id: item.metric_id
+    });
   }
 
   /* 跳转到文档 */
@@ -725,12 +800,21 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       this.dataSourceCheckedList[MetricType.TimeSeries].find(d => d.id === item.data_source_label)?.name || '--';
     return (
       <div
-        class='metric-item-common'
+        class={['metric-item-common', { 'multiple-style': this.multiple }]}
         on-mouseenter={event => this.handleMetricNameEnter(event, item)}
         on-mouseleave={this.handleMetricNameLeave}
       >
         <div class='top'>
-          <span class='title'>{this.highLightContent(this.search, item.readable_name)}</span>
+          <span class='title'>
+            <span onClick={e => e.stopPropagation()}>
+              <bk-checkbox
+                class='metric-checkbox'
+                value={item.checked}
+                onChange={v => this.handleCheckMetric(item, v)}
+              ></bk-checkbox>
+            </span>
+            <span>{this.highLightContent(this.search, item.readable_name)}</span>
+          </span>
           <span class='subtitle'>{this.highLightContent(this.search, obj.alias)}</span>
         </div>
         <div class='bottom'>{`${item.result_table_label_name} / ${dataSourceLabel}${

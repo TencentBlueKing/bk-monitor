@@ -104,7 +104,9 @@ export enum MetricType {
   LOG = 'log',
   EVENT = 'event',
   ALERT = 'alert',
-  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection'
+  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
+  /* 场景智能检测type传参用此字段 */
+  HostAnomalyDetection = 'HostAnomalyDetection'
 }
 export class MetricDetail {
   alias?: string = '';
@@ -167,6 +169,7 @@ export class MetricDetail {
   logMetricList: IMetricDetail[] = null;
   sceneConfig?: ISceneConfig = null;
   promql_metric?: string;
+  checked: boolean;
   constructor(public metricDetail?: IMetricDetail) {
     if (!metricDetail) return;
     Object.keys(metricDetail).forEach(key => {
@@ -404,6 +407,9 @@ export class MetricDetail {
   }
   setMetricType(type: MetricType) {
     this.metric_type = type;
+  }
+  setChecked(v: boolean) {
+    this.checked = v;
   }
 }
 
