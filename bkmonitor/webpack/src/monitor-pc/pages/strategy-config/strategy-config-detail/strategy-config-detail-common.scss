@@ -147,20 +147,11 @@ $levelColor: #ea3636 #ff9c01 #699df4;
         .promql-content {
           .edit-wrap {
             position: relative;
-            min-height: 160px;
-            overflow-y: auto;
-            background-color: #fff;
-            border: 1px solid #dcdee5;
-      
-            .promql-editor {
-              height: 100%;
-              resize: none;
-              border: 0;
-      
-              .cm-content {
-                padding: 8px 20px 8px 18px;
-              }
-            }
+            // height: 160px;
+            // min-height: 160px;
+            // overflow-y: auto;
+            // background-color: #fff;
+            // border: 1px solid #dcdee5;
           }
       
           .step-wrap {

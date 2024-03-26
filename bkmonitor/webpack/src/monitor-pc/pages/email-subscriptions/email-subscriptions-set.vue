@@ -317,7 +317,7 @@ import {
 } from 'monitor-api/modules/report';
 import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
-import Sortable from 'sortablejs';
+import { Sortable } from 'sortablejs';
 
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
 import memberSelector from '../alarm-group/alarm-group-add/member-selector.vue';

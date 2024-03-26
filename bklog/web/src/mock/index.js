@@ -62,11 +62,11 @@ const getTest = {
         created_at: '2019-10-10 11:11:11',
         created_by: 'user',
         updated_at: '2019-10-10 11:11:11',
-        updated_by: 'user',
-      },
-    ],
+        updated_by: 'user'
+      }
+    ]
   },
-  result: true,
+  result: true
 };
 const getMyProjectList = {
   message: '',
@@ -78,18 +78,18 @@ const getMyProjectList = {
       bk_biz_id: 1,
       bk_app_code: 'bk_log',
       time_zone: 'Asia/Shanghai',
-      description: '项目描述',
-    },
+      description: '项目描述'
+    }
   ],
-  result: true,
+  result: true
 };
 
 export default {
   example: {
-    getTest,
+    getTest
   },
   project: {
-    getMyProjectList,
+    getMyProjectList
   },
   retrieve,
   indexSet,
@@ -105,5 +105,5 @@ export default {
   traceDetail,
   trace,
   extract,
-  extractManage,
+  extractManage
 };

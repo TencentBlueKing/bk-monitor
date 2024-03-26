@@ -27,21 +27,35 @@
       class="chart-title"
       tabindex="0"
       @click.stop="handleShowMenu"
-      @blur="showMenu = false">
+      @blur="showMenu = false"
+    >
       <div class="main-title">
-        <span class="bk-icon icon-down-shape" :class="{ 'is-flip': isFold }"></span>
-        <div class="title-name">{{title}}</div>
+        <span
+          class="bk-icon icon-down-shape"
+          :class="{ 'is-flip': isFold }"
+        ></span>
+        <div class="title-name">{{ title }}</div>
       </div>
-      <div v-if="subtitle" class="sub-title">
-        {{subtitle}}
+      <div
+        v-if="subtitle"
+        class="sub-title"
+      >
+        {{ subtitle }}
       </div>
     </div>
-    <bk-spin v-if="loading && !isFold" class="chart-spin"></bk-spin>
-    <div class="menu-list" v-else-if="!isFold">
-      <span 
-        class="log-icon icon-xiangji" 
-        @click.stop="handleMenuClick({id: 'screenshot'})"
-        data-test-id="generalTrendEcharts_span_downloadEcharts">
+    <bk-spin
+      v-if="loading && !isFold"
+      class="chart-spin"
+    ></bk-spin>
+    <div
+      class="menu-list"
+      v-else-if="!isFold"
+    >
+      <span
+        class="log-icon icon-xiangji"
+        @click.stop="handleMenuClick({ id: 'screenshot' })"
+        data-test-id="generalTrendEcharts_span_downloadEcharts"
+      >
       </span>
     </div>
     <!-- <chart-menu
@@ -54,8 +68,8 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop, Ref } from 'vue-property-decorator'
-import ChartMenu from './chart-menu.vue'
+import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
+import ChartMenu from './chart-menu.vue';
 
 @Component({
   name: 'chart-title',
@@ -64,114 +78,114 @@ import ChartMenu from './chart-menu.vue'
   }
 })
 export default class ChartTitle extends Vue {
-  @Prop({ default: '' }) title: string
-  @Prop({ default: '' }) subtitle: string
-  @Prop({ default: () => [] }) menuList: string[]
-  @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean
-  @Prop({ default: true }) loading: boolean
-  @Ref('chartTitle') chartTitleRef: HTMLDivElement
-  private showMenu = false
-  private menuLeft = 0
+  @Prop({ default: '' }) title: string;
+  @Prop({ default: '' }) subtitle: string;
+  @Prop({ default: () => [] }) menuList: string[];
+  @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+  @Prop({ default: true }) loading: boolean;
+  @Ref('chartTitle') chartTitleRef: HTMLDivElement;
+  private showMenu = false;
+  private menuLeft = 0;
   handleShowMenu(e: MouseEvent) {
-    this.$emit('toggle-expand', !this.isFold)
+    this.$emit('toggle-expand', !this.isFold);
 
     // this.showMenu = !this.showMenu
     // const rect = this.chartTitleRef.getBoundingClientRect()
     // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
   }
   handleMenuClick(item) {
-    this.showMenu = false
-    this.$emit('menu-click', item)
+    this.showMenu = false;
+    this.$emit('menu-click', item);
   }
 }
 </script>
 <style lang="scss" scoped>
-  .title-wrapper {
-    position: relative;
-    width: 100%;
-    flex: 1;
+.title-wrapper {
+  position: relative;
+  width: 100%;
+  flex: 1;
 
-    .chart-title {
-      padding: 4px 10px;
-      margin-left: -10px;
-      border-radius: 2px;
-      color: #63656e;
-      font-size: 12px;
-      cursor: pointer;
+  .chart-title {
+    padding: 4px 10px;
+    margin-left: -10px;
+    font-size: 12px;
+    color: #63656e;
+    cursor: pointer;
+    border-radius: 2px;
 
-      // &:hover {
-      //   .main-title {
-      //     &::after {
-      //       display: flex;
-      //     }
-      //   }
-      // }
+    // &:hover {
+    //   .main-title {
+    //     &::after {
+    //       display: flex;
+    //     }
+    //   }
+    // }
 
-      .main-title {
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        flex-wrap: nowrap;
+    .main-title {
+      display: flex;
+      font-weight: 700;
+      align-items: center;
+      flex-wrap: nowrap;
 
-        .title-name {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          line-height: 20px;
-          height: 20px;
-        }
-
-        .icon-down-shape {
-          margin-right: 8px;
-          transition: transform .3s;
-
-          &.is-flip {
-            transform: rotate(-90deg);
-            transition: transform .3s;
-          }
-        }
-
-        // &::after {
-        //   /* stylelint-disable-next-line declaration-no-important */
-        //   font-family: 'icon-monitor' !important;
-        //   content: '\e61c';
-        //   font-size: 20px;
-        //   width: 24px;
-        //   height: 16px;
-        //   align-items: center;
-        //   justify-content: center;
-        //   color: #979ba5;
-        //   margin-right: auto;
-        //   display: none;
-        // }
-      }
-
-      .sub-title {
-        line-height: 16px;
-        height: 16px;
-        color: #979ba5;
+      .title-name {
+        height: 20px;
         overflow: hidden;
+        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    }
 
-    .menu-list {
-      position: absolute;
-      top: 16px;
-      right: 36px;
+      .icon-down-shape {
+        margin-right: 8px;
+        transition: transform 0.3s;
 
-      .log-icon {
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
+        &.is-flip {
+          transform: rotate(-90deg);
+          transition: transform 0.3s;
+        }
       }
+
+      // &::after {
+      //   /* stylelint-disable-next-line declaration-no-important */
+      //   font-family: 'icon-monitor' !important;
+      //   content: '\e61c';
+      //   font-size: 20px;
+      //   width: 24px;
+      //   height: 16px;
+      //   align-items: center;
+      //   justify-content: center;
+      //   color: #979ba5;
+      //   margin-right: auto;
+      //   display: none;
+      // }
     }
 
-    .chart-spin {
-      position: absolute;
-      top: 24px;
-      right: 36px;
+    .sub-title {
+      height: 16px;
+      overflow: hidden;
+      line-height: 16px;
+      color: #979ba5;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
+
+  .menu-list {
+    position: absolute;
+    top: 16px;
+    right: 36px;
+
+    .log-icon {
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+    }
+  }
+
+  .chart-spin {
+    position: absolute;
+    top: 24px;
+    right: 36px;
+  }
+}
 </style>

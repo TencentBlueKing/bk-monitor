@@ -26,13 +26,29 @@
       v-model="editorValue"
       :language="language"
       :warning-list="warningList"
-      @get-problem-state="getProblemState">
-      <div class="load" slot="right">
-        <span v-bk-tooltips="{ distance: 20, content: $t('上传'), delay: 300 }" class="load-tips">
-          <span class="bk-icon icon-upload-cloud" @click="updateYAMLDocument"></span>
+      @get-problem-state="getProblemState"
+    >
+      <div
+        slot="right"
+        class="load"
+      >
+        <span
+          v-bk-tooltips="{ distance: 20, content: $t('上传'), delay: 300 }"
+          class="load-tips"
+        >
+          <span
+            class="bk-icon icon-upload-cloud"
+            @click="updateYAMLDocument"
+          ></span>
         </span>
-        <span v-bk-tooltips="{ distance: 20, content: $t('下载'), delay: 300 }" class="load-tips">
-          <span class="bk-icon icon-download" @click="downloadYAMLDocument()"></span>
+        <span
+          v-bk-tooltips="{ distance: 20, content: $t('下载'), delay: 300 }"
+          class="load-tips"
+        >
+          <span
+            class="bk-icon icon-download"
+            @click="downloadYAMLDocument()"
+          ></span>
         </span>
       </div>
     </monaco-editor>
@@ -45,30 +61,30 @@ import monacoEditor from './monaco-editor';
 
 export default {
   components: {
-    monacoEditor,
+    monacoEditor
   },
   model: {
     prop: 'value',
-    event: 'change',
+    event: 'change'
   },
   props: {
     value: {
       type: String,
-      default: '',
+      default: ''
     },
     valueType: {
       type: String,
       default: 'default',
-      validator: value => ['default', 'base64'].includes(value),
+      validator: value => ['default', 'base64'].includes(value)
     },
     yamlFormData: {
       type: Object,
-      default: () => ({}),
+      default: () => ({})
     },
     clusterId: {
       type: String,
-      default: '',
-    },
+      default: ''
+    }
   },
   data() {
     return {
@@ -78,7 +94,7 @@ export default {
       editor: null,
       inputDocument: null,
       timer: null,
-      isHaveErrorProblem: false,
+      isHaveErrorProblem: false
     };
   },
   computed: {
@@ -87,7 +103,7 @@ export default {
     },
     getSubmitState() {
       return !(this.isHaveErrorProblem || this.isHaveCannotSubmitWaring);
-    },
+    }
   },
   watch: {
     editorValue(val) {
@@ -97,7 +113,7 @@ export default {
       this.timer = setTimeout(() => {
         this.checkWarning(base64Str);
       }, 1000);
-    },
+    }
   },
   mounted() {
     this.initInputType();
@@ -106,7 +122,7 @@ export default {
       enableSchemaRequest: true,
       format: true,
       hover: true,
-      completion: true,
+      completion: true
     });
   },
   beforeDestroy() {
@@ -123,9 +139,9 @@ export default {
       const MM = String(today.getMonth() + 1).padStart(2, '0'); // 获取月份，1 月为 0
       const yyyy = today.getFullYear(); // 获取年
       // 时间
-      const hh =  String(today.getHours()).padStart(2, '0');  // 获取当前小时数(0-23)
-      const mm = String(today.getMinutes()).padStart(2, '0');  // 获取当前分钟数(0-59)
-      const ss = String(today.getSeconds()).padStart(2, '0');  // 获取当前秒数(0-59)
+      const hh = String(today.getHours()).padStart(2, '0'); // 获取当前小时数(0-23)
+      const mm = String(today.getMinutes()).padStart(2, '0'); // 获取当前分钟数(0-59)
+      const ss = String(today.getSeconds()).padStart(2, '0'); // 获取当前秒数(0-59)
       const time = `${yyyy}${MM}${DD}${hh}${mm}${ss}`;
       eleLink.download = filename || `bk_log_search_download_${time}.yaml`;
       eleLink.style.display = 'none';
@@ -138,7 +154,7 @@ export default {
       document.body.removeChild(eleLink);
     },
     updateYAMLDocument() {
-      this.inputDocument.click();// 本地文件回填
+      this.inputDocument.click(); // 本地文件回填
     },
     /**
      * @desc: 初始化上传yaml文件操作dom
@@ -158,13 +174,13 @@ export default {
       if (!/.*(?<=\.yaml|\.yml)$/.test(file.name)) {
         this.$bkMessage({
           theme: 'error',
-          message: this.$t('不是有效的yaml文件'),
+          message: this.$t('不是有效的yaml文件')
         });
         return;
       }
       // 读取文件:
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = e => {
         const data = e.target.result;
         this.editorValue = data;
       };
@@ -175,71 +191,73 @@ export default {
       if (yaml === '' || this.isHaveErrorProblem) {
         this.warningList = [];
         return;
-      };
-      this.$http.request('container/yamlJudgement', {
-        data: {
-          bk_biz_id: this.$store.state.bkBizId,
-          bcs_cluster_id: this.clusterId,
-          yaml_config: yaml,
-        },
-      }).then((res) => {
-        if (res.code === 0) {
-          const { parse_result: parseResult, parse_status: parseStatus } = res.data;
-          if (Array.isArray(parseResult) && !parseStatus) {
-            this.warningList = parseResult.map(item => ({
-              startLineNumber: item.start_line_number,
-              endLineNumber: item.end_line_number,
-              message: item.message,
-            }));
-            return;
+      }
+      this.$http
+        .request('container/yamlJudgement', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            bcs_cluster_id: this.clusterId,
+            yaml_config: yaml
           }
+        })
+        .then(res => {
+          if (res.code === 0) {
+            const { parse_result: parseResult, parse_status: parseStatus } = res.data;
+            if (Array.isArray(parseResult) && !parseStatus) {
+              this.warningList = parseResult.map(item => ({
+                startLineNumber: item.start_line_number,
+                endLineNumber: item.end_line_number,
+                message: item.message
+              }));
+              return;
+            }
 
-          if (parseStatus) {
-            this.warningList = [];
-            const yamlFormData = parseResult;
-            yamlFormData.configs.forEach((item) => {
-              delete item.raw_config;
-            });
-            this.$emit('update:yamlFormData', yamlFormData);
+            if (parseStatus) {
+              this.warningList = [];
+              const yamlFormData = parseResult;
+              yamlFormData.configs.forEach(item => {
+                delete item.raw_config;
+              });
+              this.$emit('update:yamlFormData', yamlFormData);
+            }
           }
-        }
-      })
-        .catch((err) => {
+        })
+        .catch(err => {
           console.warn(err);
         });
     },
     getProblemState(state) {
       this.isHaveErrorProblem = state;
-    },
-  },
+    }
+  }
 };
 </script>
 <style lang="scss" scoped>
-  .yaml-container {
-    width: 74%;
-    min-width: 800px;
-    margin: 20px 0 0 115px;
-  }
+.yaml-container {
+  width: 74%;
+  min-width: 800px;
+  margin: 20px 0 0 115px;
+}
 
-  .load {
-    display: flex;
-    align-items: center;
-  }
+.load {
+  display: flex;
+  align-items: center;
+}
 
-  .icon-upload-cloud {
-    font-size: 20px;
-  }
+.icon-upload-cloud {
+  font-size: 20px;
+}
 
-  :deep(.bk-icon) {
-    margin-right: 0px;
-  }
+:deep(.bk-icon) {
+  margin-right: 0px;
+}
 
-  .load-tips {
-    margin-right: 20px;
-  }
+.load-tips {
+  margin-right: 20px;
+}
 
-  .icon-download {
-    display: inline-block;
-    transform: translateY(-2px);
-  }
+.icon-download {
+  display: inline-block;
+  transform: translateY(-2px);
+}
 </style>

@@ -1,19 +1,19 @@
 @import '@/scss/mixins/flex.scss';
 
 .retrieve-tab-item-title {
-  align-items: center;
   margin: 16px 0 6px;
-  line-height: 20px;
   font-size: 12px;
+  line-height: 20px;
   color: #63656e;
+  align-items: center;
 
   @include flex-justify(space-between);
 
   .icon-help {
-    color: #979ba5;
-    font-size: 14px;
-    cursor: pointer;
     margin-left: 7px;
+    font-size: 14px;
+    color: #979ba5;
+    cursor: pointer;
   }
 
   .history-button {
@@ -29,20 +29,20 @@
 
   .search-type-switch {
     height: 22px;
+    margin-left: 10px;
     border: 1px solid #dcdee5;
     border-radius: 12px;
-    margin-left: 10px;
 
     span {
       display: inline-block;
       padding: 0 12px;
-      border-radius: 12px;
       cursor: pointer;
+      border-radius: 12px;
     }
 
     .active {
-      background: #e1ecff;
       color: #3a84ff;
+      background: #e1ecff;
     }
   }
 }
@@ -80,23 +80,23 @@
     }
 
     .item-text {
-      flex: 1;
       min-width: 150px;
       padding: 0 16px;
-      color: #63656e;
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+      color: #63656e;
+      flex: 1;
     }
 
     .item-description {
-      flex: 2;
-      color: #979ba5;
       margin-left: 24px;
+      color: #979ba5;
+      flex: 2;
 
       .item-callout {
         padding: 0 4px;
+        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
         color: #313238;
         background-color: #f4f6fa;
-        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       }
     }
 
@@ -125,13 +125,13 @@
 }
 
 #retrieve-help-tips-content {
-  color: #63656e;
   max-width: 264px;
+  color: #63656e;
   word-break: normal;
 
   .tips-link {
-    color: #3a84ff;
     margin-left: 5px;
+    color: #3a84ff;
     cursor: pointer;
 
     .icon-lianjie {
@@ -140,8 +140,8 @@
   }
 
   .title {
-    font-weight: 600;
     margin: 10px 0 4px;
+    font-weight: 600;
   }
 
   .detail {

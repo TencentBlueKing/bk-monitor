@@ -44,6 +44,11 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
   // 图例数据
   @Prop({ required: true }) readonly legendData: ILegendItem[];
 
+  mouseEvent = {
+    isMouseDown: false,
+    isMouseMove: false
+  };
+
   @Emit('selectLegend')
   handleLegendEvent(e: MouseEvent, actionType: LegendActionType, item: ILegendItem) {
     let eventType = actionType;
@@ -51,6 +56,19 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
       eventType = 'shift-click';
     }
     return { actionType: eventType, item };
+  }
+
+  handleLegendMouseEvent(e, mouseType: string, item?: ILegendItem) {
+    // 鼠标拖动选中文本不执行点击事件
+    if (mouseType === 'mousedown') {
+      this.mouseEvent.isMouseDown = true;
+    } else if (mouseType === 'mousemove') {
+      if (this.mouseEvent.isMouseDown) this.mouseEvent.isMouseMove = true;
+    } else {
+      !this.mouseEvent.isMouseMove && this.handleLegendEvent(e, 'click', item);
+      this.mouseEvent.isMouseDown = false;
+      this.mouseEvent.isMouseMove = false;
+    }
   }
 
   render() {

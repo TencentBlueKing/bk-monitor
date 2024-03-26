@@ -27,37 +27,47 @@
         <div class="bk-button-group">
           <bk-button
             :class="!showOriginalLog ? 'is-selected' : ''"
+            size="small"
             @click="contentType = 'table'"
-            size="small">
+          >
             {{ $t('表格') }}
           </bk-button>
           <bk-button
             :class="showOriginalLog ? 'is-selected' : ''"
+            size="small"
             @click="contentType = 'original'"
-            size="small">
+          >
             {{ $t('原始') }}
           </bk-button>
         </div>
         <div class="field-select">
-          <img class="icon-field-config" :src="require('@/images/icons/field-config.svg')" />
+          <img
+            class="icon-field-config"
+            :src="require('@/images/icons/field-config.svg')"
+          />
           <bk-select
+            ref="configSelectRef"
             size="small"
             searchable
-            ref="configSelectRef"
             :clearable="false"
             :value="filedSettingConfigID"
             :popover-min-width="240"
-            @selected="handleSelectFieldConfig">
+            @selected="handleSelectFieldConfig"
+          >
             <bk-option
               v-for="option in fieldsConfigList"
-              :key="option.id"
               :id="option.id"
-              :name="option.name">
+              :key="option.id"
+              :name="option.name"
+            >
             </bk-option>
             <div slot="extension">
-              <span class="extension-add-new-config" @click="handleAddNewConfig">
+              <span
+                class="extension-add-new-config"
+                @click="handleAddNewConfig"
+              >
                 <span class="bk-icon icon-close-circle"></span>
-                <span>{{$t('新建配置')}}</span>
+                <span>{{ $t('新建配置') }}</span>
               </span>
             </div>
           </bk-select>
@@ -66,7 +76,10 @@
       <div class="tools-more">
         <div :style="`margin-right: ${showOriginalLog ? 0 : 26}px`">
           <span class="switch-label">{{ $t('换行') }}</span>
-          <bk-switcher v-model="isWrap" theme="primary"></bk-switcher>
+          <bk-switcher
+            v-model="isWrap"
+            theme="primary"
+          ></bk-switcher>
         </div>
         <!-- <time-formatter v-show="!showOriginalLog" /> -->
         <div class="operation-icons">
@@ -76,7 +89,8 @@
             :total-count="totalCount"
             :queue-status="queueStatus"
             :async-export-usable="asyncExportUsable"
-            :async-export-usable-reason="asyncExportUsableReason">
+            :async-export-usable-reason="asyncExportUsableReason"
+          >
           </export-log>
           <bk-popover
             v-if="!showOriginalLog"
@@ -88,22 +102,27 @@
             :offset="0"
             :distance="15"
             :on-show="handleDropdownShow"
-            :on-hide="handleDropdownHide">
+            :on-hide="handleDropdownHide"
+          >
             <slot name="trigger">
               <div class="operation-icon">
                 <span class="icon log-icon icon-set-icon"></span>
               </div>
             </slot>
-            <div slot="content" class="fields-setting-container">
+            <div
+              slot="content"
+              class="fields-setting-container"
+            >
               <fields-setting
                 v-if="showFieldsSetting"
-                v-on="$listeners"
                 :field-alias-map="$attrs['field-alias-map']"
                 :retrieve-params="retrieveParams"
+                v-on="$listeners"
                 @setPopperInstance="setPopperInstance"
                 @modifyFields="modifyFields"
                 @confirm="confirmModifyFields"
-                @cancel="cancelModifyFields" />
+                @cancel="cancelModifyFields"
+              />
             </div>
           </bk-popover>
         </div>
@@ -112,10 +131,11 @@
 
     <table-log
       v-bind="$attrs"
-      v-on="$listeners"
       :is-wrap="isWrap"
       :show-original="showOriginalLog"
-      :retrieve-params="retrieveParams" />
+      :retrieve-params="retrieveParams"
+      v-on="$listeners"
+    />
   </div>
 </template>
 
@@ -128,21 +148,21 @@ export default {
   components: {
     TableLog,
     FieldsSetting,
-    ExportLog,
+    ExportLog
   },
   props: {
     retrieveParams: {
       type: Object,
-      required: true,
+      required: true
     },
     totalCount: {
       type: Number,
-      default: 0,
+      default: 0
     },
     queueStatus: {
       type: Boolean,
-      default: true,
-    },
+      default: true
+    }
   },
   data() {
     return {
@@ -151,7 +171,7 @@ export default {
       showFieldsSetting: false,
       showAsyncExport: false, // 异步下载弹窗
       exportLoading: false,
-      fieldsConfigList: [],
+      fieldsConfigList: []
     };
   },
   computed: {
@@ -164,20 +184,21 @@ export default {
     asyncExportUsableReason() {
       return this.$attrs['async-export-usable-reason'];
     },
-    filedSettingConfigID() { // 当前索引集的显示字段ID
+    filedSettingConfigID() {
+      // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
     },
     routeIndexSet() {
       return this.$route.params.indexId;
-    },
+    }
   },
   watch: {
     routeIndexSet: {
       immediate: true,
       handler(val) {
         if (!!val) this.requestFiledConfig();
-      },
-    },
+      }
+    }
   },
   methods: {
     // 字段设置
@@ -206,7 +227,7 @@ export default {
     },
     setPopperInstance(status = true) {
       this.$refs.fieldsSettingPopper?.instance.set({
-        hideOnClick: status,
+        hideOnClick: status
       });
     },
     async requestFiledConfig() {
@@ -214,7 +235,7 @@ export default {
       this.isLoading = true;
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
-          params: { index_set_id: this.routeIndexSet, scope: 'default' },
+          params: { index_set_id: this.routeIndexSet, scope: 'default' }
         });
         this.fieldsConfigList = res.data;
       } catch (error) {
@@ -231,10 +252,10 @@ export default {
           data: {
             display_fields: displayFields,
             sort_list: sortList,
-            config_id: configID,
-          },
+            config_id: configID
+          }
         })
-        .catch((e) => {
+        .catch(e => {
           console.warn(e);
         });
       this.$store.commit('updateClearTableWidth', 1);
@@ -243,123 +264,123 @@ export default {
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
       this.$refs.fieldsSettingPopper?.instance.show();
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .original-log-panel {
-    .original-log-panel-tools {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .tools-more {
-      @include flex-center;
-
-      .switch-label {
-        margin-right: 2px;
-        color: #63656e;
-        font-size: 12px;
-      }
-    }
-
-    .operation-icons {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-left: 16px;
-
-      .operation-icon {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 32px;
-        height: 32px;
-        margin-left: 10px;
-        cursor: pointer;
-        border: 1px solid #c4c6cc;
-        transition: boder-color .2s;
-        border-radius: 2px;
-        outline: none;
-
-        &:hover {
-          border-color: #979ba5;
-          transition: boder-color .2s;
-        }
-
-        &:active {
-          border-color: #3a84ff;
-          transition: boder-color .2s;
-        }
-
-        .log-icon {
-          width: 16px;
-          font-size: 16px;
-          color: #979ba5;
-        }
-      }
-
-      .disabled-icon {
-        background-color: #fff;
-        border-color: #dcdee5;
-        cursor: not-allowed;
-
-        &:hover,
-        .log-icon {
-          border-color: #dcdee5;
-          color: #c4c6cc;
-        }
-      }
-    }
-
-    .left-operate {
-      align-items: center;
-      flex-wrap: nowrap;
-
-      @include flex-justify(space-between);
-
-      > div {
-        flex-shrink: 0;
-      }
-    }
-
-    .field-select {
-      width: 120px;
-      margin-left: 16px;
-      position: relative;
-
-      .icon-field-config {
-        width: 18px;
-        position: absolute;
-        top: 4px;
-        left: 4px;
-      }
-
-      :deep(.bk-select .bk-select-name) {
-        padding: 0px 36px 0 30px
-      }
-    }
+.original-log-panel {
+  .original-log-panel-tools {
+    display: flex;
+    justify-content: space-between;
   }
 
-  .extension-add-new-config {
-    cursor: pointer;
+  .tools-more {
+    @include flex-center;
 
-    @include flex-center();
-
-    :last-child {
+    .switch-label {
+      margin-right: 2px;
+      font-size: 12px;
       color: #63656e;
-      margin-left: 4px;
-    }
-
-    .icon-close-circle {
-      margin-left: 4px;
-      font-size: 14px;
-      color: #979ba5;
-      transform: rotateZ(45deg);
     }
   }
+
+  .operation-icons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-left: 16px;
+
+    .operation-icon {
+      display: flex;
+      width: 32px;
+      height: 32px;
+      margin-left: 10px;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+      outline: none;
+      transition: boder-color 0.2s;
+      justify-content: center;
+      align-items: center;
+
+      &:hover {
+        border-color: #979ba5;
+        transition: boder-color 0.2s;
+      }
+
+      &:active {
+        border-color: #3a84ff;
+        transition: boder-color 0.2s;
+      }
+
+      .log-icon {
+        width: 16px;
+        font-size: 16px;
+        color: #979ba5;
+      }
+    }
+
+    .disabled-icon {
+      cursor: not-allowed;
+      background-color: #fff;
+      border-color: #dcdee5;
+
+      &:hover,
+      .log-icon {
+        color: #c4c6cc;
+        border-color: #dcdee5;
+      }
+    }
+  }
+
+  .left-operate {
+    align-items: center;
+    flex-wrap: nowrap;
+
+    @include flex-justify(space-between);
+
+    > div {
+      flex-shrink: 0;
+    }
+  }
+
+  .field-select {
+    position: relative;
+    width: 120px;
+    margin-left: 16px;
+
+    .icon-field-config {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 18px;
+    }
+
+    :deep(.bk-select .bk-select-name) {
+      padding: 0px 36px 0 30px;
+    }
+  }
+}
+
+.extension-add-new-config {
+  cursor: pointer;
+
+  @include flex-center();
+
+  :last-child {
+    margin-left: 4px;
+    color: #63656e;
+  }
+
+  .icon-close-circle {
+    margin-left: 4px;
+    font-size: 14px;
+    color: #979ba5;
+    transform: rotateZ(45deg);
+  }
+}
 </style>

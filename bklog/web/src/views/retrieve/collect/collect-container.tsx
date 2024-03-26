@@ -21,13 +21,7 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Emit,
-  Provide,
-  Prop,
-  Watch,
-} from 'vue-property-decorator';
+import { Component, Emit, Provide, Prop, Watch } from 'vue-property-decorator';
 import { Exception } from 'bk-magic-vue';
 import { IGroupItem } from './collect-index';
 import CollectGroup from './collect-group';
@@ -70,7 +64,7 @@ export default class CollectContainer extends tsc<IProps> {
   handleValueChange(type: string, value: any) {
     return {
       type,
-      value,
+      value
     };
   }
 
@@ -87,17 +81,17 @@ export default class CollectContainer extends tsc<IProps> {
   }
   render() {
     return (
-      <div class="retrieve-collect-container">
+      <div class='retrieve-collect-container'>
         {this.$slots.default}
         <div
-          class="group-container"
+          class='group-container'
           v-bkloading={{ isLoading: this.collectLoading }}
         >
           {!this.isSearchEmpty ? (
             <VueDraggable
               vModel={this.dragList}
-              animation="150"
-              handle=".group-title"
+              animation='150'
+              handle='.group-title'
               on-end={this.handleMoveEnd}
               move={this.handleMoveIng}
               disabled={true}
@@ -116,10 +110,14 @@ export default class CollectContainer extends tsc<IProps> {
               </transition-group>
             </VueDraggable>
           ) : (
-            <div class="data-empty">
-              <div class="empty-box">
-                <Exception class="exception-wrap-item exception-part" type="search-empty" scene="part">
-                  <span class="empty-text">{this.$t('无符合条件收藏')}</span>
+            <div class='data-empty'>
+              <div class='empty-box'>
+                <Exception
+                  class='exception-wrap-item exception-part'
+                  type='search-empty'
+                  scene='part'
+                >
+                  <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
                 </Exception>
               </div>
             </div>

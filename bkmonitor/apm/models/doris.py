@@ -11,8 +11,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, Optional
 
-from core.drf_resource import api
 from django.conf import settings
+
+from core.drf_resource import api
 
 if TYPE_CHECKING:
     from .datasource import ApmDataSourceConfigBase
@@ -51,6 +52,7 @@ class BkDataDorisProvider:
 
     bk_biz_id: int
     app_name: str
+    pure_app_name: str
     operator: str
 
     config: DorisStorageConfig = field(default_factory=DorisStorageConfig.read)
@@ -59,7 +61,13 @@ class BkDataDorisProvider:
     @classmethod
     def from_datasource_instance(cls, obj: "ApmDataSourceConfigBase", operator: str) -> "BkDataDorisProvider":
         """从数据源实例中创建数据源提供者"""
-        return cls(bk_biz_id=obj.bk_biz_id, app_name=obj.app_name, operator=operator, _obj=obj)
+        return cls(
+            bk_biz_id=obj.bk_biz_id,
+            app_name=obj.app_name,
+            operator=operator,
+            _obj=obj,
+            pure_app_name=obj.app_name.replace("-", "_"),
+        )
 
     def provider(self, **options) -> dict:
         """提供数据源配置"""
@@ -84,11 +92,16 @@ class BkDataDorisProvider:
             bk_data_id,
             result_table_ids,
         )
-        return {"bk_data_id": bk_data_id, "result_table_id": result_table_ids[0]}
+        return {
+            "bk_data_id": bk_data_id,
+            "result_table_id": result_table_ids[0],
+            # 提取过期天数
+            "retention": int(self.config.expires.split("d")[0]),
+        }
 
     def get_result_table_name(self) -> str:
         """获取结果表名"""
-        return f"{self._obj.DATASOURCE_TYPE}_{self._obj.app_name}"
+        return f"{self._obj.DATASOURCE_TYPE}_{self.pure_app_name}"
 
     def get_clean_params(self) -> list:
         """清洗配置"""
@@ -203,6 +216,7 @@ class BkDataDorisProvider:
                                                 {'type': 'string', 'assign_to': 'app', 'key': 'app'},
                                                 {'type': 'string', 'assign_to': 'biz_id', 'key': 'biz_id'},
                                                 {'type': 'string', 'assign_to': 'type', 'key': 'type'},
+                                                {'type': 'string', 'assign_to': 'service_name', 'key': 'service_name'},
                                             ],
                                             'next': None,
                                         },
@@ -225,7 +239,6 @@ class BkDataDorisProvider:
                 "description": "Bk Profiling",
                 "fields": [
                     {
-                        "id": 264433,
                         "field_name": "period_type",
                         "field_type": "string",
                         "field_alias": "period_type",
@@ -233,7 +246,6 @@ class BkDataDorisProvider:
                         "field_index": 1,
                     },
                     {
-                        "id": 264434,
                         "field_name": "period",
                         "field_type": "string",
                         "field_alias": "period",
@@ -241,7 +253,6 @@ class BkDataDorisProvider:
                         "field_index": 2,
                     },
                     {
-                        "id": 264435,
                         "field_name": "time",
                         "field_type": "string",
                         "field_alias": "time",
@@ -249,7 +260,6 @@ class BkDataDorisProvider:
                         "field_index": 3,
                     },
                     {
-                        "id": 264436,
                         "field_name": "duration_nanos",
                         "field_type": "string",
                         "field_alias": "duration_nanos",
@@ -257,7 +267,6 @@ class BkDataDorisProvider:
                         "field_index": 4,
                     },
                     {
-                        "id": 264437,
                         "field_name": "stacktrace",
                         "field_type": "string",
                         "field_alias": "stacktrace",
@@ -265,7 +274,6 @@ class BkDataDorisProvider:
                         "field_index": 5,
                     },
                     {
-                        "id": 264438,
                         "field_name": "labels",
                         "field_type": "string",
                         "field_alias": "labels",
@@ -273,7 +281,6 @@ class BkDataDorisProvider:
                         "field_index": 6,
                     },
                     {
-                        "id": 264439,
                         "field_name": "sample_type",
                         "field_type": "string",
                         "field_alias": "sample_type",
@@ -281,7 +288,6 @@ class BkDataDorisProvider:
                         "field_index": 7,
                     },
                     {
-                        "id": 264440,
                         "field_name": "value",
                         "field_type": "string",
                         "field_alias": "value",
@@ -289,7 +295,6 @@ class BkDataDorisProvider:
                         "field_index": 8,
                     },
                     {
-                        "id": 264430,
                         "field_name": "app",
                         "field_type": "string",
                         "field_alias": "app",
@@ -297,7 +302,6 @@ class BkDataDorisProvider:
                         "field_index": 9,
                     },
                     {
-                        "id": 264431,
                         "field_name": "biz_id",
                         "field_type": "string",
                         "field_alias": "biz_id",
@@ -305,12 +309,18 @@ class BkDataDorisProvider:
                         "field_index": 10,
                     },
                     {
-                        "id": 264432,
                         "field_name": "type",
                         "field_type": "string",
                         "field_alias": "type",
                         "is_dimension": False,
                         "field_index": 11,
+                    },
+                    {
+                        "field_name": "service_name",
+                        "field_type": "string",
+                        "field_alias": "service_name",
+                        "is_dimension": False,
+                        "field_index": 12,
                     },
                 ],
             }
@@ -339,8 +349,8 @@ class BkDataDorisProvider:
     def get_raw_data_params(self) -> dict:
         """原始数据配置"""
         return {
-            "raw_data_name": f"{self.app_name}_doris",
-            "raw_data_alias": f"{self.app_name}_doris",
+            "raw_data_name": f"{self.pure_app_name}_doris",
+            "raw_data_alias": f"{self.pure_app_name}_doris",
             "data_source_tags": ["server"],
             "tags": [],
             "sensitivity": "private",

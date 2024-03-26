@@ -24,6 +24,23 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.utils.translation import ugettext as _
+from rest_framework.exceptions import ValidationError
+
+from api.grafana.exporter import DashboardExporter
+from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
+from bkmonitor.utils.request import get_request
+from bkmonitor.utils.text import convert_filename
+from bkmonitor.utils.time_tools import now
+from bkmonitor.views import serializers
+from constants.strategy import TargetFieldType
+from core.drf_resource import Resource, api, resource
+from core.drf_resource.tasks import step
+from core.errors.export_import import (
+    AddTargetError,
+    ImportConfigError,
+    ImportHistoryNotExistError,
+    UploadPackageError,
+)
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
@@ -53,23 +70,6 @@ from monitor_web.models import (
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.serializers import handle_target, is_validate_target
 from monitor_web.tasks import import_config, remove_file
-from rest_framework.exceptions import ValidationError
-
-from api.grafana.exporter import DashboardExporter
-from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
-from bkmonitor.utils.request import get_request
-from bkmonitor.utils.text import convert_filename
-from bkmonitor.utils.time_tools import now
-from bkmonitor.views import serializers
-from constants.strategy import TargetFieldType
-from core.drf_resource import Resource, api, resource
-from core.drf_resource.tasks import step
-from core.errors.export_import import (
-    AddTargetError,
-    ImportConfigError,
-    ImportHistoryNotExistError,
-    UploadPackageError,
-)
 
 logger = logging.getLogger("monitor_web")
 
@@ -327,6 +327,7 @@ class ExportPackageResource(Resource):
                         self.associated_collect_config_list.append(condition["value"].split("(")[0])
 
         self.associated_collect_config_list = list(set(self.associated_collect_config_list))
+        self.associated_collect_config_list = [i for i in self.associated_collect_config_list if i]
 
         all_collect_ids = list(set(self.collect_config_ids + self.associated_collect_config_list))
         self.associated_plugin_list = list(

@@ -23,11 +23,15 @@ from blueapps.utils.unique import uniqid
 from django.core.cache import cache
 
 from apps.api import BkDataDatabusApi
-from apps.utils.log import logger
-from apps.log_databus.constants import DEFAULT_TIME_FORMAT, DEFAULT_CATEGORY_ID, MAX_SYNC_CLEAN_TTL
+from apps.log_databus.constants import (
+    DEFAULT_CATEGORY_ID,
+    DEFAULT_TIME_FORMAT,
+    MAX_SYNC_CLEAN_TTL,
+)
 from apps.log_databus.models import BKDataClean
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import Scenario, LogIndexSetData
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 
@@ -43,7 +47,14 @@ class BKDataCleanUtils:
 
     def get_bkdata_clean(self):
         config_db_list = BkDataDatabusApi.get_config_db_list(params={"raw_data_id": self.raw_data_id})
-        return [config_db for config_db in config_db_list if config_db["storage_type"].lower() == "es"]
+        cleans = [config_db for config_db in config_db_list if config_db["storage_type"].lower() == "es"]
+        # bkbase 将接口字段改了， status_en -> status, status -> status_display，这里做个兼容转换
+        for clean in cleans:
+            if "status_display" in clean:
+                clean["status_en"] = clean["status"]
+                clean["status"] = clean["status_display"]
+                clean.pop("status_display")
+        return cleans
 
     @classmethod
     def get_dict(cls, cleans, db_cleans):
@@ -99,25 +110,27 @@ class BKDataCleanUtils:
         index_set_dict = {}
         for insert_obj in insert_objs:
             # 如果已经存在，就不创建
-            if LogIndexSetData.objects.filter(result_table_id=insert_obj["result_table_id"]).exists():
-                continue
-            index_set = IndexSetHandler.create(
-                index_set_name=insert_obj["result_table_name"],
-                space_uid=bk_biz_id_to_space_uid(bk_biz_id),
-                storage_cluster_id=None,
-                scenario_id=Scenario.BKDATA,
-                indexes=[
-                    {
-                        "bk_biz_id": bk_biz_id,
-                        "result_table_id": insert_obj["result_table_id"],
-                        "time_field": "",
-                        "time_format": DEFAULT_TIME_FORMAT,
-                    }
-                ],
-                category_id=category_id,
-                view_roles=[],
-                username=insert_obj["created_by"],
-            )
+            index_set_data = LogIndexSetData.objects.filter(result_table_id=insert_obj["result_table_id"]).first()
+            if index_set_data:
+                index_set = LogIndexSet.objects.get(index_set_id=index_set_data.index_set_id)
+            else:
+                index_set = IndexSetHandler.create(
+                    index_set_name=insert_obj["result_table_name"],
+                    space_uid=bk_biz_id_to_space_uid(bk_biz_id),
+                    storage_cluster_id=None,
+                    scenario_id=Scenario.BKDATA,
+                    indexes=[
+                        {
+                            "bk_biz_id": bk_biz_id,
+                            "result_table_id": insert_obj["result_table_id"],
+                            "time_field": "",
+                            "time_format": DEFAULT_TIME_FORMAT,
+                        }
+                    ],
+                    category_id=category_id,
+                    view_roles=[],
+                    username=insert_obj["created_by"],
+                )
             index_set_dict[insert_obj["result_table_id"]] = {
                 "index_set_id": index_set.index_set_id,
                 "bkdata_auth_url": index_set.bkdata_auth_url,

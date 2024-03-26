@@ -233,7 +233,7 @@ class SpaceTableIDRedis:
         )
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str) -> Dict:
-        """推送 bcs 类型关联业务的数据，现阶段仅包含主机信息"""
+        """推送 bcs 类型关联业务的数据，现阶段包含主机及部分插件信息"""
         logger.info("start to push cluster of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 首先获取关联业务的数据
         resource_type = SpaceTypes.BKCC.value
@@ -244,9 +244,10 @@ class SpaceTableIDRedis:
             logger.error("space: %s__%s, resource_type: %s not found", space_type, space_id, resource_type)
             return {}
         # 获取空间关联的业务，注意这里业务 ID 为字符串类型
-        tids = models.ResultTable.objects.filter(table_id__startswith=BKCI_SYSTEM_TABLE_ID_PREFIX).values_list(
-            "table_id", flat=True
-        )
+        # 追加空间访问指定插件的 filter
+        tids = models.ResultTable.objects.filter(
+            Q(table_id__startswith=BKCI_SYSTEM_TABLE_ID_PREFIX) | Q(table_id__in=settings.BKCI_SPACE_ACCESS_PLUGIN_LIST)
+        ).values_list("table_id", flat=True)
         return {tid: {"filters": [{"bk_biz_id": str(obj.resource_id)}]} for tid in tids}
 
     def _compose_bcs_space_cluster_table_ids(

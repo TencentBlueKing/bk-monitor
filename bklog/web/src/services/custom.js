@@ -22,15 +22,12 @@
 
 const createCustom = {
   url: '/databus/collectors/custom_create/',
-  method: 'post',
+  method: 'post'
 };
 
 const setCustom = {
   url: '/databus/collectors/:collector_config_id/custom_update/',
-  method: 'post',
+  method: 'post'
 };
 
-export {
-  createCustom,
-  setCustom,
-};
+export { createCustom, setCustom };

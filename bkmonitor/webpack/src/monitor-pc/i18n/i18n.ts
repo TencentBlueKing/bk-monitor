@@ -64,6 +64,5 @@ const i18n = new VueI18n({
 
 // 将 VueI18n 实例挂载到全局变量 window.i18n 上
 window.i18n = i18n;
-
 // 导出 VueI18n 实例作为默认值
 export default i18n;

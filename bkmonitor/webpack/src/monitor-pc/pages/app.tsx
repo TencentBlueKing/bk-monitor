@@ -30,7 +30,7 @@ import BkPaasLogin from '@blueking/paas-login';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
-import { getFooter, listStickySpaces } from 'monitor-api/modules/commons';
+import { getFooter, listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
@@ -58,7 +58,7 @@ import introduce from '../common/introduce';
 import { isAuthority } from '../router/router';
 import { getDashboardCache } from './grafana/utils';
 import { getDashboardList } from 'monitor-api/modules/grafana';
-import NoticeComponent from '@blueking/notice-component-vue2';
+// import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
 
 const changeNoticeRouteList = [
@@ -82,7 +82,11 @@ if (currentLang === 'en') {
   WIDTH_LIST = [118, 82, 120, 92, 88, 127, 126, 118];
   SPACE_WIDTH = 263;
 }
-@Component
+@Component({
+  components: {
+    NoticeComponent: () => import(/* webpackChunkName: "notice-component" */ '@blueking/notice-component-vue2')
+  }
+})
 export default class App extends tsc<{}> {
   @Ref('menuSearchInput') menuSearchInputRef: any;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
@@ -218,6 +222,12 @@ export default class App extends tsc<{}> {
         content: this.$tc('全站搜索，可以跨业务直接搜索任意资源')
       }
     ];
+    this.getDocsLinkMapping();
+  }
+  /** 获取文档链接 */
+  async getDocsLinkMapping() {
+    const data = await getLinkMapping().catch(() => {});
+    this.$store.commit('app/updateExtraDocLinkMap', data);
   }
   async handleGetNewUserGuide() {
     if (this.readonly || /^#\/share\//.test(location.hash)) return;
@@ -391,10 +401,6 @@ export default class App extends tsc<{}> {
   // 切换业务
   async handleBizChange(v: number) {
     this.handleHeaderSettingShowChange(false);
-    // 切换全局业务配置
-    window.cc_biz_id = +v;
-    window.bk_biz_id = +v;
-    window.space_uid = this.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
     this.showBizList = false;
     this.$store.commit('app/SET_BIZ_ID', +v);
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
@@ -685,7 +691,7 @@ export default class App extends tsc<{}> {
         }}
       >
         {process.env.NODE_ENV !== 'development' && (
-          <NoticeComponent
+          <notice-component
             apiUrl='/notice/announcements'
             onShowAlertChange={this.showAlertChange}
           />

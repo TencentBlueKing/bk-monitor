@@ -25,37 +25,31 @@
  */
 const create = {
   url: '/auth/groups/',
-  method: 'post',
+  method: 'post'
 };
 /**
  * 删除用户组
  */
 const remove = {
   url: '/auth/groups/:group_id/',
-  method: 'delete',
+  method: 'delete'
 };
 /**
  * 删除用户组
  */
 const update = {
   url: '/auth/groups/:group_id/',
-  method: 'put',
+  method: 'put'
 };
 
 const checkAllowed = {
   url: '/iam/meta/check_allowed/',
-  method: 'post',
+  method: 'post'
 };
 
 const getApplyData = {
   url: '/iam/meta/get_apply_data/',
-  method: 'post',
+  method: 'post'
 };
 
-export {
-  create,
-  remove,
-  update,
-  checkAllowed,
-  getApplyData,
-};
+export { create, remove, update, checkAllowed, getApplyData };

@@ -23,31 +23,31 @@
 // 获取采集项清洗缓存
 const getCleanStash = {
   url: '/databus/collectors/:collector_config_id/clean_stash/',
-  method: 'get',
+  method: 'get'
 };
 
 // 更新采集项清洗缓存
 const updateCleanStash = {
   url: '/databus/collectors/:collector_config_id/create_clean_stash/',
-  method: 'post',
+  method: 'post'
 };
 
 // 获取清洗列表
 const cleanList = {
   url: '/databus/clean/',
-  method: 'get',
+  method: 'get'
 };
 
 // 刷新高级清洗
 const refreshClean = {
   url: '/databus/clean/:collector_config_id/refresh/',
-  method: 'get',
+  method: 'get'
 };
 
 // 同步计算平台结果表
 const sync = {
   url: '/databus/clean/sync/',
-  method: 'get',
+  method: 'get'
 };
 
 // 删除清洗项
@@ -56,43 +56,43 @@ const deleteClean = {};
 // 获取清洗模板列表
 const cleanTemplate = {
   url: '/databus/clean_template/',
-  method: 'get',
+  method: 'get'
 };
 
 // 清洗模板-详情
 const templateDetail = {
   url: '/databus/clean_template/:clean_template_id/',
-  method: 'get',
+  method: 'get'
 };
 
 // 清洗模板-新建
 const createTemplate = {
   url: '/databus/clean_template/',
-  method: 'post',
+  method: 'post'
 };
 
 // 清洗模板-更新
 const updateTemplate = {
   url: '/databus/clean_template/:clean_template_id/',
-  method: 'put',
+  method: 'put'
 };
 
 // 清洗模板-删除
 const deleteTemplate = {
   url: '/databus/clean_template/:clean_template_id/',
-  method: 'delete',
+  method: 'delete'
 };
 
 // 预览提取结果
 const getEtlPreview = {
   url: '/databus/clean_template/etl_preview/',
-  method: 'post',
+  method: 'post'
 };
 
 // 清洗清洗列表-删除
 const deleteParsing = {
   url: '/databus/clean/:collector_config_id/destroy_clean/',
-  method: 'delete',
+  method: 'delete'
 };
 
 export {
@@ -108,5 +108,5 @@ export {
   updateTemplate,
   deleteTemplate,
   getEtlPreview,
-  deleteParsing,
+  deleteParsing
 };

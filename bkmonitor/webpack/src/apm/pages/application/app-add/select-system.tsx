@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { checkDuplicateName, getDataEncoding } from 'monitor-api/modules/apm_meta';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from 'monitor-pc/components/monitor-ip-selector/utils';
 import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strategy-ipv6';
 
+import documentLinkMixin from '../../../mixins/documentLinkMixin';
 import { ICreateAppFormData } from '../../home/app-list';
 
 import { IDescData, ThemeType } from './select-card-item';
@@ -66,9 +66,9 @@ interface IEvents {
   onChange: ICreateAppFormData;
 }
 @Component
-export default class SelectSystem extends tsc<IProps, IEvents> {
-  @Prop({ type: Boolean }) loading: false;
-  @Prop({ type: Array, default: () => [] }) listData: IListDataItem[];
+export default class SelectSystem extends Mixins(documentLinkMixin) {
+  @Prop({ type: Boolean }) loading: IProps['loading'];
+  @Prop({ type: Array, default: () => [] }) listData: IProps['listData'];
 
   @Ref() addForm: any;
 
@@ -80,6 +80,8 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
     name: '',
     enName: '',
     desc: '',
+    enableProfiling: false,
+    enableTracing: true,
     plugin_config: {
       target_node_type: 'INSTANCE',
       target_object_type: 'HOST',
@@ -282,7 +284,7 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
 
   @Emit('nextStep')
   @Emit('change')
-  handleNext() {
+  handleNext(): IEvents['onChange'] {
     return deepClone(this.formData);
   }
 
@@ -467,28 +469,6 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
           label-width={104}
           ref='addForm'
         >
-          <bk-form-item label={this.$t('支持插件')}>
-            {this.pluginList.map(item => (
-              <div
-                class={{
-                  'app-add-plugin-radio': true,
-                  selected: item.id === this.formData.pluginId
-                }}
-                onClick={() => {
-                  this.formData.pluginId = item.id;
-                  if (item.id === 'log_trace') {
-                    this.$emit('selectLogTrace');
-                  }
-                }}
-              >
-                <img
-                  src={item.img}
-                  alt={item.name}
-                />
-                <span>{item.name}</span>
-              </div>
-            ))}
-          </bk-form-item>
           <bk-form-item
             label={this.$t('应用名')}
             required
@@ -514,103 +494,163 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
               placeholder={this.$t('输入1-50个字符')}
             />
           </bk-form-item>
-          {this.isShowLog2TracesFormItem && (
-            <bk-form-item
-              label={this.$t('采集目标')}
-              required
-              property='plugin_config.target_nodes'
-              error-display-type='normal'
-            >
-              <div style='display: flex;align-items: center;'>
-                <bk-button
-                  theme='default'
-                  icon='plus'
-                  class='btn-target-collect'
-                  onClick={() => (this.selectorDialog.isShow = true)}
-                >
-                  {this.$t('选择目标')}
-                </bk-button>
-                {this.formData.plugin_config.target_nodes.length > 0 && (
-                  <i18n
-                    path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
-                    style='margin-left: 8px;'
-                  >
-                    <span style='color: #4e99ff;'>{this.formData.plugin_config.target_nodes.length}</span>
-                  </i18n>
-                )}
-              </div>
-            </bk-form-item>
-          )}
-          {this.isShowLog2TracesFormItem && (
-            <bk-form-item
-              label={this.$t('日志路径')}
-              required
-              property='plugin_config.paths'
-              error-display-type='normal'
-            >
-              {this.formData.plugin_config.paths.map((path, index) => (
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      marginBottom: index > 0 && index < this.formData.plugin_config.paths.length - 1 && '20px'
-                    }}
-                  >
-                    <bk-input
-                      v-model={this.formData.plugin_config.paths[index]}
-                      placeholder={this.$t('请输入')}
-                    />
-                    <bk-icon
-                      class='log-path-icon log-path-icon-plus'
-                      type='plus-circle-shape'
-                      onClick={() => this.formData.plugin_config.paths.push('')}
-                    />
-                    <bk-icon
-                      class={{
-                        'log-path-icon': true,
-                        'log-path-icon-minus': true,
-                        disabled: this.formData.plugin_config.paths.length <= 1
-                      }}
-                      type='minus-circle-shape'
-                      onClick={() =>
-                        this.formData.plugin_config.paths.length > 1 &&
-                        this.formData.plugin_config.paths.splice(index, 1)
-                      }
-                    />
-                  </div>
-                  {index === 0 && <div class='log-path-hint'>{this.$t('日志文件为绝对路径，可使用通配符')}</div>}
-                </div>
-              ))}
-            </bk-form-item>
-          )}
-          {this.isShowLog2TracesFormItem && (
-            <bk-form-item
-              label={this.$t('日志字符集')}
-              required
-              property='plugin_config.data_encoding'
-              error-display-type='normal'
-            >
-              <bk-select
-                v-model={this.formData.plugin_config.data_encoding}
-                disabled={this.isFetchingEncodingList}
-              >
-                {this.logAsciiList.map(item => (
-                  <bk-option
-                    key={item.id}
-                    id={item.id}
-                    name={item.name}
-                  ></bk-option>
-                ))}
-              </bk-select>
-            </bk-form-item>
-          )}
           <bk-form-item label={this.$t('描述')}>
             <bk-input
               type='textarea'
               v-model={this.formData.desc}
             ></bk-input>
           </bk-form-item>
+          <bk-form-item
+            label='Profiling'
+            required
+          >
+            <bk-switcher
+              theme='primary'
+              v-model={this.formData.enableProfiling}
+            ></bk-switcher>
+            <span class='form-item-tips'>
+              <i class='icon-monitor icon-tishi'></i>
+              <i18n
+                path='如何开启持续 Profiling ，请查看 {0}'
+                class='flex-center'
+              >
+                <span
+                  class='link-text'
+                  onClick={() => this.handleGotoLink('profiling_docs')}
+                >
+                  {this.$t('使用文档')}
+                  <i class='icon-monitor icon-fenxiang'></i>
+                </span>
+              </i18n>
+            </span>
+          </bk-form-item>
+          <bk-form-item
+            label='Tracing'
+            required
+          >
+            <bk-switcher
+              theme='primary'
+              disabled
+              v-model={this.formData.enableTracing}
+            ></bk-switcher>
+          </bk-form-item>
+          <bk-form-item label={this.$t('支持插件')}>
+            {this.pluginList.map(item => (
+              <div
+                class={{
+                  'app-add-plugin-radio': true,
+                  selected: item.id === this.formData.pluginId
+                }}
+                onClick={() => {
+                  this.formData.pluginId = item.id;
+                  if (item.id === 'log_trace') {
+                    this.$emit('selectLogTrace');
+                  }
+                }}
+              >
+                <div class='plugin-info'>
+                  <img src={item.img} />
+                  <div class='plugin-name'>
+                    <span>{item.name}</span>
+                    <span class='desc'>
+                      说明文案
+                      <span class='link-text'>{this.$t('接入指引')}</span>
+                    </span>
+                  </div>
+                </div>
+                <bk-checkbox value={item.id === this.formData.pluginId} />
+              </div>
+            ))}
+          </bk-form-item>
+          {this.isShowLog2TracesFormItem && (
+            <div class='log2Trace-container'>
+              <bk-form-item
+                label={this.$t('采集目标')}
+                required
+                property='plugin_config.target_nodes'
+                error-display-type='normal'
+              >
+                <div style='display: flex;align-items: center;'>
+                  <bk-button
+                    theme='default'
+                    icon='plus'
+                    class='btn-target-collect'
+                    onClick={() => (this.selectorDialog.isShow = true)}
+                  >
+                    {this.$t('选择目标')}
+                  </bk-button>
+                  {this.formData.plugin_config.target_nodes.length > 0 && (
+                    <i18n
+                      path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
+                      style='margin-left: 8px;'
+                    >
+                      <span style='color: #4e99ff;'>{this.formData.plugin_config.target_nodes.length}</span>
+                    </i18n>
+                  )}
+                </div>
+              </bk-form-item>
+              <bk-form-item
+                label={this.$t('日志路径')}
+                required
+                property='plugin_config.paths'
+                error-display-type='normal'
+              >
+                {this.formData.plugin_config.paths.map((path, index) => (
+                  <div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginBottom: index > 0 && index < this.formData.plugin_config.paths.length - 1 && '20px'
+                      }}
+                    >
+                      <bk-input
+                        v-model={this.formData.plugin_config.paths[index]}
+                        placeholder={this.$t('请输入')}
+                      />
+                      <bk-icon
+                        class='log-path-icon log-path-icon-plus'
+                        type='plus-circle-shape'
+                        onClick={() => this.formData.plugin_config.paths.push('')}
+                      />
+                      <bk-icon
+                        class={{
+                          'log-path-icon': true,
+                          'log-path-icon-minus': true,
+                          disabled: this.formData.plugin_config.paths.length <= 1
+                        }}
+                        type='minus-circle-shape'
+                        onClick={() =>
+                          this.formData.plugin_config.paths.length > 1 &&
+                          this.formData.plugin_config.paths.splice(index, 1)
+                        }
+                      />
+                    </div>
+                    {index === 0 && <div class='log-path-hint'>{this.$t('日志文件为绝对路径，可使用通配符')}</div>}
+                  </div>
+                ))}
+              </bk-form-item>
+              <bk-form-item
+                label={this.$t('日志字符集')}
+                required
+                property='plugin_config.data_encoding'
+                error-display-type='normal'
+              >
+                <bk-select
+                  v-model={this.formData.plugin_config.data_encoding}
+                  disabled={this.isFetchingEncodingList}
+                >
+                  {this.logAsciiList.map(item => (
+                    <bk-option
+                      key={item.id}
+                      id={item.id}
+                      name={item.name}
+                    ></bk-option>
+                  ))}
+                </bk-select>
+              </bk-form-item>
+            </div>
+          )}
           <bk-form-item>
             <bk-button
               class='btn mr10'

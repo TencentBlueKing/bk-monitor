@@ -22,7 +22,10 @@
   -->
 
 <template>
-  <div class="main-container create-task-container" v-en-class="'en-title'">
+  <div
+    v-en-class="'en-title'"
+    class="main-container create-task-container"
+  >
     <div class="row-container">
       <div class="title">
         {{ $t('文件来源主机') }}
@@ -33,13 +36,22 @@
           <bk-button
             theme="primary"
             size="small"
-            @click="showSelectDialog = true"
             data-test-id="addNewExtraction_button_selectTheServer"
-          >{{ $t('选择服务器') }}</bk-button>
+            @click="showSelectDialog = true"
+            >{{ $t('选择服务器') }}</bk-button
+          >
           <div class="select-text">
             <i18n path="已选择{0}个节点">
-              <span class="primary" v-if="ipList.length">{{ ipList.length }}</span>
-              <span class="error" v-else>{{ ipList.length }}</span>
+              <span
+                v-if="ipList.length"
+                class="primary"
+                >{{ ipList.length }}</span
+              >
+              <span
+                v-else
+                class="error"
+                >{{ ipList.length }}</span
+              >
             </i18n>
           </div>
         </div>
@@ -65,15 +77,17 @@
         {{ $t('目录或文件名') }}
         <span class="required">*</span>
         <span
+          v-bk-tooltips="`${$t('以')}/${$t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`"
           class="log-icon icon-info-fill"
-          v-bk-tooltips="`${$t('以')}/${$t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`">
+        >
         </span>
       </div>
       <div class="content">
         <files-input
           v-model="fileOrPath"
           :available-paths="availablePaths"
-          @update:select="handleFilesSelect" />
+          @update:select="handleFilesSelect"
+        />
       </div>
     </div>
 
@@ -85,7 +99,8 @@
         :ip-list="ipList"
         :ip-select-new-name-list="ipSelectNewNameList"
         :file-or-path="fileOrPath"
-        @update:fileOrPath="handleFileOrPathUpdate" />
+        @update:fileOrPath="handleFileOrPathUpdate"
+      />
     </div>
 
     <div class="row-container">
@@ -98,7 +113,10 @@
     <div class="row-container">
       <div class="title">{{ $t('备注') }}</div>
       <div class="content">
-        <bk-input v-model="remark" style="width: 261px;"></bk-input>
+        <bk-input
+          v-model="remark"
+          style="width: 261px"
+        ></bk-input>
       </div>
     </div>
     <div class="row-container">
@@ -106,31 +124,38 @@
       <div class="content">
         <bk-select
           v-model="link_id"
-          style="width: 250px;margin-right: 20px;background-color: #fff;"
+          style="width: 250px; margin-right: 20px; background-color: #fff"
           data-test-id="addNewExtraction_select_selectLink"
-          :clearable="false">
+          :clearable="false"
+        >
           <bk-option
             v-for="link in extractLinks"
-            :key="link.link_id"
             :id="link.link_id"
-            :name="link.show_name">
+            :key="link.link_id"
+            :name="link.show_name"
+          >
           </bk-option>
         </bk-select>
       </div>
-      <div class="content">{{$t("选择离你最近的提取链路")}}</div>
+      <div class="content">{{ $t('选择离你最近的提取链路') }}</div>
     </div>
 
     <div class="button-container">
       <bk-button
-        theme="primary" style="margin-right: 16px;width: 120px;"
+        theme="primary"
+        style="width: 120px; margin-right: 16px"
         data-test-id="addNewExtraction_button_submitConfigure"
-        :disabled="canSubmit" @click="handleSubmit">
+        :disabled="canSubmit"
+        @click="handleSubmit"
+      >
         {{ $t('提交下载任务') }}
       </bk-button>
       <bk-button
-        style="width: 120px;" @click="goToHome"
+        style="width: 120px"
         data-test-id="addNewExtraction_button_cancel"
-      >{{ $t('取消') }}</bk-button>
+        @click="goToHome"
+        >{{ $t('取消') }}</bk-button
+      >
     </div>
   </div>
 </template>
@@ -150,7 +175,7 @@ export default {
     // IpSelect,
     FilesInput,
     TextFilter,
-    PreviewFiles,
+    PreviewFiles
   },
   data() {
     return {
@@ -164,24 +189,24 @@ export default {
       link_id: null,
       // 编辑态ip选择器初始值
       ipSelectorOriginalValue: null,
-      ipSelectNewNameList: [], // 生成新的展示所用的预览地址列表
+      ipSelectNewNameList: [] // 生成新的展示所用的预览地址列表
     };
   },
   computed: {
     ...mapGetters({
-      globalsData: 'globals/globalsData',
+      globalsData: 'globals/globalsData'
     }),
     canSubmit() {
       // eslint-disable-next-line eqeqeq
       return (!this.ipList.length || !this.downloadFiles.length) && this.link_id != null;
     },
     isClone() {
-      return this.$route.name === 'extract-clone' && !!(sessionStorage.getItem('cloneData'));
+      return this.$route.name === 'extract-clone' && !!sessionStorage.getItem('cloneData');
     },
     // ip选择器选中节点
     selectorNodes() {
       return { host_list: toSelectorNode(this.ipList, 'INSTANCE') };
-    },
+    }
   },
   mounted() {
     this.checkIsClone();
@@ -206,54 +231,59 @@ export default {
       }
     },
     initCloneDisplayName() {
-      const requestIpList = this.ipList.map((item) => {
+      const requestIpList = this.ipList.map(item => {
         if (item?.bk_host_id) {
           return {
-            host_id: item.bk_host_id,
+            host_id: item.bk_host_id
           };
         }
         return {
           ip: item.ip ?? '',
-          cloud_id: item.bk_cloud_id ?? '',
+          cloud_id: item.bk_cloud_id ?? ''
         };
       });
-      this.$http.request('extract/getIpListDisplayName', {
-        data: {
-          host_list: requestIpList,
-        },
-        params: {
-          bk_biz_id: this.$store.state.bkBizId,
-        },
-      }).then((res) => {
-        this.initSelectNewNameList(res.data, true);
-      })
-        .catch((err) => {
+      this.$http
+        .request('extract/getIpListDisplayName', {
+          data: {
+            host_list: requestIpList
+          },
+          params: {
+            bk_biz_id: this.$store.state.bkBizId
+          }
+        })
+        .then(res => {
+          this.initSelectNewNameList(res.data, true);
+        })
+        .catch(err => {
           console.warn(err);
           this.ipSelectNewNameList = [];
         });
     },
     getExtractLinkList() {
-      this.$http.request('extract/getExtractLinkList', {
-        data: { bk_biz_id: this.$store.state.bkBizId },
-      })
-        .then((res) => {
+      this.$http
+        .request('extract/getExtractLinkList', {
+          data: { bk_biz_id: this.$store.state.bkBizId }
+        })
+        .then(res => {
           this.extractLinks = res.data;
           this.link_id = this.extractLinks[0].link_id;
         })
-        .catch((e) => {
+        .catch(e => {
           console.warn(e);
         });
     },
     handleCloneAvailablePaths(cloneData) {
-      this.$http.request('extract/getAvailableExplorerPath', {
-        data: {
-          bk_biz_id: this.$store.state.bkBizId,
-          ip_list: cloneData.ip_list,
-        },
-      }).then((res) => {
-        this.availablePaths = res.data.map(item => item.file_path);
-      })
-        .catch((e) => {
+      this.$http
+        .request('extract/getAvailableExplorerPath', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: cloneData.ip_list
+          }
+        })
+        .then(res => {
+          this.availablePaths = res.data.map(item => item.file_path);
+        })
+        .catch(e => {
           console.warn(e);
         });
     },
@@ -271,8 +301,8 @@ export default {
       const strategies = await this.$http.request('extract/getAvailableExplorerPath', {
         data: {
           bk_biz_id: this.$store.state.bkBizId,
-          ip_list: ipList,
-        },
+          ip_list: ipList
+        }
       });
       const availablePaths = strategies.data.map(item => item.file_path);
       this.ipList = ipList;
@@ -284,22 +314,24 @@ export default {
      * @param {Boolean} isClone 是否是克隆回显
      */
     initSelectNewNameList(hostList, isClone = false) {
-      if (!isClone) { // 新增 使用ip选择器里的值展示
+      if (!isClone) {
+        // 新增 使用ip选择器里的值展示
         const priorityList = this.globalsData.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
         this.ipSelectNewNameList = hostList.map(item => ({
           bk_host_id: item.host_id,
           ip: item.ip,
           bk_cloud_id: item.cloud_area.id,
           selectID: `${item.host_id ?? ''}_${item.ip ?? ''}_${item.cloud_area.id ?? ''}`, // select唯一key
-          name: item[priorityList.find(pItem => Boolean(item[pItem]))] ?? '',
+          name: item[priorityList.find(pItem => Boolean(item[pItem]))] ?? ''
         }));
-      } else { // 克隆 通过接口请求返回的display_name展示值
+      } else {
+        // 克隆 通过接口请求返回的display_name展示值
         this.ipSelectNewNameList = hostList.map(item => ({
           bk_host_id: item.bk_host_id,
           ip: item.bk_host_innerip,
           bk_cloud_id: item.bk_cloud_id,
           selectID: `${item.bk_host_id ?? ''}_${item.bk_host_innerip ?? ''}_${item.bk_cloud_id ?? ''}`, // select唯一key
-          name: item.display_name,
+          name: item.display_name
         }));
       }
     },
@@ -310,26 +342,28 @@ export default {
     handleSubmit() {
       this.$emit('loading', true);
       // 根据预览地址选择的文件提交下载任务
-      this.$http.request('extract/createDownloadTask', {
-        data: {
-          bk_biz_id: this.$store.state.bkBizId,
-          ip_list: this.ipList, // 下载目标
-          preview_directory: this.fileOrPath, // 目录
-          preview_ip_list: this.$refs.preview.getFindIpList(), // 预览地址
-          preview_time_range: this.$refs.preview.timeRange, // 文件日期
-          preview_start_time: this.$refs.preview.timeStringValue[0], // 文件日期
-          preview_end_time: this.$refs.preview.timeStringValue[1], // 文件日期
-          preview_is_search_child: this.$refs.preview.isSearchChild, // 是否搜索子目录
-          file_path: this.downloadFiles, // 下载文件
-          filter_type: this.$refs.textFilter.filterType, // 过滤类型
-          filter_content: this.$refs.textFilter.filterContent, // 过滤内容
-          remark: this.remark, // 备注
-          link_id: this.link_id,
-        },
-      }).then(() => {
-        this.goToHome();
-      })
-        .catch((err) => {
+      this.$http
+        .request('extract/createDownloadTask', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: this.ipList, // 下载目标
+            preview_directory: this.fileOrPath, // 目录
+            preview_ip_list: this.$refs.preview.getFindIpList(), // 预览地址
+            preview_time_range: this.$refs.preview.timeRange, // 文件日期
+            preview_start_time: this.$refs.preview.timeStringValue[0], // 文件日期
+            preview_end_time: this.$refs.preview.timeStringValue[1], // 文件日期
+            preview_is_search_child: this.$refs.preview.isSearchChild, // 是否搜索子目录
+            file_path: this.downloadFiles, // 下载文件
+            filter_type: this.$refs.textFilter.filterType, // 过滤类型
+            filter_content: this.$refs.textFilter.filterContent, // 过滤内容
+            remark: this.remark, // 备注
+            link_id: this.link_id
+          }
+        })
+        .then(() => {
+          this.goToHome();
+        })
+        .catch(err => {
           console.warn(err);
           this.$emit('loading', false);
         });
@@ -338,84 +372,83 @@ export default {
       this.$router.push({
         name: 'log-extract-task',
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .create-task-container {
-    margin-top: 20px;
-    padding: 20px 24px;
-    min-width: 1260px;
-    background-color: #fff;
-    color: #63656e;
-    border: 1px solid #dcdee5;
+.create-task-container {
+  min-width: 1260px;
+  padding: 20px 24px;
+  margin-top: 20px;
+  color: #63656e;
+  background-color: #fff;
+  border: 1px solid #dcdee5;
 
-    .row-container {
-      display: flex;
-      min-height: 40px;
-      margin: 20px 0 24px;
+  .row-container {
+    display: flex;
+    min-height: 40px;
+    margin: 20px 0 24px;
 
-      .title {
-        width: 128px;
-        margin-right: 16px;
+    .title {
+      width: 128px;
+      margin-right: 16px;
+      font-size: 12px;
+      line-height: 40px;
+      text-align: right;
+
+      .required {
         font-size: 16px;
-        line-height: 40px;
-        font-size: 12px;
-        text-align: right;
-
-        .required {
-          font-size: 16px;
-          color: #ea3636;
-        }
-
-        .icon-info-fill {
-          color: #979ba5;
-          cursor: pointer;
-        }
+        color: #ea3636;
       }
 
-      .content {
+      .icon-info-fill {
+        color: #979ba5;
+        cursor: pointer;
+      }
+    }
+
+    .content {
+      display: flex;
+      flex-flow: column;
+      justify-content: center;
+      min-height: 40px;
+      font-size: 12px;
+
+      .flex-box {
         display: flex;
-        flex-flow: column;
-        justify-content: center;
-        min-height: 40px;
-        font-size: 12px;
+        align-items: center;
 
-        .flex-box {
-          display: flex;
-          align-items: center;
+        .select-text {
+          margin-left: 12px;
+          font-size: 12px;
+          line-height: 16px;
 
-          .select-text {
-            margin-left: 12px;
-            font-size: 12px;
-            line-height: 16px;
+          .primary {
+            color: #3a84ff;
+          }
 
-            .primary {
-              color: #3a84ff;
-            }
-
-            .error {
-              color: #ea3636;
-            }
+          .error {
+            color: #ea3636;
           }
         }
       }
     }
-
-    .button-container {
-      margin: 32px 0 0 144px;
-    }
   }
 
-  .en-title {
-    .row-container .title {
-      /* stylelint-disable-next-line declaration-no-important */
-      width: 180px !important;
-    }
+  .button-container {
+    margin: 32px 0 0 144px;
   }
+}
+
+.en-title {
+  .row-container .title {
+    /* stylelint-disable-next-line declaration-no-important */
+    width: 180px !important;
+  }
+}
 </style>

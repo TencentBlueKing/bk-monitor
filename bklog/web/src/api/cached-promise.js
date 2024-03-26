@@ -68,7 +68,7 @@ export default class CachedPromise {
     if (typeof deleteIds === 'undefined') {
       requestIds = Object.keys(this.cache);
     } else if (deleteIds instanceof Array) {
-      deleteIds.forEach((id) => {
+      deleteIds.forEach(id => {
         if (this.get(id)) {
           requestIds.push(id);
         }
@@ -77,7 +77,7 @@ export default class CachedPromise {
       requestIds.push(deleteIds);
     }
 
-    requestIds.forEach((requestId) => {
+    requestIds.forEach(requestId => {
       delete this.cache[requestId];
     });
 

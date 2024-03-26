@@ -10,21 +10,20 @@ specific language governing permissions and limitations under the License.
 """
 import time
 
-from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.meta.plugin.plugin import LOG_TRACE
-from apm_web.models import Application
-from apm_web.serializers import ApplicationCacheSerializer
-
-from celery.task import task
-from celery.task import periodic_task
 from celery.schedules import crontab
-from common.log import logger
+from celery.task import periodic_task, task
 from django.conf import settings
 from django.utils.translation import gettext as _
 
-from bkmonitor.utils.time_tools import strftime_local
+from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.meta.plugin.plugin import LOG_TRACE
+from apm_web.models import Application
+from apm_web.profile.file_handler import ProfilingFileHandler
+from apm_web.serializers import ApplicationCacheSerializer
 from bkmonitor.utils.common_utils import get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
+from bkmonitor.utils.time_tools import strftime_local
+from common.log import logger
 from core.drf_resource import api
 
 
@@ -41,12 +40,7 @@ def build_event_body(app: Application, bk_biz_id: int):
     event_body_map["timestamp"] = int(round(time.time() * 1000))
     event_body_map["dimension"] = {"bk_biz_id": bk_biz_id, "bk_biz_name": bk_biz_name}
     content = _("有新APM应用创建，请关注！应用名称：{}, 应用别名：{}, 业务ID：{}, 业务名称：{}, 创建者：{}，创建时间：{}").format(
-        app.app_name,
-        app.app_alias,
-        bk_biz_id,
-        bk_biz_name,
-        app.create_user,
-        strftime_local(app.create_time)
+        app.app_name, app.app_alias, bk_biz_id, bk_biz_name, app.create_user, strftime_local(app.create_time)
     )
     event_body_map["event"] = {"content": content}
     return [event_body_map]
@@ -119,3 +113,23 @@ def refresh_apm_application_metric():
     ServiceHandler.refresh_application_cache_data(applications)
 
     logger.info("[refresh_apm_application_metric] task finished")
+
+
+@task(ignore_result=True)
+def profile_file_upload_and_parse(key: str, profile_id: str, bk_biz_id: int, service_name: str):
+    """
+    :param key : 文件完整路径
+    :param str profile_id: profile_id
+    :param int bk_biz_id: 业务id
+    :param str service_name: 服务名称
+    """
+    logger.info(f"[profile_file_upload_and_parse] task start, bk_biz_id({bk_biz_id}),  profile_id({profile_id})")
+
+    ProfilingFileHandler().parse_file(
+        key=key,
+        profile_id=profile_id,
+        bk_biz_id=bk_biz_id,
+        service_name=service_name,
+    )
+
+    logger.info(f"[profile_file_upload_and_parse] task finished, bk_biz_id({bk_biz_id}), profile_id({profile_id})")

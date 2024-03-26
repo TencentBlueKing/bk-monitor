@@ -13,7 +13,7 @@
     },
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
-      "sql": "SELECT COUNT(*) as log_count, CONCAT('__', sensitivity) as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_deal_model_json(log_signature)) as T(sensitivity,signature) {{log_count_aggregation.log_count_aggregation.filter_rule}} GROUP BY sensitivity, signature",
+      "sql": "SELECT COUNT(*) as log_count, CONCAT('__', sensitivity) as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_deal_model_json(log_signature)) as T(sensitivity,signature) {{log_count_aggregation.log_count_aggregation.filter_rule}} GROUP BY sensitivity, signature{% if log_count_aggregation.log_count_aggregation.groups %}, {{log_count_aggregation.log_count_aggregation.groups}}{% endif %}",
       "table_name": "{{log_count_aggregation.log_count_aggregation.table_name}}",
       "name": "日志数量统计",
       "count_freq": 60,
