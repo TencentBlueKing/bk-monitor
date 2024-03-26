@@ -1,0 +1,53 @@
+.strategy-table-skeleton {
+  flex: 1;
+  padding: 16px 20px 20px 20px;
+  background: #fff;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0px 1px 2px 0px rgba(0,0,0,.05);
+
+  .w-80 {
+    width: 80px;
+  }
+
+  .h-32 {
+    height: 32px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .w-108 {
+    width: 108px;
+  }
+
+  .w--100 {
+    width: auto;
+  }
+
+  .mt-24 {
+    margin-top: 24px;
+  }
+
+  .mt-26 {
+    margin-top: 26px;
+  }
+
+  .h-20 {
+    height: 20px;
+  }
+
+  .h-36 {
+    height: 36px;
+  }
+
+  .flex-1 {
+    flex: 1;
+  }
+
+  .container-01 {
+    display: flex;
+    align-items: center;
+  }
+}

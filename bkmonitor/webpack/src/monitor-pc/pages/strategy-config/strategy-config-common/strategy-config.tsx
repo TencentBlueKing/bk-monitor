@@ -51,6 +51,7 @@ import TableFilter from '../../../components/table-filter/table-filter.vue';
 import commonPageSizeMixin from '../../../mixins/commonPageSizeMixin';
 import { downFile } from '../../../utils';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
+import StrategyTableSkeleton from '../skeleton/strategy-table-skeleton';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
@@ -2540,163 +2541,167 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               onMousemove={this.handleMouseMove}
             ></div>
           </div>
-          <div
-            id='content-for-watch-resize'
-            class='content-right'
-          >
-            <div class='strategy-config-header'>
-              <bk-badge
-                class='badge'
-                dot
-                theme='success'
-                visible={this.header.keywordObj.length !== 0}
-                v-show={!this.showFilterPanel}
-              >
-                <span
-                  class='folding'
-                  onClick={this.handleShowFilterPanel}
+          {this.table.loading || this.loading ? (
+            <StrategyTableSkeleton limit={this.tableInstance.pageSize}></StrategyTableSkeleton>
+          ) : (
+            <div
+              id='content-for-watch-resize'
+              class='content-right'
+            >
+              <div class='strategy-config-header'>
+                <bk-badge
+                  class='badge'
+                  dot
+                  theme='success'
+                  visible={this.header.keywordObj.length !== 0}
+                  v-show={!this.showFilterPanel}
                 >
-                  <i class='icon-monitor icon-double-up'></i>
-                </span>
-              </bk-badge>
-              <bk-button
-                class='header-btn mc-btn-add'
-                theme='primary'
-                v-authority={{ active: !this.authority.MANAGE_AUTH }}
-                onClick={() =>
-                  this.authority.MANAGE_AUTH
-                    ? this.handleAddStategyConfig()
-                    : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
-                }
-              >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
-                {this.$t('新建')}
-              </bk-button>
-              <bk-dropdown-menu
-                class='header-select'
-                on-show={() => (this.header.dropdownShow = true)}
-                on-hide={() => (this.header.dropdownShow = false)}
-                disabled={!this.table.select.length}
-                trigger='click'
-              >
-                <div
-                  slot='dropdown-trigger'
-                  class={['header-select-btn', { 'btn-disabled': !this.table.select.length }]}
-                >
-                  <span class='btn-name'> {this.$t('批量操作')} </span>
-                  <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
-                </div>
-                <ul
-                  v-authority={{
-                    active: !this.authority.MANAGE_AUTH
-                  }}
-                  class='header-select-list'
-                  slot='dropdown-content'
+                  <span
+                    class='folding'
+                    onClick={this.handleShowFilterPanel}
+                  >
+                    <i class='icon-monitor icon-double-up'></i>
+                  </span>
+                </bk-badge>
+                <bk-button
+                  class='header-btn mc-btn-add'
+                  theme='primary'
+                  v-authority={{ active: !this.authority.MANAGE_AUTH }}
                   onClick={() =>
-                    !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
+                    this.authority.MANAGE_AUTH
+                      ? this.handleAddStategyConfig()
+                      : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
                   }
                 >
-                  {/* 批量操作监控目标需要选择相同类型的监控对象 */}
-                  {this.header.list.map((option, index) => (
-                    <li
-                      key={index}
-                      class={['list-item', { disabled: this.isBatchItemDisabled(option) }]}
-                      v-bk-tooltips={{
-                        placement: 'right',
-                        boundary: 'window',
-                        disabled: !this.isBatchItemDisabled(option),
-                        content: () => this.batchItemDisabledTip(option),
-                        delay: 200,
-                        allowHTML: false
-                      }}
-                      onClick={() =>
-                        this.authority.MANAGE_AUTH &&
-                        !this.isBatchItemDisabled(option) &&
-                        this.handleHeadSelectChange(option.id)
-                      }
-                    >
-                      {option.name}
-                    </li>
-                  ))}
-                </ul>
-              </bk-dropdown-menu>
-              <bk-search-select
-                class='header-search'
-                v-model={this.header.keywordObj}
-                show-condition={false}
-                data={this.conditionListFilter()}
-                filter={true}
-                placeholder={this.$t('任务ID / 告警组名称 / IP / 指标ID')}
-                on-change={this.header.handleSearch}
-                on-clear={this.header.handleSearch}
-                clearable
-              ></bk-search-select>
-            </div>
-            <div class='strategy-config-wrap'>
-              <div class='config-wrap-setting'>
-                <bk-popover
-                  placement='bottom'
-                  width='515'
-                  theme='light strategy-setting'
+                  <span class='icon-monitor icon-plus-line mr-6'></span>
+                  {this.$t('新建')}
+                </bk-button>
+                <bk-dropdown-menu
+                  class='header-select'
+                  on-show={() => (this.header.dropdownShow = true)}
+                  on-hide={() => (this.header.dropdownShow = false)}
+                  disabled={!this.table.select.length}
                   trigger='click'
-                  offset='0, 20'
-                  ext-cls='strategy-table-setting'
                 >
-                  <div class='setting-btn'>
-                    <i class='icon-monitor icon-menu-set'></i>
-                  </div>
                   <div
-                    slot='content'
-                    class='tool-popover'
+                    slot='dropdown-trigger'
+                    class={['header-select-btn', { 'btn-disabled': !this.table.select.length }]}
                   >
-                    <div class='tool-popover-title'>
-                      {this.$t('字段显示设置')}
-                      <bk-checkbox
-                        class='all-selection'
-                        value={this.fieldAllSelected}
-                        onChange={this.handleFieldAllSelected}
-                      >
-                        {this.$t('全选')}
-                      </bk-checkbox>
-                    </div>
-                    <ul class='tool-popover-content'>
-                      {Object.keys(this.fieldSettingData).map(key => (
-                        <li
-                          key={this.fieldSettingData[key].id}
-                          class='tool-popover-content-item'
-                        >
-                          <bk-checkbox
-                            value={this.fieldSettingData[key].checked}
-                            onChange={() => this.handleCheckColChange(this.fieldSettingData[key])}
-                            disabled={this.fieldSettingData[key].disable}
-                          >
-                            {this.fieldSettingData[key].name}
-                          </bk-checkbox>
-                        </li>
-                      ))}
-                    </ul>
+                    <span class='btn-name'> {this.$t('批量操作')} </span>
+                    <i class={['icon-monitor', this.header.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
                   </div>
-                </bk-popover>
+                  <ul
+                    v-authority={{
+                      active: !this.authority.MANAGE_AUTH
+                    }}
+                    class='header-select-list'
+                    slot='dropdown-content'
+                    onClick={() =>
+                      !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
+                    }
+                  >
+                    {/* 批量操作监控目标需要选择相同类型的监控对象 */}
+                    {this.header.list.map((option, index) => (
+                      <li
+                        key={index}
+                        class={['list-item', { disabled: this.isBatchItemDisabled(option) }]}
+                        v-bk-tooltips={{
+                          placement: 'right',
+                          boundary: 'window',
+                          disabled: !this.isBatchItemDisabled(option),
+                          content: () => this.batchItemDisabledTip(option),
+                          delay: 200,
+                          allowHTML: false
+                        }}
+                        onClick={() =>
+                          this.authority.MANAGE_AUTH &&
+                          !this.isBatchItemDisabled(option) &&
+                          this.handleHeadSelectChange(option.id)
+                        }
+                      >
+                        {option.name}
+                      </li>
+                    ))}
+                  </ul>
+                </bk-dropdown-menu>
+                <bk-search-select
+                  class='header-search'
+                  v-model={this.header.keywordObj}
+                  show-condition={false}
+                  data={this.conditionListFilter()}
+                  filter={true}
+                  placeholder={this.$t('任务ID / 告警组名称 / IP / 指标ID')}
+                  on-change={this.header.handleSearch}
+                  on-clear={this.header.handleSearch}
+                  clearable
+                ></bk-search-select>
               </div>
-              {this.getTableComponent()}
-              {this.table.data?.length ? (
-                <bk-pagination
-                  v-show={this.tableInstance.total}
-                  class='strategy-pagination list-pagination'
-                  align='right'
-                  size='small'
-                  pagination-able
-                  current={this.tableInstance.page}
-                  limit={this.tableInstance.pageSize}
-                  count={this.pageCount}
-                  limit-list={this.tableInstance.pageList}
-                  on-change={this.handlePageChange}
-                  on-limit-change={this.handleLimitChange}
-                  show-total-count
-                ></bk-pagination>
-              ) : undefined}
+              <div class='strategy-config-wrap'>
+                <div class='config-wrap-setting'>
+                  <bk-popover
+                    placement='bottom'
+                    width='515'
+                    theme='light strategy-setting'
+                    trigger='click'
+                    offset='0, 20'
+                    ext-cls='strategy-table-setting'
+                  >
+                    <div class='setting-btn'>
+                      <i class='icon-monitor icon-menu-set'></i>
+                    </div>
+                    <div
+                      slot='content'
+                      class='tool-popover'
+                    >
+                      <div class='tool-popover-title'>
+                        {this.$t('字段显示设置')}
+                        <bk-checkbox
+                          class='all-selection'
+                          value={this.fieldAllSelected}
+                          onChange={this.handleFieldAllSelected}
+                        >
+                          {this.$t('全选')}
+                        </bk-checkbox>
+                      </div>
+                      <ul class='tool-popover-content'>
+                        {Object.keys(this.fieldSettingData).map(key => (
+                          <li
+                            key={this.fieldSettingData[key].id}
+                            class='tool-popover-content-item'
+                          >
+                            <bk-checkbox
+                              value={this.fieldSettingData[key].checked}
+                              onChange={() => this.handleCheckColChange(this.fieldSettingData[key])}
+                              disabled={this.fieldSettingData[key].disable}
+                            >
+                              {this.fieldSettingData[key].name}
+                            </bk-checkbox>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </bk-popover>
+                </div>
+                {this.getTableComponent()}
+                {this.table.data?.length ? (
+                  <bk-pagination
+                    v-show={this.tableInstance.total}
+                    class='strategy-pagination list-pagination'
+                    align='right'
+                    size='small'
+                    pagination-able
+                    current={this.tableInstance.page}
+                    limit={this.tableInstance.pageSize}
+                    count={this.pageCount}
+                    limit-list={this.tableInstance.pageList}
+                    on-change={this.handlePageChange}
+                    on-limit-change={this.handleLimitChange}
+                    show-total-count
+                  ></bk-pagination>
+                ) : undefined}
+              </div>
             </div>
-          </div>
+          )}
         </div>
         {this.getDialogComponent()}
       </div>
