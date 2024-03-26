@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { EChartOption } from 'echarts';
 import { typeTools } from 'monitor-common/utils/utils';
+import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { TimeSeriesType } from './time-series';
 // 图例呈现模式
@@ -73,7 +73,7 @@ export interface ITimeSeriesOption {
   time_series?: {
     type?: TimeSeriesType;
     only_one_result?: boolean;
-    echart_option?: EChartOption<EChartOption.Series>;
+    echart_option?: MonitorEchartOptions;
     markLine?: Record<string, any>;
     markArea?: Record<string, any>;
     custom_timerange?: boolean;

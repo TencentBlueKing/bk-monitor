@@ -23,25 +23,60 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// import * as vueClassComponent from 'vue-class-component';
-// import * as vueI18n from 'vue-i18n';
-// import * as vuePopertyDecorator from 'vue-property-decorator';
-// import * as vueRouter from 'vue-router';
-// import * as vueTsxSupport from 'vue-tsx-support';
-// import * as vuexModuleDecorators from 'vuex-module-decorators';
-// import bkMagicVue from 'bk-magic-vue';
-import axios from 'axios';
-import dayjs from 'dayjs';
-import * as echarts from 'echarts';
+import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
+import { BarChart, LineChart, MapChart, PieChart } from 'echarts/charts';
+import type {
+  DatasetComponentOption,
+  GridComponentOption,
+  LegendComponentOption,
+  MarkAreaComponentOption,
+  MarkLineComponentOption,
+  TitleComponentOption,
+  ToolboxComponentOption,
+  TooltipComponentOption
+} from 'echarts/components';
+import {
+  GeoComponent,
+  GridComponent,
+  LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
+  TitleComponent,
+  ToolboxComponent,
+  TooltipComponent
+} from 'echarts/components';
+import type { ComposeOption } from 'echarts/core';
+import * as echarts from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
 
-window.echarts = echarts;
-window.axios = axios;
-window.dayjs = dayjs;
+export type MonitorEchartOptions = ComposeOption<
+  | BarSeriesOption
+  | LineSeriesOption
+  | PieSeriesOption
+  | TitleComponentOption
+  | TooltipComponentOption
+  | DatasetComponentOption
+  | GridComponentOption
+  | ToolboxComponentOption
+  | LegendComponentOption
+  | MarkAreaComponentOption
+  | MarkLineComponentOption
+>;
+export type MonitorEchartSeries = ComposeOption<BarSeriesOption | LineSeriesOption | PieSeriesOption>;
+echarts.use([
+  BarChart,
+  PieChart,
+  LineChart,
+  MapChart,
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  ToolboxComponent,
+  TooltipComponent,
+  CanvasRenderer,
+  MarkAreaComponent,
+  MarkLineComponent,
+  GeoComponent
+]);
 
-// window.vueClassComponent = vueClassComponent;
-// window.vuePopertyDecorator = vuePopertyDecorator;
-// window.vueTsxSupport = vueTsxSupport;
-// window.vuexModuleDecorators = vuexModuleDecorators;
-// window.bkMagicVue = bkMagicVue;
-// window.vueI18n = vueI18n;
-// window.vueRouter = vueRouter;
+export { echarts };

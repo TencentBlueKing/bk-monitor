@@ -27,7 +27,6 @@
 import { Component, Ref, Watch } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { EChartOption } from 'echarts/lib/echarts';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -49,7 +48,7 @@ import '../time-series/time-series.scss';
 
 @Component
 export default class TimeSeriesForecast extends LineChart {
-  @Ref() baseChart: any;
+  @Ref() baseChart: InstanceType<typeof BaseEchart>;
 
   minBase = 0;
 
@@ -320,7 +319,7 @@ export default class TimeSeriesForecast extends LineChart {
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
-        ) as EChartOption<EChartOption.Series>;
+        );
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,

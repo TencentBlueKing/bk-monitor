@@ -32,7 +32,7 @@ import { createApp } from 'vue';
 import { Message } from 'bkui-vue';
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
-import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import directives from './directive/index';
@@ -97,6 +97,6 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     })
     .catch(e => console.error(e))
     .finally(() => {
-      serviceWorker.immediateRegister();
+      immediateRegister();
     });
 }

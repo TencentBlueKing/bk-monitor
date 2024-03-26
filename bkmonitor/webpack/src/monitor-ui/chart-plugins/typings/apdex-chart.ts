@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { EChartOption } from 'echarts';
+import { type BarSeriesOption } from 'echarts/charts';
 
-export interface IApdexSeriesItem extends EChartOption.SeriesBar {
+export interface IApdexSeriesItem extends BarSeriesOption {
   // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
   data: {
     itemStyle: {

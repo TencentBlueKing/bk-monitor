@@ -78,6 +78,7 @@ declare global {
     __BK_WEWEB_DATA__?: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: string;
     bk_docs_site_url: string;
+    docUrlMap: Record<string, string>;
   }
 }
 

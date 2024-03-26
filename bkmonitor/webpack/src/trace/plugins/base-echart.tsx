@@ -35,8 +35,7 @@ import {
   WatchStopHandle
 } from 'vue';
 import dayjs from 'dayjs';
-import type { EChartOption, ECharts } from 'echarts';
-import * as echarts from 'echarts';
+import { echarts, MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './base-echart.scss';
 
@@ -51,7 +50,7 @@ export const BaseChartProps = {
   width: Number,
   // echart 配置
   options: {
-    type: Object as PropType<EChartOption>,
+    type: Object as () => PropType<MonitorEchartOptions>,
     required: true
   },
   // echarts图表实例分组id
@@ -67,9 +66,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
-    let curChartOption: EChartOption | null = null;
+    let curChartOption: MonitorEchartOptions | null = null;
     // echarts 实例
-    const instance = shallowRef<ECharts>();
+    const instance = shallowRef<echarts.ECharts>();
     // 当前图表配置取消监听函数
     let unwatchOptions: WatchStopHandle | null = null;
     // dblclick模拟 间隔
@@ -259,7 +258,7 @@ export default defineComponent({
       isMouseOver.value = false;
     }
     // resize
-    function resize(options?: echarts.EChartOption) {
+    function resize(options?: MonitorEchartOptions) {
       chartRef.value && delegateMethod('resize', options);
     }
     // 初始化echart
@@ -318,6 +317,7 @@ export default defineComponent({
             );
             curChartOption = instance.value.getOption();
           }
+          initChartAction();
         },
         { deep: false }
       );

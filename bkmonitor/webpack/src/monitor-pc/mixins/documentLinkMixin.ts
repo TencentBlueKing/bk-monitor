@@ -27,12 +27,10 @@ import { Component, Vue } from 'vue-property-decorator';
 import { jumpToDocsLink } from 'monitor-common/utils';
 
 import { linkMap } from '../common/constant';
-import store from '../store/modules/app';
 //  文档链接的Mixin
 @Component
 export default class DocumentLinkMixin extends Vue {
   public handleGotoLink(id: string): void {
-    const extraLinkMap = store.state.extraDocLinkMap;
-    jumpToDocsLink(id, linkMap, extraLinkMap);
+    jumpToDocsLink(id, linkMap, window.docUrlMap);
   }
 }

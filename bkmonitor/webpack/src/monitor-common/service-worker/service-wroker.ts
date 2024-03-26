@@ -23,58 +23,53 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
+interface Config {
+  onUpdate?: (registration: ServiceWorkerRegistration) => void;
+  onSuccess?: (registration: ServiceWorkerRegistration) => void;
+}
+
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||
-    // [::1] is the IPv6 localhost address.
     window.location.hostname === '[::1]' ||
-    // 127.0.0.1/8 is considered localhost for IPv4.
-    window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
+    /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/.test(window.location.hostname)
 );
-const registerValidSW = (swUrl, config) => {
+
+const registerValidSW = (swUrl: string, config?: Config): void => {
   navigator.serviceWorker
     .register(swUrl)
-    .then(registration => {
-      registration.onupdatefound = () => {
-        const installingWorker = registration.installing;
-        if (installingWorker === null) {
-          return;
-        }
-        installingWorker.onstatechange = () => {
+    .then((registration: ServiceWorkerRegistration) => {
+      registration.onupdatefound = (): void => {
+        const installingWorker: ServiceWorker | null = registration.installing;
+        if (!installingWorker) return;
+        installingWorker.onstatechange = (): void => {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
-              console.log('New content is available and will be used when all ');
-              if (config?.onUpdate) {
-                config.onUpdate(registration);
-              }
+              console.log('New content is available and will be used when all tabs for this page are closed.');
+              config?.onUpdate?.(registration);
             } else {
-              console.log('Content is cached in cache storage');
-              if (config?.onSuccess) {
-                config.onSuccess(registration);
-              }
+              console.log('Content is cached in cache storage.');
+              config?.onSuccess?.(registration);
             }
           }
         };
       };
     })
-    .catch(error => {
+    .catch((error: Error) => {
       console.error('Error during service worker registration:', error);
     });
 };
 
-const checkValidServiceWorker = (swUrl, config) => {
+const checkValidServiceWorker = (swUrl: string, config?: Config): void => {
   fetch(swUrl)
-    .then(response => {
+    .then((response: Response) => {
       const contentType = response.headers.get('content-type');
-      if (response.status === 404 || (contentType !== null && contentType.indexOf('javascript') === -1)) {
-        // No service worker found. Probably a different app. Reload the page.
-        navigator.serviceWorker.ready.then(registration => {
+      if (response.status === 404 || (contentType && !contentType.includes('javascript'))) {
+        navigator.serviceWorker.ready.then((registration: ServiceWorkerRegistration) => {
           registration.unregister().then(() => {
             window.location.reload();
           });
         });
       } else {
-        // Service worker found. Proceed as normal.
         registerValidSW(swUrl, config);
       }
     })
@@ -83,14 +78,14 @@ const checkValidServiceWorker = (swUrl, config) => {
     });
 };
 
-export const register = config => {
+export const register = (config?: Config): void => {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       const swUrl = `${window.site_url}service-worker.js`;
       if (isLocalhost) {
         checkValidServiceWorker(swUrl, config);
         navigator.serviceWorker.ready.then(() => {
-          console.log('This web app is being served cache-first by a service worker');
+          console.log('This web app is being served cache-first by a service worker.');
         });
       } else {
         window.requestIdleCallback(() => {
@@ -100,13 +95,14 @@ export const register = config => {
     });
   }
 };
-export const immediateRegister = config => {
+
+export const immediateRegister = (config?: Config): void => {
   if ('serviceWorker' in navigator) {
     const swUrl = `${window.site_url}service-worker.js`;
     if (isLocalhost) {
       checkValidServiceWorker(swUrl, config);
       navigator.serviceWorker.ready.then(() => {
-        console.log('This web app is being served cache-first by a service worker');
+        console.log('This web app is being served cache-first by a service worker.');
       });
     } else {
       window.requestIdleCallback(() => {
@@ -115,9 +111,10 @@ export const immediateRegister = config => {
     }
   }
 };
-export const unregister = () => {
+
+export const unregister = (): void => {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then(registration => {
+    navigator.serviceWorker.ready.then((registration: ServiceWorkerRegistration) => {
       registration.unregister();
     });
   }

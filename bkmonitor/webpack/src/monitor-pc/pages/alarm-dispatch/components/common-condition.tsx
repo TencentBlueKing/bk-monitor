@@ -376,7 +376,6 @@ export default class CommonCondition extends tsc<IProps> {
     }
     const lastTagItem = this.tagList[this.curIndex];
     const lastTagItem2 = this.tagList?.[this.curIndex - 1];
-    // debugger;
     if (!lastTagItem2) {
       selectKey();
       return;

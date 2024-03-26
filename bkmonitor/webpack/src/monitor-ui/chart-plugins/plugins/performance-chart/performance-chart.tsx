@@ -26,7 +26,6 @@
 import { Component } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { EChartOption } from 'echarts';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -36,7 +35,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { ILegendItem, ITimeSeriesItem, LegendActionType } from '../../typings';
+import { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
@@ -236,11 +235,11 @@ export default class PerformanceChart extends TimeSeries {
         // eslint-disable-next-line max-len
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
         // eslint-disable-next-line max-len
-        const echartOptions = deepmerge(
+        const echartOptions: MonitorEchartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
-        ) as EChartOption<EChartOption.Series>;
+        );
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,

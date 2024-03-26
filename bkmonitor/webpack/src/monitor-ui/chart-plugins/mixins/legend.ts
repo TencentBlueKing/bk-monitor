@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import type { EChartOption } from 'echarts';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { ILegendItem, LegendActionType } from '../typings';
+import { ILegendItem, LegendActionType, MonitorEchartOptions } from '../typings';
 
 @Component
 export default class ResizeMixin extends Vue {
@@ -84,7 +83,7 @@ export default class ResizeMixin extends Vue {
     }
   }
   // 根据选中图例重置图表
-  handleResetPieChart(option: EChartOption, needResetChart?: boolean, hideLabel?: boolean) {
+  handleResetPieChart(option: MonitorEchartOptions, needResetChart?: boolean, hideLabel?: boolean) {
     let totalValue = 0;
     const resArr = [];
     const chartInstance = this.$refs.baseChart as any;
@@ -132,7 +131,7 @@ export default class ResizeMixin extends Vue {
   }: {
     actionType: LegendActionType;
     item: ILegendItem;
-    option: EChartOption;
+    option: MonitorEchartOptions;
     needResetChart?: boolean;
     hideLabel?: boolean;
   }) {

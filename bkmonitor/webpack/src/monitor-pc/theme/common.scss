@@ -42,10 +42,10 @@ $icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-
 
 @mixin common-svg($h: 92px, $t: -92px, $w: 55px, $r: 62px) {
   position: absolute;
+  top: $t;
+  right: $r;
   width: $w;
   height: $h;
-  right: $r;
-  top: $t;
 }
 
 @mixin hover($cursor: pointer) {
@@ -61,16 +61,12 @@ $icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-
 }
 
 @mixin box-ellipsis {
+  display: box;
   overflow: hidden;
   text-overflow: ellipsis;
-
-  /* stylelint-disable-next-line value-no-vendor-prefix */
-  display: -webkit-box;
-
-  /* stylelint-disable-next-line property-no-vendor-prefix */
+  word-break: break-all;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
-  word-break: break-all;
 }
 
 @mixin content-center {
@@ -98,8 +94,8 @@ $icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-
   .bk-tooltip {
     .bk-select-name {
       height: 24px;
-      line-height: 24px;
       padding-left: 2px;
+      line-height: 24px;
     }
   }
 }
@@ -108,17 +104,17 @@ $icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #63656e;
   min-width: 180px;
   min-height: 130px;
+  color: #63656e;
 
   .part-img {
     margin-top: -35px;
   }
 
   .part-text {
-    font-size: 12px;
     margin-top: -15px;
+    font-size: 12px;
   }
 }
 
@@ -126,8 +122,8 @@ $icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-
   width: 400px;
 
   .tippy-tooltip {
-    background-color: #e0226e;
     max-width: 400px;
+    background-color: #e0226e;
 
     .tippy-arrow {
       border-top: 8px solid #e0226e;

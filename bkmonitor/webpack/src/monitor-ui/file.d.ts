@@ -27,7 +27,7 @@ declare module '*.svg';
 declare module '*.png';
 declare module '*.store';
 declare module '*.vue' {
-  import Vue from 'vue';
+  import type Vue from 'vue';
 
   export default Vue;
 }

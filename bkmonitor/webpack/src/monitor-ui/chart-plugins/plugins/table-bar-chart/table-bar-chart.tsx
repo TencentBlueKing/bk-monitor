@@ -26,7 +26,6 @@
 import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { IMenuItem, ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
 
@@ -35,14 +34,14 @@ import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../../mixins';
-import { PanelModel } from '../../typings';
+import { MonitorEchartOptions, PanelModel } from '../../typings';
 import { ITableDataItem } from '../../typings/table-chart';
 import { createImg, setStyle } from '../../utils';
 import BaseEchart from '../monitor-base-echart';
 
 import './table-bar-chart.scss';
 
-const option: EChartOption = {
+const option: MonitorEchartOptions = {
   animation: false,
   color: ['#73C2A8', '#4051A3'],
   xAxis: {
@@ -76,12 +75,12 @@ class TableBarChart extends Mixins<
 >(IntersectionMixin, ChartLoadingMixin, ChartLoadingMixin, LegendMixin, ToolsMxin, ResizeMixin) {
   @Prop({ required: true }) panel: PanelModel;
   @Ref() scrollRef: HTMLElement;
-  @Ref() baseChartRef: BaseEchart;
+  @Ref() baseChartRef: InstanceType<typeof BaseEchart>;
 
   showHeaderMoreTool = false;
 
   legendData = legendData;
-  customOptions: EChartOption = deepmerge(MONITOR_BAR_OPTIONS, option, {
+  customOptions: MonitorEchartOptions = deepmerge(MONITOR_BAR_OPTIONS, option, {
     arrayMerge: (_, srcArr) => srcArr
   });
 

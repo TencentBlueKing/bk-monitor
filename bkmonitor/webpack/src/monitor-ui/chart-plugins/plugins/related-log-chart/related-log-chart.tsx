@@ -29,7 +29,6 @@ import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -37,7 +36,7 @@ import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { PanelModel } from '../../typings';
+import { MonitorEchartOptions, PanelModel } from '../../typings';
 import { ITableDataItem } from '../../typings/table-chart';
 import { downFile } from '../../utils';
 import { VariablesService } from '../../utils/variable';
@@ -46,7 +45,7 @@ import BaseEchart from '../monitor-base-echart';
 
 import './related-log-chart.scss';
 
-const option: EChartOption = {
+const option: MonitorEchartOptions = {
   animation: false,
   color: ['#A3C5FD'],
   xAxis: {
@@ -92,7 +91,7 @@ class RelatedLogChart extends CommonSimpleChart {
   /** 关联索引集列表 */
   relatedIndexSetList = [];
   /** 柱状图配置 */
-  customOptions: EChartOption = deepmerge(MONITOR_BAR_OPTIONS, option, {
+  customOptions: MonitorEchartOptions = deepmerge(MONITOR_BAR_OPTIONS, option, {
     arrayMerge: (_, srcArr) => srcArr
   });
   /** 汇聚周期 */
@@ -208,43 +207,42 @@ class RelatedLogChart extends CommonSimpleChart {
       });
       this.panel.targets
         .filter(item => item.dataType === 'time_series')
-        .map(
-          item =>
-            (this as any).$api[item.apiModule]
-              ?.[item.apiFunc](
-                {
-                  ...variablesService.transformVariables(item.data),
-                  ...params,
-                  view_options: {
-                    ...this.viewOptions
-                  }
-                },
-                { needMessage: false }
-              )
-              .then(res => {
-                if (res.series?.[0].datapoints?.length) {
-                  this.customOptions.series = [];
-                  const data = {
-                    series: [
-                      {
-                        data: res.series[0].datapoints,
-                        type: 'bar',
-                        colorBy: 'data',
-                        name: 'COUNT ',
-                        zlevel: 100
-                      }
-                    ]
-                  };
-                  const updateOption = deepmerge(option, data);
-                  this.customOptions = deepmerge(this.customOptions, updateOption);
-                  this.emptyChart = false;
-                } else {
-                  this.emptyChart = true;
+        .map(item =>
+          (this as any).$api[item.apiModule]
+            ?.[item.apiFunc](
+              {
+                ...variablesService.transformVariables(item.data),
+                ...params,
+                view_options: {
+                  ...this.viewOptions
                 }
-              })
-              .finally(() => {
-                this.handleLoadingChange(false);
-              })
+              },
+              { needMessage: false }
+            )
+            .then(res => {
+              if (res.series?.[0].datapoints?.length) {
+                this.customOptions.series = [];
+                const data = {
+                  series: [
+                    {
+                      data: res.series[0].datapoints,
+                      type: 'bar',
+                      colorBy: 'data',
+                      name: 'COUNT ',
+                      zlevel: 100
+                    }
+                  ]
+                };
+                const updateOption = deepmerge(option, data);
+                this.customOptions = deepmerge(this.customOptions, updateOption);
+                this.emptyChart = false;
+              } else {
+                this.emptyChart = true;
+              }
+            })
+            .finally(() => {
+              this.handleLoadingChange(false);
+            })
         );
       this.clearErrorMsg();
     } catch (error) {
@@ -284,30 +282,29 @@ class RelatedLogChart extends CommonSimpleChart {
       });
       await this.panel.targets
         .filter(item => item.dataType === 'table-chart')
-        .map(
-          item =>
-            (this as any).$api[item.apiModule]
-              ?.[item.apiFunc]({
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
-                }
-              })
-              .then(data => {
-                if (this.isScrollLoadTableData) {
-                  this.tableData.push(...data.data);
-                } else {
-                  this.tableRenderKey = random(6);
-                  this.tableData.splice(0, this.tableData.length, ...data.data);
-                  this.columns = data.columns;
-                  this.pagination.count = data.total;
-                }
-                this.pagination.offset += data.data.length;
-              })
-              .finally(() => {
-                this.handleLoadingChange(false);
-              })
+        .map(item =>
+          (this as any).$api[item.apiModule]
+            ?.[item.apiFunc]({
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions
+              }
+            })
+            .then(data => {
+              if (this.isScrollLoadTableData) {
+                this.tableData.push(...data.data);
+              } else {
+                this.tableRenderKey = random(6);
+                this.tableData.splice(0, this.tableData.length, ...data.data);
+                this.columns = data.columns;
+                this.pagination.count = data.total;
+              }
+              this.pagination.offset += data.data.length;
+            })
+            .finally(() => {
+              this.handleLoadingChange(false);
+            })
         );
     } catch (e) {}
   }

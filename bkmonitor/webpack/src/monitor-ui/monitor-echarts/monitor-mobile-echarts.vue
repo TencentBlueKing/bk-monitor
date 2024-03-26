@@ -102,13 +102,13 @@ import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
-import Echarts, { EChartOption } from 'echarts';
 import { debounce } from 'throttle-debounce';
 
 import ChartLegend from './components/chart-legend.vue';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
 import { ILegendItem } from './options/type-interface';
+import { echarts, MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
 import watermarkMaker from './utils/watermarkMaker';
 
 interface ICurValue {
@@ -130,7 +130,7 @@ export default class MonitorMobileEcharts extends Vue {
   @Ref() readonly chartRef!: HTMLDivElement;
   @Ref() readonly charWrapRef!: HTMLDivElement;
 
-  chart: Echarts.ECharts = null;
+  chart: echarts.ECharts = null;
   resizeHandler: ResizeCallback<HTMLDivElement>;
   unwatchOptions: () => void;
   unwatchSeries: () => void;
@@ -151,7 +151,7 @@ export default class MonitorMobileEcharts extends Vue {
   };
   curChartOption: any;
   // echarts配置项
-  @Prop() readonly options: Echarts.EChartOption;
+  @Prop() readonly options: MonitorEchartOptions;
   // echarts配置项是否深度监听
   @Prop({ default: true }) readonly watchOptionsDeep: boolean;
   // 是否自动resize
@@ -171,7 +171,7 @@ export default class MonitorMobileEcharts extends Vue {
 
   @Prop({ default: false }) readonly showLegend: boolean;
   // 图表系列数据
-  @Prop() readonly series: EChartOption.SeriesLine | EChartOption.SeriesBar;
+  @Prop() readonly series: MonitorEchartSeries;
 
   // 背景图
   @Prop({
@@ -300,10 +300,7 @@ export default class MonitorMobileEcharts extends Vue {
     this.chart && this.destroy();
   }
   initChart() {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const echarts = require('echarts');
     const chart: any = echarts.init(this.chartRef);
-    // chart.setOption({}, true)
     this.chartTitle = this.title;
     this.chart = chart;
     this.chartUnit = this.unit;
@@ -408,10 +405,10 @@ export default class MonitorMobileEcharts extends Vue {
       }
       this.legend.list = optionData.legendData || [];
       if (this.options?.grid) {
-        optionData.options.grid.bottom = (this.options.grid as EChartOption.Grid).bottom;
+        optionData.options.grid.bottom = (this.options.grid).bottom;
       }
       setTimeout(() => {
-        this.chart.setOption(deepMerge(optionData.options, this.defaultOptions) as EChartOption, {
+        this.chart.setOption(deepMerge(optionData.options, this.defaultOptions), {
           notMerge: false,
           lazyUpdate: false,
           silent: false
@@ -555,7 +552,7 @@ export default class MonitorMobileEcharts extends Vue {
   }
 
   // resize
-  resize(options: EChartOption = null) {
+  resize(options: MonitorEchartOptions = null) {
     this.chartRef && this.delegateMethod('resize', options);
   }
 

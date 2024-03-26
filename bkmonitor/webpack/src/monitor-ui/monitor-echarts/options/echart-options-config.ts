@@ -143,7 +143,7 @@ export const lineOrBarOptions = {
       show: false
     },
     minInterval: 5 * 60 * 1000,
-    splitNumber: 10,
+    splitNumber: 5,
     scale: true
   },
   yAxis: {

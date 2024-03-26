@@ -26,7 +26,7 @@
  */
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import echarts from 'echarts';
+import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
@@ -110,7 +110,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   }
   @Watch('column')
   handleColumnChange() {
-    echarts.disConnect(this.id.toString());
+    disconnect(this.id.toString());
     this.handleInitPanelsGridpos((this as any).localPanels);
     this.handleConentEcharts();
   }
@@ -122,7 +122,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
     bus.$on('switch_to_overview', this.handleToSceneOverview);
   }
   beforeDestroy() {
-    echarts.disConnect(this.id.toString());
+    disconnect(this.id.toString());
   }
   destroyed() {
     bus.$off(UPDATE_SCENES_TAB_DATA);
@@ -132,7 +132,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   handleConentEcharts() {
     setTimeout(() => {
       if ((this as any).localPanels?.length < 300) {
-        echarts.connect(this.id.toString());
+        connect(this.id.toString());
       }
     }, 3000);
   }

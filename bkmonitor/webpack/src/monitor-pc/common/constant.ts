@@ -25,8 +25,6 @@
  */
 import { jumpToDocsLink } from 'monitor-common/utils';
 
-import store from '../store/modules/app';
-
 export const linkMap = {
   processMonitoring: '监控平台/产品白皮书/scene-process/process_monitor_overview.md', //  主机监控-主机详情 左下角 进程监控配置指引
   /** @deprecated 20230811 该链接已不存在，先暂时保留 */
@@ -62,8 +60,7 @@ export const linkMap = {
   accessRequest: '监控平台/产品白皮书/quickstart/perm.md' // 权限申请文档
 };
 export const handleGotoLink = id => {
-  const extraLinkMap = store.state.extraDocLinkMap;
-  jumpToDocsLink(id, linkMap, extraLinkMap);
+  jumpToDocsLink(id, linkMap, window.docUrlMap);
 };
 
 // 是否中文

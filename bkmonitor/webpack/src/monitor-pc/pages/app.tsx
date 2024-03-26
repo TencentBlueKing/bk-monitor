@@ -227,7 +227,8 @@ export default class App extends tsc<{}> {
   /** 获取文档链接 */
   async getDocsLinkMapping() {
     const data = await getLinkMapping().catch(() => {});
-    this.$store.commit('app/updateExtraDocLinkMap', data);
+    window.docUrlMap = data;
+    // this.$store.commit('app/updateExtraDocLinkMap', data);
   }
   async handleGetNewUserGuide() {
     if (this.readonly || /^#\/share\//.test(location.hash)) return;

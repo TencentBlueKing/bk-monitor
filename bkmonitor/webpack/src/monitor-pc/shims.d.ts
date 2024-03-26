@@ -120,6 +120,7 @@ declare global {
     timezone: string;
     show_realtime_strategy: boolean;
     bk_paas_host: string;
+    docUrlMap: Record<string, string>;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

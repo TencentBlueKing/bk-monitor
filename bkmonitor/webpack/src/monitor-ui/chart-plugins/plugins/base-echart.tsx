@@ -25,7 +25,8 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import echarts from 'echarts';
+
+import { echarts, MonitorEchartOptions } from '../typings/index';
 
 import './base-echart.scss';
 
@@ -35,7 +36,7 @@ export interface IChartProps {
   // 视图宽度 默认撑满父级
   width?: number;
   // echart 配置
-  options: echarts.EChartOption;
+  options: MonitorEchartOptions;
 }
 export interface IChartEvent {
   // mouseover 事件
@@ -54,13 +55,13 @@ const MOUSE_EVENTS = ['click', 'dblclick', 'mouseover', 'mousemove', 'mouseout',
 export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Ref('chartInstance') chartRef: HTMLDivElement;
   // echart 配置
-  @Prop({ required: true }) options: echarts.EChartOption;
+  @Prop({ required: true }) options: MonitorEchartOptions;
   // 视图高度
   @Prop({ required: true }) height: number;
   // 视图宽度 默认撑满父级
   @Prop() width: number;
   // 当前图表配置
-  // curChartOption: echarts.EChartOption = null;
+  // curChartOption: MonitorEchartOptions = null;
   // // echarts 实例
   // instance: echarts.ECharts = null;
   // 当前图表配置取消监听函数
@@ -116,7 +117,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     }
   }
   // resize
-  resize(options: echarts.EChartOption = null) {
+  resize(options: MonitorEchartOptions = null) {
     this.chartRef && this.delegateMethod('resize', options);
   }
   // 派发action

@@ -40,7 +40,7 @@ import 'monitor-static/svg-icons';
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
 import { setVue } from 'monitor-api/utils/index';
-import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import App from './pages/app';
@@ -145,7 +145,7 @@ if (hasRouteHash) {
       })
       .catch(e => console.error(e))
       .finally(() => {
-        serviceWorker.immediateRegister();
+        immediateRegister();
       });
   }
 }

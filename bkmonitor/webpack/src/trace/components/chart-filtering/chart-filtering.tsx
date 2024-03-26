@@ -28,6 +28,7 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { Slider } from 'bkui-vue';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
+import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { useTraceStore } from '../../store/modules/trace';
 import { formatDuration } from '../trace-view/utils/date';
@@ -56,7 +57,7 @@ export default defineComponent({
     /** 耗时图表 */
     const barChartref = ref<HTMLDivElement>();
     /** 耗时图表配置 */
-    const chartOptions = ref<echarts.EChartOption | null>(null);
+    const chartOptions = ref<MonitorEchartOptions | null>(null);
     /** 耗时 modal */
     const durationModal = ref<DurationDataModal | null>(null);
     /** 耗时范围选择信息 */
@@ -106,10 +107,7 @@ export default defineComponent({
         durationModal.value = new DurationDataModal(listData.value);
         const { minDuration, maxDuration, durationStep, xAxisData, seriesData } = durationModal.value;
         // eslint-disable-next-line max-len
-        const echartOptions = deepmerge(
-          deepClone(BASE_BAR_OPTIONS),
-          {}
-        ) as echarts.EChartOption<echarts.EChartOption.Series>;
+        const echartOptions = deepmerge(deepClone(BASE_BAR_OPTIONS), {});
         chartOptions.value = Object.freeze(
           deepmerge(echartOptions, {
             xAxis: { data: xAxisData },
@@ -135,7 +133,7 @@ export default defineComponent({
               }
             }
           })
-        );
+        ) as MonitorEchartOptions;
         handleSetDurationSlider(minDuration, maxDuration, durationStep);
       } else {
         durationModal.value = null;

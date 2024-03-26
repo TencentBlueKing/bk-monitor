@@ -86,7 +86,6 @@ export default (authMap: { [propsName: string]: string }) =>
       //     const isSpecialEvent =
       //       ['event-center', 'event-center-detail'].includes(this.$route.name) &&
       //       location.search.indexOf('specEvent') > -1;
-      //     debugger;
       //     authorityMap &&
       //       this.handleInitPageAuthority(
       //         Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
