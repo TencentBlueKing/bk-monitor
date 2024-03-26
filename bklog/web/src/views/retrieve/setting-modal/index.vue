@@ -203,7 +203,7 @@ export default {
         {
           id: 'extract',
           componentsName: 'FieldExtraction',
-          name: this.$t('字段提取'),
+          name: this.$t('字段清洗'),
           isEditable: false,
           isDisabled: false
         },
@@ -375,6 +375,7 @@ export default {
     updateLogFields() {
       this.isSubmit = true;
       this.$emit('updateLogFields');
+      this.closeSetting();
     },
     handleClickDetail() {
       const {

@@ -1148,7 +1148,11 @@ export default {
           payload.separator_regexp = etlParams.separator_regexp;
         }
         // 获取当前表格字段
-        const fieldTableData = this.$refs.fieldTable.getData() || [];
+        const fieldTableData =
+          this.$refs.fieldTable.getData().map(item => {
+            const { participleState, ...otherValue } = item;
+            return otherValue;
+          }) || [];
         // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
         data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
         data.etl_params = payload;
@@ -1351,7 +1355,14 @@ export default {
     // 获取详情
     getDetail() {
       // const tsStorageId = this.formData.storage_cluster_id;
-      const { table_id, storage_cluster_id, table_id_prefix, etl_config, etl_params: etlParams, fields } = this.curCollect;
+      const {
+        table_id,
+        storage_cluster_id,
+        table_id_prefix,
+        etl_config,
+        etl_params: etlParams,
+        fields
+      } = this.curCollect;
       const option = { time_zone: '', time_format: '' };
       const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
       copyFields.forEach(row => {
@@ -1720,6 +1731,10 @@ export default {
             this.formData.fields.splice(0, this.formData.fields.length);
             /* eslint-disable */
             this.params.etl_config = clean_type;
+            const previousStateFields = etlFields.map(item => ({
+              ...item,
+              participleState: item.tokenize_on_chars ? 'custom' : 'default'
+            }));
             Object.assign(this.params.etl_params, {
               separator_regexp: etlParams.separator_regexp || '',
               separator: etlParams.separator || ''
@@ -1737,7 +1752,7 @@ export default {
                 },
                 etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
               ),
-              fields: etlFields
+              fields: previousStateFields
             });
             if (etlParams.original_text_tokenize_on_chars) {
               this.originParticipleState = 'custom';
@@ -1752,6 +1767,7 @@ export default {
     // 新建、编辑采集项时获取更新详情
     async setDetail(id) {
       if (!id) return;
+      this.basicLoading = true;
       this.$http
         .request('collect/details', {
           params: { collector_config_id: id }
@@ -1765,7 +1781,7 @@ export default {
           }
         })
         .finally(() => {
-          // this.basicLoading = false;
+          this.basicLoading = false;
         });
     },
     // 新增、编辑清洗选择采集项
