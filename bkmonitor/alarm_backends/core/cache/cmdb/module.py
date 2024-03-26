@@ -53,6 +53,6 @@ class ModuleManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
-    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+    if "module" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
         return
     ModuleManager.refresh()

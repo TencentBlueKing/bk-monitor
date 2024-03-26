@@ -54,6 +54,6 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
-    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+    if "service_template" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
         return
     ServiceTemplateManager.refresh()

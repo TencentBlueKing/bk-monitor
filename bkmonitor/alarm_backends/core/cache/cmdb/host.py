@@ -303,7 +303,7 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
-    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+    if "host" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
         return
     HostIDManager.refresh()
     HostManager.refresh()

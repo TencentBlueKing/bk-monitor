@@ -53,6 +53,6 @@ class SetManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
-    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+    if "set" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
         return
     SetManager.refresh()

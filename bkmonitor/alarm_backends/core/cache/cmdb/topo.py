@@ -61,6 +61,6 @@ class TopoManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
-    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+    if "topo" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
         return
     TopoManager.refresh()

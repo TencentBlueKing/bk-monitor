@@ -77,6 +77,6 @@ class BusinessManager(CMDBCacheManager):
 
 
 def main():
-    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+    if "business" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
         return
     BusinessManager.refresh()

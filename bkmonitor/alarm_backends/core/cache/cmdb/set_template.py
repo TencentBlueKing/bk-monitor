@@ -57,6 +57,6 @@ class SetTemplateManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
-    if settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+    if "set_template" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
         return
     SetTemplateManager.refresh()
