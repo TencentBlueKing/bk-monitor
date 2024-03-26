@@ -832,8 +832,9 @@ msgstr "Please select or enter directly"
 
 #: apps/grafana/handlers/query.py:58 apps/grafana/handlers/query.py:60
 #: apps/log_search/constants.py:1260 apps/log_search/constants.py:1261
-msgid "请选择或直接输入，逗号分隔"
-msgstr "Please select or enter directly, separated by commas"
+msgid "请选择或直接输入，Enter分隔"
+msgstr "Please select or enter directly, enter separation"
+
 
 #: apps/grafana/handlers/query.py:388
 #, fuzzy
