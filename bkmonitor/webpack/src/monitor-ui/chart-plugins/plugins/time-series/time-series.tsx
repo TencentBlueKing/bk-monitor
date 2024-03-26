@@ -159,7 +159,7 @@ export class LineChart
   /** 导出csv数据时候使用 */
   series: IUnifyQuerySeriesItem[];
   // 切换图例时使用
-  seriesList = [];
+  seriesList = null;
   // 是否展示复位按钮
   showRestore = false;
 
@@ -1212,7 +1212,7 @@ export class LineChart
       this.legendData.forEach(l => {
         l.show && showNames.push(l.name);
       });
-      copyOptions.series = this.seriesList.filter(s => showNames.includes(s.name));
+      copyOptions.series = this.seriesList?.filter(s => showNames.includes(s.name));
       this.options = Object.freeze({ ...copyOptions });
     };
     if (actionType === 'shift-click') {

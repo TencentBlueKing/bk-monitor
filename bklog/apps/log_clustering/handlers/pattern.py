@@ -48,7 +48,6 @@ from apps.log_clustering.models import (
     ClusteringConfig,
     ClusteringRemark,
 )
-from apps.log_clustering.tasks.flow import update_log_count_aggregation_flow
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
@@ -214,7 +213,7 @@ class PatternHandler:
         aggs_group_reuslt = aggs_group
         for group_key in self._group_by:
             aggs_group["field_name"] = group_key
-            aggs_group["missing"] = ""
+            # aggs_group["missing"] = ""
             aggs_group["sub_fields"] = {}
             aggs_group = aggs_group["sub_fields"]
         return aggs_group_reuslt
@@ -348,7 +347,8 @@ class PatternHandler:
         """
         self._clustering_config.group_fields = group_fields
         self._clustering_config.save()
-        update_log_count_aggregation_flow.delay(self._clustering_config.index_set_id)
+        # TODO: 暂不打开，等完成告警配置页面再打开
+        # update_log_count_aggregation_flow.delay(self._clustering_config.index_set_id)
         return model_to_dict(self._clustering_config)
 
     @atomic
