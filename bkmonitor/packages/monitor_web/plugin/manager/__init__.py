@@ -22,15 +22,22 @@ from bkmonitor.utils.user import get_global_user
 from monitor_web.commons.file_manager import PluginFileManager
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.manager.built_in import BuiltInPluginManager
-from monitor_web.plugin.manager.datadog import DataDogPluginFileManager, DataDogPluginManager
-from monitor_web.plugin.manager.exporter import ExporterPluginFileManager, ExporterPluginManager
+from monitor_web.plugin.manager.datadog import (
+    DataDogPluginFileManager,
+    DataDogPluginManager,
+)
+from monitor_web.plugin.manager.exporter import (
+    ExporterPluginFileManager,
+    ExporterPluginManager,
+    ExtFilePluginManager,
+)
 from monitor_web.plugin.manager.jmx import JMXPluginManager
 from monitor_web.plugin.manager.log import LogPluginManager
-from monitor_web.plugin.manager.snmp_trap import SNMPTrapPluginManager
-from monitor_web.plugin.manager.snmp import SNMPPluginManager
 from monitor_web.plugin.manager.process import ProcessPluginManager
 from monitor_web.plugin.manager.pushgateway import PushgatewayPluginManager
 from monitor_web.plugin.manager.script import ScriptPluginManager
+from monitor_web.plugin.manager.snmp import SNMPPluginManager
+from monitor_web.plugin.manager.snmp_trap import SNMPTrapPluginManager
 
 # 当前支持的插件类型
 SUPPORTED_PLUGINS = {
@@ -97,3 +104,7 @@ class PluginFileManagerFactory(object):
         :rtype: PluginFileManager
         """
         return FILE_PLUGINS_FACTORY[plugin_type]
+
+    @classmethod
+    def get_ext_file_manager(cls):
+        return ExtFilePluginManager

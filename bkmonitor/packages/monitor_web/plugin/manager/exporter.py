@@ -12,8 +12,12 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import os
+import tarfile
+import zipfile
 from collections import namedtuple
 
+import rarfile
+from django.core.files.base import ContentFile
 from django.utils.translation import ugettext as _
 
 from core.drf_resource import resource
@@ -280,3 +284,62 @@ class ExporterPluginFileManager(PluginFileManager):
     @classmethod
     def valid_aix(cls, file_data):
         pass
+
+
+class ExtFilePluginManager(PluginFileManager):
+    @classmethod
+    def prev_structure(cls, request_file_data, extension=None):
+        """预览压缩包文件结构"""
+        if not extension:
+            raise Exception("file extension is required")
+
+        try:
+            if extension == '.zip':
+                fd = ContentFile(request_file_data)
+                tree = cls.build_zip_tree(fd)
+
+            elif extension == '.rar':
+                rar = rarfile.RarFile(request_file_data)
+                # rar.extractall(dest_dir)
+                rar.close()
+
+            elif extension in ['.tar', ".tar.gz", ".tgz"]:
+                tar = tarfile.open(request_file_data)
+                # tar.extractall(path=dest_dir)
+                tar.close()
+            else:
+                raise Exception(f"unsupported file extension: {extension}")
+
+        except Exception as ex:
+            print(f'extract file error: {ex}')
+
+        return tree
+
+    @classmethod
+    def build_zip_tree(cls, fd):
+        # 初始化根节点
+        tree = {"name": "root", "type": "directory", "children": []}
+        with zipfile.ZipFile(fd, 'r') as zf:
+            for file_info in zf.filelist:
+                parts = file_info.filename.split('/')
+                current_level = tree
+                for part in parts:
+                    if part:
+                        found = False
+                        # 遍历当前层级的子节点
+                        for child in current_level["children"]:
+                            if child["name"] == part:
+                                current_level = child
+                                found = True
+                                break
+                        # 如果找不到当前节点，则添加新节点
+                        if not found:
+                            new_node = {
+                                "name": part,
+                                "type": "file" if part == parts[-1] else "directory",
+                                "children": [],
+                            }
+
+                            current_level["children"].append(new_node)
+                            current_level = new_node
+        return tree
