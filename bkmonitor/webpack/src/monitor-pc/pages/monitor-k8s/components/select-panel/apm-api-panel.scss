@@ -1,5 +1,6 @@
 /* stylelint-disable declaration-no-important */
 .apm-api-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -35,6 +36,7 @@
     &-item {
       position: relative;
       display: flex;
+      align-items: center;
       width: 100%;
       height: 32px;
       padding: 0px 8px;
@@ -44,14 +46,13 @@
       white-space: nowrap;
       cursor: pointer;
       background: linear-gradient(90deg, #f5f7fa var(--percent), transparent 0%);
-      align-items: center;
 
       .status-icon {
         display: flex;
         align-items: center;
         width: 16px;
-        height: 16px;
         min-width: 16px;
+        height: 16px;
         margin-right: 4px;
       }
 
@@ -61,8 +62,8 @@
         right: 0;
         bottom: 0;
         display: flex;
-        padding: 0 8px;
         align-items: center;
+        padding: 0 8px;
 
         .compare-btn-text {
           display: none;
@@ -79,11 +80,11 @@
 
       .item-count {
         display: flex;
+        align-items: center;
+        justify-content: center;
         margin-right: 6px;
         margin-left: auto;
         color: #979ba5;
-        align-items: center;
-        justify-content: center;
       }
 
       &:hover:not(.item-active) {
@@ -120,6 +121,7 @@
 
     .bk-scroll-home {
       width: 100%;
+
       .bk-scroll {
         width: 100% !important;
       }
@@ -149,5 +151,15 @@
       border-bottom: none !important;
     }
   }
-  
+
+  .apm-api-panel-skeleton-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+    background-color: #fff;
+  }
 }

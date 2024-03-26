@@ -1,0 +1,32 @@
+.event-action-detail-skeleton {
+  .w--100 {
+    width: auto;
+  }
+
+  .h-20 {
+    height: 20px;
+  }
+
+  .mr-80 {
+    margin-right: 80px;
+  }
+
+  .mt-10 {
+    margin-top: 10px;
+  }
+
+  .ml-26 {
+    margin-left: 26px;
+  }
+
+  .container-01 {
+    display: flex;
+    align-items: center;
+    padding-left: 26px;
+
+    .container-01-left,
+    .container-01-right {
+      flex: 1;
+    }
+  }
+}

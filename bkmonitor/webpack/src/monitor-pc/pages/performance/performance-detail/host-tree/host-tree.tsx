@@ -34,6 +34,7 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
+import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
@@ -791,10 +792,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
       )
     };
     return (
-      <div
-        class='host-tree-wrap'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='host-tree-wrap'>
         <div class='host-tree-main'>
           <div class='host-tree-tool'>
             <div class='host-tree-search-row'>
@@ -888,6 +886,13 @@ export default class HostTree extends tsc<IProps, IEvents> {
             />
           )}
         </div>
+
+        {this.loading && (
+          <SkeletonBase
+            class='host-tree-skeleton-box'
+            children={{ row: 15, height: '20px' }}
+          />
+        )}
       </div>
     );
   }

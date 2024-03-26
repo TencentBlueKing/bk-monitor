@@ -27,8 +27,8 @@
   <div
     class="monitor-echart-wrap"
     :style="{ 'background-image': backgroundUrl }"
-    v-bkloading="{ isLoading: loading }"
   >
+    <monitor-echarts-skeleton v-if="loading" />
     <div
       class="echart-header"
       v-if="chartTitle || $slots.title"
@@ -146,6 +146,7 @@ import ChartLegend from './components/chart-legend.vue';
 import ChartTools from './components/chart-tools.vue';
 import EchartOptions from './options/echart-options';
 import { IAnnotation, ILegendItem, IMoreToolItem } from './options/type-interface';
+import MonitorEchartsSkeleton from './skeleton/monitor-echarts-skeleton.tsx';
 import watermarkMaker from './utils/watermarkMaker';
 
 interface ICurValue {
@@ -163,7 +164,8 @@ interface ICurValue {
     MonitorDialog,
     ChartLegend,
     ChartTools,
-    ChartAnnotation
+    ChartAnnotation,
+    MonitorEchartsSkeleton
   }
 })
 export default class MonitorEcharts extends Vue {

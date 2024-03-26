@@ -36,6 +36,7 @@ import { commonAlertFieldMap } from '../event';
 import FilterInput from '../filter-input';
 import { FilterInputStatus, SearchType } from '../typings/event';
 
+import RelatedEventsSkeleton from './skeleton/related-events-skeleton';
 import { IDetail } from './type';
 
 import './related-events.scss';
@@ -735,8 +736,9 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     return (
       <div
         class={['event-detail-relatedevents', { displaynone: !this.show }]}
-        v-bkloading={{ isLoading: this.isLoading }}
+        // v-bkloading={{ isLoading: this.isLoading }}
       >
+        {this.isLoading && <RelatedEventsSkeleton></RelatedEventsSkeleton>}
         <FilterInput
           value={this.queryString}
           searchType={this.searchType}

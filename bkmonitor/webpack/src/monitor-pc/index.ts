@@ -80,6 +80,7 @@ if (hasRouteHash) {
   if (process.env.APP !== 'external' && !window.__POWERED_BY_BK_WEWEB__ && pathname !== window.site_url) {
     location.pathname = window.site_url || '/';
   } else {
+    serviceWorker.register();
     Api.model
       .enhancedContext({
         space_uid: spaceUid || undefined,

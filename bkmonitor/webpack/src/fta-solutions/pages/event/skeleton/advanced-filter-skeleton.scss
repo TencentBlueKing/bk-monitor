@@ -1,0 +1,26 @@
+.advanced-filter-skeleton {
+  padding-right: 16px;
+  display: flex;
+  flex-direction: column;
+  .w--100 {
+    width: auto;
+  }
+  .h-25 {
+    height: 25px;
+  }
+  .h-16 {
+    height: 16px;
+  }
+  .mt-16 {
+    margin-top: 16px;
+  }
+  .ml-12 {
+    margin-left: 12px;
+  }
+  .mr-12 {
+    margin-right: 12px;
+  }
+  .mt-10 {
+    margin-top: 10px;
+  }
+}

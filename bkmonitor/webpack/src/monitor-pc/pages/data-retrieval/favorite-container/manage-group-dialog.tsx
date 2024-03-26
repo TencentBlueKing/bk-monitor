@@ -38,6 +38,8 @@ import {
 } from 'monitor-api/modules/model';
 import { deepClone } from 'monitor-common/utils/utils';
 
+import SkeletonBase from '../../../components/skeleton/skeleton-base';
+
 import 'vue-json-pretty/lib/styles.css';
 import './manage-group-dialog.scss';
 
@@ -194,7 +196,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
     if (value) {
       // 管理弹窗开关
       await this.getGroupList();
-      this.getFavoriteList();
+      await this.getFavoriteList();
     } else {
       this.tableList = [];
       this.operateTableList = [];
@@ -299,6 +301,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
 
   /** 获取组列表 */
   async getGroupList() {
+    this.tableLoading = true;
     try {
       const res = await listFavoriteGroup({ type: this.favoriteSearchType });
       this.groupList = res.map(item => ({
@@ -314,6 +317,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
     } catch (error) {
       console.warn(error);
     }
+    this.tableLoading = false;
   }
 
   /** 更改收藏名 */
@@ -696,99 +700,105 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             </bk-dropdown-menu>
           </div>
         ) : undefined}
-        <bk-table
-          data={this.searchAfterList}
-          size='small'
-          header-border={true}
-          border={true}
-          max-height={this.maxHeight}
-          empty-text={this.$t('查无数据')}
-          v-bkloading={{ isLoading: this.tableLoading }}
-          ext-cls={`${!this.selectCount && 'is-not-select'}`}
-        >
-          <bk-table-column
-            width='64'
-            type='expand'
-            render-header={renderHeader}
-            scopedSlots={expandSlot}
-          ></bk-table-column>
-
-          <bk-table-column
-            label={this.$t('收藏名')}
-            key={'column_name'}
-            width='200'
-            prop={'name'}
-            class-name='group-input'
-            label-class-name='group-title'
-            scopedSlots={nameSlot}
-          ></bk-table-column>
-
-          {this.checkFields('group_name') ? (
+        {!this.tableLoading ? (
+          <bk-table
+            data={this.searchAfterList}
+            size='small'
+            header-border={true}
+            border={true}
+            max-height={this.maxHeight}
+            empty-text={this.$t('查无数据')}
+            ext-cls={`${!this.selectCount && 'is-not-select'}`}
+          >
             <bk-table-column
-              label={this.$t('所属组')}
-              min-width='112'
-              key={'column_group_name'}
-              prop={'group_id'}
-              scopedSlots={groupSlot}
+              width='64'
+              type='expand'
+              render-header={renderHeader}
+              scopedSlots={expandSlot}
+            ></bk-table-column>
+
+            <bk-table-column
+              label={this.$t('收藏名')}
+              key={'column_name'}
+              width='200'
+              prop={'name'}
+              class-name='group-input'
               label-class-name='group-title'
-              class-name='group-select'
-              filters={this.sourceFilters}
-              filter-multiple={false}
-              filter-method={this.sourceFilterMethod}
+              scopedSlots={nameSlot}
             ></bk-table-column>
-          ) : undefined}
 
-          {this.checkFields('visible_type') ? (
+            {this.checkFields('group_name') ? (
+              <bk-table-column
+                label={this.$t('所属组')}
+                min-width='112'
+                key={'column_group_name'}
+                prop={'group_id'}
+                scopedSlots={groupSlot}
+                label-class-name='group-title'
+                class-name='group-select'
+                filters={this.sourceFilters}
+                filter-multiple={false}
+                filter-method={this.sourceFilterMethod}
+              ></bk-table-column>
+            ) : undefined}
+
+            {this.checkFields('visible_type') ? (
+              <bk-table-column
+                label={this.$t('可见范围')}
+                min-width='112'
+                key={'column_visible_type'}
+                prop={'visible_type'}
+                scopedSlots={visibleSlot}
+                label-class-name='group-title'
+                class-name='group-select'
+              ></bk-table-column>
+            ) : undefined}
+
+            {this.checkFields('updated_by') ? (
+              <bk-table-column
+                label={this.$t('最近更新人')}
+                prop={'update_user'}
+                key={'column_update_by'}
+                filters={this.updateSourceFilters}
+                filter-multiple={false}
+                filter-method={this.sourceFilterMethod}
+              ></bk-table-column>
+            ) : undefined}
+
+            {this.checkFields('updated_at') ? (
+              <bk-table-column
+                label={this.$t('最近更新时间')}
+                prop={'update_time'}
+                key={'column_update_time'}
+                scopedSlots={{
+                  default: ({ row }) => [<span>{this.getShowTime(row.update_time)}</span>]
+                }}
+              ></bk-table-column>
+            ) : undefined}
+
             <bk-table-column
-              label={this.$t('可见范围')}
-              min-width='112'
-              key={'column_visible_type'}
-              prop={'visible_type'}
-              scopedSlots={visibleSlot}
+              class-name='group-input'
+              width='1'
               label-class-name='group-title'
-              class-name='group-select'
+              key={'column_switch'}
+              scopedSlots={switchSlot}
             ></bk-table-column>
-          ) : undefined}
 
-          {this.checkFields('updated_by') ? (
-            <bk-table-column
-              label={this.$t('最近更新人')}
-              prop={'update_user'}
-              key={'column_update_by'}
-              filters={this.updateSourceFilters}
-              filter-multiple={false}
-              filter-method={this.sourceFilterMethod}
-            ></bk-table-column>
-          ) : undefined}
-
-          {this.checkFields('updated_at') ? (
-            <bk-table-column
-              label={this.$t('最近更新时间')}
-              prop={'update_time'}
-              key={'column_update_time'}
-              scopedSlots={{
-                default: ({ row }) => [<span>{this.getShowTime(row.update_time)}</span>]
-              }}
-            ></bk-table-column>
-          ) : undefined}
-
-          <bk-table-column
-            class-name='group-input'
-            width='1'
-            label-class-name='group-title'
-            key={'column_switch'}
-            scopedSlots={switchSlot}
-          ></bk-table-column>
-
-          <bk-table-column type='setting'>
-            <bk-table-setting-content
-              fields={this.tableSetting.fields}
-              size={this.tableSetting.size}
-              selected={this.tableSetting.selectedFields}
-              on-setting-change={this.handleSettingChange}
-            ></bk-table-setting-content>
-          </bk-table-column>
-        </bk-table>
+            <bk-table-column type='setting'>
+              <bk-table-setting-content
+                fields={this.tableSetting.fields}
+                size={this.tableSetting.size}
+                selected={this.tableSetting.selectedFields}
+                on-setting-change={this.handleSettingChange}
+              ></bk-table-setting-content>
+            </bk-table-column>
+          </bk-table>
+        ) : (
+          <SkeletonBase
+            title={{ row: 1, height: '32px' }}
+            children={{ row: 4, height: '20px' }}
+          />
+        )}
       </bk-dialog>
     );
   }

@@ -33,6 +33,17 @@
     }
   }
   // transition: width .3s ease-in-out;
+
+  .skeleton-base-box {
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+
+    .skeleton-body-wrap {
+      justify-content: start;
+    }
+  }
+
   .common-detail-main {
     height: 100%;
     overflow: hidden;

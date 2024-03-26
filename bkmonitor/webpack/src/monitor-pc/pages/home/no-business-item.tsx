@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -183,7 +184,6 @@ export default class NoBusinessItem extends tsc<IProps> {
             </div>
           </div>
           <div class='skeleton'>
-            {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
             <img
               src={require('../../static/images/svg/business-skeleton.svg')}
               alt=''

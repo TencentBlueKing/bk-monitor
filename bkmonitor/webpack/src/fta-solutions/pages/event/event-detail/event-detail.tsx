@@ -41,6 +41,7 @@ import { throttle } from 'throttle-debounce';
 import ChatGroup from '../../../components/chat-group/chat-group';
 import { IChatGroupDialogOptions } from '../typings/event';
 
+import BasicInfoSkeleton from './skeleton/basic-info-skeleton';
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
@@ -107,6 +108,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     overview: {}, // 处理状态数据
     assignee: []
   };
+  basicInfoLoading = false;
   actions = []; // 处理记录数据
 
   isLoading = false;
@@ -210,6 +212,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   // 获取告警详情数据
   async getDetailData() {
     this.isLoading = true;
+    this.basicInfoLoading = true;
     const data = await alertDetail({ id: this.id, bk_biz_id: this.bizId }).catch(() => {
       // debugger;
       // this.$router.push({ path: '/event' });
@@ -221,6 +224,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     this.$emit('info', data);
     if (data) {
       this.basicInfo = data;
+      this.basicInfoLoading = false;
       this.bkBizId = data.bk_biz_id || this.bizId;
       await this.getCheckAllowed();
       await this.getTraceInfo();
@@ -596,7 +600,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     return (
       <div
         class='event-detail-container'
-        v-bkloading={{ isLoading: this.isLoading }}
+        // v-bkloading={{ isLoading: this.isLoading }}
       >
         <div class='container-group'>
           {this.enableCreateChatGroup ? (
@@ -618,15 +622,19 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
             <span class='icon-monitor icon-fankui'></span>
             {this.isFeedback ? window.i18n.tc('已反馈') : window.i18n.tc('反馈')}
           </div>
-          <BasicInfo
-            basicInfo={this.basicInfo}
-            on-quick-shield={this.quickShieldChange}
-            on-alarm-confirm={this.alarmConfirmChange}
-            on-strategy-detail={this.toStrategyDetail}
-            on-processing-status={this.processingStatus}
-            on-manual-process={this.handleManualProcess}
-            onAlarmDispatch={this.handleAlarmDispatch}
-          ></BasicInfo>
+          {this.basicInfoLoading ? (
+            <BasicInfoSkeleton></BasicInfoSkeleton>
+          ) : (
+            <BasicInfo
+              basicInfo={this.basicInfo}
+              on-quick-shield={this.quickShieldChange}
+              on-alarm-confirm={this.alarmConfirmChange}
+              on-strategy-detail={this.toStrategyDetail}
+              on-processing-status={this.processingStatus}
+              on-manual-process={this.handleManualProcess}
+              onAlarmDispatch={this.handleAlarmDispatch}
+            ></BasicInfo>
+          )}
           <div class='basicinfo-bottom-border'></div>
           <TabContainer
             detail={this.basicInfo}

@@ -1,0 +1,19 @@
+.event-detail-experiences-skeleton {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  width: calc(100% - 32px);
+  background: #fff;
+
+  .w--100 {
+    width: auto;
+  }
+
+  .h-20 {
+    height: 20px;
+  }
+
+  .mt-22 {
+    margin-top: 22px;
+  }
+}

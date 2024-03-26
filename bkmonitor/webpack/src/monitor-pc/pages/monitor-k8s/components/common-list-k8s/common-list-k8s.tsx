@@ -30,6 +30,7 @@ import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import { IQueryData, IQueryDataSearch, ITableFilterItem } from '../../typings';
 import {
   filterSelectorPanelSearchList,
@@ -292,10 +293,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
   }
   render() {
     return (
-      <div
-        class='common-panel-list-k8s'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='common-panel-list-k8s'>
         <div class='list-k8s-container'>
           <div class='list-header'>
             {this.conditionList.length ? (
@@ -386,6 +384,13 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
             )}
           </div>
         </div>
+
+        {this.loading && (
+          <SkeletonBase
+            class='common-list-k8s-skeleton-box'
+            children={{ row: 30, height: '20px' }}
+          />
+        )}
       </div>
     );
   }

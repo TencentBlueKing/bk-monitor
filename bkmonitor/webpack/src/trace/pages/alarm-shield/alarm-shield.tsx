@@ -26,7 +26,7 @@
 import { defineComponent, provide, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
+import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table, Form } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 
 import EmptyStatus, { EmptyStatusType } from '../../components/empty-status/empty-status';
@@ -61,6 +61,8 @@ export default defineComponent({
       auth: {},
       showDetail: authorityStore.getAuthorityDetail
     });
+    const pagination = ref<InstanceType<typeof Form>>(null);
+    pagination.value.
     /* 时间范围 */
     const dateRange = ref([]);
     /* 参数范围 */
@@ -743,6 +745,7 @@ export default defineComponent({
                   count={this.tableData.pagination.count}
                   limit={this.tableData.pagination.limit}
                   location={'right'}
+                  ref='pagination'
                   align={'right'}
                   layout={['total', 'limit', 'list']}
                   onChange={v => this.handlePageChange(v)}

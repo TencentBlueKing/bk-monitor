@@ -27,10 +27,11 @@
   <div
     class="monitor-echart-wrap"
     :style="{ 'background-image': backgroundUrl }"
-    v-bkloading="{ isLoading: loading, zIndex: 2000 }"
     @mouseenter="showTitleTool = true"
     @mouseleave="showTitleTool = false"
   >
+    <monitor-echarts-skeleton v-if="loading" />
+
     <div
       class="echart-header"
       v-if="chartTitle || $slots.title"
@@ -185,7 +186,6 @@
       class="chart-resize-line"
       @mousedown="handleResize"
     />
-
     <div
       v-if="hasTable"
       class="chart-table-box"
@@ -268,6 +268,7 @@ import {
   ITextChartOption,
   ITextSeries
 } from './options/type-interface';
+import MonitorEchartsSkeleton from './skeleton/monitor-echarts-skeleton.tsx';
 import watermarkMaker from './utils/watermarkMaker';
 import { getValueFormat } from './valueFormats';
 
@@ -295,7 +296,8 @@ interface IAlarmStatus {
     StatusChart,
     TextChart,
     ChartTitle,
-    TableChart
+    TableChart,
+    MonitorEchartsSkeleton
   }
 })
 export default class MonitorEcharts extends Vue {
@@ -438,6 +440,7 @@ export default class MonitorEcharts extends Vue {
     // 是否处于移动中
     moving: false
   };
+
   // 监控图表默认配置
   get defaultOptions() {
     if (this.chartType === 'bar' || this.chartType === 'line') {
@@ -672,7 +675,7 @@ export default class MonitorEcharts extends Vue {
   }
 
   initChart() {
-    this.initTableHeight();
+    this.hasTable && this.initTableHeight();
     this.chartTitle = this.title;
     this.chartSubTitle = this.subtitle;
     if (this.isEchartsRender && this.chartRef) {
@@ -1472,6 +1475,16 @@ export default class MonitorEcharts extends Vue {
   background-repeat: repeat;
   background-position: center;
   border-radius: 2px;
+
+  .skeleton-base-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: 100%;
+    height: 100%;
+    background-color: #fff;
+  }
 
   .echart-header {
     display: flex;

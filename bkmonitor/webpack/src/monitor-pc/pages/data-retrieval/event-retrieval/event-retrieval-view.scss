@@ -6,18 +6,18 @@
   overflow-anchor: none;
 
   .back-to-top {
-    width: 36px;
-    height: 36px;
     right: 14px;
     bottom: 24px;
-    text-align: center;
+    z-index: 50;
+    width: 36px;
+    height: 36px;
     line-height: 36px;
     color: #63656e;
+    text-align: center;
+    background-color: #f0f1f5;
     border: 1px solid #dde4eb;
     border-radius: 4px;
-    background-color: #f0f1f5;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-    z-index: 50;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .2);
 
     .icon-arrow-up {
       font-size: 24px;
@@ -31,8 +31,8 @@
 
   .query-time {
     height: 20px;
-    line-height: 20px;
     margin-bottom: 10px;
+    line-height: 20px;
 
     .query-count {
       color: #f00;
@@ -52,11 +52,15 @@
     padding: 20px 24px;
     background-color: #fff;
 
+    .skeleton-box {
+      height: 360px;
+    }
+
     .event-chart-collapse {
       margin-bottom: 12px;
-      transition: max-height 0.3s;
       overflow: hidden;
       background-color: #fff;
+      transition: max-height .3s;
 
       .collapse-header {
         display: flex;
@@ -68,10 +72,10 @@
           align-items: center;
           // cursor: pointer;
           .icon-mc-triangle-down {
-            color: #979ba5;
             font-size: 20px;
+            color: #979ba5;
+            transition: transform .2s;
             transform: rotate(-90deg);
-            transition: transform 0.2s;
           }
 
           .collapse-title {
