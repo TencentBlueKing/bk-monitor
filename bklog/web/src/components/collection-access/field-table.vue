@@ -332,7 +332,7 @@
             <!-- 大小写敏感 -->
             <bk-table-column
               :label="$t('大小写敏感')"
-              align="left"
+              align="center"
               :resizable="false"
               :width="80"
             >
@@ -761,7 +761,7 @@ export default {
       return !this.isPreviewMode && this.extractMethod !== 'bk_log_regexp';
     },
     getCustomizeTableWidth() {
-      return this.tableList.some(item => item.participleState === 'custom') ? 225 : 70;
+      return this.tableList.some(item => item.participleState === 'custom') ? 255 : 70;
     }
   },
   watch: {
@@ -1359,7 +1359,7 @@ export default {
     }
 
     .bk-form-control {
-      width: 149px;
+      width: 175px;
     }
   }
 
