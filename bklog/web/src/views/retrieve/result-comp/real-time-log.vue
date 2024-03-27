@@ -115,7 +115,7 @@
 
 <script>
 import logView from '@/components/log-view';
-import LogFilter from '../condition-comp/Log-filter';
+import LogFilter from '../condition-comp/log-filter';
 import { getFlatObjValues } from '@/common/util';
 
 export default {

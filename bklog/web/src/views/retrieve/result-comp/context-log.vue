@@ -118,7 +118,7 @@
 <script>
 import logView from '@/components/log-view';
 import FieldsConfig from '@/components/common/fields-config';
-import LogFilter from '../condition-comp/Log-filter';
+import LogFilter from '../condition-comp/log-filter';
 
 export default {
   name: 'ContextLog',

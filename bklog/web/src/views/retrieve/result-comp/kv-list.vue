@@ -85,6 +85,7 @@ export default {
     TextSegmentation
   },
   mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
   props: {
     data: {
       type: Object,
@@ -394,6 +395,8 @@ export default {
     }
 
     .field-value {
+      font-family: monospace;
+      color: #000;
       word-break: break-all;
     }
 

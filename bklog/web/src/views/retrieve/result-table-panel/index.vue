@@ -63,6 +63,7 @@ import reportLogStore from '@/store/modules/report-log';
 
 export default {
   components: { OriginalLog, LogClustering },
+  inheritAttrs: false,
   props: {
     configData: {
       type: Object,
