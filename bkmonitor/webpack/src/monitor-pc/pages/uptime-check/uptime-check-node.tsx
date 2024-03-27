@@ -34,6 +34,7 @@ import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-sub
 
 import HeaderTools, { IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
+import NodeTableSkeleton from './skeleton/node-table-skeleton';
 import {
   INodeData,
   INodesTableData,
@@ -73,6 +74,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   isTableSort = false;
   sortTableData = [];
   emptyStatusType: EmptyStatusType = 'empty';
+  loading = false;
 
   get searchData(): INodeData[] {
     return searchNodesData(this.searchValue, this.data.nodes);
@@ -91,14 +93,16 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   deactivated() {}
 
   async init() {
-    this.handleLoading(true);
+    // this.handleLoading(true);
+    this.loading = true;
     const data = await listUptimeCheckNode()
       .then(res => res)
       .catch(() => {
         this.emptyStatusType = '500';
         return [];
       });
-    this.handleLoading(false);
+    // this.handleLoading(false);
+    this.loading = false;
     this.data.nodes = data;
     this.nodesTableData = nodesToTableDataInit(data);
     if (this.searchValue.length) {
@@ -139,14 +143,16 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
           maskClose: true,
           escClose: true,
           confirmFn: () => {
-            this.handleLoading(true);
+            // this.handleLoading(true);
+            this.loading = true;
             destroyUptimeCheckNode(row.id)
               .then(() => {
                 this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
                 this.init();
               })
               .catch(() => {
-                this.handleLoading(false);
+                // this.handleLoading(false);
+                this.loading = false;
               });
           }
         });
@@ -268,78 +274,82 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   render() {
     return (
       <div class='uptime-check-task-component'>
-        <div class='table-data-content'>
-          <HeaderTools
-            option={{
-              showNode: true
-            }}
-            search={this.searchValue}
-            onCreate={this.handleHeaderCreate}
-            onSearch={(v: string) => this.handleSearch(v)}
-          ></HeaderTools>
-          <CommonTable
-            style={{ marginTop: '16px' }}
-            {...{ props: this.nodesTableData }}
-            scopedSlots={{
-              taskNum: (row: INodeData) => (
-                <span
-                  class='task-num'
-                  onClick={() => this.handleNameChange(row.name)}
-                >
-                  {row.task_num || 0}
-                </span>
-              ),
-              opreate: (row: INodeData) => (
-                <OperateOptions
-                  options={{
-                    outside: [
-                      {
-                        id: 'edit',
-                        name: window.i18n.tc('编辑'),
-                        authority: this.authority.MANAGE_AUTH,
-                        authorityDetail: this.authorityMap.MANAGE_AUTH,
-                        disable: !this.canEdit(row.bk_biz_id),
-                        tip: !this.canEdit(row.bk_biz_id) ? this.$tc('非当前业务节点') : ''
-                      },
-                      {
-                        id: 'delete',
-                        name: window.i18n.tc('删除'),
-                        authority: this.authority.MANAGE_AUTH,
-                        authorityDetail: this.authorityMap.MANAGE_AUTH,
-                        disable: !this.canEdit(row.bk_biz_id),
-                        tip: !this.canEdit(row.bk_biz_id) ? this.$tc('非当前业务节点') : ''
-                      }
-                    ]
-                  }}
-                  onOptionClick={(v: 'edit' | 'delete') => this.handleNodeOperate(v, row)}
-                ></OperateOptions>
-              ),
-              statusText: (row: INodeData) => (
-                <span
-                  class='status-col'
-                  style={{ color: nodeStatusMap[row.status].color }}
-                >
-                  {nodeStatusMap[row.status].text}
-                  {row.status.toString() === '-2' && (
-                    <i
-                      v-bk-tooltips={{ content: this.$t('该主机实例不存在') }}
-                      class='icon-monitor icon-shixiao status-icon'
-                    />
-                  )}
-                </span>
-              )
-            }}
-            onPageChange={this.handlePageChange}
-            onLimitChange={this.handleLimitChange}
-            onSortChange={this.handleSortChange}
-          >
-            <EmptyStatus
-              type={this.emptyStatusType}
-              slot='empty'
-              onOperation={this.handleOperation}
-            />
-          </CommonTable>
-        </div>
+        {this.loading ? (
+          <NodeTableSkeleton></NodeTableSkeleton>
+        ) : (
+          <div class='table-data-content'>
+            <HeaderTools
+              option={{
+                showNode: true
+              }}
+              search={this.searchValue}
+              onCreate={this.handleHeaderCreate}
+              onSearch={(v: string) => this.handleSearch(v)}
+            ></HeaderTools>
+            <CommonTable
+              style={{ marginTop: '16px' }}
+              {...{ props: this.nodesTableData }}
+              scopedSlots={{
+                taskNum: (row: INodeData) => (
+                  <span
+                    class='task-num'
+                    onClick={() => this.handleNameChange(row.name)}
+                  >
+                    {row.task_num || 0}
+                  </span>
+                ),
+                opreate: (row: INodeData) => (
+                  <OperateOptions
+                    options={{
+                      outside: [
+                        {
+                          id: 'edit',
+                          name: window.i18n.tc('编辑'),
+                          authority: this.authority.MANAGE_AUTH,
+                          authorityDetail: this.authorityMap.MANAGE_AUTH,
+                          disable: !this.canEdit(row.bk_biz_id),
+                          tip: !this.canEdit(row.bk_biz_id) ? this.$tc('非当前业务节点') : ''
+                        },
+                        {
+                          id: 'delete',
+                          name: window.i18n.tc('删除'),
+                          authority: this.authority.MANAGE_AUTH,
+                          authorityDetail: this.authorityMap.MANAGE_AUTH,
+                          disable: !this.canEdit(row.bk_biz_id),
+                          tip: !this.canEdit(row.bk_biz_id) ? this.$tc('非当前业务节点') : ''
+                        }
+                      ]
+                    }}
+                    onOptionClick={(v: 'edit' | 'delete') => this.handleNodeOperate(v, row)}
+                  ></OperateOptions>
+                ),
+                statusText: (row: INodeData) => (
+                  <span
+                    class='status-col'
+                    style={{ color: nodeStatusMap[row.status].color }}
+                  >
+                    {nodeStatusMap[row.status].text}
+                    {row.status.toString() === '-2' && (
+                      <i
+                        v-bk-tooltips={{ content: this.$t('该主机实例不存在') }}
+                        class='icon-monitor icon-shixiao status-icon'
+                      />
+                    )}
+                  </span>
+                )
+              }}
+              onPageChange={this.handlePageChange}
+              onLimitChange={this.handleLimitChange}
+              onSortChange={this.handleSortChange}
+            >
+              <EmptyStatus
+                type={this.emptyStatusType}
+                slot='empty'
+                onOperation={this.handleOperation}
+              />
+            </CommonTable>
+          </div>
+        )}
       </div>
     );
   }
