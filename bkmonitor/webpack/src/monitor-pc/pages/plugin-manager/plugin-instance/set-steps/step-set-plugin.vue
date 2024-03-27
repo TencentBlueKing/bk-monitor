@@ -147,7 +147,7 @@
             >
               <mo-upload
                 :ref="`uploadFile-exporter-${index}`"
-                :collector="pluginBasicInfo.exporterCollector[system.name]"
+                :collector="getExportCollector(system.name)"
                 :is-edit="data.isEdit"
                 :plugin-id="pluginBasicInfo.name"
                 :system="system.name"
@@ -1335,6 +1335,13 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         params.collector_json = this.getUploadFile(yaml);
       }
     },
+    getExportCollector(type) {
+      return {
+        ...this.pluginBasicInfo.exporterCollector[type],
+        dependFile: this.pluginBasicInfo.exporterCollector?.ext?.[type] || []
+      };
+    },
+
     /**
      * @description 获取系统列表
      * @param { Array } data
@@ -1371,16 +1378,21 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     },
     // 获取exportrt脚本上传文件信息
     getUploadFile(yaml) {
-      const collectorJson = {};
+      const collectorJson = { ext: {} };
       let hasfile = false;
       const name = this.pluginBasicInfo.type.value === 'Exporter' ? 'Exporter' : 'DataDog';
       this.systemTabs.list.forEach((system, index) => {
         const componentName = `uploadFile-${name.toLowerCase()}-${index}`;
-        const [{ fileDesc }] = this.$refs[componentName];
+        const [{ fileDesc, dependFile }] = this.$refs[componentName];
         if (fileDesc) {
           hasfile = true;
           collectorJson[system.name] = fileDesc;
         }
+        const dependFileDesc = dependFile.reduce((pre, cur) => {
+          if (cur.fileDesc) pre.push(cur.fileDesc);
+          return pre;
+        }, []);
+        if (dependFileDesc.length) collectorJson.ext[system.name] = dependFileDesc;
       });
       if (hasfile && name === 'DataDog') {
         collectorJson.config_yaml = yaml;
@@ -1963,10 +1975,6 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
 
       .upload-container {
         .upload-item {
-          & + .upload-item {
-            margin-top: 12px;
-          }
-
           :deep(.bk-upload) {
             .file-wrapper {
               height: 42px;
@@ -2032,6 +2040,10 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
           cursor: pointer;
         }
       }
+    }
+
+    &.upload-package {
+      margin-bottom: 12px;
     }
 
     &.remote-collector {
