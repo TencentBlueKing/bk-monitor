@@ -52,6 +52,7 @@ class BkDataDorisProvider:
 
     bk_biz_id: int
     app_name: str
+    pure_app_name: str
     operator: str
 
     config: DorisStorageConfig = field(default_factory=DorisStorageConfig.read)
@@ -60,7 +61,13 @@ class BkDataDorisProvider:
     @classmethod
     def from_datasource_instance(cls, obj: "ApmDataSourceConfigBase", operator: str) -> "BkDataDorisProvider":
         """从数据源实例中创建数据源提供者"""
-        return cls(bk_biz_id=obj.bk_biz_id, app_name=obj.app_name, operator=operator, _obj=obj)
+        return cls(
+            bk_biz_id=obj.bk_biz_id,
+            app_name=obj.app_name,
+            operator=operator,
+            _obj=obj,
+            pure_app_name=obj.app_name.replace("-", "_"),
+        )
 
     def provider(self, **options) -> dict:
         """提供数据源配置"""
@@ -94,7 +101,7 @@ class BkDataDorisProvider:
 
     def get_result_table_name(self) -> str:
         """获取结果表名"""
-        return f"{self._obj.DATASOURCE_TYPE}_{self._obj.app_name}"
+        return f"{self._obj.DATASOURCE_TYPE}_{self.pure_app_name}"
 
     def get_clean_params(self) -> list:
         """清洗配置"""
@@ -342,8 +349,8 @@ class BkDataDorisProvider:
     def get_raw_data_params(self) -> dict:
         """原始数据配置"""
         return {
-            "raw_data_name": f"{self.app_name}_doris",
-            "raw_data_alias": f"{self.app_name}_doris",
+            "raw_data_name": f"{self.pure_app_name}_doris",
+            "raw_data_alias": f"{self.pure_app_name}_doris",
             "data_source_tags": ["server"],
             "tags": [],
             "sensitivity": "private",

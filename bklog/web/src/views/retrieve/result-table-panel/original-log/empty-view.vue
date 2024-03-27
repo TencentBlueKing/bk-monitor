@@ -108,6 +108,7 @@
 <script>
 import { mapGetters } from 'vuex';
 export default {
+  inheritAttrs: false,
   props: {
     retrieveSearchNumber: {
       type: Number,

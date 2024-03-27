@@ -453,8 +453,6 @@ export default {
       timezone: dayjs.tz.guess(),
       /** 数据指纹是否请求布尔值 */
       fingerSearchState: false,
-      /** 批量添加条件的请求定时器timer */
-      addFilterTimer: null,
       logSourceField: {
         description: null,
         es_doc_values: false,
@@ -513,7 +511,8 @@ export default {
   provide() {
     return {
       addFilterCondition: this.addFilterCondition,
-      changeShowUnionSource: this.changeShowUnionSource
+      changeShowUnionSource: this.changeShowUnionSource,
+      batchAddCondition: this.batchAddCondition
     };
   },
   watch: {
@@ -942,8 +941,70 @@ export default {
     },
     // 添加过滤条件
     addFilterCondition(field, operator, value, isLink = false) {
-      clearTimeout(this.addFilterTimer);
-      let mappingKey = this.mappingKey;
+      const isExist = this.additionIsExist({ field, operator, value });
+      // 已存在相同条件
+      if (isExist) {
+        if (isLink) this.additionLinkOpen();
+        return;
+      }
+      const mapOperator = this.getAdditionMappingOperator({ field, operator });
+      const startIndex = this.retrieveParams.addition.length;
+      const newAddition = { field, operator: mapOperator, value };
+      if (!isLink) {
+        this.retrieveParams.addition.splice(startIndex, 0, newAddition);
+        this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
+        this.$refs.searchCompRef.setRouteParams();
+        this.retrieveLog();
+      } else {
+        this.additionLinkOpen([newAddition]);
+      }
+    },
+
+    /** 条件新开页 */
+    additionLinkOpen(newAdditionList = [], routerParams = {}) {
+      const openUrl = this.$refs.searchCompRef.setRouteParams(routerParams, false, newAdditionList);
+      window.open(openUrl, '_blank');
+    },
+
+    /** 批量添加条件 */
+    batchAddCondition(additionList, isLink) {
+      if (isLink) {
+        const notExistAddition = additionList.filter(item => !this.additionIsExist(item));
+        this.additionLinkOpen(notExistAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
+      } else {
+        additionList.forEach(item => {
+          const { field, operator, value } = item;
+          const isExist = this.additionIsExist({ field, operator, value });
+          if (isExist) return;
+          const mapOperator = this.getAdditionMappingOperator(item);
+          const newAddition = { field, operator: mapOperator, value };
+          const startIndex = this.retrieveParams.addition.length;
+          this.retrieveParams.addition.splice(startIndex, 0, newAddition);
+          this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
+        });
+        this.$refs.searchCompRef.setRouteParams();
+        this.retrieveLog();
+      }
+    },
+
+    /** 判断条件是否已经在检索内 */
+    additionIsExist(additionItem) {
+      const { field, value } = additionItem;
+      const mapOperator = this.getAdditionMappingOperator(additionItem);
+      const isExist = this.retrieveParams.addition.some(addition => {
+        return (
+          addition.field === field &&
+          addition.operator === mapOperator &&
+          addition.value.toString() === value.toString()
+        );
+      });
+      return isExist;
+    },
+
+    /** 获取映射后的条件 */
+    getAdditionMappingOperator(additionItem) {
+      const { operator, field } = additionItem;
+      let { mappingKey } = this;
       const textType = this.getFieldType(field);
       switch (textType) {
         case 'text':
@@ -952,36 +1013,7 @@ export default {
         default:
           break;
       }
-      const mapOperator = mappingKey[operator] ?? operator; // is is not 值映射
-      const isExist = this.retrieveParams.addition.some(addition => {
-        return (
-          addition.field === field &&
-          addition.operator === mapOperator &&
-          addition.value.toString() === value.toString()
-        );
-      });
-      // 已存在相同条件
-      if (isExist) {
-        if (isLink) this.additionLinkOpen();
-        return;
-      }
-
-      const startIndex = this.retrieveParams.addition.length;
-      const newAddition = { field, operator: mapOperator, value };
-      if (!isLink) {
-        this.retrieveParams.addition.splice(startIndex, 0, newAddition);
-        this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
-        this.addFilterTimer = setTimeout(() => {
-          this.$refs.searchCompRef.setRouteParams();
-          this.retrieveLog();
-        }, 0);
-      } else {
-        this.additionLinkOpen(newAddition);
-      }
-    },
-    additionLinkOpen(newAddition = {}) {
-      const openUrl = this.$refs.searchCompRef.setRouteParams({}, false, newAddition);
-      window.open(openUrl, '_blank');
+      return mappingKey[operator] ?? operator; // is is not 值映射
     },
     /** 改变是否展示联合查询日志来源 */
     changeShowUnionSource() {
@@ -1418,13 +1450,20 @@ export default {
           clustering_config: clusteringConfig,
           apm_relation: apmRelation
         } = localConfig;
+        // 字段设置的参数传到实时日志和上下文
+        const indexSetValue = {
+          scenarioID: this.indexSetItem.scenario_id,
+          sortFields: this.indexSetItem.sort_fields ?? [],
+          targetFields: this.indexSetItem.target_fields ?? []
+        };
 
         Object.assign(this.operatorConfig, {
           // 操作按钮配置信息
           bkmonitor,
           bcsWebConsole,
           contextAndRealtime,
-          timeField
+          timeField,
+          indexSetValue
         });
         // 初始化操作按钮消息
         this.operatorConfig.toolMessage = this.initToolTipsMessage(this.operatorConfig);

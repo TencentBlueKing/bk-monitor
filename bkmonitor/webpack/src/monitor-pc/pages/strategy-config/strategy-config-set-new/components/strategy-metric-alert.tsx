@@ -186,13 +186,13 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
   created() {
     this.dataInit();
     this.searchObj.keyWord = [];
-    this.handleSearch = debounce(300, false, this.handleSearchChange);
+    this.handleSearch = debounce(300, this.handleSearchChange);
     this.searchObj.data = this.getSearchOptions();
   }
 
   mounted() {
     this.scrollEl = this.tableRef.$el.querySelector('.bk-table-body-wrapper');
-    this.throttledScroll = throttle(300, false, this.handleTableScroll);
+    this.throttledScroll = throttle(300, this.handleTableScroll);
     this.scrollEl.addEventListener('scroll', this.throttledScroll);
   }
 

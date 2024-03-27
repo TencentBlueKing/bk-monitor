@@ -426,8 +426,8 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     FILTER_KIND = {
         "does not exists": lambda field_name, _, q: q.query("bool", must_not=[Q("exists", field=field_name)]),
-        "exists": lambda field_name, _, q: q.query("bool", must=[Q("exists", field=field_name)]),
-        "=": lambda field_name, value, q: q.query("bool", must=[Q("terms", **{field_name: value})]),
+        "exists": lambda field_name, _, q: q.query("bool", filter=[Q("exists", field=field_name)]),
+        "=": lambda field_name, value, q: q.query("bool", filter=[Q("terms", **{field_name: value})]),
         "!=": lambda field_name, value, q: q.query("bool", must_not=[Q("terms", **{field_name: value})]),
     }
 
@@ -435,8 +435,8 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     NESTED_FILTER_KIND = {
         "does not exists": lambda field_name, _, q: q.query("bool", must_not=[Q("exists", field=field_name)]),
-        "exists": lambda field_name, _, q: q.query("bool", must=[Q("exists", field=field_name)]),
-        "=": lambda field_name, value, q: q.query("bool", must=[Q("terms", **{field_name: value})]),
+        "exists": lambda field_name, _, q: q.query("bool", filter=[Q("exists", field=field_name)]),
+        "=": lambda field_name, value, q: q.query("bool", filter=[Q("terms", **{field_name: value})]),
         "!=": lambda field_name, value, q: q.query("bool", must_not=[Q("terms", **{field_name: value})]),
     }
 
@@ -525,6 +525,24 @@ class TraceDataSource(ApmDataSourceConfigBase):
         SpanAttributes.HTTP_METHOD,
         SpanAttributes.MESSAGING_DESTINATION,
     ]
+
+    GROUP_KEY_CONFIG = {
+        "db_system": {"db_system": {"terms": {"field": "attributes.db.system", "missing_bucket": True}}},
+        "http_url": {"http_url": {"terms": {"field": "attributes.http.url", "missing_bucket": True}}},
+        "messaging_system": {
+            "messaging_system": {"terms": {"field": "attributes.messaging.system", "missing_bucket": True}}
+        },
+        "rpc_system": {"rpc_system": {"terms": {"field": "attributes.rpc.system", "missing_bucket": True}}},
+    }
+
+    GROUP_KEY_FILTER_CONFIG = {
+        "db_system": Q("exists", field="attributes.db.system"),
+        "http_url": Q("exists", field="attributes.http.url"),
+        "messaging_system": Q("exists", field="attributes.messaging.system"),
+        "rpc_system": Q("exists", field="attributes.rpc.system"),
+    }
+
+    DEFAULT_LIMIT_MAX_SIZE = 10000
 
     index_set_id = models.IntegerField("索引集id", null=True)
     index_set_name = models.CharField("索引集名称", max_length=512, null=True)
@@ -723,12 +741,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
             if first_key in cls.NESTED_FILED:
                 query = cls.NESTED_FILTER_KIND.get(
                     filter_param["op"],
-                    lambda field_name, value, q: q.query("bool", must=[Q("terms", **{field_name: value})]),
+                    lambda field_name, value, q: q.query("bool", filter=[Q("terms", **{field_name: value})]),
                 )(filter_param["key"], filter_param["value"], query)
                 continue
             query = cls.FILTER_KIND.get(
                 filter_param["op"],
-                lambda field_name, value, q: q.query("bool", must=[Q("terms", **{field_name: value})]),
+                lambda field_name, value, q: q.query("bool", filter=[Q("terms", **{field_name: value})]),
             )(filter_param["key"], filter_param["value"], query)
         return query
 
@@ -765,12 +783,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def query_span(self, start_time, end_time, filter_params=None, fields=None, category=None):
         query = self.fetch.query(
             "bool",
-            must=[
+            filter=[
                 Q("range", end_time={"gt": start_time * 1000 * 1000, "lte": end_time * 1000 * 1000}),
             ],
         ).extra(size=10000)
         if fields:
-            query.source(fields)
+            query = query.source(fields)
 
         query = self.build_filter_params(query, filter_params, category)
         result = []
@@ -783,6 +801,51 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 f"es scan data failed => {e}"
             )
         return result
+
+    def query_span_with_group_keys(
+        self, start_time, end_time, filter_params=None, fields=None, category=None, group_keys=None
+    ):
+        query = self.fetch.query(
+            "bool",
+            filter=[
+                Q("range", end_time={"gt": start_time * 1000 * 1000, "lte": end_time * 1000 * 1000}),
+            ],
+        )
+        query = self.build_filter_params(query, filter_params, category)
+        if fields:
+            query = query.source(fields)
+        query = query.filter(
+            "bool", should=[self.GROUP_KEY_FILTER_CONFIG[i] for i in group_keys if i in self.GROUP_KEY_FILTER_CONFIG]
+        )
+        return self._query_metric_data(query, group_keys)
+
+    def _query_metric_data(self, query, group_keys):
+        # 获取分页游标
+        query = query.extra(size=0)
+        query = query.update_from_dict(
+            {
+                "aggs": {
+                    "group": {
+                        "composite": {
+                            "size": self.DEFAULT_LIMIT_MAX_SIZE,
+                            "sources": [self.GROUP_KEY_CONFIG[i] for i in group_keys if i in self.GROUP_KEY_CONFIG],
+                        },
+                        "aggs": self.get_metric_aggs(),
+                    }
+                }
+            }
+        )
+        response = query.execute()
+        results = response.to_dict()
+        return results["aggregations"]["group"].get("buckets", [])
+
+    def get_metric_aggs(self):
+        metric_aggs = {
+            "avg_duration": {"avg": {"field": OtlpKey.ELAPSED_TIME}},
+            "max_duration": {"max": {"field": OtlpKey.ELAPSED_TIME}},
+            "min_duration": {"min": {"field": OtlpKey.ELAPSED_TIME}},
+        }
+        return metric_aggs
 
     @classmethod
     def exists_by_trace_ids(cls, app, trace_ids, start_time, end_time):
@@ -806,7 +869,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         have_events_data_query = (
             self.fetch.query(
                 "bool",
-                must=[
+                filter=[
                     Q("nested", path="events", query=Q("exists", field="events.name")),
                     Q("range", end_time={"gt": start_time * 1000 * 1000, "lte": end_time * 1000 * 1000}),
                 ]

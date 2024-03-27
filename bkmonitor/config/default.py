@@ -1135,6 +1135,8 @@ BKM_IPCHOOSER_BKAPI_CLASS = "api.cmdb.ipchooser.IpChooserApi"
 # IPv6特性开关
 # 当gse新API就绪时可以，此时会切换为新API，在正式出包后可以删除该开关
 USE_GSE_AGENT_STATUS_NEW_API = True
+# GSE APIGW 的地址
+BKGSE_APIGW_BASE_URL = os.getenv("BKAPP_BKGSE_APIGW_BASE_URL", "")
 # 全面启用IPv6功能特性
 IPV6_SUPPORT_BIZ_LIST = []
 # 主机展示字段
@@ -1320,3 +1322,9 @@ SINGLE_VM_SPACE_ID_LIST = []
 
 # 文档链接配置 格式: {"key1": {"type": "splice/link", "value": ""}}
 DOC_LINK_MAPPING = {}
+
+# 插件授权给 bkci 空间使用
+BKCI_SPACE_ACCESS_PLUGIN_LIST = []
+
+# 禁用告警CMDB缓存刷新
+DISABLE_ALARM_CMDB_CACHE_REFRESH = []

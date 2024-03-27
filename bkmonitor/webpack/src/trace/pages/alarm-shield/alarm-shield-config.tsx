@@ -528,8 +528,8 @@ export default defineComponent({
                   {this.bizList.map(item => (
                     <Select.Option
                       key={item.id}
-                      label={item.text}
-                      value={item.id}
+                      name={item.text}
+                      id={item.id}
                     ></Select.Option>
                   ))}
                 </Select>

@@ -105,7 +105,7 @@
         <template slot-scope="{ row }">
           <span
             class="link-color"
-            @click="handleMenuClick('show original', row)"
+            @click="handleMenuBatchClick(row)"
           >
             {{ row.count }}</span
           >
@@ -122,7 +122,7 @@
         <template slot-scope="{ row }">
           <span
             class="link-color"
-            @click="handleMenuClick('show original', row)"
+            @click="handleMenuBatchClick(row)"
           >
             {{ `${toFixedNumber(row.percentage, 2)}%` }}
           </span>
@@ -177,6 +177,7 @@
                 @eventClick="(option, isLink) => handleMenuClick(option, row, isLink)"
               >
                 <text-highlight
+                  class="monospace-text"
                   style="word-break: break-all; white-space: pre-line"
                   :queries="getHeightLightList(row.pattern)"
                 >
@@ -213,7 +214,7 @@
         >
           <template slot-scope="{ row }">
             <div v-bk-overflow-tips>
-              <span>{{ row.group[index] }}</span>
+              <span class="monospace-text">{{ row.group[index] }}</span>
             </div>
           </template>
         </bk-table-column>
@@ -401,7 +402,8 @@ export default {
     EmptyStatus,
     BkUserSelector
   },
-  inject: ['addFilterCondition'],
+  inheritAttrs: false,
+  inject: ['addFilterCondition', 'batchAddCondition'],
   props: {
     fingerList: {
       type: Array,
@@ -590,18 +592,32 @@ export default {
       switch (option) {
         // pattern 下钻
         case 'show original':
-          if (this.requestData.group_by.length) {
-            this.requestData.group_by.forEach((el, index) => {
-              this.addFilterCondition(el, 'is', row.group[index]);
-            });
-          }
-          this.addFilterCondition(`__dist_${this.requestData.pattern_level}`, 'is', row.signature.toString(), isLink);
+          this.handleMenuBatchClick(row, isLink);
           if (!isLink) this.$emit('showOriginLog');
           break;
         case 'copy':
           copyMessage(row.pattern);
           break;
       }
+    },
+    handleMenuBatchClick(row, isLink = true) {
+      const additionList = [];
+      const groupBy = this.requestData.group_by;
+      if (groupBy.length) {
+        groupBy.forEach((el, index) => {
+          additionList.push({
+            field: el,
+            operator: 'is',
+            value: row.group[index]
+          });
+        });
+      }
+      additionList.push({
+        field: `__dist_${this.requestData.pattern_level}`,
+        operator: 'is',
+        value: row.signature.toString()
+      });
+      this.batchAddCondition(additionList, isLink);
     },
     showArrowsClass(row) {
       if (row.year_on_year_percentage === 0) return '';
@@ -1102,14 +1118,11 @@ export default {
   }
 
   .auto-height {
-    /* stylelint-disable-next-line property-no-vendor-prefix */
-    display: box;
     height: auto; /* 设置元素高度为自动 */
     min-height: 20px; /* 根据需要设置最小高度 */
     padding: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
-
     /* stylelint-disable-next-line property-no-vendor-prefix */
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
@@ -1250,6 +1263,11 @@ export default {
       line-height: 14px;
       color: #3a84ff;
       cursor: pointer;
+    }
+
+    .monospace-text {
+      font-family: monospace;
+      color: #000;
     }
   }
 }

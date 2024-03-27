@@ -159,6 +159,7 @@ import resultTableMixin from '@/mixins/result-table-mixin';
 export default {
   name: 'OriginalList',
   mixins: [resultTableMixin],
+  inheritAttrs: false,
   computed: {
     scrollContent() {
       return document.querySelector('.result-scroll-container');

@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import datetime
 import json
 import logging
@@ -97,7 +98,7 @@ class CreateApplicationResource(Resource):
         app_name = serializers.CharField(label="应用名称", max_length=50)
         app_alias = serializers.CharField(label="应用别名", max_length=255)
         # enable profiling as default for debugging
-        enabled_profiling = serializers.BooleanField(label="是否开启性能分析", default=False)
+        enabled_profiling = serializers.BooleanField(label="是否开启性能分析", required=False, default=False)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置")
 
@@ -113,7 +114,7 @@ class CreateApplicationResource(Resource):
             app_alias=validated_request_data["app_alias"],
             description=validated_request_data["description"],
             es_storage_config=validated_request_data["es_storage_config"],
-            options={"enabled_profiling": validated_request_data["enabled_profiling"]},
+            options={"enabled_profiling": validated_request_data.get("enabled_profiling", False)},
         )
 
 
@@ -642,6 +643,9 @@ class QueryTopoRelationResource(Resource):
 class QueryTopoInstanceResource(PageListResource):
     UNIQUE_UPDATED_AT = "updated_at"
 
+    topo_instance_all_fields = [field.column for field in TopoInstance._meta.fields]
+    merge_data_need_fields = ["updated_at", "id", "instance_id"]
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
@@ -650,6 +654,7 @@ class QueryTopoInstanceResource(PageListResource):
         page = serializers.IntegerField(required=False, label="页码", min_value=1)
         page_size = serializers.IntegerField(required=False, label="每页条数", min_value=1)
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
+        fields = serializers.ListField(required=False, label="返回字段", default=[])
 
     class TopoInstanceSerializer(serializers.ModelSerializer):
         class Meta:
@@ -664,8 +669,8 @@ class QueryTopoInstanceResource(PageListResource):
         :return:
         """
         if sort_field in (self.UNIQUE_UPDATED_AT,):
-            return sorted(queryset, key=lambda item: item.updated_at)
-        return sorted(queryset, key=lambda item: item.updated_at, reverse=True)
+            return sorted(queryset, key=lambda item: item["updated_at"])
+        return sorted(queryset, key=lambda item: item["updated_at"], reverse=True)
 
     def filter_data(self, queryset, filter_flag):
         """
@@ -675,15 +680,15 @@ class QueryTopoInstanceResource(PageListResource):
         :return:
         """
         if "updated_at__gte" in filter_flag:
-            queryset = [i for i in queryset if i.updated_at >= filter_flag.get("updated_at__gte")]
+            queryset = [i for i in queryset if i["updated_at"] >= filter_flag.get("updated_at__gte")]
         if "updated_at__gt" in filter_flag:
-            queryset = [i for i in queryset if i.updated_at > filter_flag.get("updated_at__gt")]
+            queryset = [i for i in queryset if i["updated_at"] > filter_flag.get("updated_at__gt")]
         if "updated_at__lte" in filter_flag:
-            queryset = [i for i in queryset if i.updated_at <= filter_flag.get("updated_at__lte")]
+            queryset = [i for i in queryset if i["updated_at"] <= filter_flag.get("updated_at__lte")]
         if "updated_at__lt" in filter_flag:
-            queryset = [i for i in queryset if i.updated_at < filter_flag.get("updated_at__lt")]
+            queryset = [i for i in queryset if i["updated_at"] < filter_flag.get("updated_at__lt")]
         if self.UNIQUE_UPDATED_AT in filter_flag:
-            queryset = [i for i in queryset if i.updated_at == filter_flag.get("updated_at")]
+            queryset = [i for i in queryset if i["updated_at"] == filter_flag.get("updated_at")]
         return queryset
 
     def pre_process(self, filter_params, validated_request_data):
@@ -714,11 +719,24 @@ class QueryTopoInstanceResource(PageListResource):
         cache_data = InstanceHandler().get_cache_data(name)
         # 更新 updated_at 字段
         for instance in instance_list:
-            key = str(instance.id) + ":" + instance.instance_id
+            key = str(instance["id"]) + ":" + instance["instance_id"]
             if key in cache_data:
-                instance.updated_at = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
+                instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
             merge_data.append(instance)
         return merge_data
+
+    def param_preprocessing(self, validated_request_data, total):
+        """
+        page, page_size, fields 预处理
+        """
+        page = validated_request_data.get("page") or 1
+        page_size = validated_request_data.get("page_size") or total
+        fields = validated_request_data.get("fields") or self.topo_instance_all_fields
+        query_fields = copy.deepcopy(fields)
+        sort_field = validated_request_data.get("sort")
+        if sort_field and self.UNIQUE_UPDATED_AT in sort_field:
+            query_fields.append(self.UNIQUE_UPDATED_AT)
+        return page, page_size, query_fields
 
     def perform_request(self, validated_request_data):
         filter_params = DiscoverHandler.get_retention_utc_filter_params(
@@ -734,23 +752,36 @@ class QueryTopoInstanceResource(PageListResource):
         unique_params = self.pre_process(filter_params, validated_request_data)
 
         queryset = TopoInstance.objects.filter(**filter_params)
+
+        total = queryset.count()
+
+        page, page_size, fields = self.param_preprocessing(validated_request_data, total)
+
+        # 排序
         sort_field = validated_request_data.get("sort")
         if sort_field and self.UNIQUE_UPDATED_AT not in sort_field:
             queryset = queryset.order_by(sort_field)
 
-        total = queryset.count()
+        # 新功能，包含字段 updated_at 时，从缓存中读取数据并更新 updated_at
+        # 不含 updated_at 时，按需返回
+        if self.UNIQUE_UPDATED_AT in fields:
+            # 补充字段，防止 merge_data 报错
+            tem_fields = set(fields) | set(self.merge_data_need_fields)
+            data = [obj for obj in queryset.values(*tem_fields)]
+            merge_data = self.merge_data(data, validated_request_data)
+            data = self.post_process(unique_params, merge_data)
+            # 去除补充的字段
+            return_fields = validated_request_data.get("fields")
+            if return_fields:
+                data = [{field: i[field] for field in return_fields} for i in data]
+            total = len(data)
+        else:
+            data = queryset
 
-        merge_data = self.merge_data(list(queryset), validated_request_data)
-
-        data = self.post_process(unique_params, merge_data)
-
-        if validated_request_data.get("page") and validated_request_data.get("page_size"):
-            # 分页
-            page_data = self.handle_pagination(data=data, params=validated_request_data)
-            res = self.TopoInstanceSerializer(page_data, many=True).data
+        res = self.handle_pagination(data=data, params={"page": page, "page_size": page_size})
+        if isinstance(res, list):
             return {"total": total, "data": res}
-
-        return {"total": total, "data": self.TopoInstanceSerializer(data, many=True).data}
+        return {"total": total, "data": [obj for obj in res.values(*fields)]}
 
 
 class QueryRootEndpointResource(Resource):
@@ -787,18 +818,24 @@ class QuerySpanResource(Resource):
         filter_params = serializers.ListField(required=False, label="过滤条件", child=FilterSerializer())
         fields = serializers.ListField(required=False, label="过滤字段")
         category = serializers.CharField(required=False, label="类别")
+        group_keys = serializers.ListField(required=False, label="聚和字段", default=[])
 
     def perform_request(self, validated_request_data):
         application = ApmApplication.get_application(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         )
-        return application.trace_datasource.query_span(
-            validated_request_data["start_time"],
-            validated_request_data["end_time"],
-            validated_request_data.get("filter_params"),
-            validated_request_data.get("fields"),
-            validated_request_data.get("category"),
-        )
+        param = {
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+            "filter_params": validated_request_data.get("filter_params"),
+            "category": validated_request_data.get("category"),
+            "fields": validated_request_data.get("fields"),
+        }
+        if not validated_request_data.get("group_keys"):
+            return application.trace_datasource.query_span(**param)
+
+        param["group_keys"] = validated_request_data.get("group_keys")
+        return application.trace_datasource.query_span_with_group_keys(**param)
 
 
 class QueryEndpointResource(Resource):

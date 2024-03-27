@@ -137,7 +137,14 @@ class PatternHandler:
 
             group = str(pattern.get("group", "")).split("|") if pattern.get("group") else []
 
-            group_hash = ClusteringRemark.convert_groups_to_groups_hash(dict(zip(self._group_by, group)))
+            group_dict = dict(zip(self._group_by, group))
+
+            group_hash = ClusteringRemark.convert_groups_to_groups_hash(group_dict)
+
+            # 用于标识新类的key，包含 签名 + 所有分组字段值的元组
+            new_class_group_key = tuple(
+                [signature] + [str(group_dict.get(field, "")) for field in self._clustering_config.group_fields]
+            )
 
             if (signature, group_hash) in signature_map_remark:
                 remark = signature_map_remark[(signature, group_hash)]["remark"]
@@ -159,7 +166,7 @@ class PatternHandler:
                     "count": count,
                     "signature": signature,
                     "percentage": self.percentage(count, sum_count),
-                    "is_new_class": signature in new_class,
+                    "is_new_class": new_class_group_key in new_class,
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
                     "group": group,
@@ -206,6 +213,7 @@ class PatternHandler:
         aggs_group_reuslt = aggs_group
         for group_key in self._group_by:
             aggs_group["field_name"] = group_key
+            # aggs_group["missing"] = ""
             aggs_group["sub_fields"] = {}
             aggs_group = aggs_group["sub_fields"]
         return aggs_group_reuslt
@@ -281,24 +289,26 @@ class PatternHandler:
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
         if self._clustering_config.log_count_agg_rt:
+            select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
             # 新类异常检测逻辑适配
             new_classes = (
                 BkData(self._clustering_config.log_count_agg_rt)
-                .select(*NEW_CLASS_QUERY_FIELDS)
+                .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                 .where(IS_NEW_PATTERN_PREFIX, "=", 1)
                 .time_range(start_time.timestamp, end_time.timestamp)
                 .query()
             )
         else:
+            select_fields = NEW_CLASS_QUERY_FIELDS
             new_classes = (
                 BkData(self._clustering_config.new_cls_pattern_rt)
-                .select(*NEW_CLASS_QUERY_FIELDS)
+                .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
                 .time_range(start_time.timestamp, end_time.timestamp)
                 .query()
             )
-        return {new_class["signature"] for new_class in new_classes}
+        return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
     def set_clustering_owner(self, params: dict):
         """
@@ -337,6 +347,8 @@ class PatternHandler:
         """
         self._clustering_config.group_fields = group_fields
         self._clustering_config.save()
+        # TODO: 暂不打开，等完成告警配置页面再打开
+        # update_log_count_aggregation_flow.delay(self._clustering_config.index_set_id)
         return model_to_dict(self._clustering_config)
 
     @atomic

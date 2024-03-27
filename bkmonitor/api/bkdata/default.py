@@ -796,6 +796,20 @@ class DeleteDataFlow(DataAccessAPIResource):
         flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
 
 
+class DeleteDataFlowNode(DataAccessAPIResource):
+    """
+    删除DataFlow中的节点
+    """
+
+    action = "/v3/dataflow/flow/flows/{flow_id}/nodes/{node_id}/"
+    method = "DELETE"
+
+    class RequestSerializer(CommonRequestSerializer):
+        flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+        node_id = serializers.IntegerField(required=True, label="DataFlow的节点ID")
+        confirm = serializers.BooleanField(default=True, required=False)
+
+
 class GetLatestDeployDataFlow(DataAccessAPIResource):
     """
     获取DataFlow的最近部署信息
@@ -997,6 +1011,13 @@ class CreateResourceSet(DataAccessAPIResource):
     """创建资源"""
 
     action = "/v3/resourcecenter/resource_sets/"
+    method = "POST"
+
+
+class GetOrCreateResourceSet(DataAccessAPIResource):
+    """创建或获取资源(如果资源存在 则返回的是已存在资源的信息)"""
+
+    action = "/v3/resourcecenter/resource_sets/get_or_create/"
     method = "POST"
 
 

@@ -245,6 +245,8 @@ import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
 import { downCsvFile, IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
 
+import './map/china';
+
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
 
 import ChartAnnotation from './components/chart-annotation.vue';
@@ -674,17 +676,11 @@ export default class MonitorEcharts extends Vue {
     this.chartTitle = this.title;
     this.chartSubTitle = this.subtitle;
     if (this.isEchartsRender && this.chartRef) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const echarts = require('echarts');
-      if (this.chartType === 'map') {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./map/china');
-      }
-      const chart: any = echarts.init(this.chartRef);
+      const chart: any = Echarts.init(this.chartRef);
       this.chart = chart;
       this.groupId && (this.chart.group = this.groupId);
       if (this.autoresize) {
-        const handler = debounce(300, false, () => this.resize());
+        const handler = debounce(300, () => this.resize());
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         this.resizeHandler = async () => {
           await this.$nextTick();

@@ -30,17 +30,35 @@
   >
     <div class="dialog-label">
       <span class="dialog-title">{{ title }}</span>
-      <!-- IP -->
-      <span style="margin-right: 10px">IP: {{ params.ip || params.serverIp }}</span>
-      <!-- 日志路径 -->
-      <span
-        v-bk-overflow-tips
-        class="title-overflow"
-        >{{ $t('日志路径') + ': ' + (params.path || params.logfile) }}</span
-      >
+      <template v-if="!targetFields.length">
+        <!-- IP -->
+        <span style="margin-right: 10px">IP: {{ params.ip || params.serverIp }}</span>
+        <!-- 日志路径 -->
+        <span
+          v-bk-overflow-tips
+          class="title-overflow"
+        >
+          {{ $t('日志路径') + ': ' + (params.path || params.logfile) }}
+        </span>
+      </template>
+      <template v-else>
+        <span
+          v-bk-tooltips.bottom="getTargetFieldsStr"
+          class="title-overflow"
+        >
+          <span
+            v-for="(item, index) of targetFields"
+            :key="index"
+            style="margin-right: 10px"
+          >
+            <span>{{ item }}: </span>
+            <span>{{ rowShowParams[item] || '/' }}</span>
+          </span>
+        </span>
+      </template>
     </div>
     <div class="dialog-bars">
-      <log-filter
+      <data-filter
         :is-screen-full="isScreenFull"
         @handle-filter="handleFilter"
       />
@@ -97,13 +115,14 @@
 
 <script>
 import logView from '@/components/log-view';
-import LogFilter from '../condition-comp/Log-filter';
+import DataFilter from '../condition-comp/data-filter';
+import { getFlatObjValues } from '@/common/util';
 
 export default {
   name: 'RealTimeLog',
   components: {
     logView,
-    LogFilter
+    DataFilter
   },
   props: {
     logParams: {
@@ -115,6 +134,10 @@ export default {
     title: {
       type: String,
       require: true
+    },
+    targetFields: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
@@ -141,8 +164,17 @@ export default {
       interval: {
         prev: 0,
         next: 0
-      }
+      },
+      rowShowParams: {}
     };
+  },
+  computed: {
+    getTargetFieldsStr() {
+      return this.targetFields.reduce((acc, cur) => {
+        acc += `${cur}: ${this.rowShowParams[cur] || '/ '} `;
+        return acc;
+      }, '');
+    }
   },
   created() {
     this.deepClone(this.logParams);
@@ -168,7 +200,13 @@ export default {
       const string = JSON.stringify(obj)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
-      this.params = JSON.parse(string);
+      // 扁平化对象内的对象值
+      const parseObj = JSON.parse(string);
+      if (this.targetFields.length) {
+        const { newObject } = getFlatObjValues(parseObj);
+        this.rowShowParams = newObject;
+      }
+      this.params = parseObj;
     },
     requestRealTimeLog() {
       if (this.loading) {

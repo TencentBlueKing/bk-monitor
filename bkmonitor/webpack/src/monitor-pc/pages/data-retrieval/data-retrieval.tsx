@@ -52,13 +52,15 @@ import {
 } from 'monitor-api/modules/strategies';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
 import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
-import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
+import PromqlEditor from '../../components/promql-editor/promql-editor';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import {
   DEFAULT_TIME_RANGE,
@@ -809,6 +811,8 @@ export default class DataRetrieval extends tsc<{}> {
     } else if (opt === 'delete') {
       if (this.promqlData.length > 1) {
         this.promqlData.splice(index, 1);
+      } else if (this.promqlData.length === 1) {
+        this.promqlData[0].code = '';
       }
     } else if (opt === 'enable') {
       item.enable = !item.enable;
@@ -2743,7 +2747,10 @@ export default class DataRetrieval extends tsc<{}> {
     this.promqlData[index].code = value;
   }
   /* promql code 失焦 */
-  handlePromqlDataBlur() {
+  handlePromqlDataBlur(isErr: boolean) {
+    if (isErr) {
+      return;
+    }
     if (this.isNeedQueryOfAuto()) this.handleQueryProxy();
   }
   handlePromqlDataFocus(index: number) {
@@ -2782,7 +2789,10 @@ export default class DataRetrieval extends tsc<{}> {
     });
   }
 
-  handlePromqlDataEnter() {
+  handlePromqlDataEnter(hasError: boolean) {
+    if (hasError) {
+      return;
+    }
     if (this.isNeedQueryOfAuto()) this.handleQueryProxy();
   }
 
@@ -2853,21 +2863,17 @@ export default class DataRetrieval extends tsc<{}> {
               metricItem.showSource ? (
                 // 源码模式编辑
                 <div class='source-mode-wrap'>
-                  <div class={['source-mode', { 'is-error': metricItem.sourceCodeError }]}>
-                    {metricItem.loading ? undefined : (
-                      <PromqlEditor
-                        ref={`promql-editor-${index}`}
-                        class='promql-editor'
-                        value={metricItem.sourceCode}
-                        executeQuery={(hasError: boolean) =>
-                          this.handlePromqlError(hasError, 'enter', metricItem, index)
-                        }
-                        onBlur={(val, hasError: boolean) => this.handlePromqlError(hasError, 'blur', metricItem, index)}
-                        onFocus={() => this.handlePromqlFocus(metricItem)}
-                        onChange={val => this.handlePromsqlChange(metricItem, val)}
-                      />
-                    )}
-                  </div>
+                  {metricItem.loading ? undefined : (
+                    <PromqlEditor
+                      ref={`promql-editor-${index}`}
+                      value={metricItem.sourceCode}
+                      isError={metricItem.sourceCodeError}
+                      executeQuery={(hasError: boolean) => this.handlePromqlError(hasError, 'enter', metricItem, index)}
+                      onBlur={(val, hasError: boolean) => this.handlePromqlError(hasError, 'blur', metricItem, index)}
+                      onFocus={() => this.handlePromqlFocus(metricItem)}
+                      onChange={val => this.handlePromsqlChange(metricItem, val)}
+                    />
+                  )}
                 </div>
               ) : (
                 <DataRetrievalItem
@@ -3093,17 +3099,15 @@ export default class DataRetrieval extends tsc<{}> {
                   content: () => (
                     <div class='collapse-item-content promql'>
                       <div class='source-mode-wrap'>
-                        <div class={['source-mode source-mode-h80']}>
-                          <PromqlEditor
-                            ref={'promql-mode-editor'}
-                            class='promql-editor'
-                            value={item.code}
-                            onChange={val => this.handlePromqlDataCodeChange(val, index)}
-                            executeQuery={this.handlePromqlDataEnter}
-                            onFocus={() => this.handlePromqlDataFocus(index)}
-                            onBlur={(val, hasError: boolean) => this.handlePromqlDataBlur(hasError, index)}
-                          />
-                        </div>
+                        <PromqlEditor
+                          ref={'promql-mode-editor'}
+                          value={item.code}
+                          minHeight={80}
+                          onChange={val => this.handlePromqlDataCodeChange(val, index)}
+                          executeQuery={this.handlePromqlDataEnter}
+                          onFocus={() => this.handlePromqlDataFocus(index)}
+                          onBlur={(val, hasError: boolean) => this.handlePromqlDataBlur(hasError, index)}
+                        />
                       </div>
                       <span class='step-content'>
                         <bk-input

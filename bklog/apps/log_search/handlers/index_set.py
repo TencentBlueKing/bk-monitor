@@ -336,6 +336,8 @@ class IndexSetHandler(APIModel):
         username="",
         bcs_project_id="",
         is_editable=True,
+        target_fields=None,
+        sort_fields=None,
     ):
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
@@ -358,6 +360,8 @@ class IndexSetHandler(APIModel):
             username=username,
             bcs_project_id=bcs_project_id,
             is_editable=is_editable,
+            target_fields=target_fields,
+            sort_fields=sort_fields,
         ).create_index_set()
 
         # add user_operation_record
@@ -383,6 +387,8 @@ class IndexSetHandler(APIModel):
                 "time_field_type": time_field_type,
                 "time_field_unit": time_field_unit,
                 "bk_app_code": bk_app_code,
+                "target_fields": target_fields,
+                "sort_fields": sort_fields,
             },
         }
         user_operation_record.delay(operation_record)
@@ -402,6 +408,8 @@ class IndexSetHandler(APIModel):
         time_field_unit=None,
         bk_app_code=None,
         username="",
+        target_fields=None,
+        sort_fields=None,
     ):
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
@@ -418,6 +426,8 @@ class IndexSetHandler(APIModel):
             time_field_unit=time_field_unit,
             bk_app_code=bk_app_code,
             username=username,
+            target_fields=target_fields,
+            sort_fields=sort_fields,
         ).update_index_set(self.data)
 
         # add user_operation_record
@@ -439,6 +449,8 @@ class IndexSetHandler(APIModel):
                 "time_field_type": time_field_type,
                 "time_field_unit": time_field_unit,
                 "bk_app_code": bk_app_code,
+                "target_fields": target_fields,
+                "sort_fields": sort_fields,
             },
         }
         user_operation_record.delay(operation_record)
@@ -1027,6 +1039,8 @@ class IndexSetHandler(APIModel):
         time_field=None,
         time_field_type=None,
         time_field_unit=None,
+        target_fields=None,
+        sort_fields=None,
     ):
         # 检查索引集是否存在
         index_set_obj = LogIndexSet.objects.filter(index_set_name=index_set_name).first()
@@ -1050,6 +1064,8 @@ class IndexSetHandler(APIModel):
                 time_field_type=time_field_type,
                 time_field_unit=time_field_unit,
                 bk_app_code=bk_app_code,
+                target_fields=target_fields,
+                sort_fields=sort_fields,
             ).update_index_set(index_set_obj)
 
             # add user_operation_record
@@ -1073,6 +1089,8 @@ class IndexSetHandler(APIModel):
                     "time_field_unit": time_field_unit,
                     "bk_app_code": bk_app_code,
                     "scenario_id": scenario_id,
+                    "target_fields": target_fields,
+                    "sort_fields": sort_fields,
                 },
             }
             user_operation_record.delay(operation_record)
@@ -1388,6 +1406,8 @@ class BaseIndexSetHandler(object):
         username="",
         bcs_project_id=0,
         is_editable=True,
+        target_fields=None,
+        sort_fields=None,
     ):
         super().__init__()
 
@@ -1428,6 +1448,10 @@ class BaseIndexSetHandler(object):
             elif self.time_field_type in [TimeFieldTypeEnum.LONG.value]:
                 if not self.time_field_unit:
                     raise SearchUnKnowTimeField()
+
+        # 上下文、实时日志定位字段 排序字段
+        self.target_fields = target_fields if target_fields else []
+        self.sort_fields = sort_fields if sort_fields else []
 
     def create_index_set(self):
         """
@@ -1498,6 +1522,8 @@ class BaseIndexSetHandler(object):
             source_app_code=self.bk_app_code,
             bcs_project_id=self.bcs_project_id,
             is_editable=self.is_editable,
+            target_fields=self.target_fields,
+            sort_fields=self.sort_fields,
         )
         logger.info(
             "[create_index_set][{}]index_set_name => {}, indexes => {}".format(
@@ -1553,6 +1579,11 @@ class BaseIndexSetHandler(object):
         self.index_set_obj.time_field = self.time_field
         self.index_set_obj.time_field_type = self.time_field_type
         self.index_set_obj.time_field_unit = self.time_field_unit
+
+        # 上下文、实时日志 定位字段 排序字段更新
+        self.index_set_obj.target_fields = self.target_fields
+        self.index_set_obj.sort_fields = self.sort_fields
+
         self.index_set_obj.save()
 
         if old_storage_cluster_id:
