@@ -1,9 +1,9 @@
 import copy
 import re
 from collections import Counter, deque
+from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from dataclasses import asdict, dataclass
 from django.utils.translation import ugettext_lazy as _
 from luqum.auto_head_tail import auto_head_tail
 from luqum.exceptions import IllegalCharacterError, ParseSyntaxError
@@ -17,6 +17,7 @@ from apps.constants import (
     FIELD_GROUP_OPERATOR,
     FULL_TEXT_SEARCH_FIELD_NAME,
     FULL_WIDTH_CHAR_MAP,
+    FULL_WIDTH_COLON,
     HIGH_CHAR,
     LOW_CHAR,
     LUCENE_NUMERIC_OPERATORS,
@@ -26,9 +27,8 @@ from apps.constants import (
     PLUS_OPERATOR,
     PROHIBIT_OPERATOR,
     WORD_RANGE_OPERATORS,
-    LuceneSyntaxEnum,
     LuceneReservedLogicOperatorEnum,
-    FULL_WIDTH_COLON,
+    LuceneSyntaxEnum,
 )
 from apps.exceptions import UnknownLuceneOperatorException
 from apps.log_databus.constants import TargetNodeTypeEnum
@@ -311,12 +311,12 @@ class BaseInspector(object):
         position = int(str(match[2]))
         # "127.0.0.1 这种单个引号在开头的情况，需要移除引号
         if match[1].startswith('"') and not match[1].endswith('"'):
-            self.keyword = self.keyword[:position] + self.keyword[position + 1:]
+            self.keyword = self.keyword[:position] + self.keyword[position + 1 :]
             return
         if match[1].startswith("'") and not match[1].endswith("'"):
-            self.keyword = self.keyword[:position] + self.keyword[position + 1:]
+            self.keyword = self.keyword[:position] + self.keyword[position + 1 :]
             return
-        self.keyword = self.keyword[:position] + self.keyword[position + unexpect_word_len:]
+        self.keyword = self.keyword[:position] + self.keyword[position + unexpect_word_len :]
         self.keyword = self.keyword.strip()
 
     def replace_unexpected_character(self, pos: int, char: str):
@@ -326,7 +326,7 @@ class BaseInspector(object):
         elif pos >= len(self.keyword) - 1:
             self.keyword = self.keyword[:-1] + char
         else:
-            self.keyword = self.keyword[:pos] + char + self.keyword[pos + 1:]
+            self.keyword = self.keyword[:pos] + char + self.keyword[pos + 1 :]
 
 
 class ChinesePunctuationInspector(BaseInspector):
@@ -442,15 +442,15 @@ class IllegalBracketInspector(BaseInspector):
                         s.append({"symbol": symbol, "index": index})
                         # 如果栈首尾匹配, 则异常的括号是栈顶向下第二个
                         if s[-1]["symbol"] == BRACKET_DICT.get(s[0]["symbol"], ""):
-                            self.keyword = self.keyword[: s[-2]["index"]] + self.keyword[s[-2]["index"] + 1:]
+                            self.keyword = self.keyword[: s[-2]["index"]] + self.keyword[s[-2]["index"] + 1 :]
                         # 否则异常的括号是栈顶元素
                         else:
-                            self.keyword = self.keyword[: s[-1]["index"]] + self.keyword[s[-1]["index"] + 1:]
+                            self.keyword = self.keyword[: s[-1]["index"]] + self.keyword[s[-1]["index"] + 1 :]
                         self.set_illegal()
                         return
                 if not s:
                     return
-                self.keyword = self.keyword[: s[-1]["index"]] + self.keyword[s[-1]["index"] + 1:].strip()
+                self.keyword = self.keyword[: s[-1]["index"]] + self.keyword[s[-1]["index"] + 1 :].strip()
                 self.set_illegal()
         except Exception:  # pylint: disable=broad-except
             return
@@ -762,7 +762,7 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
                 colon_index = self.query_string.rfind(':', 0, start)
                 if colon_index != -1:
                     # 如果找到冒号，检查冒号后面是否有空白字符和逻辑运算符
-                    post_colon = self.query_string[colon_index + 1: start].strip()
+                    post_colon = self.query_string[colon_index + 1 : start].strip()
                     if post_colon == "":
                         return True
         return False
@@ -781,10 +781,10 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
             colon_index = query_string.rfind(':', 0, start + offset)
             if colon_index != -1:
                 # 如果找到冒号，检查冒号后面是否有空白字符和逻辑运算符
-                post_colon = query_string[colon_index + 1: start + offset].strip()
+                post_colon = query_string[colon_index + 1 : start + offset].strip()
                 if post_colon == "":
                     # 将逻辑运算符替换为带引号的形式，保留原始大小写
-                    query_string = query_string[: start + offset] + f'"{operator}"' + query_string[end + offset:]
+                    query_string = query_string[: start + offset] + f'"{operator}"' + query_string[end + offset :]
                     offset += 2
         return query_string
 
@@ -970,7 +970,7 @@ class LuceneParenthesesChecker(LuceneCheckerBase):
                 stack.append((char, i))
             elif char == self.PAIR_RIGHT:
                 if not stack:
-                    query_string = query_string[:i] + query_string[i + 1:]
+                    query_string = query_string[:i] + query_string[i + 1 :]
                 else:
                     top_char, __ = stack.pop()
                     if not self.is_matching(top_char, char):
@@ -1035,11 +1035,9 @@ class LuceneQuotesChecker(LuceneCheckerBase):
         right_double_quote = s.endswith('"')
 
         if (
-                (left_single_quote and right_single_quote)
-                or (left_double_quote and right_double_quote)
-                or (
-                not left_single_quote and not left_double_quote and not right_single_quote and not right_double_quote
-        )
+            (left_single_quote and right_single_quote)
+            or (left_double_quote and right_double_quote)
+            or (not left_single_quote and not left_double_quote and not right_single_quote and not right_double_quote)
         ):
             return True
         else:
@@ -1057,11 +1055,11 @@ class LuceneQuotesChecker(LuceneCheckerBase):
             else:
                 word_prefix = ""
             if (
-                    # 先判断 ' 和 " 是否同时出现
-                    word.startswith(self.SINGLE_QUOTE)
-                    and word.endswith(self.DOUBLE_QUOTE)
-                    or word.startswith(self.DOUBLE_QUOTE)
-                    and word.endswith(self.SINGLE_QUOTE)
+                # 先判断 ' 和 " 是否同时出现
+                word.startswith(self.SINGLE_QUOTE)
+                and word.endswith(self.DOUBLE_QUOTE)
+                or word.startswith(self.DOUBLE_QUOTE)
+                and word.endswith(self.SINGLE_QUOTE)
             ):
                 word = self.DOUBLE_QUOTE + word[1:-1] + self.DOUBLE_QUOTE
             elif word.startswith(self.SINGLE_QUOTE) and not word.endswith(self.SINGLE_QUOTE):
@@ -1509,7 +1507,10 @@ class LuceneUnexpectedLogicOperatorChecker(LuceneCheckerBase):
         if query_string_word_list[-1] in LuceneReservedLogicOperatorEnum.get_keys():
             self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=query_string_word_list[-1])
             return False
-        if query_string_word_list[0] in [LuceneReservedLogicOperatorEnum.AND.value, LuceneReservedLogicOperatorEnum.OR.value]:
+        if query_string_word_list[0] in [
+            LuceneReservedLogicOperatorEnum.AND.value,
+            LuceneReservedLogicOperatorEnum.OR.value,
+        ]:
             self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=query_string_word_list[0])
             return False
 
@@ -1522,9 +1523,12 @@ class LuceneUnexpectedLogicOperatorChecker(LuceneCheckerBase):
         if len(query_string_word_list) < 2:
             return query_string
         if query_string_word_list[-1] in LuceneReservedLogicOperatorEnum.get_keys():
-            return query_string[:-len(query_string_word_list[-1])].strip()
-        if query_string_word_list[0] in [LuceneReservedLogicOperatorEnum.AND.value, LuceneReservedLogicOperatorEnum.OR.value]:
-            return query_string[len(query_string_word_list[0]):].strip()
+            return query_string[: -len(query_string_word_list[-1])].strip()
+        if query_string_word_list[0] in [
+            LuceneReservedLogicOperatorEnum.AND.value,
+            LuceneReservedLogicOperatorEnum.OR.value,
+        ]:
+            return query_string[len(query_string_word_list[0]) :].strip()
         return query_string
 
 
@@ -1570,8 +1574,6 @@ class LuceneChecker(object):
         if self.messages:
             is_legal = False
         self.messages = ",".join(sorted(list(set(self.messages))))
-        if not is_legal and is_resolved:
-            self.messages = self.messages + _(", 你可能想输入: ") + self.query_string
         return {
             "is_legal": is_legal,
             "is_resolved": is_resolved,
