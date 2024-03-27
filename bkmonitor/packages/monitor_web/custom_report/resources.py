@@ -28,6 +28,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkm_space.define import SpaceTypeEnum
+from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.data_source import load_data_source
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request_username
@@ -588,7 +589,14 @@ class ProxyHostInfo(Resource):
         port = self.get_listen_port()
         proxy_host_info = []
         bk_biz_id = validated_request_data["bk_biz_id"]
-        proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+        proxy_hosts = []
+        try:
+            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+        except NoRelatedResourceError:
+            logger.warning("bk_biz_id: %s not found related resource", bk_biz_id)
+        except Exception as e:
+            logger.warning("get proxies by bk_biz_id(%s) error, %s", bk_biz_id, e)
+
         for host in proxy_hosts:
             bk_cloud_id = int(host["bk_cloud_id"])
             # 默认云区域上报proxy，以settings配置为准！
