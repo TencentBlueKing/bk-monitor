@@ -793,6 +793,7 @@ class SeparatorEnum(ChoicesEnum):
     BACK_QUOTE = "`"
     SPACE = " "
     SEMICOLON = ";"
+    TABS = "\t"
 
     _choices_labels = (
         (BAR, _("竖线(|)")),
@@ -800,6 +801,7 @@ class SeparatorEnum(ChoicesEnum):
         (BACK_QUOTE, _("反引号(`)")),
         (SPACE, _("空格")),
         (SEMICOLON, _("分号(;)")),
+        (TABS, _("制表符(\\t)")),
     )
 
 
