@@ -119,6 +119,9 @@ export default {
   }
 
   .field-container {
+    font-family: monospace;
+    color: #000;
+
     &.active:hover {
       color: #3a84ff;
       cursor: pointer;

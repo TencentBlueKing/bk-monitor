@@ -174,6 +174,7 @@ export default {
   components: {
     exportHistory
   },
+  inheritAttrs: false,
   props: {
     retrieveParams: {
       type: Object,

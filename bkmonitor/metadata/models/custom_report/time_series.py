@@ -881,7 +881,7 @@ class TimeSeriesMetric(models.Model):
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
 
     field_id = models.AutoField(verbose_name="自定义时序字段ID", primary_key=True)
-    field_name = models.CharField(verbose_name="自定义时序字段名称", max_length=255)
+    field_name = models.CharField(verbose_name="自定义时序字段名称", max_length=255, db_collation="utf8_bin")
     tag_list = JsonField(verbose_name="Tag列表", default=[])
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
     last_index = models.IntegerField(verbose_name="上次consul的modify_index", default=0)

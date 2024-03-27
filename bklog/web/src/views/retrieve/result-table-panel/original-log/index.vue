@@ -150,6 +150,7 @@ export default {
     FieldsSetting,
     ExportLog
   },
+  inheritAttrs: false,
   props: {
     retrieveParams: {
       type: Object,
