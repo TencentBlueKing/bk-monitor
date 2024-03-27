@@ -40,19 +40,22 @@
       class="refresh-keywords"
     >
       <div v-if="!!keywordErrorMessage">
-        <span class="error-title">{{ $t('语法错误') }}: </span>
-        <span class="error-message">{{ keywordErrorMessage }}</span>
+        <span>
+          <span class="error-title">{{ $t('语法错误') }}: </span>
+          <span class="error-message">{{ keywordErrorMessage }}</span>
+        </span>
+        <br />
         <span
           v-if="keywordIsResolved"
           @click="handleRefreshKeywords"
         >
           <i18n
-            path="点击可进行{0}"
-            class="error-message"
+            class="error-title"
+            path="你可能想输入：{0} 点击 {1}"
           >
+            <span class="error-message">{{ resetKeyword }}</span>
             <span class="flex-align-center">
-              <span class="log-icon icon-refresh-icon"></span>
-              <span class="refresh-btn">{{ $t('以此替换') }}</span>
+              <span class="refresh-btn">{{ $t('替换') }}</span>
             </span>
           </i18n>
         </span>
@@ -372,6 +375,7 @@ export default {
         if (code === 'NumpadEnter' || code === 'Enter') {
           e.preventDefault();
           this.closeDropdown();
+          this.$emit('retrieve');
         }
         return;
       }
@@ -695,8 +699,7 @@ export default {
       color: #63656e;
     }
 
-    .refresh-btn,
-    .icon-refresh-icon {
+    .refresh-btn {
       color: #3a84ff;
       cursor: pointer;
     }
