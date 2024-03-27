@@ -177,6 +177,7 @@
                 @eventClick="(option, isLink) => handleMenuClick(option, row, isLink)"
               >
                 <text-highlight
+                  class="monospace-text"
                   style="word-break: break-all; white-space: pre-line"
                   :queries="getHeightLightList(row.pattern)"
                 >
@@ -213,7 +214,7 @@
         >
           <template slot-scope="{ row }">
             <div v-bk-overflow-tips>
-              <span>{{ row.group[index] }}</span>
+              <span class="monospace-text">{{ row.group[index] }}</span>
             </div>
           </template>
         </bk-table-column>
@@ -401,6 +402,7 @@ export default {
     EmptyStatus,
     BkUserSelector
   },
+  inheritAttrs: false,
   inject: ['addFilterCondition', 'batchAddCondition'],
   props: {
     fingerList: {
@@ -1261,6 +1263,11 @@ export default {
       line-height: 14px;
       color: #3a84ff;
       cursor: pointer;
+    }
+
+    .monospace-text {
+      font-family: monospace;
+      color: #000;
     }
   }
 }

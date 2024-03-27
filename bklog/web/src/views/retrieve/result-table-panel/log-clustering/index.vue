@@ -186,6 +186,7 @@ export default {
     FingerOperate,
     EmptyStatus
   },
+  inheritAttrs: false,
   props: {
     retrieveParams: {
       type: Object,
