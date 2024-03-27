@@ -21,8 +21,9 @@ from apps.utils.lucene import (
     LuceneRangeChecker,
     LuceneReservedCharChecker,
     LuceneSyntaxResolver,
+    LuceneUnexpectedLogicOperatorChecker,
     OperatorEnhanceLucene,
-    ReservedLogicalEnhanceLucene, LuceneUnexpectedLogicOperatorChecker,
+    ReservedLogicalEnhanceLucene,
 )
 
 # =================================== TEST LUCENE =================================== #
@@ -441,7 +442,7 @@ FULL_CHECK_TEST_CASES = [
         "check_result": {
             "is_legal": False,
             "is_resolved": True,
-            "message": """RANGE语法异常, 格式错误, 你可能想输入: log: [1 TO 9]""",
+            "message": """RANGE语法异常, 格式错误""",
             "keyword": """log: [1 TO 9]""",
         },
     },
@@ -621,7 +622,6 @@ class TestLuceneChecker(TestCase):
             self.assertEqual(checker.check_result.legal, case["check_result"])
             checker.fix()
             self.assertEqual(checker.prompt(), case["prompt"])
-
 
     def test_full_checker(self):
         for case in FULL_CHECK_TEST_CASES:
