@@ -45,12 +45,12 @@ export default class UiQuery extends Mixins(classDragMixin) {
     renderLineHighlight: 'none', // 当前行高亮方式
     lineNumbers: 'off', // 左侧是否展示行
     minimap: {
-      enabled: false, // 是否启用预览图
+      enabled: false // 是否启用预览图
     },
     find: {
       cursorMoveOnType: false,
       seedSearchStringFromSelection: 'never',
-      addExtraSpaceOnTop: false,
+      addExtraSpaceOnTop: false
     },
     // 折叠
     folding: false,
@@ -61,7 +61,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
     scrollbar: {
       // 滚动条设置
       verticalScrollbarSize: 6, // 竖滚动条
-      useShadows: true, // 失焦阴影动画
+      useShadows: true // 失焦阴影动画
     },
     // 隐藏右上角光标的小黑点
     hideCursorInOverviewRuler: true,
@@ -85,7 +85,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
     wordBasedSuggestions: false,
     wordBasedSuggestionsOnlySameLanguage: false,
     unicodeHighlight: {
-      ambiguousCharacters: false,
+      ambiguousCharacters: false
     },
     autoDetectHighContrast: false,
     roundedSelection: false,
@@ -93,13 +93,13 @@ export default class UiQuery extends Mixins(classDragMixin) {
     renderIndentGuides: false,
     trimAutoWhitespace: false,
     renderControlCharacters: true,
-    insertSpaces: false,
+    insertSpaces: false
   };
   /** 提示样式 */
   placeholderStyle = {
     top: '1px',
     left: '10px',
-    fontSize: '12px',
+    fontSize: '12px'
   };
 
   @Emit('focus')
@@ -117,7 +117,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
       startLineNumber: 0,
       startColumn: 0,
       endLineNumber: 0,
-      endColumn: 0,
+      endColumn: 0
     });
     return value;
   }
@@ -143,11 +143,11 @@ export default class UiQuery extends Mixins(classDragMixin) {
       inherit: true,
       rules: [
         { token: 'AND-OR-color', foreground: 'FF9C01' },
-        { token: 'NOT-color', foreground: 'CB2427' },
+        { token: 'NOT-color', foreground: 'CB2427' }
       ],
       colors: {
-        'editor.foreground': '63656E', // 用户输入的基础颜色
-      },
+        'editor.foreground': '63656E' // 用户输入的基础颜色
+      }
     });
     monaco.languages.register({ id: 'mySpecialLanguage' });
     monaco.languages.setMonarchTokensProvider('mySpecialLanguage', {
@@ -155,9 +155,9 @@ export default class UiQuery extends Mixins(classDragMixin) {
       tokenizer: {
         root: [
           [/\s+(AND|and|OR|or)\s+/g, 'AND-OR-color'],
-          [/\s+(NOT)\s+/g, 'NOT-color'],
-        ],
-      },
+          [/\s+(NOT)\s+/g, 'NOT-color']
+        ]
+      }
     });
     return monaco;
   }
@@ -177,7 +177,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
     // 方向键的键绑定
     const arrowKeys = [monaco.KeyCode.UpArrow, monaco.KeyCode.DownArrow];
     // 禁止方向键的默认行为
-    arrowKeys.forEach((keyCode) => {
+    arrowKeys.forEach(keyCode => {
       this.editor.addCommand(keyCode, () => {
         // 当方向键被按下时，此函数会被调用。
         // 在这里不做任何操作，从而忽略键盘事件。
@@ -190,15 +190,15 @@ export default class UiQuery extends Mixins(classDragMixin) {
 
   render() {
     return (
-      <div class="retrieve-input-editor">
+      <div class='retrieve-input-editor'>
         <MonacoEditor
           v-model={this.propsValue}
-          theme="myTheme"
-          language="mySpecialLanguage"
+          theme='myTheme'
+          language='mySpecialLanguage'
           is-show-top-label={false}
           is-show-problem-drag={false}
           height={this.collectHeight}
-          placeholder={this.$t('请输入')}
+          placeholder={this.$t('请输入') as string}
           placeholder-style={this.placeholderStyle}
           font-size={12}
           monaco-config={this.monacoConfig}

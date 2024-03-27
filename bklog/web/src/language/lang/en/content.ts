@@ -543,7 +543,6 @@ export default {
   离开将会导致未保存信息丢失: 'Leaving will result in loss of unsaved information',
   '确定要删除清洗：{n}？': 'Are you sure to delete parsing: {n}?',
   '请注意！删除后不能恢复。': 'Caution! lt cannot be restored after deletion.',
-  '点击可进行{0}': 'Click for {0}',
   无匹配人员: 'No match',
   '快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页':
     'Shortcut key--  Esc: exit; PageUp: page up; PageDn: page down',
@@ -665,5 +664,6 @@ export default {
   '内置标签名，请重新填写': 'Built-in label, please reset fill in',
   '联合查询无法进行异步下载，可直接下载前1万条数据':
     'Joint query cannot be downloaded asynchronously, but the first 10,000 pieces of data can be downloaded directly.',
-  已有同名标签: 'A tag with the same name already exists'
+  已有同名标签: 'A tag with the same name already exists',
+  '你可能想输入：{0} 点击 {1}': 'You may want to enter: {0} Click {1}',
 };

@@ -461,7 +461,7 @@ export default {
         field_alias: '',
         field_name: this.$t('日志来源'),
         field_operator: [],
-        field_type: 'keyword',
+        field_type: 'union',
         filterExpand: false,
         filterVisible: false,
         is_analyzed: false,
