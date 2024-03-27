@@ -254,6 +254,7 @@ class ClusteringReportHandler(BaseReportHandler):
                 logger.info("[{}] Query pattern is empty.".format(self.log_prefix))
         except Exception as e:
             logger.exception(f"{self.log_prefix} query pattern error: {e}")
+            raise e
         content_config = self.report.content_config
         scenario_config = self.report.scenario_config
 
@@ -270,6 +271,7 @@ class ClusteringReportHandler(BaseReportHandler):
             logger.info(f"{self.log_prefix} clean pattern result: {all_patterns}")
         except Exception as e:
             logger.exception(f"{self.log_prefix} clean pattern error: {e}")
+            raise e
         log_col_show_type = scenario_config.get("log_col_show_type", LogColShowTypeEnum.PATTERN.value).capitalize()
 
         space_name = ""
@@ -296,6 +298,7 @@ class ClusteringReportHandler(BaseReportHandler):
             "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "is_link_enabled": content_config.get("is_link_enabled", True),
             "generate_attachment": scenario_config.get("generate_attachment", False),
+            "is_show_new_pattern": scenario_config.get("is_show_new_pattern", False),
         }
 
         logger.info(f"{self.log_prefix} Before sending notification params: {render_params}")
@@ -314,3 +317,23 @@ class ClusteringReportHandler(BaseReportHandler):
         if render_params.get("generate_attachment", False):
             render_params["attachments"] = self.get_attachments(render_params)
         return render_params
+
+    def send_check(self, context: dict) -> bool:
+        # 如未产生新类，则不发送
+        all_patterns = context["all_patterns"]
+        pattern_count = all_patterns["patterns"]["pattern_count"]
+        new_pattern_count = all_patterns["new_patterns"]["pattern_count"]
+        is_show_new_pattern = context["is_show_new_pattern"]
+        if is_show_new_pattern and not new_pattern_count:
+            logger.info(
+                f"{self.log_prefix} send check is false, is_show_new_pattern: {is_show_new_pattern},"
+                f" new_pattern_count: {new_pattern_count}"
+            )
+            return False
+        elif not (pattern_count and new_pattern_count):
+            logger.info(
+                f"{self.log_prefix} send check is false, is_show_new_pattern: {is_show_new_pattern},"
+                f"pattern_count: {pattern_count}, new_pattern_count: {new_pattern_count}"
+            )
+            return False
+        return True

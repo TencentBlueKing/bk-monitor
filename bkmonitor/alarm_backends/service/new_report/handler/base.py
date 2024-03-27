@@ -51,11 +51,13 @@ class BaseReportHandler(object):
             channels = self.channels
         context = None
         error_msg = ""
+        send_check = True
         try:
             # 获取渲染参数
             # 渲染订阅内容,获取上下文
             render_params = self.get_render_params()
             context = self.render(render_params)
+            send_check = self.send_check(context)
         except Exception as e:
             logger.exception(f"[] failed to send report({self.report.id or self.report.name}), render error: {e}")
             error_msg = e.message
@@ -63,8 +65,8 @@ class BaseReportHandler(object):
         for channel in channels:
             if not channel.is_enabled:
                 continue
-            if error_msg:
-                SendChannelHandler(channel).update_send_record(context, self.report.send_round, error_msg)
+            if error_msg or not send_check:
+                SendChannelHandler(channel).update_send_record(context, self.report.send_round, error_msg, send_check)
             else:
                 SendChannelHandler(channel).send(context, self.report.send_round, self.report.bk_biz_id)
 
@@ -81,6 +83,13 @@ class BaseReportHandler(object):
         渲染订阅
         """
         raise NotImplementedError("render() method is not implemented.")
+
+    @abstractmethod
+    def send_check(self, context: dict) -> bool:
+        """
+        发送检查
+        """
+        raise NotImplementedError("send_check() method is not implemented.")
 
 
 class SendChannelHandler(object):
@@ -119,7 +128,7 @@ class SendChannelHandler(object):
             return
         self.update_send_record(result, send_round)
 
-    def update_send_record(self, result, send_round, error_msg=""):
+    def update_send_record(self, result, send_round, error_msg="", send_check=True):
         send_time = datetime.datetime.now()
         send_results = []
         # 前置渲染失败
@@ -133,6 +142,15 @@ class SendChannelHandler(object):
             else:
                 for subscriber in self.channel.subscribers:
                     send_results.append({"id": subscriber, "result": False, "message": error_msg})
+        # 发送检查未通过，仅更新状态
+        elif not send_check:
+            send_status = SendStatusEnum.SUCCESS.value
+            if self.channel.channel_name == ChannelEnum.USER.value:
+                for subscriber in self.channel.subscribers:
+                    send_results.append({"id": subscriber, "type": StaffEnum.USER.value, "result": True, "message": ""})
+            else:
+                for subscriber in self.channel.subscribers:
+                    send_results.append({"id": subscriber, "result": True, "message": ""})
         else:
             # 解析发送结果并记录
             if result.get("errcode", None) is not None:
