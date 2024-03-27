@@ -154,11 +154,11 @@ class CacheCronJobCheck(CheckStep):
         p_list = []
         ttl = None
         # 1. cmdb
-        for k in cache.keys(f"{cache_key.KEY_PREFIX}.cache.cmdb*"):
+        for k in cache.keys(f"{cache_key.KEY_PREFIX}.cache.cmdb.*"):
             ttl = cache.ttl(k)
-            if ttl and ttl < CMDBCacheManager.CACHE_TIMEOUT - 60 * 30:
+            if ttl and ttl < CMDBCacheManager.CACHE_TIMEOUT - 7200:
                 # 30分钟未刷新
-                p = CMDBCacheCronError(f"key: {k}在30分钟内未刷新", self.story)
+                p = CMDBCacheCronError(f"key: {k}在2小时内未刷新", self.story)
                 p_list.append(p)
                 break
         if ttl is None:
