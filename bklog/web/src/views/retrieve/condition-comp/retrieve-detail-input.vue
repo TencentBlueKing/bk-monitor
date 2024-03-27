@@ -55,7 +55,6 @@
           >
             <span class="error-message">{{ resetKeyword }}</span>
             <span class="flex-align-center">
-              <span class="log-icon icon-refresh-icon"></span>
               <span class="refresh-btn">{{ $t('替换') }}</span>
             </span>
           </i18n>
@@ -700,8 +699,7 @@ export default {
       color: #63656e;
     }
 
-    .refresh-btn,
-    .icon-refresh-icon {
+    .refresh-btn {
       color: #3a84ff;
       cursor: pointer;
     }
