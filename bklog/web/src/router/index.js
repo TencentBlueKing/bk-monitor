@@ -176,15 +176,17 @@ const ArchiveList = () =>
     '@/views/manage/log-archive/archive-list/list'
   );
 // ---- 日志归档 ---- 归档回溯
-const ArchiveRestore = () => import(
-  /* webpackChunkName: 'sdk-track' */
-  '@/views/manage/log-archive/archive-restore/list'
-);
+const ArchiveRestore = () =>
+  import(
+    /* webpackChunkName: 'sdk-track' */
+    '@/views/manage/log-archive/archive-restore/list'
+  );
 // ---- 日志归档 ---- 订阅管理
-const ReportManage = () => import(
-  /* webpackChunkName: 'report-manage' */
-  '@/views/manage/report-management'
-);
+const ReportManage = () =>
+  import(
+    /* webpackChunkName: 'report-manage' */
+    '@/views/manage/report-management'
+  );
 // ---- 日志提取 ---- 提取配置
 const ExtractPermission = () =>
   import(
@@ -982,8 +984,8 @@ const routes = [
         component: DataLinkConf,
         meta: {
           title: '设置',
-          navId: 'manage-data-link-conf',
-        },
+          navId: 'manage-data-link-conf'
+        }
       },
       {
         path: 'report-manage',
@@ -991,10 +993,10 @@ const routes = [
         component: ReportManage,
         meta: {
           title: '订阅管理',
-          navId: 'report-manage',
-        },
-      },
-    ],
+          navId: 'report-manage'
+        }
+      }
+    ]
   },
   {
     path: '/external-auth/:activeNav?',

@@ -19,7 +19,7 @@
     }
 
     .label-box {
-      @include flex-align(start);
+      @include flex-align(flex-start);
 
       .label {
         height: 24px;
@@ -31,7 +31,7 @@
         line-height: 24px;
         flex-direction: column;
 
-        @include flex-align(start)
+        @include flex-align(flex-start)
       ;
 
         span {

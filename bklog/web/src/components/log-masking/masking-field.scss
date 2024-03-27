@@ -331,7 +331,7 @@
 
   .tag-value {
     line-height: 18px;
-    justify-content: start;
+    justify-content: flex-start;
 
     @include flex-align(center);
 

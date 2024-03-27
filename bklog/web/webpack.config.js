@@ -118,6 +118,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
           env: {
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
             devUrl: JSON.stringify(`${devConfig.host}:${devConfig.port}`),
+            devHost: JSON.stringify(`${devConfig.host}`),
             loginHost: JSON.stringify(devConfig.loginHost),
             loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`)
           }

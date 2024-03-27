@@ -856,6 +856,7 @@ export default defineComponent({
     const isFetchReport = ref(false);
     // checkNeedShowEditSlider() 对应的变量。 以免太早显示编辑态触发了表单内部的api请求（要根据该方法获取 scenario 变量才能去调用。）
     const isShowCreateReportFormComponent = ref(true);
+    const isShowHeaderNav = ref(true);
 
     function handleGoToCreateConfigPage() {
       router.push({
@@ -1152,6 +1153,11 @@ export default defineComponent({
         });
     }
 
+    function getUrlSearchParams() {
+      const url = new URLSearchParams(window.location.search);
+      isShowHeaderNav.value = Boolean(url.get('needMenu') !== 'false');
+    }
+
     const isManagerOrUser = computed(() => {
       return ['manager', 'user'].includes(createType.value);
     });
@@ -1179,6 +1185,7 @@ export default defineComponent({
     onMounted(() => {
       checkNeedShowEditSlider();
       fetchSubscriptionList();
+      getUrlSearchParams();
     });
     return {
       t,
@@ -1225,7 +1232,8 @@ export default defineComponent({
       fetchReportDetail,
       isSelfMode,
       computedTableDataForSelf,
-      filterConfig
+      filterConfig,
+      isShowHeaderNav
     };
   },
   render() {
@@ -1329,11 +1337,13 @@ export default defineComponent({
     };
     return (
       <div>
-        <NavBar
-          routeList={this.navList}
-          class='report-nav'
-        ></NavBar>
-        <div class='email-subscription-config-container'>
+        {this.isShowHeaderNav && (
+          <NavBar
+            routeList={this.navList}
+            class='report-nav'
+          ></NavBar>
+        )}
+        <div class={['email-subscription-config-container', { 'as-iframe': !this.isShowHeaderNav }]}>
           {/* 头部搜索 部分 */}
           {headerTmpl()}
           <Loading loading={this.isTableLoading}>

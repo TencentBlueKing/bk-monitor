@@ -2,8 +2,8 @@
   .card-container {
     padding: 16px 24px;
     background: #fff;
-    box-shadow: 0 2px 4px 0 #1919290d;
     border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
 
     &:nth-of-type(n+2) {
       margin-top: 16px;
@@ -26,8 +26,8 @@
     }
 
     .bk-form-radio {
-      line-height: 30px;
       margin-right: 10px;
+      line-height: 30px;
     }
   }
 
@@ -55,15 +55,15 @@
   .bk-form-item.is-error {
     [data-is-show-error-msg='true'] {
       .user-selector-container {
-        border-color: #ea3636;
         color: #ea3636;
+        border-color: #ea3636;
       }
     }
 
     [data-is-show-error-msg='false'] {
       input[type='text'] {
-        border-color: #c4c6cc;
         color: #63656e;
+        border-color: #c4c6cc;
       }
 
       .bk-form-input:focus {

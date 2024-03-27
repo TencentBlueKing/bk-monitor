@@ -26,23 +26,20 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 
-interface IProps {}
-
 @Component({
   name: 'ReportManagement'
 })
-class ReportManagement extends tsc<IProps> {
+class ReportManagement extends tsc<{}> {
   get src() {
     const bizId = this.$store.state.bkBizId;
-    // @ts-ignore
-    const targetSrc = `${window.MONITOR_URL}/?bizId=${bizId}&needMenu=false#/trace/report`;
+    const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
+    const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report`;
     return targetSrc;
   }
 
   render() {
     return (
       <div>
-        {/* <iframe src={'http://dev.bkmdev.woa.com:7002/?bizId=100605&needMenu=false#/report'} style='width: 100%;height: calc(100vh - 106px);border: none;'></iframe> */}
         <iframe
           src={this.src}
           style='width: 100%;height: calc(100vh - 106px);border: none;'
