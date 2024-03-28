@@ -58,7 +58,8 @@ const { i18n } = window;
 
 const promqlParams = [
   ['custom', 'time_series'],
-  ['bk_monitor', 'time_series']
+  ['bk_monitor', 'time_series'],
+  ['bk_data', 'time_series']
 ];
 
 /**
