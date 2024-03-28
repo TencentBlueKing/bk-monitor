@@ -43,10 +43,10 @@ export default class NodeTableSkeleton extends tsc<IProps> {
           {this.has2Btn && <div class='w-116 h-32 ml-8 skeleton-element'></div>}
           <div class='w-240 h-32 ml-auto skeleton-element'></div>
         </div>
-        <div class='w--100 h-20 mt-26 skeleton-element'></div>
+        <div class='w-auto h-20 mt-26 skeleton-element'></div>
         {new Array(10).fill(null).map((_item, index) => (
           <div
-            class='w--100 h-20 mt-22 skeleton-element'
+            class='w-auto h-20 mt-22 skeleton-element'
             key={index}
           ></div>
         ))}

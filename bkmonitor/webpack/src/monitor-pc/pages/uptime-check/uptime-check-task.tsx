@@ -51,6 +51,7 @@ import OperateOptions from './components/operate-options';
 import TaskCard, { IData as ItaskItem, IOptionTypes as ITaskCardOperate } from './components/task-card';
 import UploadContent from './components/upload-content';
 import NodeTableSkeleton from './skeleton/node-table-skeleton';
+import TaskCardSkeleton from './skeleton/task-card-skeleton';
 import UptimeCheckEmpty from './uptime-check-task/uptime-check-empty/uptime-check-empty.vue';
 import UptimeCheckImport from './uptime-check-task/uptime-check-import/uptime-check-import.vue';
 import { IActive as IUptimeCheckType } from './uptime-check';
@@ -762,7 +763,9 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
   // 卡片容器
   getCardData() {
-    return (
+    return this.loading ? (
+      <TaskCardSkeleton></TaskCardSkeleton>
+    ) : (
       <div class='card-data-content'>
         <HeaderTools
           search={this.searchValue}

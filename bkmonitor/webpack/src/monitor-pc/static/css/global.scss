@@ -467,6 +467,14 @@
     width: 108px;
   }
 
+  &.w-122 {
+    width: 122px;
+  }
+
+  &.w-116 {
+    width: 116px;
+  }
+
   &.w-240 {
     width: 240px;
   }
@@ -475,7 +483,7 @@
     width: 116px;
   }
 
-  &.w--100 {
+  &.w-auto {
     width: auto;
   }
 
@@ -485,6 +493,18 @@
 
   &.h-32 {
     height: 32px;
+  }
+
+  &.h-30 {
+    height: 30px;
+  }
+
+  &.h-198 {
+    height: 198px;
+  }
+
+  &.mt-20 {
+    margin-top: 20px;
   }
 
   &.mt-22 {
@@ -497,6 +517,10 @@
 
   &.ml-8 {
     margin-left: 8px;
+  }
+
+  &.mr-8 {
+    margin-right: 8px;
   }
 
   &.ml-auto {

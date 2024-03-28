@@ -26,11 +26,29 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './node-table-skeleton.scss';
+import './task-card-skeleton.scss';
 
 @Component
 export default class TaskCardSkeleton extends tsc<{}> {
   render() {
-    return <div class='uptime-check-task-card-skeleton'></div>;
+    return (
+      <div class='uptime-check-task-card-skeleton'>
+        <div class='container-01'>
+          <div class='w-108 h-32 mr-8 skeleton-element'></div>
+          <div class='w-122 h-32 mr-8 skeleton-element'></div>
+          <div class='w-116 h-32 skeleton-element'></div>
+          <div class='w-240 h-32 ml-auto skeleton-element'></div>
+        </div>
+        <div class='w-auto h-30 mt-20 skeleton-element'></div>
+        <div class='container-02'>
+          {new Array(6).fill(null).map((_item, index) => (
+            <div
+              class='h-198 skeleton-element'
+              key={index}
+            ></div>
+          ))}
+        </div>
+      </div>
+    );
   }
 }
