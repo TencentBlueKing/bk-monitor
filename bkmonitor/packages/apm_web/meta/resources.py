@@ -1980,10 +1980,10 @@ class QueryEndpointStatisticsResource(PageListResource):
 
     def add_extra_params(self, params):
         return {
-            "bk_biz_id": params.get("bk_biz_id"),
-            "app_name": params.get("app_name"),
-            "start_time": datetime.datetime.fromtimestamp(params.get("start_time")).strftime("%Y-%m-%d+%H:%M:%S"),
-            "end_time": datetime.datetime.fromtimestamp(params.get("end_time")).strftime("%Y-%m-%d+%H:%M:%S"),
+            "start_time": int(params["start_time"]) * 1000,
+            "end_time": int(params["end_time"]) * 1000,
+            "bk_biz_id": params["bk_biz_id"],
+            "app_name": params["app_name"]
         }
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
