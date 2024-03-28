@@ -53,13 +53,13 @@ module.exports = function (api) {
     //     baseLibName: 'bk-magic-vue'
     //   }
     // ] : undefined,
-    process.env.APP === 'pc' ? [
-      'component',
-      {
-        libraryName: 'element-ui',
-        styleLibraryName: 'theme-chalk'
-      }
-    ] : undefined,
+    // process.env.APP === 'pc' ? [
+    //   'component',
+    //   {
+    //     libraryName: 'element-ui',
+    //     styleLibraryName: 'theme-chalk'
+    //   }
+    // ] : undefined,
     process.env.APP === 'mobile' ? [
       'import',
       {

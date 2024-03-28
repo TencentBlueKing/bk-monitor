@@ -58,7 +58,7 @@ interface INavToolsEvents {
   // #if APP !== 'external'
   components: {
     GlobalConfig: () => import(/* webpackChunkName: "global-config" */ '../pages/global-config') as any,
-    HealthZ: () => import(/* webpackChunkName: "healthz" */ '../pages/healthz/healthz.vue') as any,
+    HealthZ: () => import(/* webpackChunkName: "healthz" */ '../pages/healthz-new/healthz-alarm') as any,
     MigrateDashboard: () =>
       import(/* webpackChunkName: 'MigrateDashboard' */ '../pages/migrate-dashboard/migrate-dashboard.vue') as any,
     ResourceRegister: () =>

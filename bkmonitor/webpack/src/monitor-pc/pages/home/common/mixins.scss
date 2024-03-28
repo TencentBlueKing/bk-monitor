@@ -1,4 +1,4 @@
-@import '../../../static/assets/css/global';
+@import '../../../static/css/old-global.scss';
 
 $seriousColor: #de6573;
 $unsetColor: #c4c6cc;
@@ -42,10 +42,10 @@ $icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-
 
 @mixin common-svg($h:92px,$t:-92px,$w:55px,$r:62px) {
   position: absolute;
+  top: $t;
+  right: $r;
   width: $w;
   height: $h;
-  right: $r;
-  top: $t;
 }
 
 @mixin hover($cursor:pointer) {
@@ -68,16 +68,16 @@ $icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-
 
   &-arrow {
     &:after {
-      content: '';
       position: absolute;
-      right: -6px;
       top: 3px;
+      right: -6px;
       width: 10px;
       height: 10px;
-      border-left: 1px solid $defaultBorderColor;
-      border-top: 1px solid $defaultBorderColor;
-      transform: rotate(-45deg);
+      content: '';
       background: #fff;
+      border-top: 1px solid $defaultBorderColor;
+      border-left: 1px solid $defaultBorderColor;
+      transform: rotate(-45deg);
     }
   }
 }
