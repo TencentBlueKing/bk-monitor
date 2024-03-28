@@ -18,7 +18,7 @@ from metadata.utils import consul_tools
 
 from .cluster import BCSClusterInfo
 from .replace import ReplaceConfig
-from .utils import ensure_data_id_resource, is_equal_config
+from .utils import ensure_data_id_resource, is_equal_config, is_k8s_crd_exists
 
 logger = logging.getLogger("metadata")
 
@@ -101,6 +101,12 @@ class BCSResource(models.Model):
         :return: True | False
         """
         api_client = cls.make_bcs_client(cluster_id=cluster_id)
+        # 增加一步，检查是否存在 crd
+        if not is_k8s_crd_exists(
+            api_client, f"{config.BCS_RESOURCE_DATA_ID_RESOURCE_PLURAL}.{config.BCS_RESOURCE_GROUP_NAME}"
+        ):
+            return
+
         custom_client = k8s_client.CustomObjectsApi(api_client)
 
         # 1. 获取所有命名空间下的本资源信息
@@ -145,6 +151,12 @@ class BCSResource(models.Model):
         :return: True | False
         """
         api_client = cls.make_bcs_client(cluster_id=cluster_id)
+        # 增加一步，检查是否存在 crd
+        if not is_k8s_crd_exists(
+            api_client, f"{config.BCS_RESOURCE_DATA_ID_RESOURCE_PLURAL}.{config.BCS_RESOURCE_GROUP_NAME}"
+        ):
+            return
+
         custom_client = k8s_client.CustomObjectsApi(api_client)
 
         # 1. 获取所有命名空间下的本资源信息
@@ -236,7 +248,6 @@ class BCSResource(models.Model):
 
     @cached_property
     def config_name(self) -> str:
-
         prefix = "common" if self.is_common_data_id else "custom"
         end = "custom" if self.is_custom_resource else "system"
 

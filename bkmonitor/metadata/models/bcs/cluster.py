@@ -16,7 +16,7 @@ from metadata.models.data_source import DataSource
 from metadata.models.result_table import ResultTableOption
 
 from .replace import ReplaceConfig
-from .utils import ensure_data_id_resource, is_equal_config
+from .utils import ensure_data_id_resource, is_equal_config, is_k8s_crd_exists
 
 logger = logging.getLogger("metadata")
 
@@ -288,6 +288,12 @@ class BCSClusterInfo(models.Model):
         :return: True | False
         """
         api_client = self.api_client
+        # 增加一步，检查是否存在 crd
+        if not is_k8s_crd_exists(
+            api_client, f"{config.BCS_RESOURCE_DATA_ID_RESOURCE_PLURAL}.{config.BCS_RESOURCE_GROUP_NAME}"
+        ):
+            return
+
         custom_client = k8s_client.CustomObjectsApi(api_client)
 
         # 1. 获取所有命名空间下的本资源信息

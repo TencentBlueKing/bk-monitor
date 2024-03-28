@@ -3,6 +3,8 @@
 import logging
 
 from kubernetes import client as k8s_client
+from kubernetes.client.api_client import ApiClient
+from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic import client as dynamic_client
 from kubernetes.dynamic.exceptions import NotFoundError, ResourceNotFoundError
 
@@ -80,3 +82,18 @@ def ensure_data_id_resource(api_client: k8s_client.ApiClient, resource_name: str
         resource_name,
     )
     return True
+
+
+def is_k8s_crd_exists(api_client: ApiClient, crd_name: str) -> bool:
+    """判断 crd 是否存在"""
+    try:
+        custom_client = k8s_client.ApiextensionsV1Api(api_client)
+        custom_client.read_custom_resource_definition(crd_name)
+        return True
+    except ApiException as e:
+        # 兼容已有逻辑，如果404，则认为不存在，否则认为存在，只是检测时异常
+        if e.status == 404:
+            return False
+        return True
+    except Exception:
+        return True
