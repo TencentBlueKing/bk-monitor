@@ -173,16 +173,14 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
         '@': path.resolve('src')
       }
     },
-    plugins: baseConfig.plugins
-      .filter(plugin => plugin.constructor.name !== 'ContextReplacementPlugin')
-      .map(plugin => {
-        return plugin instanceof wepack.ProgressPlugin
-          ? new WebpackBar({
-              profile: true,
-              name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`
-            })
-          : plugin;
-      }),
+    plugins: baseConfig.plugins.map(plugin => {
+      return plugin instanceof wepack.ProgressPlugin
+        ? new WebpackBar({
+            profile: true,
+            name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`
+          })
+        : plugin;
+    }),
     cache: typeof devConfig.cache === 'boolean' ? devConfig.cache : config.cache
   };
 };
