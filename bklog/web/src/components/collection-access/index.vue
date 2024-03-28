@@ -421,7 +421,6 @@ export default {
       return new Promise((resolve, reject) => {
         this.$http
           .request('collect/details', {
-            // mock: true,
             // manualSchema: true,
             params: {
               collector_config_id: this.$route.params.collectorId
