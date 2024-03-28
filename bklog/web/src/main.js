@@ -31,7 +31,6 @@ import i18n from '@/language/i18n';
 import methods from './plugins/methods';
 import VueJsonPretty from 'vue-json-pretty';
 import 'vue-json-pretty/lib/styles.css';
-import cursor from '@/directives/cursor';
 import './directives/index';
 import LogButton from '@/components/log-button';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
@@ -88,7 +87,6 @@ router.onError(err => {
 
 Vue.component('VueJsonPretty', VueJsonPretty);
 Vue.component('LogButton', LogButton);
-Vue.directive('cursor', cursor);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 

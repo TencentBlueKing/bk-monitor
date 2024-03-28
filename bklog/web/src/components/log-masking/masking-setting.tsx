@@ -29,7 +29,7 @@ import './masking-setting.scss';
 import $http from '../../api';
 import EmptyStatus from '../empty-status/index.vue';
 import { deepClone, utcFormatDate } from '../../common/util';
-import i18n from '../../language/i18n.js';
+import i18n from '../../language/i18n';
 import * as authorityMap from '../../common/authority-map';
 
 interface IProps {
