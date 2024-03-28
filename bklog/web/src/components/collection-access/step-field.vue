@@ -173,8 +173,9 @@
             <bk-radio :value="false">
               <span
                 v-bk-tooltips="$t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。')"
-                >{{ $t('不保留') }}</span
               >
+                {{ $t('不保留') }}
+              </span>
             </bk-radio>
           </bk-radio-group>
           <div
@@ -1282,7 +1283,7 @@ export default {
           message: this.$t('请选择字段提取方法')
         });
       }
-      const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length
+      const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
       if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
         this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
         return;
