@@ -47,6 +47,7 @@ class BkLogTextEtlStorage(EtlStorage):
         """
         built_in_fields = built_in_config.get("fields", [])
 
+        etl_params = etl_params or {}
         es_analyzer = self.generate_field_analyzer_name(
             field_name="log",
             field_alias="data",

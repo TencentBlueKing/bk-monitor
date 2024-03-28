@@ -665,7 +665,10 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
     def validate(self, attrs):
         ret = super().validate(attrs)
         if ret.get("tokenize_on_chars"):
-            ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
+            try:
+                ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
+            except Exception as e:
+                raise ValidationError(_("分词符不合法，请检查: %s") % e)
         return ret
 
 
@@ -684,7 +687,10 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     def validate(self, attrs):
         ret = super().validate(attrs)
         if ret.get("original_text_tokenize_on_chars"):
-            ret["original_text_tokenize_on_chars"] = unicode_str_decode(ret["original_text_tokenize_on_chars"])
+            try:
+                ret["original_text_tokenize_on_chars"] = unicode_str_decode(ret["original_text_tokenize_on_chars"])
+            except Exception as e:
+                raise ValidationError(_("分词符不合法，请检查: %s") % e)
         return ret
 
 
