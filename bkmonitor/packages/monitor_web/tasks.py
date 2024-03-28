@@ -885,6 +885,7 @@ def collect_metric(collect):
     """
     异步执行采集任务
     """
+    duration = 0
     try:
         from bkmonitor.utils.request import set_request_username
 
@@ -892,10 +893,11 @@ def collect_metric(collect):
         start_time = time.time()
         collect.collect()
         end_time = time.time()
+        duration = end_time - start_time
         logger.info(
             "[collect_metric_data] Collection task execution success; Collector: %s; Cost: %.6f",
             collect.__class__.__name__,
-            end_time - start_time,
+            duration,
         )
     except BaseException as error:
         logger.exception(
@@ -903,6 +905,13 @@ def collect_metric(collect):
             collect.__class__.__name__,
             error,
         )
+    finally:
+        if duration > 100:
+            logger.warning(
+                "[collect_metric_data] Collection task slow log found; Collector: %s; Cost: %.6f",
+                collect.__class__.__name__,
+                duration,
+            )
 
 
 @task(ignore_result=True)
