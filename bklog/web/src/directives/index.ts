@@ -21,8 +21,10 @@
  */
 
 import Vue from 'vue';
+import cursor from './cursor';
 import EnStyle from './en-style';
 import EnClass from './en-class';
 
+Vue.directive('cursor', cursor);
 Vue.use(EnStyle);
 Vue.use(EnClass);
