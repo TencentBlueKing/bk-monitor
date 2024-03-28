@@ -2281,6 +2281,7 @@ class QueryConfigToPromql(Resource):
                 if data_source not in [
                     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
                     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+                    (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
                 ]:
                     raise ValidationError(f"not support data_source({data_source})")
 
