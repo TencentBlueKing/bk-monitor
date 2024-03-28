@@ -171,7 +171,11 @@
               }}</span>
             </bk-radio>
             <bk-radio :value="false">
-              <span>{{ $t('不保留') }}</span>
+              <span
+                v-bk-tooltips="$t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。')"
+              >
+                {{ $t('不保留') }}
+              </span>
             </bk-radio>
           </bk-radio-group>
           <div
@@ -819,7 +823,10 @@ export default {
       },
       originParticipleState: 'default',
       // eslint-disable-next-line
-      defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\'
+      defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\',
+      catchEtlConfig: '',
+      catchFields: [],
+      isFinishCatchFrom: false
     };
   },
   computed: {
@@ -1112,6 +1119,7 @@ export default {
     },
     debugHandler() {
       this.formData.fields.splice(0, this.formData.fields.length);
+      this.isFinishCatchFrom = false;
       this.requestEtlPreview();
     },
     // 字段提取
@@ -1274,6 +1282,11 @@ export default {
           theme: 'error',
           message: this.$t('请选择字段提取方法')
         });
+      }
+      const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
+      if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
+        this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
+        return;
       }
       // 清洗模板选择多业务时不能为空
       if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
@@ -1602,6 +1615,7 @@ export default {
         })
         .finally(() => {
           this.isExtracting = false;
+          this.catchEtlConfig = this.params.etl_config;
         });
     },
     savaFormData() {
@@ -1843,7 +1857,16 @@ export default {
     },
     /** 切换匹配模式 */
     handleSelectConfig(id) {
+      if (!this.isFinishCatchFrom) {
+        this.catchFields = this.$refs.fieldTable.getData();
+        this.isFinishCatchFrom = true;
+      }
       this.params.etl_config = id;
+      if (id === this.catchEtlConfig) {
+        this.formData.fields = this.catchFields;
+        this.isFinishCatchFrom = false;
+        return;
+      }
       this.formData.fields = []; // 切换匹配模式时需要清空字段
     },
     /** json格式新增字段 */
