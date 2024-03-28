@@ -2744,3 +2744,14 @@
   name: metadata_query_bcs_cluster_vm_table_ids
   path: /v2/monitor_v3/metadata_query_bcs_cluster_vm_table_ids/
   method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/switch_kafka_cluster/
+  is_hidden: false
+  label: 切换kafka存储集群
+  label_en: switch kafka cluster
+  name: metadata_switch_kafka_cluster
+  path: /v2/monitor_v3/metadata_switch_kafka_cluster/
+  method: POST

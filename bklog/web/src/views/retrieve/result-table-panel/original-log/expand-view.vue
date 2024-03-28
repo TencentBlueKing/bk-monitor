@@ -72,6 +72,7 @@ export default {
     KvList
   },
   mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
   props: {
     data: {
       type: Object,
@@ -153,10 +154,12 @@ export default {
     background-color: #fafbfd;
 
     :deep(.vjs-tree) {
+      font-family: monospace;
       /* stylelint-disable-next-line declaration-no-important */
       font-size: 12px !important;
 
       .vjs-value__string {
+        line-height: 24px;
         white-space: pre-wrap;
         tab-size: 3;
       }

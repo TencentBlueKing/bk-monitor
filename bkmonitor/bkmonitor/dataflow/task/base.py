@@ -14,9 +14,8 @@ import abc
 import logging
 
 from bkmonitor.dataflow.flow import DataFlow
-from bkmonitor.dataflow.node.base import Node
 from constants.dataflow import ConsumingMode
-from core.errors.bkmonitor.dataflow import DataFlowCreateFailed, DataFlowNotExists
+from core.errors.bkmonitor.dataflow import DataFlowCreateFailed
 
 logger = logging.getLogger("bkmonitor.dataflow")
 
@@ -61,31 +60,3 @@ class BaseTask(abc.ABC):
                 consuming_mode = ConsumingMode.Tail
             self.data_flow.start(consuming_mode)
             self.flow_status = self.data_flow.flow_status
-
-    def check_flow_changed(self):
-        """
-        检查flow是否被修改
-        """
-        try:
-            data_flow = DataFlow.from_bkdata_by_flow_name(self.flow_name)
-        except DataFlowNotExists:
-            return True
-
-        for node in self.node_list:
-            node_key = Node.build_node_unique_key(node)
-            if data_flow.flow_graph_info.get(node_key):
-                match_node = data_flow.flow_graph_info.get(node_key)
-                node_config = match_node.get("node_config", {})
-                if node.need_update(node_config):
-                    print(node.config, node_config)
-                    return True
-
-            for graph_node in data_flow.flow_graph_info:
-                node_config = graph_node.get("node_config", {})
-                # 判断是否为同样的节点(只判断关键信息，比如输入和输出表ID等信息)
-                if node.get_node_type() == graph_node["node_type"] and node == node_config:
-                    # 如果部分信息不一样，则做一遍更新
-                    if node.need_update(node_config):
-                        print(node.config, node_config)
-                        return True
-        return False
