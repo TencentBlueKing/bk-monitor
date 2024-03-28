@@ -90,7 +90,7 @@
           size="small"
           row-key="field_index"
           :empty-text="$t('暂无内容')"
-          :data="deletedVisible ? hideDeletedTable : tableList"
+          :data="tableList"
         >
           <template>
             <!-- <bk-table-column -->
@@ -320,7 +320,7 @@
                     </bk-option>
                   </bk-select>
                   <bk-input
-                    v-show="props.row.participleState === 'custom'"
+                    v-if="props.row.participleState === 'custom'"
                     v-model="props.row.tokenize_on_chars"
                     placeholder=" "
                     :disabled="getCustomizeDisabled(props.row)"
@@ -740,7 +740,7 @@ export default {
       return this.tableType === 'preview';
     },
     tableList() {
-      return this.formData.tableList;
+      return this.deletedVisible ? this.formData.tableList.filter(item => !item.is_delete) : this.formData.tableList;
     },
     hideDeletedTable() {
       return this.formData.tableList.filter(item => !item.is_delete);
