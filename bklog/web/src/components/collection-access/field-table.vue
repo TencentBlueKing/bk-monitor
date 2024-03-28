@@ -731,10 +731,10 @@ export default {
       return !this.fields.length;
     },
     hasDateField() {
-      return this.tableList.find(item => item.is_time && !item.is_delete);
+      return this.formData.tableList.find(item => item.is_time && !item.is_delete);
     },
     deletedNum() {
-      return this.tableList.filter(item => item.is_delete).length;
+      return this.formData.tableList.filter(item => item.is_delete).length;
     },
     isPreviewMode() {
       return this.tableType === 'preview';
