@@ -115,7 +115,7 @@
       <ul class="filed-list">
         <template>
           <field-item
-            v-for="item in indexSetFields"
+            v-for="item in showIndexSetFields"
             v-show="item.filterVisible"
             :key="item.field_name"
             type="hidden"
@@ -126,6 +126,13 @@
             :field-item="item"
             @toggleItem="handleToggleItem"
           />
+          <div
+            v-if="indexSetFields.length > 10"
+            class="expand-all"
+            @click="isShowAllIndexSet = !isShowAllIndexSet"
+          >
+            {{ !isShowAllIndexSet ? $t('展开全部') : $t('收起') }}
+          </div>
         </template>
       </ul>
     </div>
@@ -137,7 +144,7 @@
       <ul class="filed-list">
         <template>
           <field-item
-            v-for="item in builtInFields"
+            v-for="item in showBuiltInFields"
             v-show="item.filterVisible"
             :key="item.field_name"
             type="hidden"
@@ -148,6 +155,12 @@
             :field-item="item"
             @toggleItem="handleToggleItem"
           />
+          <div
+            class="expand-all"
+            @click="isShowAllBuiltIn = !isShowAllBuiltIn"
+          >
+            {{ !isShowAllBuiltIn ? $t('展开全部') : $t('收起') }}
+          </div>
         </template>
       </ul>
     </div>
@@ -224,7 +237,20 @@ export default {
         'ghost-class': 'sortable-ghost-class'
       },
       dragVisibleFields: [],
-      builtInHeaderList: ['log', 'ip', 'utctime', 'path']
+      builtInHeaderList: ['log', 'ip', 'utctime', 'path'],
+      builtInInitHiddenList: [
+        'gseIndex',
+        'iterationIndex',
+        '__dist_01',
+        '__dist_03',
+        '__dist_05',
+        '__dist_07',
+        '__dist_09',
+        '__ipv6__',
+        '__ext'
+      ],
+      isShowAllBuiltIn: false,
+      isShowAllIndexSet: false
     };
   },
   computed: {
@@ -275,6 +301,29 @@ export default {
       );
       return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
     },
+    showBuiltInFields() {
+      const { initHiddenList, otherList } = this.builtInFields.reduce(
+        (acc, cur) => {
+          if (this.builtInInitHiddenList.includes(cur.field_name)) {
+            acc.initHiddenList.push(cur);
+          } else {
+            acc.otherList.push(cur);
+          }
+          return acc;
+        },
+        {
+          initHiddenList: [],
+          otherList: []
+        }
+      );
+      // 展示全部
+      if (this.isShowAllBuiltIn) return [...otherList, ...initHiddenList];
+      // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
+      return otherList.slice(0, 9);
+    },
+    showIndexSetFields() {
+      return this.isShowAllIndexSet ? this.indexSetFields : this.indexSetFields.slice(0, 9);
+    },
     filterTypeCount() {
       // 过滤的条件数量
       let count = 0;
@@ -296,6 +345,8 @@ export default {
       // 切换索引集重置状态
       this.polymerizable = '0';
       this.fieldType = 'any';
+      this.isShowAllBuiltIn = false;
+      this.isShowAllIndexSet = false;
     },
     'visibleFields.length'() {
       this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
@@ -465,6 +516,12 @@ export default {
       margin: 0 0 7px 20px;
       line-height: 26px;
       color: #63656e;
+    }
+
+    .expand-all {
+      margin-left: 22px;
+      color: #3a84ff;
+      cursor: pointer;
     }
   }
 }
