@@ -819,7 +819,7 @@ export default {
       },
       originParticipleState: 'default',
       // eslint-disable-next-line
-      defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\'
+      defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\'
     };
   },
   computed: {
