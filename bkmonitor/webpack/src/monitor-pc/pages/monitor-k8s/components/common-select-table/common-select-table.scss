@@ -242,7 +242,56 @@
     z-index: 9999;
     width: 100%;
     height: 100%;
-    padding: 16px;
+    padding: 0 16px;
     background-color: #fff;
+
+    .input-wrap {
+      display: flex;
+      margin-bottom: 8px;
+
+      .input {
+        flex: 1;
+        height: 32px;
+      }
+
+      .refresh {
+        width: 32px;
+        height: 32px;
+        margin-left: 8px;
+      }
+    }
+
+    .filter-wrap {
+      display: flex;
+
+      .status-filter {
+        min-width: 208px;
+        max-width: 320px;
+        height: 32px;
+        margin-right: 8px;
+      }
+
+      .sort-filter {
+        min-width: 118px;
+        max-width: 200px;
+        height: 32px;
+      }
+    }
+
+    .table-wrap {
+      .table-header {
+        height: 32px;
+        margin-top: 13px;
+      }
+
+      .table-body {
+        padding-top: 15px;
+
+        .table-item {
+          height: 20px;
+          margin-bottom: 22px;
+        }
+      }
+    }
   }
 }
