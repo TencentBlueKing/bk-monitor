@@ -1,6 +1,10 @@
 .healthz-alarm {
   width: 100%;
 
+  .bk-label-text {
+    font-size: 12px;
+  }
+
   &-title {
     display: flex;
     align-items: center;

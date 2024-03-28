@@ -59,6 +59,7 @@ export default class HealthzAlarm extends tsc<{}> {
     this.getAlarmConfig();
   }
   async getAlarmConfig() {
+    this.loading = true;
     const data = await getAlarmConfig().catch(() => {
       this.$bkMessage({
         theme: 'error',
@@ -68,6 +69,7 @@ export default class HealthzAlarm extends tsc<{}> {
     });
     this.formData.alarm_role = data?.alarm_role || [];
     this.formData.alarm_type = data?.alarm_type || [];
+    this.loading = false;
   }
   async checkAlarmRole() {
     return Array.isArray(this.formData.alarm_role) && this.formData.alarm_role.length > 0;
@@ -102,7 +104,12 @@ export default class HealthzAlarm extends tsc<{}> {
   }
   render() {
     return (
-      <div class='healthz-alarm'>
+      <div
+        class='healthz-alarm'
+        v-bkloading={{
+          isLoading: this.loading
+        }}
+      >
         <div class='healthz-alarm-title'>{this.$t('通知设置')}</div>
         <bk-form
           labelWidth={200}
