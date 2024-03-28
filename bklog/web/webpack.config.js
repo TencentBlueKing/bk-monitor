@@ -173,9 +173,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
         '@': path.resolve('src')
       }
     },
-    plugins: baseConfig.plugins
-      .filter(plugin => plugin.constructor.name !== 'ContextReplacementPlugin')
-      .map(plugin => {
+    plugins: baseConfig.plugins.map(plugin => {
         return plugin instanceof wepack.ProgressPlugin
           ? new WebpackBar({
               profile: true,
