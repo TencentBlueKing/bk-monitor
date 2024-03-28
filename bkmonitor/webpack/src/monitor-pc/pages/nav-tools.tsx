@@ -65,9 +65,9 @@ interface INavToolsEvents {
       import(/* webpackChunkName: 'ResourceRegister' */ '../pages/resource-register/resource-register') as any,
     DataPipeline: () => import(/* webpackChunkName: 'DataPipeline' */ '../pages/data-pipeline/data-pipeline') as any,
     SpaceManage: () => import(/* webpackChunkName: 'SpaceManage' */ './space-manage/space-manage') as any,
-    GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any
-    // MyApply: () => import(/* webpackChunkName: 'MyApply' */ './my-apply/my-apply') as any,
-    // MySubscription: () => import(/* webpackChunkName: 'MySubscription' */ './my-subscription/my-subscription') as any,
+    GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any,
+    MyApply: () => import(/* webpackChunkName: 'MyApply' */ './my-apply/my-apply') as any,
+    MySubscription: () => import(/* webpackChunkName: 'MySubscription' */ './my-subscription/my-subscription') as any
   }
   // #endif
 } as any)
@@ -513,7 +513,7 @@ class NavTools extends DocumentLinkMixin {
               this.isShowMyApplyModal = v;
             }}
           >
-            {/* <MyApply></MyApply> */}
+            <my-apply />
           </SettingModal>
         )}
 
@@ -526,7 +526,7 @@ class NavTools extends DocumentLinkMixin {
               this.isShowMyReportModal = v;
             }}
           >
-            {/* <MySubscription></MySubscription> */}
+            <my-subscription />
           </SettingModal>
         )}
       </div>
