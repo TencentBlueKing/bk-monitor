@@ -33,7 +33,7 @@
     >
       <text-segmentation
         :content="content"
-        :field-type="fieldType"
+        :field="field"
         :menu-click="handleMenuClick"
       />
     </span>
@@ -60,13 +60,9 @@ export default {
       type: Boolean,
       default: false
     },
-    fieldName: {
-      type: String,
-      default: ''
-    },
-    fieldType: {
-      type: String,
-      default: ''
+    field: {
+      type: Object,
+      required: true
     }
   },
   data() {

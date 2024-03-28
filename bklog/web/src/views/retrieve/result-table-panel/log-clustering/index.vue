@@ -370,12 +370,6 @@ export default {
     }
   },
   watch: {
-    routerIndexSet: {
-      immediate: true,
-      handler() {
-        this.initTable();
-      }
-    },
     configData: {
       deep: true,
       immediate: true,
@@ -401,6 +395,7 @@ export default {
            *  有text则提示去开启日志聚类 无则显示跳转计算平台
            */
           // 初始化分组下拉列表
+          this.initTable();
           this.filterGroupList();
         }
       }
