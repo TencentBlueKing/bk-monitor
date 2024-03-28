@@ -1,3 +1,5 @@
+$images: mail wechat sms rtx phone;
+
 .healthz-alarm {
   width: 100%;
 
@@ -21,6 +23,17 @@
     display: flex;
     align-items: center;
     height: 32px;
+
+    @for $i from 1 through length($images) {
+      $image: nth($images, $i);
+      .image-#{$image} {
+        display: flex;
+        width: 20px;
+        height: 20px;
+        background-image: url('../../static/images/png/#{$image}.png');
+        background-size: contain;
+      }
+    }
 
     .bk-form-checkbox {
       margin-right: 16px;

@@ -19,30 +19,32 @@ $alarmWarningColor: #ff9c01; // 警告
 $alarmInfoColor: #ffd000; // 提醒
 
 @mixin item($bgColor:#fff, $color: #999,$w: 120px,$h:40px,$hcolor: #fafafa, $f: 12px) {
-  font-size: $f;
-  border: 0;
-  background: $bgColor;
-  height: $h;
-  line-height: $h;
-  padding: 0;
-  color: $color;
-  width: $w;
   display: inline-block;
-  white-space: nowrap;
-  outline: none;
-  cursor: pointer;
+  width: $w;
+  height: $h;
+  padding: 0;
+  font-size: $f;
+  line-height: $h;
+  color: $color;
   text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  background: $bgColor;
+  border: 0;
   border-radius: 2px;
+  outline: none;
+
   &:hover {
     background: $hcolor;
   }
 }
+
 @mixin rank($bgColor:#ccc) {
   display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 5px;
   background: $bgColor;
+  border-radius: 5px;
 }
 
 @function pxWithVw($n) {
@@ -52,38 +54,49 @@ $alarmInfoColor: #ffd000; // 提醒
 .primary-text-color {
   color: $primaryColor;
 }
+
 .success-text-color {
   color: $successColor;
 }
+
 .info-text-color {
   color: $infoColor;
 }
+
 .warning-text-color {
   color: $warningColor;
 }
+
 .danger-text-color {
   color: $dangerColor;
 }
+
 .clearfix::after {
-  content: "";
-  clear: both;
   display: table;
+  clear: both;
+  content: '';
 }
+
 .alarm-error-text-color {
   color: $alarmErrorColor;
 }
+
 .alarm-warning-text-color {
   color: $alarmWarningColor;
 }
+
 .alarm-info-text-color {
   color: $alarmInfoColor;
 }
+
 .alarm-error-background-color {
   background-color: $alarmErrorColor;
 }
+
 .alarm-warning-background-color {
   background-color: $alarmWarningColor;
 }
+
 .alarm-info-background-color {
   background-color: $alarmInfoColor;
 }
@@ -101,6 +114,7 @@ $slightColor: #ffd000;
     cursor: $cursor;
   }
 }
+
 @mixin ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;

@@ -53,21 +53,21 @@
             <el-checkbox
               label="mail"
             ><img
-              src="../../static/assets/images/mail.png"
+              src="../../static/images/png/mail.png"
               alt="mail"
               style="height: 20px"
             ></el-checkbox>
             <el-checkbox
               label="wechat"
             ><img
-              src="../../static/assets/images/wechat.png"
+              src="../../static/images/png/wechat.png"
               alt="wechat"
               style="height: 20px"
             ></el-checkbox>
             <el-checkbox
               label="sms"
             ><img
-              src="../../static/assets/images/sms.png"
+              src="../../static/images/png/sms.png"
               alt="sms"
               style="height: 20px"
             ></el-checkbox>
@@ -75,14 +75,14 @@
               v-if="$platform.te"
               label="im"
             ><img
-              src="../../static/assets/images/rtx.png"
+              src="../../static/images/png/rtx.png"
               alt="rtx"
               style="height: 20px"
             ></el-checkbox>
             <el-checkbox
               label="phone"
             ><img
-              src="../../static/assets/images/phone.png"
+              src="../../static/images/png/phone.png"
               alt="phone"
               style="height: 20px"
             ></el-checkbox>
@@ -239,7 +239,7 @@ export default {
 </script>
 <style lang="scss">
 .icon-volume {
-  background: url('../../static/assets/images/icon-volume.png');
+  background: url('../../static/images/png/icon-volume.png');
 }
 
 .el-card__header {

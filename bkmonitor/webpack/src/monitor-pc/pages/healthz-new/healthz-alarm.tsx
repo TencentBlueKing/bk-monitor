@@ -127,43 +127,16 @@ export default class HealthzAlarm extends tsc<{}> {
               value={this.formData.alarm_type}
               onChange={v => (this.formData.alarm_type = v)}
             >
-              <bk-checkbox label='mail'>
-                <img
-                  src='../img/mail.png'
-                  alt='mail'
-                  style='height: 20px'
-                />
-              </bk-checkbox>
-              <bk-checkbox label='wechat'>
-                <img
-                  src='../img/wechat.png'
-                  alt='wechat'
-                  style='height: 20px'
-                />
-              </bk-checkbox>
-              <bk-checkbox label='sms'>
-                <img
-                  src='../img/sms.png'
-                  alt='sms'
-                  style='height: 20px'
-                />
-              </bk-checkbox>
-              {window.platform.te && (
-                <bk-checkbox label='im'>
-                  <img
-                    src='../img/rtx.png'
-                    alt='rtx'
-                    style='height: 20px'
-                  />
-                </bk-checkbox>
-              )}
-              <bk-checkbox label='phone'>
-                <img
-                  src='../img/phone.png'
-                  alt='phone'
-                  style='height: 20px'
-                />
-              </bk-checkbox>
+              {['mail', 'wechat', 'sms', 'rtx', 'phone']
+                .filter(v => !!window.platform.te || v !== 'rtx')
+                .map(key => (
+                  <bk-checkbox
+                    label={key}
+                    key={key}
+                  >
+                    <span class={`image-${key}`} />
+                  </bk-checkbox>
+                ))}
             </bk-checkbox-group>
           </bk-form-item>
           <bk-form-item

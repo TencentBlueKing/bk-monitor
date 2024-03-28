@@ -1,29 +1,33 @@
-@import "../../../static/assets/css/global.scss";
+@import '../../../static/assets/css/global.scss';
 
 .content-tooltips-overflow {
   max-height: 190px;
   overflow: auto;
 }
+
 .content-tooltip-h5 {
   width: 100%;
   font-size: 14px;
 }
+
 .content-tooltip-h5 h5 {
-  cursor: pointer;
   min-width: 250px;
   max-width: 550px;
 
   /* stylelint-disable-next-line declaration-no-important */
   margin: 0 15px !important;
-  line-height: 20px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   overflow: hidden;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
 }
+
 .content-tooltip-h5 h5:hover {
   line-height: 20px;
   background-color: #f4f4f4;
 }
+
 .class-success {
   /* stylelint-disable-next-line declaration-no-important */
   margin: 5px !important;
@@ -31,6 +35,7 @@
   /* stylelint-disable-next-line declaration-no-important */
   color: $successColor !important;
 }
+
 .class-warning {
   /* stylelint-disable-next-line declaration-no-important */
   margin: 5px !important;
@@ -38,6 +43,7 @@
   /* stylelint-disable-next-line declaration-no-important */
   color: $warningColor !important;
 }
+
 .class-error {
   /* stylelint-disable-next-line declaration-no-important */
   margin: 5px !important;
@@ -45,111 +51,129 @@
   /* stylelint-disable-next-line declaration-no-important */
   color: $dangerColor !important;
 }
+
 .class-normal {
   /* stylelint-disable-next-line declaration-no-important */
   margin: 5px !important;
 }
+
 .tooltip-footer {
   text-align: center;
 }
+
 .tooltip-success {
-  margin-left: 20px;
+  display: inline-block;
   width: 12px;
   height: 12px;
+  margin-left: 20px;
   background-color: $successColor;
-  display: inline-block;
 }
+
 .tooltip-warning {
-  margin-left: 20px;
+  display: inline-block;
   width: 12px;
   height: 12px;
+  margin-left: 20px;
   background-color: $warningColor;
-  display: inline-block;
 }
+
 .tooltip-error {
-  margin-left: 20px;
+  display: inline-block;
   width: 12px;
   height: 12px;
+  margin-left: 20px;
   background-color: $dangerColor;
-  display: inline-block;
 }
+
 .tooltip-text {
   font-size: 14px;
   font-weight: normal;
   font-stretch: normal;
   line-height: 24px;
-  letter-spacing: 0px;
   color: $primaryTextColor;
+  letter-spacing: 0px;
 }
+
 .btn-class-space {
   /* stylelint-disable-next-line declaration-no-important */
   width: 120px !important;
 
   /* stylelint-disable-next-line declaration-no-important */
   padding: 12px 6px !important;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
 .reload-agent {
   display: inline-block;
-  vertical-align: middle;
   width: 14px;
   height: 14px;
-  background: url("../../../static/assets/images/error-icon.png");
-  background-size: 14px 14px;
+  vertical-align: middle;
+  background: url('../../../static/images/png/error-icon.png');
   background-repeat: no-repeat;
+  background-size: 14px 14px;
 }
+
 .warning-agent {
   display: inline-block;
-  vertical-align: middle;
   width: 14px;
   height: 14px;
-  background: url("../../../static/assets/images/warning-icon.png");
-  background-size: 14px 14px;
+  vertical-align: middle;
+  background: url('../../../static/images/png/warning-icon.png');
   background-repeat: no-repeat;
+  background-size: 14px 14px;
 }
+
 .main-content-box {
   width: 100%;
-  background: #fff;
-  word-wrap: break-word;
   margin-bottom: 20px;
+  word-wrap: break-word;
+  background: #fff;
 }
+
 .main-content-box-title {
   width: 100%;
   height: 40px;
-  line-height: 40px;
   padding-left: 20px;
+  line-height: 40px;
   background-color: #fafafa;
 }
+
 .main-component-content {
   width: 100%;
   padding: 20px;
 }
+
 .dotted-line {
-  width: 60px;
   display: inline-block;
+  width: 60px;
   border-top: 1px dashed #ccc;
 }
+
 .dash-border {
-  width: 60px;
   display: inline-block;
+  width: 60px;
   border: 1px solid #a9a9a9;
 }
+
 .dialog-detail {
   padding: 10px 20px 0px 20px;
 }
+
 .dialog-detail-p {
   display: inline-block;
 }
+
 .collapse-items {
   width: 437px;
-  word-break: break-all;
   margin-bottom: 10px;
+  word-break: break-all;
 }
+
 .dash-board-center-div {
-  min-width: 100%;
   position: relative;
+  min-width: 100%;
 }
 
 /* stylelint-disable-next-line selector-max-id */
@@ -158,7 +182,7 @@
   font-weight: normal;
   font-stretch: normal;
   line-height: 24px;
-  letter-spacing: 0px;
   color: #555;
+  letter-spacing: 0px;
 }
 

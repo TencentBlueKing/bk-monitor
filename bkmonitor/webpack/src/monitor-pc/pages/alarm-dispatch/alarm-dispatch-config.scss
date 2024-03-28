@@ -11,10 +11,10 @@
   left: 0;
   width: 0;
   height: 0;
-  border-left: 16px solid;
-  border-bottom: 16px solid transparent !important;
   border-top: 16px solid transparent !important;
   border-right: 16px solid transparent !important;
+  border-bottom: 16px solid transparent !important;
+  border-left: 16px solid;
 }
 
 @mixin rule-change {
@@ -38,13 +38,13 @@
     padding: 32px;
 
     .table-wrap {
-      max-height: 100%;
+      position: relative;
       width: 100%;
-      background: #fff;
+      max-height: 100%;
+      margin-bottom: 30px;
       // border-top: 1px solid #dcdee5;
       overflow-x: auto;
-      position: relative;
-      margin-bottom: 30px;
+      background: #fff;
 
       &.is-scroll {
         border-top: 1px solid #dcdee5;
@@ -53,8 +53,8 @@
 
       .table-wrap-header-tr {
         position: sticky;
-        z-index: 666;
         top: -1px;
+        z-index: 666;
       }
 
       .table-wrap-header-td {
@@ -62,17 +62,17 @@
       }
 
       .table-wrap-header {
-        height: 40px;
-        background: #fafbfd;
-        border-radius: 2px 2px 0 0; 
+        position: relative; 
         display: flex;
         align-items: center;
-        color: #63656e;
+        height: 40px;
         padding: 0 16px;
+        color: #63656e;
         // border-right: 1px solid #dcdee5;
         // border-left: 1px solid #dcdee5;
         cursor: pointer;
-        position: relative;
+        background: #fafbfd;
+        border-radius: 2px 2px 0 0;
 
         .icon-bianji {
           font-size: 20px;
@@ -84,25 +84,25 @@
           align-items: center;
 
           .title {
-            font-size: 14px;
-            color: #63656e;
-            font-weight: 700;
             max-width: 500px;
             overflow: hidden;
+            font-size: 14px;
+            font-weight: 700;
+            color: #63656e;
             text-overflow: ellipsis;
           }
 
           .rule-count {
-            color: #979ba5;
             padding: 0 6px;
+            color: #979ba5;
           }
 
           .count {
             height: 16px;
             padding: 0 8px;
-            background: #dbd4ed;
-            color: #979ba5;
             margin: 0 10px 0 6px;
+            color: #979ba5;
+            background: #dbd4ed;
 
             @include flex-center();
           }
@@ -116,9 +116,9 @@
           .count {
             height: 16px;
             padding: 0 8px;
+            margin: 0 8px 0 2px;
             background: #dbd4ed;
             border-radius: 2px;
-            margin: 0 8px 0 2px;
 
             @include flex-center();
           }
@@ -132,15 +132,15 @@
       }
 
       table {
-        height: auto;
         position: relative;
+        height: auto;
       }
 
       table,
       table tr th,
       table tr td {
-        border: 1px solid #dcdee5;
         position: relative;
+        border: 1px solid #dcdee5;
       }
 
       .table-wrap-content {
@@ -163,10 +163,10 @@
           }
 
           .process-list-item {
-            width: 100%;
-            display: flex;
-            height: 32px;
             position: relative;
+            display: flex;
+            width: 100%;
+            height: 32px;
 
 
             @include flex-center();
@@ -174,17 +174,17 @@
             .index {
               width: 16px;
               height: 16px;
-              border-radius: 50%;
+              margin: 0 4px 0 18px;
               background: #fff;
               border: 1px solid #c4c6cc;
-              margin: 0 4px 0 18px;
+              border-radius: 50%;
 
               @include flex-center();
             }
 
             .text {
-              font-weight: 700;
               font-size: 12px;
+              font-weight: 700;
               color: #63656e;
 
               &.text-en {
@@ -196,33 +196,33 @@
             }
 
             .merge {
-              width: 28px;
-              height: 12px;
-              border-radius: 8px;
-              background: #c4c6cc;
-              border: 1px solid #dcdee5;
-              background-repeat: no-repeat;
-              background-position: -1px -1px;
               position: absolute;
               bottom: -6px;
-              color: #fff;
               z-index: 4;
+              width: 28px;
+              height: 12px;
+              color: #fff;
               cursor: pointer;
+              background: #c4c6cc;
+              background-repeat: no-repeat;
+              background-position: -1px -1px;
+              border: 1px solid #dcdee5;
+              border-radius: 8px;
             }
 
             .icon-expand {
-              background-image: url('../../static/assets/images/icon-expand.png');
+              background-image: url('../../static/images/png/icon-expand.png');
 
               &:hover {
-                background-image: url('../../static/assets/images/icon-expand-hover.png');
+                background-image: url('../../static/images/png/icon-expand-hover.png');
               }
             }
 
             .icon-reduce {
-              background-image: url('../../static/assets/images/icon-reduce.png');
+              background-image: url('../../static/images/png/icon-reduce.png');
 
               &:hover {
-                background-image: url('../../static/assets/images/icon-reduce-hover.png');
+                background-image: url('../../static/images/png/icon-reduce-hover.png');
               }
             }
 
@@ -239,9 +239,9 @@
           background: #f0f1f5;
 
           .table-column-item {
-            height: 42px;
             display: flex;
             align-items: center;
+            height: 42px;
             padding: 0 16px;
             font-size: 12px;
             color: #313238;
@@ -251,8 +251,8 @@
             min-width: 400px;
 
             .unified-setting {
-              color: #3a84ff;
               margin-left: 18px;
+              color: #3a84ff;
               cursor: pointer;
             }
           }
@@ -287,12 +287,12 @@
           }
 
           .batch-list-item {
-            height: 32px;
-            background: #f5f7fa;
-            box-shadow: 1px 0 0 0 #dcdee5;
             display: flex;
             align-items: center;
+            height: 32px;
             padding: 0 16px;
+            background: #f5f7fa;
+            box-shadow: 1px 0 0 0 #dcdee5;
 
             .icon-mc-edit {
               font-size: 16px;
@@ -300,15 +300,15 @@
             }
 
             .batch-operate-warp {
-              width: 100%;
               display: flex;
               align-items: center;
               justify-content: space-around;
+              width: 100%;
 
   
               .icon-monitor {
-                cursor: pointer;
                 font-size: 14px;
+                cursor: pointer;
               }
   
               .icon-hidden {
@@ -326,10 +326,10 @@
             height: 1px;
 
             .rule-td-item {
-              width: 100%;
-              height: 100%;
               display: flex;
               align-items: center;
+              width: 100%;
+              height: 100%;
               border: 1px solid #fff;
 
               &.condition-wrap {
@@ -349,9 +349,9 @@
               }
 
               &.alarm-group-wrap {
+                display: block;
                 flex: 1;
                 min-width: 180px;
-                display: block;
 
                 .alarm-dispatch-alarm-group-select-component {
                   width: 100%;
@@ -436,6 +436,7 @@
             // 添加| 复制样式
             .rule-add {
               border: 1px solid#F3FFF5;;
+
               .add-btn {
                 @include rule-add();
               }
@@ -475,12 +476,12 @@
           }
         
           .table-data-row-item {
-            min-height: 42px;
-            background: #fff;
             display: flex;
-            align-items: center;
             flex-wrap: wrap;
+            align-items: center;
+            min-height: 42px;
             padding: 0 16px;
+            background: #fff;
 
             &.alarm-group-select-wrap {
               width: 100%;
@@ -493,10 +494,10 @@
             }
 
             &.action-id-wrap {
-              height: 100% !important;
-              padding: 0 !important;
               flex-grow: 1;
               width: 0;
+              height: 100% !important;
+              padding: 0 !important;
 
               .bk-select {
                 height: 100%;
@@ -520,8 +521,8 @@
                   height: 100%;
 
                   .bk-tooltip-ref {
-                    height: 100%;
                     flex-direction: column;
+                    height: 100%;
 
                     @include flex-center();
 
@@ -541,17 +542,17 @@
                 word-break: break-all;
 
                 .alarm-group {
-                  cursor: pointer;
                   color: rgb(58, 132, 255);
+                  cursor: pointer;
                 }
               }
             }
 
             &.alarm-gourp-contaier {
-              padding: 0;
-              height: 100%;
               display: flex;
               align-items: center;
+              height: 100%;
+              padding: 0;
 
               .alarm-group-wrap {
                 .alarm-group-tag .tag-text {
@@ -585,8 +586,8 @@
                 }
 
                 .tag-list {
-                  height: 100%;
                   align-content: center;
+                  height: 100%;
                 }
               }
 
@@ -597,8 +598,8 @@
 
               &.is-err {
                 display: flex;
-                justify-content: center;
                 flex-wrap: nowrap;
+                justify-content: center;
 
                 @include rule-verification();
 
@@ -608,22 +609,22 @@
 
                 .icon-mind-fill {
                   display: block;
-                  color: #ea3636;
                   margin-right: 8px;
+                  color: #ea3636;
                 }
               }
             }
            
             &.additional-tags {
+              position: relative;
               width: 100%;
               padding: 4px 0;
-              position: relative;
 
               .bk-tag-selector {
-                height: 100%;
-                width: 100%;
                 display: flex;
                 align-items: center;
+                width: 100%;
+                height: 100%;
 
                 .bk-tag-input {
                   flex: 1;
@@ -665,10 +666,10 @@
 
 
             &.operate-wrap {
-              font-size: 14px;
               display: flex;
-              width: 100%;
               justify-content: space-around;
+              width: 100%;
+              font-size: 14px;
               cursor: pointer;
 
               .icon-monitor:hover {
@@ -676,8 +677,8 @@
               }
 
               .disabled {
-                cursor: not-allowed;
                 color: #dcdee5;
+                cursor: not-allowed;
               }
 
               .disabled:hover {
@@ -696,22 +697,22 @@
             }
 
             &.table-data-row-item-conditions {
-              padding: 0;
               width: 100%;
+              padding: 0;
 
               .icon-mind-fill {
-                color: #ea3636;
                 display: none;
+                color: #ea3636;
               }
 
               .repeat-tip {
-                color: #fff;
-                height: 16px;
-                background: #ea3636;
                 display: none;
-                border-radius: 2px;
-                font-size: 12px;
+                height: 16px;
                 padding: 0 4px;
+                font-size: 12px;
+                color: #fff;
+                background: #ea3636;
+                border-radius: 2px;
               }
 
               &.is-err {
@@ -744,11 +745,11 @@
           }
 
           .colspan-item {
-            background: #fafbfd;
-            height: 100%;
             width: 100%;
-            background: #fafbfd !important;
+            height: 100%;
             color: #c4c6cc;
+            background: #fafbfd;
+            background: #fafbfd !important;
 
             @include flex-center();
 
@@ -757,15 +758,15 @@
              
 
               &::before {
-                content: '';
+                position: absolute;
+                top: 50%;
+                left: -8px;
                 width: 4px;
                 height: 4px;
-                border-radius: 4px;
-                position: absolute;
-                left: -8px;
                 margin-top: -2px;
-                top: 50%;
+                content: '';
                 background: #2dcb56;
+                border-radius: 4px;
               }
             }
           }
@@ -796,9 +797,9 @@
     min-width: 260px;
     max-width: 400px;
     padding: 14px 12px;
-    color: #63656e;
     font-size: 14px;
     line-height: 22px;
+    color: #63656e;
 
     .condition-wrap {
       .common-condition-component {
@@ -807,14 +808,14 @@
     }
 
     .btn-wrap {
-      margin-top: 8px;
       display: flex;
       justify-content: end;
+      margin-top: 8px;
 
       .btn {
+        line-height: 20px;
         color: #3a84ff;
         cursor: pointer;
-        line-height: 20px;
       }
     }
   }
@@ -825,29 +826,29 @@
     padding-top: 16px;
 
     .setting-title {
-      color: #63656e;
-      line-height: 20px;
-      font-size: 12px;
       margin-bottom: 6px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #63656e;
 
       .icon-tishi {
-        font-size: 14px;
         margin-left: 5px;
+        font-size: 14px;
         color: #979ba5;
         cursor: pointer;
       }
     }
 
     .bottom-opreate {
+      display: flex;
+      align-items: center;
+      justify-content: end;
+      height: 42px;
+      padding: 0 16px;
       margin-top: 12px;
       background: #fafbfd;
       border: 1px solid #eaebf0;
       border-radius: 0 0 2px 2px;
-      height: 42px;
-      display: flex;
-      align-items: center;
-      justify-content: end;
-      padding: 0 16px;
     }
 
     .common-condition-new-component {
@@ -872,12 +873,12 @@
 
   .popconfirm-operate {
     button {
+      height: auto !important;
+      padding: 0px !important;
+      margin-left: 8px;
       color: #3a84ff !important;
       background: none !important;
       border: none !important;
-      padding: 0px !important;
-      height: auto !important;
-      margin-left: 8px;
     }
 
     button:hover {
@@ -905,14 +906,14 @@
     height: 40px;
 
     .add-wrap {
-      height: 100%;
-      flex: 1;
-      cursor: pointer;
       display: flex;
+      flex: 1;
       align-items: center;
       justify-content: center;
-      color: #63656e;
+      height: 100%;
       font-size: 12px;
+      color: #63656e;
+      cursor: pointer;
 
       .icon-jia {
         margin-right: 5px;
@@ -926,12 +927,12 @@
     }
 
     .loading-wrap {
-      width: 42px;
-      height: 100%;
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 42px;
+      height: 100%;
       cursor: pointer;
 
       .status-loading {
@@ -939,12 +940,12 @@
       }
 
       &::after {
-        content: '';
         position: absolute;
-        left: -1px;
         top: 10px;
+        left: -1px;
         width: 1px;
         height: 16px;
+        content: '';
         background: #dcdee5;
       }
 

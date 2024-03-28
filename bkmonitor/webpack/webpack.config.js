@@ -107,10 +107,7 @@ module.exports = async (baseConfig, { production, app }) => {
     new CopyPlugin({
       patterns: [
         { from: path.resolve(`./public/${app}/`), to: distUrl },
-        { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') },
-        ...(appDirName === 'monitor-pc' ? [
-          { from: path.resolve(__dirname, './src/monitor-pc/static/assets/images'), to: path.resolve(distUrl, './img') },
-        ] : undefined)
+        { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') }
       ].filter(Boolean)
     })
   );
