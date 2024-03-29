@@ -939,3 +939,13 @@ APM_PROFILE_DISCOVER_LOCK = register_key_with_config(
         "backend": "service",
     }
 )
+
+ACCESS_BATCH_DATA_KEY = register_key_with_config(
+    {
+        "label": "[access]分批数据key",
+        "key_type": "list",
+        "key_tpl": "access.batch.{strategy_group_key}.{data_key}",
+        "ttl": 300,
+        "backend": "service",
+    }
+)

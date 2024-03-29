@@ -30,7 +30,6 @@ from kafka.errors import NoBrokersAvailable
 from alarm_backends import constants
 from alarm_backends.cluster import TargetType
 from alarm_backends.core.cache import clear_mem_cache, key
-from alarm_backends.core.cache.key import ACCESS_END_TIME_KEY, REAL_TIME_HOST_TOPIC_KEY
 from alarm_backends.core.cache.result_table import ResultTableCacheManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cluster import get_cluster
@@ -213,15 +212,18 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
 
 class AccessDataProcess(BaseAccessDataProcess):
-    def __init__(self, strategy_group_key, *args, **kwargs):
+    def __init__(self, strategy_group_key: str, *args, **kwargs):
         super(AccessDataProcess, self).__init__(strategy_group_key, *args, **kwargs)
         self.strategy_group_key = strategy_group_key
+        self.batch_tasks = []
+        self.from_timestamp = None
+        self.until_timestamp = None
 
     def __str__(self):
         return "{}:strategy_group_key({})".format(self.__class__.__name__, self.strategy_group_key)
 
     @cached_property
-    def items(self):
+    def items(self) -> List[Item]:
         data = []
         records = StrategyCacheManager.get_strategy_group_detail(self.strategy_group_key)
         for strategy_id, item_ids in list(records.items()):
@@ -263,29 +265,99 @@ class AccessDataProcess(BaseAccessDataProcess):
         if not self.items:
             return
 
-        # 拉取一次数据，默认相同查询方法的数据拉取状态保持一致
-        first_item: Item = self.items[0]
-        agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
+        now_timestamp = arrow.utcnow().timestamp
 
+        # 设置查询时间范围
+        self.get_query_time_range(now_timestamp)
+
+        # 如果策略更新导致查询时间错位，则跳过本次查询
+        if self.from_timestamp > self.until_timestamp:
+            return
+
+        # 数据查询
+        points = self.query_data(now_timestamp)
+        if not points:
+            return
+
+        # 当点数大于10000万时，将数据拆分为多个批量任务
+        if len(points) > 100000:
+            points = self.send_batch_data(points)
+
+        # 过滤重复数据并实例化
+        self.filter_duplicates(points)
+
+    def query_data(self, now_timestamp: int):
+        """
+        数据源查询
+        """
+        first_item = self.items[0]
+
+        # 由于某些数据源需要进行策略分组，因此需要将条件置为空
+        if not (first_item.data_source_types & MULTI_METRIC_DATA_SOURCES):
+            first_item.data_sources[0]._advance_where = []
+
+        # 计算平台指标查询localTime
+        if DataSourceLabel.BK_DATA in first_item.data_source_labels:
+            first_item.data_sources[0].metrics.append({"field": "localTime", "method": "MAX", "alias": "_localTime"})
+
+        try:
+            points = first_item.query_record(self.from_timestamp, self.until_timestamp)
+        except BKAPIError as e:
+            logger.error(e)
+            points = []
+        except Exception as e:  # noqa
+            logger.exception(
+                "strategy_group_key({strategy_group_key}) query records error, {err}".format(
+                    strategy_group_key=self.strategy_group_key, err=e
+                )
+            )
+            points = []
+
+        # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
+        if DataSourceLabel.BK_DATA in first_item.data_source_labels:
+            max_local_time = self.get_max_local_time(points)
+            first_item.data_sources[0].metrics = [
+                m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
+            ]
+            if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
+                agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
+                key.ACCESS_END_TIME_KEY.client.set(
+                    key.ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key),
+                    str(self.until_timestamp),
+                    # key超时时间低于监控周期，会导致数据缓存丢失
+                    ex=max([key.ACCESS_END_TIME_KEY.ttl, agg_interval * 5]),
+                )
+                logging.info(
+                    f"skip access {self.strategy_group_key} data because data local time is too close."
+                    f"now: {now_timestamp}, local time: {max_local_time.timestamp()}"
+                )
+                return []
+
+        return points
+
+    def get_query_time_range(self, now_timestamp: int):
+        """
+        获取查询时间范围
+        """
+        first_item = self.items[0]
+        agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
         min_last_checkpoint = min([i.item_config["update_time"] for i in self.items])
         checkpoint = Checkpoint(self.strategy_group_key).get(min_last_checkpoint, interval=agg_interval)
         checkpoint = checkpoint // agg_interval * agg_interval
 
-        now_timestamp = arrow.utcnow().timestamp
-
         # 由于存在入库延时问题，每次多往前拉取settings.NUM_OF_COUNT_FREQ_ACCESS个周期的数据
-        from_timestamp = checkpoint - settings.NUM_OF_COUNT_FREQ_ACCESS * agg_interval
+        self.from_timestamp = checkpoint - settings.NUM_OF_COUNT_FREQ_ACCESS * agg_interval
 
-        until_timestamp = None
         # 计算平台类型尝试获取上次未处理完的时间
+        until_timestamp = None
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            end_time_key = ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key)
-            client = ACCESS_END_TIME_KEY.client
+            end_time_key = key.ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key)
+            client = key.ACCESS_END_TIME_KEY.client
 
-            until_timestamp = client.get(end_time_key)
-            if until_timestamp:
+            until_timestamp_str = client.get(end_time_key)
+            if until_timestamp_str:
                 client.delete(end_time_key)
-                until_timestamp = int(until_timestamp)
+                until_timestamp = int(until_timestamp_str)
             else:
                 until_timestamp = 0
 
@@ -299,48 +371,66 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 保证查询时间范围是< until_timestamp 而不是<=即可
             until_timestamp = (now_timestamp - time_delay) // agg_interval * agg_interval
 
-        if from_timestamp > until_timestamp:
-            return
+        self.until_timestamp = until_timestamp
 
-        # 由于某些数据源需要进行策略分组，因此需要将条件置为空
-        if not (first_item.data_source_types & MULTI_METRIC_DATA_SOURCES):
-            first_item.data_sources[0]._advance_where = []
+    def send_batch_data(self, points: List[Dict], batch_threshold: int = 50000) -> List[Dict]:
+        """
+        发送分批处理任务，并返回第一批数据
+        """
+        from alarm_backends.service.access.tasks import run_access_batch_data
 
-        # 计算平台指标查询localTime
-        if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            first_item.data_sources[0].metrics.append({"field": "localTime", "method": "MAX", "alias": "_localTime"})
+        client = key.ACCESS_BATCH_DATA_KEY.client
+        first_batch_points = []
+        latest_record_timestamp = None
+        last_batch_index, batch_count = 0, 0
+        for index, record in enumerate(points):
+            timestamp = record.get("_time_") or record["time"]
+            # 当数据点数不足或数据同属一个时间点时，数据点记为同一批次
+            if index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp:
+                latest_record_timestamp = timestamp
+                continue
 
-        try:
-            item_records = first_item.query_record(from_timestamp, until_timestamp)
-        except BKAPIError as e:
-            logger.error(e)
-            item_records = []
-        except Exception as e:  # noqa
-            logger.exception(
-                "strategy_group_key({strategy_group_key}) query records error, {err}".format(
-                    strategy_group_key=self.strategy_group_key, err=e
-                )
+            # 记录当前批次数
+            batch_count += 1
+            # 记录下一轮的起始位置
+            last_batch_index = index
+
+            # 第一批数据原地处理
+            if batch_count == 1:
+                first_batch_points = points[last_batch_index:index]
+                last_batch_index = index
+                continue
+
+            # 将分批数据写入redis
+            data_key = f"{self.until_timestamp}.{batch_count}"
+            client.lpush(
+                key.ACCESS_BATCH_DATA_KEY.get_key(strategy_group_key=self.strategy_group_key, data_key=data_key),
+                *[json.dumps(point) for point in points[last_batch_index:index]],
             )
-            item_records = []
+            key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, data_key=data_key)
 
-        # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
-        if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            max_local_time = self.get_max_local_time(item_records)
-            first_item.data_sources[0].metrics = [
-                m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
-            ]
-            if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
-                ACCESS_END_TIME_KEY.client.set(
-                    ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key),
-                    str(until_timestamp),
-                    # key超时时间低于监控周期，会导致数据缓存丢失
-                    ex=max([ACCESS_END_TIME_KEY.ttl, agg_interval * 5]),
-                )
-                logging.info(
-                    f"skip access {self.strategy_group_key} data because data local time is too close."
-                    f"now: {now_timestamp}, local time: {max_local_time.timestamp()}"
-                )
-                return
+            # 发起异步任务
+            self.batch_tasks.append(run_access_batch_data.delay(self.strategy_group_key, data_key))
+
+        # 处理最后一批数据
+        if last_batch_index < len(points) - 1:
+            batch_count += 1
+            data_key = f"{self.until_timestamp}.{batch_count}"
+            client.lpush(
+                key.ACCESS_BATCH_DATA_KEY.get_key(strategy_group_key=self.strategy_group_key, data_key=data_key),
+                *[json.dumps(point) for point in points[last_batch_index:]],
+            )
+            key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, data_key=data_key)
+
+            self.batch_tasks.append(run_access_batch_data.delay(self.strategy_group_key, data_key))
+
+        return first_batch_points
+
+    def filter_duplicates(self, points: List[Dict]):
+        """
+        过滤重复数据并实例化
+        """
+        first_item = self.items[0]
 
         records = []
         dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id)
@@ -353,7 +443,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 have_priority = True
                 break
 
-        for record in reversed(item_records):
+        for record in reversed(points):
             point = DataRecord(self.items, record)
             if point.value is not None:
                 # 去除重复数据
@@ -387,13 +477,13 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "time range({from_datetime} - {until_datetime})".format(
                     strategy_id=item.strategy.id,
                     item_id=item.id,
-                    total=len(item_records),
+                    total=len(points),
                     records_length=point_count,
                     duplicate_counts=duplicate_counts,
                     none_point_counts=none_point_counts,
                     strategy_group_key=self.strategy_group_key,
-                    from_datetime=arrow.get(from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
-                    until_datetime=arrow.get(until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                    from_datetime=arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                    until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
                 )
             )
 
@@ -431,6 +521,32 @@ class AccessDataProcess(BaseAccessDataProcess):
         ).inc()
 
 
+class AccessBatchDataProcess(AccessDataProcess):
+    """
+    分批任务处理器
+    """
+
+    def __init__(self, strategy_group_key: str, data_key: str, *args, **kwargs):
+        self.data_key = data_key
+        super().__init__(strategy_group_key, *args, **kwargs)
+
+    def pull(self):
+        client = key.ACCESS_BATCH_DATA_KEY.client
+        cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
+            strategy_group_key=self.strategy_group_key, data_key=self.data_key
+        )
+
+        points: List[str] = client.lrange(cache_key, 0, -1)
+        client.delete(cache_key)
+        points: List[Dict] = [json.loads(point) for point in points]
+
+        self.filter_duplicates(points)
+
+    def process(self):
+        super().process()
+        return len(self.record_list)
+
+
 class AccessRealTimeDataProcess(BaseAccessDataProcess):
     """
     实时监控数据拉取
@@ -453,7 +569,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         self.ip = get_local_ip()
 
         # topic信息缓存key
-        self.topic_cache_key = REAL_TIME_HOST_TOPIC_KEY.get_key()
+        self.topic_cache_key = key.REAL_TIME_HOST_TOPIC_KEY.get_key()
 
         # topics信息
         self.topics: Dict[str, Dict] = {}
@@ -599,7 +715,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                     for host in hosts
                 },
             )
-            self.cache.expire(self.topic_cache_key, REAL_TIME_HOST_TOPIC_KEY.ttl)
+            self.cache.expire(self.topic_cache_key, key.REAL_TIME_HOST_TOPIC_KEY.ttl)
             pipeline.execute()
 
             # 只执行一次或存在停止信号
