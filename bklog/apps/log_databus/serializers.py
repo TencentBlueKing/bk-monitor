@@ -668,7 +668,7 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
             try:
                 ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
             except Exception as e:
-                raise ValidationError(_("分词符不合法，请检查: %s") % e)
+                raise ValidationError(_("字段分词符 %s 不合法，请检查: %s") % (ret["tokenize_on_chars"], e))
         return ret
 
 
@@ -690,7 +690,7 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
             try:
                 ret["original_text_tokenize_on_chars"] = unicode_str_decode(ret["original_text_tokenize_on_chars"])
             except Exception as e:
-                raise ValidationError(_("分词符不合法，请检查: %s") % e)
+                raise ValidationError(_("原文分词符 %s 不合法，请检查: %s") % (ret["original_text_tokenize_on_chars"], e))
         return ret
 
 
