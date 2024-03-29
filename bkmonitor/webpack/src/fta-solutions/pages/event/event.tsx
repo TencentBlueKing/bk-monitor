@@ -2335,7 +2335,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               </bk-tab>
               {!this.tableData.length ? (
                 (() => {
-                  if (!this.tableLoading) {
+                  if (this.tableLoading) {
                     return (
                       <div class='table-content'>
                         <TableSkeleton></TableSkeleton>
@@ -2358,7 +2358,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   <keep-alive>
                     {this.activePanel === 'list' ? (
                       (() => {
-                        if (!this.tableLoading) {
+                        if (this.tableLoading) {
                           return <TableSkeleton></TableSkeleton>;
                         }
                         return (
