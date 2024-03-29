@@ -659,7 +659,7 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
     """
 
     tokenize_on_chars = serializers.CharField(
-        label=_("自定义分词符"), required=False, default="", allow_blank=True, allow_null=True, trim_whitespace=False
+        label=_("自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
     )
 
     def validate(self, attrs):
@@ -822,8 +822,6 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
                     if "field_index" not in item:
                         raise ValidationError(_("分隔符必须指定field_index"))
 
-                # 字段检查
-                CollectorEtlFieldsSerializer().validate(item)
                 fields.append(item)
 
                 if not item.get("is_delete", False):
