@@ -1,4 +1,8 @@
+@import '../../../static/css/mixin.scss';
+
 .uptime-check-task-card-skeleton {
+  @include common-style;
+
   .container-01 {
     display: flex;
     align-items: center;

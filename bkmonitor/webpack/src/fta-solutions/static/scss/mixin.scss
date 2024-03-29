@@ -1,25 +1,27 @@
 @mixin overlay {
   position: fixed;
   top: 0;
-  left: 0;
   right: 0;
   bottom: 0;
+  left: 0;
   padding: 1rem;
   background-color: rgba(0, 0, 0, .1);
 }
+
 @mixin ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 @mixin icon-size($size: 16px, $hasHover: false) {
-  height: $size;
-  width: $size;
   display: flex;
+  flex: 0 0 $size;
   align-items: center;
   justify-content: center;
+  width: $size;
+  height: $size;
   font-size: $size;
-  flex: 0 0 $size;
 
   @if $hasHover {
     &:hover {
@@ -27,27 +29,31 @@
       cursor: pointer;
     }
   }
+
   &::before {
-    height: $size;
     width: $size;
+    height: $size;
   }
 }
+
 @mixin common-list($maxHeight: 108px) {
   display: flex;
   flex-direction: column;
-  padding: 6px 0;
   max-height: $maxHeight;
+  padding: 6px 0;
   overflow: auto;
   font-size: 12px;
+
   &-item {
+    display: flex;
     flex: 0 0 32px;
+    align-items: center;
+    width: 100%;
     height: 32px;
     padding: 0 10px;
-    width: 100%;
-    display: flex;
-    align-items: center;
 
     @include text-ellipsis;
+
     &.item-active,
     &:hover {
       color: #3a84ff;
@@ -56,8 +62,75 @@
     }
   }
 }
+
 @mixin text-ellipsis {
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis
+  text-overflow: ellipsis;
+  white-space: nowrap
+}
+
+@mixin common-style() {
+  .w-108 {
+    width: 108px;
+  }
+
+  .w-122 {
+    width: 122px;
+  }
+
+  .w-116 {
+    width: 116px;
+  }
+
+  .w-240 {
+    width: 240px;
+  }
+
+  .w-116 {
+    width: 116px;
+  }
+
+  .w-auto {
+    width: auto;
+  }
+
+  .h-20 {
+    height: 20px;
+  }
+
+  .h-32 {
+    height: 32px;
+  }
+
+  .h-30 {
+    height: 30px;
+  }
+
+  .h-198 {
+    height: 198px;
+  }
+
+  .mt-20 {
+    margin-top: 20px;
+  }
+
+  .mt-22 {
+    margin-top: 22px;
+  }
+
+  .mt-26 {
+    margin-top: 26px;
+  }
+
+  .ml-8 {
+    margin-left: 8px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .ml-auto {
+    margin: 0 0 0 auto;
+  }
 }
