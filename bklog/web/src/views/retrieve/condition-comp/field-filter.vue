@@ -156,6 +156,7 @@
             @toggleItem="handleToggleItem"
           />
           <div
+            v-if="getShowBuiltExpandBtn"
             class="expand-all"
             @click="isShowAllBuiltIn = !isShowAllBuiltIn"
           >
@@ -249,6 +250,7 @@ export default {
         '__ipv6__',
         '__ext'
       ],
+      isHaveInitHiddenFiled: false,
       isShowAllBuiltIn: false,
       isShowAllIndexSet: false
     };
@@ -316,10 +318,15 @@ export default {
           otherList: []
         }
       );
+      this.isHaveInitHiddenFiled = !!initHiddenList.length;
       // 展示全部
       if (this.isShowAllBuiltIn) return [...otherList, ...initHiddenList];
       // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
       return otherList.slice(0, 9);
+    },
+    getShowBuiltExpandBtn() {
+      if (!this.isHaveInitHiddenFiled && this.builtInFields.length <= 10) return false;
+      return true;
     },
     showIndexSetFields() {
       return this.isShowAllIndexSet ? this.indexSetFields : this.indexSetFields.slice(0, 9);
