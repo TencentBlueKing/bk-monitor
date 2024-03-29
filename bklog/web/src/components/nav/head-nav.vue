@@ -332,6 +332,10 @@ export default {
     this.$store.commit('updateMenuList', menuArr);
     await this.getUserInfo();
     setTimeout(() => this.requestMySpaceList(), 100);
+    window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
+  },
+  beforeDestroy() {
+    window.bus.$off('showGlobalDialog', this.handleGoToMyReport);
   },
   methods: {
     async getUserInfo() {
@@ -530,8 +534,8 @@ export default {
       this.showGlobalDialog = false;
       this.$nextTick(() => {
         const bizId = this.$store.state.bkBizId;
-        // @ts-ignore
-        const targetSrc = `${window.MONITOR_URL}/?bizId=${bizId}&needMenu=false#/trace/report/my-applied-report`;
+        const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
+        const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-applied-report`;
         this.globalDialogTitle = this.$t('我申请的');
         this.showGlobalDialog = true;
         this.targetSrc = targetSrc;
@@ -542,8 +546,8 @@ export default {
       this.showGlobalDialog = false;
       this.$nextTick(() => {
         const bizId = this.$store.state.bkBizId;
-        // @ts-ignore
-        const targetSrc = `${window.MONITOR_URL}/?bizId=${bizId}&needMenu=false#/trace/report/my-report`;
+        const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
+        const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-report`;
         this.globalDialogTitle = this.$t('我的订阅');
         this.showGlobalDialog = true;
         this.targetSrc = targetSrc;
