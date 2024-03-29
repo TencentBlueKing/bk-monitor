@@ -1265,10 +1265,10 @@ export default {
       cursor: pointer;
     }
 
-    .monospace-text {
-      font-family: monospace;
-      color: #000;
-    }
+    // .monospace-text {
+    //   font-family: monospace;
+    //   color: #000;
+    // }
   }
 }
 
