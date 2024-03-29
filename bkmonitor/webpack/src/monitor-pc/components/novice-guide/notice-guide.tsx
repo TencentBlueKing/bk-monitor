@@ -57,7 +57,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
   }
   created() {
     this.step = this.defaultStep;
-    this.handleReize = debounce(100, false, () => {
+    this.handleReize = debounce(100, () => {
       this.step < this.stepList.length && this.activeStep();
     });
   }

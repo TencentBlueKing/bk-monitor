@@ -84,17 +84,17 @@ class ProfilingFileHandler:
         queryset.update(status=UploadedFileStatus.PARSING_SUCCEED, meta_info=meta_info)
 
         try:
-            CollectorHandler.send_to_builtin_datasource(profile_data)
+            CollectorHandler.send_to_builtin_datasource(profile_id, profile_data)
         except Exception as e:  # pylint: disable=broad-except
             content = f"save profiling data to doris failed, error: {e}, stack: {traceback.format_exc()}"
             logger.exception(content)
             queryset.update(status=UploadedFileStatus.STORE_FAILED, content=content)
             return
 
-        # 获取查询此 profile 文件的开始/结束时间 规则为：开始时间 = now - 30m 结束时间 = now + 30m
-        now = datetime.now()
+        # 获取查询此 profile 文件的开始/结束时间 规则为：开始时间 = 数据时间 - 30m 结束时间 = 数据时间 + 30m
+        profile_datetime = datetime.fromtimestamp(profile_data.time_nanos / 1000000000)
         queryset.update(
             status=UploadedFileStatus.STORE_SUCCEED,
-            query_start_time=str(int((now - timedelta(minutes=30)).timestamp() * 1000000)),
-            query_end_time=str(int((now + timedelta(minutes=30)).timestamp() * 1000000)),
+            query_start_time=str(int((profile_datetime - timedelta(minutes=30)).timestamp() * 1000000)),
+            query_end_time=str(int((profile_datetime + timedelta(minutes=30)).timestamp() * 1000000)),
         )

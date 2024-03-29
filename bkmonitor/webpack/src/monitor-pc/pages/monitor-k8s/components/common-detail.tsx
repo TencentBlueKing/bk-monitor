@@ -430,6 +430,10 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     this.contentHeight = data.mainHeight - 48;
     this.indexListHeight = Math.max(data.asideHeight, INDEX_LIST_MIN_HEIGHT);
   }
+  handleResizeContentHeightImmediately(data) {
+    this.contentHeight = data.mainHeight - 48;
+    this.indexListHeight = Math.max(data.asideHeight, INDEX_LIST_MIN_HEIGHT);
+  }
 
   /**
    * 根据索引定位到图表位置
@@ -604,13 +608,14 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               disabled={!this.expandIndexList}
               min={INDEX_LIST_MIN_HEIGHT}
               max={this.maxIndexListHeight}
-              default={!!this.indexList.length ? ASIDE_DEFAULT_HEIGHT : 0}
+              default={!!this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
               placement={this.indexListPlacement}
               toggleBefore={() => this.expandIndexList}
               onUpdateHeight={this.handleResizeContentHeight}
               onResizing={this.hanldeResizing}
               onTogglePlacement={this.handleTogglePlacement}
               onTriggerMin={this.handleTriggerMinIndexList}
+              onAfterResize={this.handleResizeContentHeightImmediately}
             >
               <div
                 slot='main'

@@ -113,7 +113,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
 
   handleBindScrollEvent() {
     this.scrollEl = this.metricTable.$el.querySelector('.bk-table-body-wrapper');
-    this.throttleScroll = throttle(300, false, this.handleTableScroll);
+    this.throttleScroll = throttle(300, this.handleTableScroll);
     this.scrollEl.addEventListener('scroll', this.throttleScroll);
   }
   handleTableScroll(e) {

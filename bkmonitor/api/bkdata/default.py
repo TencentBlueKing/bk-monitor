@@ -64,6 +64,11 @@ class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def get_request_url(self, validated_request_data):
         return super(BkDataAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
 
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super().full_request_data(validated_request_data)
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
+        return validated_request_data
+
 
 class BkDataQueryAPIGWResource(BkDataAPIGWResource):
     base_url = settings.BKDATA_QUERY_API_BASE_URL or BkDataAPIGWResource.base_url
@@ -794,6 +799,20 @@ class DeleteDataFlow(DataAccessAPIResource):
 
     class RequestSerializer(CommonRequestSerializer):
         flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+
+
+class DeleteDataFlowNode(DataAccessAPIResource):
+    """
+    删除DataFlow中的节点
+    """
+
+    action = "/v3/dataflow/flow/flows/{flow_id}/nodes/{node_id}/"
+    method = "DELETE"
+
+    class RequestSerializer(CommonRequestSerializer):
+        flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+        node_id = serializers.IntegerField(required=True, label="DataFlow的节点ID")
+        confirm = serializers.BooleanField(default=True, required=False)
 
 
 class GetLatestDeployDataFlow(DataAccessAPIResource):

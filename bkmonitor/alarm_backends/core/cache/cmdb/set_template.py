@@ -12,6 +12,8 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 
+from django.conf import settings
+
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from core.drf_resource import api
 
@@ -20,6 +22,7 @@ class SetTemplateManager(RefreshByBizMixin, CMDBCacheManager):
     """
     CMDB 集群模板缓存
     """
+
     type = "set_template"
     CACHE_KEY = "{prefix}.cmdb.set_template".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
     SET_TEMPLATE_TO_SETS = "{prefix}.cmdb.set_template_to_sets".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
@@ -54,4 +57,6 @@ class SetTemplateManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
+    if "set_template" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     SetTemplateManager.refresh()

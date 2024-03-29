@@ -111,6 +111,14 @@ class Command(BaseCommand):
             raise ValueError("metrics is required")
         metric_list = metrics.split(",")
         data_id = options['data_id']
+        # 删除记录中的指标
+        obj = models.TimeSeriesGroup.objects.filter(bk_data_id=data_id).first()
+        if not obj:
+            self.stderr.write(f"data_id:{data_id} not found ts group")
+            return
+        models.TimeSeriesMetric.objects.filter(group_id=obj.time_series_group_id, field_name__in=metric_list).delete()
+        # 删除结果表下对应的字段
+        models.ResultTableField.objects.filter(table_id=obj.table_id, field_name__in=metric_list).delete()
         # 构建 client，然后删除指标
         client = RedisClient.from_envs(prefix="BK_MONITOR_TRANSFER")
         client.zrem(f"bkmonitor:metrics_{data_id}", *metric_list)

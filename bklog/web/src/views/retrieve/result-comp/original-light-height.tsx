@@ -23,7 +23,7 @@
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { getFlatObjValues } from '@/common/util';
-import TextSegmentation from './text-segmentation.vue';
+import TextSegmentation from './text-segmentation';
 import './original-light-height.scss';
 
 interface IProps {
@@ -37,8 +37,6 @@ export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) originJson;
   @Prop({ type: Array<any>, required: true }) visibleFields;
   @Prop({ type: Boolean, required: true }) isWrap;
-
-  segmentReg = /<mark>(.*?)<\/mark>/g;
 
   get visibleFieldsNameList() {
     return this.visibleFields.map(item => item.field_name);
@@ -71,8 +69,8 @@ export default class QueryStatement extends tsc<IProps> {
     return newMenuObj;
   }
 
-  getFieldType(fieldName: string) {
-    return this.visibleFields.find(item => item.field_name === fieldName)?.field_type;
+  getField(fieldName: string) {
+    return this.visibleFields.find(item => item.field_name === fieldName);
   }
 
   render() {
@@ -88,7 +86,7 @@ export default class QueryStatement extends tsc<IProps> {
               <span class='origin-value'>
                 <TextSegmentation
                   content={value}
-                  field-type={this.getFieldType(key)}
+                  field={this.getField(key)}
                   menu-click={(type, content, isLink) => this.handleEmitMenuClick(type, content, key, isLink)}
                 />
               </span>

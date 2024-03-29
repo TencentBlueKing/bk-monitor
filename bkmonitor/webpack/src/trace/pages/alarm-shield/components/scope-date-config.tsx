@@ -317,8 +317,8 @@ export default defineComponent({
                       {this.weekList.map(item => (
                         <Select.Option
                           key={item.id}
-                          value={item.id}
-                          label={item.name}
+                          id={item.id}
+                          name={item.name}
                         ></Select.Option>
                       ))}
                     </Select>

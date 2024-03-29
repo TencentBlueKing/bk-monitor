@@ -170,8 +170,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   created() {
     this.scenarioType = this.monitorType;
     this.searchObj.data = this.getSearchOptions();
-    this.handleSearch = debounce(300, false, this.filterMetric);
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.handleSearch = debounce(300, this.filterMetric);
+    this.throttledScroll = throttle(300, this.handleScroll);
     this.dataSourceInit();
     this.cacheDataInit();
   }

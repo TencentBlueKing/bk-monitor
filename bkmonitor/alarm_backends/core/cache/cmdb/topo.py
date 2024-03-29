@@ -10,8 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 from typing import List
 
+from django.conf import settings
+
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
-from api.cmdb.define import TopoTree, TopoNode
+from api.cmdb.define import TopoNode, TopoTree
 from core.drf_resource import api
 
 
@@ -19,6 +21,8 @@ class TopoManager(RefreshByBizMixin, CMDBCacheManager):
     """
     拓扑节点缓存
     """
+
+    ObjectClass = TopoNode
     type = "topo"
     CACHE_KEY = "{prefix}.cmdb.topo".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
 
@@ -57,4 +61,6 @@ class TopoManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
+    if "topo" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     TopoManager.refresh()

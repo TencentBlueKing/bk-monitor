@@ -2258,7 +2258,19 @@ class CollectorHandler(object):
         clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
         if not clean_stash:
             return None
-        return model_to_dict(CleanStash.objects.filter(collector_config_id=self.collector_config_id).first())
+        config = model_to_dict(CleanStash.objects.filter(collector_config_id=self.collector_config_id).first())
+        # 给未配置自定义分词符和大小写敏感的清洗配置添加默认值
+        etl_params = config.get("etl_params", {})
+        etl_params.setdefault("original_text_is_case_sensitive", False)
+        etl_params.setdefault("original_text_tokenize_on_chars", "")
+        config["etl_params"] = etl_params
+
+        etl_fields = config.get("etl_fields", [])
+        for etl_field in etl_fields:
+            etl_field.setdefault("is_case_sensitive", False)
+            etl_field.setdefault("tokenize_on_chars", "")
+        config["etl_fields"] = etl_fields
+        return config
 
     def create_clean_stash(self, params: dict):
         model_fields = {
