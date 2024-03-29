@@ -330,7 +330,7 @@ class ClusteringReportHandler(BaseReportHandler):
                 f" new_pattern_count: {new_pattern_count}"
             )
             return False
-        elif not (pattern_count and new_pattern_count):
+        elif not (pattern_count or new_pattern_count):
             logger.info(
                 f"{self.log_prefix} send check is false, is_show_new_pattern: {is_show_new_pattern},"
                 f"pattern_count: {pattern_count}, new_pattern_count: {new_pattern_count}"
