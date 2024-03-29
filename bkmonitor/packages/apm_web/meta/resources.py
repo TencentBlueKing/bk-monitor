@@ -2241,10 +2241,11 @@ class QueryExceptionEndpointResource(Resource):
             "app_name": validated_data["app_name"],
             "bk_biz_id": validated_data["bk_biz_id"],
             "filter_params": filter_params,
+            "fields": ["resource.service.name", "span_name", "trace_id", "events.attributes.exception.type"],
         }
 
         exception_spans = api.apm_api.query_span(query_dict)
-        has_event_trace_id = [i["trace_id"] for i in exception_spans if i["events"]]
+        has_event_trace_id = [i["trace_id"] for i in exception_spans if i.get("events")]
         indentify_mapping = {}
         colors = ServiceColorClassifier()
 
@@ -2252,9 +2253,9 @@ class QueryExceptionEndpointResource(Resource):
             service_name = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME, self.UNKNOWN_EXCEPTION)
             span_name = span[OtlpKey.SPAN_NAME]
 
-            if span["events"]:
+            if span.get("events"):
                 for event in span["events"]:
-                    exception_type = event[OtlpKey.ATTRIBUTES].get(
+                    exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(
                         SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN_EXCEPTION
                     )
                     if (
