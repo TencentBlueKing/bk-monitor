@@ -918,6 +918,7 @@ class CustomTimeSeriesDetail(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         model_only = serializers.BooleanField(required=False, default=False)
+        with_target = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(pk=params["time_series_group_id"])
@@ -930,7 +931,11 @@ class CustomTimeSeriesDetail(Resource):
         data["access_token"] = config.token
         metrics = copy.deepcopy(config.get_metrics())
         data["metric_json"] = [{"fields": list(metrics.values())}]
-        data["target"] = config.query_target(bk_biz_id=params["bk_biz_id"])
+        data["target"] = []
+        # 新增查询target参数，自定义指标详情页面不需要target，默认不查询
+        if params.get("with_target"):
+            data["target"] = config.query_target(bk_biz_id=params["bk_biz_id"])
+
         append_custom_ts_metric_list_cache.delay(params["time_series_group_id"])
         return data
 
