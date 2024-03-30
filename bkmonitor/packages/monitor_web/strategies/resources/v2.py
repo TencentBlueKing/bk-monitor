@@ -2281,6 +2281,7 @@ class QueryConfigToPromql(Resource):
                 if data_source not in [
                     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
                     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+                    (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
                 ]:
                     raise ValidationError(f"not support data_source({data_source})")
 
@@ -2348,9 +2349,13 @@ class QueryConfigToPromql(Resource):
             "bk_log_search": "bklog",
         }
         for query_config in params["query_configs"]:
-            data_source_label = data_source_label_mapping.get(query_config["data_source_label"], "bkmonitor")
+            data_source_label = data_source_label_mapping.get(query_config["data_source_label"], data_source_label)
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-            data_sources.append(data_source_class.init_by_query_config(query_config=query_config))
+            init_params = dict(query_config=query_config)
+            if data_source_label == "bkdata":
+                init_params.update({"bk_biz_id": params["bk_biz_id"]})
+
+            data_sources.append(data_source_class.init_by_query_config(**init_params))
 
         # 构造统一查询配置
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=data_sources, expression=params["expression"])

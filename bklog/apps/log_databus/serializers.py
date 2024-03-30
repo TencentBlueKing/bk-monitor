@@ -56,6 +56,7 @@ from apps.log_search.constants import (
     EtlConfigEnum,
     FieldBuiltInEnum,
 )
+from apps.utils.codecs import unicode_str_decode
 from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -694,13 +695,45 @@ class StorageUpdateSerializer(serializers.Serializer):
         return attrs
 
 
+class TokenizeOnCharsSerializer(serializers.Serializer):
+    """
+    自定义分词符序列化
+    """
+
+    tokenize_on_chars = serializers.CharField(
+        label=_("自定义分词符"), required=False, default="", allow_blank=True, allow_null=True, trim_whitespace=False
+    )
+
+    def validate(self, attrs):
+        ret = super().validate(attrs)
+        if ret.get("tokenize_on_chars"):
+            try:
+                ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
+            except Exception as e:
+                raise ValidationError(_("分词符不合法，请检查: %s") % e)
+        return ret
+
+
 class CollectorEtlParamsSerializer(serializers.Serializer):
     separator_regexp = serializers.CharField(label=_("正则表达式"), required=False, allow_null=True, allow_blank=True)
     separator = serializers.CharField(
         label=_("分隔符"), trim_whitespace=False, required=False, allow_null=True, allow_blank=True
     )
     retain_original_text = serializers.BooleanField(label=_("是否保留原文"), required=False, default=True)
+    original_text_is_case_sensitive = serializers.BooleanField(label=_("原文大小写敏感"), required=False, default=False)
+    original_text_tokenize_on_chars = serializers.CharField(
+        label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
+    )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
+
+    def validate(self, attrs):
+        ret = super().validate(attrs)
+        if ret.get("original_text_tokenize_on_chars"):
+            try:
+                ret["original_text_tokenize_on_chars"] = unicode_str_decode(ret["original_text_tokenize_on_chars"])
+            except Exception as e:
+                raise ValidationError(_("分词符不合法，请检查: %s") % e)
+        return ret
 
 
 class CollectorEtlSerializer(serializers.Serializer):
@@ -720,7 +753,7 @@ class CollectorEtlTimeSerializer(serializers.Serializer):
     data = serializers.CharField(label=_("时间内容"), required=True)
 
 
-class CollectorEtlFieldsSerializer(serializers.Serializer):
+class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
     field_index = serializers.IntegerField(label=_("字段顺序"), required=False, allow_null=True)
     field_name = serializers.CharField(label=_("字段名称"), required=False, allow_null=True, allow_blank=True)
     alias_name = serializers.CharField(label=_("别名"), required=False, allow_blank=True, allow_null=True)
@@ -732,8 +765,10 @@ class CollectorEtlFieldsSerializer(serializers.Serializer):
     is_delete = serializers.BooleanField(label=_("是否删除"), required=True)
     is_built_in = serializers.BooleanField(label=_("是否内置字段"), required=False, default=False)
     option = serializers.DictField(label=_("字段配置"), required=False)
+    is_case_sensitive = serializers.BooleanField(label=_("是否大小写敏感"), required=False, default=False)
 
     def validate(self, field):
+        field = super().validate(field)
         built_in_keys = FieldBuiltInEnum.get_choices()
         if not field.get("is_delete"):
             if not field.get("field_name") or not field.get("field_type"):

@@ -309,6 +309,7 @@ class RealTimeCls(object):
     table_name: str
     result_table_id: str
     filter_rule: Any
+    groups: str = ""
 
 
 @dataclass
@@ -424,7 +425,6 @@ class LogCountAggregationFlowCls(object):
     tspider_storage: TspiderStorageCls
     storage_type: str
     bk_biz_id: int
-    groups: str = ""
     cluster: str = ""
 
 

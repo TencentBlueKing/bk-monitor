@@ -33,6 +33,7 @@ class CMDBCacheManager(CacheManager):
     type = "cmdb"
     CACHE_KEY = ""
     CACHE_TIMEOUT = 7 * CONST_ONE_DAY
+    ObjectClass = None
 
     @classmethod
     def serialize(cls, obj):
@@ -46,6 +47,8 @@ class CMDBCacheManager(CacheManager):
         """
         反序列化数据
         """
+        if cls.ObjectClass and string.startswith("{"):
+            return cls.ObjectClass(**json.loads(string))
         return pickle.loads(string.encode("latin1"))
 
     @classmethod

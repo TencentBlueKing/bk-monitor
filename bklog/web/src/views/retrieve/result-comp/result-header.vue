@@ -382,6 +382,9 @@ export default {
     // },
     // 日期变化
     handleTimeRangeChange(val) {
+      if (val.every(item => typeof item === 'string')) {
+        localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
+      }
       this.$emit('update:datePickerValue', val);
       this.setRefreshTime(0);
       this.$emit('datePickerChange');

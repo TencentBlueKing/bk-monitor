@@ -19,9 +19,7 @@ from rest_framework import serializers
 
 from apm_web.constants import (
     DEFAULT_MAX_VALUE,
-    DEFAULT_SPLIT_SYMBOL,
     METRIC_TUPLE,
-    CategoryEnum,
     DbCategoryEnum,
     SceneEventKey,
 )
@@ -59,6 +57,8 @@ class DbQuerySerializer(serializers.Serializer):
 
 
 class ListDbStatisticsResource(PageListResource):
+    default_sort = "-request_count"
+
     class RequestSerializer(DbQuerySerializer):
         group_by_key = serializers.CharField(label="分组字段")
         metric_list = serializers.ListField(label="指标列表", child=serializers.CharField())
@@ -103,11 +103,18 @@ class ListDbStatisticsResource(PageListResource):
             ),
         ]
 
-    def get_filter_fields(self):
-        return ["key"]
+    @classmethod
+    def handle_keyword(cls, params, field, keyword):
+        """
+        :keyword 查询
+        :param params:
+        :param field: 字段名称
+        :param keyword: keyword
+        :return:
+        """
+        params.append({"key": field, "operator": "like", "value": [keyword]})
 
     def add_extra_params(self, params):
-
         return {
             "bk_biz_id": params.get("bk_biz_id"),
             "app_name": params.get("app_name"),
@@ -117,13 +124,9 @@ class ListDbStatisticsResource(PageListResource):
 
     @classmethod
     def handle_data(cls, data, params):
-
         res = DbStatisticsHandler.parse_buckets(data, params.get("metric_list", []))
 
         for item in res:
-            tmp = str(item["summary"]).split(DEFAULT_SPLIT_SYMBOL, maxsplit=1)
-            item["span_name"] = tmp[0]
-            item["summary"] = tmp[-1]
             item["operation"] = {"trace": _("调用链"), "statistics": _("统计")}
             item["avg_duration"] = item["avg_duration"] / 1000
             item["slow_command_rate"] = item["slow_command_rate"] * 100
@@ -138,7 +141,6 @@ class ListDbStatisticsResource(PageListResource):
         return super(ListDbStatisticsResource, self).handle_format(res, column_formats, params)
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
-
         items = super(ListDbStatisticsResource, self).get_pagination_data(data, params, column_type)
 
         # url 拼接
@@ -170,15 +172,28 @@ class ListDbStatisticsResource(PageListResource):
         return items
 
     def perform_request(self, validated_data):
+        table_id = Application.get_trace_table_id(validated_data["bk_biz_id"], validated_data["app_name"])
+
+        if not table_id:
+            raise ValueError(_("应用【{}】没有trace 结果表").format(validated_data['app_name']))
+
         # 指标准入
         metric_list = [metric for metric in validated_data["metric_list"] if metric in METRIC_TUPLE]
 
         # 构建查询条件
         filter_params = build_db_param(validated_data)
 
-        table_id = Application.get_trace_table_id(validated_data["bk_biz_id"], validated_data["app_name"])
-        if not table_id:
-            raise ValueError(_("应用【{}】没有trace 结果表").format(validated_data['app_name']))
+        # keyword 搜索
+        if validated_data.get("keyword"):
+            self.handle_keyword(
+                params=filter_params,
+                field=OtlpKey.get_attributes_key(SpanAttributes.DB_STATEMENT),
+                keyword=validated_data.get("keyword"),
+            )
+
+        # 设置默认排序
+        if not validated_data.get("sort"):
+            validated_data["sort"] = self.default_sort
 
         # 强制条件, 保证查到的数据是DB数据
         filter_params.append(
@@ -192,19 +207,19 @@ class ListDbStatisticsResource(PageListResource):
         )
 
         # 添加aggregations
-        query_body.update(
-            DbStatisticsHandler().build_es_dsl(metric_set=set(metric_list), group_by_key=validated_data["group_by_key"])
-        )
-
-        # 额外增加一个维度, 字段span_name
-        query_body.get("aggs").get(validated_data["group_by_key"])["terms"] = {
-            "script": {
-                "source": "doc['span_name'].value + '{}' + doc['{}'].value".format(
-                    DEFAULT_SPLIT_SYMBOL, validated_data["group_by_key"]
+        query_body["aggs"] = {
+            "group": {
+                "composite": {
+                    "sources": [
+                        {"span_name": {"terms": {"field": "span_name", "missing_bucket": True}}},
+                        {"summary": {"terms": {"field": "attributes.db.statement", "missing_bucket": True}}},
+                    ],
+                    "size": DEFAULT_MAX_VALUE,
+                },
+                "aggs": DbStatisticsHandler().build_es_dsl(
+                    metric_set=set(metric_list), group_by_key=validated_data["group_by_key"]
                 ),
-                "lang": "painless",
-            },
-            "size": DEFAULT_MAX_VALUE,
+            }
         }
 
         # 额外参数
@@ -217,13 +232,12 @@ class ListDbStatisticsResource(PageListResource):
             }
         )
 
-        buckets = response.get("aggregations", {}).get(validated_data["group_by_key"], {}).get("buckets", [])
+        buckets = response["aggregations"]["group"]["buckets"]
 
         return self.get_pagination_data(buckets, validated_data)
 
 
 class ListDbSpanResource(PageListResource):
-
     RequestSerializer = DbQuerySerializer
 
     def get_columns(self, column_type=None):
@@ -256,7 +270,6 @@ class ListDbSpanResource(PageListResource):
         ]
 
     def add_extra_params(self, params):
-
         return {
             "bk_biz_id": params.get("bk_biz_id"),
             "app_name": params.get("app_name"),
@@ -301,7 +314,6 @@ class ListDbSpanResource(PageListResource):
         params.append({"key": field, "operator": "like", "value": [keyword]})
 
     def perform_request(self, validated_data):
-
         if validated_data.get("filter"):
             self.deal_filter(validated_data)
 
@@ -372,7 +384,6 @@ class ListDbSystemResource(Resource):
         predicate_value = serializers.CharField(label="分类具体值", allow_blank=True, required=False)
 
     def perform_request(self, validated_data):
-
         table_id = Application.get_trace_table_id(validated_data["bk_biz_id"], validated_data["app_name"])
         if not table_id:
             raise ValueError(_("应用【{}】没有trace 结果表").format(validated_data['app_name']))
@@ -405,7 +416,8 @@ class ListDbSystemResource(Resource):
         )
 
         # 添加aggregations
-        query_body.update(DbStatisticsHandler().build_es_dsl(set(), validated_data["group_by_key"]))
+        group_by_key = validated_data["group_by_key"]
+        query_body["aggs"] = {group_by_key: {"terms": {"field": group_by_key, "size": DEFAULT_MAX_VALUE}}}
         # 额外条件
         query_body["size"] = 0
 
@@ -416,7 +428,7 @@ class ListDbSystemResource(Resource):
             }
         )
 
-        buckets = response.get("aggregations", {}).get(validated_data["group_by_key"], {}).get("buckets", [])
+        buckets = response["aggregations"][validated_data["group_by_key"]]["buckets"]
         data = []
         for item in buckets:
             data.append(

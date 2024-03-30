@@ -161,6 +161,59 @@
             />
           </div>
         </bk-sideslider>
+        <!-- 原始日志配置 -->
+        <div class="origin-log-config">
+          <span class="title">{{ $t('原始日志配置') }}</span>
+          <bk-radio-group v-model="formData.etl_params.retain_original_text">
+            <bk-radio :value="true">
+              <span v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{
+                $t('保留原始日志')
+              }}</span>
+            </bk-radio>
+            <bk-radio :value="false">
+              <span
+                v-bk-tooltips="$t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。')"
+              >
+                {{ $t('不保留') }}
+              </span>
+            </bk-radio>
+          </bk-radio-group>
+          <div
+            v-show="formData.etl_params.retain_original_text"
+            class="flex-box select-container"
+          >
+            <div class="flex-box">
+              <div class="select-title">{{ $t('分词符') }}</div>
+              <bk-select
+                v-model="originParticipleState"
+                :clearable="false"
+                :popover-min-width="160"
+                ext-cls="origin-select-custom"
+                @change="handleChangeParticipleState"
+              >
+                <bk-option
+                  v-for="option in participleList"
+                  :id="option.id"
+                  :key="option.id"
+                  :name="option.name"
+                >
+                </bk-option>
+              </bk-select>
+            </div>
+            <bk-input
+              v-if="originParticipleState === 'custom'"
+              v-model="formData.etl_params.original_text_tokenize_on_chars"
+              style="width: 170px; margin-left: 8px"
+            >
+            </bk-input>
+            <bk-checkbox
+              v-model="formData.etl_params.original_text_is_case_sensitive"
+              style="margin-left: 24px"
+            >
+              <span>{{ $t('大小写敏感') }}</span>
+            </bk-checkbox>
+          </div>
+        </div>
       </template>
 
       <section class="field-method">
@@ -328,10 +381,9 @@
                   :select-etl-config="params.etl_config"
                   :deleted-visible="deletedVisible"
                   :fields="formData.fields"
-                  :retain-original-value="formData.etl_params.retain_original_text"
+                  :original-text-tokenize-on-chars="defaultParticipleStr"
                   :retain-extra-json="formData.etl_params.retain_extra_json"
                   @deleteVisible="visibleHandle"
-                  @handleKeepLog="handleKeepLog"
                   @handleKeepField="handleKeepField"
                   @standard="dialogVisible = true"
                   @reset="getDetail"
@@ -502,22 +554,11 @@
           theme="primary"
           data-test-id="fieldExtractionBox_button_nextPage"
           :loading="isLoading"
-          :disabled="!collectProject || !showDebugBtn || !hasFields || isSetDisabled"
+          :disabled="!collectProject || isSetDisabled"
           @click.stop.prevent="finish(true)"
         >
+          <!-- || !showDebugBtn || !hasFields -->
           {{ isSetEdit ? $t('保存') : $t('下一步') }}
-        </bk-button>
-        <!-- 跳过 -->
-        <bk-button
-          v-if="!isTempField && !isSetEdit"
-          theme="default"
-          :title="$t('取消')"
-          class="ml10"
-          data-test-id="fieldExtractionBox_button_Pass"
-          :disabled="isLoading"
-          @click="handleSkip"
-        >
-          {{ $t('跳过') }}
         </bk-button>
         <!-- 保存模板 -->
         <bk-button
@@ -670,6 +711,8 @@ export default {
         etl_config: 'bk_log_text',
         etl_params: {
           retain_original_text: true,
+          original_text_is_case_sensitive: false,
+          original_text_tokenize_on_chars: '',
           separator_regexp: '',
           separator: '',
           retain_extra_json: false
@@ -706,6 +749,7 @@ export default {
         alias_name: '',
         description: '',
         field_type: '',
+        is_case_sensitive: false,
         is_analyzed: false,
         is_built_in: false,
         is_delete: false,
@@ -715,7 +759,10 @@ export default {
         option: {
           time_format: '',
           time_zone: ''
-        }
+        },
+        // 是否是自定义分词
+        tokenize_on_chars: '',
+        participleState: 'default'
       },
       activePanel: 'base',
       panels: [
@@ -738,6 +785,16 @@ export default {
         { id: 'multi_biz', name: this.$t('多空间选择') },
         { id: 'all_biz', name: this.$t('全平台') }
       ],
+      participleList: [
+        {
+          id: 'default',
+          name: this.$t('默认')
+        },
+        {
+          id: 'custom',
+          name: this.$t('自定义')
+        }
+      ],
       visibleBkBiz: [], // 多业务选择id列表
       cacheVisibleList: [], // 缓存多业务选择下拉框
       visibleIsToggle: false,
@@ -756,11 +813,20 @@ export default {
         field_name: '',
         field_type: '',
         description: '',
+        is_case_sensitive: false,
         is_analyzed: false,
         is_built_in: false,
         is_dimension: false,
-        previous_type: ''
-      }
+        previous_type: '',
+        tokenize_on_chars: '',
+        participleState: 'default'
+      },
+      originParticipleState: 'default',
+      // eslint-disable-next-line
+      defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\',
+      catchEtlConfig: '',
+      catchFields: [],
+      isFinishCatchFrom: false
     };
   },
   computed: {
@@ -982,7 +1048,7 @@ export default {
       const {
         name,
         clean_type,
-        etl_params,
+        etl_params: etlParams,
         etl_fields: etlFields,
         visible_type,
         visible_bk_biz_id: visibleBkBizList
@@ -991,8 +1057,8 @@ export default {
       /* eslint-disable */
       this.params.etl_config = clean_type;
       Object.assign(this.params.etl_params, {
-        separator_regexp: etl_params.separator_regexp || '',
-        separator: etl_params.separator || ''
+        separator_regexp: etlParams.separator_regexp || '',
+        separator: etlParams.separator || ''
       });
       this.visibleBkBiz = visibleBkBizList;
       this.cacheVisibleList = visibleBkBizList;
@@ -1003,12 +1069,13 @@ export default {
         etl_params: Object.assign(
           {
             retain_original_text: true,
+            original_text_is_case_sensitive: false,
+            original_text_tokenize_on_chars: '',
             separator_regexp: '',
             separator: '',
             retain_extra_json: false
           },
-          // eslint-disable-next-line camelcase
-          etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}
+          etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
         ),
         fields: etlFields,
         visible_type
@@ -1052,38 +1119,55 @@ export default {
     },
     debugHandler() {
       this.formData.fields.splice(0, this.formData.fields.length);
+      this.isFinishCatchFrom = false;
       this.requestEtlPreview();
     },
     // 字段提取
     fieldCollection(isCollect = false) {
-      const { etl_config: etlConfig, fields, etl_params: etlParams, visible_type } = this.formData;
+      const { etl_config: etlConfig, etl_params: etlParams, visible_type } = this.formData;
+      const fields = this.formData.fields.map(item => {
+        const { participleState, ...otherValue } = item;
+        return otherValue;
+      });
       this.isLoading = true;
       this.basicLoading = true;
+      const payload = {
+        retain_original_text: etlParams.retain_original_text,
+        original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+        original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+        retain_extra_json: etlParams.retain_extra_json ?? false
+      };
       let data = {
         clean_type: etlConfig,
         etl_params: {
-          retain_original_text: etlParams.retain_original_text,
           separator_regexp: etlParams.separator_regexp,
           separator: etlParams.separator,
-          retain_extra_json: etlParams.retain_extra_json ?? false
+          ...payload
         },
         etl_fields: fields,
         visible_type
       };
       /* eslint-disable */
       if (etlConfig !== 'bk_log_text') {
-        const payload = {
-          retain_original_text: etlParams.retain_original_text,
-          retain_extra_json: etlParams.retain_extra_json ?? false
-        };
         if (etlConfig === 'bk_log_delimiter') {
           payload.separator = etlParams.separator;
         }
         if (etlConfig === 'bk_log_regexp') {
           payload.separator_regexp = etlParams.separator_regexp;
         }
-        data.etlParams = payload;
-        data.etl_fields = this.$refs.fieldTable.getData();
+        // 获取当前表格字段
+        const fieldTableData =
+          this.$refs.fieldTable.getData().map(item => {
+            const { participleState, ...otherValue } = item;
+            return otherValue;
+          }) || [];
+        // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
+        data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
+        data.etl_params = payload;
+        data.etl_fields = fieldTableData;
+      } else {
+        delete data.etl_params['separator_regexp'];
+        delete data.etl_params['separator'];
       }
 
       let requestUrl;
@@ -1151,7 +1235,7 @@ export default {
     // 检查提取方法或条件是否已变更
     checkEtlConfChnage(isCollect = false) {
       // 非bk_log_text类型需要有正确的结果
-      if (this.formData.etl_config && this.formData.etl_config !== 'bk_log_text' && !this.hasFormat) return;
+      // if (this.formData.etl_config && this.formData.etl_config !== 'bk_log_text' && !this.hasFormat) return;
       let isConfigChange = false; // 提取方法或条件是否已变更
       const etlConfigParam = this.params.etl_config;
       if (etlConfigParam !== 'bk_log_text') {
@@ -1199,6 +1283,11 @@ export default {
           message: this.$t('请选择字段提取方法')
         });
       }
+      const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
+      if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
+        this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
+        return;
+      }
       // 清洗模板选择多业务时不能为空
       if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
         this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
@@ -1221,10 +1310,6 @@ export default {
     // 字段表格校验
     checkFieldsTable() {
       return this.formData.etl_config !== 'bk_log_text' ? this.$refs.fieldTable.validateFieldTable() : [];
-    },
-    // 跳过
-    handleSkip() {
-      this.$emit('stepChange', this.curStep + 1);
     },
     handleCancel(isCollect = false) {
       if (isCollect) return;
@@ -1283,7 +1368,14 @@ export default {
     // 获取详情
     getDetail() {
       // const tsStorageId = this.formData.storage_cluster_id;
-      const { table_id, storage_cluster_id, table_id_prefix, etl_config, etl_params, fields } = this.curCollect;
+      const {
+        table_id,
+        storage_cluster_id,
+        table_id_prefix,
+        etl_config,
+        etl_params: etlParams,
+        fields
+      } = this.curCollect;
       const option = { time_zone: '', time_format: '' };
       const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
       copyFields.forEach(row => {
@@ -1301,8 +1393,8 @@ export default {
       /* eslint-disable */
       this.params.etl_config = etl_config;
       Object.assign(this.params.etl_params, {
-        separator_regexp: etl_params?.separator_regexp || '',
-        separator: etl_params?.separator || ''
+        separator_regexp: etlParams?.separator_regexp || '',
+        separator: etlParams?.separator || ''
       });
       this.isUnmodifiable = !!(table_id || storage_cluster_id);
       this.fieldType = etl_config || 'bk_log_text';
@@ -1317,10 +1409,11 @@ export default {
             retain_original_text: true,
             separator_regexp: '',
             separator: '',
-            retain_extra_json: false
+            retain_extra_json: false,
+            original_text_is_case_sensitive: false,
+            original_text_tokenize_on_chars: ''
           },
-          // eslint-disable-next-line camelcase
-          etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}
+          etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
         ),
         fields: copyFields.filter(item => !item.is_built_in)
       });
@@ -1522,6 +1615,7 @@ export default {
         })
         .finally(() => {
           this.isExtracting = false;
+          this.catchEtlConfig = this.params.etl_config;
         });
     },
     savaFormData() {
@@ -1568,9 +1662,6 @@ export default {
     },
     visibleHandle(val) {
       this.deletedVisible = val;
-    },
-    handleKeepLog(value) {
-      this.formData.etl_params.retain_original_text = value;
     },
     handleKeepField(value) {
       this.formData.etl_params.retain_extra_json = value;
@@ -1650,13 +1741,17 @@ export default {
         })
         .then(res => {
           if (res.data) {
-            const { clean_type, etl_params, etl_fields: etlFields } = res.data;
+            const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
             this.formData.fields.splice(0, this.formData.fields.length);
             /* eslint-disable */
             this.params.etl_config = clean_type;
+            const previousStateFields = etlFields.map(item => ({
+              ...item,
+              participleState: item.tokenize_on_chars ? 'custom' : 'default'
+            }));
             Object.assign(this.params.etl_params, {
-              separator_regexp: etl_params.separator_regexp || '',
-              separator: etl_params.separator || ''
+              separator_regexp: etlParams.separator_regexp || '',
+              separator: etlParams.separator || ''
             });
             this.fieldType = clean_type;
             /* eslint-enable */
@@ -1669,11 +1764,14 @@ export default {
                   separator: '',
                   retain_extra_json: false
                 },
-                // eslint-disable-next-line camelcase
-                etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}
+                etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
               ),
-              fields: etlFields
+              fields: previousStateFields
             });
+            if (etlParams.original_text_tokenize_on_chars) {
+              this.originParticipleState = 'custom';
+              this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
+            }
           }
         })
         .finally(() => {
@@ -1683,6 +1781,7 @@ export default {
     // 新建、编辑采集项时获取更新详情
     async setDetail(id) {
       if (!id) return;
+      this.basicLoading = true;
       this.$http
         .request('collect/details', {
           params: { collector_config_id: id }
@@ -1696,7 +1795,7 @@ export default {
           }
         })
         .finally(() => {
-          // this.basicLoading = false;
+          this.basicLoading = false;
         });
     },
     // 新增、编辑清洗选择采集项
@@ -1758,7 +1857,16 @@ export default {
     },
     /** 切换匹配模式 */
     handleSelectConfig(id) {
+      if (!this.isFinishCatchFrom) {
+        this.catchFields = this.$refs.fieldTable.getData();
+        this.isFinishCatchFrom = true;
+      }
       this.params.etl_config = id;
+      if (id === this.catchEtlConfig) {
+        this.formData.fields = this.catchFields;
+        this.isFinishCatchFrom = false;
+        return;
+      }
       this.formData.fields = []; // 切换匹配模式时需要清空字段
     },
     /** json格式新增字段 */
@@ -1772,6 +1880,9 @@ export default {
       this.formData.fields.splice(0, fields.length, ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]);
       this.deletedVisible = true;
       this.savaFormData();
+    },
+    handleChangeParticipleState(val) {
+      this.formData.etl_params.original_text_tokenize_on_chars = val === 'custom' ? this.defaultParticipleStr : '';
     }
   }
 };
@@ -1802,6 +1913,52 @@ export default {
       margin-right: 16px;
       font-size: 12px;
       color: #63656e;
+    }
+  }
+
+  .origin-log-config {
+    font-size: 12px;
+    color: #63656e;
+
+    .title {
+      display: inline-block;
+      margin: 24px 0 8px 0;
+    }
+
+    label {
+      margin-right: 24px;
+      font-size: 12px;
+    }
+
+    .select-container {
+      margin-top: 15px;
+    }
+
+    .flex-box,
+    %flex-box {
+      display: flex;
+      justify-content: start;
+      align-items: center;
+    }
+
+    .select-title {
+      width: 52px;
+      height: 32px;
+      background: #fafbfd;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px 0 0 2px;
+      transform: translateX(1px);
+      justify-content: center;
+
+      @extend %flex-box;
+    }
+
+    .origin-select-custom {
+      width: 70px;
+    }
+
+    .bk-select-name {
+      padding: 0 22px 0 10px;
     }
   }
 
@@ -1849,20 +2006,6 @@ export default {
     font-size: 12px;
     line-height: 32px;
     color: #aeb0b7;
-  }
-
-  .tips_storage {
-    width: 540px;
-    padding: 10px;
-    margin-top: 15px;
-    font-size: 12px;
-    background-color: rgb(239, 248, 255);
-    border: 1px solid deepskyblue;
-
-    div {
-      line-height: 24px;
-      color: #63656e;
-    }
   }
 
   .form-div {

@@ -126,7 +126,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   /* 初始化 */
   created() {
     this.init();
-    this.throttleOverflow = throttle(300, false, this.handleOverflow);
+    this.throttleOverflow = throttle(300, this.handleOverflow);
   }
   init() {
     const value = [];

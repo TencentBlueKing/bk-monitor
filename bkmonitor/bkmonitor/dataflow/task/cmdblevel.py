@@ -51,11 +51,12 @@ class CMDBPrepareAggregateTask(BaseTask):
             parent=[cmdb_host_topo_source_node, stream_source_node],
         )
 
-        full_storage_node = create_tspider_or_druid_node(
-            source_rt_id=full_process_node.output_table_name,
-            storage_expires=self.TMP_FULL_STORAGE_NODE_EXPIRES,
-            parent=full_process_node,
-        )
+        # cmdb预聚合flow中，去掉中间结果表的存储。
+        # full_storage_node = create_tspider_or_druid_node(
+        #     source_rt_id=full_process_node.output_table_name,
+        #     storage_expires=self.TMP_FULL_STORAGE_NODE_EXPIRES,
+        #     parent=full_process_node,
+        # )
 
         # 将补充的信息进行拆解， 1对多
         split_process_node = CMDBPrepareAggregateSplitNode(
@@ -77,7 +78,6 @@ class CMDBPrepareAggregateTask(BaseTask):
             stream_source_node,
             cmdb_host_topo_source_node,
             full_process_node,
-            full_storage_node,
             split_process_node,
             split_storage_node,
         ]

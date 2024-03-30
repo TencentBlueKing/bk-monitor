@@ -158,7 +158,9 @@ def sync_bkcc_space_data_source():
     # NOTE: 因为 0 业务的数据源不一定是 bkcc 类型，需要忽略掉更新
     real_biz_data_id_dict, zero_data_id_list = get_real_zero_biz_data_id()
     models.DataSource.objects.filter(bk_data_id__in=zero_data_id_list).exclude(
-        bk_data_id__in=SKIP_DATA_ID_LIST_FOR_BKCC
+        Q(bk_data_id__in=SKIP_DATA_ID_LIST_FOR_BKCC)
+        | Q(space_uid__startswith=SpaceTypes.BKCI.value)
+        | Q(space_uid__startswith=SpaceTypes.BKSAAS.value)
     ).update(is_platform_data_id=True, space_type_id=SpaceTypes.BKCC.value)
     logger.info(
         "update is_platform_data_id: %s, belong space type: %s of data id: %s",

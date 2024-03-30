@@ -447,9 +447,7 @@ export default {
       finishPolling: false,
       timezone: dayjs.tz.guess(),
       /** 数据指纹是否请求布尔值 */
-      fingerSearchState: false,
-      /** 批量添加条件的请求定时器timer */
-      addFilterTimer: null
+      fingerSearchState: false
     };
   },
   computed: {
@@ -489,7 +487,8 @@ export default {
   },
   provide() {
     return {
-      addFilterCondition: this.addFilterCondition
+      addFilterCondition: this.addFilterCondition,
+      batchAddCondition: this.batchAddCondition
     };
   },
   watch: {
@@ -849,7 +848,69 @@ export default {
     },
     // 添加过滤条件
     addFilterCondition(field, operator, value, isLink = false) {
-      clearTimeout(this.addFilterTimer);
+      const isExist = this.additionIsExist({ field, operator, value });
+      // 已存在相同条件
+      if (isExist) {
+        if (isLink) this.additionLinkOpen();
+        return;
+      }
+      const mapOperator = this.getAdditionMappingOperator({ field, operator });
+      const startIndex = this.retrieveParams.addition.length;
+      const newAddition = { field, operator: mapOperator, value };
+      if (!isLink) {
+        this.retrieveParams.addition.splice(startIndex, 0, newAddition);
+        this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
+        this.$refs.searchCompRef.setRouteParams();
+        this.retrieveLog();
+      } else {
+        this.additionLinkOpen([newAddition]);
+      }
+    },
+
+    /** 条件新开页 */
+    additionLinkOpen(newAdditionList = [], routerParams = {}) {
+      const openUrl = this.$refs.searchCompRef.setRouteParams(routerParams, false, newAdditionList);
+      window.open(openUrl, '_blank');
+    },
+
+    /** 批量添加条件 */
+    batchAddCondition(additionList, isLink) {
+      if (isLink) {
+        const notExistAddition = additionList.filter(item => !this.additionIsExist(item));
+        this.additionLinkOpen(notExistAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
+      } else {
+        additionList.forEach(item => {
+          const { field, operator, value } = item;
+          const isExist = this.additionIsExist({ field, operator, value });
+          if (isExist) return;
+          const mapOperator = this.getAdditionMappingOperator(item);
+          const newAddition = { field, operator: mapOperator, value };
+          const startIndex = this.retrieveParams.addition.length;
+          this.retrieveParams.addition.splice(startIndex, 0, newAddition);
+          this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
+        });
+        this.$refs.searchCompRef.setRouteParams();
+        this.retrieveLog();
+      }
+    },
+
+    /** 判断条件是否已经在检索内 */
+    additionIsExist(additionItem) {
+      const { field, value } = additionItem;
+      const mapOperator = this.getAdditionMappingOperator(additionItem);
+      const isExist = this.retrieveParams.addition.some(addition => {
+        return (
+          addition.field === field &&
+          addition.operator === mapOperator &&
+          addition.value.toString() === value.toString()
+        );
+      });
+      return isExist;
+    },
+
+    /** 获取映射后的条件 */
+    getAdditionMappingOperator(additionItem) {
+      const { operator, field } = additionItem;
       let { mappingKey } = this;
       const textType = this.getFieldType(field);
       switch (textType) {
@@ -859,37 +920,7 @@ export default {
         default:
           break;
       }
-      const mapOperator = mappingKey[operator] ?? operator; // is is not 值映射
-      const isExist = this.retrieveParams.addition.some(addition => {
-        return (
-          addition.field === field &&
-          addition.operator === mapOperator &&
-          addition.value.toString() === value.toString()
-        );
-      });
-      // 已存在相同条件
-      if (isExist) {
-        if (isLink) this.additionLinkOpen();
-        return;
-      }
-
-      const startIndex = this.retrieveParams.addition.length;
-      const newAddition = { field, operator: mapOperator, value };
-      if (!isLink) {
-        this.retrieveParams.addition.splice(startIndex, 0, newAddition);
-        this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
-        this.addFilterTimer = setTimeout(() => {
-          this.$refs.searchCompRef.setRouteParams();
-          this.retrieveLog();
-        }, 0);
-      } else {
-        this.additionLinkOpen(newAddition);
-      }
-    },
-
-    additionLinkOpen(newAddition = {}) {
-      const openUrl = this.$refs.searchCompRef.setRouteParams({}, false, newAddition);
-      window.open(openUrl, '_blank');
+      return mappingKey[operator] ?? operator; // is is not 值映射
     },
 
     // 打开 ip 选择弹窗
@@ -1115,8 +1146,11 @@ export default {
                   break;
               }
             }
+            const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
             if (queryParams.start_time && queryParams.end_time) {
               this.datePickerValue = [queryParams.start_time, queryParams.end_time];
+            } else if (defaultTime) {
+              this.datePickerValue = JSON.parse(defaultTime);
             }
           } else {
             switch (field) {

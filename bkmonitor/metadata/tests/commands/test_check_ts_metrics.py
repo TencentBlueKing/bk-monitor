@@ -111,3 +111,4 @@ def test_remove(mocker):
     call_command("check_ts_metrics", **params)
     # 检测已经删除
     assert client.zcount(key, 0, 100) == 0
+    assert not models.ResultTableField.objects.filter(table_id=DEFAULT_TABLE_ID, field_name=DEFAULT_FIELD_NAME).exists()
