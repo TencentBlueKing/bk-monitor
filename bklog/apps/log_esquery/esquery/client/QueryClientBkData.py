@@ -23,6 +23,10 @@ the project delivered to anyone in the future.
 import json
 from typing import Any, Dict
 
+from django.conf import settings
+from elasticsearch.client import _make_path
+from opentelemetry import trace
+
 from apps.api import BkDataMetaApi, BkDataQueryApi, BkDataStorekitApi
 from apps.exceptions import ApiResultError
 from apps.log_esquery.constants import BKDATA_NOT_HAVE_INDEX
@@ -30,9 +34,6 @@ from apps.log_esquery.esquery.client.QueryClientTemplate import QueryClientTempl
 from apps.log_esquery.exceptions import EsClientSearchException
 from apps.log_esquery.type_constants import type_mapping_dict
 from apps.utils.thread import MultiExecuteFunc
-from django.conf import settings
-from elasticsearch.client import _make_path
-from opentelemetry import trace
 
 
 class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
@@ -74,7 +75,7 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 code=getattr(e, "code", EsClientSearchException.ERROR_CODE),
             )
 
-    def mapping(self, index: str) -> Dict:
+    def mapping(self, index: str, add_settings_details: bool = False) -> Dict:
         index_list: list = index.split(",")
         new_index_list: list = []
         has_wildcard = False

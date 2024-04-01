@@ -18,7 +18,6 @@ from django.test import TestCase
 
 from alarm_backends.core.cache.cmdb import (
     BusinessManager,
-    HostIDManager,
     HostManager,
     ModuleManager,
     ServiceInstanceManager,
@@ -219,7 +218,6 @@ class TestHostManager(TestCMDBBaseTestCase):
         self.assertSetEqual(set(ALL_HOSTS), set(hosts))
 
     def test_clear(self):
-
         HostManager.refresh()
         keys = HostManager.cache.hkeys(HostManager.CACHE_KEY)
         biz_keys = HostManager.cache.hkeys(HostManager.get_biz_cache_key())
@@ -330,49 +328,6 @@ class TestHostManager(TestCMDBBaseTestCase):
         self.assertTrue(HostManager.key_to_internal_value(ip, bk_cloud_id) in local.host_cache)
 
 
-class TestHostIDManager(TestCMDBBaseTestCase):
-    def setUp(self):
-        super().setUp()
-        HostIDManager.clear()
-
-    def tearDown(self):
-        super().tearDown()
-        HostIDManager.clear()
-
-    def test_serialize(self):
-        obj_bin = HostManager.serialize("10.0.0.1|0")
-        new_host_obj = HostManager.deserialize(obj_bin)
-        self.assertEqual("10.0.0.1|0", new_host_obj)
-
-    def test_key_convert(self):
-        self.assertEqual("1", HostIDManager.key_to_internal_value(1))
-        self.assertEqual("1", HostIDManager.key_to_internal_value("1"))
-        self.assertEqual("1", HostIDManager.key_to_representation("1"))
-
-    def test_refresh(self):
-        HostIDManager.refresh()
-        host_ids = HostIDManager.cache.hkeys(HostIDManager.CACHE_KEY)
-        excepted_host_ids = [HostIDManager.key_to_internal_value(host.bk_host_id) for host in ALL_HOSTS]
-        self.assertSetEqual(set(excepted_host_ids), set(host_ids))
-
-    def test_keys(self):
-        HostIDManager.refresh()
-        host_ids = list(HostIDManager.keys())
-        excepted_host_ids = [HostIDManager.key_to_internal_value(host.bk_host_id) for host in ALL_HOSTS]
-        self.assertSetEqual(set(excepted_host_ids), set(host_ids))
-
-    def test_get(self):
-        HostIDManager.refresh()
-        for host in ALL_HOSTS:
-            actual_host = HostIDManager.get(host.bk_host_id)
-            self.assertEqual("{}|{}".format(host.ip, host.bk_cloud_id), actual_host)
-
-    def test_all(self):
-        HostIDManager.refresh()
-        host_keys = HostIDManager.all()
-        self.assertSetEqual({"{}|{}".format(host.ip, host.bk_cloud_id) for host in ALL_HOSTS}, set(host_keys))
-
-
 class TestModuleManager(TestCMDBBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -419,7 +374,6 @@ class TestModuleManager(TestCMDBBaseTestCase):
         self.assertSetEqual(set(ALL_MODULES), set(modules))
 
     def test_clear(self):
-
         ModuleManager.refresh()
         keys = ModuleManager.cache.hkeys(ModuleManager.CACHE_KEY)
         biz_keys = ModuleManager.cache.hkeys(ModuleManager.get_biz_cache_key())

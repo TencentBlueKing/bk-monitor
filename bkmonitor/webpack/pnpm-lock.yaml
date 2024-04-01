@@ -10,7 +10,7 @@ overrides:
   '@blueking/user-selector>vue': v2-latest
   '@typescript-eslint/eslint-plugin': ^7.3.1
   '@typescript-eslint/parser': ^7.3.1
-  bk-magic-vue: ^2.5.8
+  bk-magic-vue: ^2.5.9-beta.18
   eslint: ^8.57.0
   eslint-config-prettier: ^9.1.0
   eslint-config-tencent: ^1.0.4
@@ -77,8 +77,8 @@ importers:
         specifier: ^3.5.2
         version: 3.5.2
       bk-magic-vue:
-        specifier: ^2.5.8
-        version: 2.5.8(vue@2.7.16)
+        specifier: ^2.5.9-beta.18
+        version: 2.5.9-beta.18(vue@2.7.16)
       codemirror:
         specifier: ^5.65.16
         version: 5.65.16
@@ -204,8 +204,8 @@ importers:
         specifier: ^3.5.2
         version: 3.5.2
       bk-magic-vue:
-        specifier: ^2.5.8
-        version: 2.5.8(vue@2.7.16)
+        specifier: ^2.5.9-beta.18
+        version: 2.5.9-beta.18(vue@2.7.16)
       dayjs:
         specifier: ^1.11.10
         version: 1.11.10
@@ -539,7 +539,7 @@ importers:
         version: 2.0.3(dompurify@3.0.9)
       '@blueking/paas-login':
         specifier: 0.0.6
-        version: 0.0.6(bk-magic-vue@2.5.8)(vue@2.7.16)
+        version: 0.0.6(bk-magic-vue@2.5.9-beta.18)(vue@2.7.16)
       '@blueking/user-selector':
         specifier: ^1.0.11
         version: 1.0.11
@@ -556,8 +556,8 @@ importers:
         specifier: ^6.2.1
         version: 6.2.1
       bk-magic-vue:
-        specifier: ^2.5.8
-        version: 2.5.8(vue@2.7.16)
+        specifier: ^2.5.9-beta.18
+        version: 2.5.9-beta.18(vue@2.7.16)
       dayjs:
         specifier: ^1.11.10
         version: 1.11.10
@@ -838,8 +838,8 @@ importers:
         specifier: ^7.3.1
         version: 7.3.1(eslint@8.57.0)(typescript@5.4.3)
       bk-magic-vue:
-        specifier: ^2.5.8
-        version: 2.5.8(vue@2.7.16)
+        specifier: ^2.5.9-beta.18
+        version: 2.5.9-beta.18(vue@2.7.16)
       eslint:
         specifier: ^8.57.0
         version: 8.57.0
@@ -2878,13 +2878,13 @@ packages:
       dompurify: 3.0.9
     dev: false
 
-  /@blueking/paas-login@0.0.6(bk-magic-vue@2.5.8)(vue@2.7.16):
+  /@blueking/paas-login@0.0.6(bk-magic-vue@2.5.9-beta.18)(vue@2.7.16):
     resolution: {integrity: sha512-Zt4PzFIHyVLarul0Ky8p1/Vaq5p359WCkEtBRfo+Esoa7oxDZ8ilVw57VUKa300OgwOX+uD0GSOc4KkPdmSytg==}
     peerDependencies:
-      bk-magic-vue: ^2.5.8
+      bk-magic-vue: ^2.5.9-beta.18
       vue: ^2.5.22
     dependencies:
-      bk-magic-vue: 2.5.8(vue@2.7.16)
+      bk-magic-vue: 2.5.9-beta.18(vue@2.7.16)
       vue: 2.7.16
     dev: false
 
@@ -5417,8 +5417,8 @@ packages:
     engines: {node: '>=8'}
     dev: true
 
-  /bk-magic-vue@2.5.8(vue@2.7.16):
-    resolution: {integrity: sha512-U4xBFCJuM9gZkP9ds0bfhsocHzJRkTm9dlf8iPLfMMHaIiABITzb+D2+R2EMVh5yHw7draGOhF6uhBUsq8HT1g==}
+  /bk-magic-vue@2.5.9-beta.18(vue@2.7.16):
+    resolution: {integrity: sha512-3rGlH5HahLKRgiSN+hVoobBEfq7cq4+9SAg9S+qbRFvCyWm44Eg4o/RMQHgpuUYLJ+F8EzjSRutMERqOqVEncQ==}
     peerDependencies:
       vue: ^2.6.0
     dependencies:

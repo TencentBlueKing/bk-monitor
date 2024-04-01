@@ -46,23 +46,30 @@ class BkLogTextEtlStorage(EtlStorage):
         配置清洗入库策略，需兼容新增、编辑
         """
         built_in_fields = built_in_config.get("fields", [])
+
+        etl_params = etl_params or {}
+        es_analyzer = self.generate_field_analyzer_name(
+            field_name="log",
+            field_alias="data",
+            is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
+            tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", ""),
+        )
+        original_text_field = {
+            "field_name": "log",
+            "field_type": "string",
+            "tag": "metric",
+            "alias_name": "data",
+            "description": "original_text",
+            "option": {"es_type": "text", "es_include_in_all": True}
+            if es_version.startswith("5.")
+            else {"es_type": "text"},
+        }
+        if es_analyzer:
+            original_text_field["option"]["es_analyzer"] = es_analyzer
+
         return {
             "option": built_in_config.get("option", {}),
-            "field_list": built_in_fields
-            + (fields or [])
-            + [built_in_config["time_field"]]
-            + [
-                {
-                    "field_name": "log",
-                    "field_type": "string",
-                    "tag": "metric",
-                    "alias_name": "data",
-                    "description": "original_text",
-                    "option": {"es_type": "text", "es_include_in_all": True}
-                    if es_version.startswith("5.")
-                    else {"es_type": "text"},
-                }
-            ],
+            "field_list": built_in_fields + (fields or []) + [built_in_config["time_field"]] + [original_text_field],
             "time_alias_name": built_in_config["time_field"]["alias_name"],
             "time_option": built_in_config["time_field"]["option"],
         }

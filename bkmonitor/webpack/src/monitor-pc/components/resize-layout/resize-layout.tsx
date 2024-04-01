@@ -49,6 +49,7 @@ interface IEvents {
   onUpdateHeight: IUpdateHeight;
   onResizing: IUpdateHeight;
   onTogglePlacement: string;
+  onAfterResize?: IUpdateHeight;
 }
 @Component
 export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
@@ -112,7 +113,8 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     const asideEl = this.bkResizeLayoutRef.$el.querySelector('.bk-resize-layout-aside');
     asideEl.style.height = `${height}px`;
     this.asideHeight = height;
-    this.handleAfterResize();
+    // this.handleAfterResize();
+    this.handleAfterResizeImmediately();
     enableAnimation &&
       setTimeout(() => {
         this.needAnimation = false;
@@ -177,6 +179,16 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     };
   }
 
+  /* 立即执行 无需防抖 */
+  @Emit('afterResize')
+  handleAfterResizeImmediately() {
+    this.isResizing = false;
+    return {
+      mainHeight: this.mainHeight,
+      asideHeight: this.asideHeight
+    };
+  }
+
   render() {
     return (
       <bk-resize-layout
@@ -198,7 +210,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
         placement={this.localPlacement}
         initial-divide={this.default}
         onResizing={this.handleResizing}
-        on-after-resize={this.handleAfterResize}
+        on-after-resize={this.handleAfterResizeImmediately}
       >
         <div
           slot='collapse-trigger'
