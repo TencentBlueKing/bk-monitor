@@ -381,6 +381,7 @@ class TestEtl(TestCase):
             "storage_cluster_id": STORAGE_CLUSTER_ID,
             "retention": RETENTION_TIME,
             "view_roles": VIEW_ROLES,
+            "allocation_min_days": 3,
         }
 
         with self.assertRaises(ValidationError):
