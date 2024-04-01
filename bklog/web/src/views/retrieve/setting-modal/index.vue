@@ -143,12 +143,12 @@
 <script>
 import FullTextIndex from './full-text-index';
 import LogCluster from './log-cluster';
-import FieldExtraction from './field-extraction';
+// import FieldExtraction from './field-extraction';
 
 export default {
   components: {
     FullTextIndex,
-    FieldExtraction,
+    // FieldExtraction,
     LogCluster
   },
   props: {
@@ -200,13 +200,14 @@ export default {
         //   name: this.$t('全文索引'),
         //   isEditable: true,
         // },
-        {
-          id: 'extract',
-          componentsName: 'FieldExtraction',
-          name: this.$t('字段清洗'),
-          isEditable: false,
-          isDisabled: false
-        },
+        // !!TODO 先关闭字段清洗入口
+        // {
+        //   id: 'extract',
+        //   componentsName: 'FieldExtraction',
+        //   name: this.$t('字段清洗'),
+        //   isEditable: false,
+        //   isDisabled: false
+        // },
         {
           id: 'clustering',
           componentsName: 'LogCluster',

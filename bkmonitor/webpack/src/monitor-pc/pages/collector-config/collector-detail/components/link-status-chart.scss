@@ -41,7 +41,15 @@
     }
   }
 
-  .chart-wrapper {
+  .chart-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 200px;
+  }
+
+  .empty-status-container {
     height: 200px;
   }
 }

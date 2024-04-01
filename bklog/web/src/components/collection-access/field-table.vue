@@ -90,7 +90,7 @@
           size="small"
           row-key="field_index"
           :empty-text="$t('暂无内容')"
-          :data="deletedVisible ? hideDeletedTable : tableList"
+          :data="changeTableList"
         >
           <template>
             <!-- <bk-table-column -->
@@ -320,7 +320,7 @@
                     </bk-option>
                   </bk-select>
                   <bk-input
-                    v-show="props.row.participleState === 'custom'"
+                    v-if="props.row.participleState === 'custom'"
                     v-model="props.row.tokenize_on_chars"
                     placeholder=" "
                     :disabled="getCustomizeDisabled(props.row)"
@@ -731,10 +731,10 @@ export default {
       return !this.fields.length;
     },
     hasDateField() {
-      return this.tableList.find(item => item.is_time && !item.is_delete);
+      return this.formData.tableList.find(item => item.is_time && !item.is_delete);
     },
     deletedNum() {
-      return this.tableList.filter(item => item.is_delete).length;
+      return this.formData.tableList.filter(item => item.is_delete).length;
     },
     isPreviewMode() {
       return this.tableType === 'preview';
@@ -744,6 +744,9 @@ export default {
     },
     hideDeletedTable() {
       return this.formData.tableList.filter(item => !item.is_delete);
+    },
+    changeTableList() {
+      return this.deletedVisible ? this.hideDeletedTable : this.tableList;
     },
     defaultZone() {
       // 默认时区
@@ -761,7 +764,7 @@ export default {
       return !this.isPreviewMode && this.extractMethod !== 'bk_log_regexp';
     },
     getCustomizeTableWidth() {
-      return this.tableList.some(item => item.participleState === 'custom') ? 255 : 70;
+      return this.changeTableList.some(item => item.participleState === 'custom') ? 255 : 70;
     }
   },
   watch: {
@@ -953,7 +956,7 @@ export default {
           tokenize_on_chars: '',
           is_case_sensitive: false
         };
-        Object.assign(this.tableList[$index], assignObj);
+        Object.assign(this.changeTableList[$index], assignObj);
       }
       if (fieldType && this.curCollect.table_id) {
         const row = this.fields.find(item => item.field_name === fieldName);
@@ -973,8 +976,8 @@ export default {
             ),
             type: 'warning',
             confirmFn: () => {
-              this.tableList[$index].field_type = val;
-              this.tableList[$index].previousType = val;
+              this.changeTableList[$index].field_type = val;
+              this.changeTableList[$index].previousType = val;
               this.checkTypeItem($row);
             },
             cancelFn: () => {
@@ -985,26 +988,26 @@ export default {
                 tokenize_on_chars: tokenizeOnChars,
                 is_case_sensitive: isCaseSensitive
               };
-              Object.assign(this.tableList[$index], assignObj);
+              Object.assign(this.changeTableList[$index], assignObj);
               this.checkTypeItem($row);
             }
           });
           return false;
         }
       } else {
-        this.tableList[$index].field_type = val;
+        this.changeTableList[$index].field_type = val;
       }
       this.checkTypeItem($row);
     },
     handelChangeAnalyzed(isAnalyzed, $index) {
       if (!isAnalyzed) {
-        this.tableList[$index].is_case_sensitive = false;
-        this.tableList[$index].tokenize_on_chars = '';
-        this.tableList[$index].participleState = 'default';
+        this.changeTableList[$index].is_case_sensitive = false;
+        this.changeTableList[$index].tokenize_on_chars = '';
+        this.changeTableList[$index].participleState = 'default';
       }
     },
     handleChangeParticipleState(state, $index) {
-      this.tableList[$index].tokenize_on_chars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
+      this.changeTableList[$index].tokenize_on_chars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
     },
     formatChange(val) {
       this.timeCheckResult = false;

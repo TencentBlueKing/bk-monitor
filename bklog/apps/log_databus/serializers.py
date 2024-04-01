@@ -701,7 +701,7 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
     """
 
     tokenize_on_chars = serializers.CharField(
-        label=_("自定义分词符"), required=False, default="", allow_blank=True, allow_null=True, trim_whitespace=False
+        label=_("自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
     )
 
     def validate(self, attrs):
@@ -710,7 +710,7 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
             try:
                 ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
             except Exception as e:
-                raise ValidationError(_("分词符不合法，请检查: %s") % e)
+                raise ValidationError(_("字段分词符 %s 不合法，请检查: %s") % (ret["tokenize_on_chars"], e))
         return ret
 
 
@@ -732,7 +732,7 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
             try:
                 ret["original_text_tokenize_on_chars"] = unicode_str_decode(ret["original_text_tokenize_on_chars"])
             except Exception as e:
-                raise ValidationError(_("分词符不合法，请检查: %s") % e)
+                raise ValidationError(_("原文分词符 %s 不合法，请检查: %s") % (ret["original_text_tokenize_on_chars"], e))
         return ret
 
 
@@ -864,8 +864,6 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
                     if "field_index" not in item:
                         raise ValidationError(_("分隔符必须指定field_index"))
 
-                # 字段检查
-                CollectorEtlFieldsSerializer().validate(item)
                 fields.append(item)
 
                 if not item.get("is_delete", False):
