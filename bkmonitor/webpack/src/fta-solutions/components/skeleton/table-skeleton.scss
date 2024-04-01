@@ -1,0 +1,12 @@
+.common-table-skeleton {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  .common-table-skeleton-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 22px;
+  }
+}

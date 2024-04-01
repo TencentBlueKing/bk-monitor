@@ -1,0 +1,65 @@
+@mixin common-style {
+  .w-108 {
+    width: 108px;
+  }
+
+  .w-122 {
+    width: 122px;
+  }
+
+  .w-116 {
+    width: 116px;
+  }
+
+  .w-240 {
+    width: 240px;
+  }
+
+  .w-116 {
+    width: 116px;
+  }
+
+  .w-auto {
+    width: auto;
+  }
+
+  .h-20 {
+    height: 20px;
+  }
+
+  .h-32 {
+    height: 32px;
+  }
+
+  .h-30 {
+    height: 30px;
+  }
+
+  .h-198 {
+    height: 198px;
+  }
+
+  .mt-20 {
+    margin-top: 20px;
+  }
+
+  .mt-22 {
+    margin-top: 22px;
+  }
+
+  .mt-26 {
+    margin-top: 26px;
+  }
+
+  .ml-8 {
+    margin-left: 8px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .ml-auto {
+    margin: 0 0 0 auto;
+  }
+}

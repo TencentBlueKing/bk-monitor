@@ -61,6 +61,7 @@ import { setLocalStoreRoute } from 'monitor-pc/router/router-config';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import ChatGroup from '../../components/chat-group/chat-group';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import EventStoreModule from '../../store/modules/event';
 import Group, { IGroupData } from '../integrated/group';
 
@@ -71,7 +72,6 @@ import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
 import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
-import EventTableSkeleton from './skeleton/event-table-skeleton';
 import FilterSkeleton from './skeleton/filter-skeleton';
 import {
   AnlyzeField,
@@ -2338,7 +2338,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   if (this.tableLoading) {
                     return (
                       <div class='table-content'>
-                        <EventTableSkeleton></EventTableSkeleton>
+                        <TableSkeleton></TableSkeleton>
                       </div>
                     );
                   }
@@ -2359,7 +2359,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                     {this.activePanel === 'list' ? (
                       (() => {
                         if (this.tableLoading) {
-                          return <EventTableSkeleton></EventTableSkeleton>;
+                          return <TableSkeleton></TableSkeleton>;
                         }
                         return (
                           <EventTable

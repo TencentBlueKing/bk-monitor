@@ -50,6 +50,8 @@ import HeaderTools, { IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
 import TaskCard, { IData as ItaskItem, IOptionTypes as ITaskCardOperate } from './components/task-card';
 import UploadContent from './components/upload-content';
+import NodeTableSkeleton from './skeleton/node-table-skeleton';
+import TaskCardSkeleton from './skeleton/task-card-skeleton';
 import UptimeCheckEmpty from './uptime-check-task/uptime-check-empty/uptime-check-empty.vue';
 import UptimeCheckImport from './uptime-check-task/uptime-check-import/uptime-check-import.vue';
 import { IActive as IUptimeCheckType } from './uptime-check';
@@ -129,6 +131,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
 
   emptyStatusType: EmptyStatusType = 'empty';
 
+  loading = false;
+
   // 搜索数据
   get searchTaskData(): ITaskData['task_data'] {
     return searchTaskData(this.searchValue, this.data.task_data);
@@ -167,7 +171,6 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     this.data = data;
     this.taskTableData = taskTableDataInit(data.task_data);
     this.searchValue = this.nodeName ? `${this.$t('节点:')}${this.nodeName}` : this.searchValue || '';
-
     setTimeout(() => {
       const { query } = this.$route;
       this.searchValue = this.searchValue || query.queryString?.toString() || '';
@@ -253,9 +256,10 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
 
   // loading
-  @Emit('loading')
+  // @Emit('loading')
   handleLoading(v: boolean) {
-    return v;
+    // return v;
+    this.loading = v;
   }
 
   // 新增任务组时的校验
@@ -667,7 +671,9 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
 
   // 表格容器
   getTableData() {
-    return (
+    return this.loading ? (
+      <NodeTableSkeleton has2Btn={true}></NodeTableSkeleton>
+    ) : (
       <div class='table-data-content'>
         <HeaderTools
           option={{ showTask: true, showImport: true }}
@@ -757,7 +763,9 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
   // 卡片容器
   getCardData() {
-    return (
+    return this.loading ? (
+      <TaskCardSkeleton></TaskCardSkeleton>
+    ) : (
       <div class='card-data-content'>
         <HeaderTools
           search={this.searchValue}
