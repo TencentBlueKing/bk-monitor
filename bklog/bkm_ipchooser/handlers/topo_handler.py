@@ -8,6 +8,7 @@ from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.tools import batch_request, topo_tool
 from bkm_ipchooser.tools.gse_tool import GseTool
 from bkm_ipchooser.tools.page_tool import get_pagination_data
+from apps.api.modules.bk_node import BKNodeApi
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -131,6 +132,7 @@ class TopoHandler:
         # 获取主机信息
         resp = cls.query_cc_hosts(
             bk_biz_id,
+            scope_list,
             readable_node_list,
             conditions,
             start,
@@ -179,6 +181,30 @@ class TopoHandler:
         )
 
         return {"total": resp["count"], "data": BaseHandler.format_host_id_infos(resp["info"], tree_node["bk_biz_id"])}
+
+    @classmethod
+    def fill_agent_status_nodeman(cls, cc_hosts, request_params) -> typing.List[typing.Dict]:
+        if not cc_hosts:
+            return cc_hosts
+
+        host_map = {}
+        for index, cc_host in enumerate(cc_hosts):
+            host_map[cc_host['bk_host_id']] = index
+        # 如果没有可匹配的主机，则直接返回
+        if not host_map:
+            return cc_hosts
+        try:
+            # 添加no_request参数, 多线程调用时，保证用户信息不漏传
+            request_params.update({"no_request": True})
+            host_info = BKNodeApi.ipchooser_host_details(request_params)
+            for status in host_info:
+                host_id = status['host_id']
+                if host_id in host_map.keys():
+                    cc_hosts[host_map[host_id]]["status"] = status['alive']
+        except KeyError as e:
+            logger.exception("fill_agent_status exception: %s", e)
+
+        return cc_hosts
 
     @classmethod
     def fill_agent_status(cls, cc_hosts):
@@ -260,6 +286,7 @@ class TopoHandler:
     def query_cc_hosts(
         cls,
         bk_biz_id: int,
+        scope_list: types.ScopeList,
         readable_node_list: typing.List[types.ReadableTreeNode],
         conditions: typing.List[types.Condition],
         start: int,
@@ -270,6 +297,7 @@ class TopoHandler:
     ) -> typing.Dict:
         """
         查询主机
+        :param scope_list
         :param bk_biz_id: 业务ID
         :param readable_node_list: 拓扑节点
         :param conditions: 查询条件
@@ -312,7 +340,15 @@ class TopoHandler:
         resp = get_pagination_data(BkApi.list_biz_hosts, params, split_params=split_params)
 
         if resp["info"] and return_status:
-            cls.fill_agent_status(resp["info"])
+            host_list = []
+            meta = readable_node_list[0]['meta']
+            for host in resp["info"]:
+                host_list.append({"host_id": host['bk_host_id'], 'meta': meta})
+
+            scope_list[0]['scope_type'] = constants.ScopeType.BIZ.value
+            scope_list[0]['scope_id'] = str(bk_biz_id)
+            request_params = {"host_list": host_list, "scope_list": scope_list}
+            cls.fill_agent_status_nodeman(resp["info"], request_params)
 
         return resp
 

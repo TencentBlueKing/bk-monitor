@@ -10,11 +10,13 @@ from bkm_ipchooser.handlers.topo_handler import TopoHandler
 class HostHandler:
     @staticmethod
     def details_base(
-        scope_list: types.ScopeList, host_property_filter: typing.Dict
+        scope_list: types.ScopeList, host_list: typing.List[types.FormatHostInfo],
+            host_property_filter: typing.Dict
     ) -> typing.List[types.FormatHostInfo]:
         """
         获取主机详情
         :param scope_list: 资源范围数组
+        :param host_list: 主机关键信息列表
         :param host_property_filter: 主机查询条件
         :return:
         """
@@ -35,8 +37,15 @@ class HostHandler:
         resp = BkApi.list_biz_hosts(params)
         hosts = resp["info"]
 
-        TopoHandler.fill_agent_status(hosts)
-
+        # 添加主机状态
+        scope_list[0]['scope_type'] = constants.ScopeType.BIZ.value
+        scope_list[0]['scope_id'] = str(bk_biz_id)
+        meta = BaseHandler.get_meta_data(bk_biz_id)
+        for item in host_list:
+            if "meta" not in item.keys():
+                item.update({"meta": meta})
+        request_params = {"host_list": host_list, "scope_list": scope_list}
+        TopoHandler.fill_agent_status_nodeman(hosts, request_params)
         return BaseHandler.format_hosts(hosts, bk_biz_id)
 
     @classmethod
@@ -132,4 +141,4 @@ class HostHandler:
                 }
             rules.append(rule)
 
-        return cls.details_base(scope_list, {"condition": "OR", "rules": rules})
+        return cls.details_base(scope_list, host_list, {"condition": "OR", "rules": rules})

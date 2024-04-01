@@ -131,5 +131,13 @@ class _BKNodeApi:
             before_request=get_bk_node_request_before,
         )
 
+        self.ipchooser_host_details = DataAPI(
+            method="POST",
+            url=BK_NODE_APIGATEWAY_ROOT + "core/api/ipchooser_host/details/",
+            module=self.MODULE,
+            description="apigw节点管理",
+            before_request=get_bk_node_request_before,
+        )
+
 
 BKNodeApi = _BKNodeApi()
