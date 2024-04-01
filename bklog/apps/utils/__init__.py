@@ -153,6 +153,13 @@ class ChoicesEnum(Enum):
         """
         return [{"id": key, "name": value} for key, value in cls.get_dict_choices().items()]
 
+    @classmethod
+    def get_enums_values(cls) -> list:
+        """
+        获取所有枚举值的value
+        """
+        return [element.value for element in cls if not element.name.startswith("_")]
+
 
 def is_match_variate(data):
     return re.compile("[a-zA-Z_]{1}[a-zA-Z0-9_]*").match(data)
