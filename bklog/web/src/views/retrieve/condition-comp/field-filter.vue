@@ -332,7 +332,7 @@ export default {
       );
       return {
         // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
-        isShowBuiltExpandBtn: this.builtInFields.length > 10 && !!initHiddenList.length,
+        isShowBuiltExpandBtn: this.builtInFields.length > 10 || !!initHiddenList.length,
         // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
         builtInShowFields: this.isShowAllBuiltIn ? [...otherList, ...initHiddenList] : otherList.slice(0, 9)
       };
