@@ -30,16 +30,7 @@ def deal_collector_scenario_param(params):
         filter_bucket = []
         for index, item in enumerate(condition):
             item["op"] = item["op"]
-            if item["op"] not in [
-                PluginParamOpEnum.OP_OLD_EQ.value,
-                PluginParamOpEnum.OP_OLD_NEQ.value,
-                PluginParamOpEnum.OP_EQ.value,
-                PluginParamOpEnum.OP_NEQ.value,
-                PluginParamOpEnum.OP_INCLUDE.value,
-                PluginParamOpEnum.OP_EXCLUDE.value,
-                PluginParamOpEnum.OP_REGEX.value,
-                PluginParamOpEnum.OP_NREGEX.value,
-            ]:
+            if item["op"] not in PluginParamOpEnum.get_choices_list_dict():
                 item["op"] = PluginParamOpEnum.OP_OLD_EQ.value
             if index == 0 or item.get("logic_op", PluginParamLogicOpEnum.AND.value) == PluginParamLogicOpEnum.AND.value:
                 if item.get("word"):
