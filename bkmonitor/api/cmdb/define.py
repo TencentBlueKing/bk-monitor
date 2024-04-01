@@ -480,6 +480,12 @@ class Host(BaseNode):
         if not attrs.get("display_name"):
             attrs["display_name"] = attrs["bk_host_innerip"] or attrs["bk_host_innerip_v6"]
 
+        if "topo_link" in attrs:
+            topo_link = {}
+            for node_id, nodes in attrs["topo_link"].items():
+                topo_link[node_id] = [TopoNode(**node) for node in nodes]
+            attrs["topo_link"] = topo_link
+
         super().__init__(attrs)
 
     @cached_property

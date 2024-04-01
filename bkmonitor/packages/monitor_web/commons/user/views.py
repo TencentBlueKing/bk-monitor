@@ -41,6 +41,8 @@ class UserViewSet(viewsets.GenericViewSet):
     def list_users(self, request: Request):
         params = dict(request.query_params)
         params.pop("callback", None)
+        params.pop("app_code", None)
+
         result = {
             "code": 0,
             "data": api.bk_login.get_all_user(**params),

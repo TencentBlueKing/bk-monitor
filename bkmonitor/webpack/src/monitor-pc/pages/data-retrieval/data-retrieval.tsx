@@ -480,7 +480,7 @@ export default class DataRetrieval extends tsc<{}> {
     if (this.editMode === 'UI') {
       return this.localValue
         .filter(item => !!item.metric_id)
-        .every(item => ['custom', 'bk_monitor'].includes(item.data_source_label));
+        .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
     return true;
   }
@@ -2913,7 +2913,9 @@ export default class DataRetrieval extends tsc<{}> {
               <span
                 class={['edit-mode-btn', { 'mode-disable': !this.canToPromql }]}
                 v-bk-tooltips={{
-                  content: this.$t('目前仅支持{0}切换PromQL', [`${this.$t('监控采集指标')}、${this.$t('自定义指标')}`]),
+                  content: this.$t('目前仅支持{0}切换PromQL', [
+                    `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`
+                  ]),
                   disabled: this.canToPromql
                 }}
                 onClick={this.handleEditModeChange}

@@ -95,6 +95,7 @@ export default {
     ResultTablePanel
   },
   mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
   props: {
     retrieveParams: {
       type: Object,
