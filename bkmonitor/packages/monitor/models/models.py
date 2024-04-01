@@ -455,17 +455,22 @@ class UptimeCheckTask(OperateRecordModel):
             return '"%s"' % temp
         return input_string
 
-    def encode_data_with_prefix(self, input_string: str, prefix: str = "monitor_") -> str:
+    def encode_data_with_prefix(self, input_string: str, prefix: str = "base64_") -> str:
         """
         对数据进行Base64编码，并添加指定前缀。
         :param input_string: 要编码的原始数据。
         :param prefix: 添加到编码数据前面的前缀。
         :return: 编码且带有前缀的字符串。
         """
-        if input_string:
-            encoded_data = b64encode(input_string.encode("utf-8")).decode("utf-8")
-            return f"{prefix}{encoded_data}"
-        return input_string
+        if not settings.BASE64_ENCODE_TRIGGER_CHARS or not input_string:
+            return input_string
+
+        for char in settings.BASE64_ENCODE_TRIGGER_CHARS:
+            if char in input_string:
+                encoded_data = b64encode(input_string.encode("utf-8")).decode("utf-8")
+                return f"{prefix}{encoded_data}"
+        else:
+            return input_string
 
     def generate_subscription_configs(self):
         """
