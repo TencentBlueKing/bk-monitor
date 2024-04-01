@@ -14,6 +14,7 @@ import os
 import subprocess
 import traceback
 from functools import reduce
+from base64 import b64encode
 
 from django.conf import settings
 from django.db import models, transaction
@@ -454,6 +455,18 @@ class UptimeCheckTask(OperateRecordModel):
             return '"%s"' % temp
         return input_string
 
+    def encode_data_with_prefix(self, input_string: str, prefix: str = "monitor_") -> str:
+        """
+        对数据进行Base64编码，并添加指定前缀。
+        :param input_string: 要编码的原始数据。
+        :param prefix: 添加到编码数据前面的前缀。
+        :return: 编码且带有前缀的字符串。
+        """
+        if input_string:
+            encoded_data = b64encode(input_string.encode("utf-8")).decode("utf-8")
+            return f"{prefix}{encoded_data}"
+        return input_string
+
     def generate_subscription_configs(self):
         """
         生成订阅参数
@@ -517,8 +530,8 @@ class UptimeCheckTask(OperateRecordModel):
                         "available_duration": "{}ms".format(available_duration),
                         "timeout": "{}ms".format(timeout),
                         "target_port": self.config.get("port"),
-                        "response": self.add_escape(self.config.get("response", "")),
-                        "request": self.add_escape(self.config.get("request", "")),
+                        "response": self.encode_data_with_prefix(self.config.get("response", "")),
+                        "request": self.encode_data_with_prefix(self.config.get("request", "")),
                         "response_format": self.config.get("response_format", "in"),
                         "size": self.config.get("size"),
                         "total_num": self.config.get("total_num"),
