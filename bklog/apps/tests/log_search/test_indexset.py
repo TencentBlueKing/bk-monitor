@@ -237,7 +237,7 @@ INDEX_SET_LISTS = {
             "apply_status": "normal",
             "apply_status_name": "正常",
             "bk_biz_id": 2,
-            "permission": {"manage_indices_v2": True},
+            "permission": {},
             "is_editable": True,
             "sort_fields": [],
             "target_fields": [],
