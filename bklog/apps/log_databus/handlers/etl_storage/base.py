@@ -20,7 +20,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-from typing import Union
+import hashlib
+from typing import Union, Any, Dict, List
 
 from django.conf import settings
 from django.core.cache import cache
@@ -44,6 +45,7 @@ from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.log_databus.utils.es_config import get_es_config
 from apps.log_search.constants import FieldBuiltInEnum, FieldDataTypeEnum
 from apps.utils import is_match_variate
+from apps.utils.log import logger
 
 
 class EtlStorage(object):
@@ -99,10 +101,129 @@ class EtlStorage(object):
         """
         raise NotImplementedError(_("功能暂未实现"))
 
-    def get_es_field_type(self, field):
+    @staticmethod
+    def get_es_field_type(field):
         if not field.get("option", {}).get("es_type"):
             return FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
         return BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string")
+
+    @staticmethod
+    def generate_hash_str(
+            type: str,
+            field_name: str,
+            field_alias: str,
+            is_case_sensitive: bool,
+            tokenize_on_chars: str,
+            length: int = 8
+    ) -> str:
+        """
+        根据字段的配置生成简化的hash值
+        因为监控的索引分裂的判断条件只对比了option的es_analyzer, 当参数变动的时候, 利用生成新的hash值来触发分裂索引
+        """
+        data = {
+            "field_name": field_name,
+            "field_alias": field_alias,
+            "is_case_sensitive": is_case_sensitive,
+            "tokenize_on_chars": tokenize_on_chars,
+        }
+        # 将字典按照key的顺序转换为字符串, 防止顺序不固定导致的hash值不一致
+        data_str = ''.join([f'{k}{v}' for k, v in sorted(data.items())])
+        # 使用SHA256算法生成hash值
+        hash_obj = hashlib.sha256(data_str.encode('utf-8'))
+        hash_str = hash_obj.hexdigest()[:length]
+        # 截取指定长度的子串作为hash值
+        return f"{type}_{hash_str}"
+
+    def generate_field_analyzer_name(
+            self, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str
+    ) -> str:
+        """
+        生成analyzer名称
+        """
+        # 当大小写敏感和自定义分词器都为空时, 不使用自定义analyzer
+        if not is_case_sensitive and not tokenize_on_chars:
+            return ""
+        return self.generate_hash_str("analyzer", field_name, field_alias, is_case_sensitive, tokenize_on_chars)
+
+    @staticmethod
+    def generate_field_tokenizer_name(field_name: str, field_alias: str, tokenize_on_chars: str) -> str:
+        """
+        生成tokenizer名称, 因为analyzer和tokenizer的名称是一一对应的, 所以不用特别的hash值
+        """
+        if not tokenize_on_chars:
+            return ""
+        return f"tokenizer_{field_name}_{field_alias}"
+
+    def generate_fields_analysis(self, fields: List[Dict[str, Any]], etl_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        构建各个字段的分词器
+        """
+        result = {
+            "analyzer": {},
+            "tokenizer": {},
+        }
+        # 保留原文, 处理原文分词器
+        if etl_params.get("retain_original_text", False):
+            analyzer_name = self.generate_field_analyzer_name(
+                field_name="log",
+                field_alias="data",
+                is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
+                tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
+            )
+            if analyzer_name:
+                tokenizer_name = self.generate_field_tokenizer_name(
+                    field_name="log",
+                    field_alias="data",
+                    tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
+                )
+                result["analyzer"][analyzer_name] = {
+                    "type": "custom",
+                    "filter": [],
+                }
+                # 大小写不敏感的时候，需要加入lowercase
+                if not etl_params.get("original_text_is_case_sensitive", False):
+                    result["analyzer"][analyzer_name]["filter"].append("lowercase")
+                if tokenizer_name:
+                    result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                    result["tokenizer"][tokenizer_name] = {
+                        "type": "char_group",
+                        "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
+                    }
+                else:
+                    # 自定义分词器为空时, 使用standard分词器, 不传es会报错
+                    result["analyzer"][analyzer_name]["tokenizer"] = "standard"
+        # 处理用户配置的清洗字段
+        for field in fields:
+            if not field.get("is_analyzed", False):
+                continue
+            analyzer_name = self.generate_field_analyzer_name(
+                field_name=field.get("field_name", ""),
+                field_alias=field.get("alias_name", ""),
+                is_case_sensitive=field.get("is_case_sensitive", False),
+                tokenize_on_chars=field.get("tokenize_on_chars", "")
+            )
+            if not analyzer_name:
+                continue
+            tokenizer_name = self.generate_field_tokenizer_name(
+                field_name=field.get("field_name", ""),
+                field_alias=field.get("alias_name", ""),
+                tokenize_on_chars=field.get("tokenize_on_chars", "")
+            )
+            result["analyzer"][analyzer_name] = {
+                "type": "custom",
+                "filter": [],
+            }
+            # 大小写不敏感的时候，需要加入lowercase
+            if not field.get("is_case_sensitive", False):
+                result["analyzer"][analyzer_name]["filter"].append("lowercase")
+            if tokenizer_name:
+                result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                result["tokenizer"][tokenizer_name] = {
+                    "type": "char_group",
+                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")]}
+            else:
+                result["analyzer"][analyzer_name]["tokenizer"] = "standard"
+        return result
 
     def get_result_table_fields(self, fields, etl_params, built_in_config, es_version="5.X"):
         """
@@ -114,18 +235,31 @@ class EtlStorage(object):
 
         # 是否保留原文
         if etl_params.get("retain_original_text"):
-            field_list.append(
-                {
-                    "field_name": "log",
-                    "field_type": "string",
-                    "tag": "metric",
-                    "alias_name": "data",
-                    "description": "original_text",
-                    "option": {"es_type": "text", "es_include_in_all": True}
-                    if es_version.startswith("5.")
-                    else {"es_type": "text"},
-                }
+            # 保留原文默认text类型大小写敏感
+            es_analyzer = self.generate_field_analyzer_name(
+                field_name="log",
+                field_alias="data",
+                is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
+                tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
             )
+            original_text_field = {
+                "field_name": "log",
+                "field_type": "string",
+                "tag": "metric",
+                "alias_name": "data",
+                "description": "original_text",
+                "option": {
+                    "es_type": "text",
+                    "es_include_in_all": True
+                }
+                if es_version.startswith("5.")
+                else {
+                    "es_type": "text"
+                },
+            }
+            if es_analyzer:
+                original_text_field["option"]["es_analyzer"] = es_analyzer
+            field_list.append(original_text_field)
         # 是否保留用户未定义字段
         if etl_params.get("retain_extra_json"):
             field_list.append(
@@ -188,8 +322,19 @@ class EtlStorage(object):
             field_option["es_type"] = FieldDataTypeEnum.get_es_field_type(
                 field["field_type"], is_analyzed=field["is_analyzed"]
             )
-            if field["is_analyzed"] and field.get("option", {}).get("es_analyzer"):
-                field_option["es_analyzer"] = field["option"]["es_analyzer"]
+            # 分词场景下, 自定义分词器
+            if field["is_analyzed"]:
+                if field.get("option", {}).get("es_analyzer"):
+                    field_option["es_analyzer"] = field["option"]["es_analyzer"]
+                else:
+                    analyzer_name = self.generate_field_analyzer_name(
+                        field_name=field["field_name"],
+                        field_alias=field.get("alias_name", ""),
+                        is_case_sensitive=field.get("is_case_sensitive", False),
+                        tokenize_on_chars=field.get("tokenize_on_chars", "")
+                    )
+                    if analyzer_name:
+                        field_option["es_analyzer"] = analyzer_name
 
             # ES_INCLUDE_IN_ALL
             if field["is_analyzed"] and es_version.startswith("5."):
@@ -228,19 +373,19 @@ class EtlStorage(object):
         return {"fields": field_list, "time_field": time_field}
 
     def update_or_create_result_table(
-        self,
-        instance: Union[CollectorConfig, CollectorPlugin],
-        table_id: str,
-        storage_cluster_id: int,
-        retention: int,
-        allocation_min_days: int,
-        storage_replies: int,
-        fields: list = None,
-        etl_params: dict = None,
-        es_version: str = "5.X",
-        hot_warm_config: dict = None,
-        es_shards: int = settings.ES_SHARDS,
-        index_settings: dict = None,
+            self,
+            instance: Union[CollectorConfig, CollectorPlugin],
+            table_id: str,
+            storage_cluster_id: int,
+            retention: int,
+            allocation_min_days: int,
+            storage_replies: int,
+            fields: list = None,
+            etl_params: dict = None,
+            es_version: str = "5.X",
+            hot_warm_config: dict = None,
+            es_shards: int = settings.ES_SHARDS,
+            index_settings: dict = None,
     ):
         """
         创建或更新结果表
@@ -279,6 +424,8 @@ class EtlStorage(object):
         # index分片时间间隔，单位（分钟）
         slice_gap = es_config["ES_SLICE_GAP"]
 
+        # 自定义analysis配置
+        analysis = self.generate_fields_analysis(fields=fields, etl_params=etl_params)
         # ES兼容—mapping设置
         param_mapping = {
             "dynamic_templates": [
@@ -314,6 +461,7 @@ class EtlStorage(object):
                 "index_settings": {
                     "number_of_shards": instance.storage_shards_nums,
                     "number_of_replicas": instance.storage_replies,
+                    "analysis": analysis
                 },
             },
             "is_time_field_only": True,

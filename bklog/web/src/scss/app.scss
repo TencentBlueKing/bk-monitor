@@ -149,3 +149,16 @@
 .bk-form-checkbox .bk-checkbox-text {
   font-size: 12px;
 }
+
+.tippy-tooltip {
+  .tippy-content {
+    padding: 0;
+  }
+
+  .tippy-arrow,
+  .tippy-roundarrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+  }
+}

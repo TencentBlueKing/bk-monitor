@@ -58,7 +58,7 @@
       </template>
     </div>
     <div class="dialog-bars">
-      <log-filter
+      <data-filter
         :is-screen-full="isScreenFull"
         @handle-filter="handleFilter"
       />
@@ -115,14 +115,14 @@
 
 <script>
 import logView from '@/components/log-view';
-import LogFilter from '../condition-comp/Log-filter';
+import DataFilter from '../condition-comp/data-filter';
 import { getFlatObjValues } from '@/common/util';
 
 export default {
   name: 'RealTimeLog',
   components: {
     logView,
-    LogFilter
+    DataFilter
   },
   props: {
     logParams: {
