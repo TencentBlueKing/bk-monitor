@@ -214,7 +214,7 @@ export default class StrategyConfigRetreval extends Vue {
   }
 
   created() {
-    this.handleKeywordSearch = debounce(300, false, this.handleSearchKeyword);
+    this.handleKeywordSearch = debounce(300, this.handleSearchKeyword);
     this.origin = {
       list: [
         {

@@ -243,14 +243,8 @@ export default {
         this.$emit('update:storageClusterId', $row.storage_cluster_id);
         return;
       }
-      this.$bkInfo({
-        type: 'warning',
-        title: this.$t('切换集群将导致历史数据无法查询'),
-        confirmFn: () => {
-          this.$emit('update:isChangeSelect', true);
-          this.$emit('update:storageClusterId', $row.storage_cluster_id);
-        }
-      });
+      this.$emit('update:isChangeSelect', true);
+      this.$emit('update:storageClusterId', $row.storage_cluster_id);
     },
     handleCreateCluster() {
       const newUrl = this.$router.resolve({

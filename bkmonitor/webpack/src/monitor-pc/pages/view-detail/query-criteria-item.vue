@@ -108,9 +108,9 @@
                 <div class="edit-wrap">
                   <promql-editor
                     :value="queryConfigItem.promql"
+                    :min-height="80"
                     @change="handlePromqlDataCodeChange"
                     @blur="handlePromqlDataCodeBlur"
-                    class="promql-editor"
                   />
                 </div>
                 <div class="step-wrap">
@@ -263,12 +263,12 @@ import { dimensionUnifyQuery } from 'monitor-api/modules/grafana';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
-import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 
 import { strategyMapMixin } from '../../common/mixins';
 import CustomSelect from '../../components/custom-select/custom-select';
 import CycleInput from '../../components/cycle-input/cycle-input';
 import { secToString } from '../../components/cycle-input/utils';
+import PromqlEditor from '../../components/promql-editor/promql-editor';
 // import { handleTimeRange } from '../../utils/index';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { CONDITION_METHOD_LIST } from '../../constant/constant';
@@ -616,21 +616,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   .promql-content {
     .edit-wrap {
       position: relative;
-      min-height: 80px;
       margin: 0 24px;
-      overflow-y: auto;
-      background-color: #fff;
-      border: 1px solid #dcdee5;
-
-      .promql-editor {
-        height: 100%;
-        min-height: 80px;
-        border: 0;
-
-        .cm-content {
-          padding: 8px 20px 8px 18px;
-        }
-      }
     }
 
     .step-wrap {

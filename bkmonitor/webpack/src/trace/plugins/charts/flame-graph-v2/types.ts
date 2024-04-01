@@ -126,17 +126,17 @@ export interface IBaseTraceInfo {
 export const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'span',
-    name: window.i18n.tc('Span 详情'),
+    name: window.i18n.t('Span 详情'),
     icon: 'icon-menu-view'
   },
   {
     id: 'reset',
-    name: window.i18n.tc('重置图表'),
+    name: window.i18n.t('重置图表'),
     icon: 'icon-menu-view'
   },
   {
     id: 'highlight',
-    name: window.i18n.tc('高亮相似 Span'),
+    name: window.i18n.t('高亮相似 Span'),
     icon: 'icon-menu-view'
   }
 ];

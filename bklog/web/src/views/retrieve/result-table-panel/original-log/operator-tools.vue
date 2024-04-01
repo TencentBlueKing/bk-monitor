@@ -99,7 +99,7 @@
         </div>
       </div>
     </template>
-    <template v-else-if="logType !== 'origin'">
+    <template v-else>
       <span
         v-bk-tooltips="
           $t('{0}日志来源', {

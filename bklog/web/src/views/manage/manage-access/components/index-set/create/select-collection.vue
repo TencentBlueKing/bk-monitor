@@ -49,7 +49,7 @@
             searchable
             :clearable="false"
             data-test-id="addIndex_select_selectIndex"
-            @selected="handleCollectionSelected"
+            @selected="val => handleCollectionSelected(val)"
           >
             <bk-option
               v-for="item in getShowCollectionList"
@@ -187,7 +187,7 @@ export default {
       return authorityMap;
     },
     getShowCollectionList() {
-      if (this.parentData.storage_cluster_id) {
+      if (this.parentData.storage_cluster_id && this.scenarioId === 'log') {
         return this.collectionList.filter(item => item.storage_cluster_id === this.parentData.storage_cluster_id);
       }
       return this.collectionList;
@@ -199,6 +199,7 @@ export default {
   methods: {
     openDialog() {
       this.showDialog = true;
+      this.emptyType = 'empty';
       Object.assign(this, {
         basicLoading: false,
         tableLoading: false,
@@ -231,18 +232,24 @@ export default {
       }
     },
     // 选择采集项
-    async handleCollectionSelected(id) {
+    async handleCollectionSelected(id, foreignParams) {
       try {
         this.tableLoading = true;
-        const res = await this.$http.request('/resultTables/info', {
-          params: {
-            result_table_id: id
-          },
-          query: {
-            scenario_id: this.scenarioId,
-            bk_biz_id: this.bkBizId
-          }
-        });
+        const res = await this.$http.request(
+          '/resultTables/info',
+          !!foreignParams
+            ? foreignParams
+            : {
+                params: {
+                  result_table_id: id
+                },
+                query: {
+                  scenario_id: this.scenarioId,
+                  bk_biz_id: this.bkBizId
+                }
+              }
+        );
+        if (foreignParams) return res;
         this.tableData = res.data.fields;
         this.tableLoading = false;
       } catch (e) {
@@ -315,17 +322,17 @@ export default {
       text-align: left;
     }
   }
+}
 
-  .button-footer {
-    margin-top: 20px;
-    text-align: right;
+.button-footer {
+  margin-top: 20px;
+  text-align: right;
 
-    .king-button {
-      width: 86px;
+  .king-button {
+    width: 86px;
 
-      &:first-child {
-        margin-right: 8px;
-      }
+    &:first-child {
+      margin-right: 8px;
     }
   }
 }

@@ -376,8 +376,8 @@ export default defineComponent({
                 {this.strategyList.map(item => (
                   <Select.Option
                     key={item.id}
-                    label={item.name}
-                    value={item.id}
+                    name={item.name}
+                    id={item.id}
                   >
                     {{
                       default: () => (

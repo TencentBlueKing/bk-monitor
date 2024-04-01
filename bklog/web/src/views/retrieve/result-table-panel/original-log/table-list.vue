@@ -158,6 +158,7 @@ import resultTableMixin from '@/mixins/result-table-mixin';
 
 export default {
   name: 'TableList',
-  mixins: [resultTableMixin]
+  mixins: [resultTableMixin],
+  inheritAttrs: false
 };
 </script>

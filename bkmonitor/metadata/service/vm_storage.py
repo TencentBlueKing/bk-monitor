@@ -13,6 +13,9 @@ import json
 import logging
 from typing import Dict, List, Optional
 
+from django.db.models import Q
+from rest_framework.exceptions import ValidationError
+
 from metadata import models
 from metadata.utils import consul_tools
 
@@ -142,3 +145,65 @@ def query_vm_datalink(bk_data_id: int) -> Dict:
     ret_data["result_table_list"] = result_table_list
 
     return ret_data
+
+
+def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
+    """查询 bcs 集群接入 vm 的结果表"""
+    # 获取集群信息，如果已经废弃，则忽略
+    cluster_infos = models.BCSClusterInfo.objects.filter(
+        cluster_id=bcs_cluster_id, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
+    )
+    # 集群不可用时，返回异常
+    if not cluster_infos.exists():
+        raise ValidationError(f"cluster_id: {bcs_cluster_id} status is not running")
+    # 获取到数据源ID， 区分内置和自定义
+    cluster_info = cluster_infos.first()
+    cluster_data_id = {
+        cluster_info.K8sMetricDataID: "k8s_metric_data_id",
+        cluster_info.CustomMetricDataID: "custom_metric_data_id",
+    }
+    # 通过数据源获取结果表
+    data_id_table_id = {
+        obj["bk_data_id"]: obj["table_id"]
+        for obj in models.DataSourceResultTable.objects.filter(bk_data_id__in=cluster_data_id.keys()).values(
+            "bk_data_id", "table_id"
+        )
+    }
+    # 通过结果表获取 vm rt
+    tid_vm_rt = {
+        obj["result_table_id"]: obj["vm_result_table_id"]
+        for obj in models.AccessVMRecord.objects.filter(result_table_id__in=data_id_table_id.values()).values(
+            "result_table_id", "vm_result_table_id"
+        )
+    }
+    # 组装数据，返回集群对应的数据
+    data = {}
+    for data_id, metric_type in cluster_data_id.items():
+        tid = data_id_table_id.get(data_id)
+        if not tid:
+            continue
+        vm_rt = tid_vm_rt.get(tid)
+        if not vm_rt:
+            continue
+        # 固定类型，标识自定义还是内置
+        if metric_type == "k8s_metric_data_id":
+            data["k8s_metric_rt"] = vm_rt
+        else:
+            data["custom_metric_rt"] = vm_rt
+    return data
+
+
+def get_table_id_from_vm(bk_base_data_id: Optional[int] = None, vm_table_id: Optional[str] = None) -> str:
+    """获取vm下面的结果表"""
+    if not (bk_base_data_id or vm_table_id):
+        return ""
+    objs = models.AccessVMRecord.objects.filter(Q(bk_base_data_id=bk_base_data_id) | Q(vm_result_table_id=vm_table_id))
+    if not objs.exists():
+        raise ValidationError(
+            f"not found vm record by bk_base_data_id: {bk_base_data_id} or vm_table_id: {vm_table_id}"
+        )
+    # 如果有多个，则返回提示给用户确认，防止操作错误
+    if objs.count() > 1:
+        raise ValidationError(f"bk_base_data_id: {bk_base_data_id} or vm_table_id: {vm_table_id} not same record")
+
+    return objs.first().result_table_id

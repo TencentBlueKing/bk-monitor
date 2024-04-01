@@ -38,6 +38,7 @@ import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions, PanelModel } f
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import Collapse from '../../../components/collapse/collapse';
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
@@ -1172,8 +1173,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         selectortTarget.compareFieldsSort
       );
       // eslint-disable-next-line max-len
-      compareTargets = targets?.map(
-        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+      compareTargets = targets?.map(item =>
+        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {
@@ -1724,189 +1725,196 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 </CommonDetail>
               )}
             </keep-alive>
-            {this.selectorReady && [
-              <div
-                class='dashboard-panel-wrap'
-                ref='dashboardPanelWrap'
-              >
-                <div class='dashboard-panel-tools'>
-                  {
-                    // 变量筛选
-                    (!!this.sceneData.variables.length || this.sceneData.enableGroup) && (
-                      <div
-                        class='dashboard-panel-filter-wrap'
-                        style={{ display: !window.__BK_WEWEB_DATA__?.lockTimeRange ? 'blok' : 'none' }}
-                      >
-                        <Collapse
-                          ref='collapseRef'
-                          expand={this.filterActive}
-                          renderAnimation={false}
-                          onExpandChange={val => (this.filterActive = val)}
+            {this.selectorReady ? (
+              [
+                <div
+                  class='dashboard-panel-wrap'
+                  ref='dashboardPanelWrap'
+                >
+                  <div class='dashboard-panel-tools'>
+                    {
+                      // 变量筛选
+                      (!!this.sceneData.variables.length || this.sceneData.enableGroup) && (
+                        <div
+                          class='dashboard-panel-filter-wrap'
+                          style={{ display: !window.__BK_WEWEB_DATA__?.lockTimeRange ? 'blok' : 'none' }}
                         >
-                          <div class='dashboard-panel-filter-content'>
-                            {!!this.sceneData.variables.length && (
-                              <FilterVarSelectGroup
-                                ref='filterVarSelectGroupRef'
-                                key={this.sceneData.id + this.refleshVariablesKey}
-                                scencId={this.sceneId}
-                                sceneType={this.localSceneType}
-                                pageId={this.dashboardId}
-                                panelList={this.sceneData.variables}
-                                variables={this.variables}
-                                needAddBtn={this.sceneData.variableEditable}
-                                onChange={this.handleFilterVarChange}
-                                onDataReady={this.handleFilterVarDataReady}
-                                onAddFilter={() => this.handleAddTab('edit-variate')}
-                              />
-                            )}
-                            {this.sceneData.enableGroup ? (
-                              <GroupSelect
-                                class='k8s-group-select'
-                                value={Array.isArray(this.groups) ? this.groups : [this.groups]}
-                                panel={this.sceneData.groupPanel}
-                                scencId={this.sceneId}
-                                pageId={this.dashboardId}
-                                sceneType={this.localSceneType}
-                                onChange={this.handleGroupsChange}
-                              />
-                            ) : undefined}
-                          </div>
-                        </Collapse>
-                      </div>
-                    )
-                  }
-                  {/* 对比、布局、合并视图工具栏 */}
-                  {this.isEnablePanelTool && (
-                    <PanelTools
-                      layoutActive={this.columns}
-                      needLayout={this.isEnableColumnsSelect && !this.isSingleChart}
-                      needSplit={this.needSplitSwitch}
-                      onLayoutChange={this.handleChartChange}
-                    >
-                      <span
-                        slot='prepend'
-                        class='panel-tools-prepend'
-                      >
-                        {this.isEnableIntervalSelect && (
-                          <FilterVarSelectSimple
-                            value={this.interval}
-                            options={PANEL_INTERVAL_LIST}
-                            field={'interval'}
-                            label={this.$t('汇聚周期')}
-                            onChange={this.handleIntervalChange}
-                          />
-                        )}
-                        {this.isEnableMethodSelect && (
-                          <FilterVarSelectSimple
-                            value={this.method}
-                            options={METHOD_LIST}
-                            field={'method'}
-                            label={this.$t('汇聚方法')}
-                            onChange={this.handleMethodChange}
-                          />
-                        )}
-                        {!window.__BK_WEWEB_DATA__?.lockTimeRange && this.isShowCompareTool && (
-                          <CompareSelect
-                            needTargetSelect
-                            targetOptions={this.compareHostList}
-                            type={this.compareType}
-                            compareListEnable={this.compareTypeMap}
-                            panel={this.sceneData.selectorPanel}
-                            curTarget={this.currentTitle}
-                            timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
-                            targetValue={this.compareType === 'target' ? this.localViewOptions : undefined}
-                            onTimeChange={this.handleCompareTimeChange}
-                            onTypeChange={this.handleCompareTypeChange}
-                            onTargetChange={this.handleCompareTargetChange}
-                          />
-                        )}
-                        {this.sceneData.isShowPreciseFilter && (
-                          <bk-checkbox
-                            v-model={this.isPreciseFilter}
-                            class='precise-filtering'
-                            onChange={this.handlePreciseFilteringChange}
+                          <Collapse
+                            ref='collapseRef'
+                            expand={this.filterActive}
+                            renderAnimation={false}
+                            onExpandChange={val => (this.filterActive = val)}
                           >
-                            {this.$t('精准过滤')}
-                          </bk-checkbox>
-                        )}
-                      </span>
-                    </PanelTools>
-                  )}
-                </div>
-                {/* 所有视图无数据提示 如apm视图无数据指引 */}
-                {!!this.$slots.noData && <div class='view-has-no-data-main'>{this.$slots.noData}</div>}
-                {!this.showListAnimate &&
-                  (this.filtersReady ? (
-                    this.sceneData.mode === 'custom' ? (
-                      <DashboardPanel
-                        isSingleChart={this.isSingleChart}
-                        needOverviewBtn={!!this.sceneData?.list?.length}
-                        key={this.sceneData.id}
-                        id={this.dashboardPanelId}
-                        dashboardId={this.dashboardId}
-                        column={'custom'}
-                        panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
-                        onBackToOverview={this.handleBackToOverview}
-                        onLintToDetail={this.handleLinkToDetail}
-                      />
+                            <div class='dashboard-panel-filter-content'>
+                              {!!this.sceneData.variables.length && (
+                                <FilterVarSelectGroup
+                                  ref='filterVarSelectGroupRef'
+                                  key={this.sceneData.id + this.refleshVariablesKey}
+                                  scencId={this.sceneId}
+                                  sceneType={this.localSceneType}
+                                  pageId={this.dashboardId}
+                                  panelList={this.sceneData.variables}
+                                  variables={this.variables}
+                                  needAddBtn={this.sceneData.variableEditable}
+                                  onChange={this.handleFilterVarChange}
+                                  onDataReady={this.handleFilterVarDataReady}
+                                  onAddFilter={() => this.handleAddTab('edit-variate')}
+                                />
+                              )}
+                              {this.sceneData.enableGroup ? (
+                                <GroupSelect
+                                  class='k8s-group-select'
+                                  value={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                  panel={this.sceneData.groupPanel}
+                                  scencId={this.sceneId}
+                                  pageId={this.dashboardId}
+                                  sceneType={this.localSceneType}
+                                  onChange={this.handleGroupsChange}
+                                />
+                              ) : undefined}
+                            </div>
+                          </Collapse>
+                        </div>
+                      )
+                    }
+                    {/* 对比、布局、合并视图工具栏 */}
+                    {this.isEnablePanelTool && (
+                      <PanelTools
+                        layoutActive={this.columns}
+                        needLayout={this.isEnableColumnsSelect && !this.isSingleChart}
+                        needSplit={this.needSplitSwitch}
+                        onLayoutChange={this.handleChartChange}
+                      >
+                        <span
+                          slot='prepend'
+                          class='panel-tools-prepend'
+                        >
+                          {this.isEnableIntervalSelect && (
+                            <FilterVarSelectSimple
+                              value={this.interval}
+                              options={PANEL_INTERVAL_LIST}
+                              field={'interval'}
+                              label={this.$t('汇聚周期')}
+                              onChange={this.handleIntervalChange}
+                            />
+                          )}
+                          {this.isEnableMethodSelect && (
+                            <FilterVarSelectSimple
+                              value={this.method}
+                              options={METHOD_LIST}
+                              field={'method'}
+                              label={this.$t('汇聚方法')}
+                              onChange={this.handleMethodChange}
+                            />
+                          )}
+                          {!window.__BK_WEWEB_DATA__?.lockTimeRange && this.isShowCompareTool && (
+                            <CompareSelect
+                              needTargetSelect
+                              targetOptions={this.compareHostList}
+                              type={this.compareType}
+                              compareListEnable={this.compareTypeMap}
+                              panel={this.sceneData.selectorPanel}
+                              curTarget={this.currentTitle}
+                              timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
+                              targetValue={this.compareType === 'target' ? this.localViewOptions : undefined}
+                              onTimeChange={this.handleCompareTimeChange}
+                              onTypeChange={this.handleCompareTypeChange}
+                              onTargetChange={this.handleCompareTargetChange}
+                            />
+                          )}
+                          {this.sceneData.isShowPreciseFilter && (
+                            <bk-checkbox
+                              v-model={this.isPreciseFilter}
+                              class='precise-filtering'
+                              onChange={this.handlePreciseFilteringChange}
+                            >
+                              {this.$t('精准过滤')}
+                            </bk-checkbox>
+                          )}
+                        </span>
+                      </PanelTools>
+                    )}
+                  </div>
+                  {/* 所有视图无数据提示 如apm视图无数据指引 */}
+                  {!!this.$slots.noData && <div class='view-has-no-data-main'>{this.$slots.noData}</div>}
+                  {!this.showListAnimate &&
+                    (this.filtersReady ? (
+                      this.sceneData.mode === 'custom' ? (
+                        <DashboardPanel
+                          isSingleChart={this.isSingleChart}
+                          needOverviewBtn={!!this.sceneData?.list?.length}
+                          key={this.sceneData.id}
+                          id={this.dashboardPanelId}
+                          dashboardId={this.dashboardId}
+                          column={'custom'}
+                          panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
+                          onBackToOverview={this.handleBackToOverview}
+                          onLintToDetail={this.handleLinkToDetail}
+                        />
+                      ) : (
+                        <FlexDashboardPanel
+                          isSingleChart={this.isSingleChart}
+                          needOverviewBtn={!!this.sceneData?.list?.length}
+                          key={this.sceneData.id}
+                          id={this.dashboardPanelId}
+                          dashboardId={this.dashboardId}
+                          column={this.columns + 1}
+                          matchFields={this.matchFields}
+                          panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
+                          onBackToOverview={this.handleBackToOverview}
+                          onLintToDetail={this.handleLinkToDetail}
+                        />
+                      )
                     ) : (
-                      <FlexDashboardPanel
-                        isSingleChart={this.isSingleChart}
-                        needOverviewBtn={!!this.sceneData?.list?.length}
-                        key={this.sceneData.id}
-                        id={this.dashboardPanelId}
-                        dashboardId={this.dashboardId}
-                        column={this.columns + 1}
-                        matchFields={this.matchFields}
-                        panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
-                        onBackToOverview={this.handleBackToOverview}
-                        onLintToDetail={this.handleLinkToDetail}
-                      />
-                    )
-                  ) : (
-                    <div class='empty-wrapper'>{this.$t('加载中...')}</div>
-                  ))}
-              </div>,
-              <div
-                class='split-panel-wrapper'
-                style={{
-                  width: `${this.splitPanelWidth}px`,
-                  display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none'
-                }}
-              >
-                {!this.readonly && this.isSplitPanel ? (
-                  <SplitPanel
-                    columns={this.columns}
-                    dashboardId={this.dashboardPanelId}
-                    splitMaxWidth={Math.max(this.splitPanelWidth + 300, SPLIT_MAX_WIDTH)}
-                    splitWidth={this.splitPanelWidth}
-                    toggleSet={this.toggleSet}
-                    defaultViewOptions={this.viewOptions}
-                    onDragMove={this.handleDragMove}
-                  />
-                ) : undefined}
-              </div>,
-              <keep-alive>
-                {!this.showListAnimate && this.enableDetail && this.infoActive && (
-                  <CommonDetail
-                    panel={this.sceneData.detailPanel}
-                    aiPanel={this.sceneData.aiPanel}
-                    allPanelId={this.sceneData.allPanelId}
-                    title={this.$tc('详情')}
-                    toggleSet={this.toggleSet}
-                    startPlacement={'left'}
-                    needShrinkBtn={false}
-                    placement={'right'}
-                    selectorPanelType={this.sceneData?.selectorPanel?.type || ''}
-                    sceneId={this.sceneId}
-                    // onShowChange={show => !show && (this.infoActive = false)}
-                    // onShrink={ () => this.infoActive = !this.infoActive}
-                    onTitleChange={this.headerTitleChange}
-                    onLinkToDetail={this.handleLinkToDetail}
-                  />
-                )}
-              </keep-alive>
-            ]}
+                      <div class='empty-wrapper'>{this.$t('加载中...')}</div>
+                    ))}
+                </div>,
+                <div
+                  class='split-panel-wrapper'
+                  style={{
+                    width: `${this.splitPanelWidth}px`,
+                    display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none'
+                  }}
+                >
+                  {!this.readonly && this.isSplitPanel ? (
+                    <SplitPanel
+                      columns={this.columns}
+                      dashboardId={this.dashboardPanelId}
+                      splitMaxWidth={Math.max(this.splitPanelWidth + 300, SPLIT_MAX_WIDTH)}
+                      splitWidth={this.splitPanelWidth}
+                      toggleSet={this.toggleSet}
+                      defaultViewOptions={this.viewOptions}
+                      onDragMove={this.handleDragMove}
+                    />
+                  ) : undefined}
+                </div>,
+                <keep-alive>
+                  {!this.showListAnimate && this.enableDetail && this.infoActive && (
+                    <CommonDetail
+                      panel={this.sceneData.detailPanel}
+                      aiPanel={this.sceneData.aiPanel}
+                      allPanelId={this.sceneData.allPanelId}
+                      title={this.$tc('详情')}
+                      toggleSet={this.toggleSet}
+                      startPlacement={'left'}
+                      needShrinkBtn={false}
+                      placement={'right'}
+                      selectorPanelType={this.sceneData?.selectorPanel?.type || ''}
+                      sceneId={this.sceneId}
+                      // onShowChange={show => !show && (this.infoActive = false)}
+                      // onShrink={ () => this.infoActive = !this.infoActive}
+                      onTitleChange={this.headerTitleChange}
+                      onLinkToDetail={this.handleLinkToDetail}
+                    />
+                  )}
+                </keep-alive>
+              ]
+            ) : (
+              <EmptyStatus
+                class='empty-status'
+                type='empty'
+              />
+            )}
           </div>,
           !this.readonly ? (
             <SettingModal

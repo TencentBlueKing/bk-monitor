@@ -114,6 +114,7 @@ export default {
     ExpandView,
     EmptyStatus
   },
+  inheritAttrs: false,
   props: {
     active: {
       type: String,
@@ -200,7 +201,7 @@ export default {
       }, []);
     },
     computedRate(count) {
-      return `${((count / this.tableData.length) * 100).toFixed(2)}%`;
+      return `${((count / this.tableList.length) * 100).toFixed(2)}%`;
     },
     tableRowClick(row) {
       this.$refs.logClusterTable.toggleRowExpansion(row);
@@ -268,7 +269,9 @@ export default {
     display: inline-block;
     padding-right: 15px;
     overflow: hidden;
+    font-family: monospace;
     line-height: 20px;
+    color: #000;
 
     &.is-limit {
       max-height: 96px;

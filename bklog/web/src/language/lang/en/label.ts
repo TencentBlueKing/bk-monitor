@@ -592,9 +592,12 @@ export default {
   字段来源: 'Field Source',
   索引字段: 'Index Set Fields',
   'label-内置字段': 'Built-in Fields',
-  以此替换: 'Replaced with this',
   维度: 'Dimension',
   已备注: 'Already Noted',
   未备注: 'No Remarks',
-  未指定责任人: 'No responsible person specified'
+  未指定责任人: 'No responsible person specified',
+  字段设置: 'Field Settings',
+  目标字段: 'Target Field',
+  排序字段: 'Sort Field',
+  时间精度: 'Time Accuracy',
 };

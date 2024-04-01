@@ -29,7 +29,7 @@
     class="chart-legend"
   >
     <colgroup>
-      <col style="width: 100%">
+      <col style="width: 100%" />
     </colgroup>
     <thead>
       <tr>
@@ -72,9 +72,11 @@
               <div
                 v-if="title === 'Min'"
                 class="legend-metric"
-                @click="(e) => handleLegendEvent(e, 'click', item)"
-                @mouseenter="(e) => handleLegendEvent(e, 'highlight', item)"
-                @mouseleave="(e) => handleLegendEvent(e, 'downplay', item)"
+                @mousedown="e => handleLegendMouseEvent(e, 'mousedown')"
+                @mousemove="e => handleLegendMouseEvent(e, 'mousemove')"
+                @mouseup="e => handleLegendMouseEvent(e, 'mouseup', item)"
+                @mouseenter="e => handleLegendEvent(e, 'highlight', item)"
+                @mouseleave="e => handleLegendEvent(e, 'downplay', item)"
               >
                 <span
                   class="metric-label"
@@ -84,7 +86,8 @@
                   v-bk-overflow-tips="{ placement: 'top', offset: '100, 0' }"
                   class="metric-name"
                   :style="{ color: item.show ? '#63656e' : '#ccc' }"
-                >{{ item.name }}</span>
+                  >{{ item.name }}</span
+                >
               </div>
               <div class="legend-value">
                 {{ item[title.toLocaleLowerCase()] }}
@@ -104,9 +107,9 @@
         class="common-legend-item"
         v-if="!legend.hidden"
         :key="index"
-        @click="(e) => handleLegendEvent(e, 'click', legend)"
-        @mouseenter="(e) => handleLegendEvent(e, 'highlight', legend)"
-        @mouseleave="(e) => handleLegendEvent(e, 'downplay', legend)"
+        @click="e => handleLegendEvent(e, 'click', legend)"
+        @mouseenter="e => handleLegendEvent(e, 'highlight', legend)"
+        @mouseleave="e => handleLegendEvent(e, 'downplay', legend)"
       >
         <span
           class="legend-icon"
@@ -115,7 +118,9 @@
         <div
           class="legend-name"
           :style="{ color: legend.show ? '#63656e' : '#ccc' }"
-        >{{ legend.name }}</div>
+        >
+          {{ legend.name }}
+        </div>
       </div>
     </template>
   </div>
@@ -135,9 +140,27 @@ export default class ChartLegend extends Vue {
   list: ILegendItem[] = [];
   sort = 0;
   sortTitle = '';
+  mouseEvent = {
+    isMouseDown: false,
+    isMouseMove: false
+  };
+
   @Watch('legendData', { immediate: true })
   handleLegendDataChange() {
     this.handleSortChange();
+  }
+
+  handleLegendMouseEvent(e, mouseType: string, item?: ILegendItem) {
+    // 鼠标拖动选中文本不执行点击事件
+    if (mouseType === 'mousedown') {
+      this.mouseEvent.isMouseDown = true;
+    } else if (mouseType === 'mousemove') {
+      if (this.mouseEvent.isMouseDown) this.mouseEvent.isMouseMove = true;
+    } else {
+      !this.mouseEvent.isMouseMove && this.handleLegendEvent(e, 'click', item);
+      this.mouseEvent.isMouseDown = false;
+      this.mouseEvent.isMouseMove = false;
+    }
   }
 
   @Emit('legend-event')
@@ -148,6 +171,7 @@ export default class ChartLegend extends Vue {
     }
     return { actionType: eventType, item };
   }
+
   handleSortChange(title?: 'Min' | 'Max' | 'Avg', sort?) {
     this.sortTitle = title || '';
     if (title) {
@@ -163,7 +187,7 @@ export default class ChartLegend extends Vue {
     }
     const sortId = title.toLocaleLowerCase();
     this.list = this.legendData.slice().sort((a, b) => {
-      const [aVal] = [a[`${sortId}Raw`] ||  a[sortId].match(/\d+\.?\d+/) || 0];
+      const [aVal] = [a[`${sortId}Raw`] || a[sortId].match(/\d+\.?\d+/) || 0];
       const [bVal] = [b[`${sortId}Raw`] || b[sortId].match(/\d+\.?\d+/) || 0];
       if (this.sort === 1) {
         return +aVal - +bVal;
@@ -180,7 +204,6 @@ export default class ChartLegend extends Vue {
   line-height: 26px;
   color: #63656e;
   overflow: auto;
-  user-select: none;
   min-width: 400px;
 
   tr {

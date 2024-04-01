@@ -488,7 +488,7 @@ import ImportFile from './components/import-file';
 import NewPluginMonaco from './components/new-plugin-monaco';
 import ParamCard from './components/param-card';
 
-import 'codemirror/lib/codemirror.css';
+import './codemirror.css';
 
 export default {
   name: 'StepSetPlugin',

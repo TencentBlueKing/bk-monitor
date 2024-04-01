@@ -47,9 +47,9 @@ class AlertLogHandler:
 
         search_object = (
             AlertLog.search(all_indices=True)
-                .params(ignore_unavailable=True, preserve_order=True)
-                .filter("term", alert_id=self.alert.id)
-                .sort("-create_time", "op_type", "-_doc")
+            .params(ignore_unavailable=True, preserve_order=True)
+            .filter("term", alert_id=self.alert.id)
+            .sort("-create_time", "op_type", "-_doc")
         )
 
         if operate_list:
@@ -59,12 +59,11 @@ class AlertLogHandler:
             search_object = search_object.filter("range", create_time={"lt": offset})
 
         for hit in search_object.scan():
-
             if limit and len(self.log_records) >= limit:
                 # 如果需要返回的记录已经大于limit，那么还需要判断以下情况
                 last_record = self.log_records[-1]
                 if (
-                        last_record["operate"] != AlertLog.OpType.CONVERGE or hit.op_type != AlertLog.OpType.CONVERGE
+                    last_record["operate"] != AlertLog.OpType.CONVERGE or hit.op_type != AlertLog.OpType.CONVERGE
                 ) or hit.create_time < last_record["offset"]:
                     # 1. 如果下一条记录还是收敛类型，需要将剩余的收敛记录合并完
                     # 2. 如果下一条记录的时间戳与上一条记录相同，也要继续处理
@@ -184,8 +183,7 @@ class AlertLogHandler:
         self.log_records.append(record)
 
     def add_record_event_drop(self, hit, record):
-        contents = [hit.description,
-                    _("告警级别【{}】低于当前告警触发级别，系统已忽略").format(EventSeverity.get_display_name(hit.severity))]
+        contents = [hit.description, _("告警级别【{}】低于当前告警触发级别，系统已忽略").format(EventSeverity.get_display_name(hit.severity))]
         self.record_collect(hit, record, AlertLog.OpType.EVENT_DROP, contents)
 
     def add_record_converge(self, hit, record):
@@ -258,9 +256,14 @@ class AlertLogHandler:
         record.update(
             {
                 "contents": [content.get("text", "")],
-                "url": content.get("url", ""),
                 "action_plugin_type": content.get("action_plugin_type"),
             }
         )
+        # router_info 供前端拼接路由，拼接好的 url 用于第三方跳转
+        if "router_info" in content:
+            record["router_info"] = content["router_info"]
+        else:
+            record["url"] = content.get("url", "")
+
         record.update({"action_id": hit["event_id"]})
         self.log_records.append(record)

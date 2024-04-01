@@ -75,6 +75,7 @@
                 :is-wrap="isWrap"
                 :visible-fields="getShowTableVisibleFields"
                 :origin-json="row"
+                :operator-config="operatorConfig"
                 @menuClick="({ option, isLink }) => handleMenuClick(option, isLink)"
               />
               <p
@@ -94,18 +95,6 @@
             </div>
           </template>
         </bk-table-column>
-        <template v-if="operatorConfig.isShowSourceField">
-          <bk-table-column
-            :class-name="`original-str${isWrap ? ' is-wrap' : ''}`"
-            width="180"
-          >
-            <template slot-scope="{ row }">
-              <span class="str-content origin-str">
-                {{ getTableColumnContent(row, visibleFields[0]) }}
-              </span>
-            </template>
-          </bk-table-column>
-        </template>
       </template>
       <!-- 操作按钮 -->
       <bk-table-column
@@ -170,6 +159,7 @@ import resultTableMixin from '@/mixins/result-table-mixin';
 export default {
   name: 'OriginalList',
   mixins: [resultTableMixin],
+  inheritAttrs: false,
   computed: {
     scrollContent() {
       return document.querySelector('.result-scroll-container');

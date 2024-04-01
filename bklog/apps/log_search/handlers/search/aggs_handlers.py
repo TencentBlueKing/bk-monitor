@@ -118,13 +118,19 @@ class AggsHandlers(AggsBase):
     @classmethod
     def _build_terms_bucket(cls, aggs, field: str, size: int, order: dict) -> Search:
         sub_aggs = {}
+        extra_params = {}
         field_name = field
         if isinstance(field, dict):
             field_name = field.get("field_name")
             sub_fields = field.get("sub_fields")
+
+            if "missing" in field:
+                # 填充默认值
+                extra_params["missing"] = field["missing"]
+
             if sub_fields:
                 sub_aggs = cls._build_sub_terms_fields(sub_fields, size, order)
-        terms = A("terms", field=field_name, size=size, order=order, aggs=sub_aggs)
+        terms = A("terms", field=field_name, size=size, order=order, aggs=sub_aggs, **extra_params)
         return aggs.bucket(field_name, terms)
 
     @classmethod
@@ -136,9 +142,15 @@ class AggsHandlers(AggsBase):
         aggs = {}
         for sub_field in sub_fields:
             field_name = sub_field
+            extra_params = {}
             if isinstance(sub_field, dict):
                 field_name = sub_field.get("field_name")
                 sub_fields = sub_field.get("sub_fields")
+
+                if "missing" in sub_field:
+                    # 填充默认值
+                    extra_params["missing"] = sub_field["missing"]
+
                 if sub_fields:
                     aggs[field_name] = A(
                         "terms",
@@ -146,9 +158,10 @@ class AggsHandlers(AggsBase):
                         size=size,
                         order=order,
                         aggs=cls._build_sub_terms_fields(sub_fields, size, order),
+                        **extra_params,
                     )
                     continue
-            aggs[field_name] = A("terms", field=field_name, size=size, order=order)
+            aggs[field_name] = A("terms", field=field_name, size=size, order=order, **extra_params)
         return aggs
 
     @classmethod
