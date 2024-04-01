@@ -35,8 +35,8 @@ def run_access_data(strategy_group_key, interval=60):
 
 
 @task(queue="celery_service")
-def run_access_batch_data(strategy_group_key: str, data_key: str):
-    processor = AccessBatchDataProcess(strategy_group_key, data_key)
+def run_access_batch_data(strategy_group_key: str, sub_task_id: str):
+    processor = AccessBatchDataProcess(strategy_group_key, sub_task_id)
     return processor.process()
 
 
