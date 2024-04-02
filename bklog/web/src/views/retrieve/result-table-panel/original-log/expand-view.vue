@@ -154,7 +154,7 @@ export default {
     background-color: #fafbfd;
 
     :deep(.vjs-tree) {
-      font-family: monospace;
+      // font-family: monospace;
       /* stylelint-disable-next-line declaration-no-important */
       font-size: 12px !important;
 

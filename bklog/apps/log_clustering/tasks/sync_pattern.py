@@ -142,7 +142,7 @@ def get_pattern(content) -> list:
                 pattern_list.append(name)
                 idx = origin_log.find(value)
                 if idx == -1:
-                    break
+                    continue
                 pattern_str += origin_log[0:idx]
                 pattern_str += name
                 origin_log = origin_log[idx + len(value) :]
