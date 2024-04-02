@@ -89,7 +89,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
   }
 
   mounted() {
-    this.handleAfterResize();
+    // this.handleAfterResize();
   }
 
   @Watch('placement', { immediate: true })
