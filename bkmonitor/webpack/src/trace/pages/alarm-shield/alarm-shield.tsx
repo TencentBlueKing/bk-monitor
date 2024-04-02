@@ -27,10 +27,11 @@ import { defineComponent, provide, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
+import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 
 import EmptyStatus, { EmptyStatusType } from '../../components/empty-status/empty-status';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
 import AlarmShieldDetail from './alarm-shield-detail';
@@ -743,8 +744,8 @@ export default defineComponent({
               ></SearchSelect>
             </div>
           </div>
-          <Loading loading={this.tableData.loading}>
-            <div class='table-wrap'>
+          <div class='table-wrap'>
+            {!this.tableData.loading ? (
               <Table
                 class='shield-table'
                 columns={this.tableData.columns
@@ -782,21 +783,25 @@ export default defineComponent({
                   ),
                 }}
               </Table>
-              {!!this.tableData.data.length && (
-                <Pagination
-                  class='mt-14'
-                  align={'right'}
-                  count={this.tableData.pagination.count}
-                  layout={['total', 'limit', 'list']}
-                  limit={this.tableData.pagination.limit}
-                  location={'right'}
-                  modelValue={this.tableData.pagination.current}
-                  onChange={v => this.handlePageChange(v)}
-                  onLimitChange={v => this.handleLimitChange(v)}
-                ></Pagination>
-              )}
-            </div>
-          </Loading>
+            ) : (
+              <TableSkeleton />
+            )}
+
+            {!!this.tableData.data.length && (
+              <Pagination
+                ref='pagination'
+                class='mt-14'
+                align={'right'}
+                count={this.tableData.pagination.count}
+                layout={['total', 'limit', 'list']}
+                limit={this.tableData.pagination.limit}
+                location={'right'}
+                modelValue={this.tableData.pagination.current}
+                onChange={v => this.handlePageChange(v)}
+                onLimitChange={v => this.handleLimitChange(v)}
+              ></Pagination>
+            )}
+          </div>
         </div>
         <AlarmShieldDetail
           id={this.detailData.id}
