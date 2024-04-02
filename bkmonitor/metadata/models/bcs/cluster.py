@@ -11,6 +11,7 @@ from django.utils.translation import ugettext as _
 from kubernetes import client as k8s_client
 
 from metadata import config
+from metadata.models.constants import DEFAULT_USERNAME
 from metadata.models.custom_report import EventGroup, TimeSeriesGroup
 from metadata.models.data_source import DataSource
 from metadata.models.result_table import ResultTableOption
@@ -374,6 +375,9 @@ class BCSClusterInfo(models.Model):
 
     def init_resource(self) -> bool:
         """初始化resource信息并绑定data_id"""
+        # NOTE: 现阶段联邦集群不支持下发 data id
+        if not BcsFederalClusterInfo.is_federal_cluster(self.cluster_id):
+            return True
         # 基于各dataid，生成配置并写入bcs集群
         for usage, register_info in self.DATASOURCE_REGISTER_INFO.items():
             dataid_config = self.make_config(register_info)
@@ -449,3 +453,27 @@ class BCSClusterInfo(models.Model):
             "is_skip_ssl_verify": self.is_skip_ssl_verify,
             "cert_content": self.cert_content,
         }
+
+
+class BcsFederalClusterInfo(models.Model):
+    federal_cluster_id = models.CharField("bcs federal cluster id", max_length=64)
+    host_cluster_id = models.CharField("host cluster id", max_length=64)
+    sub_cluster_id = models.CharField("sub cluster id", max_length=64)
+
+    created_at = models.DateTimeField("create time", auto_now_add=True)
+    creator = models.CharField("creator", max_length=32, default=DEFAULT_USERNAME)
+    updated_at = models.DateTimeField("update time", auto_now=True)
+    updater = models.CharField("updater", max_length=32, default=DEFAULT_USERNAME)
+
+    class Meta:
+        verbose_name = "BCS联邦集群信息"
+        verbose_name_plural = "BCS联邦集群信息"
+
+    @classmethod
+    def is_federal_cluster(cls, cluster_id: str) -> bool:
+        """判断是否为联邦集群，这里对应的是集群入口，不包含子集群和host集群"""
+        try:
+            cls.objects.get(federal_cluster_id=cluster_id)
+            return True
+        except cls.DoesNotExist:
+            return False

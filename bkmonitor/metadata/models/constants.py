@@ -447,3 +447,7 @@ class ESScopeTypes(Enum):
     MANY_SPACE = "many_space"
     PLATFORM_SPACE = "platform_space"
     SPACE_FIELDS = "space_fields"
+
+
+# 默认的创建者或更新者名称, 用以标识
+DEFAULT_USERNAME = "system"
