@@ -269,9 +269,9 @@ export default {
     display: inline-block;
     padding-right: 15px;
     overflow: hidden;
-    font-family: monospace;
+    // font-family: monospace;
     line-height: 20px;
-    color: #000;
+    // color: #000;
 
     &.is-limit {
       max-height: 96px;

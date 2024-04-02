@@ -208,7 +208,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
           </div>
         </div>
         {this.data.length ? (
-          <div class='chart-wrapper'>
+          <div class='chart-wrap'>
             <BaseEchart
               ref='baseChartRef'
               height={200}

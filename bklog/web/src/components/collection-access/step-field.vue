@@ -596,7 +596,7 @@
 
       <bk-dialog
         v-model="dialogVisible"
-        width="1012"
+        width="1200"
         :header-position="'left'"
         :mask-close="false"
         :draggable="false"
@@ -2447,15 +2447,10 @@ export default {
 }
 
 .standard-field-table {
-  width: 965px;
   max-height: 464px;
   padding-bottom: 14px;
   overflow-x: hidden;
   overflow-y: auto;
-
-  .preview-panel-left {
-    width: 615px;
-  }
 
   .preview-panel-right {
     width: 350px;

@@ -17,6 +17,7 @@ from io import BytesIO
 from typing import Tuple
 
 import requests
+from requests import RequestException
 from rest_framework.status import HTTP_200_OK
 
 from apm_web.profile.models import Profile
@@ -53,7 +54,7 @@ class CollectorHandler:
     """Collector handler for profile"""
 
     @classmethod
-    def send_to_builtin_datasource(cls, profile: Profile):
+    def send_to_builtin_datasource(cls, profile_id, profile: Profile):
         """Send profile to collector"""
         builtin_profile_datasource = api.apm_api.query_builtin_profile_datasource()
 
@@ -97,13 +98,35 @@ class CollectorHandler:
             "aggregationType": "",
         }
 
-        try:
-            result = requests.post(server_url, data=body, params=params, headers=headers)
-        except Exception:
-            logger.exception("send to collector failed")
-            raise
+        attempt = 0
+        max_retry = 3
+        while attempt < 3:
+            try:
+                logger.info(
+                    f"[send_to_builtin_datasource] "
+                    f"profile_id: {profile_id} {attempt + 1}/{max_retry} send to bk-collector: {server_url}"
+                )
+                result = requests.post(server_url, data=body, params=params, headers=headers)
+                if result.status_code == HTTP_200_OK:
+                    logger.info(
+                        f"[send_to_builtin_datasource] "
+                        f"profile_id: {profile_id} {attempt + 1}/{max_retry} successful send to bk-collector"
+                    )
+                    return
+                else:
+                    logger.error(
+                        f"[send_to_builtin_datasource] "
+                        f"profile_id: {profile_id} {attempt + 1}/{max_retry} "
+                        f"receive code: {result.status_code} response: {result.text}"
+                    )
+            except RequestException as e:
+                logger.error(
+                    f"[send_to_builtin_datasource] "
+                    f"profile_id: {profile_id} {attempt + 1}/{max_retry} request failed, error: {e}"
+                )
 
-        if result.status_code != HTTP_200_OK:
-            logger.error("send to collector failed: %s", result.text)
-            # TODO: retry?
-            raise Exception("send to collector failed")
+            attempt += 1
+
+        error_message = f"profile_id: {profile_id} {max_retry} attempts to send to collector failed"
+        logger.error(error_message)
+        raise Exception(error_message)

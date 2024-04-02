@@ -1146,8 +1146,11 @@ export default {
                   break;
               }
             }
+            const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
             if (queryParams.start_time && queryParams.end_time) {
               this.datePickerValue = [queryParams.start_time, queryParams.end_time];
+            } else if (defaultTime) {
+              this.datePickerValue = JSON.parse(defaultTime);
             }
           } else {
             switch (field) {
