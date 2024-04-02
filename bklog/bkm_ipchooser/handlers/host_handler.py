@@ -35,8 +35,8 @@ class HostHandler:
         resp = BkApi.list_biz_hosts(params)
         hosts = resp["info"]
 
-        TopoHandler.fill_agent_status(hosts)
-
+        # 添加主机状态
+        TopoHandler.fill_agent_status(hosts, bk_biz_id)
         return BaseHandler.format_hosts(hosts, bk_biz_id)
 
     @classmethod
