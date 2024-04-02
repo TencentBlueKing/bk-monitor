@@ -626,7 +626,6 @@ export default {
       this.calcTabNum();
       this.$http
         .request('collect/retry', {
-          // mock: true,
           // manualSchema: true,
           params: { collector_config_id: this.curCollect.collector_config_id },
           data: {

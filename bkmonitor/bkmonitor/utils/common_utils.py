@@ -201,20 +201,20 @@ def convert_textarea_to_list(ips):
 
 def base_hostindex_id_to_page_id(_id):
     alarm_type = safe_int(_id)
-    if alarm_type <= 10 ** 4:
-        return alarm_type + 10 ** 4
+    if alarm_type <= 10**4:
+        return alarm_type + 10**4
     return alarm_type
 
 
 def page_id_to_base_hostindex_id(_id):
     alarm_type = safe_int(_id)
-    if alarm_type >= 10 ** 4:
-        return int(alarm_type) - 10 ** 4
+    if alarm_type >= 10**4:
+        return int(alarm_type) - 10**4
     return _id
 
 
 def is_base_hostindex(_id):
-    return safe_int(_id) > 10 ** 4
+    return safe_int(_id) > 10**4
 
 
 def check_permission(obj, request_cc_biz_id):
@@ -588,8 +588,10 @@ def gen_bk_data_rt_id_without_biz_id(table_id):
     """
     计算平台表名只能是50个字节，需要进行截断
     """
+    if table_id.endswith("__default__"):
+        table_id = table_id.split(".__default__")[0]
     rt_id = "{}_{}".format(settings.BK_DATA_RT_ID_PREFIX, table_id.replace(".", "_"))[-32:].lower()
-    return rt_id.lstrip("_")
+    return rt_id.strip("_")
 
 
 def to_bk_data_rt_id(table_id, suffix=None):
@@ -723,7 +725,7 @@ def to_dict(obj):
     """
     if isinstance(obj, dict):
         data = {}
-        for (k, v) in list(obj.items()):
+        for k, v in list(obj.items()):
             data[k] = to_dict(v)
         return data
     elif hasattr(obj, "__iter__") and not isinstance(obj, str):

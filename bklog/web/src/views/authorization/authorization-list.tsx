@@ -35,7 +35,7 @@ import AuthorizationDialog from './authorization-dialog';
 import * as authorityMap from '../../common/authority-map';
 
 import './authorization-list.scss';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 const { $i18n } = window.mainComponent;
 
@@ -744,7 +744,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
   // 截止时间列格式化
   timeFormatter(row, column, cellValue) {
-    return cellValue ? moment(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
+    return cellValue ? dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
   }
   /**
    *

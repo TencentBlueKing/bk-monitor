@@ -33,7 +33,7 @@
     >
       <text-segmentation
         :content="content"
-        :field-type="fieldType"
+        :field="field"
         :menu-click="handleMenuClick"
       />
     </span>
@@ -60,13 +60,9 @@ export default {
       type: Boolean,
       default: false
     },
-    fieldName: {
-      type: String,
-      default: ''
-    },
-    fieldType: {
-      type: String,
-      default: ''
+    field: {
+      type: Object,
+      required: true
     }
   },
   data() {
@@ -123,8 +119,8 @@ export default {
   }
 
   .field-container {
-    font-family: monospace;
-    color: #000;
+    // font-family: monospace;
+    // color: #000;
 
     &.active:hover {
       color: #3a84ff;
