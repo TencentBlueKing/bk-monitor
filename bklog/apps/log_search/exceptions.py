@@ -455,7 +455,7 @@ class UnionSearchFieldsFailException(BaseSearchException):
 
 class UnionSearchErrorException(BaseSearchException):
     ERROR_CODE = "440"
-    MESSAGE = _("联合检索API异常")
+    MESSAGE = _("索引集[{index_set_id}]查询失败, 原因: {e}")
 
 
 class MultiSearchErrorException(BaseSearchException):
