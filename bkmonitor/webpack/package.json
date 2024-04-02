@@ -80,7 +80,7 @@
       "@blueking/user-selector>vue": "v2-latest",
       "@typescript-eslint/eslint-plugin": "^7.3.1",
       "@typescript-eslint/parser": "^7.3.1",
-      "bk-magic-vue": "^2.5.9-beta.18",
+      "bk-magic-vue": "2.5.8",
       "eslint": "^8.57.0",
       "eslint-config-prettier": "^9.1.0",
       "eslint-config-tencent": "^1.0.4",
