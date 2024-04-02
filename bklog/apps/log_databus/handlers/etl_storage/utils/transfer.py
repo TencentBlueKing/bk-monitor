@@ -68,7 +68,7 @@ def preview(separator_node_action, data, etl_only=False, **kwargs):
         if separator_node_action == "regexp":
             args.extend(["-t", "option.separator_regexp:{}".format(kwargs.get("separator_regexp"))])
         elif separator_node_action == "delimiter":
-            separator = kwargs.get("separator", ",").encode('unicode_escape').decode('utf-8')
+            separator = kwargs.get("separator", ",").encode("unicode_escape").decode("utf-8")
             args.extend(["-t", 'option.separator:"{}"'.format(separator)])
             separator_field_list = kwargs.get("separator_field_list", [])
             if not isinstance(separator_field_list, list):
