@@ -26,10 +26,11 @@
 import { defineComponent, provide, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table, Form } from 'bkui-vue';
+import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 
 import EmptyStatus, { EmptyStatusType } from '../../components/empty-status/empty-status';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
 
@@ -61,8 +62,6 @@ export default defineComponent({
       auth: {},
       showDetail: authorityStore.getAuthorityDetail
     });
-    const pagination = ref<InstanceType<typeof Form>>(null);
-    pagination.value.
     /* 时间范围 */
     const dateRange = ref([]);
     /* 参数范围 */
@@ -699,8 +698,8 @@ export default defineComponent({
               ></SearchSelect>
             </div>
           </div>
-          <Loading loading={this.tableData.loading}>
-            <div class='table-wrap'>
+          <div class='table-wrap'>
+            {!this.tableData.loading ? (
               <Table
                 class='shield-table'
                 data={this.tableData.data}
@@ -721,7 +720,7 @@ export default defineComponent({
                     return {
                       ...item,
                       label: (col: any) => col.name,
-                      render: ({ row, _column }) => this.handleSetFormater(row, item.id)
+                      render: ({ row }) => this.handleSetFormater(row, item.id)
                     };
                   })}
                 pagination={false}
@@ -738,22 +737,25 @@ export default defineComponent({
                   )
                 }}
               </Table>
-              {!!this.tableData.data.length && (
-                <Pagination
-                  class='mt-14'
-                  modelValue={this.tableData.pagination.current}
-                  count={this.tableData.pagination.count}
-                  limit={this.tableData.pagination.limit}
-                  location={'right'}
-                  ref='pagination'
-                  align={'right'}
-                  layout={['total', 'limit', 'list']}
-                  onChange={v => this.handlePageChange(v)}
-                  onLimitChange={v => this.handleLimitChange(v)}
-                ></Pagination>
-              )}
-            </div>
-          </Loading>
+            ) : (
+              <TableSkeleton />
+            )}
+
+            {!!this.tableData.data.length && (
+              <Pagination
+                class='mt-14'
+                modelValue={this.tableData.pagination.current}
+                count={this.tableData.pagination.count}
+                limit={this.tableData.pagination.limit}
+                location={'right'}
+                ref='pagination'
+                align={'right'}
+                layout={['total', 'limit', 'list']}
+                onChange={v => this.handlePageChange(v)}
+                onLimitChange={v => this.handleLimitChange(v)}
+              ></Pagination>
+            )}
+          </div>
         </div>
         <AlarmShieldDetail
           id={this.detailData.id}
