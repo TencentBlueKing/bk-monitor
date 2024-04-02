@@ -667,8 +667,12 @@ export default {
   '你可能想输入：{0} 点击 {1}': 'You may want to enter: {0} Click {1}',
   '修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？':
     'Modifying dimension fields will affect existing notes and alarm configurations. Please do not change them unless necessary. Are you sure you want to modify it?',
-  '未匹配到对应字段，请手动指定字段后提交': 'The corresponding field was not matched, please specify the field manually before submitting.',
+  '未匹配到对应字段，请手动指定字段后提交':
+    'The corresponding field was not matched, please specify the field manually before submitting.',
   用于标识日志文件来源及唯一性: 'Used to identify the source and uniqueness of log files.',
   用于控制日志排序的字段: 'Fields used to control log sorting.',
-  匹配到的索引: 'matched index'
+  匹配到的索引: 'matched index',
+  '不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。':
+    'Not retaining will discard the original logs and only display the cleaned logs. Please go through field cleaning, debugging and outputting the logs you care about.',
+  '请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。': 'Please complete field cleaning or select "Keep original log", otherwise the access log content will not be displayed.'
 };

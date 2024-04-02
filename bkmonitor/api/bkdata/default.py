@@ -64,6 +64,11 @@ class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def get_request_url(self, validated_request_data):
         return super(BkDataAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
 
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super().full_request_data(validated_request_data)
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
+        return validated_request_data
+
 
 class BkDataQueryAPIGWResource(BkDataAPIGWResource):
     base_url = settings.BKDATA_QUERY_API_BASE_URL or BkDataAPIGWResource.base_url

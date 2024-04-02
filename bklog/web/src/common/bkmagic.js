@@ -27,9 +27,6 @@
 
 import Vue from 'vue';
 
-// 全量引入
-// import './fully-import'
-
 // 按需引入
 import './demand-import';
 

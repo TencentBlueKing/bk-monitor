@@ -268,7 +268,8 @@ export default {
       ],
       settingMenuList: [
         // { id: 'index', name: '全文索引' },
-        { id: 'extract', name: this.$t('button-字段清洗').replace('button-', '') },
+        // !!TODO 先关闭字段清洗入口
+        // { id: 'extract', name: this.$t('button-字段清洗').replace('button-', '') },
         { id: 'clustering', name: this.$t('日志聚类') }
       ],
       accessList: [
@@ -383,6 +384,9 @@ export default {
     // },
     // 日期变化
     handleTimeRangeChange(val) {
+      if (val.every(item => typeof item === 'string')) {
+        localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
+      }
       this.$emit('update:datePickerValue', val);
       this.setRefreshTime(0);
       this.$emit('datePickerChange');

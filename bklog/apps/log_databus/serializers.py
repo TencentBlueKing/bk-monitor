@@ -39,6 +39,10 @@ from apps.log_databus.constants import (
     EsSourceType,
     EtlConfig,
     LabelSelectorOperator,
+    PluginParamLogicOpEnum,
+    PluginParamOpEnum,
+    SyslogFilterFieldEnum,
+    SyslogProtocolEnum,
     TopoType,
     VisibleEnum,
 )
@@ -51,8 +55,8 @@ from apps.log_search.constants import (
     EncodingsEnum,
     EtlConfigEnum,
     FieldBuiltInEnum,
-    SyslogProtocolEnum,
 )
+from apps.utils.codecs import unicode_str_decode
 from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -153,6 +157,25 @@ class PluginConditionSerializer(serializers.Serializer):
         return attrs
 
 
+class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
+    syslog_field = serializers.ChoiceField(
+        label=_("匹配字段"), choices=SyslogFilterFieldEnum.get_choices(), required=False, default=""
+    )
+    syslog_content = serializers.CharField(label=_("匹配内容"), max_length=255, required=False, default="")
+    syslog_op = serializers.ChoiceField(
+        label=_("操作符"),
+        choices=PluginParamOpEnum.get_choices(),
+        required=False,
+        default=PluginParamOpEnum.OP_INCLUDE.value,
+    )
+    syslog_logic_op = serializers.ChoiceField(
+        label=_("逻辑操作符"),
+        choices=PluginParamLogicOpEnum.get_choices(),
+        required=False,
+        default=PluginParamLogicOpEnum.AND.value,
+    )
+
+
 class PluginParamSerializer(serializers.Serializer):
     """
     插件参数序列化
@@ -160,6 +183,9 @@ class PluginParamSerializer(serializers.Serializer):
 
     paths = serializers.ListField(
         label=_("日志路径"), child=serializers.CharField(max_length=255, allow_blank=True), required=False
+    )
+    exclude_files = serializers.ListField(
+        label=_("日志路径排除"), child=serializers.CharField(max_length=255, allow_blank=True), required=False, default=[]
     )
     conditions = PluginConditionSerializer(required=False)
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True)
@@ -190,6 +216,13 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("windows事件内容"), child=serializers.CharField(max_length=255), required=False
     )
 
+    winlog_match_op = serializers.ChoiceField(
+        label=_("windows事件内容匹配操作符"),
+        choices=PluginParamOpEnum.get_choices(),
+        required=False,
+        default="",
+    )
+
     # Redis慢日志相关参数
     redis_hosts = serializers.ListField(
         label=_("redis目标"), child=serializers.CharField(max_length=255), required=False, default=[]
@@ -205,6 +238,16 @@ class PluginParamSerializer(serializers.Serializer):
     syslog_protocol = serializers.ChoiceField(label=_("协议"), choices=SyslogProtocolEnum.get_choices(), required=False)
     syslog_port = serializers.IntegerField(label=_("端口"), required=False)
     syslog_monitor_host = serializers.CharField(label=_("syslog监听服务器IP"), required=False, allow_blank=True)
+    syslog_conditions = serializers.ListSerializer(
+        label=_("syslog过滤条件"), required=False, default=[], child=SyslogPluginConditionFiltersSerializer()
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("exclude_files") and not attrs.get("paths"):
+            raise ValidationError(_("不能单独指定排除路径"))
+
+        return attrs
 
 
 class DataLinkListSerializer(serializers.Serializer):
@@ -652,13 +695,45 @@ class StorageUpdateSerializer(serializers.Serializer):
         return attrs
 
 
+class TokenizeOnCharsSerializer(serializers.Serializer):
+    """
+    自定义分词符序列化
+    """
+
+    tokenize_on_chars = serializers.CharField(
+        label=_("自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
+    )
+
+    def validate(self, attrs):
+        ret = super().validate(attrs)
+        if ret.get("tokenize_on_chars"):
+            try:
+                ret["tokenize_on_chars"] = unicode_str_decode(ret["tokenize_on_chars"])
+            except Exception as e:
+                raise ValidationError(_("字段分词符 %s 不合法，请检查: %s") % (ret["tokenize_on_chars"], e))
+        return ret
+
+
 class CollectorEtlParamsSerializer(serializers.Serializer):
     separator_regexp = serializers.CharField(label=_("正则表达式"), required=False, allow_null=True, allow_blank=True)
     separator = serializers.CharField(
         label=_("分隔符"), trim_whitespace=False, required=False, allow_null=True, allow_blank=True
     )
     retain_original_text = serializers.BooleanField(label=_("是否保留原文"), required=False, default=True)
+    original_text_is_case_sensitive = serializers.BooleanField(label=_("原文大小写敏感"), required=False, default=False)
+    original_text_tokenize_on_chars = serializers.CharField(
+        label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
+    )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
+
+    def validate(self, attrs):
+        ret = super().validate(attrs)
+        if ret.get("original_text_tokenize_on_chars"):
+            try:
+                ret["original_text_tokenize_on_chars"] = unicode_str_decode(ret["original_text_tokenize_on_chars"])
+            except Exception as e:
+                raise ValidationError(_("原文分词符 %s 不合法，请检查: %s") % (ret["original_text_tokenize_on_chars"], e))
+        return ret
 
 
 class CollectorEtlSerializer(serializers.Serializer):
@@ -678,7 +753,7 @@ class CollectorEtlTimeSerializer(serializers.Serializer):
     data = serializers.CharField(label=_("时间内容"), required=True)
 
 
-class CollectorEtlFieldsSerializer(serializers.Serializer):
+class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
     field_index = serializers.IntegerField(label=_("字段顺序"), required=False, allow_null=True)
     field_name = serializers.CharField(label=_("字段名称"), required=False, allow_null=True, allow_blank=True)
     alias_name = serializers.CharField(label=_("别名"), required=False, allow_blank=True, allow_null=True)
@@ -690,8 +765,10 @@ class CollectorEtlFieldsSerializer(serializers.Serializer):
     is_delete = serializers.BooleanField(label=_("是否删除"), required=True)
     is_built_in = serializers.BooleanField(label=_("是否内置字段"), required=False, default=False)
     option = serializers.DictField(label=_("字段配置"), required=False)
+    is_case_sensitive = serializers.BooleanField(label=_("是否大小写敏感"), required=False, default=False)
 
     def validate(self, field):
+        field = super().validate(field)
         built_in_keys = FieldBuiltInEnum.get_choices()
         if not field.get("is_delete"):
             if not field.get("field_name") or not field.get("field_type"):
@@ -787,8 +864,6 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
                     if "field_index" not in item:
                         raise ValidationError(_("分隔符必须指定field_index"))
 
-                # 字段检查
-                CollectorEtlFieldsSerializer().validate(item)
                 fields.append(item)
 
                 if not item.get("is_delete", False):

@@ -1124,6 +1124,8 @@ export default {
     overflow: hidden;
     text-overflow: ellipsis;
     /* stylelint-disable-next-line property-no-vendor-prefix */
+    display: -webkit-box;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
@@ -1265,10 +1267,10 @@ export default {
       cursor: pointer;
     }
 
-    .monospace-text {
-      font-family: monospace;
-      color: #000;
-    }
+    // .monospace-text {
+    //   font-family: monospace;
+    //   color: #000;
+    // }
   }
 }
 

@@ -52,7 +52,6 @@ from apps.log_databus.handlers.collector_scenario.custom_define import get_custo
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import (
-    CleanStash,
     CollectorConfig,
     ItsmEtlConfig,
     StorageCapacity,
@@ -168,10 +167,6 @@ class EtlHandler(object):
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
-
-        # 当清洗为直接入库时，直接清理对应采集项清洗配置stash
-        if etl_config == EtlConfig.BK_LOG_TEXT:
-            CleanStash.objects.filter(collector_config_id=self.collector_config_id).delete()
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()

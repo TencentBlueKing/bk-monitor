@@ -43,6 +43,13 @@ class HostAgentIDManager(RefreshByBizMixin, CMDBCacheManager):
         return super(HostAgentIDManager, cls).get(bk_agent_id)
 
     @classmethod
+    def deserialize(cls, string):
+        if string and string[0] in "0123456789":
+            return int(string)
+        else:
+            return super().deserialize(string)
+
+    @classmethod
     def refresh_by_biz(cls, bk_biz_id):
         hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
         return {cls.key_to_internal_value(host.bk_agent_id): host.bk_host_id for host in hosts if host.bk_agent_id}
