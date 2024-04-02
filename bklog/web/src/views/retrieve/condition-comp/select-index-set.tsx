@@ -34,11 +34,12 @@ import {
   FormItem,
   Input,
   Button,
-  Checkbox,
+  Checkbox
 } from 'bk-magic-vue';
 import * as authorityMap from '../../../common/authority-map';
 import $http from '../../../api';
 import SelectIndexSetInput from './select-index-set-input';
+import EmptyStatus from '@/components/empty-status';
 import './select-index-set.scss';
 
 interface IProps {}
@@ -104,37 +105,37 @@ export default class QueryStatement extends tsc<IProps> {
   resizeObserver = null;
 
   /** 当前选中标签是否超过1行 */
-  isTagHave2Rows =  false;
+  isTagHave2Rows = false;
 
   typeBtnSelectList = [
     {
       id: 'single',
-      label: window.mainComponent.$t('单选'),
+      label: window.mainComponent.$t('单选')
     },
     {
       id: 'union',
-      label: window.mainComponent.$t('多选'),
-    },
+      label: window.mainComponent.$t('多选')
+    }
   ];
 
   tabPanels = [
     {
       name: 'history',
       icon: 'log-icon icon-lishijilu',
-      label: window.mainComponent.$t('历史记录'),
+      label: window.mainComponent.$t('历史记录')
     },
     {
       name: 'favorite',
       icon: 'log-icon icon-star-shape',
-      label: window.mainComponent.$t('收藏'),
-    },
+      label: window.mainComponent.$t('收藏')
+    }
   ];
 
   /** 当前活跃的采样日志下标 */
   activeTab: ActiveType = 'history';
 
   verifyData = {
-    favoriteName: '',
+    favoriteName: ''
   };
 
   rules = {
@@ -142,14 +143,14 @@ export default class QueryStatement extends tsc<IProps> {
       {
         validator: this.checkFavoriteName,
         message: window.mainComponent.$t('已有同名收藏'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur',
-      },
-    ],
+        trigger: 'blur'
+      }
+    ]
   };
 
   tippyOptions = {
@@ -157,18 +158,17 @@ export default class QueryStatement extends tsc<IProps> {
     interactive: true,
     theme: 'light',
     placement: 'left-start',
-    arrow: true,
+    arrow: true
   };
 
+  /** 索引集权限 */
   get authorityMap() {
     return authorityMap;
   }
 
   /** 单选时候的索引集 */
   get selectedItem() {
-    return (
-      this.indexSetList.find(item => item.index_set_id === this.indexId) || {}
-    );
+    return this.indexSetList.find(item => item.index_set_id === this.indexId) || {};
   }
 
   /** 多选的选中的索引集值 */
@@ -176,6 +176,7 @@ export default class QueryStatement extends tsc<IProps> {
     return this.indexSetList.filter(item => this.selectTagCatchIDList.includes(item.index_set_id));
   }
 
+  /** 多选的选中的索引集ID */
   get selectedItemIDlist() {
     return this.selectedItemList.map(item => String(item.index_set_id));
   }
@@ -184,26 +185,26 @@ export default class QueryStatement extends tsc<IProps> {
     return this.$store.state.spaceUid;
   }
 
+  /** 展示的收藏 */
   get showFavoriteList() {
     return this.isAloneType ? this.aloneFavorite : this.multipleFavorite;
   }
 
+  /** 历史记录数量 */
   get historyListNum() {
-    return this.isAloneType
-      ? this.aloneHistory.length
-      : this.multipleHistory.length;
+    return this.isAloneType ? this.aloneHistory.length : this.multipleHistory.length;
   }
 
   /** 列表渲染 */
   get renderOptionList() {
     const list = [
       { name: '', children: [] },
-      { name: this.$t('无数据'), children: [] },
+      { name: this.$t('无数据'), children: [] }
     ];
     const haveDataFavoriteList = [];
     const haveDataList = [];
     const notDataList = [];
-    this.indexSetList.forEach((item) => {
+    this.indexSetList.forEach(item => {
       const tagIDList = item.tags?.map(tag => tag.tag_id) || [];
       item.tagSearchName = item.tags?.map(tag => tag.name).join(',') || '';
       if (this.filterTagID) {
@@ -233,7 +234,7 @@ export default class QueryStatement extends tsc<IProps> {
         indexName: this.$t('全选'),
         lightenName: '',
         tagAllID: this.filterTagID,
-        tags: [],
+        tags: []
       });
     }
     if (!notDataList.length) {
@@ -246,13 +247,13 @@ export default class QueryStatement extends tsc<IProps> {
   get labelSelectList() {
     const labelMap = new Map();
     const favoriteList = [];
-    this.indexSetList.forEach((item) => {
-      item.tags?.forEach((tag) => {
+    this.indexSetList.forEach(item => {
+      item.tags?.forEach(tag => {
         // 无数据 不加入标签
         if (tag.tag_id === 4) {
           item.isNotVal = true;
           return;
-        };
+        }
         if (!labelMap.has(tag.tag_id)) labelMap.set(tag.tag_id, tag);
       });
       // 所有的收藏索引集
@@ -271,13 +272,14 @@ export default class QueryStatement extends tsc<IProps> {
     const isUnion = this.selectedItemList.length && !this.isAloneType;
     const isNotHaveLabel = !this.labelSelectList.length;
     if (isNotHaveLabel) {
+      const notLabelHightHeight = this.isTagHave2Rows ? '266px' : '292px';
       return {
-        height: isUnion ? '260px' : '360px',
+        height: isUnion ? notLabelHightHeight : '360px'
       };
     }
     const unionHeight = this.isTagHave2Rows ? '222px' : '248px';
     return {
-      height: isUnion ? unionHeight : '314px',
+      height: isUnion ? unionHeight : '314px'
     };
   }
 
@@ -293,9 +295,7 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 当前标签过滤后的有数据的索引集ID列表 */
   get havValRenderIDSetList() {
-    return this.renderOptionList[0].children
-      .filter(item => !item.tagAllID)
-      .map(item => item.index_set_id);
+    return this.renderOptionList[0].children.filter(item => !item.tagAllID).map(item => item.index_set_id);
   }
 
   get unionIndexList() {
@@ -320,16 +320,14 @@ export default class QueryStatement extends tsc<IProps> {
   emitSelected() {
     return {
       ids: this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist,
-      selectIsUnionSearch: !this.isAloneType,
+      selectIsUnionSearch: !this.isAloneType
     };
   }
 
   /** 判断当前索引集是否有权限 */
   isHaveAuthority(item) {
     if (item.tagAllID) return true;
-    return (
-      item.permission && item.permission[this.authorityMap.SEARCH_LOG_AUTH]
-    );
+    return item.permission && item.permission[this.authorityMap.SEARCH_LOG_AUTH];
   }
 
   /** 选中索引集 */
@@ -347,16 +345,13 @@ export default class QueryStatement extends tsc<IProps> {
   /** 选中全选时的数据过滤 */
   handelClickIndexSet(item) {
     if (item.index_set_id === '-1') {
-      const allIn = this.havValRenderIDSetList
-        .every(item => this.selectedItemIDlist.includes(item));
+      const allIn = this.havValRenderIDSetList.every(item => this.selectedItemIDlist.includes(item));
       if (!allIn) {
         // 当前未全选中  则把过滤后的标签索引集id全放到缓存的id列表
-        this.selectTagCatchIDList = [
-          ...new Set([
-            ...this.selectedItemIDlist,
-            ...this.havValRenderIDSetList,
-          ]),
-        ].slice(0, 10); // 最多选10条数据
+        this.selectTagCatchIDList = [...new Set([...this.selectedItemIDlist, ...this.havValRenderIDSetList])].slice(
+          0,
+          10
+        ); // 最多选10条数据
       } else {
         // 全选选中 清空 已有的过滤后的标签索引集id
         this.selectTagCatchIDList = this.selectedItemIDlist
@@ -379,11 +374,15 @@ export default class QueryStatement extends tsc<IProps> {
         this.indexSearchType = 'single';
         this.selectTagCatchIDList = [this.indexId];
       }
+      // 获取多选收藏
       this.getMultipleFavoriteList();
+      // 获取单选或多选历史记录列表
       this.getIndexSetHistoryList(this.indexSearchType);
+      // 获取到缓存的常用标签
       const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
       const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
       this.oftenTags = tagCatch[this.spaceUid]?.oftenTags ?? [];
+      // 监听选中的标签是否超过2行
       this.initResizeGroupStyle();
     } else {
       if (!this.selectTagCatchIDList.length) this.indexSearchType = 'single';
@@ -404,7 +403,7 @@ export default class QueryStatement extends tsc<IProps> {
    * @desc: 监听选的标签是否超过2行
    */
   initResizeGroupStyle() {
-    this.resizeObserver = new ResizeObserver((entries) => {
+    this.resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         this.isTagHave2Rows = entry.contentRect.height > 26;
       }
@@ -440,9 +439,9 @@ export default class QueryStatement extends tsc<IProps> {
         resources: [
           {
             type: 'indices',
-            id: item.index_set_id,
-          },
-        ],
+            id: item.index_set_id
+          }
+        ]
       });
       window.open(res.data.apply_url);
     } catch (err) {
@@ -464,8 +463,8 @@ export default class QueryStatement extends tsc<IProps> {
       await $http
         .request(url, {
           params: {
-            index_set_id: item.index_set_id,
-          },
+            index_set_id: item.index_set_id
+          }
         })
         .then(() => {
           this.$emit('updateIndexSetList');
@@ -477,9 +476,7 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 已选tag中的删除事件 */
   handleCloseSelectTag(item) {
-    this.selectTagCatchIDList = this.selectTagCatchIDList.filter(
-      catchVal => catchVal !== item.index_set_id,
-    );
+    this.selectTagCatchIDList = this.selectTagCatchIDList.filter(catchVal => catchVal !== item.index_set_id);
     this.multipleFavoriteSelectID = null;
   }
 
@@ -536,8 +533,8 @@ export default class QueryStatement extends tsc<IProps> {
             space_uid: this.spaceUid,
             index_set_type: this.indexSearchType,
             history_id: item?.id,
-            is_delete_all: isDeleteAll,
-          },
+            is_delete_all: isDeleteAll
+          }
         })
         .then(() => {
           this.getIndexSetHistoryList(this.indexSearchType, true);
@@ -561,8 +558,8 @@ export default class QueryStatement extends tsc<IProps> {
       await $http
         .request('unionSearch/unionDeleteFavorite', {
           params: {
-            favorite_union_id: item.id,
-          },
+            favorite_union_id: item.id
+          }
         })
         .then(() => {
           this.multipleFavoriteSelectID = null;
@@ -583,17 +580,17 @@ export default class QueryStatement extends tsc<IProps> {
               data: {
                 space_uid: this.spaceUid,
                 name: this.verifyData.favoriteName,
-                index_set_ids: this.selectTagCatchIDList,
-              },
+                index_set_ids: this.selectTagCatchIDList
+              }
             })
-            .then((res) => {
+            .then(res => {
               this.verifyData.favoriteName = '';
               this.favoritePopoverRef.hideHandler();
               this.getMultipleFavoriteList();
               this.multipleFavoriteSelectID = res.data.id;
             });
         },
-        () => {},
+        () => {}
       );
     } else {
       this.favoritePopoverRef.hideHandler();
@@ -605,10 +602,10 @@ export default class QueryStatement extends tsc<IProps> {
     await $http
       .request('unionSearch/unionFavoriteList', {
         params: {
-          space_uid: this.spaceUid,
-        },
+          space_uid: this.spaceUid
+        }
       })
-      .then((res) => {
+      .then(res => {
         this.multipleFavorite = res.data;
       });
   }
@@ -621,7 +618,7 @@ export default class QueryStatement extends tsc<IProps> {
     const leftPx = moveType === 'left' ? this.tagBoxRef.scrollLeft - 550 : this.tagBoxRef.scrollLeft + 550;
     this.tagBoxRef.scrollTo({
       left: leftPx,
-      behavior: 'smooth',
+      behavior: 'smooth'
     });
   }
 
@@ -643,8 +640,8 @@ export default class QueryStatement extends tsc<IProps> {
       [this.spaceUid]: {
         spaceUid: this.spaceUid,
         oftenTags: this.oftenTags, // 缓存的标签
-        expires: new Date().getTime() + expires * 1000, // 过期时间
-      },
+        expires: new Date().getTime() + expires * 1000 // 过期时间
+      }
     });
     localStorage.setItem('INDEX_SET_TAG_CATCH', JSON.stringify(tagCatch));
   }
@@ -655,27 +652,22 @@ export default class QueryStatement extends tsc<IProps> {
     const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
     const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
     // 更新标签时 删除已过期的业务标签
-    const newTagCatch = Object.entries(tagCatch).reduce(
-      (pre, [curKey, curVal]) => {
-        if ((curVal as any).expires > new Date().getTime()) {
-          pre[curKey] = curVal;
-        }
-        return pre;
-      },
-      {},
-    );
+    const newTagCatch = Object.entries(tagCatch).reduce((pre, [curKey, curVal]) => {
+      if ((curVal as any).expires > new Date().getTime()) {
+        pre[curKey] = curVal;
+      }
+      return pre;
+    }, {});
     localStorage.setItem('INDEX_SET_TAG_CATCH', JSON.stringify(newTagCatch));
     const commonIDList = newTagCatch[this.spaceUid]?.oftenTags ?? [];
     // 常用标签
     const currentTagList = commonIDList
       .filter(cTag => labelMapIDs.includes(cTag))
-      .map((tagID) => {
+      .map(tagID => {
         return this.labelSelectList.find(lTag => lTag.tag_id === tagID);
       });
     // 非常用标签
-    const unCommonList = this.labelSelectList.filter(
-      item => !commonIDList.includes(item.tag_id),
-    );
+    const unCommonList = this.labelSelectList.filter(item => !commonIDList.includes(item.tag_id));
     return [...currentTagList, ...unCommonList];
   }
 
@@ -696,14 +688,9 @@ export default class QueryStatement extends tsc<IProps> {
    * @param {IndexSetType} queryType 历史记录类型
    * @param {Boolean} isForceRequest 是否强制请求
    */
-  async getIndexSetHistoryList(
-    queryType: IndexSetType = 'single',
-    isForceRequest = false,
-  ) {
+  async getIndexSetHistoryList(queryType: IndexSetType = 'single', isForceRequest = false) {
     // 判断当前历史记录数组是否需要请求
-    const isShouldQuery = queryType === 'single'
-      ? !!this.aloneHistory.length
-      : !!this.multipleHistory.length;
+    const isShouldQuery = queryType === 'single' ? !!this.aloneHistory.length : !!this.multipleHistory.length;
     // 判断是否需要更新历史记录
     if ((!isForceRequest && isShouldQuery) || this.historyLoading) return;
 
@@ -712,10 +699,10 @@ export default class QueryStatement extends tsc<IProps> {
       .request('unionSearch/unionHistoryList', {
         data: {
           space_uid: this.spaceUid,
-          index_set_type: queryType,
-        },
+          index_set_type: queryType
+        }
       })
-      .then((res) => {
+      .then(res => {
         if (queryType === 'single') {
           this.aloneHistory = res.data;
         } else {
@@ -729,9 +716,7 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 检查收藏名 */
   checkFavoriteName() {
-    return !this.multipleFavorite.some(
-      item => item.name === this.verifyData.favoriteName.trim(),
-    );
+    return !this.multipleFavorite.some(item => item.name === this.verifyData.favoriteName.trim());
   }
 
   getOptionName(item) {
@@ -741,8 +726,11 @@ export default class QueryStatement extends tsc<IProps> {
   render() {
     const labelFilter = () => {
       return (
-        <div class={['label-filter', { 'not-label': !this.labelSelectList.length }]} v-en-class="en-label-btn">
-          <div class="select-type-btn">
+        <div
+          class={['label-filter', { 'not-label': !this.labelSelectList.length }]}
+          v-en-class='en-label-btn'
+        >
+          <div class='select-type-btn'>
             {this.typeBtnSelectList.map(item => (
               <div
                 class={{ active: this.indexSearchType === item.id }}
@@ -753,16 +741,19 @@ export default class QueryStatement extends tsc<IProps> {
             ))}
           </div>
           {!!this.labelSelectList.length && (
-            <div class="label-tag-container">
-              <div class="tag-box" ref="tagBox">
+            <div class='label-tag-container'>
+              <div
+                class='tag-box'
+                ref='tagBox'
+              >
                 {this.showLabelSelectList().map(item => (
                   <div>
                     <span
                       class={[
                         'tag-item',
                         {
-                          'tag-select': this.filterTagID === item.tag_id,
-                        },
+                          'tag-select': this.filterTagID === item.tag_id
+                        }
                       ]}
                       onClick={() => this.handleClickTag(item.tag_id)}
                     >
@@ -771,11 +762,17 @@ export default class QueryStatement extends tsc<IProps> {
                   </div>
                 ))}
               </div>
-              <div onClick={() => this.scrollMove('left')} class="move-icon left-icon">
-                <i class="bk-icon icon-angle-left-line"></i>
+              <div
+                onClick={() => this.scrollMove('left')}
+                class='move-icon left-icon'
+              >
+                <i class='bk-icon icon-angle-left-line'></i>
               </div>
-              <div onClick={() => this.scrollMove('right')} class="move-icon right-icon">
-                <i class="bk-icon icon-angle-right-line"></i>
+              <div
+                onClick={() => this.scrollMove('right')}
+                class='move-icon right-icon'
+              >
+                <i class='bk-icon icon-angle-right-line'></i>
               </div>
             </div>
           )}
@@ -784,102 +781,114 @@ export default class QueryStatement extends tsc<IProps> {
     };
     const favoriteListDom = () => {
       return (
-        <ul class="favorite-list">
-          {this.showFavoriteList.map(item => (
-            <li
-              class={[
-                'favorite-item',
-                {
-                  active: this.favoriteActive(item),
-                },
-              ]}
-              onClick={() => this.handleClickFavorite(item)}
-            >
-              <span class="name title-overflow">
-                {item.isNotVal && <i class="not-val"></i>}
-                <span>{item.name}</span>
-              </span>
-              <span
-                class="cancel"
-                onClick={e => this.handleCancelFavorite(item, e)}
+        <ul class='favorite-list'>
+          {!!this.showFavoriteList.length ? (
+            this.showFavoriteList.map(item => (
+              <li
+                class={[
+                  'favorite-item',
+                  {
+                    active: this.favoriteActive(item)
+                  }
+                ]}
+                onClick={() => this.handleClickFavorite(item)}
               >
-                {this.$t('取消收藏')}
-              </span>
-            </li>
-          ))}
+                <span class='name title-overflow'>
+                  {item.isNotVal && <i class='not-val'></i>}
+                  <span>{item.name}</span>
+                </span>
+                <span
+                  class='cancel'
+                  onClick={e => this.handleCancelFavorite(item, e)}
+                >
+                  {this.$t('取消收藏')}
+                </span>
+              </li>
+            ))
+          ) : (
+            <EmptyStatus show-text={false}>{this.$t('暂无收藏')}</EmptyStatus>
+          )}
         </ul>
       );
     };
     const historyListDom = () => {
       return (
-        <div class="history">
+        <div class='history'>
           {!!this.historyListNum && (
-            <div class="top-clear">
+            <div class='top-clear'>
               <span>{`${this.historyListNum}/10`}</span>
               <span
-                class="clear-btn"
+                class='clear-btn'
                 onClick={e => this.handleDeleteHistory(null, e, true)}
               >
-                <i class="log-icon icon-brush"></i>
+                <i class='log-icon icon-brush'></i>
                 <span>{this.$t('清空')}</span>
               </span>
             </div>
           )}
           {this.isAloneType ? (
             <ul
-              class="history-alone-list"
+              class='history-alone-list'
               v-bkloading={{ isLoading: this.historyLoading }}
             >
-              {this.aloneHistory.map(item => (
-                <li
-                  class={[
-                    'history-alone-item',
-                    {
-                      active: this.favoriteActive(item),
-                    },
-                  ]}
-                  onClick={() => this.handleClickFavorite(item)}
-                >
-                  <span class="name title-overflow">{item.index_set_name}</span>
-                  <i
-                    class="bk-icon icon-close-circle-shape"
-                    onClick={e => this.handleDeleteHistory(item, e)}
-                  ></i>
-                </li>
-              ))}
+              {!!this.aloneHistory.length ? (
+                this.aloneHistory.map(item => (
+                  <li
+                    class={[
+                      'history-alone-item',
+                      {
+                        active: this.favoriteActive(item)
+                      }
+                    ]}
+                    onClick={() => this.handleClickFavorite(item)}
+                  >
+                    <span class='name title-overflow'>{item.index_set_name}</span>
+                    <i
+                      class='bk-icon icon-close-circle-shape'
+                      onClick={e => this.handleDeleteHistory(item, e)}
+                    ></i>
+                  </li>
+                ))
+              ) : (
+                <EmptyStatus />
+              )}
             </ul>
           ) : (
             <ul
-              class="history-multiple-list"
+              class='history-multiple-list'
               v-bkloading={{ isLoading: this.historyLoading }}
             >
-              {this.multipleHistory.map(item => (
-                <li
-                  class={[
-                    'history-multiple-item',
-                    {
-                      active: this.multipleHistorySelectID === item.id,
-                    },
-                  ]}
-                  onClick={() => this.handleClickHistory(item)}
-                >
-                  <div class="tag-box">
-                    {item.index_set_names?.map(setName => (
-                      <Tag
-                        ext-cls="tag-item"
-                        v-bk-overflow-tips
-                        class="title-overflow"
-                      >
-                        {setName}
-                      </Tag>
-                    ))}
-                  </div>
-                  <i
-                    class="bk-icon icon-close-circle-shape"
-                    onClick={e => this.handleDeleteHistory(item, e)}
-                  ></i>
-                </li>
-              ))}
+              {!!this.multipleHistory.length ? (
+                this.multipleHistory.map(item => (
+                  <li
+                    class={[
+                      'history-multiple-item',
+                      {
+                        active: this.multipleHistorySelectID === item.id
+                      }
+                    ]}
+                    onClick={() => this.handleClickHistory(item)}
+                  >
+                    <div class='tag-box'>
+                      {item.index_set_names?.map(setName => (
+                        <Tag
+                          ext-cls='tag-item'
+                          v-bk-overflow-tips
+                          class='title-overflow'
+                        >
+                          {setName}
+                        </Tag>
+                      ))}
+                    </div>
+                    <i
+                      class='bk-icon icon-close-circle-shape'
+                      onClick={e => this.handleDeleteHistory(item, e)}
+                    ></i>
+                  </li>
+                ))
+              ) : (
+                <EmptyStatus />
+              )}
             </ul>
           )}
         </div>
@@ -887,23 +896,27 @@ export default class QueryStatement extends tsc<IProps> {
     };
     const favoriteAndHistory = () => {
       return (
-        <div class="favorite-and-history">
+        <div class='favorite-and-history'>
           <Tab
-            type="unborder-card"
+            type='unborder-card'
             active={this.activeTab}
             on-tab-change={this.handleTabChange}
           >
             {this.tabPanels.map((panel, index) => (
-              <TabPanel {...{ props: panel }} key={index}>
-                <div slot="label" class="top-label">
+              <TabPanel
+                {...{ props: panel }}
+                key={index}
+              >
+                <div
+                  slot='label'
+                  class='top-label'
+                >
                   <i class={panel.icon}></i>
-                  <span class="panel-name">{panel.label}</span>
+                  <span class='panel-name'>{panel.label}</span>
                 </div>
               </TabPanel>
             ))}
-            {this.activeTab === 'favorite'
-              ? favoriteListDom()
-              : historyListDom()}
+            {this.activeTab === 'favorite' ? favoriteListDom() : historyListDom()}
           </Tab>
         </div>
       );
@@ -911,52 +924,49 @@ export default class QueryStatement extends tsc<IProps> {
     const selectIndexContainer = () => (
       <div
         v-show={!!this.selectedItemList.length && !this.isAloneType}
-        class="select-index-container"
-        ref="selectIndexBox"
+        class='select-index-container'
+        ref='selectIndexBox'
       >
-        <div class="title">
-          <div class="index-select">
-            <i18n style="color: #979BA5;" path="已选择{0}个索引集">
+        <div class='title'>
+          <div class='index-select'>
+            <i18n
+              style='color: #979BA5;'
+              path='已选择{0}个索引集'
+            >
               {this.selectedItemList.length}
             </i18n>
-            {this.isOverSelect && (
-              <span class="over-select">{this.$t('每次最多可选择10项')}</span>
-            )}
+            {this.isOverSelect && <span class='over-select'>{this.$t('每次最多可选择10项')}</span>}
           </div>
           <Popover
-            ref="favoritePopover"
+            ref='favoritePopover'
             tippy-options={{
               ...this.tippyOptions,
-              appendTo: () => this.selectIndexBoxRef,
+              appendTo: () => this.selectIndexBoxRef
             }}
-            placement="bottom-start"
-            ext-cls="new-favorite-popover"
+            placement='bottom-start'
+            ext-cls='new-favorite-popover'
             disabled={!!this.multipleFavoriteSelectID}
           >
-            <span class="favorite-btn">
+            <span class='favorite-btn'>
               <i
-                class={[
-                  !!this.multipleFavoriteSelectID
-                    ? 'log-icon icon-star-shape'
-                    : 'log-icon bk-icon icon-star',
-                ]}
+                class={[!!this.multipleFavoriteSelectID ? 'log-icon icon-star-shape' : 'log-icon bk-icon icon-star']}
               ></i>
               <span>{this.$t('收藏该组合')}</span>
             </span>
-            <div slot="content">
+            <div slot='content'>
               <Form
                 labelWidth={0}
                 style={{ width: '100%' }}
-                ref="checkInputForm"
+                ref='checkInputForm'
                 {...{
                   props: {
                     model: this.verifyData,
-                    rules: this.rules,
-                  },
+                    rules: this.rules
+                  }
                 }}
               >
-                <FormItem property="favoriteName">
-                  <span style="color: #63656E;">{this.$t('收藏名称')}</span>
+                <FormItem property='favoriteName'>
+                  <span style='color: #63656E;'>{this.$t('收藏名称')}</span>
                   <Input
                     clearable
                     vModel={this.verifyData.favoriteName}
@@ -964,7 +974,7 @@ export default class QueryStatement extends tsc<IProps> {
                   ></Input>
                 </FormItem>
               </Form>
-              <div class="operate-button">
+              <div class='operate-button'>
                 <Button
                   text
                   onClick={() => this.handleClickFavoritePopoverBtn('add')}
@@ -981,31 +991,35 @@ export default class QueryStatement extends tsc<IProps> {
             </div>
           </Popover>
         </div>
-        <div class="index-tag-box" id="union-tag-box">
+        <div
+          class='index-tag-box'
+          id='union-tag-box'
+        >
           {this.selectedItemList.map(item => (
             <Tag
               closable
-              style="background: #FAFBFD;"
-              type="stroke"
+              style='background: #FAFBFD;'
+              type='stroke'
               onClose={() => this.handleCloseSelectTag(item)}
             >
-              <span class="tag-name">
-                {item.isNotVal && <i class="not-val"></i>}
-                <span class="title-overflow" v-bk-overflow-tips>{item.indexName}</span>
+              <span class='tag-name'>
+                {item.isNotVal && <i class='not-val'></i>}
+                <span
+                  class='title-overflow'
+                  v-bk-overflow-tips
+                >
+                  {item.indexName}
+                </span>
               </span>
             </Tag>
           ))}
         </div>
       </div>
     );
-    const indexHandDom = (item) => {
+    const indexHandDom = item => {
       return this.isAloneType ? (
         <span
-          class={[
-            item.is_favorite
-              ? 'log-icon icon-star-shape'
-              : 'log-icon bk-icon icon-star',
-          ]}
+          class={[item.is_favorite ? 'log-icon icon-star-shape' : 'log-icon bk-icon icon-star']}
           onClick={e => this.handleCollection(item, e)}
         ></span>
       ) : (
@@ -1017,7 +1031,10 @@ export default class QueryStatement extends tsc<IProps> {
     };
     const selectGroupDom = () => {
       return (
-        <div class="group-list" style={this.groupListStyle}>
+        <div
+          class='group-list'
+          style={this.groupListStyle}
+        >
           {this.renderOptionList.map(group => (
             <OptionGroup
               show-count={false}
@@ -1027,12 +1044,12 @@ export default class QueryStatement extends tsc<IProps> {
               scopedSlots={{
                 'group-name': () => {
                   return group.name && group.children.length ? (
-                    <div class="group-title">
+                    <div class='group-title'>
                       <span>{group.name}</span>
                       <span>{group.children[0].no_data_check_time}</span>
                     </div>
                   ) : undefined;
-                },
+                }
               }}
             >
               {group.children.map(item => (
@@ -1044,32 +1061,35 @@ export default class QueryStatement extends tsc<IProps> {
                 >
                   {this.isHaveAuthority(item) ? (
                     <div
-                      class="authority"
-                      style="padding: 9px 10px;"
+                      class='authority'
                       onClick={() => this.handelClickIndexSet(item)}
                     >
-                      <span class="index-info">
+                      <span class='index-info'>
                         {indexHandDom(item)}
-                        {item.isNotVal && <i class="not-val"></i>}
-                        <span class="index-name" v-bk-overflow-tips>
+                        {item.isNotVal && <i class='not-val'></i>}
+                        <span
+                          class='index-name'
+                          v-bk-overflow-tips
+                        >
                           {item.indexName}
                         </span>
-                        <span class="lighten-name" v-bk-overflow-tips>
+                        <span
+                          class='lighten-name'
+                          v-bk-overflow-tips
+                        >
                           {item.lightenName}
                         </span>
                       </span>
-                      <div class="index-tags">{getLabelDom(item.tags)}</div>
+                      <div class='index-tags'>{getLabelDom(item.tags)}</div>
                     </div>
                   ) : (
                     <div
-                      class="option-slot-container no-authority"
+                      class='option-slot-container no-authority'
                       onClick={e => e.stopPropagation()}
                     >
-                      <span class="text">
-                        {item.indexName + item.lightenName}
-                      </span>
+                      <span class='text'>{item.indexName + item.lightenName}</span>
                       <span
-                        class="apply-text"
+                        class='apply-text'
                         onClick={() => this.applySearchAccess(item)}
                       >
                         {this.$t('申请权限')}
@@ -1083,13 +1103,18 @@ export default class QueryStatement extends tsc<IProps> {
         </div>
       );
     };
-    const getLabelDom = (tags) => {
+    const getLabelDom = tags => {
       const showTags = tags
         .filter(tag => tag.tag_id !== 4)
         .sort((a, b) => (b.tag_id === this.filterTagID ? 1 : -1))
         .slice(0, 2);
       return showTags.map(tag => (
-        <span class={['tag-card', `tag-card-${tag.color}`]}>{tag.name}</span>
+        <span
+          v-bk-overflow-tips
+          class={['tag-card title-overflow', `tag-card-${tag.color}`]}
+        >
+          {tag.name}
+        </span>
       ));
     };
     const triggerSlot = () => (
@@ -1105,10 +1130,10 @@ export default class QueryStatement extends tsc<IProps> {
         searchable
         multiple
         display-tag={!this.isAloneType}
-        ext-popover-cls="retrieve-index-select-popover"
-        class="retrieve-index-select"
-        data-test-id="dataQuery_div_indexSetSelect"
-        ref="selectInput"
+        ext-popover-cls='retrieve-index-select-popover'
+        class='retrieve-index-select'
+        data-test-id='dataQuery_div_indexSetSelect'
+        ref='selectInput'
         clearable={false}
         v-model={this.selectTagCatchIDList}
         popover-min-width={600}
@@ -1117,7 +1142,7 @@ export default class QueryStatement extends tsc<IProps> {
         onSelected={this.handleSelectIndex}
         onToggle={this.toggleSelect}
         scopedSlots={{
-          trigger: () => triggerSlot(),
+          trigger: () => triggerSlot()
         }}
       >
         {labelFilter()}

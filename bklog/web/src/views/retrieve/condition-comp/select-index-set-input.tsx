@@ -43,6 +43,11 @@ export default class SelectIndexSetInput extends tsc<{}> {
     if (!this.isAloneType) this.calcOverflow();
   }
 
+  @Watch('isAloneType')
+  watchCloseTagNode(val) {
+    if (val) this.removeOverflowTagNode();
+  }
+
   getTagDOM(index?) {
     const tags = [].slice.call(this.$el.querySelectorAll('.select-tag'));
     return typeof index === 'number' ? tags[index] : tags;
@@ -50,11 +55,8 @@ export default class SelectIndexSetInput extends tsc<{}> {
 
   // 计算第二行第一个的index，在其前方插入overflow tag
   calcOverflow() {
-    this.reomveOverflowTagNode();
-    // this.isShowSelectPopover ||
-    if (this.selectedItemList.length < 2) {
-      return false;
-    }
+    this.removeOverflowTagNode();
+    if (this.selectedItemList.length < 2) return false;
     setTimeout(() => {
       const tags = this.getTagDOM();
       const tagIndexInSecondRow = tags.findIndex((currentUser, index) => {
@@ -97,9 +99,7 @@ export default class SelectIndexSetInput extends tsc<{}> {
     });
   }
   setOverflowTagContent() {
-    this.overflowTagNode.textContent = `+${
-      this.selectedItemList.length - this.overflowTagIndex
-    }`;
+    this.overflowTagNode.textContent = `+${this.selectedItemList.length - this.overflowTagIndex}`;
   }
   // 创建/获取溢出数字节点
   getOverflowTagNode() {
@@ -112,7 +112,7 @@ export default class SelectIndexSetInput extends tsc<{}> {
     return overflowTagNode;
   }
   // 从容器中移除溢出数字节点
-  reomveOverflowTagNode() {
+  removeOverflowTagNode() {
     if (this.overflowTagNode && this.overflowTagNode.parentNode === this.$el) {
       this.$el.removeChild(this.overflowTagNode);
     }
@@ -127,13 +127,11 @@ export default class SelectIndexSetInput extends tsc<{}> {
       if (this.isAloneType) {
         return (
           <div
-            class="bk-select-name"
+            class='bk-select-name'
             v-bk-overflow-tips={{ placement: 'right' }}
           >
             <span>{(this.selectedItem as any).indexName}</span>
-            <span style="color: #979ba5;">
-              {(this.selectedItem as any).lightenName}
-            </span>
+            <span style='color: #979ba5;'>{(this.selectedItem as any).lightenName}</span>
           </div>
         );
       }
@@ -141,18 +139,18 @@ export default class SelectIndexSetInput extends tsc<{}> {
         <div
           class={{
             'index-select-tag-container': true,
-            'is-fixed-height': !this.isShowSelectPopover,
+            'is-fixed-height': !this.isShowSelectPopover
           }}
         >
           {this.selectedItemList.map(item => (
-            <div class="select-tag width-limit-tag">
-              <span class="tag-name">
-                {this.isShowNotVal(item) && <i class="not-val"></i>}
+            <div class='select-tag width-limit-tag'>
+              <span class='tag-name'>
+                {this.isShowNotVal(item) && <i class='not-val'></i>}
                 <span
                   v-bk-overflow-tips={{
-                    content: `${item.indexName}${item.lightenName}`,
+                    content: `${item.indexName}${item.lightenName}`
                   }}
-                  class="title-overflow"
+                  class='title-overflow'
                 >{`${item.indexName}${item.lightenName}`}</span>
               </span>
             </div>

@@ -305,6 +305,10 @@ export default {
         is_analyzed: item.is_analyzed,
         field_type: item.field_type
       }));
+    },
+    /** 所有字段的字段名 */
+    totalFieldsNameList() {
+      return this.totalFields.map(item => item.field_name);
     }
   },
   watch: {
@@ -322,8 +326,8 @@ export default {
     },
     dropdownData: {
       handler(val) {
-        // .filter(v => v !=='index')
-        this.originFieldList = Object.keys(val);
+        // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
+        this.originFieldList = Object.keys(val).filter(v => this.totalFieldsNameList.includes(v));
         if (this.originFieldList.length && this.showDropdown) {
           // 可能字段接口还没返回用户就 focus 了输入框
           this.calculateDropdown();

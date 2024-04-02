@@ -2,52 +2,55 @@
 @import '@/scss/mixins/flex.scss';
 
 .authority {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   max-height: 32px;
+  padding: 7px 10px;
+
+  @include flex-justify(space-between);
+
+  .index-tags {
+    @include flex-center();
+  }
 
   .tag-card {
     display: inline-block;
-    font-size: 12px;
-    padding: 0 10px;
     height: 22px;
-    line-height: 22px;
-    margin-left: 6px;
-    cursor: default;
-    border-width: 1px;
-    border-style: solid;
+    max-width: 100px;
     padding: 0 9px;
+    margin-left: 6px;
+    font-size: 12px;
     line-height: 20px;
+    cursor: default;
+    border-style: solid;
+    border-width: 1px;
 
     &-gray {
-      border-color: #dcdee5;
       color: #63656e;
       background-color: rgba(151,155,165,.1);
+      border-color: #dcdee5;
     }
 
     &-blue {
-      border-color: #3a84ff;
       color: #3a84ff;
       background-color: rgba(58,132,255,.1);
+      border-color: #3a84ff;
     }
 
     &-yellow {
+      color: #fe9c00;
       background-color: rgba(254,156,0,.1);
       border-color: #fe9c00;
-      color: #fe9c00;
     }
 
     &-green {
+      color: #63656e;
       background-color: #f0f1f5;
-      border: none;
-      color: #63656e;;
+      border: none;;
     }
 
     &-red {
+      color: #ea3536;
       background-color: rgba(234,53,54,.1);
       border-color: #ea3536;
-      color: #ea3536;
     }
   }
 
@@ -84,9 +87,9 @@
     }
 
     .lighten-name {
-      color: #979ba5;
       min-width: 100px;
       margin-left: 4px;
+      color: #979ba5;
 
       @include ellipsis();
     }
@@ -99,10 +102,10 @@
   .not-val {
     width: 8px;
     height: 8px;
-    border-radius: 50%;
     margin-left: 4px;
     background: #ffe6e6;
     border: 1px solid #ea3636;
+    border-radius: 50%;
   }
 
   .tag-name {
@@ -121,8 +124,6 @@
   }
 
   .bk-option-group-name {
-    /* stylelint-disable-next-line declaration-no-important */
-    background: #fff !important;
     // border-top: 1px solid #f0f1f5;
 
     /* stylelint-disable-next-line declaration-no-important */
@@ -131,10 +132,12 @@
     z-index: 99;
 
     /* stylelint-disable-next-line declaration-no-important */
-    margin: 0 !important;
+    padding: 0 8px !important;
 
     /* stylelint-disable-next-line declaration-no-important */
-    padding: 0 8px !important;
+    margin: 0 !important;
+    /* stylelint-disable-next-line declaration-no-important */
+    background: #fff !important;
   }
 
   .bk-options {
@@ -190,10 +193,10 @@
 
     .select-type-btn {
       position: fixed;
-      right: 12px;
       top: 7px;
-      min-width: 82px;
+      right: 12px;
       height: 26px;
+      min-width: 82px;
       padding: 1px;
       background: #f5f7fa;
       border: 1px solid #dcdee5;
@@ -202,12 +205,12 @@
       @include flex-center();
 
       div {
-        flex: 1;
         height: 22px;
         line-height: 22px;
-        border-radius: 2px;
         color: #63656e;
         cursor: pointer;
+        border-radius: 2px;
+        flex: 1;
 
         @include flex-center();
       }
@@ -233,10 +236,10 @@
       @include flex-center();
 
       .move-icon {
-        height: 100%;
-        font-size: 12px;
         position: absolute;
         top: 6px;
+        height: 100%;
+        font-size: 12px;
         cursor: pointer;
       }
 
@@ -270,12 +273,12 @@
       }
 
       .tag-item {
-        box-sizing: border-box;
         padding: 2px 6px;
-        background: #f0f1f5;
-        border-radius: 2px;
         cursor: pointer;
+        background: #f0f1f5;
         border: 1px solid transparent;
+        border-radius: 2px;
+        box-sizing: border-box;
 
         &:hover {
           color: #3a84ff;
@@ -302,12 +305,12 @@
   }
 
   .favorite-and-history {
+    position: fixed;
+    top: 0;
+    right: -240px;
+    z-index: 999;
     width: 240px;
     height: 400px;
-    position: fixed;
-    right: -240px;
-    top: 0;
-    z-index: 999;
     background: #fafbfd;
     border: 1px solid #dcdee5;
     border-radius: 0 2px 2px 0;
@@ -339,8 +342,8 @@
       @include flex-justify(space-between);
 
       .not-val {
-        margin: 0 4px 0 0;
         display: inline-block;
+        margin: 0 4px 0 0;
         flex-shrink: 0;
       }
 
@@ -358,9 +361,9 @@
       }
 
       .cancel {
-        color: #3a84ff;
         display: none;
         margin-left: 4px;
+        color: #3a84ff;
         flex-shrink: 0;
       }
     }
@@ -369,8 +372,8 @@
   .history {
     .top-clear {
       height: 28px;
-      color: #979ba5;
       padding: 0 12px;
+      color: #979ba5;
 
       @include flex-justify(space-between);
 
@@ -382,8 +385,8 @@
     }
 
     .history-alone-list {
-      padding: 0;
       height: 328px;
+      padding: 4px 0;
 
       @extend %favorite-list;
 
@@ -402,9 +405,9 @@
       .icon-close-circle-shape {
         /* stylelint-disable-next-line declaration-no-important */
         display: none !important;
-        cursor: pointer;
-        color: #c4c6cc;
         font-size: 16px;
+        color: #c4c6cc;
+        cursor: pointer;
 
         @include flex-center();
       }
@@ -420,17 +423,17 @@
 
       li {
         position: relative;
-        background: #fff;
         margin: 8px 7px;
+        cursor: pointer;
+        background: #fff;
         border: transparent 1px solid;
         box-shadow: 0 2px 6px 0 #19192914;
-        cursor: pointer;
 
         .tag-box {
           max-height: 83px;
-          overflow-y: auto;
-          overflow-x: hidden;
           margin: 8px;
+          overflow-x: hidden;
+          overflow-y: auto;
           flex-wrap: wrap;
 
           @include flex-justify(start);
@@ -455,12 +458,12 @@
         }
 
         .icon-close-circle-shape {
-          display: none;
-          color: #c4c6cc;
-          font-size: 16px;
           position: absolute;
           top: -8px;
           right: -7px;
+          display: none;
+          font-size: 16px;
+          color: #c4c6cc;
         }
 
         &:hover {
@@ -487,8 +490,8 @@
     }
 
     .over-select {
-      color: #cb2427;
       margin-left: 10px;
+      color: #cb2427;
     }
 
     .index-select {
@@ -496,10 +499,10 @@
     }
 
     .favorite-btn {
-      padding: 0 5px;
-      border-radius: 2px;
       height: 24px;
+      padding: 0 5px;
       cursor: pointer;
+      border-radius: 2px;
 
       @include flex-center();
 
@@ -518,10 +521,10 @@
 
     .index-tag-box {
       max-height: 54px;
+      padding-bottom: 2px;
+      overflow-y: auto;
       align-items: center;
       flex-wrap: wrap;
-      overflow-y: auto;
-      padding-bottom: 2px;
 
       @include flex-justify(start);
 
@@ -561,35 +564,35 @@
   }
 
   .bk-tab-label-list {
+    width: 100%;
     /* stylelint-disable-next-line declaration-no-important */
     height: 36px !important;
-    width: 100%;
 
     .active {
       ::after {
-        content: ' ';
         position: absolute;
-        left: 0;
         bottom: 0;
-        height: 2px;
-        width: 119px;
+        left: 0;
         z-index: 999;
+        width: 119px;
+        height: 2px;
         background: #3a84ff;
+        content: ' ';
       }
     }
   }
 
   .bk-tab-section {
+    padding: 0;
     /* stylelint-disable-next-line declaration-no-important */
     border-top: 2px solid #eaebf0 !important;
-    padding: 0;
   }
 
   .bk-select-empty {
     position: absolute;
     top: 220px;
-    text-align: center;
     width: 100%;
+    text-align: center;
   }
 
   .icon-star-shape:before {
@@ -606,9 +609,9 @@
     }
   
     .operate-button {
-      color: #979ba5;
       margin-top: 6px;
       font-size: 12px;
+      color: #979ba5;
       justify-content: flex-end;
 
       @include flex-align(center);
@@ -627,8 +630,8 @@
 
   .union-select-item {
     &.is-selected {
-      background: transparent;
       color: #63656e;
+      background: transparent;
     }
   }
 }
