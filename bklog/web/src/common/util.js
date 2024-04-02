@@ -1073,3 +1073,20 @@ export const blobDownload = (data, fileName = 'default', type = 'text/plain') =>
   document.body.removeChild(downloadElement);
   window.URL.revokeObjectURL(href); // 释放掉blob对象
 };
+
+export const xssFilter = str => {
+  return (
+    str?.replace?.(/[&<>"]/gi, function (match) {
+      switch (match) {
+        case '&':
+          return '&amp;';
+        case '<':
+          return '&lt;';
+        case '>':
+          return '&gt;';
+        case '"':
+          return '&quot;';
+      }
+    }) || str
+  );
+};

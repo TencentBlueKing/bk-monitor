@@ -24,6 +24,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Component, PropSync, Prop, Emit, Ref } from 'vue-property-decorator';
 import { Select, Option, Tag, Form, FormItem, Input } from 'bk-magic-vue';
 import $http from '../../api';
+import { xssFilter } from '../../common/util';
 import './index.scss';
 
 interface IProps {
@@ -226,7 +227,7 @@ export default class QueryStatement extends tsc<IProps> {
                         v-bk-overflow-tips
                         class='title-overflow'
                       >
-                        {item.name}
+                        {xssFilter(item.name)}
                       </span>
                       <i
                         class='bk-icon icon-close'
@@ -240,7 +241,7 @@ export default class QueryStatement extends tsc<IProps> {
                       v-bk-tooltips={{
                         content: `${this.showLabelList
                           .slice(3)
-                          .map(item => item.name)
+                          .map(item => xssFilter(item.name))
                           .join(', ')}`
                       }}
                       onClick={() => (this.isShowAllLabel = true)}

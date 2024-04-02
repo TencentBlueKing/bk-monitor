@@ -74,9 +74,7 @@
               <table-column
                 :is-wrap="isWrap"
                 :content="getTableColumnContent(row, field)"
-                :field-name="field.field_name"
-                :field-type="field.field_type"
-                :field-tag="field.tag"
+                :field="field"
                 @iconClick="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
                 @computedHeight="handleOverColumn(field.field_name)"
               />
