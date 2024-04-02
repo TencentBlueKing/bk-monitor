@@ -674,5 +674,6 @@ export default {
   匹配到的索引: 'matched index',
   '不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。':
     'Not retaining will discard the original logs and only display the cleaned logs. Please go through field cleaning, debugging and outputting the logs you care about.',
-  '请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。': 'Please complete field cleaning or select "Keep original log", otherwise the access log content will not be displayed.'
+  '请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。':
+    'Please complete field cleaning or select "Keep original log", otherwise the access log content will not be displayed.'
 };

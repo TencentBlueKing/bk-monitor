@@ -151,5 +151,5 @@ export {
   createDesensitizeConfig,
   updateDesensitizeConfig,
   deleteDesensitizeConfig,
-  getDesensitizeState,
+  getDesensitizeState
 };
