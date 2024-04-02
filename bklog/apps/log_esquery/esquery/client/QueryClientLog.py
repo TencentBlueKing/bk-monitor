@@ -23,6 +23,11 @@ the project delivered to anyone in the future.
 import re
 from typing import Any, Dict
 
+from django.conf import settings
+from django.utils.translation import ugettext as _
+from elasticsearch import Elasticsearch as Elasticsearch
+from elasticsearch5 import Elasticsearch as Elasticsearch5
+
 from apps.api import TransferApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_esquery.constants import DEFAULT_SCHEMA
@@ -34,6 +39,7 @@ from apps.log_esquery.exceptions import (
     EsClientScrollException,
     EsClientSearchException,
     EsException,
+    BaseSearchIndexSettingsException,
 )
 from apps.log_esquery.type_constants import type_mapping_dict
 from apps.log_esquery.utils.es_client import es_socket_ping, get_es_client
@@ -41,10 +47,6 @@ from apps.log_search.exceptions import IndexResultTableApiException
 from apps.utils.cache import cache_five_minute
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from elasticsearch import Elasticsearch as Elasticsearch
-from elasticsearch5 import Elasticsearch as Elasticsearch5
 
 DATE_RE = re.compile("[0-9]{6,8}$")
 
@@ -70,15 +72,52 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             self.catch_timeout_raise(e)
             raise EsClientSearchException(EsClientSearchException.MESSAGE.format(error=e))
 
-    def mapping(self, index: str) -> Dict:
+    def mapping(self, index: str, add_settings_details: bool = False) -> Dict:
         index_target = self._get_index_target(index=index, check_ping=False)
         try:
             logger.info("mapping for index=>{}, index_target=>{}".format(index, index_target))
             mapping_dict: type_mapping_dict = self._client.indices.get_mapping(index=index_target)
+            if add_settings_details:
+                settings_dict: Dict = self.get_settings(index=index)
+                return self.add_analyzer_details(_mappings=mapping_dict, _settings=settings_dict)
             return mapping_dict
         except Exception as e:  # pylint: disable=broad-except
             self.catch_timeout_raise(e)
             raise BaseSearchFieldsException(BaseSearchFieldsException.MESSAGE.format(error=e))
+
+    def get_settings(self, index: str) -> Dict:
+        index_target = self._get_index_target(index=index, check_ping=False)
+        try:
+            return self._client.indices.get_settings(index=index_target)
+        except Exception as e:  # pylint: disable=broad-except
+            self.catch_timeout_raise(e)
+            raise BaseSearchIndexSettingsException(BaseSearchIndexSettingsException.MESSAGE.format(error=e))
+
+    @staticmethod
+    def add_analyzer_details(_mappings: Dict[str, Any], _settings: Dict[str, Any]):
+        index_list = list(_mappings.keys())
+        for index_name in index_list:
+            # 获取索引的分析器设置
+            index_settings = _settings[index_name]["settings"]["index"]
+            analyzers = index_settings.get("analysis", {}).get("analyzer", {})
+            tokenizers = index_settings.get("analysis", {}).get("tokenizer", {})
+            # 遍历映射中的字段
+            for field, properties in _mappings[index_name]["mappings"]["properties"].items():
+                analyzer_name = properties.get("analyzer")
+                if not analyzer_name:
+                    continue
+                # 从索引设置中获取分析器详细信息
+                analyzer_details = analyzers.get(analyzer_name)
+                if not analyzer_details:
+                    continue
+                # 将分析器详细信息添加到字段配置中
+                properties["analyzer_details"] = analyzer_details
+                if properties["analyzer_details"].get("tokenizer"):
+                    properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
+                        properties["analyzer_details"]["tokenizer"]
+                    )
+
+        return _mappings
 
     def _get_index_target(self, index: str, check_ping: bool = True):
         index_list: list = index.split(",")

@@ -284,22 +284,24 @@ export default class SearchComp extends tsc<IProps> {
       this.pushCondition('ip-select', '', ipChooser, chooserSwitch);
     }
     this.initAdditionDefault(addition);
-    this.setRouteParams(isHaveIP ? ipChooser : {});
+    this.setRouteParams(isHaveIP ? { ipChooser } : {});
   }
 
-  setIPChooserFilter(value) {
+  setIPChooserFilter(ipChooser) {
     // 更新ip选择器的参数
-    const isHaveIP = Boolean(Object.keys(value).length);
-    this.setRouteParams(value, !isHaveIP);
+    const isHaveIP = Boolean(Object.keys(ipChooser).length);
+    this.setRouteParams(isHaveIP ? { ipChooser } : {}, !isHaveIP);
   }
 
   // 改变条件时 更新路由参数
-  setRouteParams(ipChooser = {}, deleteIpValue = false, linkAddition = null) {
+  setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null) {
     const { params, query } = this.$route;
     const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
     const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
-    const newQueryObj = { addition: this.getFiledAdditionStr(linkAddition) }; // 新的query对象
-    const newIPChooser = Object.keys(ipChooser).length ? ipChooser : query.ip_chooser;
+    Object.assign(filterQuery, retrieveParams);
+    const newQueryObj = { addition: this.getFiledAdditionStr(linkAdditionList) }; // 新的query对象
+    const { ipChooser } = retrieveParams;
+    const newIPChooser = Object.keys(ipChooser || {}).length ? ipChooser : query.ip_chooser;
 
     if (newIPChooser && Object.keys(newIPChooser).length) {
       // ip值更新
@@ -321,12 +323,12 @@ export default class SearchComp extends tsc<IProps> {
       params,
       query: filterQuery
     };
-    if (linkAddition) return this.$router.resolve(routeData).href;
+    if (linkAdditionList) return this.$router.resolve(routeData).href;
     this.$router.replace(routeData);
   }
 
   // 获取有效的字段条件字符串
-  getFiledAdditionStr(linkAddition = null) {
+  getFiledAdditionStr(linkAdditionList = null) {
     const filterAddition = this.conditionList.filter(item => {
       if (item.conditionType === 'filed') {
         // 如果是有exists操作符则不判断是否有值 直接回填路由
@@ -335,15 +337,15 @@ export default class SearchComp extends tsc<IProps> {
       }
       return false;
     });
-    if (!filterAddition.length && !linkAddition) return undefined;
+    if (!filterAddition.length && !linkAdditionList) return undefined;
     const stringifyList = filterAddition.map(item => ({
       field: item.id,
       operator: item.operator,
       value: item.value.join(','),
       isInclude: item.isInclude
     }));
-    if (linkAddition && JSON.stringify(linkAddition) !== '{}') {
-      stringifyList.push(linkAddition);
+    if (linkAdditionList && linkAdditionList.length) {
+      stringifyList.push(...linkAdditionList);
     }
     return JSON.stringify(stringifyList);
   }

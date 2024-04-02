@@ -28,74 +28,74 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './table-skeleton.scss';
 
-const widths = [0.05, 0.15, 0.15, 0.16, 0.31, 0.1, 0.07];
-const padings = [
-  [34, 34, 34, 34, 81, 19, 19],
-  [32, 40, 40, 114, 40, 40, 0],
-  [32, 40, 80, 92, 40, 40, 0],
-  [32, 40, 40, 92, 40, 40, 0],
-  [32, 40, 40, 52, 40, 40, 0],
-  [32, 40, 40, 114, 40, 40, 0],
-  [32, 40, 80, 92, 40, 40, 0],
-  [32, 40, 40, 92, 40, 40, 0],
-  [32, 40, 40, 52, 40, 40, 0]
-];
+function getStyle(config, isWrap = true) {
+  if (typeof config === 'number' && isWrap) {
+    return {
+      paddingRight: `${config}px`
+    };
+  }
+  if (typeof config === 'object' && !isWrap) {
+    return config;
+  }
+  return {
+    paddingRight: '40px'
+  };
+}
+const config01 = {
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.31, 0.1, 0.07],
+  rowHeights: [20, 36, 36, 36, 36, 36, 36, 36, 36, 36],
+  config: [
+    [
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '81px' },
+      { width: '19px' },
+      { width: '19px' }
+    ],
+    [{ width: '34px' }, 40, 40, 114, 40, 40, 0],
+    [{ width: '34px' }, 40, 80, 92, 40, 40, 0],
+    [{ width: '34px' }, 40, 40, 52, 40, 40, 0],
+    [{ width: '34px' }, 40, 80, 40, 40, 40, 0],
+    [{ width: '34px' }, 40, 40, 92, 40, 40, 0],
+    [{ width: '34px' }, 40, 40, 52, 40, 40, 0],
+    [{ width: '34px' }, 40, 73, 40, 40, 40, 0],
+    [{ width: '34px' }, 40, 40, 92, 40, 40, 0],
+    [{ width: '34px' }, 40, 60, 40, 40, 40, 0]
+  ]
+};
 
 @Component
 export default class TableSkeleton extends tsc<{}> {
   render() {
     return (
       <div class='common-table-skeleton'>
-        {padings.map((item, index) => {
-          if (index === 0) {
-            return (
+        {config01.config.map((item, index) => (
+          <div
+            key={index}
+            class='common-table-skeleton-row'
+          >
+            {item.map((pItem, pIndex) => (
               <div
-                key={index}
-                class='common-table-skeleton-row'
+                key={`${index}_${pIndex}`}
+                class='common-table-skeleton-row-item'
+                style={{
+                  width: `${config01.colWidths[pIndex] * 100}%`,
+                  height: `${config01.rowHeights[index]}px`,
+                  ...getStyle(pItem, true)
+                }}
               >
-                {item.map((pItem, pIndex) => (
-                  <div
-                    key={`${index}_${pIndex}`}
-                    style={{
-                      width: `${widths[pIndex] * 100}%`
-                    }}
-                  >
-                    <div
-                      class='skeleton-element'
-                      style={{
-                        height: '20px',
-                        width: `${pItem}px`
-                      }}
-                    ></div>
-                  </div>
-                ))}
-              </div>
-            );
-          }
-          return (
-            <div
-              key={index}
-              class='common-table-skeleton-row'
-            >
-              {item.map((pItem, pIndex) => (
                 <div
-                  key={`${index}_${pIndex}`}
+                  class='skeleton-element'
                   style={{
-                    width: `${widths[pIndex] * 100}%`,
-                    paddingRight: `${pItem}px`
+                    ...getStyle(pItem, false)
                   }}
-                >
-                  <div
-                    class='skeleton-element'
-                    style={{
-                      height: '36px'
-                    }}
-                  ></div>
-                </div>
-              ))}
-            </div>
-          );
-        })}
+                ></div>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     );
   }

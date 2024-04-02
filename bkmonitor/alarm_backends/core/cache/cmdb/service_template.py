@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 from collections import defaultdict
 
+from django.conf import settings
+
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from core.drf_resource import api
 
@@ -18,6 +20,7 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
     """
     CMDB 服务模板缓存
     """
+
     type = "service_template"
     CACHE_KEY = "{prefix}.cmdb.service_template".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
 
@@ -51,4 +54,6 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
+    if "service_template" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     ServiceTemplateManager.refresh()

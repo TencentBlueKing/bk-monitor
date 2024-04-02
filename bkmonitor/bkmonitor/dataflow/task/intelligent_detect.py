@@ -73,11 +73,11 @@ class StrategyIntelligentModelDetectTask(BaseTask):
             parent=stream_source_node,
         )
 
-        strategy_storage_node = TSpiderStorageNode(
-            source_rt_id=strategy_process_node.output_table_name,
-            storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS,
-            parent=strategy_process_node,
-        )
+        # strategy_storage_node = TSpiderStorageNode(
+        #     source_rt_id=strategy_process_node.output_table_name,
+        #     storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS,
+        #     parent=strategy_process_node,
+        # )
 
         scene_service_node = SceneServiceNode(
             source_rt_id=strategy_process_node.output_table_name,
@@ -104,7 +104,8 @@ class StrategyIntelligentModelDetectTask(BaseTask):
         self.node_list = [
             stream_source_node,
             strategy_process_node,
-            strategy_storage_node,
+            # 去掉中间节点存储
+            # strategy_storage_node,
             scene_service_node,
             tspider_result_storage_node,
             # 去除hdfs存储节点
@@ -248,11 +249,11 @@ class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
             parent=stream_source_node,
         )
 
-        strategy_storage_node = TSpiderStorageNode(
-            source_rt_id=strategy_process_node.output_table_name,
-            storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS,
-            parent=strategy_process_node,
-        )
+        # strategy_storage_node = TSpiderStorageNode(
+        #     source_rt_id=strategy_process_node.output_table_name,
+        #     storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS,
+        #     parent=strategy_process_node,
+        # )
 
         scene_service_node = MultivariateAnomalySceneServiceNode(
             source_rt_id=strategy_process_node.output_table_name,
@@ -279,7 +280,7 @@ class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
         self.node_list = [
             stream_source_node,
             strategy_process_node,
-            strategy_storage_node,
+            # strategy_storage_node,
             scene_service_node,
             tspider_result_storage_node,
             # hdfs_result_storage_node,

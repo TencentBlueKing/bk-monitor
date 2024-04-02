@@ -1,26 +1,18 @@
+@import '../../../static/scss/mixin.scss';
+
 .advanced-filter-skeleton {
-  padding-right: 16px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  .w--100 {
-    width: auto;
-  }
-  .h-25 {
-    height: 25px;
-  }
-  .h-16 {
-    height: 16px;
-  }
-  .mt-16 {
-    margin-top: 16px;
-  }
-  .ml-12 {
-    margin-left: 12px;
-  }
-  .mr-12 {
-    margin-right: 12px;
-  }
-  .mt-10 {
-    margin-top: 10px;
+  padding-top: 11px;
+  padding-right: 16px;
+
+  @include common-style;
+
+  .container-01 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
   }
 }

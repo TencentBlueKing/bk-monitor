@@ -159,8 +159,8 @@ def sync_bkcc_space_data_source():
     real_biz_data_id_dict, zero_data_id_list = get_real_zero_biz_data_id()
     models.DataSource.objects.filter(bk_data_id__in=zero_data_id_list).exclude(
         Q(bk_data_id__in=SKIP_DATA_ID_LIST_FOR_BKCC)
-        | Q(space_uid__starswith=SpaceTypes.BKCI.value)
-        | Q(space_uid__starswith=SpaceTypes.BKSAAS.value)
+        | Q(space_uid__startswith=SpaceTypes.BKCI.value)
+        | Q(space_uid__startswith=SpaceTypes.BKSAAS.value)
     ).update(is_platform_data_id=True, space_type_id=SpaceTypes.BKCC.value)
     logger.info(
         "update is_platform_data_id: %s, belong space type: %s of data id: %s",

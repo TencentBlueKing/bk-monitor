@@ -101,6 +101,7 @@ export default {
     TableList
   },
   mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
   props: {
     retrieveParams: {
       type: Object,

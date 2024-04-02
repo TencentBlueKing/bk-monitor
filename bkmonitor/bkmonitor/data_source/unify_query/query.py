@@ -156,6 +156,12 @@ class UnifyQuery:
 
         # 灰度切换unify-query判定， 不灰度就全量放开
         if self.data_sources[0].id in GrayUnifyQueryDataSources:
+            # 先排除特殊查询： aiops策略定义的特殊查询, 搜索关键字： !!! 特殊逻辑 重要提示 !!!
+            # init_by_query_config 逻辑中，metrics列表 正常只有指标(field_name)或者日志关键字(_index)
+            # 当 metrics 有多个时，表示特殊逻辑
+            if len(self.data_sources[0].metrics) > 1:
+                return False
+
             # 灰度状态： 灰度业务列表不包含0业务
             grayscale = 0 not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
 

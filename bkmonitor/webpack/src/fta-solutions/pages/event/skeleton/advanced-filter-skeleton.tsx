@@ -31,36 +31,50 @@ import './advanced-filter-skeleton.scss';
 @Component
 export default class AdvancedFilterSkeleton extends tsc<{}> {
   render() {
+    const domFn = config =>
+      config.map((item, index) => (
+        <div
+          class='container-01'
+          style={{
+            marginTop: `${item.mt}px`
+          }}
+          key={index}
+        >
+          <div
+            class='h-24 skeleton-element'
+            style={{
+              width: `${item.lw}px`,
+              marginLeft: `${item.lml}px`
+            }}
+          ></div>
+          <div class='h-24 w-24 skeleton-element'></div>
+        </div>
+      ));
     return (
       <div class='advanced-filter-skeleton'>
-        <div class='h-25 w--100 mt-16 skeleton-element'></div>
-        {new Array(3).fill(null).map((_item, index) => (
-          <div
-            class='h-16 w--100 mt-10 ml-12 mr-12 skeleton-element'
-            key={`a_${index}`}
-          ></div>
-        ))}
-        <div class='h-25 w--100 mt-16 skeleton-element'></div>
-        {new Array(4).fill(null).map((_item, index) => (
-          <div
-            class='h-16 w--100 mt-10 ml-12 mr-12 skeleton-element'
-            key={`b_${index}`}
-          ></div>
-        ))}
-        <div class='h-25 w--100 mt-16 skeleton-element'></div>
-        {new Array(3).fill(null).map((_item, index) => (
-          <div
-            class='h-16 w--100 mt-10 ml-12 mr-12 skeleton-element'
-            key={`c_${index}`}
-          ></div>
-        ))}
-        <div class='h-25 w--100 mt-16 skeleton-element'></div>
-        {new Array(10).fill(null).map((_item, index) => (
-          <div
-            class='h-16 w--100 mt-10 ml-12 mr-12 skeleton-element'
-            key={`d_${index}`}
-          ></div>
-        ))}
+        <div class='h-24 w-auto skeleton-element'></div>
+        {domFn([
+          { lw: 106, lml: 12, mt: 8 },
+          { lw: 119, lml: 12, mt: 4 },
+          { lw: 70, lml: 12, mt: 4 }
+        ])}
+        <div class='h-24 w-auto mt-8 skeleton-element'></div>
+        {domFn([
+          { lw: 106, lml: 12, mt: 8 },
+          { lw: 119, lml: 36, mt: 4 },
+          { lw: 70, lml: 36, mt: 4 },
+          { lw: 89, lml: 36, mt: 4 },
+          { lw: 106, lml: 12, mt: 4 },
+          { lw: 70, lml: 36, mt: 4 },
+          { lw: 95, lml: 36, mt: 4 },
+          { lw: 95, lml: 36, mt: 4 }
+        ])}
+        <div class='h-24 w-auto mt-8 skeleton-element'></div>
+        {domFn([
+          { lw: 106, lml: 12, mt: 8 },
+          { lw: 119, lml: 12, mt: 4 },
+          { lw: 70, lml: 12, mt: 4 }
+        ])}
       </div>
     );
   }
