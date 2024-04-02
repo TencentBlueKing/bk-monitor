@@ -213,6 +213,8 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
 
 class AccessDataProcess(BaseAccessDataProcess):
+    BATCH_SPLIT_THRESHOLD = 50000
+
     def __init__(self, strategy_group_key: str, sub_task_id: str = None, *args, **kwargs):
         super(AccessDataProcess, self).__init__(sub_task_id=sub_task_id, *args, **kwargs)
         self.strategy_group_key = strategy_group_key
@@ -290,9 +292,9 @@ class AccessDataProcess(BaseAccessDataProcess):
             if not points:
                 return
 
-            # 当点数大于10000万时，将数据拆分为多个批量任务
-            if len(points) > 100000:
-                points = self.send_batch_data(points)
+            # 当点数大于10000时，将数据拆分为多个批量任务
+            if len(points) > self.BATCH_SPLIT_THRESHOLD * 2:
+                points = self.send_batch_data(points, self.BATCH_SPLIT_THRESHOLD)
 
         # 过滤重复数据并实例化
         self.filter_duplicates(points)
@@ -403,8 +405,6 @@ class AccessDataProcess(BaseAccessDataProcess):
 
             # 记录当前批次数
             batch_count += 1
-            # 记录下一轮的起始位置
-            last_batch_index = index
 
             # 第一批数据原地处理
             if batch_count == 1:
@@ -423,6 +423,9 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 发起异步任务
             run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
             self.batch_tasks.append(sub_task_id)
+
+            # 记录下一轮的起始位置
+            last_batch_index = index
 
         # 处理最后一批数据
         if last_batch_index < len(points) - 1:
@@ -598,14 +601,10 @@ class AccessBatchDataProcess(AccessDataProcess):
     分批任务处理器
     """
 
-    def __init__(self, strategy_group_key: str, data_key: str, *args, **kwargs):
-        self.data_key = data_key
-        super().__init__(strategy_group_key, *args, **kwargs)
-
     def pull(self):
         client = key.ACCESS_BATCH_DATA_KEY.client
         cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
-            strategy_group_key=self.strategy_group_key, data_key=self.data_key
+            strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
         )
 
         points: List[str] = client.lrange(cache_key, 0, -1)

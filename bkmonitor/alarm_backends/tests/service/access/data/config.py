@@ -21,14 +21,14 @@ RAW_DATA_ZERO = {
     "bk_target_ip": "127.0.0.2",
     "load5": 0,
     "bk_target_cloud_id": "0",
-    "_time_": 1569246480000,
+    "_time_": 1569246420000,
     "_result_": 0,
 }
 RAW_DATA_NONE = {
     "bk_target_ip": "127.0.0.3",
     "load5": None,
     "bk_target_cloud_id": "0",
-    "_time_": 1569246480000,
+    "_time_": 1569246420000,
     "_result_": None,
 }
 
