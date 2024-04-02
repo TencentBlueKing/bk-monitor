@@ -2264,10 +2264,7 @@ class UnionSearchHandler(object):
                 multi_execute_func.append(f"union_search_{union_config['index_set_id']}", search_handler.search)
 
         # 执行线程
-        multi_result = multi_execute_func.run()
-
-        if not multi_result:
-            raise UnionSearchErrorException()
+        multi_result = multi_execute_func.run(return_exception=True)
 
         # 处理返回结果
         result_log_list = list()
@@ -2277,6 +2274,13 @@ class UnionSearchHandler(object):
         took = 0
         for index_set_id in self.index_set_ids:
             ret = multi_result.get(f"union_search_{index_set_id}")
+
+            if isinstance(ret, Exception):
+                # 子查询异常
+                raise UnionSearchErrorException(
+                    UnionSearchErrorException.MESSAGE.format(index_set_id=index_set_id, e=ret)
+                )
+
             result_log_list.extend(ret["list"])
             result_origin_log_list.extend(ret["origin_log_list"])
             total += int(ret["total"])
