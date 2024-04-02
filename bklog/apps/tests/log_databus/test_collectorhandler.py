@@ -22,10 +22,11 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import patch
 
+from django.test import TestCase
+
 from apps.exceptions import ApiResultError
 from apps.log_databus.constants import LogPluginInfo
 from apps.log_databus.handlers.collector import CollectorHandler
-from django.test import TestCase
 
 BK_DATA_ID = 1
 BK_DATA_NAME = "2_log_test_collector"
@@ -54,8 +55,8 @@ PARAMS = {
             "match_content": "delete",
             "separator": "|",
             "separator_filters": [
-                {"fieldindex": 1, "word": "val1", "op": "=", "logic_op": "or"},
-                {"fieldindex": 2, "word": "val2", "op": "=", "logic_op": "or"},
+                {"fieldindex": 1, "word": "val1", "op": "eq", "logic_op": "or"},
+                {"fieldindex": 2, "word": "val2", "op": "eq", "logic_op": "or"},
             ],
         },
         "tail_files": True,
@@ -146,8 +147,8 @@ CONFIG_DATA = {
                                     "paths": ["testlogic_op"],
                                     "delimiter": "|",
                                     "filters": [
-                                        {"conditions": [{"index": 1, "key": "val1", "op": "="}]},
-                                        {"conditions": [{"index": 1, "key": "val1", "op": "="}]},
+                                        {"conditions": [{"index": 1, "key": "val1", "op": "eq"}]},
+                                        {"conditions": [{"index": 1, "key": "val1", "op": "eq"}]},
                                     ],
                                     "encoding": "UTF-8",
                                 }

@@ -263,6 +263,10 @@ class AlertDocument(BaseDocument):
         return [d.to_dict() for d in self.dimensions if d.key not in TARGET_DIMENSIONS]
 
     @property
+    def common_dimension_tuple(self) -> tuple:
+        return tuple(sorted([(d.key, d.value) for d in self.common_dimensions], key=lambda x: x[0]))
+
+    @property
     def is_composite_strategy(self):
         """
         检查是否为关联告警策略
