@@ -549,6 +549,25 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
       return;
     }
   }
+
+  createSkeleton() {
+    return (
+      <div class='common-detail-skeleton'>
+        <div class='status-container'>
+          <div class='skeleton-element'></div>
+        </div>
+        <div class='detail-info'>
+          {Array.from({ length: 15 }).map(() => (
+            <div class='detail-info-item'>
+              <div class='skeleton-element label'></div>
+              <div class={`skeleton-element value style${Math.floor(Math.random() * 4) + 1}`}></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   render() {
     const mainTpl = (
       <div class='selector-list-main'>
@@ -564,15 +583,16 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
           )}
         </div>
         <div class={`common-detail-panel ${this.needOverflow ? 'need-overflow' : ''}`}>
-          {this.$scopedSlots.default ? (
-            this.$scopedSlots.default?.({ contentHeight: this.contentHeight, width: this.width })
-          ) : (
-            <HostDetailView
-              data={this.data}
-              width={this.width}
-              onLinkToDetail={v => this.$emit('linkToDetail', v)}
-            ></HostDetailView>
-          )}
+          {this.$scopedSlots.default
+            ? this.$scopedSlots.default?.({ contentHeight: this.contentHeight, width: this.width })
+            : [
+                <HostDetailView
+                  data={this.data}
+                  width={this.width}
+                  onLinkToDetail={v => this.$emit('linkToDetail', v)}
+                ></HostDetailView>,
+                this.loading && this.createSkeleton()
+              ]}
           {this.aiPanel && (
             <Aipanel
               panel={this.aiPanel}

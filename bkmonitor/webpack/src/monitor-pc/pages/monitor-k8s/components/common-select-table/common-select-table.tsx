@@ -32,8 +32,6 @@ import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { K8sTableSkeletonModelConfig } from '../../../../components/skeleton/model';
-import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
@@ -513,6 +511,29 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     return mainWidth;
   }
 
+  createSkeleton() {
+    return (
+      <div class='select-table-skeleton-box'>
+        <div class='input-wrap'>
+          <div class='skeleton-element input'></div>
+          <div class='skeleton-element refresh'></div>
+        </div>
+        <div class='filter-wrap'>
+          <div class='skeleton-element status-filter'></div>
+          <div class='skeleton-element sort-filter'></div>
+        </div>
+        <div class='table-wrap'>
+          <div class='skeleton-element table-header'></div>
+          <div class='table-body'>
+            {Array.from({ length: 15 }).map(() => (
+              <div class='skeleton-element table-item'></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   render() {
     const handleLoadBarText = () => {
       if (this.isScrollLoading) {
@@ -626,12 +647,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         </div>
         {this.showScrollLoadBar && <div class='scroll-load-bar'>{handleLoadBarText()}</div>}
 
-        {this.loading && (
-          <SkeletonBase
-            class='select-table-skeleton-box'
-            children={K8sTableSkeletonModelConfig(30)}
-          />
-        )}
+        {this.loading && this.createSkeleton()}
       </div>
     );
   }
