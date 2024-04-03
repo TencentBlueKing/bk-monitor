@@ -32,6 +32,7 @@ import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';
 import AlarmGroupDetail from '../alarm-group-detail/alarm-group-detail';
 import * as authorityMap from '../authority-map';
@@ -593,61 +594,67 @@ export default class AlarmGroup extends tsc<IGroupList> {
           right-icon='bk-icon icon-search'
         ></bk-input> */}
             </div>
-            <bk-table
-              class='alarm-group-table'
-              data={this.tableData}
-              outer-border={false}
-              header-border={false}
-              size={this.tableSize}
-            >
-              <div slot='empty'>
-                <EmptyStatus
-                  type={this.emptyType}
-                  onOperation={this.handleOperation}
-                />
-              </div>
-              {this.tableColumnsList
-                .filter(item => this.selectedColumn.includes(item.prop))
-                .map(item => (
-                  <bk-table-column
-                    key={item.prop}
-                    label={item.label}
-                    prop={item.prop}
-                    {...{ props: item.props }}
-                    width={item.width}
-                    min-width={item.minWidth}
-                    show-overflow-tooltip={item.prop !== 'duty_rules'}
-                    formatter={item.formatter}
-                  />
-                ))}
-              <bk-table-column
-                type='setting'
-                tippy-options={{ zIndex: 999 }}
-              >
-                <bk-table-setting-content
-                  fields={this.settingFields}
-                  selected={this.selectedFields}
+            {this.loading ? (
+              <TableSkeleton class='mt-16'></TableSkeleton>
+            ) : (
+              [
+                <bk-table
+                  class='alarm-group-table'
+                  data={this.tableData}
+                  outer-border={false}
+                  header-border={false}
                   size={this.tableSize}
-                  on-setting-change={this.handleSettingChange}
-                ></bk-table-setting-content>
-              </bk-table-column>
-            </bk-table>
-            <div class='alarm-group-pagination'>
-              {this.tableInstance ? (
-                <bk-pagination
-                  class='config-pagination list-pagination'
-                  align='right'
-                  size='small'
-                  current={this.tableInstance.page}
-                  limit={this.tableInstance.pageSize}
-                  count={this.tableInstance.total}
-                  limit-list={this.tableInstance.pageList}
-                  on-change={this.handlePageChange}
-                  on-limit-change={this.handleLimitChange}
-                  show-total-count
-                ></bk-pagination>
-              ) : undefined}
-            </div>
+                >
+                  <div slot='empty'>
+                    <EmptyStatus
+                      type={this.emptyType}
+                      onOperation={this.handleOperation}
+                    />
+                  </div>
+                  {this.tableColumnsList
+                    .filter(item => this.selectedColumn.includes(item.prop))
+                    .map(item => (
+                      <bk-table-column
+                        key={item.prop}
+                        label={item.label}
+                        prop={item.prop}
+                        {...{ props: item.props }}
+                        width={item.width}
+                        min-width={item.minWidth}
+                        show-overflow-tooltip={item.prop !== 'duty_rules'}
+                        formatter={item.formatter}
+                      />
+                    ))}
+                  <bk-table-column
+                    type='setting'
+                    tippy-options={{ zIndex: 999 }}
+                  >
+                    <bk-table-setting-content
+                      fields={this.settingFields}
+                      selected={this.selectedFields}
+                      size={this.tableSize}
+                      on-setting-change={this.handleSettingChange}
+                    ></bk-table-setting-content>
+                  </bk-table-column>
+                </bk-table>,
+                <div class='alarm-group-pagination'>
+                  {this.tableInstance ? (
+                    <bk-pagination
+                      class='config-pagination list-pagination'
+                      align='right'
+                      size='small'
+                      current={this.tableInstance.page}
+                      limit={this.tableInstance.pageSize}
+                      count={this.tableInstance.total}
+                      limit-list={this.tableInstance.pageList}
+                      on-change={this.handlePageChange}
+                      on-limit-change={this.handleLimitChange}
+                      show-total-count
+                    ></bk-pagination>
+                  ) : undefined}
+                </div>
+              ]
+            )}
           </div>
         </div>
         <AlarmGroupDetail

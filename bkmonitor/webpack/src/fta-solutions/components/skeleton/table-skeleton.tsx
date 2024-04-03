@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './table-skeleton.scss';
@@ -45,6 +45,30 @@ function getWrapStyle(config) {
   };
 }
 const config01 = {
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.31, 0.1, 0.07],
+  rowHeights: [20, 22, 22, 22, 22, 22, 22, 22, 22, 22],
+  config: [
+    [
+      { width: '35px' },
+      { width: '35px' },
+      { width: '35px' },
+      { width: '35px' },
+      { width: '84px' },
+      { width: '20px' },
+      { width: '20px' }
+    ],
+    [{ width: '35px' }, 40, 40, 114, 40, 40, 0],
+    [{ width: '35px' }, 40, 80, 92, 40, 40, 0],
+    [{ width: '35px' }, 40, 40, 52, 40, 40, 0],
+    [{ width: '35px' }, 40, 80, 40, 40, 40, 0],
+    [{ width: '35px' }, 40, 40, 92, 40, 40, 0],
+    [{ width: '35px' }, 40, 40, 52, 40, 40, 0],
+    [{ width: '35px' }, 40, 73, 40, 40, 40, 0],
+    [{ width: '35px' }, 40, 40, 92, 40, 40, 0],
+    [{ width: '35px' }, 40, 60, 40, 40, 40, 0]
+  ]
+};
+const config02 = {
   colWidths: [0.05, 0.15, 0.15, 0.16, 0.31, 0.1, 0.07],
   rowHeights: [20, 36, 36, 36, 36, 36, 36, 36, 36, 36],
   config: [
@@ -69,12 +93,28 @@ const config01 = {
   ]
 };
 
+interface IProps {
+  type?: number;
+}
+
 @Component
-export default class TableSkeleton extends tsc<{}> {
+export default class TableSkeleton extends tsc<IProps> {
+  @Prop({ type: Number, default: 1 }) type: number;
+
+  get config() {
+    if (this.type === 1) {
+      return config01;
+    }
+    if (this.type === 2) {
+      return config02;
+    }
+    return config01;
+  }
+
   render() {
     return (
       <div class='common-table-skeleton'>
-        {config01.config.map((item, index) => (
+        {this.config.config.map((item, index) => (
           <div
             key={index}
             class='common-table-skeleton-row'
@@ -84,8 +124,8 @@ export default class TableSkeleton extends tsc<{}> {
                 key={`${index}_${pIndex}`}
                 class='common-table-skeleton-row-item'
                 style={{
-                  width: `${config01.colWidths[pIndex] * 100}%`,
-                  height: `${config01.rowHeights[index]}px`,
+                  width: `${this.config.colWidths[pIndex] * 100}%`,
+                  height: `${this.config.rowHeights[index]}px`,
                   ...getWrapStyle(pItem)
                 }}
               >
