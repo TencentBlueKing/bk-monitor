@@ -40,6 +40,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { UPTIME_CHECK_LIST } from '../monitor-k8s//typings/tools';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
@@ -50,7 +51,6 @@ import HeaderTools, { IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
 import TaskCard, { IData as ItaskItem, IOptionTypes as ITaskCardOperate } from './components/task-card';
 import UploadContent from './components/upload-content';
-import NodeTableSkeleton from './skeleton/node-table-skeleton';
 import TaskCardSkeleton from './skeleton/task-card-skeleton';
 import UptimeCheckEmpty from './uptime-check-task/uptime-check-empty/uptime-check-empty.vue';
 import UptimeCheckImport from './uptime-check-task/uptime-check-import/uptime-check-import.vue';
@@ -671,9 +671,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
 
   // 表格容器
   getTableData() {
-    return this.loading ? (
-      <NodeTableSkeleton has2Btn={true}></NodeTableSkeleton>
-    ) : (
+    return (
       <div class='table-data-content'>
         <HeaderTools
           option={{ showTask: true, showImport: true }}
@@ -681,83 +679,87 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           onCreate={this.handleHeaderCreate}
           onSearch={(v: string) => this.handleSearch(v)}
         ></HeaderTools>
-        <CommonTable
-          style={{ marginTop: '16px' }}
-          {...{ props: taskCommonTableProps }}
-          data={this.taskTableData.data}
-          pagination={this.taskTableData.pagination}
-          scopedSlots={{
-            operate: (row: ItaskItem) => (
-              <OperateOptions
-                options={{
-                  outside: [
-                    {
-                      id: 'edit',
-                      name: window.i18n.tc('button-编辑'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH
-                    },
-                    {
-                      id: 'delete',
-                      name: window.i18n.tc('删除'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH
-                    }
-                  ],
-                  popover: [
-                    {
-                      id: 'clone',
-                      name: window.i18n.tc('克隆'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH
-                    }
-                  ]
-                }}
-                onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
-              ></OperateOptions>
-            ),
-            name: (row: ItaskItem) => (
-              <span
-                class='task-name'
-                onClick={() => this.handleTaskNameClick(row.id)}
-              >
-                {row.name}
-              </span>
-            ),
-            enable: (row: ItaskItem) => (
-              <bk-switcher
-                value={taskSwitch(row.status)}
-                disabled={taskSwitchDisabled(row.status)}
-                size={'small'}
-                theme={'primary'}
-                preCheck={() => this.taskSwitchChangePreCheck(row.id, row.status)}
-                on-change={this.handleTaskSwitchChange}
-              ></bk-switcher>
-            ),
-            statusText: (row: ItaskItem) => (
-              <span style={{ color: taskStatusTextColor(row.status) }}>{taskStatusMap[row.status]}</span>
-            ),
-            progress: (row: ItaskItem) => (
-              <div>
-                {<div>{row.available !== null ? `${row.available}%` : '--'}</div>}
-                <bk-progress
-                  color={tableAvailableProcessColor(row.available, row.status)}
-                  showText={false}
-                  percent={Number((row.available * 0.01).toFixed(2)) || 0}
-                ></bk-progress>
-              </div>
-            )
-          }}
-          onPageChange={this.handleTaskTablePageChange}
-          onLimitChange={this.handleTaskTableLimitChange}
-          onSortChange={this.handleSortChange}
-        >
-          <EmptyStatus
-            type={this.emptyStatusType}
-            slot='empty'
-            onOperation={this.handleOperation}
-          />
-        </CommonTable>
+        {this.loading ? (
+          <TableSkeleton class='mt-16'></TableSkeleton>
+        ) : (
+          <CommonTable
+            style={{ marginTop: '16px' }}
+            {...{ props: taskCommonTableProps }}
+            data={this.taskTableData.data}
+            pagination={this.taskTableData.pagination}
+            scopedSlots={{
+              operate: (row: ItaskItem) => (
+                <OperateOptions
+                  options={{
+                    outside: [
+                      {
+                        id: 'edit',
+                        name: window.i18n.tc('button-编辑'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH
+                      },
+                      {
+                        id: 'delete',
+                        name: window.i18n.tc('删除'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH
+                      }
+                    ],
+                    popover: [
+                      {
+                        id: 'clone',
+                        name: window.i18n.tc('克隆'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH
+                      }
+                    ]
+                  }}
+                  onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
+                ></OperateOptions>
+              ),
+              name: (row: ItaskItem) => (
+                <span
+                  class='task-name'
+                  onClick={() => this.handleTaskNameClick(row.id)}
+                >
+                  {row.name}
+                </span>
+              ),
+              enable: (row: ItaskItem) => (
+                <bk-switcher
+                  value={taskSwitch(row.status)}
+                  disabled={taskSwitchDisabled(row.status)}
+                  size={'small'}
+                  theme={'primary'}
+                  preCheck={() => this.taskSwitchChangePreCheck(row.id, row.status)}
+                  on-change={this.handleTaskSwitchChange}
+                ></bk-switcher>
+              ),
+              statusText: (row: ItaskItem) => (
+                <span style={{ color: taskStatusTextColor(row.status) }}>{taskStatusMap[row.status]}</span>
+              ),
+              progress: (row: ItaskItem) => (
+                <div>
+                  {<div>{row.available !== null ? `${row.available}%` : '--'}</div>}
+                  <bk-progress
+                    color={tableAvailableProcessColor(row.available, row.status)}
+                    showText={false}
+                    percent={Number((row.available * 0.01).toFixed(2)) || 0}
+                  ></bk-progress>
+                </div>
+              )
+            }}
+            onPageChange={this.handleTaskTablePageChange}
+            onLimitChange={this.handleTaskTableLimitChange}
+            onSortChange={this.handleSortChange}
+          >
+            <EmptyStatus
+              type={this.emptyStatusType}
+              slot='empty'
+              onOperation={this.handleOperation}
+            />
+          </CommonTable>
+        )}
       </div>
     );
   }

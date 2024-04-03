@@ -2338,7 +2338,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   if (this.tableLoading) {
                     return (
                       <div class='table-content'>
-                        <TableSkeleton></TableSkeleton>
+                        <TableSkeleton type={2}></TableSkeleton>
                       </div>
                     );
                   }
@@ -2359,7 +2359,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                     {this.activePanel === 'list' ? (
                       (() => {
                         if (this.tableLoading) {
-                          return <TableSkeleton></TableSkeleton>;
+                          return <TableSkeleton type={2}></TableSkeleton>;
                         }
                         return (
                           <EventTable

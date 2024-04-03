@@ -32,11 +32,11 @@ import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import { getEventPaths } from 'monitor-pc/utils/index';
 
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { commonAlertFieldMap } from '../event';
 import FilterInput from '../filter-input';
 import { FilterInputStatus, SearchType } from '../typings/event';
 
-import RelatedEventsSkeleton from './skeleton/related-events-skeleton';
 import { IDetail } from './type';
 
 import './related-events.scss';
@@ -632,7 +632,12 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       expandDom.firstChild.querySelector('.bk-table-expand-icon').click();
     };
 
-    return (
+    return this.loading ? (
+      <TableSkeleton
+        type={2}
+        class='mt-16'
+      ></TableSkeleton>
+    ) : (
       <bk-table
         {...{
           props: {
@@ -689,41 +694,43 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
    */
   getRelatedeventsSettingComponent() {
     return (
-      <div class='relatedevents-filter-btn'>
-        <bk-popover
-          placement='bottom-end'
-          width='515'
-          theme='light strategy-setting'
-          trigger='click'
-          offset='0, 10'
-        >
-          <div class='filter-btn'>
-            <span class='icon-monitor icon-menu-set'></span>
-          </div>
-          <div
-            slot='content'
-            class='relatedevents-tool-popover'
+      this.isLoading && (
+        <div class='relatedevents-filter-btn'>
+          <bk-popover
+            placement='bottom-end'
+            width='515'
+            theme='light strategy-setting'
+            trigger='click'
+            offset='0, 10'
           >
-            <div class='tool-popover-title'>{this.$t('字段显示设置')}</div>
-            <ul class='tool-popover-content'>
-              {this.tableColumns.map(item => (
-                <li
-                  key={item.id}
-                  class='tool-popover-content-item'
-                >
-                  <bk-checkbox
-                    value={item.checked}
-                    on-change={() => this.handleCheckColChange(item)}
-                    disabled={item.disabled}
+            <div class='filter-btn'>
+              <span class='icon-monitor icon-menu-set'></span>
+            </div>
+            <div
+              slot='content'
+              class='relatedevents-tool-popover'
+            >
+              <div class='tool-popover-title'>{this.$t('字段显示设置')}</div>
+              <ul class='tool-popover-content'>
+                {this.tableColumns.map(item => (
+                  <li
+                    key={item.id}
+                    class='tool-popover-content-item'
                   >
-                    {item.name}
-                  </bk-checkbox>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </bk-popover>
-      </div>
+                    <bk-checkbox
+                      value={item.checked}
+                      on-change={() => this.handleCheckColChange(item)}
+                      disabled={item.disabled}
+                    >
+                      {item.name}
+                    </bk-checkbox>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </bk-popover>
+        </div>
+      )
     );
   }
 
@@ -738,7 +745,6 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         class={['event-detail-relatedevents', { displaynone: !this.show }]}
         // v-bkloading={{ isLoading: this.isLoading }}
       >
-        {this.isLoading && <RelatedEventsSkeleton></RelatedEventsSkeleton>}
         <FilterInput
           value={this.queryString}
           searchType={this.searchType}

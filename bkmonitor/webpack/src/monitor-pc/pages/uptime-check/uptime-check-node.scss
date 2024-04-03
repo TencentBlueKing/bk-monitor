@@ -1,13 +1,17 @@
 .uptime-check-task-component {
-  height: 100%;
   width: 100%;
+  height: 100%;
   padding: 20px 16px;
 
-  .table-data-content {
+  .mt-16 {
+    margin-top: 16px;
+  }
+
+  .table-data-content { 
+    padding: 20px 16px;
     background: #ffff;
     border-radius: 2px;
-    box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05); 
-    padding: 20px 16px;
+    box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
 
     .task-num {
       color: #3a84ff;
@@ -23,9 +27,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      margin-left: 4px;
       font-size: 12px;
       color: #ff9c01;
-      margin-left: 4px;
       cursor: pointer;
     }
   }

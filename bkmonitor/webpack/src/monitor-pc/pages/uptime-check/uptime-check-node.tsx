@@ -29,12 +29,12 @@ import { destroyUptimeCheckNode, listUptimeCheckNode } from 'monitor-api/modules
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
 
 import HeaderTools, { IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
-import NodeTableSkeleton from './skeleton/node-table-skeleton';
 import {
   INodeData,
   INodesTableData,
@@ -274,18 +274,18 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   render() {
     return (
       <div class='uptime-check-task-component'>
-        {this.loading ? (
-          <NodeTableSkeleton></NodeTableSkeleton>
-        ) : (
-          <div class='table-data-content'>
-            <HeaderTools
-              option={{
-                showNode: true
-              }}
-              search={this.searchValue}
-              onCreate={this.handleHeaderCreate}
-              onSearch={(v: string) => this.handleSearch(v)}
-            ></HeaderTools>
+        <div class='table-data-content'>
+          <HeaderTools
+            option={{
+              showNode: true
+            }}
+            search={this.searchValue}
+            onCreate={this.handleHeaderCreate}
+            onSearch={(v: string) => this.handleSearch(v)}
+          ></HeaderTools>
+          {this.loading ? (
+            <TableSkeleton class='mt-16'></TableSkeleton>
+          ) : (
             <CommonTable
               style={{ marginTop: '16px' }}
               {...{ props: this.nodesTableData }}
@@ -348,8 +348,8 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
                 onOperation={this.handleOperation}
               />
             </CommonTable>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   }
