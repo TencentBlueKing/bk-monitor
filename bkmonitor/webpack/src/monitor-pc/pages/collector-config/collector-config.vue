@@ -31,7 +31,6 @@
   <div
     v-else
     class="collector-config"
-    v-monitor-loading="{ isLoading: delayLoading }"
   >
     <page-tips
       style="margin-bottom: 16px"
@@ -119,7 +118,8 @@
         ref="tableWrapper"
         class="collector-config-table"
       >
-        <div class="table-wrap">
+        <table-skeleton v-if="delayLoading" :type="2"></table-skeleton>
+        <div class="table-wrap" v-else>
           <bk-table
             class="config-table"
             ref="table"
@@ -412,6 +412,7 @@ import CollectorConfigUpdate from './collector-config-update/collector-config-up
 import DeleteCollector from './collector-dialog-delete/collector-dialog-delete';
 import * as collectAuth from './authority-map';
 import TableStore from './store.ts';
+import TableSkeleton from '../../components/skeleton/table-skeleton.tsx';
 
 const { mapMutations } = createNamespacedHelpers('collector-config');
 export default {
@@ -422,7 +423,8 @@ export default {
     DeleteCollector,
     pageTips,
     EmptyStatus,
-    GuidePage
+    GuidePage,
+    TableSkeleton
   },
   mixins: [commonPageSizeMixin, authorityMixinCreate(collectAuth)],
   provide() {
