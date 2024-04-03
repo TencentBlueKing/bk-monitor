@@ -45,7 +45,7 @@ function getWrapStyle(config) {
   };
 }
 const config01 = {
-  colWidths: [0.05, 0.15, 0.15, 0.16, 0.31, 0.1, 0.07],
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.32, 0.1, 0.07],
   rowHeights: [20, 22, 22, 22, 22, 22, 22, 22, 22, 22],
   config: [
     [
@@ -69,7 +69,7 @@ const config01 = {
   ]
 };
 const config02 = {
-  colWidths: [0.05, 0.15, 0.15, 0.16, 0.31, 0.1, 0.07],
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.32, 0.1, 0.07],
   rowHeights: [20, 36, 36, 36, 36, 36, 36, 36, 36, 36],
   config: [
     [
