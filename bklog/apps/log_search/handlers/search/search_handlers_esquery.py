@@ -1711,9 +1711,6 @@ class SearchHandler(object):
             "require_field_match": require_field_match,
         }
 
-        if self.query_string == "":
-            highlight = {}
-
         if self.export_log:
             highlight = {}
 
