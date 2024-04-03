@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@blueking/bk-weweb": "0.0.25.beta.11",
+    "@blueking/bkui-library": "0.0.0-beta.4",
     "@blueking/date-picker": "^2.0.0-beta.10",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",

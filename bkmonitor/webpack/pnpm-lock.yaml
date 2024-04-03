@@ -528,9 +528,12 @@ importers:
       '@blueking/bk-weweb':
         specifier: 0.0.25.beta.11
         version: 0.0.2-5.beta.11
+      '@blueking/bkui-library':
+        specifier: 0.0.0-beta.4
+        version: 0.0.0-beta.4
       '@blueking/date-picker':
         specifier: ^2.0.0-beta.10
-        version: 2.0.0-beta.10(dayjs@1.11.10)(vue@2.7.16)
+        version: 2.0.0-beta.10(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.10)(vue@2.7.16)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -2751,6 +2754,26 @@ packages:
       - whiskers
     dev: true
 
+  /@blueking/bkui-library@0.0.0-beta.4:
+    resolution: {integrity: sha512-FjrSj+tglFjpy17NvTZidzbtgm3l7nEn5Jyi1pB7lCK6eBkXam66IF+zZYDFE1XeyEeZfTAFUHV/Kil+Q6DmLg==}
+    dependencies:
+      '@vue/runtime-dom': 3.4.21
+    dev: false
+
+  /@blueking/date-picker@2.0.0-beta.10(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.10)(vue@2.7.16):
+    resolution: {integrity: sha512-+wQC26FQTkhZrN0t1DbWWUaS6MUhQyVj/8GWUHKMmsfKa3DFNSsDBuma3m8PXDJGP9CIs8J+lf8xDRBAqygTFw==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      '@blueking/bkui-library': latest
+      bkui-vue: latest
+      dayjs: ^1.11.10
+      vue: latest
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.4
+      dayjs: 1.11.10
+      vue: 2.7.16
+    dev: false
+
   /@blueking/date-picker@2.0.0-beta.10(bkui-vue@1.0.3-beta.9)(dayjs@1.11.10)(vue@3.4.21):
     resolution: {integrity: sha512-+wQC26FQTkhZrN0t1DbWWUaS6MUhQyVj/8GWUHKMmsfKa3DFNSsDBuma3m8PXDJGP9CIs8J+lf8xDRBAqygTFw==}
     engines: {node: '>=18.16.0'}
@@ -2763,19 +2786,6 @@ packages:
       bkui-vue: 1.0.3-beta.9(highlight.js@11.5.1)(vue@3.4.21)
       dayjs: 1.11.10
       vue: 3.4.21(typescript@5.4.3)
-    dev: false
-
-  /@blueking/date-picker@2.0.0-beta.10(dayjs@1.11.10)(vue@2.7.16):
-    resolution: {integrity: sha512-+wQC26FQTkhZrN0t1DbWWUaS6MUhQyVj/8GWUHKMmsfKa3DFNSsDBuma3m8PXDJGP9CIs8J+lf8xDRBAqygTFw==}
-    engines: {node: '>=18.16.0'}
-    peerDependencies:
-      '@blueking/bkui-library': latest
-      bkui-vue: latest
-      dayjs: ^1.11.10
-      vue: latest
-    dependencies:
-      dayjs: 1.11.10
-      vue: 2.7.16
     dev: false
 
   /@blueking/fork-resize-detector@0.0.2:
