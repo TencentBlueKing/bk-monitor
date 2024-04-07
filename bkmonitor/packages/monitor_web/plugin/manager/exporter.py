@@ -295,7 +295,9 @@ class ExtFilePluginManager(PluginFileManager):
         try:
             fd = ContentFile(request_file_data)
             handler = cls.get_compression_handler(extension)
-            return handler(fd)
+            root_tree = handler(fd)
+            # 压缩包，解压出一个根目录
+            return root_tree["children"][0]
         except Exception as ex:
             raise IOError(f'preview file structure error: {ex}')
 
