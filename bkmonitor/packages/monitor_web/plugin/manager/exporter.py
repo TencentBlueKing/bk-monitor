@@ -316,6 +316,43 @@ class ExtFilePluginManager(PluginFileManager):
         return tree
 
     @classmethod
+    def build_tar_tree(cls, fd):
+        # 初始化根节点
+        tree = {"name": "root", "type": "directory", "children": []}
+        with tarfile.open(fileobj=fd) as tf:
+            for member in tf.getmembers():
+                if member.name.rsplit("/")[-1].startswith('._'):
+                    continue
+                parts = member.name.split('/')
+                print(parts)
+                current_level = tree
+                for part in parts:
+                    found = False
+                    # 遍历当前层级的子节点
+                    for child in current_level["children"]:
+                        if child["name"] == part:
+                            current_level = child
+                            found = True
+                            break
+                    # 如果找不到当前节点，则添加新节点
+                    if not found:
+                        new_node = {
+                            "name": part,
+                            "type": "directory" if member.isdir() else "file",
+                            "children": [],
+                        }
+                        current_level["children"].append(new_node)
+                        current_level = new_node
+
+        return tree
+
+    @classmethod
+    def build_rar_tree(cls, fd):
+        # 初始化根节点
+        # tree = {"name": "root", "type": "directory", "children": []}
+        pass
+
+    @classmethod
     def build_zip_tree(cls, fd):
         # 初始化根节点
         tree = {"name": "root", "type": "directory", "children": []}
@@ -324,22 +361,24 @@ class ExtFilePluginManager(PluginFileManager):
                 parts = file_info.filename.split('/')
                 current_level = tree
                 for part in parts:
-                    if part:
-                        found = False
-                        # 遍历当前层级的子节点
-                        for child in current_level["children"]:
-                            if child["name"] == part:
-                                current_level = child
-                                found = True
-                                break
-                        # 如果找不到当前节点，则添加新节点
-                        if not found:
-                            new_node = {
-                                "name": part,
-                                "type": "file" if part == parts[-1] else "directory",
-                                "children": [],
-                            }
+                    if not part:
+                        continue
+                    found = False
+                    # 遍历当前层级的子节点
+                    for child in current_level["children"]:
+                        if child["name"] == part:
+                            current_level = child
+                            found = True
+                            break
+                    # 如果找不到当前节点，则添加新节点
+                    if not found:
+                        new_node = {
+                            "name": part,
+                            # 如果是目录， 则最后以/结尾，parts[-1] 为 ""
+                            "type": "file" if part == parts[-1] else "directory",
+                            "children": [],
+                        }
 
-                            current_level["children"].append(new_node)
-                            current_level = new_node
+                        current_level["children"].append(new_node)
+                        current_level = new_node
         return tree
