@@ -292,28 +292,25 @@ class ExtFilePluginManager(PluginFileManager):
         """预览压缩包文件结构"""
         if not extension:
             raise Exception("file extension is required")
-
         try:
-            if extension == '.zip':
-                fd = ContentFile(request_file_data)
-                tree = cls.build_zip_tree(fd)
-
-            elif extension == '.rar':
-                rar = rarfile.RarFile(request_file_data)
-                # rar.extractall(dest_dir)
-                rar.close()
-
-            elif extension in ['.tar', ".tar.gz", ".tgz"]:
-                tar = tarfile.open(request_file_data)
-                # tar.extractall(path=dest_dir)
-                tar.close()
-            else:
-                raise Exception(f"unsupported file extension: {extension}")
-
+            fd = ContentFile(request_file_data)
+            handler = cls.get_compression_handler(extension)
+            return handler(fd)
         except Exception as ex:
-            print(f'extract file error: {ex}')
+            raise IOError(f'preview file structure error: {ex}')
 
-        return tree
+    @classmethod
+    def get_compression_handler(cls, extension):
+        handler_define = [
+            ([".zip"], cls.build_zip_tree),
+            ([".rar"], cls.build_rar_tree),
+            ([".tar", ".tar.gz", ".tgz"], cls.build_tar_tree),
+        ]
+        for target_suffix, handler in handler_define:
+            if extension.strip() in target_suffix:
+                return handler
+        else:
+            raise IOError(f"unsupported file extension: {extension}")
 
     @classmethod
     def build_tar_tree(cls, fd):
@@ -329,7 +326,9 @@ class ExtFilePluginManager(PluginFileManager):
                 for part in parts:
                     found = False
                     # 遍历当前层级的子节点
-                    for child in current_level["children"]:
+                    if current_level["type"] == "file":
+                        continue
+                    for child in current_level.setdefault("children", []):
                         if child["name"] == part:
                             current_level = child
                             found = True
@@ -349,8 +348,34 @@ class ExtFilePluginManager(PluginFileManager):
     @classmethod
     def build_rar_tree(cls, fd):
         # 初始化根节点
-        # tree = {"name": "root", "type": "directory", "children": []}
-        pass
+        tree = {"name": "root", "type": "directory", "children": []}
+        with rarfile.RarFile(fd) as rf:
+            for info in rf.infolist():
+                parts = info.filename.split('/')
+                current_level = tree
+                for part in parts:
+                    if not part:
+                        continue
+                    found = False
+                    # 遍历当前层级的子节点
+                    if current_level["type"] == "file":
+                        continue
+                    for child in current_level.setdefault("children", []):
+                        if child["name"] == part:
+                            current_level = child
+                            found = True
+                            break
+                    # 如果找不到当前节点，则添加新节点
+                    if not found:
+                        new_node = {
+                            "name": part,
+                            # 如果是目录， 则最后以/结尾，parts[-1] 为 ""
+                            "type": "file" if part == parts[-1] else "directory",
+                        }
+
+                        current_level["children"].append(new_node)
+                        current_level = new_node
+        return tree
 
     @classmethod
     def build_zip_tree(cls, fd):
@@ -365,7 +390,9 @@ class ExtFilePluginManager(PluginFileManager):
                         continue
                     found = False
                     # 遍历当前层级的子节点
-                    for child in current_level["children"]:
+                    if current_level["type"] == "file":
+                        continue
+                    for child in current_level.setdefault("children", []):
                         if child["name"] == part:
                             current_level = child
                             found = True
@@ -376,7 +403,6 @@ class ExtFilePluginManager(PluginFileManager):
                             "name": part,
                             # 如果是目录， 则最后以/结尾，parts[-1] 为 ""
                             "type": "file" if part == parts[-1] else "directory",
-                            "children": [],
                         }
 
                         current_level["children"].append(new_node)

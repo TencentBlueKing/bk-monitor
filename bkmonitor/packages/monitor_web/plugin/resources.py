@@ -123,7 +123,7 @@ class PluginFileUploadResource(Resource):
         file_manager = plugin_file_manager.save_file(**validated_request_data)
         file_name = validated_request_data["file_name"]
         if self.is_zipfile(file_name):
-            pass
+            file_tree = file_manager.prev_structure(validated_request_data["file_data"])
         else:
             file_tree = {"name": file_name, "type": "file"}
         return {
