@@ -25,6 +25,7 @@
  */
 import { Ref } from 'vue';
 import { deepClone } from 'monitor-common/utils/utils';
+import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import BaseEchart from '../base-echart';
 import { ILegendItem, LegendActionType } from '../typings';
@@ -72,7 +73,7 @@ export function useChartLegend(
     }
   }
   // // 根据选中图例重置图表
-  function handleResetPieChart(option: echarts.EChartOption, needResetChart?: boolean) {
+  function handleResetPieChart(option: MonitorEchartOptions, needResetChart?: boolean) {
     let totalValue = 0;
     const resArr: any[] = [];
     const targetOption = deepClone(option);
@@ -118,7 +119,7 @@ export function useChartLegend(
   }: {
     actionType: LegendActionType;
     item: ILegendItem;
-    option: echarts.EChartOption;
+    option: MonitorEchartOptions;
     needResetChart?: boolean;
   }) {
     if (['highlight', 'downplay'].includes(actionType)) {

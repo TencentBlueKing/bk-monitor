@@ -28,7 +28,6 @@ import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-prop
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -69,6 +68,7 @@ import {
   ITitleAlarm,
   IViewOptions,
   LegendActionType,
+  MonitorEchartOptions,
   PanelModel
 } from '../../typings';
 import { isShadowEqual, reviewInterval } from '../../utils';
@@ -144,7 +144,7 @@ export class LineChart
   height = 100;
   width = 300;
   legendData: ILegendItem[] = [];
-  options: EChartOption = null;
+  options: MonitorEchartOptions = null;
   inited = false;
   refleshIntervalInstance = null;
   metrics: IExtendMetricData[];
@@ -492,7 +492,7 @@ export class LineChart
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
-        ) as EChartOption<EChartOption.Series>;
+        );
         const isBar = this.panel.options?.time_series?.type === 'bar';
         this.options = Object.freeze(
           deepmerge(echartOptions, {
@@ -815,7 +815,7 @@ export class LineChart
         avgSource: 0,
         totalSource: 0,
         metricField: item.metricField,
-        dimensions: item.dimensions as unknown as Record<string, string>
+        dimensions: item.dimensions
       };
       // 动态单位转换
       const unitFormatter =
