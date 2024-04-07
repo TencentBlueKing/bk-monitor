@@ -1723,6 +1723,28 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/alert/event_count/
+  is_hidden: false
+  label: 查询告警关联事件数
+  label_en: alert_event_count
+  name: alert_event_count
+  path: /v2/monitor_v3/alert_event_count/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alert/event/search/
+  is_hidden: false
+  label: 查询单条告警关联事件列表
+  label_en: search_alert_events
+  name: search_alert_events
+  path: /v2/monitor_v3/search_alert_events/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /apm_api/v1/application/create_application/
   is_hidden: true
   label: 创建APM应用
@@ -2744,3 +2766,14 @@
   name: metadata_query_bcs_cluster_vm_table_ids
   path: /v2/monitor_v3/metadata_query_bcs_cluster_vm_table_ids/
   method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/switch_kafka_cluster/
+  is_hidden: false
+  label: 切换kafka存储集群
+  label_en: switch kafka cluster
+  name: metadata_switch_kafka_cluster
+  path: /v2/monitor_v3/metadata_switch_kafka_cluster/
+  method: POST

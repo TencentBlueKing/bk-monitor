@@ -31,7 +31,7 @@ import Vue from 'vue';
 import i18n from './i18n/i18n';
 
 import { setVue } from '../monitor-api/utils/index';
-import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { register, unregister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam } from 'monitor-common/utils/utils';
 
 import App from './pages/app.vue';
@@ -80,4 +80,4 @@ new Vue({
   render: h => h(App)
 });
 Vue.prototype.$bus = new Vue();
-process.env.NODE_ENV === 'production' ? serviceWorker.register() : serviceWorker.unregister();
+process.env.NODE_ENV === 'production' ? register() : unregister();

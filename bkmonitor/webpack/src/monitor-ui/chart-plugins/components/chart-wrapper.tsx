@@ -522,6 +522,14 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
+        {!!window.graph_watermark && (
+          <div
+            class='wm'
+            v-watermark={{
+              text: window.user_name || window.username
+            }}
+          ></div>
+        )}
         {this.handlePanel2Chart()}
         {this.loading ? (
           <img
@@ -543,14 +551,6 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             viewConfig={this.viewQueryConfig}
             on-close-modal={this.handleCloseViewDetail}
           />
-        )}
-        {!!window.graph_watermark && (
-          <div
-            class='wm'
-            v-watermark={{
-              text: window.user_name || window.username
-            }}
-          ></div>
         )}
         {!!this.errorMsg && (
           <span

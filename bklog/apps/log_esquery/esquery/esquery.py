@@ -262,6 +262,7 @@ class EsQuery(object):
         index_set_string = self._optimizer_mapping_time_range(
             index_set_string, scenario_id, start_time, end_time, time_zone
         )
+        add_settings_details: bool = self.search_dict.get("add_settings_details", False)
         client = QueryClient(
             scenario_id,
             storage_cluster_id=storage_cluster_id,
@@ -269,7 +270,7 @@ class EsQuery(object):
             bkdata_data_token=bkdata_data_token,
         ).get_instance()
 
-        result: Dict = client.mapping(index_set_string)
+        result: Dict = client.mapping(index=index_set_string, add_settings_details=add_settings_details)
 
         result_key_list: list = list(result)
         sorted_result_key_list: list = sorted(result_key_list, key=lambda x: x, reverse=True)

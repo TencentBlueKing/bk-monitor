@@ -26,10 +26,10 @@
  */
 import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, provide, ref, toRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import * as echarts from 'echarts';
 import { random } from 'monitor-common/utils/utils';
 import { type SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 import { DashboardColumnType, IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import ChartWrapper from './chart-wrapper';
 
@@ -86,7 +86,7 @@ export default defineComponent({
     watch(
       () => props.column,
       () => {
-        echarts.disConnect(props.id.toString());
+        echarts.disconnect(props.id.toString());
         handleInitPanelsGridpos(localPanels.value);
         handleConentEcharts();
       }
@@ -98,7 +98,7 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
-      echarts.disConnect(props.id.toString());
+      echarts.disconnect(props.id.toString());
     });
 
     function handleConentEcharts() {

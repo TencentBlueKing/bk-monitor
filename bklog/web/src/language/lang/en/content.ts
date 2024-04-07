@@ -322,7 +322,6 @@ export default {
   '私有的只支持默认的“个人收藏”': "Private only supports default 'personal collection'",
   '{n}不规范, 包含特殊符号.': '{n} is not standard, contains special characters.',
   '需要采集日志，请先创建采集任务': 'Log collection is required, please create a collection task first',
-  切换集群将导致历史数据无法查询: 'Switching clusters will result in inability to query historical data',
   '当前主机数较多，请进行容量评估': 'Current number of hosts is high, please perform capacity assessment',
   请填写容量评估的每日单台日志量: 'Please fill in the daily log volume per host for capacity assessment',
   未接入业务或无可查看的业务权限: 'No access to business or no viewing permission for business',
@@ -653,8 +652,12 @@ export default {
     'Modifying fields will affect the current results, feel free to modify them.',
   '修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？':
     'Modifying dimension fields will affect existing notes and alarm configurations. Please do not change them unless necessary. Are you sure you want to modify it?',
-  '未匹配到对应字段，请手动指定字段后提交': 'The corresponding field was not matched, please specify the field manually before submitting.',
+  '未匹配到对应字段，请手动指定字段后提交':
+    'The corresponding field was not matched, please specify the field manually before submitting.',
   用于标识日志文件来源及唯一性: 'Used to identify the source and uniqueness of log files.',
   用于控制日志排序的字段: 'Fields used to control log sorting.',
-  匹配到的索引: 'matched index'
+  匹配到的索引: 'matched index',
+  '不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。':
+    'Not retaining will discard the original logs and only display the cleaned logs. Please go through field cleaning, debugging and outputting the logs you care about.',
+  '请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。': 'Please complete field cleaning or select "Keep original log", otherwise the access log content will not be displayed.'
 };

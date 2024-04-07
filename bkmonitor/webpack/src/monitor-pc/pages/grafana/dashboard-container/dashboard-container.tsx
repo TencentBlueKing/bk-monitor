@@ -90,7 +90,7 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
         ref='bkResizeLayout'
         min={240}
         max={800}
-        initial-divide={280}
+        initial-divide={this.expend ? 280 : 5}
         border={false}
         collapsible
         immediate

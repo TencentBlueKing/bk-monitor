@@ -13,57 +13,14 @@ import json
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
+from django.conf import settings
+
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from api.cmdb.define import Host, TopoTree
 from bkmonitor.utils.local import local
 from core.drf_resource import api
 
 setattr(local, "host_cache", {})
-
-
-class HostIDManager(RefreshByBizMixin, CMDBCacheManager):
-    """
-    CMDB 主机ID 缓存
-    """
-
-    type = "host_id"
-    CACHE_KEY = "{prefix}.cmdb.host_id".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
-    AGENT_CACHE_KEY = "{prefix}.cmdb.agent_host_id".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
-
-    @classmethod
-    def serialize(cls, obj):
-        """
-        序列化数据
-        """
-        return obj
-
-    @classmethod
-    def deserialize(cls, string):
-        """
-        反序列化数据
-        """
-        return string
-
-    @classmethod
-    def key_to_internal_value(cls, bk_host_id):
-        return "{}".format(bk_host_id)
-
-    @classmethod
-    def get(cls, bk_host_id):
-        """
-        :rtype: str
-        """
-        return super(HostIDManager, cls).get(bk_host_id)
-
-    @classmethod
-    def refresh_by_biz(cls, bk_biz_id):
-        hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
-        return {
-            cls.key_to_internal_value(host.bk_host_id): "{}|{}".format(
-                host.bk_host_innerip or host.bk_host_innerip_v6, host.bk_cloud_id
-            )
-            for host in hosts
-        }
 
 
 class HostAgentIDManager(RefreshByBizMixin, CMDBCacheManager):
@@ -84,6 +41,13 @@ class HostAgentIDManager(RefreshByBizMixin, CMDBCacheManager):
         :rtype: str
         """
         return super(HostAgentIDManager, cls).get(bk_agent_id)
+
+    @classmethod
+    def deserialize(cls, string):
+        if string and string[0] in "0123456789":
+            return int(string)
+        else:
+            return super().deserialize(string)
 
     @classmethod
     def refresh_by_biz(cls, bk_biz_id):
@@ -119,7 +83,6 @@ class HostIPManager(CMDBCacheManager):
 
     @classmethod
     def to_kv(cls, host_keys: Optional[List[str]] = None) -> Dict[str, List[str]]:
-
         host_keys_gby_ip: Dict[str, Set[str]] = defaultdict(set)
         if host_keys is None:
             host_keys = HostManager.keys()
@@ -146,8 +109,8 @@ class HostIPManager(CMDBCacheManager):
 
         # IP对应的可选云区域列表
         # {
-        #   "10.0.0.1": ["10.0.0.1|0", "10.0.0.1|1"],
-        #   "10.0.0.2": ["10.0.0.2|0"]
+        #   "127.0.0.1": ["127.0.0.1|0", "127.0.0.1|1"],
+        #   "127.0.0.2": ["127.0.0.2|0"]
         # }
 
         ip_mapping = cls.to_kv()
@@ -184,6 +147,7 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
 
     type = "host"
     CACHE_KEY = "{prefix}.cmdb.host".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    ObjectClass = Host
 
     @classmethod
     def key_to_internal_value(cls, ip, bk_cloud_id=0):
@@ -241,19 +205,10 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
             host = local.host_cache.get(bk_host_id, None)
             if host:
                 return host
+
         # 尝试使用bk_host_id获取主机信息
         host = cls.cache.hget(cls.CACHE_KEY, bk_host_id)
-        if not host:
-            # 如果没有获取到主机信息，则尝试使用ip获取主机信息
-            host_key = HostIDManager.get(bk_host_id)
-            if not host_key:
-                return
-            ip, bk_cloud_id = host_key.split("|")
-            host = HostManager.get(ip, bk_cloud_id, using_mem=using_mem)
-
-            if not host:
-                return
-        else:
+        if host:
             host = cls.deserialize(host)
 
         # 本地缓存主机信息
@@ -301,7 +256,8 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
-    HostIDManager.refresh()
+    if "host" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     HostManager.refresh()
     HostIPManager.refresh()
     HostAgentIDManager.refresh()
