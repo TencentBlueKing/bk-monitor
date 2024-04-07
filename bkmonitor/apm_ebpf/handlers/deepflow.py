@@ -400,27 +400,35 @@ class DeepflowHandler:
         )
 
         for biz_id in check_biz_ids:
-            # 注册数据源
-            org_info = api.grafana.get_organization_by_name(name=biz_id).get("data", {})
-            if not org_info:
-                logger.warning(f"[GrafanaInstaller] org_name: {biz_id} return null")
-                continue
-            org_id = org_info.get("id")
-            if not org_id:
-                logger.warning(f"[GrafanaInstaller] can not found org_name: {biz_id} in grafana?")
-                continue
+            try:
+                logger.info(f"[GrafanaInstaller] biz_id: {biz_id} start check")
+                # 注册数据源
+                org_info = api.grafana.get_organization_by_name(name=biz_id).get("data", {})
+                if not org_info:
+                    logger.warning(f"[GrafanaInstaller] org_name: {biz_id} return null")
+                    continue
+                logger.info(f"[GrafanaInstaller] biz_id: {biz_id} obtain org_info: {org_info}")
+                org_id = org_info.get("id")
+                if not org_id:
+                    logger.warning(f"[GrafanaInstaller] can not found org_name: {biz_id} in grafana?")
+                    continue
+                logger.info(f"[GrafanaInstaller] biz_id: {biz_id} obtain org_id: {org_id}")
+                datasources = cls(biz_id).list_datasources()
+                if not datasources:
+                    logger.info(f"[GrafanaInstaller] biz_id: {biz_id} has not valid datasource, skip")
+                    continue
+                logger.info(f"[GrafanaInstaller] biz_id: {biz_id} found {len(datasources)} datasource, registry")
+                sync_data_sources(
+                    org_id,
+                    ApmEbpfProvisioning.convert_to_datasource(
+                        list(datasources), DeepflowComp.GRAFANA_DATASOURCE_TYPE_NAME
+                    ),
+                )
+                logger.info(f"[GrafanaInstaller] biz_id: {biz_id} datasource registry finished")
 
-            datasources = cls(biz_id).list_datasources()
-            if not datasources:
-                logger.info(f"[GrafanaInstaller] biz_id: {biz_id} has not valid datasource, skip")
-                continue
-            logger.info(f"[GrafanaInstaller] biz_id: {biz_id} found {len(datasources)} datasource, registry")
-            sync_data_sources(
-                org_id,
-                ApmEbpfProvisioning.convert_to_datasource(list(datasources), DeepflowComp.GRAFANA_DATASOURCE_TYPE_NAME),
-            )
-            logger.info(f"[GrafanaInstaller] biz_id: {biz_id} datasource registry finished")
-
-            # 注册仪表盘
-            mapping = ApmEbpfProvisioning.get_dashboard_mapping(biz_id)
-            ApmEbpfProvisioning.upsert_dashboards(org_id, biz_id, mapping)
+                # 注册仪表盘
+                mapping = ApmEbpfProvisioning.get_dashboard_mapping(biz_id)
+                ApmEbpfProvisioning.upsert_dashboards(org_id, biz_id, mapping)
+                logger.info(f"[GrafanaInstaller] biz_id: {biz_id} dashboard registry finished")
+            except ApiException as e:
+                logger.error(f"[GrafanaInstaller] biz_id: {biz_id} occur exception: {e}")
