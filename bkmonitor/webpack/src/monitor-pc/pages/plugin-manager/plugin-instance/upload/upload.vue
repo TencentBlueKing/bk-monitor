@@ -201,48 +201,7 @@ export default {
       },
       dependFileDisabled: true,
       dependFile: [],
-      fileTree: [
-        {
-          name: 'root',
-          type: 'directory',
-          children: [
-            {
-              name: 'folder1',
-              type: 'directory',
-              children: [
-                {
-                  name: 'file1.txt',
-                  type: 'file'
-                },
-                {
-                  name: 'file2.txt',
-                  type: 'file'
-                }
-              ]
-            },
-            {
-              name: 'folder2',
-              type: 'directory',
-              children: [
-                {
-                  name: 'subfolder',
-                  type: 'directory',
-                  children: [
-                    {
-                      name: 'file3.txt',
-                      type: 'file'
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          name: 'xxx.dll',
-          type: 'file'
-        }
-      ]
+      fileTree: []
     };
   },
   computed: {
@@ -280,6 +239,7 @@ export default {
     },
     treeData() {
       let id = 0;
+      // 给文件树添加treeId，确保唯一
       function setId(data) {
         return data.map((item) => {
           const res = { ...item, treeId: id };
@@ -432,7 +392,7 @@ export default {
           const timer = setTimeout(() => {
             this.progress = 100;
             this.dependFileDisabled = false;
-            clearInterval(timer);
+            clearTimeout(timer);
           }, 300);
         })
         .catch((e) => {
@@ -452,6 +412,7 @@ export default {
       if (!e.target.files.length) return;
       const file = e.target.files[0];
       item.fileName = file.name;
+      // 如果所有上传选择器都选择了文件，新增一个上传选择器
       if (this.dependFile.every(item => item.fileName)) {
         this.dependFile.push(this.initDependFileData());
       }
@@ -476,7 +437,7 @@ export default {
           data.file_tree && this.fileTree.push(data.file_tree);
           const timer = setTimeout(() => {
             item.progress = 100;
-            clearInterval(timer);
+            setTimeout(timer);
           }, 300);
         })
         .catch((e) => {

@@ -1378,7 +1378,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     },
     // 获取exportrt脚本上传文件信息
     getUploadFile(yaml) {
-      const collectorJson = { ext: {} };
+      const collectorJson = {};
       let hasfile = false;
       const name = this.pluginBasicInfo.type.value === 'Exporter' ? 'Exporter' : 'DataDog';
       this.systemTabs.list.forEach((system, index) => {
@@ -1392,7 +1392,10 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
           if (cur.fileDesc) pre.push(cur.fileDesc);
           return pre;
         }, []);
-        if (dependFileDesc.length) collectorJson.ext[system.name] = dependFileDesc;
+        if (dependFileDesc.length) {
+          !collectorJson.ext && (collectorJson.ext = {});
+          collectorJson.ext[system.name] = dependFileDesc;
+        };
       });
       if (hasfile && name === 'DataDog') {
         collectorJson.config_yaml = yaml;
