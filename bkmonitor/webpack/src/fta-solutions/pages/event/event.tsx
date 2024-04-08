@@ -72,7 +72,6 @@ import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
 import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
-import FilterSkeleton from './skeleton/filter-skeleton';
 import {
   AnlyzeField,
   EBatchAction,
@@ -2058,7 +2057,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         on-click={() => this.handleSelectActiveFilter(item.id as SearchType, item)}
       >
         {item.name}
-        <span class='item-count'>{item.count}</span>
+        {this.commonFilterLoading ? <div class="count-skeleton skeleton-element"></div> : <span class='item-count'>{item.count}</span>}
       </div>,
       <ul class='set-list'>
         {item?.children?.map?.(set =>
@@ -2073,7 +2072,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 style={{ color: filterIconMap[set.id].color }}
               />
               {set.name}
-              <span class='item-count'>{set.count}</span>
+              {this.commonFilterLoading ? <div class="count-skeleton skeleton-element"></div> : <span class='item-count'>{set.count}</span>}
             </li>
           ) : undefined
         ) || undefined}
@@ -2115,11 +2114,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           }}
         >
           <div class='filter-list'>
-            {this.commonFilterLoading ? (
-              <FilterSkeleton></FilterSkeleton>
-            ) : (
-              this.commonFilterData?.map(item => this.filterListComponent(item))
-            )}
+            {this.commonFilterData?.map(item => this.filterListComponent(item))}
           </div>
           <div class='filter-search'>
             <div class='search-title'>{this.$t('高级筛选')}</div>

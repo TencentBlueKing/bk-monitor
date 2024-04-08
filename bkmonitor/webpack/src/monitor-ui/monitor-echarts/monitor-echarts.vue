@@ -28,7 +28,7 @@
     class="monitor-echart-wrap"
     :style="{ 'background-image': backgroundUrl }"
   >
-    <monitor-echarts-skeleton v-if="loading" />
+    <!-- <monitor-echarts-skeleton v-if="loading" /> -->
     <div
       class="echart-header"
       v-if="chartTitle || $slots.title"

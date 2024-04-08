@@ -525,7 +525,7 @@ export default class Performance extends Mixins(commonPageSizeMixin) {
   }
 
   .table-skeleton-border {
-    padding-top: 16px;
+    padding: 16px;
     border: 1px solid #dcdee5;
   }
 }
