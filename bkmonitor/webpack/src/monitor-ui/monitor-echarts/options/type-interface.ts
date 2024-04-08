@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { EChartOption } from 'echarts';
+import { type MonitorEchartOptions } from '../types/monitor-echarts';
 
 export interface ILegendItem {
   name: string;
@@ -40,12 +40,15 @@ export interface IChartOptionPorps {
   chartType: ChartType;
   colors: string[];
   showExtremum: boolean;
-  chartOption: EChartOption;
+  chartOption: MonitorEchartOptions;
   lineWidth: number;
 }
 
 export interface IChartInstance {
-  getOptions: (data: any, otherOptions?: EChartOption) => { options: EChartOption; legendData: ILegendItem[] };
+  getOptions: (
+    data: any,
+    otherOptions?: MonitorEchartOptions
+  ) => { options: MonitorEchartOptions; legendData: ILegendItem[] };
 }
 
 export interface IMoreToolItem {
@@ -87,7 +90,7 @@ export interface ITextChartOption {
 }
 export type MoreChartToolItem = 'explore' | 'set' | 'strategy' | 'area';
 
-export type IChartOption = EChartOption | IStatusChartOption | ITextChartOption;
+export type IChartOption = MonitorEchartOptions | IStatusChartOption | ITextChartOption;
 
 export interface ITableSeries {
   columns?: { text: string; type: string }[];

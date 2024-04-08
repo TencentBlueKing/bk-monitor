@@ -26,7 +26,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import echarts from 'echarts';
+import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -114,7 +114,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   }
   @Watch('column')
   handleColumnChange() {
-    echarts.disConnect(this.id.toString());
+    disconnect(this.id.toString());
     this.handleInitPanelsGridpos(this.localPanels);
     this.handleUpdateLayout();
     this.handleConentEcharts();
@@ -126,7 +126,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
     bus.$on('switch_to_overview', this.handleToSceneOverview);
   }
   beforeDestroy() {
-    echarts.disConnect(this.id.toString());
+    disconnect(this.id.toString());
   }
   destroyed() {
     bus.$off(UPDATE_SCENES_TAB_DATA);
@@ -135,7 +135,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   handleConentEcharts() {
     setTimeout(() => {
       if (this.layout?.length < 300) {
-        echarts.connect(this.id.toString());
+        connect(this.id.toString());
       }
     }, 3000);
   }

@@ -11,8 +11,9 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/bk-weweb": "0.0.25.beta.11",
-    "@blueking/date-picker": "^1.0.0",
+    "@blueking/bk-weweb": "0.0.2-5.beta.15",
+    "@blueking/bkui-library": "0.0.0-beta.4",
+    "@blueking/date-picker": "^2.0.0-beta.10",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
     "@blueking/notice-component-vue2": "^2.0.3",
@@ -22,7 +23,7 @@
     "apm": "workspace:*",
     "async-validator": "^3.5.2",
     "big.js": "^6.2.1",
-    "bk-magic-vue": "^2.5.9-beta.18",
+    "bk-magic-vue": "2.5.8",
     "dayjs": "^1.11.10",
     "deepmerge": "^4.3.1",
     "element-ui": "2.7.2",
@@ -55,7 +56,7 @@
   "author": "bk fe",
   "license": "MIT",
   "devDependencies": {
-    "@types/echarts": "^4.9.22",
+    "@blueking/release-note": "0.0.1-beta.6",
     "@types/throttle-debounce": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^7.3.1",
     "@typescript-eslint/parser": "^7.3.1",

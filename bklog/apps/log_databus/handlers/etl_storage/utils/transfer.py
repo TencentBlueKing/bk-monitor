@@ -24,10 +24,11 @@ import os
 import platform
 import subprocess
 
+from django.utils.translation import ugettext_lazy as _
+
 from apps.exceptions import ValidationError
 from apps.log_databus import exceptions
 from apps.utils.log import logger
-from django.utils.translation import ugettext_lazy as _
 
 
 def preview(separator_node_action, data, etl_only=False, **kwargs):
@@ -67,7 +68,8 @@ def preview(separator_node_action, data, etl_only=False, **kwargs):
         if separator_node_action == "regexp":
             args.extend(["-t", "option.separator_regexp:{}".format(kwargs.get("separator_regexp"))])
         elif separator_node_action == "delimiter":
-            args.extend(["-t", 'option.separator:"{}"'.format(kwargs.get("separator"))])
+            separator = kwargs.get("separator", ",").encode("unicode_escape").decode("utf-8")
+            args.extend(["-t", 'option.separator:"{}"'.format(separator)])
             separator_field_list = kwargs.get("separator_field_list", [])
             if not isinstance(separator_field_list, list):
                 raise ValidationError(_("separator_field_list类型不符合"))
