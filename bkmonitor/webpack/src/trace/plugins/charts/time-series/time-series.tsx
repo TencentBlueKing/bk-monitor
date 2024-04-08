@@ -31,6 +31,7 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
+import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { getValueFormat, ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
@@ -157,7 +158,7 @@ export default defineComponent({
       spanDetailActiveTab.value === 'Host' ? ref([startTimeMinusOneHour, endTimeMinusOneHour]) : useTimeRanceInject();
     const timeOffset = useTimeOffsetInject();
     const viewOptions = useViewOptionsInject();
-    const options = ref<echarts.EChartOption>();
+    const options = ref<MonitorEchartOptions>();
     const { t } = useI18n({ useScope: 'global' });
 
     // datasource为time_series才显示保存到仪表盘，数据检索， 查看大图
@@ -606,7 +607,7 @@ export default defineComponent({
             deepClone(chartBaseOptions),
             props.panel?.options?.time_series?.echart_option || {},
             { arrayMerge: (_, newArr) => newArr }
-          ) as echarts.EChartOption<echarts.EChartOption.Series>;
+          );
           options.value = Object.freeze(
             deepmerge(echartOptions, {
               animation: hasShowSymbol,

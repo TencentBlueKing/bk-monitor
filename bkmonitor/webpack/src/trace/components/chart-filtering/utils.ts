@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { EChartOption } from 'echarts';
+import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { useTraceStore } from '../../store/modules/trace';
 import { ISpanListItem, ITraceListItem } from '../../typings';
@@ -96,7 +96,7 @@ export class DurationDataModal {
   }
 }
 
-export const BASE_BAR_OPTIONS: EChartOption = {
+export const BASE_BAR_OPTIONS: MonitorEchartOptions = {
   grid: {
     left: 0,
     right: 0

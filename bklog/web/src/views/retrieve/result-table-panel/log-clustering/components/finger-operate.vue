@@ -74,6 +74,55 @@
       </div>
     </div>
 
+    <div class="fl-sb">
+      <bk-dropdown-menu
+        ref="refOfSubscriptionDropdown"
+        align="right"
+        trigger="click"
+      >
+        <i
+          v-if="isCurrentIndexSetIdCreateSubscription"
+          slot="dropdown-trigger"
+          v-bk-tooltips.bottom-end="$t('已订阅当前页面')"
+          class="bk-icon icon-email btn-subscription"
+          :class="{
+            selected: isCurrentIndexSetIdCreateSubscription
+          }"
+        />
+        <ul
+          slot="dropdown-content"
+          class="bk-dropdown-list"
+        >
+          <li>
+            <a
+              href="javascript:;"
+              @click="isShowQuickCreateSubscriptionDrawer = true"
+              >{{ $t('新建订阅') }}</a
+            >
+          </li>
+          <li>
+            <a
+              href="javascript:;"
+              @click="goToMySubscription"
+              >{{ $t('我的订阅') }}</a
+            >
+          </li>
+        </ul>
+      </bk-dropdown-menu>
+      <i
+        v-if="!isCurrentIndexSetIdCreateSubscription"
+        v-bk-tooltips.bottom-end="$t('邮件订阅')"
+        class="bk-icon icon-email btn-subscription"
+        @click="isShowQuickCreateSubscriptionDrawer = true"
+      />
+    </div>
+
+    <quick-create-subscription
+      v-model="isShowQuickCreateSubscriptionDrawer"
+      scenario="clustering"
+      :index-set-id="$route.params.indexId"
+    />
+
     <bk-popover
       ref="groupPopover"
       ext-cls="popover-content"
@@ -235,7 +284,12 @@
 </template>
 
 <script>
+import { debounce } from 'throttle-debounce';
+import QuickCreateSubscription from './quick-create-subscription-drawer/quick-create-subscription.tsx';
 export default {
+  components: {
+    QuickCreateSubscription
+  },
   props: {
     fingerOperateData: {
       type: Object,
@@ -271,6 +325,8 @@ export default {
         offset: '16',
         interactive: true
       },
+      isCurrentIndexSetIdCreateSubscription: false,
+      isShowQuickCreateSubscriptionDrawer: false,
       /** 打开设置弹窗时的维度 */
       catchDimension: []
     };
@@ -286,8 +342,23 @@ export default {
       return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
     }
   },
+  watch: {
+    group: {
+      deep: true,
+      handler(list) {
+        // 分组列表未展开时数组变化则发送请求
+        if (!this.isToggle) {
+          this.$emit('handleFingerOperate', 'group', list);
+        }
+      }
+    }
+  },
+  created() {
+    this.checkReportIsExistedDebounce = debounce(1000, this.checkReportIsExisted);
+  },
   mounted() {
     this.handleShowMorePopover();
+    this.checkReportIsExistedDebounce();
     this.handlePopoverShow();
   },
   beforeDestroy() {
@@ -507,6 +578,34 @@ export default {
       this.group = finger.selectGroupList;
       this.yearSwitch = finger.yearSwitch;
       this.yearOnYearHour = finger.yearOnYearHour;
+    },
+    /**
+     * 检查当前 索引集 是否创建过订阅。
+     */
+    checkReportIsExisted() {
+      this.$http
+        .request('newReport/getExistReports/', {
+          query: {
+            scenario: 'clustering',
+            bk_biz_id: this.$route.query.bizId,
+            index_set_id: this.$route.params.indexId
+          }
+        })
+        .then(response => {
+          console.log(response, !!response.data.length);
+          this.isCurrentIndexSetIdCreateSubscription = !!response.data.length;
+        })
+        .catch(console.log);
+    },
+    /**
+     * 空方法 checkReportIsExisted 的 debounce 版。
+     */
+    checkReportIsExistedDebounce() {},
+    /**
+     * 打开 我的订阅 全局弹窗
+     */
+    goToMySubscription() {
+      window.bus.$emit('showGlobalDialog');
     }
   }
 };
@@ -519,10 +618,6 @@ export default {
   font-size: 12px;
   line-height: 24px;
   flex-shrink: 0;
-
-  > div {
-    margin-left: 20px;
-  }
 
   .is-near24 {
     @include flex-center;
@@ -537,6 +632,7 @@ export default {
 
   .pattern {
     width: 200px;
+    margin: 0 20px;
 
     .pattern-slider-box {
       width: 154px;
@@ -698,7 +794,6 @@ export default {
   display: flex;
   width: 26px;
   height: 26px;
-  margin-left: 10px;
   cursor: pointer;
   border: 1px solid #c4c6cc;
   border-radius: 2px;
@@ -728,5 +823,25 @@ export default {
   align-items: center;
 
   @include flex-justify(space-between);
+}
+
+.btn-subscription {
+  margin-right: 20px;
+  font-size: 14px;
+  color: #63656e;
+  cursor: pointer;
+  border-radius: 2px;
+
+  &.selected {
+    color: #3a84ff;
+  }
+
+  &:hover {
+    background: #f0f1f5;
+  }
+
+  &:active {
+    background-color: #e1ecff;
+  }
 }
 </style>

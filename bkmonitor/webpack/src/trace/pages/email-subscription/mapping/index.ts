@@ -23,25 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// import * as vueClassComponent from 'vue-class-component';
-// import * as vueI18n from 'vue-i18n';
-// import * as vuePopertyDecorator from 'vue-property-decorator';
-// import * as vueRouter from 'vue-router';
-// import * as vueTsxSupport from 'vue-tsx-support';
-// import * as vuexModuleDecorators from 'vuex-module-decorators';
-// import bkMagicVue from 'bk-magic-vue';
-import axios from 'axios';
-import dayjs from 'dayjs';
-import * as echarts from 'echarts';
+export const SendMode = {
+  periodic: '周期发送',
+  one_time: '仅发一次'
+};
 
-window.echarts = echarts;
-window.axios = axios;
-window.dayjs = dayjs;
+export const SendStatus = {
+  failed: '发送失败',
+  partial_failed: '发送部分失败',
+  success: '发送成功',
+  no_status: '未发送'
+};
 
-// window.vueClassComponent = vueClassComponent;
-// window.vuePopertyDecorator = vuePopertyDecorator;
-// window.vueTsxSupport = vueTsxSupport;
-// window.vuexModuleDecorators = vuexModuleDecorators;
-// window.bkMagicVue = bkMagicVue;
-// window.vueI18n = vueI18n;
-// window.vueRouter = vueRouter;
+export const ChannelName = {
+  email: '外部邮件',
+  wxbot: '企业微信群',
+  user: '内部用户'
+};
+
+export const Scenario = {
+  clustering: '日志聚类',
+  dashboard: '仪表盘',
+  scene: '观测场景'
+};
