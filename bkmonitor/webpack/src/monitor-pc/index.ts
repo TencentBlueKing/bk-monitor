@@ -98,6 +98,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
+        document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,
           isSuperUser: window.is_superuser,
