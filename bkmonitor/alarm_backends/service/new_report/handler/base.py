@@ -137,20 +137,22 @@ class SendChannelHandler(object):
             if self.channel.channel_name == ChannelEnum.USER.value:
                 for subscriber in self.channel.subscribers:
                     send_results.append(
-                        {"id": subscriber, "type": StaffEnum.USER.value, "result": False, "message": error_msg}
+                        {"id": subscriber["id"], "type": StaffEnum.USER.value, "result": False, "message": error_msg}
                     )
             else:
                 for subscriber in self.channel.subscribers:
-                    send_results.append({"id": subscriber, "result": False, "message": error_msg})
+                    send_results.append({"id": subscriber["id"], "result": False, "message": error_msg})
         # 发送检查未通过，仅更新状态
         elif not send_check:
             send_status = SendStatusEnum.SUCCESS.value
             if self.channel.channel_name == ChannelEnum.USER.value:
                 for subscriber in self.channel.subscribers:
-                    send_results.append({"id": subscriber, "type": StaffEnum.USER.value, "result": True, "message": ""})
+                    send_results.append(
+                        {"id": subscriber["id"], "type": StaffEnum.USER.value, "result": True, "message": ""}
+                    )
             else:
                 for subscriber in self.channel.subscribers:
-                    send_results.append({"id": subscriber, "result": True, "message": ""})
+                    send_results.append({"id": subscriber["id"], "result": True, "message": ""})
         else:
             # 解析发送结果并记录
             if result.get("errcode", None) is not None:
