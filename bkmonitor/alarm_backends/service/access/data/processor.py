@@ -233,8 +233,6 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
 
 class AccessDataProcess(BaseAccessDataProcess):
-    BATCH_SPLIT_THRESHOLD = 50000
-
     def __init__(self, strategy_group_key: str, sub_task_id: str = None, *args, **kwargs):
         super(AccessDataProcess, self).__init__(sub_task_id=sub_task_id, *args, **kwargs)
         self.strategy_group_key = strategy_group_key
@@ -312,9 +310,9 @@ class AccessDataProcess(BaseAccessDataProcess):
             if not points:
                 return
 
-            # 当点数大于10000时，将数据拆分为多个批量任务
-            if len(points) > self.BATCH_SPLIT_THRESHOLD * 2:
-                points = self.send_batch_data(points, self.BATCH_SPLIT_THRESHOLD)
+            # 当点数大于阈值时，将数据拆分为多个批量任务
+            if settings.ENABLED_ACCESS_DATA_BATCH_PROCESS and len(points) > settings.ACCESS_DATA_BATCH_PROCESS_SIZE * 2:
+                points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
         # 过滤重复数据并实例化
         self.filter_duplicates(points)

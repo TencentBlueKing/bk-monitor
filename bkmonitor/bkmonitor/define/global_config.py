@@ -282,6 +282,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
         ("ENABLED_ACCESS_DATA_BATCH_PROCESS", slz.BooleanField(label="是否启用access数据批量处理", default=False)),
+        ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理大小", default=50000)),
     ]
 )
 
