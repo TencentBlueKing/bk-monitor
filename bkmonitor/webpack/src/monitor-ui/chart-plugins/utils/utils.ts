@@ -26,7 +26,6 @@
 import dayjs from 'dayjs';
 import { getUnitInfo } from 'monitor-api/modules/strategies';
 import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-import Vue from 'Vue';
 
 import { IViewOptions } from '../typings';
 
@@ -40,7 +39,7 @@ export const isEqualObject = (v: Record<string, any>, o: Record<string, any>, ke
  * @param {any} ctx 当前组件this
  * @param {string} componentName 目标组件名
  */
-export const findComponentUpper = (ctx: Vue, componentName: string) => {
+export const findComponentUpper = (ctx: any, componentName: string) => {
   let parent = ctx.$parent;
   const { name } = parent.$options;
   while (parent && name !== componentName) {

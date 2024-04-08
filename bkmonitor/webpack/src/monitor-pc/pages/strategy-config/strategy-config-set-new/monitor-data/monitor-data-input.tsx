@@ -381,8 +381,8 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             <div
               class='metric-content-item mb10'
               key={`${item.id}-${index}`}
-              on-mouseenter={() => (this.hoverDeleteItemIndex = index)}
-              on-mouseleave={() => (this.hoverDeleteItemIndex = -1)}
+              // on-mouseenter={() => (this.hoverDeleteItemIndex = index)}
+              // on-mouseleave={() => (this.hoverDeleteItemIndex = -1)}
             >
               {!this.isRealTimeModel && <span class='item-key'>{item.alias}</span>}
               <div
@@ -568,7 +568,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                 <div
                   class='item-delete-btn'
                   // eslint-disable-next-line quotes
-                  style={{ display: this.hoverDeleteItemIndex === index ? 'flex' : 'none' }}
+                  // style={{ display: this.hoverDeleteItemIndex === index ? 'flex' : 'none' }}
                   on-click={() => this.handleDeleteMetric(item, index)}
                 >
                   <i class='icon-monitor icon-mc-delete-line'></i>

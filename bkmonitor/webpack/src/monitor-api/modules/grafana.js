@@ -28,6 +28,7 @@ export const starDashboard = request('POST', 'rest/v2/grafana/star_dashboard/');
 export const unstarDashboard = request('DELETE', 'rest/v2/grafana/unstar_dashboard/');
 export const deleteFolder = request('DELETE', 'rest/v2/grafana/delete_folder/');
 export const renameFolder = request('PUT', 'rest/v2/grafana/rename_folder/');
+export const quickImportDashboard = request('POST', 'rest/v2/grafana/quick_import_dashboard/');
 export const saveToDashboard = request('POST', 'rest/v2/grafana/save_to_dashboard/');
 export const getFunctions = request('GET', 'rest/v2/grafana/time_series/functions/');
 export const graphUnifyQuery = request('POST', 'query-api/rest/v2/grafana/time_series/unify_query/');
@@ -73,6 +74,7 @@ export default {
   unstarDashboard,
   deleteFolder,
   renameFolder,
+  quickImportDashboard,
   saveToDashboard,
   getFunctions,
   graphUnifyQuery,

@@ -33,5 +33,6 @@ declare global {
     __BK_WEWEB_DATA__?: any;
     space_uid: string;
     bk_docs_site_url: string;
+    site_url: string;
   }
 }

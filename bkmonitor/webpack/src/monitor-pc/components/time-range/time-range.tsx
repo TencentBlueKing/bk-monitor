@@ -32,7 +32,7 @@ import { updateTimezone } from '../../i18n/dayjs';
 
 import { DEFAULT_TIME_RANGE } from './utils';
 
-import '@blueking/date-picker/dist/vue2-full.css';
+import '@blueking/date-picker/vue2/vue2.css';
 
 export type TimeRangeType = [string, string];
 
