@@ -499,9 +499,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         if point_count:
             metrics.ACCESS_DATA_PROCESS_PULL_DATA_COUNT.labels(strategy_group_key=metrics.TOTAL_TAG).inc(point_count)
 
-        if not self.sub_task_id and not self.batch_tasks:
-            # 日志记录按strategy + item 来记录，方便问题排查
-            for item in self.items:
+        # 日志记录按strategy + item 来记录，方便问题排查
+        for item in self.items:
+            if not self.sub_task_id and not self.batch_tasks:
                 logger.info(
                     "strategy({strategy_id}),item({item_id}),"
                     "total_records({total}),"
@@ -521,14 +521,14 @@ class AccessDataProcess(BaseAccessDataProcess):
                         until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
                     )
                 )
-        else:
-            self.process_counts.setdefault("pull_data", {})
-            self.process_counts["pull_data"] = {
-                "total_count": len(points),
-                "access_count": point_count,
-                "duplicate_count": duplicate_counts,
-                "none_point_count": none_point_counts,
-            }
+            else:
+                self.process_counts.setdefault("pull_data", {})
+                self.process_counts["pull_data"][item.id] = {
+                    "total_count": len(points),
+                    "access_count": point_count,
+                    "duplicate_count": duplicate_counts,
+                    "none_point_count": none_point_counts,
+                }
 
     def push(self, records: List = None, output_client=None):
         super(AccessDataProcess, self).push(records=records, output_client=output_client)
@@ -553,8 +553,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 )
             )
         else:
-            self.process_counts.setdefault("push_data", {})
-            self.process_counts["push_data"][self.strategy_group_key] = {
+            self.process_counts["total_push_data"] = {
                 "count": len(self.record_list),
                 "last_checkpoint": last_checkpoint,
             }
@@ -581,6 +580,10 @@ class AccessDataProcess(BaseAccessDataProcess):
                 ),
             )
             client.expire(result_key, key.ACCESS_BATCH_DATA_RESULT_KEY.ttl)
+            return
+
+        # 如果没有分批任务，直接返回
+        if not self.batch_tasks:
             return
 
         # 等待分批任务结果
@@ -612,18 +615,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             }
         )
 
-        # 记录分配任务结果
-        for result in batch_results:
-            if result["result"]:
-                continue
-            logger.error(
-                "strategy_group_key({strategy_group_key}) "
-                "access batch task({sub_task_id}) error({error})".format(
-                    strategy_group_key=self.strategy_group_key,
-                    sub_task_id=result["sub_task_id"],
-                    error=result["error"],
-                )
-            )
+        self.batch_log(batch_results)
 
         metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(time.time() - start_time)
         metrics.ACCESS_DATA_PROCESS_COUNT.labels(
@@ -631,6 +623,120 @@ class AccessDataProcess(BaseAccessDataProcess):
             status=metrics.StatusEnum.from_exc(exc),
             exception=exc,
         ).inc()
+
+    def batch_log(self, batch_results: List[Dict]):
+        """
+        汇总分批任务结果并记录日志
+        """
+
+        last_checkpoint, total_push_count = 0, 0
+        for result in batch_results:
+            if result["result"]:
+                logger.error(
+                    "strategy_group_key({strategy_group_key}) "
+                    "access batch task({sub_task_id}) error({error})".format(
+                        strategy_group_key=self.strategy_group_key,
+                        sub_task_id=result["sub_task_id"],
+                        error=result["error"],
+                    )
+                )
+                continue
+
+            total_push_data = result["process_counts"].get("total_push_data", {})
+            last_checkpoint = max(last_checkpoint, total_push_data.get("last_checkpoint", 0))
+            total_push_count += total_push_data.get("count", 0)
+
+        # 拉取数量记录日志
+        for item in self.items:
+            total_count, access_count, duplicate_count, none_point_count = 0, 0, 0, 0
+            push_count, push_noise_count = 0, 0
+            output_key, record_key, dimension_key = "", "", ""
+            for result in batch_results:
+                pull_data = result.get("process_counts", {}).get("pull_data", {}).get(item.id, {})
+                total_count += pull_data.get("total_count", 0)
+                access_count += pull_data.get("access_count", 0)
+                duplicate_count += pull_data.get("duplicate_count", 0)
+                none_point_count += pull_data.get("none_point_count", 0)
+
+                push_data = result.get("process_counts", {}).get("push_data", {}).get(item.id, {})
+                push_count += push_data.get("count", 0)
+                output_key = push_data.get("output_key")
+
+                push_noise_data = result.get("process_counts", {}).get("push_noise_data", {}).get(item.id, {})
+                push_noise_count += push_noise_data.get("count", 0)
+                record_key = push_noise_data.get("record_key")
+                dimension_key = push_noise_data.get("dimension_key")
+
+            # 拉取数量记录日志
+            if total_count:
+                logger.info(
+                    "strategy({strategy_id}),item({item_id}),"
+                    "total_records({total}),"
+                    "access records({records_length}),"
+                    "duplicate({duplicate_counts}),"
+                    "none_point_counts({none_point_counts}),"
+                    "strategy_group_key({strategy_group_key}),"
+                    "time range({from_datetime} - {until_datetime})".format(
+                        strategy_id=item.strategy.id,
+                        item_id=item.id,
+                        total=total_count,
+                        records_length=access_count,
+                        duplicate_counts=duplicate_count,
+                        none_point_counts=none_point_count,
+                        strategy_group_key=self.strategy_group_key,
+                        from_datetime=arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                        until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                    )
+                )
+
+            # 推送数量记录日志
+            if push_count:
+                logger.info(
+                    "output_key({output_key}) "
+                    "strategy({strategy_id}), item({item_id}), "
+                    "push records({records_length}).".format(
+                        output_key=output_key,
+                        strategy_id=item.strategy.strategy_id,
+                        item_id=item.id,
+                        records_length=push_count,
+                    )
+                )
+
+            # 降噪推送数量记录日志
+            if push_noise_count:
+                logger.info(
+                    "record_key({record_key}) "
+                    "dimension_key({dimension_key})"
+                    "strategy({strategy_id}), item({item_id}), "
+                    "push dimension records({records_length}).".format(
+                        record_key=record_key,
+                        dimension_key=dimension_key,
+                        strategy_id=item.strategy.strategy_id,
+                        item_id=item.id,
+                        records_length=push_noise_count,
+                    )
+                )
+
+            if self.process_counts.get("total_push_data", {}).get("count", 0):
+                logger.info(
+                    "strategy_group_key({}), push records({}), last_checkpoint({})".format(
+                        self.strategy_group_key,
+                        self.process_counts["total_push_data"].get("count", 0),
+                        arrow.get(self.process_counts.get("total_push_data", {}).get("count", 0)).strftime(
+                            constants.STD_LOG_DT_FORMAT
+                        ),
+                    )
+                )
+
+        # 总推送数量
+        if total_push_count:
+            logger.info(
+                "strategy_group_key({}), push records({}), last_checkpoint({})".format(
+                    self.strategy_group_key,
+                    total_push_count,
+                    arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
+                )
+            )
 
 
 class AccessBatchDataProcess(AccessDataProcess):
