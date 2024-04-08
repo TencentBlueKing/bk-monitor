@@ -71,6 +71,8 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         self.add_fuller(TopoNodeFuller())
 
         self.sub_task_id = sub_task_id
+        self.batch_tasks = []
+        self.process_counts = {}
 
     def post_handle(self):
         # 释放主机信息本地内存
@@ -103,17 +105,27 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         client.zadd(record_key, noise_data)
         client.expire(record_key, key.NOISE_REDUCE_TOTAL_KEY.ttl)
 
-        logger.info(
-            "record_key({record_key}) "
-            "dimension_key({dimension_key})"
-            "strategy({strategy_id}) "
-            "push dimension records({records_length}).".format(
-                record_key=record_key,
-                dimension_key="|".join(noise_reduce_config["dimensions"]),
-                strategy_id=item.strategy.strategy_id,
-                records_length=len(noise_data.keys()),
+        # 非批量任务，记录日志
+        if not self.sub_task_id and not self.batch_tasks:
+            logger.info(
+                "record_key({record_key}) "
+                "dimension_key({dimension_key})"
+                "strategy({strategy_id}), item({item_id}), "
+                "push dimension records({records_length}).".format(
+                    record_key=record_key,
+                    dimension_key="|".join(noise_reduce_config["dimensions"]),
+                    strategy_id=item.strategy.strategy_id,
+                    item_id=item.id,
+                    records_length=len(noise_data.keys()),
+                )
             )
-        )
+        else:
+            self.process_counts.setdefault("push_noise_data", {})
+            self.process_counts["push_noise_data"][item.id] = {
+                "record_key": record_key,
+                "dimension_key": "|".join(noise_reduce_config["dimensions"]),
+                "count": len(noise_data.keys()),
+            }
 
     def _push(self, item, record_list, output_client=None, data_list_key=None):
         """
@@ -149,16 +161,24 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         pipeline.execute()
         metrics.ACCESS_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="data").inc(len(record_list))
 
-        logger.info(
-            "output_key({output_key}) "
-            "strategy({strategy_id}), item({item_id}), "
-            "push records({records_length}).".format(
-                output_key=output_key,
-                strategy_id=item.strategy.strategy_id,
-                item_id=item.id,
-                records_length=len(record_list),
+        # 非批量任务，记录日志
+        if not self.sub_task_id and not self.batch_tasks:
+            logger.info(
+                "output_key({output_key}) "
+                "strategy({strategy_id}), item({item_id}), "
+                "push records({records_length}).".format(
+                    output_key=output_key,
+                    strategy_id=item.strategy.strategy_id,
+                    item_id=item.id,
+                    records_length=len(record_list),
+                )
             )
-        )
+        else:
+            self.process_counts.setdefault("push_data", {})
+            self.process_counts["push_data"][item.id] = {
+                "output_key": output_key,
+                "count": len(record_list),
+            }
 
     def push(self, records: List = None, output_client=None):
         """
@@ -481,27 +501,36 @@ class AccessDataProcess(BaseAccessDataProcess):
         if point_count:
             metrics.ACCESS_DATA_PROCESS_PULL_DATA_COUNT.labels(strategy_group_key=metrics.TOTAL_TAG).inc(point_count)
 
-        # 日志记录按strategy + item 来记录，方便问题排查
-        for item in self.items:
-            logger.info(
-                "strategy({strategy_id}),item({item_id}),"
-                "total_records({total}),"
-                "access records({records_length}),"
-                "duplicate({duplicate_counts}),"
-                "none_point_counts({none_point_counts}),"
-                "strategy_group_key({strategy_group_key}),"
-                "time range({from_datetime} - {until_datetime})".format(
-                    strategy_id=item.strategy.id,
-                    item_id=item.id,
-                    total=len(points),
-                    records_length=point_count,
-                    duplicate_counts=duplicate_counts,
-                    none_point_counts=none_point_counts,
-                    strategy_group_key=self.strategy_group_key,
-                    from_datetime=arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
-                    until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+        if not self.sub_task_id and not self.batch_tasks:
+            # 日志记录按strategy + item 来记录，方便问题排查
+            for item in self.items:
+                logger.info(
+                    "strategy({strategy_id}),item({item_id}),"
+                    "total_records({total}),"
+                    "access records({records_length}),"
+                    "duplicate({duplicate_counts}),"
+                    "none_point_counts({none_point_counts}),"
+                    "strategy_group_key({strategy_group_key}),"
+                    "time range({from_datetime} - {until_datetime})".format(
+                        strategy_id=item.strategy.id,
+                        item_id=item.id,
+                        total=len(points),
+                        records_length=point_count,
+                        duplicate_counts=duplicate_counts,
+                        none_point_counts=none_point_counts,
+                        strategy_group_key=self.strategy_group_key,
+                        from_datetime=arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                        until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                    )
                 )
-            )
+        else:
+            self.process_counts.setdefault("pull_data", {})
+            self.process_counts["pull_data"] = {
+                "total_count": len(points),
+                "access_count": point_count,
+                "duplicate_count": duplicate_counts,
+                "none_point_count": none_point_counts,
+            }
 
     def push(self, records: List = None, output_client=None):
         super(AccessDataProcess, self).push(records=records, output_client=output_client)
@@ -516,13 +545,21 @@ class AccessDataProcess(BaseAccessDataProcess):
         access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
         key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
 
-        logger.info(
-            "strategy_group_key({}), push records({}), last_checkpoint({})".format(
-                self.strategy_group_key,
-                len(self.record_list),
-                arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
+        # 非批量任务，记录日志
+        if not self.sub_task_id and not self.batch_tasks:
+            logger.info(
+                "strategy_group_key({}), push records({}), last_checkpoint({})".format(
+                    self.strategy_group_key,
+                    len(self.record_list),
+                    arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
+                )
             )
-        )
+        else:
+            self.process_counts.setdefault("push_data", {})
+            self.process_counts["push_data"][self.strategy_group_key] = {
+                "count": len(self.record_list),
+                "last_checkpoint": last_checkpoint,
+            }
 
     def process(self):
         start_time = time.time()
@@ -541,6 +578,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                         "sub_task_id": self.sub_task_id,
                         "result": not exc,
                         "error": str(exc),
+                        "process_counts": self.process_counts,
                     }
                 ),
             )
@@ -572,6 +610,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "sub_task_id": None,
                 "result": not exc,
                 "error": str(exc),
+                "process_counts": self.process_counts,
             }
         )
 
