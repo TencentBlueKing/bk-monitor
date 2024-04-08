@@ -326,8 +326,7 @@ export default {
         interactive: true
       },
       isCurrentIndexSetIdCreateSubscription: false,
-      isShowQuickCreateSubscriptionDrawer: false
-      },
+      isShowQuickCreateSubscriptionDrawer: false,
       /** 打开设置弹窗时的维度 */
       catchDimension: []
     };
