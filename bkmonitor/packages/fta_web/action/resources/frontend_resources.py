@@ -17,8 +17,6 @@ from django.conf import settings
 from django.template import TemplateDoesNotExist
 from django.utils import translation
 from django.utils.translation import ugettext as _
-from fta_web.action.tasks import notify_to_appointee, scheduled_register_bk_plugin
-from fta_web.action.utils import parse_bk_plugin_deployed_info
 
 from api.monitor.default import (
     BatchCreateActionBackendResource,
@@ -48,6 +46,8 @@ from constants.action import (
     ConvergeFunction,
 )
 from core.drf_resource import Resource, api
+from fta_web.action.tasks import notify_to_appointee, scheduled_register_bk_plugin
+from fta_web.action.utils import parse_bk_plugin_deployed_info
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +209,7 @@ class RenderNoticeTemplate(Resource):
             "action_instance": {
                 "name": _("uwork机器重启"),
                 "plugin_type_name": _("作业平台"),
-                "assignees": "admin,tony",
+                "assignees": "admin,yunweixiaoge",
                 "operate_target_string": "127.0.0.1",
                 "bk_biz_id": "2",
                 "start_time": "1970-08-01 10:00:00+08:00",
@@ -343,8 +343,9 @@ class RenderNoticeTemplate(Resource):
             context["notice_way"] = notice_way["type"]
             single_error = multi_error = ""
             try:
-                single = AlarmNoticeTemplate(template_path_template.format("action", notice_way["type"]),
-                                             language_suffix=language_suffix)
+                single = AlarmNoticeTemplate(
+                    template_path_template.format("action", notice_way["type"]), language_suffix=language_suffix
+                )
                 context["content"] = single_content[notice_way["type"]]
                 single = single.render(context)
             except Exception as e:
@@ -353,8 +354,9 @@ class RenderNoticeTemplate(Resource):
                 single_error = str(e)
 
             try:
-                multi = AlarmNoticeTemplate(template_path_template.format("converge", notice_way["type"]),
-                                            language_suffix=language_suffix)
+                multi = AlarmNoticeTemplate(
+                    template_path_template.format("converge", notice_way["type"]), language_suffix=language_suffix
+                )
                 context["content"] = multi_content[notice_way["type"]]
                 multi = multi.render(context)
             except Exception as e:
