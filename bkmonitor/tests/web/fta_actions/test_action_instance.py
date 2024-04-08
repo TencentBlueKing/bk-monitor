@@ -195,13 +195,13 @@ class TestBatchCreateResource(TestCase):
         request_data = {
             "alert_ids": [self.alert_id],
             "bk_biz_id": 2,
-            "appointees": ["admin", "tony"],
+            "appointees": ["admin", "yunweixiaoge"],
             "reason": "告警分派给负责人",
             "notice_ways": ["weixin"],
         }
         r = AssignAlertResource()
         data = r.perform_request(request_data)
-        self.assertEqual({"tony"}, data["notice_receivers"])
+        self.assertEqual({"yunweixiaoge"}, data["notice_receivers"])
 
     def test_get_action_params_by_custom_config(self):
         request_data = {
@@ -216,7 +216,7 @@ class TestBatchCreateResource(TestCase):
                         },
                         "context_inputs": {
                             "title_tmpl": "{{alarm.name}}",
-                            "appointees": ["admin", "tony"],
+                            "appointees": ["admin", "yunweixiaoge"],
                             "assign_reason": "当前负责人",
                             "notice_way": msg_type,
                         },
@@ -242,7 +242,7 @@ class TestBatchCreateResource(TestCase):
         request_data = {
             "alert_ids": [self.alert_id],
             "operator": "pppp",
-            "appointees": ["admin", "tony"],
+            "appointees": ["admin", "yunweixiaoge"],
             "notice_ways": ["sms", "mail", "weixin", "voice"],
             "reason": "测试分派内容",
             "bk_biz_id": 2,
@@ -260,11 +260,10 @@ class TestBatchCreateResource(TestCase):
             self.assertEqual(template_detail["title"], "蓝鲸监控 | pppp给您分派了告警【告警名称(%s)】" % self.alerts[0].id)
 
     def test_assign_template_with_multi_alerts(self):
-
         request_data = {
             "alert_ids": [self.alert_id, "%stest" % self.alert_id],
             "operator": "pppp",
-            "appointees": ["admin", "tony"],
+            "appointees": ["admin", "yunweixiaoge"],
             "notice_ways": ["sms", "mail", "weixin", "voice"],
             "reason": "测试分派内容",
             "bk_biz_id": 2,
