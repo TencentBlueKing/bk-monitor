@@ -603,13 +603,10 @@ export default {
      */
     checkReportIsExistedDebounce() {},
     /**
-     * 跳转到 监控下的 我的订阅
+     * 打开 我的订阅 全局弹窗
      */
     goToMySubscription() {
-      const query = this.$route.query.bizId ? `?bizId=${this.$route.query.bizId}` : '';
-      // window.open(`${window.MONITOR_URL}/${query}#/my-report`, '_blank');
-      // 20231225 暂不需要
-      window.open(`${window.MONITOR_URL}/${query}#/trace/report?isShowMyReport=true`, '_blank');
+      window.bus.$emit('showGlobalDialog');
     }
   }
 };
