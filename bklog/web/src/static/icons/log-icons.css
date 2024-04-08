@@ -25,7 +25,6 @@
   font-variant: normal;
 }
 
-
 .icon-app-store:before {
   content: '\e162';
 }
@@ -164,6 +163,14 @@
 
 .icon-locale:before {
   content: '\e117';
+}
+
+.icon-collapse-small:before {
+  content: '\e18a';
+}
+
+.icon-expand-small:before {
+  content: '\e189';
 }
 
 .icon-new-_empty-fill:before {
@@ -405,3 +412,4 @@
 .icon-log-remark:before {
   content: '\e187';
 }
+
