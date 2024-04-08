@@ -15,6 +15,7 @@ from collections import defaultdict
 
 import mock
 import pytest
+from django.conf import settings
 
 from alarm_backends.core.cache import key
 from alarm_backends.service.access.data import AccessBatchDataProcess, AccessDataProcess
@@ -94,7 +95,7 @@ class TestAccessDataProcess(object):
     def test_pull_batch(self, mock_batch, mock_records, mock_strategy_group, mock_strategy):
         strategy_group_key = "123456789"
         acc_data = AccessDataProcess(strategy_group_key)
-        acc_data.BATCH_SPLIT_THRESHOLD = 1
+        settings.ACCESS_DATA_BATCH_PROCESS_SIZE = 1
         acc_data.pull()
 
         c = key.ACCESS_BATCH_DATA_KEY.client

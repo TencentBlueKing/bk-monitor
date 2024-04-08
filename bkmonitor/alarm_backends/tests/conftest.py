@@ -29,6 +29,7 @@ def pytest_configure():
         "elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()
     ).start()
     settings.PUSH_MONITOR_EVENT_TO_FTA = False
+    settings.ENABLED_ACCESS_DATA_BATCH_PROCESS = True
     TestCase.databases = {"default", "monitor_api"}
 
 
