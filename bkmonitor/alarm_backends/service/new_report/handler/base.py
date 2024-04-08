@@ -58,7 +58,7 @@ class BaseReportHandler(object):
             render_params = self.get_render_params()
             context = self.render(render_params)
             send_check = self.send_check(context)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[] failed to send report({self.report.id or self.report.name}), render error: {e}")
             error_msg = e.message
 

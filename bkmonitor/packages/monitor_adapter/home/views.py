@@ -267,7 +267,7 @@ def external_callback(request):
 def report_callback(request):
     try:
         params = json.loads(request.body)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
     result = ReportCallbackResource().perform_request(params)

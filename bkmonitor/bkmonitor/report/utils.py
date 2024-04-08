@@ -159,7 +159,7 @@ def send_email(context: dict, subscribers: list) -> dict:
     try:
         result = sender.send_mail(subscribers)
         return result
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.exception(e)
 
 
@@ -172,5 +172,5 @@ def send_wxbot(context: dict, chatids: list):
     try:
         result = sender.send_wxwork_content("markdown", sender.content, chatids)
         return result
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.exception(e)
