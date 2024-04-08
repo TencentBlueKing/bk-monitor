@@ -108,7 +108,6 @@ import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
-import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
 import { debounce } from 'throttle-debounce';
 
@@ -126,6 +125,7 @@ import {
   IStatusSeries,
   ITextChartOption,
   ITextSeries } from './options/type-interface';
+import { echarts, MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
 import ChartInView from './utils/chart-in-view';
 import watermarkMaker from './utils/watermarkMaker';
 import { getValueFormat } from './valueFormats';
@@ -164,7 +164,7 @@ export default class MonitorEcharts extends Vue {
   @Ref() readonly charWrapRef!: HTMLDivElement;
 
   // echarts配置项
-  @Prop() readonly options: Echarts.EChartOption | IStatusChartOption | ITextChartOption;
+  @Prop() readonly options: MonitorEchartOptions | IStatusChartOption | ITextChartOption;
   // echarts配置项是否深度监听
   @Prop({ default: true }) readonly watchOptionsDeep: boolean;
   // 是否自动resize
@@ -183,7 +183,7 @@ export default class MonitorEcharts extends Vue {
   @Prop({ default: '' }) readonly title: string;
   @Prop({ default: '' }) readonly subtitle: string;
   // 图表系列数据
-  @Prop() readonly series: EChartOption.SeriesLine | EChartOption.SeriesBar | IStatusSeries | ITextSeries;
+  @Prop() readonly series: MonitorEchartSeries | IStatusSeries | ITextSeries;
 
   // 背景图
   @Prop({
@@ -353,7 +353,7 @@ export default class MonitorEcharts extends Vue {
     }
     return {};
   }
-  get chartOption(): any {
+  get chartOption(): MonitorEchartOptions {
     return deepMerge(
       {
         legend: {
@@ -446,12 +446,6 @@ export default class MonitorEcharts extends Vue {
     this.chartTitle = this.title;
     this.chartSubTitle = this.subtitle;
     if (this.isEchartsRender) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const echarts = require('echarts');
-      if (this.chartType === 'map') {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./map/china');
-      }
       const chart: any = echarts.init(this.chartRef);
       this.chart = chart;
       if (this.autoresize) {
@@ -558,11 +552,11 @@ export default class MonitorEcharts extends Vue {
         }
         this.legend.list = optionData.legendData || [];
         if (this.chartOption.grid) {
-          optionData.options.grid.bottom = (this.chartOption.grid as EChartOption.Grid).bottom;
+          optionData.options.grid.bottom = (this.chartOption.grid).bottom;
         }
         setTimeout(() => {
           if (this.chart) {
-            this.chart.setOption(deepMerge(optionData.options, this.defaultOptions) as EChartOption, {
+            this.chart.setOption(deepMerge(optionData.options, this.defaultOptions), {
               notMerge: false,
               lazyUpdate: false,
               silent: false
@@ -873,7 +867,7 @@ export default class MonitorEcharts extends Vue {
   }
 
   // resize
-  resize(options: EChartOption = null) {
+  resize(options: MonitorEchartOptions = null) {
     this.chartRef && this.delegateMethod('resize', options);
   }
 

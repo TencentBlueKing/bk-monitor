@@ -104,7 +104,9 @@ export default defineComponent({
           width: 100,
           disabled: true,
           checked: true,
-          sort: true
+          sort: {
+            value: ''
+          }
         },
         {
           id: EColunm.shieldType,
@@ -136,7 +138,9 @@ export default defineComponent({
           width: 150,
           disabled: false,
           checked: true,
-          sort: true
+          sort: {
+            value: ''
+          }
         },
         {
           id: EColunm.failureTime,
@@ -144,7 +148,9 @@ export default defineComponent({
           width: 150,
           disabled: false,
           checked: true,
-          sort: true
+          sort: {
+            value: ''
+          }
         },
         {
           id: EColunm.cycleDuration,
@@ -186,7 +192,8 @@ export default defineComponent({
         }
       },
       sort: {
-        type: null
+        column: '',
+        type: ''
       }
     });
     const settings = reactive({
@@ -308,6 +315,15 @@ export default defineComponent({
             disabled: item.disabled
           }));
         settings.checked = settings.fields.map(item => item.field);
+        tableData.sort = {
+          column: '',
+          type: ''
+        };
+        tableData.columns.forEach(item => {
+          if (!!item?.sort) {
+            item.sort.value = '';
+          }
+        });
         handleGetShiledList();
       }
     }
@@ -336,11 +352,11 @@ export default defineComponent({
         })(),
         search: '',
         order: (() => {
-          if (tableData.sort.type) {
+          if (!!tableData.sort.type) {
             if (tableData.sort.type === 'asc') {
-              return (tableData.sort as any).column.id;
+              return (tableData.sort as any).column;
             }
-            return `-${(tableData.sort as any).column.id}`;
+            return `-${(tableData.sort as any).column}`;
           }
           return undefined;
         })(),
@@ -458,8 +474,27 @@ export default defineComponent({
      * @param opt
      */
     function handleColumnSort(opt) {
+      const sort = {
+        column: '',
+        type: ''
+      };
+      if (opt.type !== 'null') {
+        sort.column = opt.column.id;
+        sort.type = opt.type;
+      } else {
+        sort.column = opt.column.id;
+      }
+      tableData.sort = sort;
+      const tableColumn = tableData.columns.find(item => item.id === sort.column);
+      tableData.columns.forEach(item => {
+        if (item.id !== sort.column && !!item?.sort) {
+          item.sort.value = '';
+        }
+      });
+      if (tableColumn?.sort) {
+        tableColumn.sort.value = sort.type || '';
+      }
       tableData.pagination.current = 1;
-      tableData.sort = opt;
       handleGetShiledList();
     }
     /**
