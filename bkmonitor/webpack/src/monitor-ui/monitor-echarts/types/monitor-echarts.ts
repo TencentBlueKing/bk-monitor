@@ -23,14 +23,60 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue from 'vue';
+import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
+import { BarChart, LineChart, MapChart, PieChart } from 'echarts/charts';
+import type {
+  DatasetComponentOption,
+  GridComponentOption,
+  LegendComponentOption,
+  MarkAreaComponentOption,
+  MarkLineComponentOption,
+  TitleComponentOption,
+  ToolboxComponentOption,
+  TooltipComponentOption
+} from 'echarts/components';
+import {
+  GeoComponent,
+  GridComponent,
+  LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
+  TitleComponent,
+  ToolboxComponent,
+  TooltipComponent
+} from 'echarts/components';
+import type { ComposeOption } from 'echarts/core';
+import * as echarts from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
 
-import Authority from './authority';
-import EnClass from './en-class';
-import EnStyle from './en-style';
-import MonitorLoading from './monitor-loading';
+export type MonitorEchartOptions = ComposeOption<
+  | BarSeriesOption
+  | LineSeriesOption
+  | PieSeriesOption
+  | TitleComponentOption
+  | TooltipComponentOption
+  | DatasetComponentOption
+  | GridComponentOption
+  | ToolboxComponentOption
+  | LegendComponentOption
+  | MarkAreaComponentOption
+  | MarkLineComponentOption
+>;
+export type MonitorEchartSeries = ComposeOption<BarSeriesOption | LineSeriesOption | PieSeriesOption>;
+echarts.use([
+  BarChart,
+  PieChart,
+  LineChart,
+  MapChart,
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  ToolboxComponent,
+  TooltipComponent,
+  CanvasRenderer,
+  MarkAreaComponent,
+  MarkLineComponent,
+  GeoComponent
+]);
 
-Vue.use(MonitorLoading);
-Vue.use(Authority);
-Vue.use(EnStyle);
-Vue.use(EnClass);
+export { echarts };

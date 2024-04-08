@@ -211,7 +211,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   async getDetailData() {
     this.isLoading = true;
     const data = await alertDetail({ id: this.id, bk_biz_id: this.bizId }).catch(() => {
-      // debugger;
       // this.$router.push({ path: '/event' });
     });
     this.isFeedback = await listAlertFeedback({ alert_id: this.id, bk_biz_id: this.bizId })
@@ -554,7 +553,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   }
 
   scrollInit() {
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.throttledScroll = throttle(300, this.handleScroll);
     this.$nextTick(() => {
       this.scrollEl = this.$el;
       this.scrollEl?.addEventListener('scroll', this.throttledScroll);

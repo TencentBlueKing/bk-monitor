@@ -359,6 +359,8 @@ class EsQueryMappingAttrSerializer(serializers.Serializer):
     start_time = serializers.CharField(required=False, default="", allow_blank=True, allow_null=True)
     end_time = serializers.CharField(required=False, default="", allow_blank=True, allow_null=True)
     time_zone = serializers.CharField(required=False, allow_blank=True, default=None, allow_null=True)
+    # 是否添加settings详细信息, 针对自定义analysis的场景
+    add_settings_details = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

@@ -25,7 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
+import { DateRange } from '@blueking/date-picker/vue2';
 import dayjs from 'dayjs';
 import { deleteShareToken, getShareTokenList } from 'monitor-api/modules/share';
 import MonitorDialog from 'monitor-ui/monitor-dialog';

@@ -579,7 +579,7 @@ export default {
     align-items: center;
     width: 278px;
     height: 100%;
-    padding-left: 23px;
+    padding-left: 16px;
     font-size: 18px;
 
     .log-logo-container {

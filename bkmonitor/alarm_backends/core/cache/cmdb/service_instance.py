@@ -13,6 +13,8 @@ specific language governing permissions and limitations under the License.
 import json
 from collections import defaultdict
 
+from django.conf import settings
+
 from alarm_backends.core.cache.cmdb import HostManager
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from api.cmdb.define import ServiceInstance, TopoTree
@@ -29,6 +31,7 @@ class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
     HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY = "{prefix}.cmdb.host_to_service_instance_id".format(
         prefix=CMDBCacheManager.CACHE_KEY_PREFIX
     )
+    ObjectClass = ServiceInstance
 
     @classmethod
     def key_to_internal_value(cls, service_instance_id):
@@ -84,4 +87,6 @@ class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
+    if "service_instance" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     ServiceInstanceManager.refresh()

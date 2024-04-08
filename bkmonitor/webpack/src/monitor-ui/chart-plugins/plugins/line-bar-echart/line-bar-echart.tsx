@@ -26,19 +26,18 @@
 import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_LINE_OPTIONS } from '../../constants';
 import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../../mixins';
-import { ICommonCharts, IMenuItem, PanelModel } from '../../typings';
+import { ICommonCharts, IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
 import BaseEchart from '../monitor-base-echart';
 
 import './line-bar-echart.scss';
 
-const option: EChartOption = {
+const option: MonitorEchartOptions = {
   animation: false,
   xAxis: {
     type: 'time',
@@ -86,8 +85,8 @@ class LineBarEChart
   implements ICommonCharts
 {
   @Prop({ required: true }) panel: PanelModel;
-  @Ref() baseChart: BaseEchart;
-  customOptions: EChartOption = deepmerge(MONITOR_LINE_OPTIONS, option);
+  @Ref() baseChart: InstanceType<typeof BaseEchart>;
+  customOptions: MonitorEchartOptions = deepmerge(MONITOR_LINE_OPTIONS, option);
   showHeaderMoreTool = false;
   legendData = legendData;
   /**

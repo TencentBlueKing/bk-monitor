@@ -27,10 +27,10 @@
 import { defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception } from 'bkui-vue';
-// import stackTrace from './data.json';
-import * as echarts from 'echarts';
 import { traceDiagram } from 'monitor-api/modules/apm_trace';
 import { lightenDarkenColor, random } from 'monitor-common/utils';
+// import stackTrace from './data.json';
+import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 

@@ -587,7 +587,7 @@ export default {
   已收藏: 'Favorited',
   已经添加: 'Added',
   已选条件: 'Selected conditions',
-  已选主机: 'Selected hosts',
+  "已选择{0}台主机": '{0} hosts have been selected',
   已有项目: 'Existing projects',
   只看已选: 'Show only selected',
 

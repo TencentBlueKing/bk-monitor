@@ -13,6 +13,7 @@ import json
 import logging
 from typing import Dict, List, Optional
 
+from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
 from metadata import models
@@ -190,3 +191,19 @@ def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
         else:
             data["custom_metric_rt"] = vm_rt
     return data
+
+
+def get_table_id_from_vm(bk_base_data_id: Optional[int] = None, vm_table_id: Optional[str] = None) -> str:
+    """获取vm下面的结果表"""
+    if not (bk_base_data_id or vm_table_id):
+        return ""
+    objs = models.AccessVMRecord.objects.filter(Q(bk_base_data_id=bk_base_data_id) | Q(vm_result_table_id=vm_table_id))
+    if not objs.exists():
+        raise ValidationError(
+            f"not found vm record by bk_base_data_id: {bk_base_data_id} or vm_table_id: {vm_table_id}"
+        )
+    # 如果有多个，则返回提示给用户确认，防止操作错误
+    if objs.count() > 1:
+        raise ValidationError(f"bk_base_data_id: {bk_base_data_id} or vm_table_id: {vm_table_id} not same record")
+
+    return objs.first().result_table_id

@@ -1324,5 +1324,11 @@ SINGLE_VM_SPACE_ID_LIST = []
 # 文档链接配置 格式: {"key1": {"type": "splice/link", "value": ""}}
 DOC_LINK_MAPPING = {}
 
+# 插件授权给 bkci 空间使用
+BKCI_SPACE_ACCESS_PLUGIN_LIST = []
+
+# 禁用告警CMDB缓存刷新
+DISABLE_ALARM_CMDB_CACHE_REFRESH = []
+
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))

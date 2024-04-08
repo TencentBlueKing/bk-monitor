@@ -56,7 +56,7 @@
         <div class="field-value">
           <text-segmentation
             :content="formatterStr(data, field)"
-            :field-type="getFieldType(field)"
+            :field="getFieldItem(field)"
             :menu-click="(type, content, isLink) => handleMenuClick(type, content, field, isLink)"
           />
           <span
@@ -77,7 +77,7 @@
 import _escape from 'lodash/escape';
 import { mapState } from 'vuex';
 import { getTextPxWidth } from '@/common/util';
-import TextSegmentation from './text-segmentation';
+import TextSegmentation from './text-segmentation.tsx';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
 export default {
@@ -85,6 +85,7 @@ export default {
     TextSegmentation
   },
   mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
   props: {
     data: {
       type: Object,
@@ -356,6 +357,9 @@ export default {
         });
       }
       return false;
+    },
+    getFieldItem(fieldName) {
+      return this.fieldList.find(item => item.field_name === fieldName);
     }
   }
 };
@@ -394,6 +398,8 @@ export default {
     }
 
     .field-value {
+      // font-family: monospace;
+      // color: #000;
       word-break: break-all;
     }
 

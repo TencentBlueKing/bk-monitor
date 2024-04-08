@@ -23,25 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// import * as vueClassComponent from 'vue-class-component';
-// import * as vueI18n from 'vue-i18n';
-// import * as vuePopertyDecorator from 'vue-property-decorator';
-// import * as vueRouter from 'vue-router';
-// import * as vueTsxSupport from 'vue-tsx-support';
-// import * as vuexModuleDecorators from 'vuex-module-decorators';
-// import bkMagicVue from 'bk-magic-vue';
-import axios from 'axios';
-import dayjs from 'dayjs';
-import * as echarts from 'echarts';
+import Vue from 'vue';
 
-window.echarts = echarts;
-window.axios = axios;
-window.dayjs = dayjs;
+import Authority from './authority';
+import EnClass from './en-class';
+import EnStyle from './en-style';
+import MonitorLoading from './monitor-loading';
+import Watermark from './watermark';
 
-// window.vueClassComponent = vueClassComponent;
-// window.vuePopertyDecorator = vuePopertyDecorator;
-// window.vueTsxSupport = vueTsxSupport;
-// window.vuexModuleDecorators = vuexModuleDecorators;
-// window.bkMagicVue = bkMagicVue;
-// window.vueI18n = vueI18n;
-// window.vueRouter = vueRouter;
+Vue.use(MonitorLoading);
+Vue.use(Authority);
+Vue.use(EnStyle);
+Vue.use(EnClass);
+Vue.use(Watermark);

@@ -58,7 +58,7 @@ import introduce from '../common/introduce';
 import { isAuthority } from '../router/router';
 import { getDashboardCache } from './grafana/utils';
 import { getDashboardList } from 'monitor-api/modules/grafana';
-import NoticeComponent from '@blueking/notice-component-vue2';
+// import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
 
 const changeNoticeRouteList = [
@@ -82,7 +82,11 @@ if (currentLang === 'en') {
   WIDTH_LIST = [118, 82, 120, 92, 88, 127, 126, 118];
   SPACE_WIDTH = 263;
 }
-@Component
+@Component({
+  components: {
+    NoticeComponent: () => import(/* webpackChunkName: "notice-component" */ '@blueking/notice-component-vue2')
+  }
+})
 export default class App extends tsc<{}> {
   @Ref('menuSearchInput') menuSearchInputRef: any;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
@@ -225,7 +229,8 @@ export default class App extends tsc<{}> {
   /** 获取文档链接 */
   async getDocsLinkMapping() {
     const data = await getLinkMapping().catch(() => {});
-    this.$store.commit('app/updateExtraDocLinkMap', data);
+    window.docUrlMap = data;
+    // this.$store.commit('app/updateExtraDocLinkMap', data);
   }
   async handleGetNewUserGuide() {
     if (this.readonly || /^#\/share\//.test(location.hash)) return;
@@ -689,7 +694,7 @@ export default class App extends tsc<{}> {
         }}
       >
         {process.env.NODE_ENV !== 'development' && (
-          <NoticeComponent
+          <notice-component
             apiUrl='/notice/announcements'
             onShowAlertChange={this.showAlertChange}
           />

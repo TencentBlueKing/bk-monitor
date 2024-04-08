@@ -105,7 +105,7 @@
         <template slot-scope="{ row }">
           <span
             class="link-color"
-            @click="handleMenuClick('show original', row)"
+            @click="handleMenuBatchClick(row)"
           >
             {{ row.count }}</span
           >
@@ -122,7 +122,7 @@
         <template slot-scope="{ row }">
           <span
             class="link-color"
-            @click="handleMenuClick('show original', row)"
+            @click="handleMenuBatchClick(row)"
           >
             {{ `${toFixedNumber(row.percentage, 2)}%` }}
           </span>
@@ -177,6 +177,7 @@
                 @eventClick="(option, isLink) => handleMenuClick(option, row, isLink)"
               >
                 <text-highlight
+                  class="monospace-text"
                   style="word-break: break-all; white-space: pre-line"
                   :queries="getHeightLightList(row.pattern)"
                 >
@@ -213,7 +214,7 @@
         >
           <template slot-scope="{ row }">
             <div v-bk-overflow-tips>
-              <span>{{ row.group[index] }}</span>
+              <span class="monospace-text">{{ row.group[index] }}</span>
             </div>
           </template>
         </bk-table-column>
@@ -401,7 +402,8 @@ export default {
     EmptyStatus,
     BkUserSelector
   },
-  inject: ['addFilterCondition'],
+  inheritAttrs: false,
+  inject: ['addFilterCondition', 'batchAddCondition'],
   props: {
     fingerList: {
       type: Array,
@@ -590,18 +592,32 @@ export default {
       switch (option) {
         // pattern 下钻
         case 'show original':
-          if (this.requestData.group_by.length) {
-            this.requestData.group_by.forEach((el, index) => {
-              this.addFilterCondition(el, 'is', row.group[index]);
-            });
-          }
-          this.addFilterCondition(`__dist_${this.requestData.pattern_level}`, 'is', row.signature.toString(), isLink);
+          this.handleMenuBatchClick(row, isLink);
           if (!isLink) this.$emit('showOriginLog');
           break;
         case 'copy':
           copyMessage(row.pattern);
           break;
       }
+    },
+    handleMenuBatchClick(row, isLink = true) {
+      const additionList = [];
+      const groupBy = this.requestData.group_by;
+      if (groupBy.length) {
+        groupBy.forEach((el, index) => {
+          additionList.push({
+            field: el,
+            operator: 'is',
+            value: row.group[index]
+          });
+        });
+      }
+      additionList.push({
+        field: `__dist_${this.requestData.pattern_level}`,
+        operator: 'is',
+        value: row.signature.toString()
+      });
+      this.batchAddCondition(additionList, isLink);
     },
     showArrowsClass(row) {
       if (row.year_on_year_percentage === 0) return '';
@@ -976,7 +992,7 @@ export default {
      * @desc: 获取当前数据指纹所有的责任人
      */
     getUserList() {
-      // this.ownerLoading = true;
+      this.ownerLoading = true;
       const cloneOwnerBase = deepClone(this.ownerBaseList);
       this.$http
         .request('/logClustering/getOwnerList', {
@@ -994,13 +1010,17 @@ export default {
           }, cloneOwnerBase);
         })
         .finally(() => {
-          // this.ownerLoading = false;
+          this.ownerLoading = false;
         });
     },
     /**
      * @desc: 选中责任人列表里的值
      */
     handleUserSelectChange(v) {
+      if (!v.length) {
+        this.ownerSelect = ['all'];
+        return;
+      }
       const lastSelect = v[v.length - 1];
       if (['no_owner', 'all'].includes(lastSelect)) {
         this.ownerSelect = [lastSelect];
@@ -1012,6 +1032,10 @@ export default {
      * @desc: 选中备注列表里的值 单选永远是最后一个
      */
     handleRemarkSelectChange(v) {
+      if (!v.length) {
+        this.remarkSelect = ['all'];
+        return;
+      }
       this.remarkSelect = [v[v.length - 1]];
     },
     /**
@@ -1057,7 +1081,7 @@ export default {
           disabled: false,
           select: this.ownerSelect,
           selectList: this.ownerList,
-          // loading: this.ownerLoading,
+          loading: this.ownerLoading,
           toggle: this.handleToggleUserSelect,
           isActive
         },
@@ -1077,7 +1101,6 @@ export default {
           disabled: false,
           select: this.remarkSelect,
           selectList: this.remarkList,
-          // loading: this.ownerLoading,
           toggle: this.handleToggleRemarkSelect,
           isActive
         },
@@ -1107,6 +1130,8 @@ export default {
     padding: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    display: -webkit-box;
     /* stylelint-disable-next-line property-no-vendor-prefix */
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
@@ -1248,6 +1273,11 @@ export default {
       color: #3a84ff;
       cursor: pointer;
     }
+
+    // .monospace-text {
+    //   font-family: monospace;
+    //   color: #000;
+    // }
   }
 }
 

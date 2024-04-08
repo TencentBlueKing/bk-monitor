@@ -58,7 +58,7 @@
               class="selection-tips"
               v-show="allCheckValue === 2"
             >
-              <i18n path="已选主机">
+              <i18n path="已选择{0}台主机">
                 <span class="tips-num">{{ selectionsCount }}</span>
               </i18n>
               <bk-button
@@ -67,7 +67,7 @@
                 text
                 @click="handleSelectAll"
               >
-                <i18n path="选择所有主机">
+                <i18n path="选择所有{0}台主机">
                   <span class="tips-num">{{ pageConfig.total }}</span>
                 </i18n>
               </bk-button>
@@ -1104,6 +1104,7 @@ $processColors: #ea3636 #c4c6cc #63656e;
 
       .tips-num {
         font-weight: bold;
+        margin: 0 4px;
       }
 
       .tips-btn {

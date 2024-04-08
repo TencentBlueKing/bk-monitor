@@ -587,6 +587,7 @@ export default class BasicInfo extends tsc<IProps> {
     if (params.application_sampler_config.sampler_type === 'random') {
       params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
     } else if (params.application_sampler_config.sampler_type === 'tail') {
+      params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
       params.application_sampler_config.tail_conditions = this.samplingRules
         .map(item => {
           // eslint-disable-next-line @typescript-eslint/naming-convention

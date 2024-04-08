@@ -327,6 +327,9 @@ export default {
       },
       isCurrentIndexSetIdCreateSubscription: false,
       isShowQuickCreateSubscriptionDrawer: false
+      },
+      /** 打开设置弹窗时的维度 */
+      catchDimension: []
     };
   },
   computed: {
@@ -505,7 +508,31 @@ export default {
           });
     },
     async submitPopover() {
-      await this.updateInitGroup();
+      // 设置过维度 进行二次确认弹窗判断
+      if (this.catchDimension.length) {
+        const dimensionSortStr = this.dimension.sort().join(',');
+        const catchDimensionSortStr = this.catchDimension.sort().join(',');
+        const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
+        if (isShowInfo) {
+          this.$bkInfo({
+            type: 'warning',
+            title: this.$t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
+            confirmFn: async () => {
+              await this.updateInitGroup();
+              this.finishEmit();
+            }
+          });
+        } else {
+          // 不请求更新维度接口 直接提交
+          this.finishEmit();
+        }
+      } else {
+        // 没设置过维度 直接提交
+        if (this.dimension.length) await this.updateInitGroup();
+        this.finishEmit();
+      }
+    },
+    finishEmit() {
       this.$emit('handleFingerOperate', 'fingerOperateData', {
         dimensionList: this.dimension,
         selectGroupList: this.group,
@@ -548,6 +575,7 @@ export default {
       this.patternSize = finger.patternSize;
       this.alarmSwitch = finger.alarmObj?.is_active;
       this.dimension = finger.dimensionList;
+      this.catchDimension = finger.dimensionList;
       this.group = finger.selectGroupList;
       this.yearSwitch = finger.yearSwitch;
       this.yearOnYearHour = finger.yearOnYearHour;

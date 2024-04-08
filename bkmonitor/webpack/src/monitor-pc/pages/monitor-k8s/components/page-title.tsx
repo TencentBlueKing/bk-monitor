@@ -109,7 +109,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
     return this.searchData.some(item => item.children);
   }
   created() {
-    this.throttledResize = throttle(300, false, this.handleResize);
+    this.throttledResize = throttle(300, this.handleResize);
   }
 
   mounted() {

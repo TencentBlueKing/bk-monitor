@@ -140,8 +140,8 @@ export default class AiWhale extends tsc<{}> {
   }
 
   created() {
-    this.mousemoveFn = throttle(50, false, this.handleMousemove);
-    this.resizeFn = throttle(50, false, this.handleWindowResize);
+    this.mousemoveFn = throttle(50, this.handleMousemove);
+    this.resizeFn = throttle(50, this.handleWindowResize);
     window.addEventListener('resize', this.resizeFn);
   }
 
