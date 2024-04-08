@@ -1,5 +1,3 @@
-import { EChartOption } from 'echarts';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,8 @@ import { EChartOption } from 'echarts';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { MonitorEchartOptions } from '../typings';
+
 export const COLOR_LIST = [
   '#F0AE69',
   '#689DF3',
@@ -107,7 +107,7 @@ export const COLOR_LIST_OUTLIER = [
 ];
 
 /** 线性图配置 */
-export const MONITOR_LINE_OPTIONS: EChartOption = {
+export const MONITOR_LINE_OPTIONS: MonitorEchartOptions = {
   useUTC: false,
   animation: false,
   animationThreshold: 2000,
@@ -146,7 +146,6 @@ export const MONITOR_LINE_OPTIONS: EChartOption = {
     itemSize: 0,
     iconStyle: {
       color: '#979ba5',
-      fontSize: 14,
       borderWidth: 0,
       shadowColor: '#979ba5',
       shadowOffsetX: 0,
