@@ -449,7 +449,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             last_batch_index = index
 
         if self.batch_tasks:
-            logger.info("strategy_group_key({}), batch_tasks({})".format(self.strategy_group_key, self.batch_tasks))
+            logger.info("strategy_group_key({}), split {} access data into {} batch tasks".format(self.strategy_group_key, len(points), batch_count))
 
         return first_batch_points
 
@@ -624,7 +624,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         last_checkpoint, total_push_count = 0, 0
         for result in batch_results:
-            if result["result"]:
+            if not result["result"]:
                 logger.error(
                     "strategy_group_key({strategy_group_key}) "
                     "access batch task({sub_task_id}) error({error})".format(
