@@ -204,5 +204,6 @@ export default {
   资源注册: 'Resource registration',
   'route-资源注册': 'Resource registration',
   编辑集群: 'Edit cluster',
-  新增集群: 'Add cluster'
+  新增集群: 'Add cluster',
+  'route-订阅配置': 'Subscription configuration'
 };

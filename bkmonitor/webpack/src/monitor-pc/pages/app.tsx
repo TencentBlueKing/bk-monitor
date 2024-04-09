@@ -149,6 +149,8 @@ export default class App extends tsc<{}> {
     list = this.routeList.find(item => item.id === this.navActive)?.children || [];
     // ai 设置 enable_aiops为true 则ai设置不展示 fasle 则ai设置页面展示
     list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops));
+    console.log('list', list);
+
     return list;
   }
   get navRouteList() {
@@ -227,7 +229,8 @@ export default class App extends tsc<{}> {
   /** 获取文档链接 */
   async getDocsLinkMapping() {
     const data = await getLinkMapping().catch(() => {});
-    this.$store.commit('app/updateExtraDocLinkMap', data);
+    window.docUrlMap = data;
+    // this.$store.commit('app/updateExtraDocLinkMap', data);
   }
   async handleGetNewUserGuide() {
     if (this.readonly || /^#\/share\//.test(location.hash)) return;

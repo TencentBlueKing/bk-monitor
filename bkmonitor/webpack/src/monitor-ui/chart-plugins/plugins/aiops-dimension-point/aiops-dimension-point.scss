@@ -1,22 +1,26 @@
+/* stylelint-disable declaration-no-important */
 .aiops-dimension-point-tips {
   max-width: 560px;
+  border-width: 0px !important;
+  box-shadow: none !important;
+
   .pt12 {
     padding-top: 12px;
   }
 
   .aiops-dimension-line-tooltip-warp {
     .aiops-dimension-count-text {
-      margin: 0;
-      text-align: right;
       padding: 10px 10px 0px 10px;
+      margin: 0;
       color: rgb(105, 157, 244);
+      text-align: right;
     }
   }
 
   .aiops-dimension-line-tooltip-content {
-    min-width: 168px;
-    padding: 0px 12px; 
+    min-width: 168px; 
     max-height: 299px;
+    padding: 0px 12px;
     overflow-y: auto;
   
     // &::-webkit-scrollbar {display: none;}
@@ -35,8 +39,8 @@
   
     p {
       margin: 0px;
-      color: #f0f1f5;
       line-height: 24px;
+      color: #f0f1f5;
     }
 
     .hide-tips-icon {
@@ -44,19 +48,21 @@
     }
 
     .tooltip-content-label {
-      font-weight: 700;
-      color: #979ba5;
-      margin-bottom: 6px;
       // height: 22px;
-      display:-webkit-box;
-      text-overflow:ellipsis;
-      -webkit-line-clamp: 3;
-      /*! autoprefixer: off */
-      -webkit-box-orient: vertical;
+      display: box;
+      margin-bottom: 6px;
+
       /* autoprefixer: on */
       overflow: hidden;
+      font-weight: 700;
+      color: #979ba5;
+      text-overflow: ellipsis;
       word-break: break-all;
       white-space: normal;
+      -webkit-line-clamp: 3;
+
+      /*! autoprefixer: off */
+      -webkit-box-orient: vertical;
   
       &:hover {
         i:not(.hide-tips-icon) {
@@ -70,19 +76,20 @@
     }
 
     .is-anomaly-label {
-      cursor: pointer;
       color: rgba(105, 157, 244, 1);
+      cursor: pointer;
     }
   }
 }
 
 .aiops-dimension-point-median {
   .median-tips {
-    background-color: rgba(0, 0, 0, .8);
-    margin-bottom: 10px;
-    padding: 0px 12px;
     display: inline-block;
+    padding: 0px 12px;
+    margin-bottom: 10px;
     line-height: 28px;
+    color: white;
+    background-color: rgba(0, 0, 0, .8);
     border-radius: 4px;
   }
 

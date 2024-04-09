@@ -144,7 +144,7 @@
       <ul class="filed-list">
         <template>
           <field-item
-            v-for="item in showBuiltInFields"
+            v-for="item in builtInFieldsShowObj.builtInShowFields"
             v-show="item.filterVisible"
             :key="item.field_name"
             type="hidden"
@@ -156,6 +156,7 @@
             @toggleItem="handleToggleItem"
           />
           <div
+            v-if="builtInFieldsShowObj.isShowBuiltExpandBtn"
             class="expand-all"
             @click="isShowAllBuiltIn = !isShowAllBuiltIn"
           >
@@ -254,14 +255,16 @@ export default {
     };
   },
   computed: {
+    /** 可选字段 */
     hiddenFields() {
-      // 可选字段
       return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
     },
+    /** 内置字段 */
     indexSetFields() {
       const underlineFieldList = []; // 下划线的字段
       const otherList = []; // 其他字段
       const { indexHiddenFields } = this.hiddenFilterFields;
+      // 类似__xxx__的字段放最后展示
       indexHiddenFields.forEach(fieldItem => {
         if (/^[_]{1,2}/g.test(fieldItem.field_name)) {
           underlineFieldList.push(fieldItem);
@@ -271,6 +274,7 @@ export default {
       });
       return this.sortHiddenList([otherList, underlineFieldList]);
     },
+    /** 非已选字段 分别生成内置字段和索引字段 */
     hiddenFilterFields() {
       const builtInHiddenFields = [];
       const indexHiddenFields = [];
@@ -286,22 +290,32 @@ export default {
         indexHiddenFields
       };
     },
+    /** 排序后的内置字段 */
     builtInFields() {
-      const headerList = [];
       const { builtInHiddenFields } = this.hiddenFilterFields;
-      this.builtInHeaderList.forEach(item => {
-        builtInHiddenFields.forEach(builtItem => {
-          if (builtItem.field_name === item) {
-            headerList.push(builtItem);
+      const { headerList, filterHeaderBuiltFields } = builtInHiddenFields.reduce(
+        (acc, cur) => {
+          // 判断内置字段需要排在前面几个字段
+          let isHeaderItem = false;
+          for (const headerItem of this.builtInHeaderList) {
+            if (cur.field_name === headerItem) {
+              isHeaderItem = true;
+              acc.headerList.push(cur);
+              break;
+            }
           }
-        });
-      });
-      const filterHeaderBuiltFields = builtInHiddenFields.filter(
-        item => !this.builtInHeaderList.includes(item.field_name)
+          if (!isHeaderItem) acc.filterHeaderBuiltFields.push(cur);
+          return acc;
+        },
+        {
+          headerList: [],
+          filterHeaderBuiltFields: []
+        }
       );
       return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
     },
-    showBuiltInFields() {
+    /** 内置字段展示对象 */
+    builtInFieldsShowObj() {
       const { initHiddenList, otherList } = this.builtInFields.reduce(
         (acc, cur) => {
           if (this.builtInInitHiddenList.includes(cur.field_name)) {
@@ -316,11 +330,14 @@ export default {
           otherList: []
         }
       );
-      // 展示全部
-      if (this.isShowAllBuiltIn) return [...otherList, ...initHiddenList];
-      // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
-      return otherList.slice(0, 9);
+      return {
+        // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
+        isShowBuiltExpandBtn: this.builtInFields.length > 10 || !!initHiddenList.length,
+        // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
+        builtInShowFields: this.isShowAllBuiltIn ? [...otherList, ...initHiddenList] : otherList.slice(0, 9)
+      };
     },
+    /** 展示的内置字段 */
     showIndexSetFields() {
       return this.isShowAllIndexSet ? this.indexSetFields : this.indexSetFields.slice(0, 9);
     },
@@ -423,6 +440,11 @@ export default {
           console.warn(e);
         });
     },
+    /**
+     * @desc: 字段命排序
+     * @param {Array} list
+     * @returns {Array}
+     */
     sortHiddenList(list) {
       const sortList = [];
       list.forEach(item => {
