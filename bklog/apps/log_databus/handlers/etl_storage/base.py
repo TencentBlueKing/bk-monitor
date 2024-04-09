@@ -357,6 +357,14 @@ class EtlStorage(object):
                 time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
 
+                if time_field["option"]["es_type"] == "date_nanos":
+                    time_field["option"]["timestamp_unit"] = "ns"
+                else:
+                    time_field["option"]["timestamp_unit"] = "ms"
+
+                # 注入默认值
+                time_field["option"]["default_function"] = "fn:timestamp_from_utctime"
+
                 # 删除原时间字段配置
                 field_option["es_doc_values"] = False
 
