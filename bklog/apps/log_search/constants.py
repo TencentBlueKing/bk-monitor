@@ -1111,7 +1111,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             },
             {
                 "id": "strict_date_time_micros",
-                "name": "YYYY-MM-DDTHH:mm:ss.SSSSSSZ",
+                "name": "strict_date_time_micros",
                 "description": "2006-01-02T15:04:05.000000-07:00",
                 "es_format": "strict_date_optional_time_nanos",
                 "es_type": "date_nanos",
