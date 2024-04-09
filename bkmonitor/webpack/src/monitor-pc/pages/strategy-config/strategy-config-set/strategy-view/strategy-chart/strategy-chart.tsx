@@ -192,7 +192,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Watch('isNear')
   @Watch('dimensions')
   @Watch('timeRange')
-  @Watch('detectionConfig')
+  @Watch('detectionConfig', { deep: true })
   @Watch('refleshImmediate')
   watchDetectionConfig() {
     this.initPanel();
