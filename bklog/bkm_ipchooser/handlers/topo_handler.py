@@ -187,7 +187,7 @@ class TopoHandler:
 
         host_map = {}
         for index, cc_host in enumerate(cc_hosts):
-            host_map[cc_host['bk_host_id']] = index
+            host_map[cc_host["bk_host_id"]] = index
         # 如果没有可匹配的主机，则直接返回
         if not host_map:
             return cc_hosts
@@ -196,7 +196,7 @@ class TopoHandler:
             scope_list.append({"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(bk_biz_id)})
             meta = BaseHandler.get_meta_data(bk_biz_id)
             for host in cc_hosts:
-                host_list.append({"host_id": host['bk_host_id'], "meta": meta})
+                host_list.append({"host_id": host["bk_host_id"], "meta": meta})
             # 添加no_request参数, 多线程调用时，保证用户信息不漏传
             request_params = {"no_request": True, "host_list": host_list, "scope_list": scope_list}
             host_info = BKNodeApi.ipchooser_host_details(request_params)

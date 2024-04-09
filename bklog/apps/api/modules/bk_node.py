@@ -133,12 +133,11 @@ class _BKNodeApi:
             description="重试失败的任务",
             before_request=get_bk_node_request_before,
         )
-        # apigw的节点管理查询agent状态
         self.ipchooser_host_details = DataAPI(
             method="POST",
             url=BK_NODE_APIGATEWAY_ROOT + "core/api/ipchooser_host/details/",
             module=self.MODULE,
-            description="apigw节点管理",
+            description="获取agent信息",
             before_request=get_bk_node_request_before,
         )
 
