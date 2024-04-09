@@ -76,7 +76,6 @@ if (window.__POWERED_BY_BK_WEWEB__) {
   Vue.prototype.$api = Api;
   Vue.prototype.$authorityStore = Authority;
 } else {
-  serviceWorker.register();
   Api.model
     .enhancedContext({
       space_uid: spaceUid || undefined,
