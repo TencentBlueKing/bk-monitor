@@ -28,11 +28,11 @@ export default {
   state: {
     globalsData: {},
     fieldTypeMap,
-    authContainerInfo: null, // 检索页或有侧边栏菜单父级路由展示的业务无权限页面信息
+    authContainerInfo: null // 检索页或有侧边栏菜单父级路由展示的业务无权限页面信息
   },
   getters: {
     globalsData: state => state.globalsData,
-    authContainerInfo: state => state.authContainerInfo,
+    authContainerInfo: state => state.authContainerInfo
   },
   mutations: {
     setGlobalsData(state, globalsData) {
@@ -43,7 +43,7 @@ export default {
     },
     updateAuthContainerInfo(state, info) {
       vue.set(state, 'authContainerInfo', info);
-    },
+    }
   },
-  actions: {},
+  actions: {}
 };

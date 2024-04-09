@@ -25,10 +25,10 @@
  */
 import { Component, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import type { EChartOption } from 'echarts';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
+import { MonitorEchartOptions } from '../../typings';
 import BaseEchart from '../monitor-base-echart';
 
 import './aiops-dimension-point.scss';
@@ -104,7 +104,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
     const diffResult = this.nearMedianPoint.find(point => point.anomaly_score === anomaly_score);
     return !!diffResult;
   }
-  get customOptions(): EChartOption {
+  get customOptions(): MonitorEchartOptions {
     return {
       grid: {
         left: 20,

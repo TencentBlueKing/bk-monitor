@@ -30,7 +30,6 @@ import JsonPretty from 'vue-json-pretty';
 import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
 // 原先绑定 Vue 原型的 $api
 import api from 'monitor-api/api';
@@ -47,6 +46,7 @@ import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 // src/monitor-ui/chart-plugins/utils/index.ts
 import { downFile } from 'monitor-ui/chart-plugins/utils';
+import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 // import { VariablesService } from '../../utils/variable';
@@ -65,7 +65,7 @@ import { ITableDataItem } from '../../typings/table-chart';
 import './related-log-chart.scss';
 import 'vue-json-pretty/lib/styles.css';
 
-const option: EChartOption = {
+const option: MonitorEchartOptions = {
   animation: false,
   color: ['#A3C5FD'],
   xAxis: {
@@ -122,7 +122,7 @@ export default defineComponent({
     /** 关联索引集列表 */
     const relatedIndexSetList = ref([]);
     /** 柱状图配置 */
-    const customOptions = ref<EChartOption>(
+    const customOptions = ref<MonitorEchartOptions>(
       deepmerge(MONITOR_BAR_OPTIONS, option, {
         arrayMerge: (_, srcArr) => srcArr
       })
@@ -353,41 +353,40 @@ export default defineComponent({
         });
         await props.panel.targets
           .filter(item => item.dataType === 'time_series')
-          .map(
-            item =>
-              api[item.apiModule]
-                ?.[item.apiFunc](
-                  {
-                    ...variablesService.transformVariables(item.data),
-                    ...params,
-                    view_options: {
-                      // 在继承组件
-                      ...viewOptions.value
-                    }
-                  },
-                  { needMessage: false }
-                )
-                .then(res => {
-                  if (res.series?.[0].datapoints?.length) {
-                    customOptions.value.series = [];
-                    const data = {
-                      series: [
-                        {
-                          data: res.series[0].datapoints,
-                          type: 'bar',
-                          colorBy: 'data',
-                          name: 'COUNT ',
-                          zlevel: 100
-                        }
-                      ]
-                    };
-                    const updateOption = deepmerge(option, data);
-                    customOptions.value = deepmerge(customOptions.value, updateOption);
-                    emptyChart.value = false;
-                  } else {
-                    emptyChart.value = true;
+          .map(item =>
+            api[item.apiModule]
+              ?.[item.apiFunc](
+                {
+                  ...variablesService.transformVariables(item.data),
+                  ...params,
+                  view_options: {
+                    // 在继承组件
+                    ...viewOptions.value
                   }
-                })
+                },
+                { needMessage: false }
+              )
+              .then(res => {
+                if (res.series?.[0].datapoints?.length) {
+                  customOptions.value.series = [];
+                  const data = {
+                    series: [
+                      {
+                        data: res.series[0].datapoints,
+                        type: 'bar',
+                        colorBy: 'data',
+                        name: 'COUNT ',
+                        zlevel: 100
+                      }
+                    ]
+                  };
+                  const updateOption = deepmerge(option, data);
+                  customOptions.value = deepmerge(customOptions.value, updateOption);
+                  emptyChart.value = false;
+                } else {
+                  emptyChart.value = true;
+                }
+              })
           );
       } catch (error) {
         handleErrorMsgChange(error.msg || error.message);
@@ -420,28 +419,27 @@ export default defineComponent({
         });
         await props.panel.targets
           .filter(item => item.dataType === 'table-chart')
-          .map(
-            item =>
-              api[item.apiModule]
-                ?.[item.apiFunc]({
-                  ...variablesService.transformVariables(item.data),
-                  ...params,
-                  view_options: {
-                    ...viewOptions.value
-                  }
-                })
-                .then(data => {
-                  if (isScrollLoadTableData) {
-                    tableData.value.push(...data.data);
-                    isScrollLoadTableData = false;
-                  } else {
-                    tableData.value = data.data;
-                  }
-                  columns.value = data.columns;
-                })
-                .finally(() => {
-                  isScrollLoading.value = false;
-                })
+          .map(item =>
+            api[item.apiModule]
+              ?.[item.apiFunc]({
+                ...variablesService.transformVariables(item.data),
+                ...params,
+                view_options: {
+                  ...viewOptions.value
+                }
+              })
+              .then(data => {
+                if (isScrollLoadTableData) {
+                  tableData.value.push(...data.data);
+                  isScrollLoadTableData = false;
+                } else {
+                  tableData.value = data.data;
+                }
+                columns.value = data.columns;
+              })
+              .finally(() => {
+                isScrollLoading.value = false;
+              })
           );
       } catch (e) {}
       setTimeout(() => {
@@ -661,7 +659,7 @@ export default defineComponent({
                             {this.intervalList.map(item => (
                               <Select.Option
                                 key={item.id}
-                                value={item.name}
+                                id={item.name}
                               >
                                 {item.name}
                               </Select.Option>

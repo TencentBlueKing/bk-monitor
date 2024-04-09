@@ -1,14 +1,14 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.trace import StatusCode
+
 from apm_web.handlers.trace_handler.base import TraceHandler
 from apm_web.trace.diagram.base import Group, SpanNode, TraceTree, TreeBuildingConfig
 from apm_web.trace.diagram.config import DiagramConfigController
 from apm_web.trace.diagram.diff import DiffMark, DiffNode, DiffTree, TraceDiffer
 from apm_web.trace.service_color import ServiceColorClassifier
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.trace import StatusCode
-
 from constants.apm import OtlpKey
 
 
@@ -164,7 +164,8 @@ def make_topo_node_from_span_node(
             #      -> C x2
             twins = []
             for m in parent_group.members:
-                twins.extend(m.children[span_node.index].group.members)
+                if m.children[span_node.index].group:
+                    twins.extend(m.children[span_node.index].group.members)
 
         virtual_group = make_virtual_group_from_node(twins)
         topo_node = TopoNode.from_group(virtual_group)

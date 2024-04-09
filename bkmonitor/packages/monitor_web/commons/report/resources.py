@@ -14,7 +14,7 @@ import requests
 from django.conf import settings
 from rest_framework import serializers
 
-from core.drf_resource import Resource
+from core.drf_resource import Resource, api
 
 
 class FrontendReportEventResource(Resource):
@@ -49,6 +49,11 @@ class FrontendReportEventResource(Resource):
         url = f"http://{host}/v2/push/"
 
         params["dimensions"]["app_code"] = "bkmonitor"
+        # 丰富用户组织架构信息
+        username = params["dimensions"]["user_name"]
+        departments = self.get_user_dept(username)
+        for index, dept in enumerate(departments):
+            params["dimensions"][f"department_{index}"] = dept
         params["target"] = settings.ENVIRONMENT_CODE
         report_data = {
             "data_id": int(settings.FRONTEND_REPORT_DATA_ID),
@@ -65,3 +70,16 @@ class FrontendReportEventResource(Resource):
         }
         r = requests.post(url, json=report_data, timeout=3)
         return r.json()
+
+    def get_user_dept(self, username):
+        info = api.bk_login.list_profile_departments(id=username)
+        dept = info[0]
+        family = dept["family"]
+        departments = []
+        for f in family:
+            departments.append(f["name"])
+        departments.append(dept["name"])
+        # 当前组织架构暂定层级5
+        while len(departments) < 5:
+            departments.append("")
+        return departments

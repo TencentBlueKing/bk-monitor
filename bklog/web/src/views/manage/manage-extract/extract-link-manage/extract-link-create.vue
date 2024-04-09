@@ -22,49 +22,64 @@
 
 <template>
   <div
-    class="extract-link-create-container"
     v-bkloading="{ isLoading: basicLoading }"
-    data-test-id="extractLinkCreate_div_extractLinkCreateBox">
+    class="extract-link-create-container"
+    data-test-id="extractLinkCreate_div_extractLinkCreateBox"
+  >
     <article
       class="article"
-      data-test-id="extractLinkCreateBox_article_basicInformation">
+      data-test-id="extractLinkCreateBox_article_basicInformation"
+    >
       <h3 class="title">{{ $t('基础信息') }}</h3>
       <bk-form
-        class="king-form"
         ref="formRef"
+        class="king-form"
         :label-width="160"
         :model="formData"
-        :rules="formRules">
+        :rules="formRules"
+      >
         <bk-form-item
           :label="$t('链路名称')"
           required
-          property="name">
+          property="name"
+        >
           <bk-input
             v-model="formData.name"
-            data-test-id="basicInformation_input_linkName">
+            data-test-id="basicInformation_input_linkName"
+          >
           </bk-input>
         </bk-form-item>
         <bk-form-item
           :label="$t('链路类型')"
           required
-          property="link_type">
+          property="link_type"
+        >
           <bk-select
-            data-test-id="basicInformation_select_selectLinkType"
             v-model="formData.link_type"
-            :clearable="false">
+            data-test-id="basicInformation_select_selectLinkType"
+            :clearable="false"
+          >
             <bk-option
               v-if="!isK8sDeploy || isShowCommon"
               id="common"
               :disabled="isDisableCommon"
-              :name="$t('内网链路')"></bk-option>
-            <bk-option id="qcloud_cos" :name="$t('腾讯云链路')"></bk-option>
-            <bk-option id="bk_repo" :name="$t('蓝鲸制品库')"></bk-option>
+              :name="$t('内网链路')"
+            ></bk-option>
+            <bk-option
+              id="qcloud_cos"
+              :name="$t('腾讯云链路')"
+            ></bk-option>
+            <bk-option
+              id="bk_repo"
+              :name="$t('蓝鲸制品库')"
+            ></bk-option>
           </bk-select>
         </bk-form-item>
         <bk-form-item
           :label="$t('执行人')"
           required
-          property="operator">
+          property="operator"
+        >
           <bk-user-selector
             data-test-id="basicInformation_input_executive"
             :class="isAdminError && 'is-error'"
@@ -74,13 +89,15 @@
             :empty-text="$t('无匹配人员')"
             @focus="handleClearOperator"
             @change="handleUserChange"
-            @blur="handleBlur">
+            @blur="handleBlur"
+          >
           </bk-user-selector>
         </bk-form-item>
         <bk-form-item
           :label="$t('执行bk_biz_id')"
           required
-          property="op_bk_biz_id">
+          property="op_bk_biz_id"
+        >
           <bk-input
             v-model="formData.op_bk_biz_id"
             data-test-id="basicInformation_input_executivebk_biz_id"
@@ -90,16 +107,19 @@
           <bk-form-item
             :label="$t('腾讯云SecretId')"
             required
-            property="qcloud_secret_id">
+            property="qcloud_secret_id"
+          >
             <bk-input
               v-model="formData.qcloud_secret_id"
-              data-test-id="basicInformation_input_SecretId">
+              data-test-id="basicInformation_input_SecretId"
+            >
             </bk-input>
           </bk-form-item>
           <bk-form-item
             :label="$t('腾讯云SecretKey')"
             required
-            property="qcloud_secret_key">
+            property="qcloud_secret_key"
+          >
             <bk-input
               v-model="formData.qcloud_secret_key"
               type="password"
@@ -109,7 +129,8 @@
           <bk-form-item
             :label="$t('腾讯云Cos桶名称')"
             required
-            property="qcloud_cos_bucket">
+            property="qcloud_cos_bucket"
+          >
             <bk-input
               v-model="formData.qcloud_cos_bucket"
               data-test-id="basicInformation_input_cosBucket"
@@ -118,7 +139,8 @@
           <bk-form-item
             :label="$t('腾讯云Cos区域')"
             required
-            property="qcloud_cos_region">
+            property="qcloud_cos_region"
+          >
             <bk-input
               v-model="formData.qcloud_cos_region"
               data-test-id="basicInformation_input_cosRegion"
@@ -128,73 +150,116 @@
         <bk-form-item
           :label="$t('是否启用')"
           required
-          property="is_enable">
+          property="is_enable"
+        >
           <bk-radio-group
             v-model="formData.is_enable"
-            data-test-id="basicInformation_radio_whetherToEnable">
-            <bk-radio :value="true" style="margin-right: 16px;">{{ $t('是') }}</bk-radio>
+            data-test-id="basicInformation_radio_whetherToEnable"
+          >
+            <bk-radio
+              :value="true"
+              style="margin-right: 16px"
+              >{{ $t('是') }}</bk-radio
+            >
             <bk-radio :value="false">{{ $t('否') }}</bk-radio>
           </bk-radio-group>
         </bk-form-item>
       </bk-form>
     </article>
-    <article class="article" data-test-id="extractLinkCreateBox_article_linkTransfer">
+    <article
+      class="article"
+      data-test-id="extractLinkCreateBox_article_linkTransfer"
+    >
       <h3 class="title">{{ $t('链路中转机') }}</h3>
       <div class="custom-form">
         <div class="custom-label">{{ $t('中转机') }}</div>
         <div class="custom-content">
-          <ul class="host-list" ref="hostListRef">
+          <ul
+            ref="hostListRef"
+            class="host-list"
+          >
             <li class="host-item header">
-              <div class="min-box dir-container" :title="$t('挂载目录')">{{ $t('挂载目录') }}</div>
-              <div class="min-box id-container" :title="$t('主机管控区域ID')">{{ $t('主机管控区域ID') }}</div>
-              <div class="min-box ip-container" :title="$t('主机IP')">{{ $t('主机IP') }}</div>
-              <div class="min-box operation-container" :title="$t('操作')">{{ $t('操作') }}</div>
+              <div
+                class="min-box dir-container"
+                :title="$t('挂载目录')"
+              >
+                {{ $t('挂载目录') }}
+              </div>
+              <div
+                class="min-box id-container"
+                :title="$t('主机管控区域ID')"
+              >
+                {{ $t('主机管控区域ID') }}
+              </div>
+              <div
+                class="min-box ip-container"
+                :title="$t('主机IP')"
+              >
+                {{ $t('主机IP') }}
+              </div>
+              <div
+                class="min-box operation-container"
+                :title="$t('操作')"
+              >
+                {{ $t('操作') }}
+              </div>
             </li>
             <li
-              class="host-item"
               v-for="(item, index) in formData.hosts"
-              :key="item.keyId">
+              :key="item.keyId"
+              class="host-item"
+            >
               <div class="min-box dir-container">
                 <bk-input
-                  class="king-input"
                   v-model="item.target_dir"
-                  @blur="handleInputBlur">
+                  class="king-input"
+                  @blur="handleInputBlur"
+                >
                 </bk-input>
               </div>
               <div class="min-box id-container">
                 <bk-input
-                  class="king-input"
                   v-model="item.bk_cloud_id"
-                  @blur="handleInputBlur">
+                  class="king-input"
+                  @blur="handleInputBlur"
+                >
                 </bk-input>
               </div>
               <div class="min-box ip-container">
                 <bk-input
-                  class="king-input"
                   v-model="item.ip"
-                  @blur="handleInputBlur">
+                  class="king-input"
+                  @blur="handleInputBlur"
+                >
                 </bk-input>
               </div>
               <div class="min-box operation-container">
                 <bk-button
-                  text size="small"
-                  style="padding: 0;"
+                  text
+                  size="small"
+                  style="padding: 0"
                   :disabled="formData.hosts.length === 1"
-                  @click="deleteHost(index)">{{ $t('删除') }}
+                  @click="deleteHost(index)"
+                  >{{ $t('删除') }}
                 </bk-button>
               </div>
             </li>
           </ul>
-          <bk-button class="king-button" @click="addHost">{{ $t('添加链路中转机') }}</bk-button>
+          <bk-button
+            class="king-button"
+            @click="addHost"
+            >{{ $t('添加链路中转机') }}</bk-button
+          >
         </div>
       </div>
     </article>
     <bk-button
       theme="primary"
-      style="width: 86px;"
+      style="width: 86px"
       :loading="submitLoading"
       data-test-id="basicInformation_button_submitFrom"
-      @click="submitForm">
+      @click="submitForm"
+    >
       {{ $t('提交') }}
     </bk-button>
   </div>
@@ -207,7 +272,7 @@ import BkUserSelector from '@blueking/user-selector';
 export default {
   name: 'ExtractLinkCreate',
   components: {
-    BkUserSelector,
+    BkUserSelector
   },
   data() {
     return {
@@ -225,55 +290,71 @@ export default {
         qcloud_cos_bucket: '', // 腾讯云Cos桶名称
         qcloud_cos_region: '', // 腾讯云Cos区域
         is_enable: true, // 是否启用
-        hosts: [{
-          keyId: Date.now(),
-          target_dir: '', // 挂载目录
-          bk_cloud_id: '', // 主机管控区域id
-          ip: '', // 主机ip
-        }], // 中转机列表
+        hosts: [
+          {
+            keyId: Date.now(),
+            target_dir: '', // 挂载目录
+            bk_cloud_id: '', // 主机管控区域id
+            ip: '' // 主机ip
+          }
+        ] // 中转机列表
       },
       formRules: {
-        name: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        op_bk_biz_id: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        qcloud_secret_key: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        qcloud_cos_bucket: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        qcloud_secret_id: [{
-          required: true,
-          trigger: 'blur',
-        }],
-        qcloud_cos_region: [{
-          required: true,
-          trigger: 'blur',
-        }],
+        name: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        op_bk_biz_id: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        qcloud_secret_key: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        qcloud_cos_bucket: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        qcloud_secret_id: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ],
+        qcloud_cos_region: [
+          {
+            required: true,
+            trigger: 'blur'
+          }
+        ]
       },
       isAdminError: false, // 人员是否为空
       cacheOperator: [], // 缓存的人员
       isDisableCommon: false, // 是否禁用内网链路
-      editInitLinkType: '', // 编辑初始化时的链路类型
+      editInitLinkType: '' // 编辑初始化时的链路类型
     };
   },
   computed: {
     ...mapState({
-      showRouterLeaveTip: state => state.showRouterLeaveTip,
+      showRouterLeaveTip: state => state.showRouterLeaveTip
     }),
-    isK8sDeploy() { // 是否要禁用内网链路
+    isK8sDeploy() {
+      // 是否要禁用内网链路
       return this.$store.getters['globals/globalsData']?.is_k8s_deploy;
     },
-    isShowCommon() { // 禁用内网链路且 编辑时初始化是内网链路则展示内网链路且禁用选项
-      return (this.$route.params.linkId && this.editInitLinkType === 'common');
-    },
+    isShowCommon() {
+      // 禁用内网链路且 编辑时初始化是内网链路则展示内网链路且禁用选项
+      return this.$route.params.linkId && this.editInitLinkType === 'common';
+    }
   },
   created() {
     this.init();
@@ -285,7 +366,7 @@ export default {
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
           next();
-        },
+        }
       });
       return;
     }
@@ -293,14 +374,14 @@ export default {
   },
   methods: {
     async init() {
-      const linkId = this.$route.params.linkId;
+      const { linkId } = this.$route.params;
       if (linkId) {
         try {
           this.basicLoading = true;
           const res = await this.$http.request('extractManage/getLogExtractLinkDetail', {
             params: {
-              link_id: linkId,
-            },
+              link_id: linkId
+            }
           });
           const formData = res.data;
           delete formData.link_id;
@@ -320,8 +401,8 @@ export default {
           this.$router.push({
             name: 'extract-link-list',
             query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
+              spaceUid: this.$store.state.spaceUid
+            }
           });
         } finally {
           if (this.isK8sDeploy && this.editInitLinkType === 'common') {
@@ -338,7 +419,7 @@ export default {
         keyId: Date.now(),
         target_dir: '', // 挂载目录
         bk_cloud_id: '', // 主机管控区域id
-        ip: '', // 主机ip
+        ip: '' // 主机ip
       });
     },
     deleteHost(index) {
@@ -376,23 +457,23 @@ export default {
         if (requestData.link_type === 'qcloud_cos' && requestData.qcloud_secret_key === '******') {
           requestData.qcloud_secret_key = '';
         }
-        requestData.hosts.forEach((host) => {
+        requestData.hosts.forEach(host => {
           delete host.keyId;
         });
         // 数组修改为字符串传参
         requestData.operator = requestData.operator[0];
-        const linkId = this.$route.params.linkId;
+        const { linkId } = this.$route.params;
         if (linkId) {
           await this.$http.request('extractManage/updateLogExtractLink', {
             params: {
-              link_id: linkId,
+              link_id: linkId
             },
-            data: requestData,
+            data: requestData
           });
           this.messageSuccess(this.$t('保存成功'));
         } else {
           await this.$http.request('extractManage/createLogExtractLink', {
-            data: requestData,
+            data: requestData
           });
           this.messageSuccess(this.$t('创建成功'));
         }
@@ -400,8 +481,8 @@ export default {
         this.$router.push({
           name: 'extract-link-list',
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
       } catch (e) {
         console.warn(e);
@@ -424,132 +505,131 @@ export default {
       if (this.cacheOperator.length) {
         this.formData.operator = this.cacheOperator;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../../scss/mixins/scroller';
+@import '../../../../scss/mixins/scroller';
 
-  .extract-link-create-container {
-    padding: 20px 24px;
-    height: 100%;
-    overflow: auto;
+.extract-link-create-container {
+  height: 100%;
+  padding: 20px 24px;
+  overflow: auto;
 
-    @include scroller($backgroundColor: #ADADAD, $width: 4px);
+  @include scroller($backgroundColor: #adadad, $width: 4px);
 
-    .article {
-      padding: 22px 24px;
-      margin-bottom: 20px;
-      border: 1px solid #dcdee5;
-      border-radius: 3px;
-      background-color: #fff;
+  .article {
+    padding: 22px 24px;
+    margin-bottom: 20px;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 3px;
 
-      .title {
-        margin: 0 0 10px;
-        font-size: 14px;
-        font-weight: bold;
-        color: #63656e;
-        line-height: 20px;
+    .title {
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 20px;
+      color: #63656e;
+    }
+
+    .king-form {
+      width: 680px;
+
+      :deep(.bk-form-item) {
+        padding: 10px 0;
+        margin: 0;
       }
+    }
 
-      .king-form {
-        width: 680px;
+    .custom-form {
+      display: flex;
+      font-size: 14px;
+      color: #63656e;
 
-        :deep(.bk-form-item) {
-          padding: 10px 0;
-          margin: 0;
-        }
-      }
+      .custom-label {
+        position: relative;
+        width: 160px;
+        padding: 10px 24px 10px 0;
+        line-height: 32px;
+        text-align: right;
 
-      .custom-form {
-        display: flex;
-        font-size: 14px;
-        color: #63656e;
-
-        .custom-label {
-          position: relative;
-          width: 160px;
-          padding: 10px 24px 10px 0;
-          line-height: 32px;
-          text-align: right;
-
-          &:after {
-            content: '*';
-            color: #ea3636;
-            font-size: 12px;
-            display: inline-block;
-            position: absolute;
-            top: 12px;
-            right: 16px;
-          }
-        }
-
-        .custom-content {
-          width: calc(100% - 160px);
-          max-width: 1000px;
-          padding: 5px 24px 5px 0;
-
-          .king-button {
-            margin-top: 10px;
-          }
-        }
-
-        .host-list {
-          border: 1px solid #dcdee5;
-          border-bottom: none;
+        &:after {
+          position: absolute;
+          top: 12px;
+          right: 16px;
+          display: inline-block;
           font-size: 12px;
+          color: #ea3636;
+          content: '*';
+        }
+      }
 
-          .host-item {
-            display: flex;
-            align-content: center;
-            width: 100%;
-            line-height: 32px;
-            padding: 5px 0;
-            border-bottom: 1px solid #dcdee5;
-            background-color: #fff;
+      .custom-content {
+        width: calc(100% - 160px);
+        max-width: 1000px;
+        padding: 5px 24px 5px 0;
 
-            &.header {
-              background-color: #fafbfd;
+        .king-button {
+          margin-top: 10px;
+        }
+      }
+
+      .host-list {
+        font-size: 12px;
+        border: 1px solid #dcdee5;
+        border-bottom: none;
+
+        .host-item {
+          display: flex;
+          width: 100%;
+          padding: 5px 0;
+          line-height: 32px;
+          background-color: #fff;
+          border-bottom: 1px solid #dcdee5;
+          align-content: center;
+
+          &.header {
+            background-color: #fafbfd;
+          }
+
+          .min-box {
+            padding: 0 10px;
+
+            .king-input {
+              width: 86%;
+
+              :deep(.bk-form-input.error) {
+                border-color: #ea3636;
+              }
             }
 
-            .min-box {
-              padding: 0 10px;
+            &.dir-container {
+              width: 40%;
+            }
 
-              .king-input {
-                width: 86%;
+            &.id-container,
+            &.ip-container {
+              width: 25%;
+            }
 
-                :deep(.bk-form-input.error) {
-                  border-color: #ea3636;
-                }
-              }
-
-              &.dir-container {
-                width: 40%;
-              }
-
-              &.id-container,
-              &.ip-container {
-                width: 25%;
-              }
-
-              &.operation-container {
-                width: 10%;
-              }
+            &.operation-container {
+              width: 10%;
             }
           }
         }
       }
     }
-
   }
+}
 
-  :deep(.user-selector) {
-    width: 100%;
-  }
+:deep(.user-selector) {
+  width: 100%;
+}
 
-  :deep(.is-error .user-selector-container) {
-    border-color: #ff5656;
-  }
+:deep(.is-error .user-selector-container) {
+  border-color: #ff5656;
+}
 </style>

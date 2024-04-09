@@ -49,7 +49,7 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import { IDutyItem } from '../../duty-arranges/duty-arranges';
 import RotationConfig from '../../rotation/rotation-config';
-import MemberSelector from '../member-selector';
+import MemberSelector from '../member-selector.vue';
 
 import './alarm-group-add.scss';
 

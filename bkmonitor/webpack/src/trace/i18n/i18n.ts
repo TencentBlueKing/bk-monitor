@@ -41,6 +41,8 @@ const i18n = createI18n({
   fallbackLocale: 'zh-cn',
   silentTranslationWarn: true,
   silentFallbackWarn: true,
+  // allowComposition: true,
+  // legacy: false,
   messages: {
     ...mergeI18nJson()
   }

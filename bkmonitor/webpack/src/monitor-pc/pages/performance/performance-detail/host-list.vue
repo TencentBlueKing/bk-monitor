@@ -305,13 +305,13 @@ export default class HostList extends Vue {
       instance_type: 'host',
       remove_empty_nodes: false
     });
-    this.handleSearch = debounce(300, false, (v) => {
+    this.handleSearch = debounce(300, (v) => {
     //   PerformanceModule.setKeyWord(v)
       this.bkBigTreeRef?.filter(v);
     });
   }
   mounted() {
-    this.handleResizeTreeDebounce = debounce(300, false, this.handleResizeTree);
+    this.handleResizeTreeDebounce = debounce(300, this.handleResizeTree);
   }
   activated() {
     this.refHostList?.resize();

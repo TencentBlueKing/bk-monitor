@@ -3,13 +3,12 @@
   border-collapse: collapse;
   line-height: 26px;
   color: #63656e;
-  user-select: none;
   width: 320px;
 
   tr {
     height: 26px;
   }
-  
+
   thead tr,
   tr:nth-child(even) {
     background: #f5f6fa;

@@ -23,7 +23,8 @@
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Message } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import $http from '../../api';
 
 import { deepClone } from '../../common/util';
@@ -53,7 +54,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Prop({ required: true, type: String }) viewType: AngleType;
   @Prop({ required: true, type: String }) authorizer: string;
   @Prop({ required: false, type: Object, default: null }) rowData: null | EditModel;
-  @Prop({ required: true, type: Array, default: [] }) actionList: { id: string, name: string }[];
+  @Prop({ required: true, type: Array, default: [] }) actionList: { id: string; name: string }[];
   @Ref() formRef: any;
 
   resourceList = [];
@@ -65,13 +66,13 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     action_id: '',
     authorized_users: [],
     resources: [],
-    expire_time: '',
+    expire_time: ''
   };
 
   rules = {
     authorized_users: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
     action_id: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
-    expire_time: [{ required: true, message: $i18n.t('必填项'), trigger: 'change' }],
+    expire_time: [{ required: true, message: $i18n.t('必填项'), trigger: 'change' }]
   };
 
   /** 编辑授权且为操作实例的弹窗 */
@@ -90,7 +91,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           action_id: '',
           authorized_users: [],
           resources: [],
-          expire_time: '',
+          expire_time: ''
         };
       }
     }
@@ -100,21 +101,23 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     if (!val) return;
     const res = await $http.request('authorization/getByAction', {
       query: {
-        space_uid: this.spaceUid, action_id: val,
-      },
+        space_uid: this.spaceUid,
+        action_id: val
+      }
     });
     this.resourceList = res?.data || [];
   }
 
   disabledDate(val) {
     const startDate = new Date(); // 当天
-    const endDate = moment(startDate).add(1, 'year'); // 一年
+    const endDate = dayjs(startDate).add(1, 'year'); // 一年
+    dayjs.extend(isSameOrAfter);
     // 小于当天或者大于一年的禁用
-    return moment(val).isBefore(startDate, 'day') || moment(val).isSameOrAfter(endDate, 'day');
+    return dayjs(val).isBefore(startDate, 'day') || dayjs(val).isSameOrAfter(endDate, 'day');
   }
 
   handleDateChange(val) {
-    this.formData.expire_time = moment(val).format('YYYY-MM-DD 23:59:59');
+    this.formData.expire_time = dayjs(val).format('YYYY-MM-DD 23:59:59');
   }
 
   @Emit('change')
@@ -125,7 +128,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
 
   async handleConfirm() {
     try {
-      await this.formRef.validate(async (valid) => {
+      await this.formRef.validate(async valid => {
         if (valid) {
           this.loading = true;
           try {
@@ -139,12 +142,12 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                 ...(expire_time ? { expire_time } : {}),
                 authorizer: this.authorizer,
                 operate_type: this.rowData ? 'update' : 'create',
-                view_type: this.viewType === 'approval' ? 'user' : this.viewType,
-              },
+                view_type: this.viewType === 'approval' ? 'user' : this.viewType
+              }
             });
             Message({
               message: res.need_approval ? this.$t('已提交审批') : this.$t('操作成功'),
-              theme: 'primary',
+              theme: 'primary'
             });
             this.handleCancel(false);
             this.$emit('success', res.need_approval);
@@ -158,7 +161,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   handleUsersChange(val: Array<string>) {
-    if (this.isResource) { // 若是编辑操作实例 不允许新增新的被授权人 只能删除
+    if (this.isResource) {
+      // 若是编辑操作实例 不允许新增新的被授权人 只能删除
       this.formData.authorized_users = val.filter(item => this.baseUserList.includes(item));
     }
   }
@@ -187,8 +191,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           {...{
             props: {
               model: this.formData,
-              rules: this.rules,
-            },
+              rules: this.rules
+            }
           }}
         >
           <bk-form-item
@@ -258,7 +262,10 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             </bk-select>
           </bk-form-item>
           {!this.isResource && (
-            <bk-form-item property='expire_time' error-display-type='normal'>
+            <bk-form-item
+              property='expire_time'
+              error-display-type='normal'
+            >
               <div class='custom-label'>
                 <span class='label required'>{this.$t('截止时间')}</span>
               </div>

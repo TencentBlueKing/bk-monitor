@@ -218,8 +218,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),
         ("METRIC_CACHE_TASK_PERIOD", slz.IntegerField(label="指标缓存任务周期(min)", default=10)),
         ("LAST_MIGRATE_VERSION", slz.CharField(label="最后一次迁移版本", default="")),
-        ("EXTERNAL_APIGW_PUBLIC_KEY", slz.CharField(label="外部APIGW公钥", default="")),
-        ("APIGW_PUBLIC_KEY", slz.CharField(label="APIGW公钥", default="")),
+        # ("EXTERNAL_APIGW_PUBLIC_KEY", slz.CharField(label="外部APIGW公钥", default="")),
+        # ("APIGW_PUBLIC_KEY", slz.CharField(label="APIGW公钥", default="")),
         ("GSE_MANAGERS", slz.ListField(label="GSE平台管理员", default=[])),
         ("OFFICIAL_PLUGINS_MANAGERS", slz.ListField(label="官方插件管理员", default=[])),
         (
@@ -271,8 +271,16 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
         ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
         ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
+        (
+            "BCS_DATA_CONVERGENCE_CONFIG",
+            slz.JSONField(
+                label="BCS 数据合流配置", default={"is_enabled": False, "k8s_metric_rt": "", "custom_metric_rt": ""}
+            ),
+        ),
         ("ENABLE_BCS_CC_PROJECT_API", slz.BooleanField(label="是否启用BCS-CC的项目相关接口", default=False)),
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
+        ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
+        ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
     ]
 )
 

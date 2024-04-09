@@ -40,7 +40,7 @@ export const isEn = currentLang === 'en';
 document.documentElement.setAttribute('lang', currentLang);
 
 // 设置网页标题
-document.title = isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云';
+document.title = window.page_title || (isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云');
 
 // 设置 VueI18n 使用的语言
 const i18nLocale = isEn ? 'enUS' : 'zhCN';
@@ -64,6 +64,5 @@ const i18n = new VueI18n({
 
 // 将 VueI18n 实例挂载到全局变量 window.i18n 上
 window.i18n = i18n;
-
 // 导出 VueI18n 实例作为默认值
 export default i18n;

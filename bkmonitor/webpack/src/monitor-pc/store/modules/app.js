@@ -76,8 +76,7 @@ const state = {
   bizBgColor: '', // 业务颜色
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
-  bizIdChangePedding: '', // 业务id是否切换
-  extraDocLinkMap: {}
+  bizIdChangePedding: '' // 业务id是否切换
 };
 
 const mutations = {
@@ -91,7 +90,12 @@ const mutations = {
     state.needBack = back;
   },
   [SET_BIZ_ID](state, id) {
+    window.cc_biz_id = +id;
+    window.bk_biz_id = +id;
+    window.space_uid = state.bizList.find(item => item.bk_biz_id === +id)?.space_uid;
     state.bizId = id;
+    const isDemo = state.bizList?.find(item => +item.id === +id)?.is_demo;
+    !isDemo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${id}`);
   },
   [SET_APP_STATE](state, data) {
     Object.keys(data).forEach(key => {
@@ -186,13 +190,6 @@ const mutations = {
     } else {
       handleReload();
     }
-  },
-  /**
-   * @description: 更新文档链接
-   * @param {Object} data
-   */
-  updateExtraDocLinkMap(state, data) {
-    state.extraDocLinkMap = data;
   }
 };
 

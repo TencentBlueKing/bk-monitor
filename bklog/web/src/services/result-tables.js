@@ -27,27 +27,22 @@
 // 索引列表
 const list = {
   url: '/result_table/',
-  method: 'get',
+  method: 'get'
 };
 // trace 匹配的字段情况
 const traceMatchList = {
   url: '/result_table/trace_fields_match/',
-  method: 'post',
+  method: 'post'
 };
 // 索引详情
 const info = {
   url: '/result_table/:result_table_id/',
-  method: 'get',
+  method: 'get'
 };
 
 const adapt = {
   url: '/result_table/adapt/',
-  method: 'post',
+  method: 'post'
 };
 
-export {
-  list,
-  traceMatchList,
-  info,
-  adapt,
-};
+export { list, traceMatchList, info, adapt };

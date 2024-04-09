@@ -11,13 +11,11 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
-import urllib.parse
 from collections import defaultdict
 from typing import List
 
 from django.utils.translation import ugettext as _
 
-import settings
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.range import load_condition_instance
@@ -499,12 +497,11 @@ class AlertAssignMatchManager:
             )
         description = {
             "text": content,
-            "url": urllib.parse.urljoin(
-                settings.BK_MONITOR_HOST,
-                "?bizId={bk_biz_id}#/alarm-dispatch?group_id={group_id}".format(
-                    bk_biz_id=self.bk_biz_id, group_id=self.matched_group_info["group_id"]
-                ),
-            ),
+            # ?bizId={bk_biz_id}#/alarm-dispatch?group_id={group_id}
+            "router_info": {
+                "router_name": "alarm-dispatch",
+                "params": {"biz_id": self.bk_biz_id, "group_id": self.matched_group_info["group_id"]},
+            },
             "action_plugin_type": "assign",
         }
         alert_log = dict(

@@ -27,97 +27,96 @@
 // 索引集列表
 const list = {
   url: '/index_set/',
-  method: 'get',
+  method: 'get'
 };
 
 // 索引集详情
 const info = {
   url: '/index_set/:index_set_id/',
-  method: 'get',
+  method: 'get'
 };
 
 // 创建索引集
 const create = {
   url: '/index_set/',
-  method: 'post',
+  method: 'post'
 };
 
 // 更新索引集
 const update = {
   url: '/index_set/:index_set_id/',
-  method: 'put',
+  method: 'put'
 };
 
 // 删除索引集
 const remove = {
   url: '/index_set/:index_set_id/',
-  method: 'delete',
+  method: 'delete'
 };
 
 // 索引列表
 const index = {
   url: '/index_set/:index_set_id/index/',
-  method: 'get',
+  method: 'get'
 };
-
 
 // 采集索引列表
 const indexes = {
   url: '/index_set/:index_set_id/indices/',
-  method: 'get',
+  method: 'get'
 };
 
 // 创建索引
 const createIndex = {
   url: '/index_set/:index_set_id/index/',
-  method: 'get',
+  method: 'get'
 };
 
 // 删除索引
 const removeIndex = {
   url: '/index_set/:index_set_id/index/:index_id/',
-  method: 'post',
+  method: 'post'
 };
 
 // 标记索引集为收藏索引集
 const mark = {
   url: '/index_set/:index_set_id/mark_favorite/',
-  method: 'post',
+  method: 'post'
 };
 
 // 取消标记为收藏索引集
 const cancelMark = {
   url: '/index_set/:index_set_id/cancel_favorite/',
-  method: 'post',
+  method: 'post'
 };
 
 // 使用次数趋势
 const getIndexTimes = {
   url: '/admin/index_set/:index_set_id/history/date_histogram/',
-  method: 'get',
+  method: 'get'
 };
 
 // 用户使用频次
 const getIndexFrequency = {
   url: '/admin/index_set/:index_set_id/history/user_terms/',
-  method: 'get',
+  method: 'get'
 };
 
 // 检索耗时统计
 const getIndexSpent = {
   url: '/admin/index_set/:index_set_id/history/duration_terms/',
-  method: 'get',
+  method: 'get'
 };
 
 // 检索记录（表格）
 const getIndexHistory = {
   url: '/admin/index_set/:index_set_id/history/',
-  method: 'get',
+  method: 'get'
 };
 
 // 操作记录
 const getOperationRecord = {
-  url: '/admin/audit/record/',
+  url: '/admin/audit/record/'
 };
 
 export {
@@ -136,5 +135,5 @@ export {
   getIndexFrequency,
   getIndexSpent,
   getIndexHistory,
-  getOperationRecord,
+  getOperationRecord
 };

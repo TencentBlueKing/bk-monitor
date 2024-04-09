@@ -25,48 +25,48 @@ import i18n from '@/language/i18n';
 export const fieldTypeMap = {
   any: {
     name: i18n.t('不限'),
-    icon: 'bk-icon icon-check-line',
+    icon: 'bk-icon icon-check-line'
   },
   number: {
     name: i18n.t('数字'),
-    icon: 'log-icon icon-number',
+    icon: 'log-icon icon-number'
   },
   integer: {
     name: i18n.t('数字'),
-    icon: 'log-icon icon-number',
+    icon: 'log-icon icon-number'
   },
   double: {
     name: i18n.t('数字'),
-    icon: 'log-icon icon-number',
+    icon: 'log-icon icon-number'
   },
   keyword: {
     name: i18n.t('字符串'),
-    icon: 'log-icon icon-string',
+    icon: 'log-icon icon-string'
   },
   long: {
     name: i18n.t('数字'),
-    icon: 'log-icon icon-number',
+    icon: 'log-icon icon-number'
   },
   text: {
     name: i18n.t('文本'),
-    icon: 'log-icon icon-text',
+    icon: 'log-icon icon-text'
   },
   date: {
     name: i18n.t('时间'),
-    icon: 'bk-icon icon-clock',
+    icon: 'bk-icon icon-clock'
   },
   boolean: {
     name: i18n.t('布尔'),
-    icon: 'log-icon icon-boolean',
+    icon: 'log-icon icon-boolean'
   },
   conflict: {
     name: i18n.t('冲突字段'),
-    icon: 'bk-icon icon-exclamation-triangle',
+    icon: 'bk-icon icon-exclamation-triangle'
   },
   __virtual__: {
     name: i18n.t('该字段为平台补充 不可检索'),
-    icon: 'log-icon icon-ext',
-  },
+    icon: 'log-icon icon-ext'
+  }
 };
 
 export const SPACE_TYPE_MAP = {
@@ -74,66 +74,66 @@ export const SPACE_TYPE_MAP = {
     name: i18n.t('业务'),
     dark: {
       color: '#478EFC',
-      backgroundColor: '#2B354D',
+      backgroundColor: '#2B354D'
     },
     light: {
       color: '#63656E',
-      backgroundColor: '#CDE8FB',
-    },
+      backgroundColor: '#CDE8FB'
+    }
   },
   default: {
     name: i18n.t('监控空间'),
     dark: {
       color: '#B3B3B3',
-      backgroundColor: '#333333',
+      backgroundColor: '#333333'
     },
     light: {
       color: '#63656E',
-      backgroundColor: '#DEDEDE',
-    },
+      backgroundColor: '#DEDEDE'
+    }
   },
   bkci: {
     name: i18n.t('研发项目'),
     dark: {
       color: '#F85959',
-      backgroundColor: '#4C3232',
+      backgroundColor: '#4C3232'
     },
     light: {
       color: '#63656E',
-      backgroundColor: '#F8D8D4',
-    },
+      backgroundColor: '#F8D8D4'
+    }
   },
   bcs: {
     name: i18n.t('容器项目'),
     dark: {
       color: '#FC943B',
-      backgroundColor: '#453921',
+      backgroundColor: '#453921'
     },
     light: {
       color: '#63656E',
-      backgroundColor: '#FFF2C9',
-    },
+      backgroundColor: '#FFF2C9'
+    }
   },
   paas: {
     name: i18n.t('蓝鲸应用'),
     dark: {
       color: '#2BB950',
-      backgroundColor: '#223B2B',
+      backgroundColor: '#223B2B'
     },
     light: {
       color: '#63656E',
-      backgroundColor: '#D8EDD9',
-    },
+      backgroundColor: '#D8EDD9'
+    }
   },
   bksaas: {
     name: i18n.tc('蓝鲸应用'),
     dark: {
       color: '#2BB950',
-      backgroundColor: '#223B2B',
+      backgroundColor: '#223B2B'
     },
     light: {
       color: '#63656E',
-      backgroundColor: '#D8EDD9',
-    },
-  },
+      backgroundColor: '#D8EDD9'
+    }
+  }
 };

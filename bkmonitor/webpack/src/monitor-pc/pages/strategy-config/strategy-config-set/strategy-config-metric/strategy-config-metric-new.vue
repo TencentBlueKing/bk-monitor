@@ -333,8 +333,8 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
 
   created() {
     this.searchObj.data = this.getSearchOptions();
-    this.handleSearch = debounce(300, false, this.filterMetric);
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.handleSearch = debounce(300, this.filterMetric);
+    this.throttledScroll = throttle(300, this.handleScroll);
     this.dataSource = {
       bk_monitor_time_series: {
         count: 0,

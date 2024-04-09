@@ -29,6 +29,6 @@ export default {
   name: 'CollectionTrack',
   data() {
     return {};
-  },
+  }
 };
 </script>

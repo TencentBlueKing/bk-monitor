@@ -30,66 +30,98 @@
       ext-cls="condition-filter-popper"
       :tippy-options="{ hideOnClick: false, boundary: 'window' }"
       :on-show="handlePopoverShow"
-      :on-hide="handlePopoverHide">
+      :on-hide="handlePopoverHide"
+    >
       <span
-        class="filter-text"
         v-if="isAdd"
-        data-test-id="dataQuery_span_addConditions">
+        class="filter-text"
+        data-test-id="dataQuery_span_addConditions"
+      >
         {{ $t('添加条件') }}
       </span>
-      <div class="condition-item-container" v-else>
+      <div
+        v-else
+        class="condition-item-container"
+      >
         <div
-          class="tag text-tag field-tag"
           v-bk-tooltips.top="{
             content: fieldAliasMap[localData.field] ? `${localData.field}(${fieldAliasMap[localData.field]})` : ''
-          }">
-          {{localData.field}}
+          }"
+          class="tag text-tag field-tag"
+        >
+          {{ localData.field }}
         </div>
         <div class="tag symbol-tag">{{ localData.operator }}</div>
-        <div class="tag text-tag" v-bk-overflow-tips>{{ formaterValue(localData.value) }}</div>
-        <span class="bk-icon icon-close-line" @click.stop="removeFilterCondition(localData.field)"></span>
+        <div
+          v-bk-overflow-tips
+          class="tag text-tag"
+        >
+          {{ formaterValue(localData.value) }}
+        </div>
+        <span
+          class="bk-icon icon-close-line"
+          @click.stop="removeFilterCondition(localData.field)"
+        ></span>
         <!-- <div class="tag symbol-tag" v-if="index !== filterCondition.length - 1">and</div> -->
       </div>
-      <div class="add-condition-filter-popover" slot="content">
+      <div
+        slot="content"
+        class="add-condition-filter-popover"
+      >
         <div class="filter-title">{{ $t('添加过滤条件') }}</div>
         <div class="add-filter-content">
           <div class="option-item">
             <label>{{ $t('字段') }}</label>
             <bk-select
               :value="coreData.field"
-              style="width: 240px;"
+              style="width: 240px"
               data-test-id="addConditions_div_selectField"
               searchable
               :clearable="false"
-              @change="handleFieldChange">
-              <template v-for="option in filterFields">
-                <bk-option :key="option.id" :id="option.id" :name="option.name"></bk-option>
+              @change="handleFieldChange"
+            >
+              <template>
+                <bk-option
+                  v-for="option in filterFields"
+                  :id="option.id"
+                  :key="option.id"
+                  :name="option.name"
+                ></bk-option>
               </template>
             </bk-select>
           </div>
-          <div class="option-item" style="margin-right: 0">
+          <div
+            class="option-item"
+            style="margin-right: 0"
+          >
             <label>{{ $t('操作') }}</label>
             <bk-select
               :value="coreData.operator"
               :clearable="false"
-              @change="handleOperatorChange"
               data-test-id="addConditions_div_fieldFilter"
-              style="width: 120px;">
-              <template v-for="option in filterOperators">
+              style="width: 120px"
+              @change="handleOperatorChange"
+            >
+              <template>
                 <bk-option
-                  :key="option.operator"
+                  v-for="option in filterOperators"
                   :id="option.operator"
-                  :name="option.label">
+                  :key="option.operator"
+                  :name="option.label"
+                >
                 </bk-option>
               </template>
             </bk-select>
           </div>
-          <div class="option-item" v-if="!isShowValue">
-            <label style="margin-left: 10px;">{{ $t('值') }}</label>
+          <div
+            v-if="!isShowValue"
+            class="option-item"
+          >
+            <label style="margin-left: 10px">{{ $t('值') }}</label>
             <bk-tag-input
               v-model="coreData.value"
-              class="value-input"
               v-en-style="'width: 330px'"
+              class="value-input"
               data-test-id="addConditions_input_valueFilter"
               allow-create
               allow-auto-match
@@ -98,14 +130,19 @@
               :list="valueList"
               :content-width="232"
               :max-data="getOperatorLength"
+              trigger="focus"
               @change="handleValueChange"
               @blur="handleValueBlur"
-              trigger="focus">
+            >
             </bk-tag-input>
           </div>
         </div>
         <div class="filter-footer">
-          <bk-button theme="primary" @click="handleConfirm">{{ $t('确定') }}</bk-button>
+          <bk-button
+            theme="primary"
+            @click="handleConfirm"
+            >{{ $t('确定') }}</bk-button
+          >
           <bk-button @click="handleCancel">{{ $t('取消') }}</bk-button>
         </div>
       </div>
@@ -118,62 +155,65 @@ export default {
   props: {
     isAdd: {
       type: Boolean,
-      default: true,
+      default: true
     },
-    filterCondition: { // 过滤条件查询参数
+    filterCondition: {
+      // 过滤条件查询参数
       type: Array,
-      required: true,
+      required: true
     },
     fieldAliasMap: {
       type: Object,
       default() {
         return {};
-      },
+      }
     },
-    statisticalFieldsData: { // 过滤条件字段可选值关系表
+    statisticalFieldsData: {
+      // 过滤条件字段可选值关系表
       type: Object,
-      required: true,
+      required: true
     },
     filterAllOperators: {
       type: Object,
-      required: true,
+      required: true
     },
     totalFields: {
       type: Array,
-      required: true,
+      required: true
     },
     editData: {
       type: Object,
-      default: () => ({}),
+      default: () => ({})
     },
     editIndex: {
       type: Number,
-      default: -1,
-    },
+      default: -1
+    }
   },
   data() {
     return {
       coreData: {
         field: '',
         operator: '',
-        value: [], // String or Array
+        value: [] // String or Array
       },
       localData: {
         field: '',
         operator: '',
-        value: [], // String or Array
+        value: [] // String or Array
       },
       valueList: [{ id: '', name: `-${this.$t('空')}-` }], // 字段可选值列表
       filterPlaceholder: '',
       isHaveCompared: false, // 是否有大小对比的值
       showFilterPopover: false,
-      isShowValue: false,
+      isShowValue: false
     };
   },
   computed: {
-    filterFields() { // 剔除掉检索查询参数里面已有的过滤条件
+    filterFields() {
+      // 剔除掉检索查询参数里面已有的过滤条件
       const result = [];
-      this.totalFields.forEach((item) => {
+      this.totalFields.forEach(item => {
         if (!this.operatorsKeyList.includes(item.field_type)) return;
         const fieldName = item.field_name;
         // if (item.field_type !== 'text' && !this.filterCondition.some(filterItem => filterItem.field === fieldName)) {
@@ -196,31 +236,36 @@ export default {
           result.push({
             id: fieldName,
             name: `${fieldName}(${alias})`,
-            operatorKey: item.field_type,
+            operatorKey: item.field_type
           });
         } else {
           result.push({
             id: fieldName,
             name: fieldName,
-            operatorKey: item.field_type,
+            operatorKey: item.field_type
           });
         }
       });
       return result;
     },
-    filterOperators() { // 过滤条件操作符
+    filterOperators() {
+      // 过滤条件操作符
       const fieldsItem = this.filterFields.find(item => item.id === this.coreData.field);
-      return this.filterAllOperators[fieldsItem?.operatorKey]?.map(item => ({
-        ...item,
-        operator: item.operator,
-      })) || [];
+      return (
+        this.filterAllOperators[fieldsItem?.operatorKey]?.map(item => ({
+          ...item,
+          operator: item.operator
+        })) || []
+      );
     },
-    getOperatorLength() { // 是否是对比的操作 如果是 则值限制只能输入1个
+    getOperatorLength() {
+      // 是否是对比的操作 如果是 则值限制只能输入1个
       return this.isHaveCompared ? 1 : -1;
     },
-    operatorsKeyList() {  // 请求后的操作键名 用于过滤可选的字段
+    operatorsKeyList() {
+      // 请求后的操作键名 用于过滤可选的字段
       return Object.keys(this.filterAllOperators);
-    },
+    }
   },
   watch: {
     // 每次检索时请求更新
@@ -228,7 +273,7 @@ export default {
       if (this.isAdd) {
         this.resetData();
       }
-    },
+    }
   },
   created() {
     this.setDefaultEditValue();
@@ -261,7 +306,7 @@ export default {
 
       const params = {
         ...this.editData,
-        value: this.editData.value.toString().split(','),
+        value: this.editData.value.toString().split(',')
       };
       this.handleFieldChange(params.field);
       this.localData = params;
@@ -287,15 +332,14 @@ export default {
       if (field && this.statisticalFieldsData[field]) {
         const fieldValues = Object.keys(this.statisticalFieldsData[field]);
         if (fieldValues?.length) {
-          this.valueList = fieldValues.map((item) => {
+          this.valueList = fieldValues.map(item => {
             const markList = item.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
             if (markList.length) {
-              item = markList.map(item => item.replace(/<mark>/g, '')
-                .replace(/<\/mark>/g, '')).join(',');
+              item = markList.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
             }
             return {
               id: item,
-              name: item,
+              name: item
             };
           });
           if (!isNotShowNull) this.valueList.unshift({ id: '', name: `-${this.$t('空')}-` });
@@ -323,9 +367,11 @@ export default {
     handleValueChange(val) {
       if (!val.length) return;
       const newVal = val[val.length - 1];
-      if (newVal === '') { // 选择了-空-过滤值
+      if (newVal === '') {
+        // 选择了-空-过滤值
         this.coreData.value = [''];
-      } else if (val.length && this.coreData.value.includes('')) { // 选择了有效值但已有选项中含有空值
+      } else if (val.length && this.coreData.value.includes('')) {
+        // 选择了有效值但已有选项中含有空值
         this.coreData.value = this.coreData.value.filter(item => item);
       }
     },
@@ -343,16 +389,18 @@ export default {
     handleConfirm() {
       // 延时220ms执行，因为tag-input组件值失焦后200ms才改变
       setTimeout(() => {
-        if (this.coreData.field
-                        && ((this.coreData.operator && this.coreData.value.length)
-                            || (['exists', 'does not exists'].includes(this.coreData.operator)))) {
+        if (
+          this.coreData.field &&
+          ((this.coreData.operator && this.coreData.value.length) ||
+            ['exists', 'does not exists'].includes(this.coreData.operator))
+        ) {
           this.closePopoverIfOpened();
           this.$emit(
             'addFilterCondition',
             this.coreData.field,
             this.coreData.operator,
             this.coreData.value.join(','),
-            this.editIndex,
+            this.editIndex
           );
           this.resetData();
           this.$nextTick(() => {
@@ -371,131 +419,131 @@ export default {
     },
     removeFilterCondition(field) {
       this.$emit('removeFilterCondition', field);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .add-condition-filter-container {
-    .condition-item-container {
-      position: relative;
-      display: flex;
-      flex-flow: wrap;
-      align-items: center;
-      border-radius: 2px;
-      margin-right: 8px;
-      margin-bottom: 2px;
-      padding: 0 22px 0 4px;
-      background: #eceef5;
+.add-condition-filter-container {
+  .condition-item-container {
+    position: relative;
+    display: flex;
+    padding: 0 22px 0 4px;
+    margin-right: 8px;
+    margin-bottom: 2px;
+    cursor: pointer;
+    background: #eceef5;
+    border-radius: 2px;
+    flex-flow: wrap;
+    align-items: center;
+  }
+
+  .filter-text {
+    margin-left: 24px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .tag {
+    padding: 0 4px;
+    margin-bottom: 2px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #63656e;
+    white-space: nowrap;
+
+    &.text-tag {
+      max-width: 108px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &.symbol-tag {
+      color: #ff9c01;
+    }
+
+    &.add-tag {
+      padding: 0 7px;
       cursor: pointer;
-    }
 
-    .filter-text {
-      margin-left: 24px;
-      color: #3a84ff;
-      cursor: pointer;
-    }
-
-    .tag {
-      padding: 0 4px;
-      margin-bottom: 2px;
-      font-size: 12px;
-      color: #63656e;
-      line-height: 32px;
-      white-space: nowrap;
-
-      &.text-tag {
-        max-width: 108px;
-        overflow: hidden;
-        text-overflow: ellipsis;
+      .icon-plus-line {
+        font-size: 14px;
       }
 
-      &.symbol-tag {
-        color: #ff9c01;
+      .add-text {
+        margin-right: 3px;
       }
 
-      &.add-tag {
-        padding: 0 7px;
-        cursor: pointer;
-
-        .icon-plus-line {
-          font-size: 14px;
-        }
-
-        .add-text {
-          margin-right: 3px;
-        }
-
-        &:hover {
-          color: #3a84ff;
-        }
+      &:hover {
+        color: #3a84ff;
       }
     }
+  }
 
+  .icon-close-line {
+    position: absolute;
+    top: 10px;
+    right: 2px;
+    display: none;
+    margin: 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #979ba5;
+    cursor: pointer;
+  }
+
+  .condition-item-container:hover {
     .icon-close-line {
-      position: absolute;
-      right: 2px;
-      top: 10px;
-      display: none;
-      margin: 0 6px;
+      display: inline-block;
+    }
+  }
+}
+
+.add-condition-filter-popover {
+  .filter-title {
+    padding: 24px 24px 22px;
+    font-size: 16px;
+    color: #313238;
+  }
+
+  .add-filter-content {
+    display: flex;
+    padding: 0 24px;
+    margin-bottom: 24px;
+    align-items: center;
+
+    label {
+      display: inline-block;
+      margin-bottom: 4px;
       font-size: 12px;
-      font-weight: 700;
-      color: #979ba5;
-      cursor: pointer;
-    }
-
-    .condition-item-container:hover {
-      .icon-close-line {
-        display: inline-block;
-      }
+      color: #2d3542;
     }
   }
 
-  .add-condition-filter-popover {
-    .filter-title {
-      padding: 24px 24px 22px;
-      color: #313238;
-      font-size: 16px;
-    }
+  .option-item:nth-child(2) {
+    margin: 0 10px;
+  }
 
-    .add-filter-content {
-      display: flex;
-      align-items: center;
-      margin-bottom: 24px;
-      padding: 0 24px;
+  .value-input {
+    width: 240px;
+  }
 
-      label {
-        display: inline-block;
-        margin-bottom: 4px;
-        color: #2d3542;
-        font-size: 12px;
-      }
-    }
+  .filter-footer {
+    padding: 8px 24px 10px 0;
+    text-align: right;
+    background-color: #fafbfd;
+    border-top: 1px solid #dcdee5;
 
-    .option-item:nth-child(2) {
-      margin: 0 10px;
-    }
-
-    .value-input {
-      width: 240px;
-    }
-
-    .filter-footer {
-      padding: 8px 24px 10px 0;
-      text-align: right;
-      border-top: 1px solid #dcdee5;
-      background-color: #fafbfd;
-
-      .bk-primary {
-        margin-right: 6px;
-      }
-    }
-
-    .bk-tag-selector {
-      .bk-tag-input {
-        margin-left: 10px;
-      }
+    .bk-primary {
+      margin-right: 6px;
     }
   }
+
+  .bk-tag-selector {
+    .bk-tag-input {
+      margin-left: 10px;
+    }
+  }
+}
 </style>

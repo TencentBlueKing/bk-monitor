@@ -64,6 +64,11 @@ class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def get_request_url(self, validated_request_data):
         return super(BkDataAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
 
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super().full_request_data(validated_request_data)
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
+        return validated_request_data
+
 
 class BkDataQueryAPIGWResource(BkDataAPIGWResource):
     base_url = settings.BKDATA_QUERY_API_BASE_URL or BkDataAPIGWResource.base_url
@@ -130,7 +135,7 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         sql = serializers.CharField(required=True, label="查询SQL语句")
-        prefer_storage = serializers.CharField(required=False, label="查询引擎")
+        prefer_storage = serializers.CharField(required=False, label="查询引擎", allow_blank=True)
         _user_request = serializers.BooleanField(required=False, label="是否指定使用 user 鉴权请求接口", default=False)
 
     def perform_request(self, params):
@@ -495,6 +500,8 @@ class DatabusCleans(DataAccessAPIResource):
         fields = serializers.ListField(required=True, child=FieldSerializer(), label="输出字段列表")
         description = serializers.CharField(default="", label="清洗配置描述信息")
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+        result_table_id = serializers.CharField(required=False, allow_blank=True, label="结果表 ID")
+        processing_id = serializers.CharField(required=False, allow_blank=True, label="数据处理 ID")
 
 
 class GetDatabusCleans(DataAccessAPIResource):
@@ -551,6 +558,7 @@ class StartDatabusCleans(DataAccessAPIResource):
         result_table_id = serializers.CharField(required=True, label="清洗结果表名称")
         storages = serializers.ListField(default=["kafka"], label="分发任务的存储列表")
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+        processing_id = serializers.CharField(required=False, allow_blank=True, label="数据处理 ID")
 
 
 class StopDatabusCleans(DataAccessAPIResource):
@@ -793,6 +801,20 @@ class DeleteDataFlow(DataAccessAPIResource):
         flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
 
 
+class DeleteDataFlowNode(DataAccessAPIResource):
+    """
+    删除DataFlow中的节点
+    """
+
+    action = "/v3/dataflow/flow/flows/{flow_id}/nodes/{node_id}/"
+    method = "DELETE"
+
+    class RequestSerializer(CommonRequestSerializer):
+        flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+        node_id = serializers.IntegerField(required=True, label="DataFlow的节点ID")
+        confirm = serializers.BooleanField(default=True, required=False)
+
+
 class GetLatestDeployDataFlow(DataAccessAPIResource):
     """
     获取DataFlow的最近部署信息
@@ -994,6 +1016,13 @@ class CreateResourceSet(DataAccessAPIResource):
     """创建资源"""
 
     action = "/v3/resourcecenter/resource_sets/"
+    method = "POST"
+
+
+class GetOrCreateResourceSet(DataAccessAPIResource):
+    """创建或获取资源(如果资源存在 则返回的是已存在资源的信息)"""
+
+    action = "/v3/resourcecenter/resource_sets/get_or_create/"
     method = "POST"
 
 

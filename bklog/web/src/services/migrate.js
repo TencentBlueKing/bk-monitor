@@ -23,37 +23,31 @@
 // 获取采集项列表
 const getUpgradeList = {
   url: '/upgrade_record/',
-  method: 'get',
+  method: 'get'
 };
 
 // 获取采集项任务日志
 const getTaskLog = {
   url: '/upgrade_record/:bkdata_data_id/task_log/',
-  method: 'get',
+  method: 'get'
 };
 
 // 启动迁移任务
 const startTask = {
   url: '/upgrade_record/start_task/',
-  method: 'post',
+  method: 'post'
 };
 
 // 获取新老索引信息
 const getIndexInfo = {
   url: '/upgrade_record/:bkdata_data_id/index_info/',
-  method: 'get',
+  method: 'get'
 };
 
 // 设置新索引启用日期
 const setIndexInfo = {
   url: '/upgrade_record/:bkdata_data_id/set_index_date/',
-  method: 'post',
+  method: 'post'
 };
 
-export {
-  getUpgradeList,
-  getTaskLog,
-  startTask,
-  getIndexInfo,
-  setIndexInfo,
-};
+export { getUpgradeList, getTaskLog, startTask, getIndexInfo, setIndexInfo };

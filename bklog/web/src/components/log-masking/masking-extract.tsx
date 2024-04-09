@@ -21,25 +21,13 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Model,
-  Emit,
-  Ref,
-} from 'vue-property-decorator';
-import {
-  Sideslider,
-  Form,
-  FormItem,
-  Input,
-  Button,
-  Popover,
-} from 'bk-magic-vue';
+import { Component, Model, Emit, Ref } from 'vue-property-decorator';
+import { Sideslider, Form, FormItem, Input, Button, Popover } from 'bk-magic-vue';
 import './masking-extract.scss';
 import MaskingSelectRuleTable from './masking-select-rule-table';
 
 interface IProps {
-  value: Boolean
+  value: Boolean;
 }
 
 @Component
@@ -64,9 +52,7 @@ export default class MaskingExtract extends tsc<IProps> {
   handleSubmit() {
     this.isShowSecondConfirmDialog = true;
   }
-  handleDebugging() {
-
-  }
+  handleDebugging() {}
   handleConfirmChange() {
     this.isShowSecondConfirmDialog = false;
     this.hiddenSlider();
@@ -116,8 +102,7 @@ export default class MaskingExtract extends tsc<IProps> {
         onHidden: () => {
           this.destroyPopoverInstance();
         },
-        onShow: () => {
-        },
+        onShow: () => {}
       });
       this.tablePopoverInstance.show(100);
     }
@@ -129,15 +114,16 @@ export default class MaskingExtract extends tsc<IProps> {
     this.tablePopoverInstance = null;
   }
 
-
   render() {
     const tableSlot = () => (
       <div style={{ display: 'none' }}>
-        <div class="rule-table-content" ref="ruleTable">
-          <div style="padding: 16px;">
-            <span class="title">{this.$t('选择脱敏规则')}</span>
-            <MaskingSelectRuleTable
-              onNewRuleSidesliderState={(state: boolean) => this.isMarginRight = state} />
+        <div
+          class='rule-table-content'
+          ref='ruleTable'
+        >
+          <div style='padding: 16px;'>
+            <span class='title'>{this.$t('选择脱敏规则')}</span>
+            <MaskingSelectRuleTable onNewRuleSidesliderState={(state: boolean) => (this.isMarginRight = state)} />
           </div>
         </div>
       </div>
@@ -153,89 +139,136 @@ export default class MaskingExtract extends tsc<IProps> {
         on-hidden={() => this.destroyPopoverInstance()}
         {...{
           on: {
-            'update:isShow': this.hiddenSlider,
-          },
-        }}>
-          <div
-            slot='content'
-            class="masking-extract-slider"
+            'update:isShow': this.hiddenSlider
+          }
+        }}
+      >
+        <div
+          slot='content'
+          class='masking-extract-slider'
+        >
+          <Form
+            ext-cls='masking-form'
+            label-width={200}
+            form-type='vertical'
           >
-            <Form
-              ext-cls="masking-form"
-              label-width={200}
-              form-type="vertical">
-              <FormItem label={'名称'} required>
-                <Input></Input>
-              </FormItem>
-              <FormItem label={'脱敏设置'} required>
-                <span class="masking-btn" onClick={e => this.handleClickAddNewRule(e)}>
-                  <Button size="small">{this.$t('添加规则')}</Button>
-                </span>
-                <div class="masking-rule">
-                    <span class="rule-name">手机号脱敏</span>
-                    <span class="rule-value">替换｜替换为 0</span>
-                    <i class="rule-icon bk-icon icon-close-circle-shape"></i>
-                </div>
-                <div class="masking-rule">
-                    <span class="rule-name">手机号脱敏</span>
-                    <span class="rule-value">替换｜替换为 0</span>
-                    <i class="rule-icon bk-icon icon-close-circle-shape"></i>
-                </div>
-                <div class="form-item-tips">
-                  <i v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
-                     class="log-icon icon-info-fill"></i>
-                </div>
-              </FormItem>
-              <FormItem label={'用户列表'} required>
-                <Input></Input>
-              </FormItem>
-              <FormItem label={'授权目录'} required>
-                {
-                  this.directoryList.map((item, index) => (
-                    <div class="length-change-item">
-                      <Input></Input>
-                      <div class="ml9">
-                        <i class="bk-icon icon-plus-circle-shape icons"
-                          onClick={() => this.addDirectory()}></i>
-                        <i class={['bk-icon icon-minus-circle-shape icons ml9', { disable: this.directoryList.length === 1 }]}
-                          onClick={() => this.delDirectory(index)}></i>
-                      </div>
-                    </div>
-                  ))
-                }
-              </FormItem>
-              <FormItem label={'文件后缀'} required>
-                {
-                  this.suffixList.map((item, index) => (
-                    <div class="length-change-item">
-                      <Input></Input>
-                      <div class="ml9">
-                        <i class="bk-icon icon-plus-circle-shape icons"
-                          onClick={() => this.addSuffix()}></i>
-                        <i class={['bk-icon icon-minus-circle-shape icons ml9', { disable: this.suffixList.length === 1 }]}
-                          onClick={() => this.delSuffix(index)}></i>
-                      </div>
-                    </div>
-                  ))
-                }
-              </FormItem>
-              <FormItem label={'授权目标'} required>
-                <Button size="small">{this.$t('选择目标')}</Button>
-              </FormItem>
-              <FormItem label={'执行人'} required desc="hello desc">
-                <div class="length-change-item">
+            <FormItem
+              label={'名称'}
+              required
+            >
+              <Input></Input>
+            </FormItem>
+            <FormItem
+              label={'脱敏设置'}
+              required
+            >
+              <span
+                class='masking-btn'
+                onClick={e => this.handleClickAddNewRule(e)}
+              >
+                <Button size='small'>{this.$t('添加规则')}</Button>
+              </span>
+              <div class='masking-rule'>
+                <span class='rule-name'>手机号脱敏</span>
+                <span class='rule-value'>替换｜替换为 0</span>
+                <i class='rule-icon bk-icon icon-close-circle-shape'></i>
+              </div>
+              <div class='masking-rule'>
+                <span class='rule-name'>手机号脱敏</span>
+                <span class='rule-value'>替换｜替换为 0</span>
+                <i class='rule-icon bk-icon icon-close-circle-shape'></i>
+              </div>
+              <div class='form-item-tips'>
+                <i
+                  v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
+                  class='log-icon icon-info-fill'
+                ></i>
+              </div>
+            </FormItem>
+            <FormItem
+              label={'用户列表'}
+              required
+            >
+              <Input></Input>
+            </FormItem>
+            <FormItem
+              label={'授权目录'}
+              required
+            >
+              {this.directoryList.map((item, index) => (
+                <div class='length-change-item'>
                   <Input></Input>
-                  <Button class="ml9" theme="primary" outline>{this.$t('改为我')}</Button>
+                  <div class='ml9'>
+                    <i
+                      class='bk-icon icon-plus-circle-shape icons'
+                      onClick={() => this.addDirectory()}
+                    ></i>
+                    <i
+                      class={[
+                        'bk-icon icon-minus-circle-shape icons ml9',
+                        { disable: this.directoryList.length === 1 }
+                      ]}
+                      onClick={() => this.delDirectory(index)}
+                    ></i>
+                  </div>
                 </div>
-              </FormItem>
-            </Form>
+              ))}
+            </FormItem>
+            <FormItem
+              label={'文件后缀'}
+              required
+            >
+              {this.suffixList.map((item, index) => (
+                <div class='length-change-item'>
+                  <Input></Input>
+                  <div class='ml9'>
+                    <i
+                      class='bk-icon icon-plus-circle-shape icons'
+                      onClick={() => this.addSuffix()}
+                    ></i>
+                    <i
+                      class={['bk-icon icon-minus-circle-shape icons ml9', { disable: this.suffixList.length === 1 }]}
+                      onClick={() => this.delSuffix(index)}
+                    ></i>
+                  </div>
+                </div>
+              ))}
+            </FormItem>
+            <FormItem
+              label={'授权目标'}
+              required
+            >
+              <Button size='small'>{this.$t('选择目标')}</Button>
+            </FormItem>
+            <FormItem
+              label={'执行人'}
+              required
+              desc='hello desc'
+            >
+              <div class='length-change-item'>
+                <Input></Input>
+                <Button
+                  class='ml9'
+                  theme='primary'
+                  outline
+                >
+                  {this.$t('改为我')}
+                </Button>
+              </div>
+            </FormItem>
+          </Form>
 
-            <div class="submit-box">
-              <Button theme="primary" onClick={() => this.handleSubmit()}>{this.$t('提交')}</Button>
-              <Button theme="default">{this.$t('取消')}</Button>
-            </div>
-            {tableSlot()}
+          <div class='submit-box'>
+            <Button
+              theme='primary'
+              onClick={() => this.handleSubmit()}
+            >
+              {this.$t('提交')}
+            </Button>
+            <Button theme='default'>{this.$t('取消')}</Button>
           </div>
+          {tableSlot()}
+        </div>
       </Sideslider>
     );
   }

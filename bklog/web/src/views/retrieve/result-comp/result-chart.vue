@@ -22,9 +22,10 @@
 
 <template>
   <div
+    v-bkloading="{ isLoading: false }"
     :class="['monitor-echarts-container', { 'is-fold': isFold }]"
     data-test-id="retrieve_div_generalTrendEcharts"
-    v-bkloading="{ isLoading: false }">
+  >
     <chart-title
       ref="chartTitle"
       :title="$t('总趋势')"
@@ -32,53 +33,62 @@
       :is-fold="isFold"
       :loading="isLoading || !finishPolling"
       @toggle-expand="toggleExpand"
-      @menu-click="handleMoreToolItemSet">
+      @menu-click="handleMoreToolItemSet"
+    >
     </chart-title>
     <MonitorEcharts
       v-if="isRenderChart"
       v-show="!isFold && !isLoading"
       ref="chartRef"
+      :key="chartKey"
       chart-type="bar"
       :is-fold="isFold"
       :title="$t('总趋势')"
-      :key="chartKey"
       :line-width="2"
       :options="chartOptions"
       :get-series-data="getSeriesData"
       @dblclick="handleDbClick"
-      @chart-loading="handleChartLoading" />
-    <div v-if="isEmptyChart && !isFold" class="chart-empty">
+      @chart-loading="handleChartLoading"
+    />
+    <div
+      v-if="isEmptyChart && !isFold"
+      class="chart-empty"
+    >
       <svg
         class="icon-chart"
         viewBox="0 0 1024 1024"
         version="1.1"
         xmlns="http://www.w3.org/2000/svg"
         width="256"
-        height="256">
+        height="256"
+      >
         <path d="M128 160h64v640h704v64H128z"></path>
         <path d="M307.2 636.8l-44.8-44.8 220.8-220.8 137.6 134.4 227.2-227.2 44.8 44.8-272 272-137.6-134.4z"></path>
       </svg>
       <span class="text">{{ $t('暂无数据') }}</span>
     </div>
     <div
-      class="converge-cycle"
       v-if="!isEmptyChart && !isFold"
-      v-en-style="'left: 110px'">
+      v-en-style="'left: 110px'"
+      class="converge-cycle"
+    >
       <span>{{ $t('汇聚周期') }}</span>
       <bk-select
-        style="width: 80px"
         v-model="chartInterval"
+        style="width: 80px"
         :clearable="false"
         behavior="simplicity"
         ext-cls="select-custom"
         size="small"
         data-test-id="generalTrendEcharts_div_selectCycle"
-        @change="handleIntervalChange">
+        @change="handleIntervalChange"
+      >
         <bk-option
           v-for="option in intervalArr"
-          :key="option.id"
           :id="option.id"
-          :name="option.name">
+          :key="option.id"
+          :name="option.name"
+        >
         </bk-option>
       </bk-select>
     </div>
@@ -93,18 +103,18 @@ import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.
 export default {
   components: {
     MonitorEcharts,
-    ChartTitle,
+    ChartTitle
   },
   mixins: [indexSetSearchMixin],
   props: {
     retrieveParams: {
       type: Object,
-      required: true,
+      required: true
     },
     datePickerValue: {
       type: Array,
-      default: () => [],
-    },
+      default: () => []
+    }
   },
   data() {
     return {
@@ -115,50 +125,50 @@ export default {
         { id: '1m', name: '1 min' },
         { id: '5m', name: '5 min' },
         { id: '1h', name: '1 h' },
-        { id: '1d', name: '1d' },
+        { id: '1d', name: '1d' }
       ],
       chartOptions: {
         tool: {
-          list: ['screenshot'],
+          list: ['screenshot']
         },
         useUTC: false,
         xAxis: {
           axisLine: {
             show: true,
             lineStyle: {
-              color: '#666',
-            },
+              color: '#666'
+            }
           },
           axisLabel: {
-            align: 'center',
+            align: 'center'
           },
           axisTick: {
-            show: true,
-          },
+            show: true
+          }
         },
         yAxis: {
           axisLine: {
             show: true,
             lineStyle: {
               color: '#666',
-              type: 'dashed',
-            },
-          },
-        },
+              type: 'dashed'
+            }
+          }
+        }
       },
       isLoading: false,
       isRenderChart: false,
       isEmptyChart: true,
       optionData: [],
       totalCount: 0,
-      localAddition: [],
+      localAddition: []
     };
   },
   computed: {
     chartKey() {
       this.getInterval();
       return this.$store.state.retrieve.chartKey;
-    },
+    }
     // chartInterval() {
     //   return this.retrieveParams.interval;
     // },
@@ -173,7 +183,7 @@ export default {
         this.isLoading = false;
         this.finishPolling = false;
         this.isStart = false;
-      },
+      }
     },
     totalCount(newVal) {
       this.$emit('change-total-count', newVal);
@@ -183,7 +193,7 @@ export default {
     },
     'retrieveParams.interval'(newVal) {
       this.chartInterval = newVal;
-    },
+    }
   },
   mounted() {
     window.bus.$on('openChartLoading', this.openChartLoading);
@@ -261,7 +271,8 @@ export default {
         }
       }
 
-      if (!!this.$route.params?.indexId) { // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
+      if (!!this.$route.params?.indexId) {
+        // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
         const res = await this.$http.request('retrieve/getLogChartList', {
           params: { index_set_id: this.$route.params.indexId },
           data: {
@@ -271,17 +282,17 @@ export default {
             interval: this.interval,
             // 每次轮循的起始时间
             start_time: this.pollingStartTime,
-            end_time: this.pollingEndTime,
-          },
+            end_time: this.pollingEndTime
+          }
         });
         const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
-        const targetArr = originChartData.map((item) => {
+        const targetArr = originChartData.map(item => {
           this.totalCount = this.totalCount + item.doc_count;
-          return ([item.doc_count, item.key]);
+          return [item.doc_count, item.key];
         });
 
         if (this.pollingStartTime <= this.retrieveParams.start_time) {
-        // 轮询结束
+          // 轮询结束
           this.finishPolling = true;
         }
 
@@ -297,11 +308,13 @@ export default {
         this.finishPolling = true;
       }
 
-      return [{
-        datapoints: this.optionData,
-        target: '',
-        isFinish: this.finishPolling,
-      }];
+      return [
+        {
+          datapoints: this.optionData,
+          target: '',
+          isFinish: this.finishPolling
+        }
+      ];
     },
     // 双击回到初始化时间范围
     handleDbClick() {
@@ -332,82 +345,81 @@ export default {
     },
     handleChartLoading(isLoading) {
       this.isLoading = isLoading;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .monitor-echarts-container {
-    position: relative;
-    height: 160px;
-    background-color: #fff;
-    overflow: hidden;
+.monitor-echarts-container {
+  position: relative;
+  height: 160px;
+  overflow: hidden;
+  background-color: #fff;
 
-    &.is-fold {
-      height: 60px;
-    }
+  &.is-fold {
+    height: 60px;
+  }
 
-    :deep(.echart-legend) {
-      display: flex;
-      justify-content: center;
-    }
+  :deep(.echart-legend) {
+    display: flex;
+    justify-content: center;
+  }
 
-    .converge-cycle {
-      position: absolute;
-      top: 17px;
-      left: 80px;
-      font-size: 12px;
-      color: #63656e;
+  .converge-cycle {
+    position: absolute;
+    top: 17px;
+    left: 80px;
+    display: inline-block;
+    margin-left: 24px;
+    font-size: 12px;
+    color: #63656e;
+
+    .select-custom {
       display: inline-block;
-      margin-left: 24px;
-
-      .select-custom {
-        display: inline-block;
-        margin-left: 5px;
-        vertical-align: middle;
-      }
-    }
-
-    .chart-empty {
-      position: absolute;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      background: #fff;
-
-      .icon-chart {
-        width: 38px;
-        height: 38px;
-        fill: #dcdee6;
-      }
-
-      .text {
-        color: #979ba5;
-        font-size: 14px;
-      }
-    }
-
-    .title-wrapper {
-      padding: 14px 24px 0;
-    }
-
-    .monitor-echart-wrap {
-      height: 116px;
-      padding-top: 0;
-      padding-bottom: 0;
-
-      .chart-wrapper {
-        /* stylelint-disable-next-line declaration-no-important */
-        min-height: 116px !important;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        max-height: 116px !important;
-      }
+      margin-left: 5px;
+      vertical-align: middle;
     }
   }
+
+  .chart-empty {
+    position: absolute;
+    top: 0;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+
+    .icon-chart {
+      width: 38px;
+      height: 38px;
+      fill: #dcdee6;
+    }
+
+    .text {
+      font-size: 14px;
+      color: #979ba5;
+    }
+  }
+
+  .title-wrapper {
+    padding: 14px 24px 0;
+  }
+
+  .monitor-echart-wrap {
+    height: 116px;
+    padding-top: 0;
+    padding-bottom: 0;
+
+    .chart-wrapper {
+      /* stylelint-disable-next-line declaration-no-important */
+      max-height: 116px !important;
+      /* stylelint-disable-next-line declaration-no-important */
+      min-height: 116px !important;
+    }
+  }
+}
 </style>

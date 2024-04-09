@@ -31,43 +31,41 @@ import dayjs from 'dayjs';
 
 import store from '../store';
 /**
-  * 函数柯里化
-  *
-  * @example
-  *     function add (a, b) {return a + b}
-  *     curry(add)(1)(2)
-  *
-  * @param {Function} fn 要柯里化的函数
-  *
-  * @return {Function} 柯里化后的函数
-  */
+ * 函数柯里化
+ *
+ * @example
+ *     function add (a, b) {return a + b}
+ *     curry(add)(1)(2)
+ *
+ * @param {Function} fn 要柯里化的函数
+ *
+ * @return {Function} 柯里化后的函数
+ */
 export function curry(fn) {
-  const judge = (...args) => (args.length === fn.length
-    ? fn(...args)
-    : arg => judge(...args, arg));
+  const judge = (...args) => (args.length === fn.length ? fn(...args) : arg => judge(...args, arg));
   return judge;
 }
 
 /**
-  * 判断是否是对象
-  *
-  * @param {Object} obj 待判断的
-  *
-  * @return {boolean} 判断结果
-  */
+ * 判断是否是对象
+ *
+ * @param {Object} obj 待判断的
+ *
+ * @return {boolean} 判断结果
+ */
 export function isObject(obj) {
   return obj !== null && typeof obj === 'object';
 }
 
 /**
-  * 规范化参数
-  *
-  * @param {Object|string} type vuex type
-  * @param {Object} payload vuex payload
-  * @param {Object} options vuex options
-  *
-  * @return {Object} 规范化后的参数
-  */
+ * 规范化参数
+ *
+ * @param {Object|string} type vuex type
+ * @param {Object} payload vuex payload
+ * @param {Object} options vuex options
+ *
+ * @return {Object} 规范化后的参数
+ */
 export function unifyObjectStyle(type, payload, options) {
   if (isObject(type) && type.type) {
     options = payload;
@@ -85,13 +83,13 @@ export function unifyObjectStyle(type, payload, options) {
 }
 
 /**
-  * 以 baseColor 为基础生成随机颜色
-  *
-  * @param {string} baseColor 基础颜色
-  * @param {number} count 随机颜色个数
-  *
-  * @return {Array} 颜色数组
-  */
+ * 以 baseColor 为基础生成随机颜色
+ *
+ * @param {string} baseColor 基础颜色
+ * @param {number} count 随机颜色个数
+ *
+ * @return {Array} 颜色数组
+ */
 export function randomColor(baseColor, count) {
   const segments = baseColor.match(/[\da-z]{2}/g);
   // 转换成 rgb 数字
@@ -101,68 +99,69 @@ export function randomColor(baseColor, count) {
   const ret = [];
   // 生成 count 组颜色，色差 20 * Math.random
   for (let i = 0; i < count; i++) {
-    ret[i] = `#${
-      Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)
-    }${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)
-    }${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
+    ret[i] = `#${Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
+      16
+    )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
+      16
+    )}${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
   }
   return ret;
 }
 
 /**
-  * min max 之间的随机整数
-  *
-  * @param {number} min 最小值
-  * @param {number} max 最大值
-  *
-  * @return {number} 随机数
-  */
+ * min max 之间的随机整数
+ *
+ * @param {number} min 最小值
+ * @param {number} max 最大值
+ *
+ * @return {number} 随机数
+ */
 export function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
 /**
-  * 异常处理
-  *
-  * @param {Object} err 错误对象
-  * @param {Object} ctx 上下文对象，这里主要指当前的 Vue 组件
-  */
+ * 异常处理
+ *
+ * @param {Object} err 错误对象
+ * @param {Object} ctx 上下文对象，这里主要指当前的 Vue 组件
+ */
 export function catchErrorHandler(err, ctx) {
   const { data } = err;
   if (data) {
     if (!data.code || data.code === 404) {
       ctx.exceptionCode = {
         code: '404',
-        msg: '当前访问的页面不存在',
+        msg: '当前访问的页面不存在'
       };
     } else if (data.code === 403) {
       ctx.exceptionCode = {
         code: '403',
-        msg: 'Sorry，您的权限不足!',
+        msg: 'Sorry，您的权限不足!'
       };
     } else {
       console.error(err);
       ctx.bkMessageInstance = ctx.$bkMessage({
         theme: 'error',
-        message: err.message || err.data.msg || err.statusText,
+        message: err.message || err.data.msg || err.statusText
       });
     }
   } else {
     console.error(err);
     ctx.bkMessageInstance = ctx.$bkMessage({
       theme: 'error',
-      message: err.message || err.data.msg || err.statusText,
+      message: err.message || err.data.msg || err.statusText
     });
   }
 }
 
 /**
-  * 获取字符串长度，中文算两个，英文算一个
-  *
-  * @param {string} str 字符串
-  *
-  * @return {number} 结果
-  */
+ * 获取字符串长度，中文算两个，英文算一个
+ *
+ * @param {string} str 字符串
+ *
+ * @return {number} 结果
+ */
 export function getStringLen(str) {
   let len = 0;
   for (let i = 0; i < str.length; i++) {
@@ -176,38 +175,41 @@ export function getStringLen(str) {
 }
 
 /**
-  * 转义特殊字符
-  *
-  * @param {string} str 待转义字符串
-  *
-  * @return {string} 结果
-  */
+ * 转义特殊字符
+ *
+ * @param {string} str 待转义字符串
+ *
+ * @return {string} 结果
+ */
 export const escape = str => String(str).replace(/([.*+?^=!:${}()|[\]/\\])/g, '\\$1');
 
 /**
-  * 对象转为 url query 字符串
-  *
-  * @param {*} param 要转的参数
-  * @param {string} key key
-  *
-  * @return {string} url query 字符串
-  */
+ * 对象转为 url query 字符串
+ *
+ * @param {*} param 要转的参数
+ * @param {string} key key
+ *
+ * @return {string} url query 字符串
+ */
 export function json2Query(param, key) {
   const mappingOperator = '=';
   const separator = '&';
   let paramStr = '';
 
-  if (param instanceof String || typeof param === 'string'
-         || param instanceof Number || typeof param === 'number'
-         || param instanceof Boolean || typeof param === 'boolean'
+  if (
+    param instanceof String ||
+    typeof param === 'string' ||
+    param instanceof Number ||
+    typeof param === 'number' ||
+    param instanceof Boolean ||
+    typeof param === 'boolean'
   ) {
     paramStr += separator + key + mappingOperator + encodeURIComponent(param);
   } else {
-    Object.keys(param).forEach((p) => {
+    Object.keys(param).forEach(p => {
       const value = param[p];
-      const k = (key === null || key === '' || key === undefined)
-        ? p
-        : key + (param instanceof Array ? `[${p}]` : `.${p}`);
+      const k =
+        key === null || key === '' || key === undefined ? p : key + (param instanceof Array ? `[${p}]` : `.${p}`);
       paramStr += separator + json2Query(value, k);
     });
   }
@@ -215,24 +217,24 @@ export function json2Query(param, key) {
 }
 
 /**
-  * 字符串转换为驼峰写法
-  *
-  * @param {string} str 待转换字符串
-  *
-  * @return {string} 转换后字符串
-  */
+ * 字符串转换为驼峰写法
+ *
+ * @param {string} str 待转换字符串
+ *
+ * @return {string} 转换后字符串
+ */
 export function camelize(str) {
   return str.replace(/-(\w)/g, (strMatch, p1) => p1.toUpperCase());
 }
 
 /**
-  * 获取元素的样式
-  *
-  * @param {Object} elem dom 元素
-  * @param {string} prop 样式属性
-  *
-  * @return {string} 样式值
-  */
+ * 获取元素的样式
+ *
+ * @param {Object} elem dom 元素
+ * @param {string} prop 样式属性
+ *
+ * @return {string} 样式值
+ */
 export function getStyle(elem, prop) {
   if (!elem || !prop) {
     return false;
@@ -254,10 +256,10 @@ export function getStyle(elem, prop) {
 }
 
 /**
-  *  获取元素相对于页面的高度
-  *
-  *  @param {Object} node 指定的 DOM 元素
-  */
+ *  获取元素相对于页面的高度
+ *
+ *  @param {Object} node 指定的 DOM 元素
+ */
 export function getActualTop(node) {
   let actualTop = node.offsetTop;
   let current = node.offsetParent;
@@ -271,10 +273,10 @@ export function getActualTop(node) {
 }
 
 /**
-  *  获取元素相对于页面左侧的宽度
-  *
-  *  @param {Object} node 指定的 DOM 元素
-  */
+ *  获取元素相对于页面左侧的宽度
+ *
+ *  @param {Object} node 指定的 DOM 元素
+ */
 export function getActualLeft(node) {
   let actualLeft = node.offsetLeft;
   let current = node.offsetParent;
@@ -288,10 +290,10 @@ export function getActualLeft(node) {
 }
 
 /**
-  * document 总高度
-  *
-  * @return {number} 总高度
-  */
+ * document 总高度
+ *
+ * @return {number} 总高度
+ */
 export function getScrollHeight() {
   let scrollHeight = 0;
   let bodyScrollHeight = 0;
@@ -305,16 +307,16 @@ export function getScrollHeight() {
     documentScrollHeight = document.documentElement.scrollHeight;
   }
 
-  scrollHeight = (bodyScrollHeight - documentScrollHeight > 0) ? bodyScrollHeight : documentScrollHeight;
+  scrollHeight = bodyScrollHeight - documentScrollHeight > 0 ? bodyScrollHeight : documentScrollHeight;
 
   return scrollHeight;
 }
 
 /**
-  * 滚动条在 y 轴上的滚动距离
-  *
-  * @return {number} y 轴上的滚动距离
-  */
+ * 滚动条在 y 轴上的滚动距离
+ *
+ * @return {number} y 轴上的滚动距离
+ */
 export function getScrollTop() {
   let scrollTop = 0;
   let bodyScrollTop = 0;
@@ -328,30 +330,29 @@ export function getScrollTop() {
     documentScrollTop = document.documentElement.scrollTop;
   }
 
-  scrollTop = (bodyScrollTop - documentScrollTop > 0) ? bodyScrollTop : documentScrollTop;
+  scrollTop = bodyScrollTop - documentScrollTop > 0 ? bodyScrollTop : documentScrollTop;
 
   return scrollTop;
 }
 
 /**
-  * 浏览器视口的高度
-  *
-  * @return {number} 浏览器视口的高度
-  */
+ * 浏览器视口的高度
+ *
+ * @return {number} 浏览器视口的高度
+ */
 export function getWindowHeight() {
-  const windowHeight = document.compatMode === 'CSS1Compat'
-    ? document.documentElement.clientHeight
-    : document.body.clientHeight;
+  const windowHeight =
+    document.compatMode === 'CSS1Compat' ? document.documentElement.clientHeight : document.body.clientHeight;
 
   return windowHeight;
 }
 
 /**
-  * 深拷贝扩展对象
-  * @param target
-  * @param ...sources
-  * @returns {object}
-  */
+ * 深拷贝扩展对象
+ * @param target
+ * @param ...sources
+ * @returns {object}
+ */
 export function deepAssign(target, ...sources) {
   const sourcesArray = [...sources];
   const { length } = sourcesArray;
@@ -362,7 +363,7 @@ export function deepAssign(target, ...sources) {
     target = this;
   }
 
-  sourcesArray.forEach((source) => {
+  sourcesArray.forEach(source => {
     for (const key in source) {
       if (Object.prototype.hasOwnProperty.call(source, key)) {
         const targetValue = target[key];
@@ -381,15 +382,16 @@ export function deepAssign(target, ...sources) {
 }
 
 /**
-  * 将dom解析成png图片并下载
-  * @param {Element} element
-  * @param {String} filename 默认文件名
-  */
+ * 将dom解析成png图片并下载
+ * @param {Element} element
+ * @param {String} filename 默认文件名
+ */
 export function convertDomToPng(element, filename = 'download') {
   let imgUrl;
-  html2canvas(element).then((canvas) => {
-    imgUrl = canvas.toDataURL('image/png');
-  })
+  html2canvas(element)
+    .then(canvas => {
+      imgUrl = canvas.toDataURL('image/png');
+    })
     .finally(() => {
       const eleLink = document.createElement('a');
       eleLink.href = imgUrl;
@@ -402,9 +404,9 @@ export function convertDomToPng(element, filename = 'download') {
 export function projectManage(menuProject, projectName, childName) {
   let project = '';
   try {
-    menuProject.forEach((res) => {
+    menuProject.forEach(res => {
       if (res.id === projectName && res.children) {
-        res.children.forEach((item) => {
+        res.children.forEach(item => {
           if (item.id === childName) {
             project = item.project_manage;
           }
@@ -433,11 +435,11 @@ export function projectManages(menuList, id) {
 }
 
 /**
-  * 设置显示字段的最小宽度，此方法会修改第一个参数的数据
-  * @param {Array} visibleFieldsList
-  * @param {Object} fieldsWidthInfo
-  * @param {Number} minWidth 固定最小宽度
-  */
+ * 设置显示字段的最小宽度，此方法会修改第一个参数的数据
+ * @param {Array} visibleFieldsList
+ * @param {Object} fieldsWidthInfo
+ * @param {Number} minWidth 固定最小宽度
+ */
 export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 1000) {
   // const totalUnit = visibleFieldsList.forEach(item => {
   //     const key = item.field_name
@@ -447,7 +449,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   // })
   const rowObj = {};
   const rowWidth = [];
-  visibleFieldsList.forEach((item) => {
+  visibleFieldsList.forEach(item => {
     const key = item.field_name;
     // eslint-disable-next-line camelcase
     const maxLength = fieldsWidthInfo[key]?.max_length || 0;
@@ -457,23 +459,23 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   const rowNum = rowWidth.length;
   const allWidth = rowWidth.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
   if (Math.ceil(allWidth * 6.5) <= minWidth - rowNum * 20) {
-    visibleFieldsList.forEach((fieldInfo) => {
+    visibleFieldsList.forEach(fieldInfo => {
       const key = fieldInfo.field_name;
       rowObj[key] = rowObj[key] < 9 ? 9 : rowObj[key];
       rowObj[key] = rowObj[key] > 30 ? rowObj[key] / 1.5 : rowObj[key];
-      fieldInfo.minWidth = rowObj[key] / allWidth * (minWidth - rowNum * 20);
+      fieldInfo.minWidth = (rowObj[key] / allWidth) * (minWidth - rowNum * 20);
     });
   } else {
     const half = Math.ceil(rowNum / 2);
     const proportion = [];
     for (const key in rowObj) {
       const width = rowObj[key] * 6.5;
-      if (width >= Math.floor(half / rowNum * minWidth)) {
+      if (width >= Math.floor((half / rowNum) * minWidth)) {
         proportion.push(half);
-      } else if (width <= Math.floor(1 / rowNum * minWidth)) {
+      } else if (width <= Math.floor((1 / rowNum) * minWidth)) {
         proportion.push(1);
       } else {
-        proportion.push(Math.floor(width * rowNum / minWidth));
+        proportion.push(Math.floor((width * rowNum) / minWidth));
       }
     }
     const proportionNum = proportion.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
@@ -484,10 +486,10 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
 }
 
 /**
-  * 返回日期格式 2020-04-13 09:15:14
-  * @param {Number | String | Date} val
-  * @return {String}
-  */
+ * 返回日期格式 2020-04-13 09:15:14
+ * @param {Number | String | Date} val
+ * @return {String}
+ */
 export function formatDate(val, isTimzone = true) {
   const date = new Date(val);
 
@@ -501,17 +503,17 @@ export function formatDate(val, isTimzone = true) {
   }
 
   const yyyy = date.getFullYear();
-  const mm = (`0${date.getMonth() + 1}`).slice(-2);
-  const dd = (`0${date.getDate()}`).slice(-2);
+  const mm = `0${date.getMonth() + 1}`.slice(-2);
+  const dd = `0${date.getDate()}`.slice(-2);
   const time = date.toTimeString().slice(0, 8);
   return `${yyyy}-${mm}-${dd} ${time}`;
 }
 
 /**
-  * 格式化文件大小
-  * @param {Number | String} size
-  * @return {String}
-  */
+ * 格式化文件大小
+ * @param {Number | String} size
+ * @return {String}
+ */
 export function formatFileSize(size) {
   const value = Number(size);
   if (size && !isNaN(value)) {
@@ -524,15 +526,15 @@ export function formatFileSize(size) {
         index = index + 1;
       }
     }
-    return `${(k).toFixed(2)}${units[index]}`;
+    return `${k.toFixed(2)}${units[index]}`;
   }
   return '0';
 }
 
 /**
-  * 读取Blob格式返回数据
-  * @param {*} response
-  */
+ * 读取Blob格式返回数据
+ * @param {*} response
+ */
 export function readBlobResponse(response) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -549,28 +551,28 @@ export function readBlobResponse(response) {
 }
 
 /**
-  * 读取Blob格式返回Json数据
-  * @param {*} resp
-  */
+ * 读取Blob格式返回Json数据
+ * @param {*} resp
+ */
 export function readBlobRespToJson(resp) {
   return readBlobResponse(resp).then(resText => Promise.resolve(JSONBigNumber.parse(resText)));
 }
 
 export function bigNumberToString(value) {
-  return (value || {})._isBigNumber
-    ? value.toString().length < 16
-      ? Number(value) : (value).toString() : value;
+  return (value || {})._isBigNumber ? (value.toString().length < 16 ? Number(value) : value.toString()) : value;
 }
 
 export function formatBigNumListValue(value) {
   if (Object.prototype.toString.call(value) === '[object Object]' && value !== null && !value._isBigNumber) {
     const obj = {};
     if (value instanceof Array) {
-      return obj[value] = parseBigNumberList(value);
+      return (obj[value] = parseBigNumberList(value));
     }
-    Object.keys(value).forEach((opt) => {
-      obj[opt] = Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
-        ? formatBigNumListValue(obj[opt]) : bigNumberToString(value[opt] || '');
+    Object.keys(value).forEach(opt => {
+      obj[opt] =
+        Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
+          ? formatBigNumListValue(obj[opt])
+          : bigNumberToString(value[opt] || '');
     });
     return obj;
   }
@@ -578,20 +580,22 @@ export function formatBigNumListValue(value) {
 }
 
 export function parseBigNumberList(lsit) {
-  return (lsit || []).map(item => Object.keys(item || {})
-    .reduce((output, key) => {
+  return (lsit || []).map(item =>
+    Object.keys(item || {}).reduce((output, key) => {
       return {
         ...output,
-        [key]: formatBigNumListValue(item[key]),
+        [key]: formatBigNumListValue(item[key])
       };
-    }, {}));
+    }, {})
+  );
 }
 
 /**
-  * 生成随机数
-  * @param {Number} n
-  */
-export const random = (n) => { // 生成n位长度的字符串
+ * 生成随机数
+ * @param {Number} n
+ */
+export const random = n => {
+  // 生成n位长度的字符串
   const str = 'abcdefghijklmnopqrstuvwxyz0123456789'; // 可以作为常量放到random外面
   let result = '';
   for (let i = 0; i < n; i++) {
@@ -623,19 +627,21 @@ export const copyMessage = (val, alertMsg) => {
  * @desc: 字符串转base64
  * @param { String } str
  */
-export const base64Encode = (str) => {
-  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
-    (match, p1) => String.fromCharCode(`0x${p1}`)));
+export const base64Encode = str => {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(`0x${p1}`)));
 };
 
 /**
  * @desc: base64转字符串
  * @param { String } str
  */
-export const base64Decode = (str) => {
-  return decodeURIComponent(atob(str).split('')
-    .map(c => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
-    .join(''));
+export const base64Decode = str => {
+  return decodeURIComponent(
+    atob(str)
+      .split('')
+      .map(c => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+      .join('')
+  );
 };
 
 export const makeMessage = (message, traceId) => {
@@ -643,7 +649,8 @@ export const makeMessage = (message, traceId) => {
     ${traceId || '--'} ：
     ${message}
   `;
-  message && console.log(`
+  message &&
+    console.log(`
   ------------------【日志】------------------
   【TraceID】：${traceId}
   【Message】：${message}
@@ -663,7 +670,7 @@ export class Storage {
     const data = {
       value,
       updateTime: Date.now(),
-      express,
+      express
     };
     localStorage.setItem(key, JSON.stringify(data));
   }
@@ -673,7 +680,7 @@ export class Storage {
     if (!dataStr) return null;
     const data = JSON.parse(dataStr);
     const nowTime = Date.now();
-    if (data.express && data.express < (nowTime - data.updateTime)) {
+    if (data.express && data.express < nowTime - data.updateTime) {
       this.remove(key);
       return null;
     }
@@ -685,7 +692,6 @@ export class Storage {
   }
 }
 
-
 /**
  * 深拷贝
  * @param {Object} obj
@@ -695,13 +701,14 @@ export const deepClone = (obj, hash = new WeakMap()) => {
   if (Object(obj) !== obj) return obj;
   if (obj instanceof Set) return new Set(obj);
   if (hash.has(obj)) return hash.get(obj);
-  const result =    obj instanceof Date
-    ? new Date(obj)
-    : obj instanceof RegExp
-      ? new RegExp(obj.source, obj.flags)
-      : obj.constructor
-        ? new obj.constructor()
-        : Object.create(null);
+  const result =
+    obj instanceof Date
+      ? new Date(obj)
+      : obj instanceof RegExp
+        ? new RegExp(obj.source, obj.flags)
+        : obj.constructor
+          ? new obj.constructor()
+          : Object.create(null);
   hash.set(obj, result);
   if (obj instanceof Map) {
     Array.from(obj, ([key, val]) => result.set(key, deepClone(val, hash)));
@@ -713,12 +720,12 @@ export const deepClone = (obj, hash = new WeakMap()) => {
  * @desc: 清空bk-table表头的过滤条件
  * @param {HTMLElement} refInstance ref实例
  */
-export const clearTableFilter =  (refInstance) => {
+export const clearTableFilter = refInstance => {
   if (refInstance.$refs.tableHeader.filterPanels) {
-    const filterPanels = refInstance.$refs.tableHeader.filterPanels;
+    const { filterPanels } = refInstance.$refs.tableHeader;
     for (const key in filterPanels) {
       filterPanels[key].handleReset();
-    };
+    }
   }
 };
 
@@ -758,7 +765,9 @@ export const deepEqual = (object1, object2, ignoreArr = []) => {
 
 // 是否是ipv6
 export const isIPv6 = (str = '') => {
-  return /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/.test(str);
+  return /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/.test(
+    str
+  );
 };
 
 // 列表设置刷新本地缓存
@@ -786,21 +795,23 @@ export const setDefaultSettingSelectFiled = (key, filed) => {
  * 防抖装饰器
  * @param delay
  */
-export const Debounce = (delay = 200) => (target, key, descriptor) => {
-  const originFunction = descriptor.value;
-  const getNewFunction = () => {
-    let timer;
-    const newFunction = function (...args) {
-      if (timer) window.clearTimeout(timer);
-      timer = setTimeout(() => {
-        originFunction.call(this, ...args);
-      }, delay);
+export const Debounce =
+  (delay = 200) =>
+  (target, key, descriptor) => {
+    const originFunction = descriptor.value;
+    const getNewFunction = () => {
+      let timer;
+      const newFunction = function (...args) {
+        if (timer) window.clearTimeout(timer);
+        timer = setTimeout(() => {
+          originFunction.call(this, ...args);
+        }, delay);
+      };
+      return newFunction;
     };
-    return newFunction;
+    descriptor.value = getNewFunction();
+    return descriptor;
   };
-  descriptor.value = getNewFunction();
-  return descriptor;
-};
 
 /**
  * 获取 row[key] 内容
@@ -817,7 +828,7 @@ export const parseTableRowData = (
   key,
   fieldType,
   isFormatDate = store.state.isFormatDate,
-  emptyCharacter = '--',
+  emptyCharacter = '--'
 ) => {
   const keyArr = key.split('.');
   let data;
@@ -865,7 +876,7 @@ export const parseTableRowData = (
     return JSON.stringify(data);
   }
 
-  return (data || data === 0) ? data : emptyCharacter;
+  return data || data === 0 ? data : emptyCharacter;
 };
 
 /**
@@ -884,7 +895,7 @@ export const getTextPxWidth = (str, fontSize = '12px') => {
   ele.style.fontSize = fontSize;
   // 由于父节点的样式会影响子节点，这里可按需添加到指定节点上
   document.body.append(ele);
-  result =  ele.offsetWidth;
+  result = ele.offsetWidth;
   document.body.removeChild(ele);
 
   return result;
@@ -901,8 +912,10 @@ export const calculateTableColsWidth = (field, list) => {
   const firstLoadList = list.slice(0, 10);
   // 通过排序获取最大的字段值
   firstLoadList.sort((a, b) => {
-    return parseTableRowData(b, field.field_name, field.field_type).length
-              - parseTableRowData(a, field.field_name, field.field_type).length;
+    return (
+      parseTableRowData(b, field.field_name, field.field_type).length -
+      parseTableRowData(a, field.field_name, field.field_type).length
+    );
   });
   if (firstLoadList[0]) {
     if (['ip', 'serverIp'].includes(field.field_name)) return 124;
@@ -910,14 +923,13 @@ export const calculateTableColsWidth = (field, list) => {
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
-      // 实际字段值长度
+    // 实际字段值长度
     const fieldValueLen = getTextPxWidth(fieldValue);
     // 字段名长度 需保证字段名完全显示
     const fieldNameLen = getTextPxWidth(field.field_name);
 
     // 600为默认自适应最大宽度
     if (fieldValueLen > 600) return 600;
-
 
     // 当内容长度小于字段名长度 要保证表头字段名显示完整 80为 padding、排序icon、隐藏列icon
     if (fieldValueLen < fieldNameLen + 80) return fieldNameLen + 80;
@@ -940,18 +952,18 @@ export const getFlatObjValues = (currentObject, previousKeyName = '') => {
   const newFlatObj = {
     newKeyStrList: [],
     newValueList: [],
-    newObject: {},
+    newObject: {}
   };
   flatObjTypeFiledKeys(currentObject, newFlatObj, previousKeyName);
   return newFlatObj;
 };
 
 /**
-   * @desc: 扁平化对象的key
-   * @param {Object} currentObject 对象
-   * @param {Object} newFlatObj 手机对象扁平化key的列表
-   * @param {String} previousKeyName 递归的初始名字
-   */
+ * @desc: 扁平化对象的key
+ * @param {Object} currentObject 对象
+ * @param {Object} newFlatObj 手机对象扁平化key的列表
+ * @param {String} previousKeyName 递归的初始名字
+ */
 export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKeyName = '') => {
   for (const key in currentObject) {
     const value = currentObject[key];
@@ -989,7 +1001,7 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
 
 export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
 
-export const utcFormatDate = (val) => {
+export const utcFormatDate = val => {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -1010,13 +1022,13 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
           field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
         } else {
           field.width = calculateTableColsWidth(field, tableData);
-        };
+        }
       });
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
       // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-      if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
-        visibleFields.forEach((field) => {
+      if (tableElem && columnsWidth && columnsWidth < tableElem.clientWidth - 115) {
+        visibleFields.forEach(field => {
           field.width = field.width < 300 ? 'default' : field.width;
         });
       }

@@ -28,7 +28,7 @@ export enum EFileStatus {
   parsingFailed = 'parsing_failed',
   parsingSucceed = 'parsing_succeed',
   storeSucceed = 'store_succeed',
-  storeFailed = '"store_failed'
+  storeFailed = 'store_failed'
 }
 
 export const fileStatusMap = {

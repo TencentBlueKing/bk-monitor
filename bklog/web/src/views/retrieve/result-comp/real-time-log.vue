@@ -25,34 +25,79 @@
     :class="{
       'log-dialog-wrapper': true,
       'log-full-dialog-wrapper': isScreenFull,
-      'log-full-width': !isScreenFull }">
+      'log-full-width': !isScreenFull
+    }"
+  >
     <div class="dialog-label">
-      <span class="dialog-title">{{title}}</span>
-      <!-- IP -->
-      <span style="margin-right: 10px;">IP: {{params.ip || params.serverIp}}</span>
-      <!-- 日志路径 -->
-      <span class="title-overflow" v-bk-overflow-tips>{{ $t('日志路径') + ': ' + (params.path || params.logfile) }}</span>
+      <span class="dialog-title">{{ title }}</span>
+      <template v-if="!targetFields.length">
+        <!-- IP -->
+        <span style="margin-right: 10px">IP: {{ params.ip || params.serverIp }}</span>
+        <!-- 日志路径 -->
+        <span
+          v-bk-overflow-tips
+          class="title-overflow"
+        >
+          {{ $t('日志路径') + ': ' + (params.path || params.logfile) }}
+        </span>
+      </template>
+      <template v-else>
+        <span
+          v-bk-tooltips.bottom="getTargetFieldsStr"
+          class="title-overflow"
+        >
+          <span
+            v-for="(item, index) of targetFields"
+            :key="index"
+            style="margin-right: 10px"
+          >
+            <span>{{ item }}: </span>
+            <span>{{ rowShowParams[item] || '/' }}</span>
+          </span>
+        </span>
+      </template>
     </div>
     <div class="dialog-bars">
-      <log-filter :is-screen-full="isScreenFull" @handle-filter="handleFilter" />
+      <data-filter
+        :is-screen-full="isScreenFull"
+        @handle-filter="handleFilter"
+      />
       <!-- 暂停、复制、全屏 -->
       <div class="dialog-bar controls">
         <div
           v-bk-tooltips.top="{ content: isPolling ? $t('暂停') : $t('启动'), delay: 300 }"
           class="control-icon"
-          @click="togglePolling">
-          <span class="icon log-icon icon-stop-log" v-if="isPolling"></span>
-          <span class="icon log-icon icon-play-log" v-else></span>
+          @click="togglePolling"
+        >
+          <span
+            v-if="isPolling"
+            class="icon log-icon icon-stop-log"
+          ></span>
+          <span
+            v-else
+            class="icon log-icon icon-play-log"
+          ></span>
         </div>
-        <div v-bk-tooltips.top="{ content: $t('复制'), delay: 300 }" class="control-icon" @click="copyLogText">
+        <div
+          v-bk-tooltips.top="{ content: $t('复制'), delay: 300 }"
+          class="control-icon"
+          @click="copyLogText"
+        >
           <span class="icon log-icon icon-copy"></span>
         </div>
-        <div v-bk-tooltips.top="{ content: $t('全屏'), delay: 300 }" class="control-icon" @click="toggleScreenFull">
+        <div
+          v-bk-tooltips.top="{ content: $t('全屏'), delay: 300 }"
+          class="control-icon"
+          @click="toggleScreenFull"
+        >
           <span class="icon log-icon icon-full-screen-log"></span>
         </div>
       </div>
     </div>
-    <div class="dialog-log-markdown" tabindex="0">
+    <div
+      class="dialog-log-markdown"
+      tabindex="0"
+    >
       <log-view
         :log-list="logList"
         :filter-key="activeFilterKey"
@@ -61,7 +106,8 @@
         :max-length="maxLength"
         :shift-length="shiftLength"
         :ignore-case="ignoreCase"
-        :interval="interval" />
+        :interval="interval"
+      />
     </div>
     <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
   </section>
@@ -69,25 +115,30 @@
 
 <script>
 import logView from '@/components/log-view';
-import LogFilter from '../condition-comp/Log-filter';
+import DataFilter from '../condition-comp/data-filter';
+import { getFlatObjValues } from '@/common/util';
 
 export default {
   name: 'RealTimeLog',
   components: {
     logView,
-    LogFilter,
+    DataFilter
   },
   props: {
     logParams: {
       type: Object,
       default() {
         return {};
-      },
+      }
     },
     title: {
       type: String,
-      require: true,
+      require: true
     },
+    targetFields: {
+      type: Array,
+      default: () => []
+    }
   },
   data() {
     return {
@@ -112,9 +163,18 @@ export default {
       flipScreenList: [],
       interval: {
         prev: 0,
-        next: 0,
+        next: 0
       },
+      rowShowParams: {}
     };
+  },
+  computed: {
+    getTargetFieldsStr() {
+      return this.targetFields.reduce((acc, cur) => {
+        acc += `${cur}: ${this.rowShowParams[cur] || '/ '} `;
+        return acc;
+      }, '');
+    }
   },
   created() {
     this.deepClone(this.logParams);
@@ -137,58 +197,67 @@ export default {
       }
     },
     deepClone(obj) {
-      const string = JSON.stringify(obj).replace(/<mark>/g, '')
+      const string = JSON.stringify(obj)
+        .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
-      this.params = JSON.parse(string);
+      // 扁平化对象内的对象值
+      const parseObj = JSON.parse(string);
+      if (this.targetFields.length) {
+        const { newObject } = getFlatObjValues(parseObj);
+        this.rowShowParams = newObject;
+      }
+      this.params = parseObj;
     },
     requestRealTimeLog() {
       if (this.loading) {
         return false;
       }
       this.loading = true;
-      this.$http.request('retrieve/getRealTimeLog', {
-        params: { index_set_id: this.$route.params.indexId },
-        data: Object.assign({ order: '-', size: 500, zero: this.zero }, this.params),
-      }).then((res) => {
-        // 通过gseindex 去掉出返回日志， 并加入现有日志
-        const { list } = res.data;
-        if (list && list.length) {
-          // 超过最大长度时剔除部分日志
-          if (this.logList.length > this.maxLength) {
-            this.logList.splice(0, this.shiftLength);
-            this.logWrapperEl.scrollTo({ top: 0 });
-          }
-
-          const logArr = [];
-          list.forEach((item) => {
-            const { log } = item;
-            let logString = '';
-            if (typeof log === 'object') {
-              logString = Object.values(log).join(' ');
-            } else {
-              logString = log;
+      this.$http
+        .request('retrieve/getRealTimeLog', {
+          params: { index_set_id: this.$route.params.indexId },
+          data: Object.assign({ order: '-', size: 500, zero: this.zero }, this.params)
+        })
+        .then(res => {
+          // 通过gseindex 去掉出返回日志， 并加入现有日志
+          const { list } = res.data;
+          if (list && list.length) {
+            // 超过最大长度时剔除部分日志
+            if (this.logList.length > this.maxLength) {
+              this.logList.splice(0, this.shiftLength);
+              this.logWrapperEl.scrollTo({ top: 0 });
             }
-            logArr.push(logString);
-          });
-          this.deepClone(list[list.length - 1]);
-          this.logList.splice(this.logList.length, 0, ...logArr);
-          if (this.isScrollBottom) {
-            this.$nextTick(() => {
-              if (this.zero) {
-                // 首次不要滚动动画
-                this.logWrapperEl.scrollTo({ top: this.logWrapperEl.scrollHeight });
-                this.zero = false;
+
+            const logArr = [];
+            list.forEach(item => {
+              const { log } = item;
+              let logString = '';
+              if (typeof log === 'object') {
+                logString = Object.values(log).join(' ');
               } else {
-                this.$easeScroll(
-                  this.logWrapperEl.scrollHeight - this.logWrapperEl.offsetHeight,
-                  300,
-                  this.logWrapperEl,
-                );
+                logString = log;
               }
+              logArr.push(logString);
             });
+            this.deepClone(list[list.length - 1]);
+            this.logList.splice(this.logList.length, 0, ...logArr);
+            if (this.isScrollBottom) {
+              this.$nextTick(() => {
+                if (this.zero) {
+                  // 首次不要滚动动画
+                  this.logWrapperEl.scrollTo({ top: this.logWrapperEl.scrollHeight });
+                  this.zero = false;
+                } else {
+                  this.$easeScroll(
+                    this.logWrapperEl.scrollHeight - this.logWrapperEl.offsetHeight,
+                    300,
+                    this.logWrapperEl
+                  );
+                }
+              });
+            }
           }
-        }
-      })
+        })
         .finally(() => {
           setTimeout(() => {
             this.loading = false;
@@ -247,7 +316,7 @@ export default {
       }
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('复制成功'),
+        message: this.$t('复制成功')
       });
     },
     filterLog(value) {
@@ -259,120 +328,120 @@ export default {
       } else {
         this[field] = value;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  @import '../../../scss/mixins/clearfix.scss';
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/clearfix.scss';
+@import '../../../scss/mixins/scroller';
 
-  .log-dialog.bk-dialog-wrapper {
-    .bk-dialog-header {
-      padding-bottom: 12px;
-      line-height: 30px;
-    }
-
-    .bk-dialog-body {
-      padding-bottom: 10px;
-    }
+.log-dialog.bk-dialog-wrapper {
+  .bk-dialog-header {
+    padding-bottom: 12px;
+    line-height: 30px;
   }
 
-  .log-dialog-wrapper {
-    .dialog-label {
+  .bk-dialog-body {
+    padding-bottom: 10px;
+  }
+}
+
+.log-dialog-wrapper {
+  .dialog-label {
+    display: flex;
+    height: 30px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    white-space: nowrap;
+    align-items: center;
+  }
+
+  .dialog-title {
+    margin-right: 20px;
+    font-size: 20px;
+    line-height: 20px;
+    color: #313238;
+  }
+
+  .dialog-bars {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+
+    .dialog-bar {
       display: flex;
-      height: 30px;
       align-items: center;
-      margin-bottom: 20px;
-      white-space: nowrap;
-      overflow: hidden;
-    }
+      margin-right: 50px;
 
-    .dialog-title {
-      color: #313238;
-      font-size: 20px;
-      margin-right: 20px;
-      line-height: 20px;
-    }
+      .label-text {
+        margin-right: 10px;
+        color: #2d3542;
+      }
 
-    .dialog-bars {
-      position: relative;
-      display: flex;
-      align-items: center;
-      margin-bottom: 14px;
+      .hot-key {
+        color: #979ba5;
+      }
 
-      .dialog-bar {
-        display: flex;
-        align-items: center;
-        margin-right: 50px;
+      &.controls {
+        position: absolute;
+        right: 0;
+        margin: 0;
 
-        .label-text {
-          margin-right: 10px;
-          color: #2d3542;
-        }
+        .control-icon {
+          display: flex;
+          width: 32px;
+          height: 32px;
+          font-size: 32px;
+          cursor: pointer;
+          border: 1px solid #c4c6cc;
+          transition: color 0.2s;
+          justify-content: center;
+          align-items: center;
 
-        .hot-key {
-          color: #979ba5;
-        }
+          &:not(:last-child) {
+            margin-right: 10px;
+          }
 
-        &.controls {
-          position: absolute;
-          right: 0;
-          margin: 0;
-
-          .control-icon {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 32px;
-            height: 32px;
-            border: 1px solid #c4c6cc;
-            font-size: 32px;
-            cursor: pointer;
-            transition: color .2s;
-
-            &:not(:last-child) {
-              margin-right: 10px;
-            }
-
-            &:hover {
-              color: #3a84ff;
-              transition: color .2s;
-            }
+          &:hover {
+            color: #3a84ff;
+            transition: color 0.2s;
           }
         }
       }
     }
+  }
+
+  .dialog-log-markdown {
+    height: 404px;
+    overflow-y: auto;
+    background: #f5f7fa;
+
+    @include scroller($backgroundColor: #aaa, $width: 4px);
+
+    &::-webkit-scrollbar {
+      background-color: #dedede;
+    }
+  }
+
+  .handle-tips {
+    margin-top: 10px;
+    color: #63656e;
+  }
+
+  &.log-full-dialog-wrapper {
+    height: calc(100% - 78px);
+    margin: 10px 0;
 
     .dialog-log-markdown {
-      height: 404px;
-      background: #f5f7fa;
-      overflow-y: auto;
-
-      @include scroller($backgroundColor: #aaa, $width: 4px);
-
-      &::-webkit-scrollbar {
-        background-color: #dedede;
-      }
-    }
-
-    .handle-tips {
-      margin-top: 10px;
-      color: #63656e;
-    }
-
-    &.log-full-dialog-wrapper {
-      margin: 10px 0;
-      height: calc(100% - 78px);
-
-      .dialog-log-markdown {
-        height: calc(100% - 70px);
-      }
+      height: calc(100% - 70px);
     }
   }
+}
 
-  .log-full-width {
-    width: 1030px;
-  }
+.log-full-width {
+  width: 1030px;
+}
 </style>

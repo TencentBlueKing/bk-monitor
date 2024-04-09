@@ -22,6 +22,10 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import patch
 
+from django.conf import settings
+from django.test import TestCase
+from django_fakeredis import FakeRedis
+
 from apps.exceptions import ValidationError
 from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
@@ -34,9 +38,6 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import CollectorEtlStorageSerializer
 from apps.log_search.constants import FieldBuiltInEnum, FieldDateFormatEnum
 from apps.utils.db import array_group
-from django.conf import settings
-from django.test import TestCase
-from django_fakeredis import FakeRedis
 
 # 采集相关
 COLLECTOR_CONFIG_ID = 1
@@ -380,36 +381,37 @@ class TestEtl(TestCase):
             "storage_cluster_id": STORAGE_CLUSTER_ID,
             "retention": RETENTION_TIME,
             "view_roles": VIEW_ROLES,
+            "allocation_min_days": 3,
         }
 
         with self.assertRaises(ValidationError):
             etl_param["fields"] = FIELDS_ERROR_BUILT
-            CollectorEtlStorageSerializer().validate(etl_param)
+            CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
 
         with self.assertRaises(ValidationError):
             etl_param["fields"] = FIELDS_ERROR_ANALYZED
-            CollectorEtlStorageSerializer().validate(etl_param)
+            CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
 
         with self.assertRaises(ValidationError):
             etl_param["fields"] = FIELDS_ERROR_TIME_FORMAT
-            CollectorEtlStorageSerializer().validate(etl_param)
+            CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
 
         with self.assertRaises(ValidationError):
             etl_param["fields"] = FIELDS_ERROR_TIME_ANALYZED
-            CollectorEtlStorageSerializer().validate(etl_param)
+            CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
 
         with self.assertRaises(ValidationError):
             etl_param["fields"] = FIELDS_ERROR_INVALID
-            CollectorEtlStorageSerializer().validate(etl_param)
+            CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
 
         with self.assertRaises(ValidationError):
             etl_param["etl_config"] = ETL_CONFIG_DELIMITER
             etl_param["fields"] = FIELDS_INDEX_INVALID
-            CollectorEtlStorageSerializer().validate(etl_param)
+            CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
 
         etl_param["etl_config"] = ETL_CONFIG_JSON
         etl_param["fields"] = FIELDS_DELETE
-        CollectorEtlStorageSerializer().validate(etl_param)
+        CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
         return True
 
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})

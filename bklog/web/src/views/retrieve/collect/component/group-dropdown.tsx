@@ -57,7 +57,7 @@ export default class CollectGroup extends tsc<IProps> {
   groupListPopoverInstance = null; // 分组列表实例
   titlePopoverInstance = null; // 表头列表实例
   verifyData = {
-    groupEditName: '',
+    groupEditName: ''
   };
 
   public rules = {
@@ -65,24 +65,24 @@ export default class CollectGroup extends tsc<IProps> {
       {
         validator: this.checkName,
         message: window.mainComponent.$t('{n}不规范, 包含特殊符号.', { n: window.mainComponent.$t('组名') }),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         validator: this.checkExistName,
         message: window.mainComponent.$t('组名重复'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur',
+        trigger: 'blur'
       },
       {
         max: 30,
         message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
-        trigger: 'blur',
-      },
-    ],
+        trigger: 'blur'
+      }
+    ]
   };
 
   get unPrivateGroupList() {
@@ -101,9 +101,7 @@ export default class CollectGroup extends tsc<IProps> {
 
   get showGroupList() {
     // 根据用户名判断是否时自己创建的收藏 若不是自己的则去除个人收藏选项
-    return this.userMeta.username !== this.data.created_by
-      ? this.unPrivateGroupList
-      : this.groupList;
+    return this.userMeta.username !== this.data.created_by ? this.unPrivateGroupList : this.groupList;
   }
 
   @Watch('showGroupList')
@@ -112,8 +110,8 @@ export default class CollectGroup extends tsc<IProps> {
     await this.$nextTick();
     if (newIndex > 0) {
       const subLength = val.length - newIndex;
-      const scrollTopNum = (newIndex * 28) - (subLength < 3 ? 0 : 28 * 3);
-      this.groupMoveListPopoverRef.scrollTop = (scrollTopNum >= 0 ? scrollTopNum : 0);
+      const scrollTopNum = newIndex * 28 - (subLength < 3 ? 0 : 28 * 3);
+      this.groupMoveListPopoverRef.scrollTop = scrollTopNum >= 0 ? scrollTopNum : 0;
     }
   }
 
@@ -125,7 +123,9 @@ export default class CollectGroup extends tsc<IProps> {
   checkName() {
     if (this.verifyData.groupEditName.trim() === '') return true;
     // eslint-disable-next-line no-useless-escape
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(this.verifyData.groupEditName.trim());
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+      this.verifyData.groupEditName.trim()
+    );
   }
 
   checkExistName() {
@@ -137,7 +137,7 @@ export default class CollectGroup extends tsc<IProps> {
     this.checkInputFormRef.validate().then(() => {
       this.handleUserOperate('reset-group-name', {
         group_id: this.data.group_id,
-        group_new_name: this.verifyData.groupEditName,
+        group_new_name: this.verifyData.groupEditName
       });
       this.verifyData.groupEditName = '';
       this.isShowResetGroupName = false;
@@ -193,7 +193,7 @@ export default class CollectGroup extends tsc<IProps> {
         },
         onShow: () => {
           this.operatePopoverInstance?.set({ hideOnClick: false });
-        },
+        }
       });
       this.groupListPopoverInstance.show(100);
     }
@@ -220,7 +220,7 @@ export default class CollectGroup extends tsc<IProps> {
           this.groupListPopoverInstance?.destroy();
           this.groupListPopoverInstance = null;
           this.clearStatus(); // 清空状态
-        },
+        }
       });
       this.operatePopoverInstance.show(100);
     }
@@ -241,7 +241,7 @@ export default class CollectGroup extends tsc<IProps> {
           this.titlePopoverInstance?.destroy();
           this.titlePopoverInstance = null;
           this.clearStatus();
-        },
+        }
       });
       this.titlePopoverInstance.show(100);
     }
@@ -268,19 +268,23 @@ export default class CollectGroup extends tsc<IProps> {
   render() {
     const groupDropList = () => (
       <div style={{ display: 'none' }}>
-        <ul class="dropdown-list add-new-page-container" ref="titleDrop">
+        <ul
+          class='dropdown-list add-new-page-container'
+          ref='titleDrop'
+        >
           {this.isShowResetGroupName ? (
-            <li class="add-new-page-input">
+            <li class='add-new-page-input'>
               <Form
                 labelWidth={0}
-                ref="checkInputForm"
+                ref='checkInputForm'
                 {...{
                   props: {
                     model: this.verifyData,
-                    rules: this.rules,
-                  },
-                }}>
-                <FormItem property="groupEditName">
+                    rules: this.rules
+                  }
+                }}
+              >
+                <FormItem property='groupEditName'>
                   <Input
                     clearable
                     placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
@@ -289,18 +293,27 @@ export default class CollectGroup extends tsc<IProps> {
                   ></Input>
                 </FormItem>
               </Form>
-              <div class="operate-button">
-                <span class="bk-icon icon-check-line"  onClick={this.handleResetGroupName}></span>
-                <span class="bk-icon icon-close-line-2" onClick={() => {
-                  this.isShowResetGroupName = false;
-                  this.verifyData.groupEditName = '';
-                }}></span>
+              <div class='operate-button'>
+                <span
+                  class='bk-icon icon-check-line'
+                  onClick={this.handleResetGroupName}
+                ></span>
+                <span
+                  class='bk-icon icon-close-line-2'
+                  onClick={() => {
+                    this.isShowResetGroupName = false;
+                    this.verifyData.groupEditName = '';
+                  }}
+                ></span>
               </div>
             </li>
           ) : (
             <li onClick={() => this.handleResetGroupTitleName()}>{this.$t('重命名')}</li>
           )}
-          <li class="eye-catching" onClick={() => this.handleClickLi('dismiss-group')}>
+          <li
+            class='eye-catching'
+            onClick={() => this.handleClickLi('dismiss-group')}
+          >
             {this.$t('解散分组')}
           </li>
         </ul>
@@ -308,20 +321,27 @@ export default class CollectGroup extends tsc<IProps> {
     );
     const collectDropList = () => (
       <div style={{ display: 'none' }}>
-        <ul class="dropdown-list" ref="operate">
+        <ul
+          class='dropdown-list'
+          ref='operate'
+        >
           <li onClick={() => this.handleClickLi('share')}>{this.$t('分享')}</li>
           <li onClick={() => this.handleClickLi('edit-favorite')}>{this.$t('编辑')}</li>
           <li onClick={() => this.handleClickLi('create-copy')}>{this.$t('克隆')}</li>
-          <li class="move-group" onMouseenter={this.handleClickMoveGroup}>
+          <li
+            class='move-group'
+            onMouseenter={this.handleClickMoveGroup}
+          >
             {this.$t('移动至分组')}
-            <span class="bk-icon icon-angle-right more-icon"></span>
+            <span class='bk-icon icon-angle-right more-icon'></span>
           </li>
-          {
-            !this.isUnknownGroup
-              ? <li onClick={() => this.handleClickLi('remove-group')}>{this.$t('从该组移除')}</li>
-              : undefined
-          }
-          <li class="eye-catching" onClick={() => this.handleClickLi('delete-favorite')}>
+          {!this.isUnknownGroup ? (
+            <li onClick={() => this.handleClickLi('remove-group')}>{this.$t('从该组移除')}</li>
+          ) : undefined}
+          <li
+            class='eye-catching'
+            onClick={() => this.handleClickLi('delete-favorite')}
+          >
             {this.$t('删除')}
           </li>
         </ul>
@@ -329,31 +349,34 @@ export default class CollectGroup extends tsc<IProps> {
     );
     const groupList = () => (
       <div style={{ display: 'none' }}>
-        <ul class="group-dropdown-list add-new-page-container" ref="groupMoveList">
+        <ul
+          class='group-dropdown-list add-new-page-container'
+          ref='groupMoveList'
+        >
           {this.showGroupList.map(item => (
             <li
               class={{ 'new-group-container': this.newGroupName === item.group_name }}
-              onClick={() => this.handleClickLi('move-favorite', item.group_id)}>
+              onClick={() => this.handleClickLi('move-favorite', item.group_id)}
+            >
               <span>{item.group_name}</span>
-              {
-                this.newGroupName === item.group_name && <span class="new-group">New</span>
-              }
+              {this.newGroupName === item.group_name && <span class='new-group'>New</span>}
             </li>
           ))}
-          <li class="add-new-group">
+          <li class='add-new-group'>
             {this.isShowNewGroupInput ? (
-              <li class="new-page-input">
+              <li class='new-page-input'>
                 <Form
                   labelWidth={0}
                   style={{ width: '100%' }}
-                  ref="checkInputAddForm"
+                  ref='checkInputAddForm'
                   {...{
                     props: {
                       model: this.verifyData,
-                      rules: this.rules,
-                    },
-                  }}>
-                  <FormItem property="groupEditName">
+                      rules: this.rules
+                    }
+                  }}
+                >
+                  <FormItem property='groupEditName'>
                     <Input
                       clearable
                       placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
@@ -362,15 +385,24 @@ export default class CollectGroup extends tsc<IProps> {
                     ></Input>
                   </FormItem>
                 </Form>
-                <div class="operate-button">
-                  <span class="bk-icon icon-check-line" onClick={() => this.handleChangeGroupInputStatus('add')}></span>
-                  <span class="bk-icon icon-close-line-2" onClick={() => this.handleChangeGroupInputStatus('cancel')}></span>
+                <div class='operate-button'>
+                  <span
+                    class='bk-icon icon-check-line'
+                    onClick={() => this.handleChangeGroupInputStatus('add')}
+                  ></span>
+                  <span
+                    class='bk-icon icon-close-line-2'
+                    onClick={() => this.handleChangeGroupInputStatus('cancel')}
+                  ></span>
                 </div>
               </li>
             ) : (
-              <li class="add-new-group" onClick={() => (this.isShowNewGroupInput = true)}>
+              <li
+                class='add-new-group'
+                onClick={() => (this.isShowNewGroupInput = true)}
+              >
                 <span>
-                  <span class="bk-icon icon-close-circle"></span>
+                  <span class='bk-icon icon-close-circle'></span>
                   <span>{this.$t('新建分组')}</span>
                 </span>
               </li>
@@ -383,30 +415,34 @@ export default class CollectGroup extends tsc<IProps> {
       <div>
         {this.isGroupDrop ? (
           <div>
-            <div class="more-container" onMouseenter={this.handleHoverIcon}>
-                <span v-show={!this.isHoverTitle && this.titlePopoverInstance === null} class="title-number">
-                  {this.data.favorites.length}
-                </span>
-                <div
-                  v-show={this.isHoverTitle || this.titlePopoverInstance !== null}
-                  class={['more-box', this.titlePopoverInstance !== null && 'is-click']}>
-                  <span class="bk-icon icon-more"></span>
-                </div>
+            <div
+              class='more-container'
+              onMouseenter={this.handleHoverIcon}
+            >
+              <span
+                v-show={!this.isHoverTitle && this.titlePopoverInstance === null}
+                class='title-number'
+              >
+                {this.data.favorites.length}
+              </span>
+              <div
+                v-show={this.isHoverTitle || this.titlePopoverInstance !== null}
+                class={['more-box', this.titlePopoverInstance !== null && 'is-click']}
+              >
+                <span class='bk-icon icon-more'></span>
+              </div>
             </div>
             {groupDropList()}
           </div>
         ) : (
           <div>
-            <div class="more-container">
+            <div class='more-container'>
               {this.$slots.default ?? (
                 <div
-                  class={[
-                    'more-box',
-                    { 'is-click': !!this.operatePopoverInstance },
-                  ]}
+                  class={['more-box', { 'is-click': !!this.operatePopoverInstance }]}
                   onClick={this.handleClickIcon}
                 >
-                  <span class="bk-icon icon-more"></span>
+                  <span class='bk-icon icon-more'></span>
                 </div>
               )}
             </div>
