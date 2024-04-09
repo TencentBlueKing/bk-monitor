@@ -71,7 +71,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         self.add_fuller(TopoNodeFuller())
 
         self.sub_task_id = sub_task_id
-        self.batch_tasks = []
+        self.batch_count = 1
         self.process_counts = {}
 
     def post_handle(self):
@@ -106,7 +106,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         client.expire(record_key, key.NOISE_REDUCE_TOTAL_KEY.ttl)
 
         # 非批量任务，记录日志
-        if not self.sub_task_id and not self.batch_tasks:
+        if not self.sub_task_id:
             logger.info(
                 "record_key({record_key}) "
                 "dimension_key({dimension_key})"
@@ -162,7 +162,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         metrics.ACCESS_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="data").inc(len(record_list))
 
         # 非批量任务，记录日志
-        if not self.sub_task_id and not self.batch_tasks:
+        if not self.sub_task_id:
             logger.info(
                 "output_key({output_key}) "
                 "strategy({strategy_id}), item({item_id}), "
@@ -236,9 +236,13 @@ class AccessDataProcess(BaseAccessDataProcess):
     def __init__(self, strategy_group_key: str, sub_task_id: str = None, *args, **kwargs):
         super(AccessDataProcess, self).__init__(sub_task_id=sub_task_id, *args, **kwargs)
         self.strategy_group_key = strategy_group_key
-        self.batch_tasks = []
         self.from_timestamp = None
         self.until_timestamp = None
+
+        if sub_task_id:
+            self.batch_timestamp = int(sub_task_id.split(".")[0])
+        else:
+            self.batch_timestamp = None
 
     def __str__(self):
         return "{}:strategy_group_key({})".format(self.__class__.__name__, self.strategy_group_key)
@@ -408,6 +412,8 @@ class AccessDataProcess(BaseAccessDataProcess):
         """
         发送分批处理任务，并返回第一批数据
         """
+        self.batch_timestamp = int(time.time())
+
         from alarm_backends.service.access.tasks import run_access_batch_data
 
         client = key.ACCESS_BATCH_DATA_KEY.client
@@ -417,7 +423,10 @@ class AccessDataProcess(BaseAccessDataProcess):
         for index, record in enumerate(points):
             timestamp = record.get("_time_") or record["time"]
             # 当数据点数不足或数据同属一个时间点时，数据点记为同一批次
-            if (index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp) and index < len(points) - 1:
+            if (
+                (index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp)
+                and index < len(points) - 1
+            ):
                 latest_record_timestamp = timestamp
                 continue
 
@@ -434,7 +443,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 first_batch_points = batch_points
             else:
                 # 将分批数据写入redis
-                sub_task_id = f"{self.until_timestamp}.{batch_count}"
+                sub_task_id = f"{self.batch_timestamp}.{batch_count}"
                 client.lpush(
                     key.ACCESS_BATCH_DATA_KEY.get_key(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id),
                     *[json.dumps(point) for point in points[last_batch_index:index]],
@@ -443,12 +452,13 @@ class AccessDataProcess(BaseAccessDataProcess):
 
                 # 发起异步任务
                 run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
-                self.batch_tasks.append(sub_task_id)
 
             # 记录下一轮的起始位置
             last_batch_index = index
 
-        if self.batch_tasks:
+        if batch_count > 1:
+            self.sub_task_id = f"{self.batch_timestamp}.1"
+            self.batch_count = batch_count
             logger.info("strategy_group_key({}), split {} access data into {} batch tasks".format(self.strategy_group_key, len(points), batch_count))
 
         return first_batch_points
@@ -494,7 +504,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 日志记录按strategy + item 来记录，方便问题排查
         for item in self.items:
-            if not self.sub_task_id and not self.batch_tasks:
+            if not self.sub_task_id:
                 logger.info(
                     "strategy({strategy_id}),item({item_id}),"
                     "total_records({total}),"
@@ -537,7 +547,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
 
         # 非批量任务，记录日志
-        if not self.sub_task_id and not self.batch_tasks:
+        if not self.sub_task_id:
             logger.info(
                 "strategy_group_key({}), push records({}), last_checkpoint({})".format(
                     self.strategy_group_key,
@@ -557,57 +567,34 @@ class AccessDataProcess(BaseAccessDataProcess):
         exc = super(AccessDataProcess, self).process()
 
         client = key.ACCESS_BATCH_DATA_RESULT_KEY.client
-        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=self.strategy_group_key)
-
-        # 如果是分批任务，直接返回
-        if self.sub_task_id:
-            client.lpush(
-                result_key,
-                json.dumps(
-                    {
-                        "sub_task_id": self.sub_task_id,
-                        "result": not exc,
-                        "error": str(exc),
-                        "process_counts": self.process_counts,
-                    }
-                ),
-            )
-            client.expire(result_key, key.ACCESS_BATCH_DATA_RESULT_KEY.ttl)
-            return
+        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp)
 
         # 如果没有分批任务，直接返回
-        if not self.batch_tasks:
+        if self.batch_count == 1:
             return
 
         # 等待分批任务结果
-        batch_results = []
-        while len(batch_results) < len(self.batch_tasks) and time.time() - start_time < 5 * constants.CONST_MINUTES:
+        batch_results = [{
+            "sub_task_id": self.sub_task_id, "result": not exc, "error": str(exc), "process_counts": self.process_counts
+        }]
+        while len(batch_results) < self.batch_count and time.time() - start_time < 5 * constants.CONST_MINUTES:
             batch_result = client.brpop(result_key, timeout=1)
             if batch_result:
                 batch_results.append(json.loads(batch_result[1]))
 
         # 如果有任务未返回结果，记录日志
-        if len(batch_results) < len(self.batch_tasks):
+        if len(batch_results) < self.batch_count:
             logger.error(
-                "strategy_group_key({strategy_group_key}) "
-                "batch task({batch_tasks}) result({batch_results}) "
-                "timeout".format(
+                "strategy_group_key({strategy_group_key}) get batch task result timeout,"
+                "expect {expect_count} but only get {actual_count}, result({batch_results})".format(
                     strategy_group_key=self.strategy_group_key,
-                    batch_tasks=self.batch_tasks,
+                    expect_count=self.batch_count,
+                    actual_count=len(batch_results),
                     batch_results=[result["sub_task_id"] for result in batch_results],
                 )
             )
 
-        # 加入本进程的处理结果
-        batch_results.append(
-            {
-                "sub_task_id": None,
-                "result": not exc,
-                "error": str(exc),
-                "process_counts": self.process_counts,
-            }
-        )
-
+        # 记录日志
         self.batch_log(batch_results)
 
         metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(time.time() - start_time)
@@ -748,6 +735,25 @@ class AccessBatchDataProcess(AccessDataProcess):
         points: List[Dict] = [json.loads(point) for point in points]
 
         self.filter_duplicates(points)
+
+    def process(self):
+        exc = super().process()
+
+        client = key.ACCESS_BATCH_DATA_RESULT_KEY.client
+        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp)
+
+        client.lpush(
+            result_key,
+            json.dumps(
+                {
+                    "sub_task_id": self.sub_task_id,
+                    "result": not exc,
+                    "error": str(exc),
+                    "process_counts": self.process_counts,
+                }
+            ),
+        )
+        client.expire(result_key, key.ACCESS_BATCH_DATA_RESULT_KEY.ttl)
 
 
 class AccessRealTimeDataProcess(BaseAccessDataProcess):

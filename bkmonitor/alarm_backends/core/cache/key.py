@@ -954,7 +954,7 @@ ACCESS_BATCH_DATA_RESULT_KEY = register_key_with_config(
     {
         "label": "[access]分批数据处理结果key",
         "key_type": "list",
-        "key_tpl": "access.batch.result.{strategy_group_key}",
+        "key_tpl": "access.batch.result.{strategy_group_key}.{timestamp}",
         "ttl": 300,
         "backend": "service",
     }

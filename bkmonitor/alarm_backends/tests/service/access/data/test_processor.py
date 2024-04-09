@@ -100,7 +100,7 @@ class TestAccessDataProcess(object):
 
         c = key.ACCESS_BATCH_DATA_KEY.client
         data_key = key.ACCESS_BATCH_DATA_KEY.get_key(
-            strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.until_timestamp}.2"
+            strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.batch_timestamp}.2"
         )
         result = c.lrange(data_key, 0, -1)
         assert len(result) == 1
@@ -111,12 +111,12 @@ class TestAccessDataProcess(object):
         assert len(acc_data.record_list) == 1
         assert mock_batch.delay.call_count == 1
 
-        p = AccessBatchDataProcess(strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.until_timestamp}.2")
+        p = AccessBatchDataProcess(strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.batch_timestamp}.2")
         p.filters = []
         p.process()
         assert len(p.record_list) == 1
 
-        result = c.lrange(key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=strategy_group_key), 0, -1)
+        result = c.lrange(key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=strategy_group_key, timestamp=acc_data.batch_timestamp), 0, -1)
         assert len(result) == 1
 
     @mock.patch(
