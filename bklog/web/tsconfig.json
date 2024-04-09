@@ -17,14 +17,5 @@
     "jsx": "preserve",
     "jsxFactory": "VueTsxSupport",
     "lib": ["es2018", "esnext", "dom", "dom.iterable", "scripthost"]
-    // "strict": true,
-    // "esModuleInterop": true,
-    // "baseUrl": ".",
-    // "paths": {
-    //   "@/*": ["src/*"]
-    // },
-    // "types": [
-    //   "node"
-    // ],
   }
 }

@@ -113,12 +113,16 @@ class Alarm(BaseContextObject):
         """
         监控目标
         """
+        first_alert_common_dimensions = self.parent.alerts[0].common_dimension_tuple
 
-        alerts = self.parent.alerts
         targets = []
         targets_dict = {}
 
-        for alert in alerts:
+        for alert in self.parent.alerts:
+            # 如果非目标维度不一致，直接跳过
+            if first_alert_common_dimensions != alert.common_dimension_tuple:
+                continue
+
             dimensions = {d["key"]: d for d in alert.target_dimensions}
             display_dimensions = []
             for key in TARGET_DIMENSIONS:

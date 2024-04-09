@@ -316,7 +316,7 @@ export default defineComponent({
         return need;
       });
       /* 排序 */
-      if (!!tableData.sort.column) {
+      if (!!tableData.sort.column && !!tableData.sort.type) {
         if (tableData.sort.column === EColunm.relation) {
           filterAllRotationList.sort((a, b) =>
             tableData.sort.type === 'asc'
@@ -413,13 +413,19 @@ export default defineComponent({
       if (opt.type !== 'null') {
         sort.column = opt.column.id;
         sort.type = opt.type;
+      } else {
+        sort.column = opt.column.id;
       }
       tableData.sort = sort;
       const tableColumn = tableData.columns.find(item => item.id === sort.column);
+      tableData.columns.forEach(item => {
+        if (item.id !== sort.column && !!item?.sort) {
+          item.sort.value = '';
+        }
+      });
       if (tableColumn?.sort) {
-        tableColumn.sort.value = sort.type || 'null';
+        tableColumn.sort.value = sort.type || '';
       }
-
       tableData.pagination.current = 1;
       setFilterList();
     }

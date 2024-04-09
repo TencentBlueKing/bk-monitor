@@ -214,7 +214,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     this.isLoading = true;
     this.basicInfoLoading = true;
     const data = await alertDetail({ id: this.id, bk_biz_id: this.bizId }).catch(() => {
-      // debugger;
       // this.$router.push({ path: '/event' });
     });
     this.isFeedback = await listAlertFeedback({ alert_id: this.id, bk_biz_id: this.bizId })

@@ -568,11 +568,10 @@ export default {
 }
 
 .log-full-dialog-wrapper {
-  height: calc(100% - 72px);
-  margin-top: 10px;
+  height: 100%;
 
   .dialog-log-markdown {
-    height: calc(100% - 76px);
+    height: calc(100% - 132px);
   }
 
   .dialog-label {
