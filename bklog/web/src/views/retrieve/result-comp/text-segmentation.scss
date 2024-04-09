@@ -10,8 +10,8 @@
   .event-box {
     height: 32px;
     min-width: 240px;
-    font-size: 12px;
     padding: 0 10px;
+    font-size: 12px;
     cursor: pointer;
 
     @include flex-center();
@@ -72,8 +72,8 @@
   }
 
   .menu-list {
-    display: none;
     position: absolute;
+    display: none;
   }
 
   .valid-text {
@@ -86,7 +86,7 @@
   }
 
   .null-item {
-    min-width: 6px;
     display: inline-block;
+    min-width: 6px;
   }
 }
