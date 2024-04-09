@@ -392,6 +392,8 @@ class ReleaseAppConfigResource(Resource):
 
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
+        qps = serializers.IntegerField(label="qps", min_value=1, required=False)
+
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
@@ -402,6 +404,7 @@ class ReleaseAppConfigResource(Resource):
         instance_configs = validated_request_data.get("instance_configs", [])
         self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data)
         self.set_custom_service_config(bk_biz_id, app_name, validated_request_data["custom_service_config"])
+        self.set_qps_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data.get("qps"))
 
         for service_config in service_configs:
             self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.SERVICE_LEVEL, service_config)
@@ -413,6 +416,11 @@ class ReleaseAppConfigResource(Resource):
         from apm.task.tasks import refresh_apm_application_config
 
         refresh_apm_application_config.delay(bk_biz_id, app_name)
+
+    def set_qps_config(self, bk_biz_id, app_name, config_key, config_level, qps):
+        if not qps:
+            return
+        QpsConfig.refresh_config(bk_biz_id, app_name, config_level, config_key, [{"qps": qps}])
 
     def set_custom_service_config(self, bk_biz_id, app_name, custom_services):
         CustomServiceConfig.objects.filter(

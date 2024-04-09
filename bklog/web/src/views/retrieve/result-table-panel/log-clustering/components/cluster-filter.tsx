@@ -97,20 +97,29 @@ export default class TimeFormatterSwitcher extends tsc<IProps> {
     const selectGroupDom = () => {
       return (
         <div class='group-list'>
-          {this.selectList.map(option => (
-            <bk-option
-              class='group-item'
-              id={option.id}
-              name={option.name}
-            >
-              <bk-checkbox
-                ext-cls='ext-box'
-                checked={this.getGroupItemCheckedState(option.id)}
+          {!!this.selectList.length ? (
+            this.selectList.map(option => (
+              <bk-option
+                class='group-item'
+                id={option.id}
+                name={option.name}
               >
-                <span title={option.name}>{option.name}</span>
-              </bk-checkbox>
-            </bk-option>
-          ))}
+                <bk-checkbox
+                  ext-cls='ext-box'
+                  checked={this.getGroupItemCheckedState(option.id)}
+                >
+                  <span title={option.name}>{option.name}</span>
+                </bk-checkbox>
+              </bk-option>
+            ))
+          ) : (
+            <span
+              class='group-loading'
+              v-bkloading={{ isLoading: this.loading, zIndex: 10 }}
+            >
+              {this.loading ? '' : this.$t('暂无数据')}
+            </span>
+          )}
         </div>
       );
     };
@@ -144,8 +153,7 @@ export default class TimeFormatterSwitcher extends tsc<IProps> {
         class='cluster-select-filter'
         ref='clusterSelect'
         clearable={false}
-        loading={this.loading}
-        // show-empty={false}
+        show-empty={false}
         v-model={this.selectValue}
         popover-min-width={this.popoverMinWidth}
         popover-options={{ boundary: 'window' }}

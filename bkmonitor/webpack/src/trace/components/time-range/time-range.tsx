@@ -31,7 +31,7 @@ import { updateTimezone } from '../../i18n/dayjs';
 
 import { TimeRangeType } from './utils';
 
-import '@blueking/date-picker/dist/vue3-light.css';
+import '@blueking/date-picker/vue3/vue3.css';
 
 /**
  * 图表选择时间范围组件

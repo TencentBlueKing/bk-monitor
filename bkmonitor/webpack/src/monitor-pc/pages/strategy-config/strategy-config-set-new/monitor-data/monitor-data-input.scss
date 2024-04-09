@@ -47,10 +47,6 @@
     position: relative;
     display: flex;
 
-    &:hover {
-      cursor: pointer;
-    }
-
     .item-key {
       position: relative;
 
@@ -97,7 +93,7 @@
       padding-left: 8px;
 
       &-btn {
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         width: 24px;
@@ -111,6 +107,14 @@
         &:hover {
           color: #ff5656;
         }
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+
+      .item-delete-btn {
+        display: flex;
       }
     }
   }

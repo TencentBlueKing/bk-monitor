@@ -113,6 +113,8 @@ declare global {
     bk_bcs_url: string;
     graph_watermark: string;
     __BK_WEWEB_DATA__: Record<string, any>;
+    __POWERED_BY_BK_WEWEB__?: boolean;
+    token?: string;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

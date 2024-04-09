@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { EChartOption } from 'echarts';
+import { MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 // 时序性图表类型 bar: 柱状图 line: 线性图
 export type TimeSeriesType = 'bar' | 'line';
 
-export interface ITimeSeriesItem extends EChartOption.SeriesLine {
+export interface ITimeSeriesItem extends MonitorEchartSeries {
   // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
   data: [number, number][];
   // 图例名称

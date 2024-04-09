@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 from django.utils.translation import ugettext as _
 
-from apps.log_databus.constants import EtlConfig, LogPluginInfo
+from apps.log_databus.constants import EtlConfig, LogPluginInfo, PluginParamLogicOpEnum
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
 
@@ -36,9 +36,40 @@ class SysLogScenario(CollectorScenario):
         syslog_monitor_host = params.get("syslog_monitor_host") or "{{ cmdb_instance.host.bk_host_innerip }}"
         syslog_port = str(params["syslog_port"])
 
+        # syslog 过滤规则
+        syslog_conditions = params.get("syslog_conditions", [])
+
+        filters = []
+        filter_bucket = list()
+        for condition in syslog_conditions:
+            if type(condition) is not dict:
+                continue
+
+            key = condition.get("syslog_field", "")
+            value = condition.get("syslog_content", "")
+            op = condition.get("syslog_op", "include")
+            logic_op = condition.get("syslog_logic_op", PluginParamLogicOpEnum.AND.value)
+
+            if not value:
+                continue
+
+            # syslog 字段值匹配->当下发配置中定义key字段且key字段值不为空 插件过滤会以key的字段值作为键值 从原始日志中获取对应的value进行过滤 默认是按日志内容过滤
+            if logic_op == PluginParamLogicOpEnum.AND.value:
+                filter_bucket.append({"key": key, "op": op, "value": value})
+            else:
+                if len(filter_bucket) > 0:
+                    filters.append({"conditions": filter_bucket})
+                    filter_bucket = []
+
+                filter_bucket.append({"key": key, "op": op, "value": value})
+
+        if len(filter_bucket) > 0:
+            filters.append({"conditions": filter_bucket})
+
         local_params = {
             "protocol": params.get("syslog_protocol", "").lower(),
             "host": f"{syslog_monitor_host}:{syslog_port}",
+            "syslog_filters": filters,
         }
         local_params = self._deal_edge_transport_params(local_params, data_link_id)
         local_params = self._handle_collector_config_overlay(local_params, params)
@@ -63,9 +94,34 @@ class SysLogScenario(CollectorScenario):
         if local:
             host_list = local["host"].split(":")
             syslog_port = host_list[1] if host_list else 0
-            return {"syslog_protocol": local["protocol"], "syslog_port": syslog_port}
+            filters = local.get("filters", [])
+            syslog_conditions = list()
+
+            if filters:
+                for filter_index, filter_item in enumerate(filters):
+                    for condition_index, condition_item in enumerate(filter_item["conditions"]):
+                        if filter_index == 0:
+                            logic_op = PluginParamLogicOpEnum.AND.value
+                        elif condition_index == 0:
+                            logic_op = PluginParamLogicOpEnum.OR.value
+                        else:
+                            logic_op = PluginParamLogicOpEnum.AND.value
+                        syslog_conditions.append(
+                            {
+                                "syslog_content": condition_item.get("value", ""),
+                                "syslog_op": condition_item.get("op", "include"),
+                                "syslog_field": condition_item.get("key", ""),
+                                "syslog_logic_op": logic_op,
+                            }
+                        )
+
+            return {
+                "syslog_protocol": local["protocol"],
+                "syslog_port": syslog_port,
+                "syslog_conditions": syslog_conditions,
+            }
         else:
-            return {"syslog_protocol": "", "syslog_port": 0}
+            return {"syslog_protocol": "", "syslog_port": 0, "syslog_conditions": []}
 
     @classmethod
     def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT):

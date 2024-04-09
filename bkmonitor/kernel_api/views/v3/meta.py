@@ -413,3 +413,4 @@ class QueryBcsClusterVmTableIdsViewSet(MetaViewSet):
 
 class SwitchKafkaClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.SwitchKafkaCluster)]
+

@@ -23,20 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const echarts = require('echarts');
-
+import { connect, disconnect } from 'echarts/core';
 /** 图表联动 */
 export const echartsConnect = (groupId: string) => {
   if (!!groupId) {
     // 等待所以子视图实例创建完进行视图示例的关联 暂定5000ms 后期进行精细化配置
     setTimeout(() => {
-      echarts.connect(groupId);
+      connect(groupId);
     }, 5000);
   }
 };
 
 /** 图表联动取消 */
 export const echartsDisconnect = (groupId: string) => {
-  echarts.disconnect(groupId);
+  disconnect(groupId);
 };
