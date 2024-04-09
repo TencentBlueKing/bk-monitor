@@ -70,14 +70,14 @@ class TestAccessDataProcess(object):
             "bk_target_ip": "127.0.0.2",
             "load5": 0,
             "bk_target_cloud_id": "0",
-            "_time_": 1569246420000,
+            "_time_": 1569246420,
             "_result_": 0,
         }
         assert acc_data.record_list[1].raw_data == {
             "bk_target_ip": "127.0.0.1",
             "load5": 1.381234,
             "bk_target_cloud_id": "0",
-            "_time_": 1569246480000,
+            "_time_": 1569246480,
             "_result_": 1.381234,
         }
         assert mock_strategy.call_count == 1
@@ -106,15 +106,18 @@ class TestAccessDataProcess(object):
         assert len(result) == 1
         assert (
             result[0]
-            == '{"bk_target_ip":"127.0.0.2","load5":0,"bk_target_cloud_id":"0","_time_":1569246420000,"_result_":0}'
+            == '{"bk_target_ip":"127.0.0.2","load5":0,"bk_target_cloud_id":"0","_time_":1569246420,"_result_":0}'
         )
         assert len(acc_data.record_list) == 1
         assert mock_batch.delay.call_count == 1
 
         p = AccessBatchDataProcess(strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.until_timestamp}.2")
-        p.pull()
-
+        p.filters = []
+        p.process()
         assert len(p.record_list) == 1
+
+        result = c.lrange(key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=strategy_group_key), 0, -1)
+        assert len(result) == 1
 
     @mock.patch(
         "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3

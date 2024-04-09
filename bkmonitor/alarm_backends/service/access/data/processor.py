@@ -417,46 +417,39 @@ class AccessDataProcess(BaseAccessDataProcess):
         for index, record in enumerate(points):
             timestamp = record.get("_time_") or record["time"]
             # 当数据点数不足或数据同属一个时间点时，数据点记为同一批次
-            if index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp:
+            if (index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp) and index < len(points) - 1:
                 latest_record_timestamp = timestamp
                 continue
 
             # 记录当前批次数
             batch_count += 1
 
+            if index == len(points) - 1:
+                batch_points = points[last_batch_index:]
+            else:
+                batch_points = points[last_batch_index:index]
+
             # 第一批数据原地处理
             if batch_count == 1:
-                first_batch_points = points[last_batch_index:index]
-                last_batch_index = index
-                continue
+                first_batch_points = batch_points
+            else:
+                # 将分批数据写入redis
+                sub_task_id = f"{self.until_timestamp}.{batch_count}"
+                client.lpush(
+                    key.ACCESS_BATCH_DATA_KEY.get_key(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id),
+                    *[json.dumps(point) for point in points[last_batch_index:index]],
+                )
+                key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
 
-            # 将分批数据写入redis
-            sub_task_id = f"{self.until_timestamp}.{batch_count}"
-            client.lpush(
-                key.ACCESS_BATCH_DATA_KEY.get_key(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id),
-                *[json.dumps(point) for point in points[last_batch_index:index]],
-            )
-            key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
-
-            # 发起异步任务
-            run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
-            self.batch_tasks.append(sub_task_id)
+                # 发起异步任务
+                run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
+                self.batch_tasks.append(sub_task_id)
 
             # 记录下一轮的起始位置
             last_batch_index = index
 
-        # 处理最后一批数据
-        if last_batch_index < len(points) - 1:
-            batch_count += 1
-            sub_task_id = f"{self.until_timestamp}.{batch_count}"
-            client.lpush(
-                key.ACCESS_BATCH_DATA_KEY.get_key(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id),
-                *[json.dumps(point) for point in points[last_batch_index:]],
-            )
-            key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
-
-            run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
-            self.batch_tasks.append(sub_task_id)
+        if self.batch_tasks:
+            logger.info("strategy_group_key({}), batch_tasks({})".format(self.strategy_group_key, self.batch_tasks))
 
         return first_batch_points
 
