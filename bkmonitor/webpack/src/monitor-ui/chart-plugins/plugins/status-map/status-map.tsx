@@ -26,16 +26,14 @@
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-import { EChartOption } from 'echarts';
 import { deepClone } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import 'echarts/map/js/china.js';
-
+// import 'echarts/map/js/china.js';
 import Mpalegend from '../../components/chart-legend/map-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { CHINA_MAP_OPTIONS } from '../../constants';
-import { ICommonCharts, IExtendDataItem, PanelModel } from '../../typings';
+import { ICommonCharts, IExtendDataItem, MonitorEchartOptions, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import MonitorBaseEchart from '../base-echart';
@@ -49,7 +47,7 @@ interface IStatusMapProps {
 
 @Component
 class StatusMap extends CommonSimpleChart implements ICommonCharts {
-  chartOption: EChartOption;
+  chartOption: MonitorEchartOptions;
   inited = false;
   metrics = [];
   legendData = [];

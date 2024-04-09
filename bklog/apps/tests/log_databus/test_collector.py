@@ -23,13 +23,14 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import patch
 
+from django.test import TestCase, override_settings
+
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
-from django.test import TestCase, override_settings
 
 from ...log_databus.serializers import CollectorCreateSerializer
 from ...utils.drf import custom_params_valid
@@ -56,14 +57,15 @@ PARAMS = {
     "description": "这是一个描述",
     "params": {
         "paths": ["/log/abc"],
+        "exclude_files": [],
         "conditions": {
             "type": "match",
             "match_type": "include",
             "match_content": "delete",
             "separator": "|",
             "separator_filters": [
-                {"fieldindex": 1, "word": "val1", "op": "=", "logic_op": "or"},
-                {"fieldindex": 2, "word": "val2", "op": "=", "logic_op": "or"},
+                {"fieldindex": 1, "word": "val1", "op": "eq", "logic_op": "or"},
+                {"fieldindex": 2, "word": "val2", "op": "eq", "logic_op": "or"},
             ],
         },
         "tail_files": True,
@@ -805,8 +807,8 @@ CONFIG_DATA = {
                                     "paths": ["testlogic_op"],
                                     "delimiter": "|",
                                     "filters": [
-                                        {"conditions": [{"index": 1, "key": "val1", "op": "="}]},
-                                        {"conditions": [{"index": 1, "key": "val1", "op": "="}]},
+                                        {"conditions": [{"index": 1, "key": "val1", "op": "eq"}]},
+                                        {"conditions": [{"index": 1, "key": "val1", "op": "eq"}]},
                                     ],
                                     "encoding": "UTF-8",
                                 }
@@ -1345,7 +1347,6 @@ class TestCollector(TestCase):
     @patch("apps.api.BcsCcApi.list_project", lambda _: PROJECTS)
     @patch("apps.api.BcsCcApi.list_shared_clusters_ns", lambda _: SHARED_CLUSTERS_NS)
     def test_validate_container_config_yaml(self, *args, **kwargs):
-
         yaml_config = """
 ---
 encoding: UTF-8

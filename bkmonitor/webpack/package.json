@@ -8,7 +8,6 @@
   "scripts": {
     "debug": "node node_modules/@blueking/bkmonitor-cli/dist/index.js dev -t",
     "preinstall": "npx only-allow pnpm",
-    "postinstall": "npm run change:modules",
     "install-build": "pnpm i",
     "prettier": "prettier --write ./ '!**/*.{css,scss,less}'",
     "change:modules": "node ./webpack/change-modules-code.js",
@@ -31,7 +30,7 @@
     "clean:mobile": "rimraf weixin/*",
     "clean:pc": "rimraf ../static/monitor/*",
     "clean-dll": "rimraf ../static/monitor/dll/*",
-    "analyze": "npm run clean && bkmonitor-cli build -a",
+    "analyze": "npm run clean && bkmonitor-cli build -t -a",
     "analyze:mobile": "npm run clean && bkmonitor-cli build -m -a",
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js",
@@ -75,12 +74,12 @@
   },
   "pnpm": {
     "overrides": {
-      "@blueking/date-picker": "^1.0.0",
+      "@blueking/date-picker": "^2.0.0-beta.10",
       "@blueking/stylelint-config": "0.0.3",
       "@blueking/user-selector>vue": "v2-latest",
       "@typescript-eslint/eslint-plugin": "^7.3.1",
       "@typescript-eslint/parser": "^7.3.1",
-      "bk-magic-vue": "^2.5.9-beta.18",
+      "bk-magic-vue": "2.5.8",
       "eslint": "^8.57.0",
       "eslint-config-prettier": "^9.1.0",
       "eslint-config-tencent": "^1.0.4",

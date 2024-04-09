@@ -50,6 +50,12 @@
     white-space: nowrap;
   }
 
+  .group-list.group-loading{
+    min-height: 40px;
+    width: 100%;
+    @include flex-center();
+  }
+
   .extension-box {
     padding: 12px 0;
 
