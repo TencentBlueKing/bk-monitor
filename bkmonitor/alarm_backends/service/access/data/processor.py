@@ -698,17 +698,6 @@ class AccessDataProcess(BaseAccessDataProcess):
                     )
                 )
 
-            if self.process_counts.get("total_push_data", {}).get("count", 0):
-                logger.info(
-                    "strategy_group_key({}), push records({}), last_checkpoint({})".format(
-                        self.strategy_group_key,
-                        self.process_counts["total_push_data"].get("count", 0),
-                        arrow.get(self.process_counts.get("total_push_data", {}).get("count", 0)).strftime(
-                            constants.STD_LOG_DT_FORMAT
-                        ),
-                    )
-                )
-
         # 总推送数量
         if total_push_count:
             logger.info(
@@ -718,6 +707,13 @@ class AccessDataProcess(BaseAccessDataProcess):
                     arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
                 )
             )
+
+            # 记录最后检测点，避免子任务并发导致checkpoint数据不准确
+            checkpoint = Checkpoint(self.strategy_group_key)
+            last_checkpoint = max([checkpoint.get()] + [r.time for r in self.record_list])
+            if last_checkpoint > 0:
+                # 记录检测点 下次从检测点开始重新检查
+                checkpoint.set(last_checkpoint)
 
 
 class AccessBatchDataProcess(AccessDataProcess):
