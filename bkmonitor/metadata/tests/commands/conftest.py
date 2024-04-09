@@ -30,6 +30,14 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
+def create_and_delete_table_storage():
+    table_id = f"{DEFAULT_NAME}1"
+    models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=190000)
+    yield
+    models.ESStorage.objects.filter(table_id=table_id).delete()
+
+
+@pytest.fixture
 def create_and_delete_record(mocker):
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.ResultTable.objects.create(

@@ -174,7 +174,14 @@ class ResultTableAndDataSource:
                 storage_dict[storage_type] = {}
                 continue
             storage_info = storage_info.first()
-            storage_dict[storage_type] = storage_info.consul_config
+            try:
+                config = storage_info.consul_config
+            except storage_cls.DoesNotExist:
+                config = {}
+            except Exception as e:
+                logger.error("get consul config error, %s", e)
+                config = {}
+            storage_dict[storage_type] = config
 
         # 通过结果表追加 vm 配置
         table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id)
