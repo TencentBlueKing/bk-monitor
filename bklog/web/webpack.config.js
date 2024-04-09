@@ -28,7 +28,7 @@ const fs = require('fs');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const CliMonacoWebpackPlugin = require('@blueking/bkmonitor-cli/node_modules/monaco-editor-webpack-plugin');
+const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const devHost = 'appdev.bktencent.com';
 const loginHost = 'https://paas-dev.bktencent.com';
@@ -118,6 +118,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
           env: {
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
             devUrl: JSON.stringify(`${devConfig.host}:${devConfig.port}`),
+            devHost: JSON.stringify(`${devConfig.host}`),
             loginHost: JSON.stringify(devConfig.loginHost),
             loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`)
           }
@@ -174,13 +175,13 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
       }
     },
     plugins: baseConfig.plugins.map(plugin => {
-        return plugin instanceof wepack.ProgressPlugin
-          ? new WebpackBar({
-              profile: true,
-              name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`
-            })
-          : plugin;
-      }),
+      return plugin instanceof wepack.ProgressPlugin
+        ? new WebpackBar({
+            profile: true,
+            name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`
+          })
+        : plugin;
+    }),
     cache: typeof devConfig.cache === 'boolean' ? devConfig.cache : config.cache
   };
 };

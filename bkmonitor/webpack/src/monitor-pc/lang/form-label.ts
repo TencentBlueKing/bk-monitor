@@ -1827,5 +1827,17 @@ export default {
   文件md5: 'File md5',
   上传人: 'Uploader',
   上传时间: 'Upload time',
-  错误信息: 'Error message'
+  错误信息: 'Error message',
+  最大展示: 'Maximum display',
+  展示同比: 'Display ratio',
+  生成附件: 'Generate attachment',
+  发送配置: 'Send configuration',
+  附带链接: 'Attached link',
+  订阅名称: 'Subscription name',
+  内部用户: 'Internal user',
+  提示文案: 'Prompt text',
+  最大展示数量: 'Maximum display number',
+  内容配置: 'Content configuration',
+  邮件配置: 'Email configuration',
+  只展示新类: 'Only show new classes'
 };

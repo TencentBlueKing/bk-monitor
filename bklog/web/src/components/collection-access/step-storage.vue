@@ -571,7 +571,7 @@ export default {
           retain_original_text: etlParams.retain_original_text,
           retain_extra_json: etlParams.retain_extra_json ?? false,
           original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? ''
         };
         if (etl_config === 'bk_log_delimiter') {
           payload.separator = etlParams.separator;
@@ -724,7 +724,10 @@ export default {
             separator_regexp: '',
             separator: ''
             // separator_field_list: ''
-        }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
+          },
+          // eslint-disable-next-line camelcase
+          etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}
+        ),
         fields: copyFields.filter(item => !item.is_built_in),
         retention: retention ? `${retention}` : this.defaultRetention,
         storage_replies,

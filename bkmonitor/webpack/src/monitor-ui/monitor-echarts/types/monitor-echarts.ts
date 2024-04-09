@@ -37,10 +37,12 @@ import type {
 } from 'echarts/components';
 import {
   GeoComponent,
+  GraphicComponent,
   GridComponent,
   LegendComponent,
   MarkAreaComponent,
   MarkLineComponent,
+  MarkPointComponent,
   TitleComponent,
   ToolboxComponent,
   TooltipComponent
@@ -76,6 +78,8 @@ echarts.use([
   CanvasRenderer,
   MarkAreaComponent,
   MarkLineComponent,
+  MarkPointComponent,
+  GraphicComponent,
   GeoComponent
 ]);
 

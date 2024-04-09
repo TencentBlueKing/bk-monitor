@@ -33,7 +33,7 @@ import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
-import { immediateRegister } from 'monitor-common/service-worker/service-wroker.js';
+import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import App from './pages/app';
