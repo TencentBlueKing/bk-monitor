@@ -374,6 +374,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   descriptionType = '';
   /* 是否为场景智能检测 */
   isMultivariateAnomalyDetection = false;
+  /* 场景智能检测视图参数 */
+  multivariateAnomalyDetectionParams = {
+    metrics: []
+  };
 
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
@@ -2412,6 +2416,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       ];
     }
   }
+  /**
+   * @description 场景智能检测指标变化
+   * @param metrics
+   */
+  handleSceneConfigMetricChange(metrics) {
+    this.multivariateAnomalyDetectionParams.metrics = metrics;
+  }
 
   metricDataContent() {
     /* 是否为场景智能检测 */
@@ -2427,6 +2438,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           onChange={this.handleSceneConfigChange}
           onTargetTypeChange={this.handleTargetTypeChange}
           onTargetChange={this.handleTargetChange}
+          onMetricChange={this.handleSceneConfigMetricChange}
         ></AiopsMonitorData>
       );
     }
@@ -2725,6 +2737,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 descriptionType={this.descriptionType}
                 isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
                 strategyTarget={this.strategyTarget}
+                multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
               />
             </div>
           </div>

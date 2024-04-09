@@ -97,3 +97,7 @@ export const noticeMethod = [
     value: 'only_notice'
   }
 ];
+
+export interface IMultivariateAnomalyDetectionParams {
+  metrics: any[];
+}

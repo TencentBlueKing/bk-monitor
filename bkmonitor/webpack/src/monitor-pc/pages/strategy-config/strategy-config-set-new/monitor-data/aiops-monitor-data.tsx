@@ -53,6 +53,7 @@ interface IProps {
   onChange?: (sceneConfig: ISceneConfig) => void;
   onTargetTypeChange?: (type: string) => void;
   onTargetChange?: (value) => void;
+  onMetricChange?: (value) => void;
 }
 
 const levelParamsMap = {
@@ -185,6 +186,17 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   handleTargetTypeChange(type: string) {
     return type;
   }
+  @Emit('metricChange')
+  handleMetricEmitChange() {
+    const metrics = [];
+    const metricsSet = new Set(this.metrics);
+    this.allMetrics.forEach(item => {
+      if (metricsSet.has(item.metric_id)) {
+        metrics.push(item);
+      }
+    });
+    return metrics;
+  }
 
   created() {
     this.multivariateAnomalyScenes();
@@ -229,6 +241,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
       this.handleCalcShowOpenTag();
     });
     this.handleChange();
+    this.handleMetricEmitChange();
   }
   /** 计算指标是否存在多行情况 */
   handleCalcShowOpenTag() {
@@ -341,6 +354,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   handleMetricChange(v) {
     this.metrics = v;
     this.handleChange();
+    this.handleMetricEmitChange();
   }
 
   /**
