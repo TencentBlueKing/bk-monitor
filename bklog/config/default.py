@@ -769,6 +769,14 @@ MENUS = [
                 "children": [{"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}],
             },
             {
+                "id": "report",
+                "name": _("订阅"),
+                "feature": "on",
+                "icon": "",
+                "keyword": _("订阅"),
+                "children": [{"id": "report_manage", "name": _("订阅管理"), "feature": "on", "icon": "email-shape"}],
+            },
+            {
                 "id": "manage_data_link",
                 "name": _("设置"),
                 "feature": os.environ.get("BKAPP_FEATURE_DATA_LINK", "on"),
@@ -897,28 +905,28 @@ ES_QUERY_TIMEOUT = int(os.environ.get("BKAPP_ES_QUERY_TIMEOUT", 55))
 ESQUERY_EXTRA_WHITE_LIST = [app for app in os.getenv("BKAPP_ESQUERY_WHITE_LIST", "").split(",") if app]
 
 ESQUERY_WHITE_LIST = [
-    "bk_log_search",
-    "hippogriff-4",
-    "bk_bklog",
-    "bk_monitor",
-    "bk_bkmonitor",
-    "bk_monitorv3",
-    "bk_bkmonitorv3",
-    "log-trace",
-    "log-search-4",
-    "bkmonitorv3",
-    "bk-log-search",
-    "gem3",
-    "data",
-    "dataweb",
-    "bk_bcs",
-    "bk-dbm",
-    "bk_dbm",
-    "bk-audit",
-    "klc_saas",
-    "paasv3cli",
-    "bk_paas3",
-] + ESQUERY_EXTRA_WHITE_LIST
+                         "bk_log_search",
+                         "hippogriff-4",
+                         "bk_bklog",
+                         "bk_monitor",
+                         "bk_bkmonitor",
+                         "bk_monitorv3",
+                         "bk_bkmonitorv3",
+                         "log-trace",
+                         "log-search-4",
+                         "bkmonitorv3",
+                         "bk-log-search",
+                         "gem3",
+                         "data",
+                         "dataweb",
+                         "bk_bcs",
+                         "bk-dbm",
+                         "bk_dbm",
+                         "bk-audit",
+                         "klc_saas",
+                         "paasv3cli",
+                         "bk_paas3",
+                     ] + ESQUERY_EXTRA_WHITE_LIST
 
 # BK repo conf
 BKREPO_ENDPOINT_URL = os.getenv("BKREPO_ENDPOINT_URL") or os.getenv("BKAPP_BKREPO_ENDPOINT_URL")
@@ -1027,7 +1035,6 @@ else:
 # 日志检索组件配置
 # ===============
 BKM_SEARCH_MODULE_BKAPI_CLASS = "apps.utils.search_module.BkApi"
-
 
 # 国际化切换语言设置
 BK_DOMAIN = os.getenv("BK_DOMAIN", "")
@@ -1179,7 +1186,6 @@ BK_NOTICE = {
     "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
 }
 
-
 """
 以下为框架代码 请勿修改
 """
@@ -1191,12 +1197,12 @@ if IS_USE_CELERY:
 
     from celery.signals import setup_logging
 
+
     @setup_logging.connect
     def config_loggers(*args, **kwags):
         from logging.config import dictConfig
 
         dictConfig(LOGGING)
-
 
 # remove disabled apps
 if locals().get("DISABLED_APPS"):

@@ -51,8 +51,9 @@
   }
 
   .group-list.group-loading{
-    min-height: 40px;
     width: 100%;
+    min-height: 40px;
+
     @include flex-center();
   }
 

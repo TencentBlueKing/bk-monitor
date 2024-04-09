@@ -42,7 +42,7 @@ export default class QueryStatement extends tsc<IProps> {
   markRegStr = '<mark>(.*?)</mark>';
   /** 默认分词字符串 */
   // eslint-disable-next-line
-  segmentRegStr = ",&*+:;?^=!$<>'\"{}()|[]\\/\\s\\r\\n\\t-";
+  segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
   /** 支持分词最大数量 */
   limitCount = 256;
   /** 当前点击的分词实例 */
@@ -82,18 +82,22 @@ export default class QueryStatement extends tsc<IProps> {
       arr = this.splitParticipleWithStr(value, this.currentFieldRegStr);
     } else {
       // 未开分词的情况 且非text类型 则是整个值可点击 否则不可点击
-      arr = [{
-        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        isNotParticiple: this.isText,
-        isMark: new RegExp(this.markRegStr).test(value),
-      }];
+      arr = [
+        {
+          text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+          isNotParticiple: this.isText,
+          isMark: new RegExp(this.markRegStr).test(value)
+        }
+      ];
     }
     return arr;
   }
 
   splitParticipleWithStr(str: string, delimiterPattern: string) {
     // 转义特殊字符，并构建用于分割的正则表达式
-    const regexPattern = delimiterPattern.split('').map(delimiter => `\\${delimiter}`)
+    const regexPattern = delimiterPattern
+      .split('')
+      .map(delimiter => `\\${delimiter}`)
       .join('|');
 
     // 构建正则表达式以找到分隔符或分隔符周围的文本
@@ -103,18 +107,22 @@ export default class QueryStatement extends tsc<IProps> {
     const markRegex = new RegExp(this.markRegStr, 'g');
 
     // 使用正则分割字符串
-    const parts = str.replace(/<mark>/g, '').replace(/<\/mark>/g, '')
+    const parts = str
+      .replace(/<mark>/g, '')
+      .replace(/<\/mark>/g, '')
       .split(regex);
     const markVal = str.match(markRegex) || [];
 
     // 转换结果为对象数组，包含分隔符标记
-    const result = parts.filter(part => part && part.length).map((part, index) => {
-      return {
-        text: part,
-        isNotParticiple: index < this.limitCount ? regex.test(part) : true,
-        isMark: this.checkMark(part, markVal),
-      };
-    });
+    const result = parts
+      .filter(part => part && part.length)
+      .map((part, index) => {
+        return {
+          text: part,
+          isNotParticiple: index < this.limitCount ? regex.test(part) : true,
+          isMark: this.checkMark(part, markVal)
+        };
+      });
 
     return result;
   }
@@ -123,11 +131,10 @@ export default class QueryStatement extends tsc<IProps> {
     if (!markVal.length) return false;
     const filterMarkArr = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
     // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-    return filterMarkArr.some(item => item === splitItem
-     || splitItem.startsWith(`.${item}`)
-     || splitItem.endsWith(`${item}.`),
+    return filterMarkArr.some(
+      item => item === splitItem || splitItem.startsWith(`.${item}`) || splitItem.endsWith(`${item}.`)
     );
-  };
+  }
 
   handleClick(e, value) {
     if (!value.toString() || value === '--') return;
@@ -151,15 +158,15 @@ export default class QueryStatement extends tsc<IProps> {
         setTimeout(this.registerObserver, 20);
         this.currentEvent = e.target;
         this.currentEvent.classList.add('focus-text');
-      },
+      }
     });
     this.popoverInstance && this.popoverInstance.show(10);
   }
   // 注册Intersection监听
   registerObserver() {
     if (this.intersectionObserver) this.unregisterObserver();
-    this.intersectionObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
         if (this.intersectionObserver) {
           if (entry.intersectionRatio <= 0) {
             this.popoverInstance.hide();
@@ -192,71 +199,82 @@ export default class QueryStatement extends tsc<IProps> {
 
   render() {
     return (
-      <span class="log-content-wrapper">
+      <span class='log-content-wrapper'>
         {this.isVirtual ? (
-          <span class="null-item">{this.content}</span>
+          <span class='null-item'>{this.content}</span>
         ) : (
-          <span class="segment-content">
-            {this.splitList.map((item) => {
+          <span class='segment-content'>
+            {this.splitList.map(item => {
               if (item.text === '\n') return <br />;
-              if (item.isMark) return (
-                <mark onClick={$event => this.handleClick($event, item.text)}>
-                  {item.text}
-                </mark>
-              );
-              if (!item.isNotParticiple) return (
-                <span
-                  class="valid-text"
-                  onClick={$event => this.handleClick($event, item.text)}
-                >
-                  {item.text}
-                </span>
-              );
+              if (item.isMark) return <mark onClick={$event => this.handleClick($event, item.text)}>{item.text}</mark>;
+              if (!item.isNotParticiple)
+                return (
+                  <span
+                    class='valid-text'
+                    onClick={$event => this.handleClick($event, item.text)}
+                  >
+                    {item.text}
+                  </span>
+                );
               return item.text;
             })}
           </span>
         )}
 
-        <div v-show={ false }>
-        <div ref="moreTools" class="event-icons">
-          <div class="event-box">
-            <span class="event-btn" onClick={() => this.handleMenuClick('copy')}>
-              <i class="icon log-icon icon-copy"></i>
-              <span>{ this.$t('复制') }</span>
-            </span>
-          </div>
-          <div class="event-box">
-            <span class="event-btn" onClick={() => this.handleMenuClick('is')}>
-              <i class="icon bk-icon icon-plus-circle"></i>
-              <span>{ this.$t('添加到本次检索') }</span>
-            </span>
-            <div
-              class="new-link"
-              v-bk-tooltips={ this.$t('新开标签页') }
-              onClick={(e) => {
-                e.stopPropagation();
-                this.handleMenuClick('is', true);
-              }}>
-              <i class="log-icon icon-jump"></i>
+        <div v-show={false}>
+          <div
+            ref='moreTools'
+            class='event-icons'
+          >
+            <div class='event-box'>
+              <span
+                class='event-btn'
+                onClick={() => this.handleMenuClick('copy')}
+              >
+                <i class='icon log-icon icon-copy'></i>
+                <span>{this.$t('复制')}</span>
+              </span>
             </div>
-          </div>
-          <div class="event-box">
-            <span class="event-btn" onClick={() => this.handleMenuClick('not')}>
-              <i class="icon bk-icon icon-minus-circle"></i>
-              <span>{ this.$t('从本次检索中排除') }</span>
-            </span>
-            <div
-              class="new-link"
-              v-bk-tooltips={ this.$t('新开标签页') }
-              onClick={(e) => {
-                e.stopPropagation();
-                this.handleMenuClick('new-page', true);
-              }}>
-              <i class="log-icon icon-jump"></i>
+            <div class='event-box'>
+              <span
+                class='event-btn'
+                onClick={() => this.handleMenuClick('is')}
+              >
+                <i class='icon bk-icon icon-plus-circle'></i>
+                <span>{this.$t('添加到本次检索')}</span>
+              </span>
+              <div
+                class='new-link'
+                v-bk-tooltips={this.$t('新开标签页')}
+                onClick={e => {
+                  e.stopPropagation();
+                  this.handleMenuClick('is', true);
+                }}
+              >
+                <i class='log-icon icon-jump'></i>
+              </div>
+            </div>
+            <div class='event-box'>
+              <span
+                class='event-btn'
+                onClick={() => this.handleMenuClick('not')}
+              >
+                <i class='icon bk-icon icon-minus-circle'></i>
+                <span>{this.$t('从本次检索中排除')}</span>
+              </span>
+              <div
+                class='new-link'
+                v-bk-tooltips={this.$t('新开标签页')}
+                onClick={e => {
+                  e.stopPropagation();
+                  this.handleMenuClick('new-page', true);
+                }}
+              >
+                <i class='log-icon icon-jump'></i>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </span>
     );
   }
