@@ -446,7 +446,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 sub_task_id = f"{self.batch_timestamp}.{batch_count}"
                 client.lpush(
                     key.ACCESS_BATCH_DATA_KEY.get_key(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id),
-                    *[json.dumps(point) for point in points[last_batch_index:index]],
+                    *[json.dumps(point) for point in batch_points],
                 )
                 key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
 
