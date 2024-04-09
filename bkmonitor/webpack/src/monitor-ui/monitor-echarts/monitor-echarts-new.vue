@@ -234,11 +234,11 @@
 </template>
 <script lang="ts">
 import { CreateElement } from 'vue';
+
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
-import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
 import { traceListById } from 'monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
@@ -268,6 +268,7 @@ import {
   ITextChartOption,
   ITextSeries
 } from './options/type-interface';
+import { echarts, type MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
 import watermarkMaker from './utils/watermarkMaker';
 import { getValueFormat } from './valueFormats';
 
@@ -303,7 +304,7 @@ export default class MonitorEcharts extends Vue {
   @Ref() readonly charWrapRef!: HTMLDivElement;
 
   // echarts配置项
-  @Prop() readonly options: Echarts.EChartOption | IStatusChartOption | ITextChartOption;
+  @Prop() readonly options: MonitorEchartOptions | IStatusChartOption | ITextChartOption;
   // 是否自动resize
   @Prop({ default: true }) readonly autoresize: boolean;
   // 是否需要设置全屏
@@ -325,7 +326,7 @@ export default class MonitorEcharts extends Vue {
   @Prop({ default: '' }) readonly title: string;
   @Prop({ default: '', type: String }) readonly errorMsg: string;
   // 图表系列数据
-  @Prop() readonly series: EChartOption.SeriesLine | EChartOption.SeriesBar | IStatusSeries | ITextSeries;
+  @Prop() readonly series: MonitorEchartSeries | IStatusSeries | ITextSeries;
 
   // 背景图
   @Prop({
@@ -439,7 +440,7 @@ export default class MonitorEcharts extends Vue {
     moving: false
   };
   // 监控图表默认配置
-  get defaultOptions() {
+  get defaultOptions(): MonitorEchartOptions {
     if (this.chartType === 'bar' || this.chartType === 'line') {
       return {
         tooltip: {
@@ -449,13 +450,14 @@ export default class MonitorEcharts extends Vue {
             label: {
               show: false,
               formatter: (params) => {
-                if (this.chartType !== 'line') return;
+                if (this.chartType !== 'line') return '';
                 if (params.axisDimension === 'y') {
                   this.curValue.yAxis = params.value;
                 } else {
                   this.curValue.xAxis = params.value;
                   this.curValue.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
                 }
+                return '';
               }
             },
             crossStyle: {
@@ -466,7 +468,7 @@ export default class MonitorEcharts extends Vue {
           },
           formatter: this.handleSetTooltip,
           appendToBody: true,
-          position: (pos, params, dom, rect, size: any) => {
+          position: (pos, params, dom, rect, size) => {
             const { contentSize } = size;
             const chartRect = this.$el.getBoundingClientRect();
             const posRect = {
@@ -497,7 +499,7 @@ export default class MonitorEcharts extends Vue {
     }
     return {};
   }
-  get chartOption(): any {
+  get chartOption(): MonitorEchartOptions {
     return deepMerge(
       {
         legend: {
@@ -515,7 +517,7 @@ export default class MonitorEcharts extends Vue {
           list: ['ip', 'process', 'strategy'] // 要显示的anotation配置id 空数组则为不显示
         }
       },
-      (this.options || {}) as any,
+      (this.options || {}) as MonitorEchartOptions,
       {
         arrayMerge: (destinationArray, sourceArray) => sourceArray
       }
@@ -676,7 +678,7 @@ export default class MonitorEcharts extends Vue {
     this.chartTitle = this.title;
     this.chartSubTitle = this.subtitle;
     if (this.isEchartsRender && this.chartRef) {
-      const chart: any = Echarts.init(this.chartRef);
+      const chart: any = echarts.init(this.chartRef);
       this.chart = chart;
       this.groupId && (this.chart.group = this.groupId);
       if (this.autoresize) {
@@ -816,11 +818,11 @@ export default class MonitorEcharts extends Vue {
         }
         this.legend.list = optionData.legendData || [];
         if (this.chartOption.grid) {
-          optionData.options.grid.bottom = (this.chartOption.grid as EChartOption.Grid).bottom;
+          optionData.options.grid.bottom = this.chartOption.grid.bottom;
         }
         setTimeout(() => {
           if (this.chart) {
-            let options = deepMerge(optionData.options, this.defaultOptions) as EChartOption;
+            let options = deepMerge(optionData.options, this.defaultOptions);
             const width = (this.$refs?.chartRef as any)?.clientWidth;
             if (['line', 'bar'].includes(this.chartType) && width) {
               options = deepMerge(options, {
@@ -990,7 +992,7 @@ export default class MonitorEcharts extends Vue {
     if (list.length > maxLen && this.tooltipSize) {
       const cols = Math.ceil(list.length / maxLen);
       this.tableToolSize = this.tableToolSize ? Math.min(this.tableToolSize, this.tooltipSize[0]) : this.tooltipSize[0];
-      ulStyle = `display:flex; flex-wrap:wrap; width: ${5 + cols * this.tableToolSize}px;`;
+      ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min((5 + cols * this.tableToolSize), window.innerHeight / 1.2)}px;`;
     }
     const hasTrace = params.some(item => item.seriesName === 'bk_trace_value' && item.seriesType === 'scatter');
     /* 如果包含trace散点则不出现tooltip */
@@ -1307,7 +1309,7 @@ export default class MonitorEcharts extends Vue {
   }
 
   // resize
-  resize(options: EChartOption = null) {
+  resize(options: MonitorEchartOptions = null) {
     this.chartRef && this.delegateMethod('resize', options);
   }
 

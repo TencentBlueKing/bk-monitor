@@ -31,7 +31,6 @@ import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
 import { IOption } from '../pages/monitor-k8s/typings';
-import store from '../store/store';
 /**
  * 生成一个随机字符串ID
  * @param len 随机ID的长度 默认8位字符
@@ -120,8 +119,7 @@ export const ftaUrl = (hash: string): string => {
   if (isDev) {
     url = `${protocol}//${hostname}:7002/${search}${hash}`;
   } else {
-    const { bkPaasHost, siteUrl, bizId } = store.getters.app;
-    const host = `${bkPaasHost}${siteUrl}fta/?bizId=${bizId}`;
+    const host = `${window.bk_paas_host}${window.site_url}fta/?bizId=${window.bk_biz_id}`;
     url = `${host}${hash}`;
   }
   return url;
@@ -133,12 +131,11 @@ export const ftaUrl = (hash: string): string => {
  * @return {string} 转换后的字符串
  */
 export const transformJobUrl = (str: string): string => {
-  const jobUrl = store.getters.jobUrl as string;
   let newStr = '';
   try {
     newStr = str.replace(/<a.*?href="(.*?)".*?>(.*?)<\/a>/g, (...args) => {
       const { 0: aStr, 1: url } = args;
-      const newUrl = /^http/.test(url) ? url : jobUrl + url;
+      const newUrl = /^http/.test(url) ? url : window.bk_job_url + url;
       return aStr.replace(url, newUrl);
     });
   } catch (error) {

@@ -88,11 +88,6 @@ import {
   Transfer,
   Tree,
   Upload
-  // CollapseTransition
-  // Loading,
-  // MessageBox,
-  // Message,
-  // Notification
 } from 'element-ui';
 
 Vue.use(Pagination);

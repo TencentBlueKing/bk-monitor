@@ -25,7 +25,7 @@
  */
 import { Component, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import echarts from 'echarts';
+import { connect, disconnect } from 'echarts/core';
 import { multiAnomalyDetectGraph } from 'monitor-api/modules/alert';
 import { random } from 'monitor-common/utils';
 import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -114,7 +114,7 @@ export default class IntelligenceScene extends tsc<IProps> {
       };
     });
     this.panels = result.map(item => new PanelModel(item));
-    echarts.connect(this.dashboardId.toString());
+    connect(this.dashboardId.toString());
     this.loading = false;
   }
 
@@ -125,7 +125,7 @@ export default class IntelligenceScene extends tsc<IProps> {
   }
 
   destroyed() {
-    echarts.disConnect(this.dashboardId.toString());
+    disconnect(this.dashboardId.toString());
   }
 
   render() {

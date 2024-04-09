@@ -85,6 +85,15 @@ class TestReportMailResource(MonitorAPIGWResource):
     method = "POST"
 
 
+class SendReportResource(MonitorAPIGWResource):
+    """
+    发送订阅报表
+    """
+
+    action = "/send_report/"
+    method = "POST"
+
+
 class GroupListResource(MonitorAPIGWResource):
     """
     获取组内人员信息
