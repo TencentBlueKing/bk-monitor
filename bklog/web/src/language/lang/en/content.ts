@@ -659,7 +659,8 @@ export default {
   匹配到的索引: 'matched index',
   '不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。':
     'Not retaining will discard the original logs and only display the cleaned logs. Please go through field cleaning, debugging and outputting the logs you care about.',
-  '请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。': 'Please complete field cleaning or select "Keep original log", otherwise the access log content will not be displayed.',
+  '请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。':
+    'Please complete field cleaning or select "Keep original log", otherwise the access log content will not be displayed.',
   已订阅当前页面: 'Subscribed to current page',
   邮件订阅: 'E-mail Subscriptions',
   新建订阅: 'New subscription',
@@ -690,14 +691,16 @@ export default {
   提示文案: 'Prompt copy',
   群ID: 'Group ID',
   多个邮箱使用逗号隔开: 'Use commas to separate multiple email addresses',
-  '获取会话ID方法': 'Get session ID method',
+  获取会话ID方法: 'Get session ID method',
   '1.群聊列表右键添加群机器人: 蓝鲸监控上云': '1. Right-click on the group chat list to add a group robot: BK-Monitor',
   "2.手动 @蓝鲸监控上云 并输入关键字'会话ID'": "2. Manually @BK-Monitor and enter the keyword 'session ID'",
-  '3.将获取到的会话ID粘贴到输入框,使用逗号分隔': '3. Paste the obtained session ID into the input box, separated by commas',
+  '3.将获取到的会话ID粘贴到输入框,使用逗号分隔':
+    '3. Paste the obtained session ID into the input box, separated by commas',
   内部邮件不可为空: 'Internal email cannot be empty',
   外部邮件不可为空: 'External email cannot be empty',
   企业微信群不可为空: 'Enterprise WeChat group cannot be empty',
-  '请遵守公司规范，切勿泄露敏感信息，后果自负！': 'Please abide by company regulations and never disclose sensitive information at your own risk!',
+  '请遵守公司规范，切勿泄露敏感信息，后果自负！':
+    'Please abide by company regulations and never disclose sensitive information at your own risk!',
   变量名: 'Variable name',
   变量说明: 'Variable description',
   示例: 'Example',

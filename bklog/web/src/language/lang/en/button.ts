@@ -156,5 +156,5 @@ export default {
   取消钉住: 'Cancel nail sample',
   新增备注: 'Add New Label',
   升级: 'Upgrade',
-  测试发送: 'Test Send',
+  测试发送: 'Test Send'
 };
