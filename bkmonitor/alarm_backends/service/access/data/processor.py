@@ -121,7 +121,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
             )
         else:
             self.process_counts.setdefault("push_noise_data", {})
-            self.process_counts["push_noise_data"][item.id] = {
+            self.process_counts["push_noise_data"][str(item.id)] = {
                 "record_key": record_key,
                 "dimension_key": "|".join(noise_reduce_config["dimensions"]),
                 "count": len(noise_data.keys()),
@@ -175,7 +175,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
             )
         else:
             self.process_counts.setdefault("push_data", {})
-            self.process_counts["push_data"][item.id] = {
+            self.process_counts["push_data"][str(item.id)] = {
                 "output_key": output_key,
                 "count": len(record_list),
             }
@@ -526,7 +526,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 )
             else:
                 self.process_counts.setdefault("pull_data", {})
-                self.process_counts["pull_data"][item.id] = {
+                self.process_counts["pull_data"][str(item.id)] = {
                     "total_count": len(points),
                     "access_count": point_count,
                     "duplicate_count": duplicate_counts,
@@ -628,21 +628,22 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 拉取数量记录日志
         for item in self.items:
+            item_id = str(item.id)
             total_count, access_count, duplicate_count, none_point_count = 0, 0, 0, 0
             push_count, push_noise_count = 0, 0
             output_key, record_key, dimension_key = "", "", ""
             for result in batch_results:
-                pull_data = result.get("process_counts", {}).get("pull_data", {}).get(item.id, {})
+                pull_data = result.get("process_counts", {}).get("pull_data", {}).get(item_id, {})
                 total_count += pull_data.get("total_count", 0)
                 access_count += pull_data.get("access_count", 0)
                 duplicate_count += pull_data.get("duplicate_count", 0)
                 none_point_count += pull_data.get("none_point_count", 0)
 
-                push_data = result.get("process_counts", {}).get("push_data", {}).get(item.id, {})
+                push_data = result.get("process_counts", {}).get("push_data", {}).get(item_id, {})
                 push_count += push_data.get("count", 0)
                 output_key = push_data.get("output_key")
 
-                push_noise_data = result.get("process_counts", {}).get("push_noise_data", {}).get(item.id, {})
+                push_noise_data = result.get("process_counts", {}).get("push_noise_data", {}).get(item_id, {})
                 push_noise_count += push_noise_data.get("count", 0)
                 record_key = push_noise_data.get("record_key")
                 dimension_key = push_noise_data.get("dimension_key")
