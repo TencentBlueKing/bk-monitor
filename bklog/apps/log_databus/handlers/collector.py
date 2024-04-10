@@ -34,7 +34,7 @@ from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
-from apps.api import BcsCcApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
+from apps.api import BcsApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
 from apps.api.modules.bk_node import BKNodeApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -3783,8 +3783,8 @@ class CollectorHandler(object):
             return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
         elif space.space_type_id == SpaceTypeEnum.BKCC.value:
             # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
-            bcs_projects = BcsCcApi.list_project()
-            project_ids = {p["project_id"] for p in bcs_projects if str(p["cc_app_id"]) == str(bk_biz_id)}
+            bcs_projects = BcsApi.list_project({"businessID": bk_biz_id})
+            project_ids = {p["project_id"] for p in bcs_projects}
             project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
             namespaces = set()
             for project_id, ns_list in project_id_to_ns.items():
