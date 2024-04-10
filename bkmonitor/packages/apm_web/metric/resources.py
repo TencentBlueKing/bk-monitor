@@ -825,7 +825,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         query_params = {
             "bk_biz_id": data["bk_biz_id"],
             "app_name": data["app_name"],
-            "filter_params": [{"key": "status.code", "op": "=", "value": [2]}],
+            "filter_params": [{"key": "status.code", "op": "=", "value": ["2"]}],
             "start_time": data["start_time"],
             "end_time": data["end_time"],
             "fields": [
