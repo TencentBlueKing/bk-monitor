@@ -24,6 +24,7 @@ from rest_framework import serializers
 from apm_web.constants import (
     APDEX_VIEW_ITEM_LEN,
     COLLECT_SERVICE_CONFIG_KEY,
+    COLUMN_KEY_PROFILING_DATA_COUNT,
     DEFAULT_EMPTY_NUMBER,
     AlertLevel,
     AlertStatus,
@@ -45,6 +46,7 @@ from apm_web.metric_handler import (
     ApdexInstance,
     ApdexRange,
     AvgDurationInstance,
+    ErrorCountInstance,
     ErrorRateInstance,
     RequestCountInstance,
 )
@@ -524,6 +526,13 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
     服务列表异步接口
     """
 
+    METRIC_MAP = {
+        "avg_duration": AvgDurationInstance,
+        "error_count": ErrorCountInstance,
+        "request_count": RequestCountInstance,
+        "error_rate": ErrorRateInstance,
+    }
+
     SyncResource = ServiceListResource
 
     class RequestSerializer(AsyncSerializer):
@@ -531,6 +540,51 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         service_names = serializers.ListSerializer(child=serializers.CharField(), default=[], label="服务列表")
         start_time = serializers.IntegerField(required=True, label="数据开始时间")
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
+
+    @classmethod
+    def get_metric_service_data(cls, validated_data, app: Application, column: str):
+        """
+        获取指标数据及服务数据
+        只查单个指标
+        """
+        if column == COLUMN_KEY_PROFILING_DATA_COUNT:
+            services = ServiceHandler.list_services(app)
+            return {}, {}, services
+
+        metric_handler_cls = []
+        if column in cls.METRIC_MAP:
+            metric_handler_cls.append(cls.METRIC_MAP[column])
+
+        service_metric_param = {
+            "application": app,
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+        }
+
+        component_metric_param = {
+            "app": app,
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+        }
+
+        if metric_handler_cls:
+            service_metric_param["metric_handler_cls"] = metric_handler_cls
+            component_metric_param["metric_handler_cls"] = metric_handler_cls
+
+        pool = ThreadPool()
+        service_list_res = pool.apply_async(SERVICE_LIST, kwds=service_metric_param)
+        remote_service_list_res = pool.apply_async(REMOTE_SERVICE_LIST, kwds=service_metric_param)
+        component_metric_res = pool.apply_async(
+            ComponentHandler.get_service_component_metrics, kwds=component_metric_param
+        )
+        services_res = pool.apply_async(ServiceHandler.list_services, args=(app,))
+        pool.close()
+        pool.join()
+
+        service_metric_info = {**service_list_res.get(), **remote_service_list_res.get()}
+        component_metric_info = component_metric_res.get()
+        services = services_res.get()
+        return service_metric_info, component_metric_info, services
 
     def perform_request(self, validated_data):
         res = []
@@ -543,24 +597,16 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         if not app:
             raise ValueError(_("应用{}不存在").format(validated_data['app_name']))
 
-        service_metric_info = {
-            **SERVICE_LIST(app, start_time=validated_data["start_time"], end_time=validated_data["end_time"]),
-            **REMOTE_SERVICE_LIST(app, start_time=validated_data["start_time"], end_time=validated_data["end_time"]),
-        }
-        component_metric_info = ComponentHandler.get_service_component_metrics(
-            app,
-            validated_data["start_time"],
-            validated_data["end_time"],
-        )
-        if app.is_enabled_profiling:
+        column = validated_data["column"]
+        service_metric_info, component_metric_info, services = self.get_metric_service_data(validated_data, app, column)
+
+        if app.is_enabled_profiling and column == COLUMN_KEY_PROFILING_DATA_COUNT:
             profiling_metric_info = QueryTemplate(
                 validated_data["bk_biz_id"], validated_data["app_name"]
             ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
         else:
             profiling_metric_info = {}
 
-        services = ServiceHandler.list_services(app)
-        column = validated_data["column"]
         for service_name in validated_data["service_names"]:
             service = next((i for i in services if i["topo_key"] == service_name), None)
             if not service:
