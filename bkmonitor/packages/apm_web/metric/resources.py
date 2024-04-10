@@ -1971,12 +1971,12 @@ class ServiceQueryExceptionResource(PageListResource):
                 + '&start_tiem={start_time}&end_tiem={end_time}'
                 + '&query=status.code:+2+'
                 + '&conditionList={{"resource.service.name": '
-                '{{"selectedCondition": {{"label": "=","value": "equal"}},'
-                '"selectedConditionValue": ["{service_name}"]}},'
-                '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                '"selectedConditionValue": ["{span_name}"]}},'
-                '"resource.bk.instance.id": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                '"selectedConditionValue": ["{bk_instance_id}"]}}}}',
+                + '{{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{service_name}"]}},'
+                + '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{span_name}"]}},'
+                + '"resource.bk.instance.id": {{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{bk_instance_id}"]}}}}',
                 target="blank",
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             ),
