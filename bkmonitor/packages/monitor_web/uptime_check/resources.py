@@ -599,6 +599,23 @@ class GenerateSubConfigResource(Resource):
             return f"'{temp}'"
         return input_string
 
+    def encode_data_with_prefix(self, input_string: str, prefix: str = "base64://") -> str:
+        """
+        对数据进行Base64编码，并添加指定前缀。
+        :param input_string: 要编码的原始数据。
+        :param prefix: 添加到编码数据前面的前缀。
+        :return: 编码且带有前缀的字符串。
+        """
+        if not settings.BASE64_ENCODE_TRIGGER_CHARS or not input_string:
+            return self.add_escape(input_string)
+
+        for char in settings.BASE64_ENCODE_TRIGGER_CHARS:
+            if char in input_string:
+                encoded_data = b64encode(input_string.encode("utf-8")).decode("utf-8")
+                return f"{prefix}{encoded_data}"
+        else:
+            return self.add_escape(input_string)
+
     def perform_request(self, data):
         """
         :return: list
@@ -646,7 +663,7 @@ class GenerateSubConfigResource(Resource):
                     "timeout": "{}ms".format(timeout),
                     "target_host_list": target_host_list,
                     "target_port": config["port"],
-                    "response": self.add_escape(config.get("response", "")),
+                    "response": self.encode_data_with_prefix(config.get("response", "")),
                     "response_format": config.get("response_format", "in"),
                     "node_list": config.get("node_list", []),
                     "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
@@ -668,8 +685,8 @@ class GenerateSubConfigResource(Resource):
                     "request_format": config.get("request_format", "hex"),
                     "response_format": config.get("response_format", "hex|eq"),
                     "wait_empty_response": "true" if config.get("wait_empty_response", True) else "false",
-                    "request": self.add_escape(config.get("request", "")),
-                    "response": self.add_escape(config.get("response", "")),
+                    "request": self.encode_data_with_prefix(config.get("request", "")),
+                    "response": self.encode_data_with_prefix(config.get("response", "")),
                     "node_list": config.get("node_list", []),
                     "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
                     "dns_check_mode": config.get("dns_check_mode", "single"),
@@ -678,7 +695,11 @@ class GenerateSubConfigResource(Resource):
             ]
 
         elif protocol == UptimeCheckTask.Protocol.HTTP:
-            header_dict = {item["key"]: item["value"] for item in config.get("headers", []) if item.get("is_enabled")}
+            header_dict = {
+                item["key"]: self.encode_data_with_prefix(item["value"])
+                for item in config.get("headers", [])
+                if item.get("is_enabled")
+            }
 
             get_http_config = GetHTTPConfig(header_dict)
             body = get_http_config.get_body(
@@ -712,8 +733,8 @@ class GenerateSubConfigResource(Resource):
                             "method": config["method"],
                             "response_format": config.get("response_format", "in"),
                             "headers": header_dict if header_dict else {},
-                            "request": self.add_escape(body),
-                            "response": self.add_escape(config.get("response", "")),
+                            "request": self.encode_data_with_prefix(body),
+                            "response": self.encode_data_with_prefix(config.get("response", "")),
                             "response_code": config.get("response_code", ""),
                             # available_duration 参数在step下(样例配置文件)
                             # 但从采集器代码看，还是在上层

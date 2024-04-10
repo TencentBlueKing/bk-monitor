@@ -40,7 +40,7 @@ import 'monitor-static/svg-icons';
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
 import { setVue } from 'monitor-api/utils/index';
-import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import App from './pages/app';
@@ -98,6 +98,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
+        document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,
           isSuperUser: window.is_superuser,
@@ -145,7 +146,7 @@ if (hasRouteHash) {
       })
       .catch(e => console.error(e))
       .finally(() => {
-        serviceWorker.immediateRegister();
+        immediateRegister();
       });
   }
 }

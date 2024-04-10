@@ -12,8 +12,7 @@
   "dependencies": {
     "axios": "^0.26.1",
     "monitor-common": "workspace:*",
-    "qs": "^6.12.0",
-    "vue": "v2-latest"
+    "qs": "^6.12.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.3.1",

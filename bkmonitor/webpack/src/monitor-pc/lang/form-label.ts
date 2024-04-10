@@ -419,6 +419,9 @@ export default {
   维度名称: 'Dimension Name',
   维度下钻: 'Facet',
   异常维度: 'Abnormal Dimension',
+  指标数据: 'Metrics',
+  事件数据: 'Events',
+  拨测: 'Synthetics',
 
   // - Title Text：标题文本，用于描述页面或模块的主题，例如“登录页面”、“用户信息”等。
 
@@ -587,7 +590,7 @@ export default {
   已收藏: 'Favorited',
   已经添加: 'Added',
   已选条件: 'Selected conditions',
-  "已选择{0}台主机": '{0} hosts have been selected',
+  '已选择{0}台主机': '{0} hosts have been selected',
   已有项目: 'Existing projects',
   只看已选: 'Show only selected',
 
@@ -1827,5 +1830,17 @@ export default {
   文件md5: 'File md5',
   上传人: 'Uploader',
   上传时间: 'Upload time',
-  错误信息: 'Error message'
+  错误信息: 'Error message',
+  最大展示: 'Maximum display',
+  展示同比: 'Display ratio',
+  生成附件: 'Generate attachment',
+  发送配置: 'Send configuration',
+  附带链接: 'Attached link',
+  订阅名称: 'Subscription name',
+  内部用户: 'Internal user',
+  提示文案: 'Prompt text',
+  最大展示数量: 'Maximum display number',
+  内容配置: 'Content configuration',
+  邮件配置: 'Email configuration',
+  只展示新类: 'Only show new classes'
 };

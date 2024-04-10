@@ -113,6 +113,7 @@ class ApmEbpfProvisioning(SimpleProvisioning):
             # 不存在则进行创建
             if cls.create_default_dashboard(org_id, f"{dashboard_mapping[i]}.json", bk_biz_id=org_name):
                 DeepflowDashboardRecord.objects.get_or_create(bk_biz_id=org_name, name=i)
+                logger.info(f"[upsert_dashboards] create {dashboard_mapping[i]} dashboard of bk_biz_id: {org_name}")
 
     @classmethod
     def _generate_default_dashboards(

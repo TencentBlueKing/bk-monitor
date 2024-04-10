@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { DateRange } from '@blueking/date-picker';
-import { type DateValue } from '@blueking/date-picker/dist/utils';
+import { type DateValue } from '@blueking/date-picker/vue3';
 import { type Dayjs } from 'dayjs';
 
 export type TimeRangeType = string[];
