@@ -177,6 +177,7 @@ export default {
   watch: {
     chartKey: {
       handler() {
+        this.logChartCancel();
         this.localAddition = this.retrieveParams.addition;
         this.$refs.chartRef && this.$refs.chartRef.handleCloseTimer();
         this.totalCount = 0;
@@ -220,7 +221,6 @@ export default {
       //   this.isStart = false;
       //   this.$refs.chartRef.handleChangeInterval();
       // }, 500);
-      this.logChartCancel();
       this.$store.commit('retrieve/updateChartKey');
     },
     // 需要更新图表数据
