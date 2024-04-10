@@ -250,7 +250,7 @@ class BoolQueryOperation(ABC):
             AllContainsMatchPhrase.OPERATOR: AllContainsMatchPhrase,
             AllNotContainsMatchPhrase.OPERATOR: AllNotContainsMatchPhrase,
             AllEqWildcard.OPERATOR: AllEqWildcard,
-            AllNeWildcard: AllNeWildcard,
+            AllNeWildcard.OPERATOR: AllNeWildcard,
         }
         op_target = op_map.get(op, BoolQueryOperation)
         return op_target(bool_dict)
@@ -444,7 +444,7 @@ class AllContainsMatchPhrase(BoolQueryOperation):
         self._set_target_value(a_bool)
 
 
-class AllNotContainsMatchPhrase(BoolQueryOperation):
+class AllNotContainsMatchPhrase(AllContainsMatchPhrase):
     TARGET = "must_not"
     OPERATOR = "all not contains match phrase"
 
@@ -462,7 +462,7 @@ class AllEqWildcard(BoolQueryOperation):
         self._set_target_value(a_bool)
 
 
-class AllNeWildcard(EqWildCard):
+class AllNeWildcard(AllEqWildcard):
     TARGET = "must_not"
     OPERATOR = "&!=~"
 
