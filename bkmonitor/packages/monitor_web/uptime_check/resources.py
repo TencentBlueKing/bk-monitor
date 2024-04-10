@@ -599,7 +599,7 @@ class GenerateSubConfigResource(Resource):
             return f"'{temp}'"
         return input_string
 
-    def encode_data_with_prefix(self, input_string: str, prefix: str = "base64") -> str:
+    def encode_data_with_prefix(self, input_string: str, prefix: str = "base64:") -> str:
         """
         对数据进行Base64编码，并添加指定前缀。
         :param input_string: 要编码的原始数据。
