@@ -271,7 +271,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         checkpoint = Checkpoint(self.strategy_group_key).get(min_last_checkpoint, interval=agg_interval)
         checkpoint = checkpoint // agg_interval * agg_interval
 
-        now_timestamp = arrow.utcnow().timestamp
+        now_timestamp = arrow.utcnow().int_timestamp
 
         # 由于存在入库延时问题，每次多往前拉取settings.NUM_OF_COUNT_FREQ_ACCESS个周期的数据
         from_timestamp = checkpoint - settings.NUM_OF_COUNT_FREQ_ACCESS * agg_interval

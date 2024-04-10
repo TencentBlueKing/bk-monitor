@@ -36,12 +36,11 @@ pytestmark = pytest.mark.django_db
 
 
 class TestCloseStatusChecker(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self) -> None:
         LAST_CHECKPOINTS_CACHE_KEY.client.flushall()
-        check_time = arrow.now().replace(seconds=-200).timestamp
+        check_time = arrow.now().shift(seconds=-200).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -198,7 +197,7 @@ class TestCloseStatusChecker(TestCase):
         checker.check_all()
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
-        check_time = arrow.now().replace(seconds=-310 - 30 * 60).timestamp
+        check_time = arrow.now().shift(seconds=-310 - 30 * 60).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -225,7 +224,7 @@ class TestCloseStatusChecker(TestCase):
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
         # 汇聚周期为11分钟，检测无数据时间应该是 5个周期 * 11分钟， 55分钟之内存在数据即表示不关闭
-        check_time = arrow.now().replace(seconds=-40 * 60).timestamp
+        check_time = arrow.now().shift(seconds=-40 * 60).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -248,7 +247,7 @@ class TestCloseStatusChecker(TestCase):
         alert.top_event["target_type"] = ""
 
         # 汇聚周期为11分钟，检测无数据时间应该是 5个周期 * 11分钟， 55分钟之内不存在数据即表示关闭
-        check_time = arrow.now().replace(seconds=-56 * 60).timestamp
+        check_time = arrow.now().shift(seconds=-56 * 60).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -337,8 +336,14 @@ class TestCloseStatusChecker(TestCase):
             bk_module_ids=[1],
             bk_set_ids=[1],
             topo_link={
-                "module|16": [TopoNode("module", 16), TopoNode("set", 13)],
-                "module|28": [TopoNode("module", 28), TopoNode("set", 26)],
+                "module|16": [
+                    {"bk_obj_id": "module", "bk_inst_id": 16},
+                    {"bk_obj_id": "set", "bk_inst_id": 13},
+                ],
+                "module|28": [
+                    {"bk_obj_id": "module", "bk_inst_id": 28},
+                    {"bk_obj_id": "set", "bk_inst_id": 26},
+                ],
             },
         )
         strategy = copy.deepcopy(STRATEGY)
@@ -373,8 +378,14 @@ class TestCloseStatusChecker(TestCase):
             bk_module_ids=[1],
             bk_set_ids=[1],
             topo_link={
-                "module|16": [TopoNode("module", 16), TopoNode("set", 13)],
-                "module|28": [TopoNode("module", 28), TopoNode("set", 26)],
+                "module|16": [
+                    {"bk_obj_id": "module", "bk_inst_id": 16},
+                    {"bk_obj_id": "set", "bk_inst_id": 13},
+                ],
+                "module|28": [
+                    {"bk_obj_id": "module", "bk_inst_id": 28},
+                    {"bk_obj_id": "set", "bk_inst_id": 26},
+                ],
             },
         )
         strategy = copy.deepcopy(STRATEGY)

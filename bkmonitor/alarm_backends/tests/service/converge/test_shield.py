@@ -17,7 +17,7 @@ import pytest
 from django.core.cache import caches
 
 from alarm_backends.core.alert import Alert, Event
-from alarm_backends.core.cache.cmdb import HostIDManager, HostIPManager, HostManager
+from alarm_backends.core.cache.cmdb import HostIPManager, HostManager
 from alarm_backends.core.cache.cmdb.host import HostAgentIDManager
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.alert.enricher import KubernetesCMDBEnricher
@@ -113,13 +113,11 @@ def init_host_cache():
     def _clear():
         caches["locmem"].clear()
         local.host_cache = {}
-        HostIDManager.clear()
         HostManager.clear()
         HostIPManager.clear()
         HostAgentIDManager.clear()
 
     def _refresh():
-        HostIDManager.refresh()
         HostManager.refresh()
         HostIPManager.refresh()
         HostAgentIDManager.refresh()

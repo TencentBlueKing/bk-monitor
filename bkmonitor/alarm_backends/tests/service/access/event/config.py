@@ -18,7 +18,7 @@ now = arrow.now()
 utc_now = now.to("utc")
 now_str = str(now.to("local").naive)
 utc_now_str = str(now.to("utc").naive)
-utc_timestamp = now.timestamp
+utc_timestamp = now.int_timestamp
 
 AGENT_LOSE_DATA = {
     "utctime2": utc_now_str,
@@ -990,10 +990,10 @@ HOST_OBJECT = Host(
     operator="test",
     topo_link={
         "module|9": [
-            TopoNode("module", 9),
-            TopoNode("set", 5),
-            TopoNode("test", 2),
-            TopoNode("biz", 2),
+            {"bk_obj_id": "module", "bk_inst_id": 9},
+            {"bk_obj_id": "set", "bk_inst_id": 5},
+            {"bk_obj_id": "test", "bk_inst_id": 2},
+            {"bk_obj_id": "biz", "bk_inst_id": 2},
         ]
     },
 )

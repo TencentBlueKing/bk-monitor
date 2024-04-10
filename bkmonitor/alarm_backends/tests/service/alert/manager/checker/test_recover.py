@@ -37,7 +37,7 @@ pytestmark = pytest.mark.django_db
 
 
 def _set_recovery_with_event_id(event_id, timedelta=1000):
-    check_time = arrow.now().replace(seconds=-timedelta).timestamp
+    check_time = arrow.now().shift(seconds=-timedelta).int_timestamp
     LAST_CHECKPOINTS_CACHE_KEY.client.hset(
         LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
         LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -59,7 +59,6 @@ def _set_recovery_with_event_id(event_id, timedelta=1000):
 
 
 class TestRecoverStatusChecker(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def clear_data(self):
@@ -111,7 +110,7 @@ class TestRecoverStatusChecker(TestCase):
         self.assertEqual(alert.status, EventStatus.RECOVERED)
 
     def test_has_trigger(self):
-        check_time = arrow.now().replace(seconds=-500).timestamp
+        check_time = arrow.now().shift(seconds=-500).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -139,7 +138,7 @@ class TestRecoverStatusChecker(TestCase):
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
     def test_is_recovering(self):
-        check_time = arrow.now().replace(seconds=-500).timestamp
+        check_time = arrow.now().shift(seconds=-500).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -169,7 +168,7 @@ class TestRecoverStatusChecker(TestCase):
         self.assertEqual(alert.logs[-1]["op_type"], AlertLog.OpType.RECOVERING)
 
     def test_has_trigger2(self):
-        check_time = arrow.now().replace(seconds=-500).timestamp
+        check_time = arrow.now().shift(seconds=-500).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -197,7 +196,7 @@ class TestRecoverStatusChecker(TestCase):
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
     def test_has_trigger3(self):
-        check_time = arrow.now().replace(seconds=-500).timestamp
+        check_time = arrow.now().shift(seconds=-500).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -229,7 +228,7 @@ class TestRecoverStatusChecker(TestCase):
         self.assertEqual(alert.logs[-1]["op_type"], AlertLog.OpType.ABORT_RECOVER)
 
     def test_has_no_trigger(self):
-        check_time = arrow.now().replace(seconds=-500).timestamp
+        check_time = arrow.now().shift(seconds=-500).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -278,7 +277,7 @@ class TestRecoverStatusChecker(TestCase):
                 "data_source_label": "bk_monitor",
             },
         )
-        check_time = arrow.now().replace(seconds=-500).timestamp
+        check_time = arrow.now().shift(seconds=-500).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -317,7 +316,7 @@ class TestRecoverStatusChecker(TestCase):
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
     def test_has_no_trigger2(self):
-        check_time = arrow.now().replace(seconds=-500).timestamp
+        check_time = arrow.now().shift(seconds=-500).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -357,7 +356,7 @@ class TestRecoverStatusChecker(TestCase):
         self.assertEqual(alert.get_extra_info("end_description"), "在恢复检测周期内无数据上报，告警已恢复")
 
     def test_check_no_data_false(self):
-        check_time = arrow.now().replace(seconds=-200).timestamp
+        check_time = arrow.now().shift(seconds=-200).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -386,7 +385,7 @@ class TestRecoverStatusChecker(TestCase):
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
     def test_data_report_no_delay(self):
-        check_time = arrow.now().replace(seconds=-200).timestamp
+        check_time = arrow.now().shift(seconds=-200).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -446,7 +445,7 @@ class TestRecoverStatusChecker(TestCase):
         strategy = copy.deepcopy(STRATEGY)
         strategy["items"][0]["query_configs"][0]["data_type_label"] = "event"
 
-        check_time = arrow.now().replace(seconds=-900).timestamp
+        check_time = arrow.now().shift(seconds=-900).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -476,7 +475,7 @@ class TestRecoverStatusChecker(TestCase):
         strategy = copy.deepcopy(STRATEGY)
         strategy["items"][0]["query_configs"][0]["data_type_label"] = "event"
 
-        check_time = arrow.now().replace(seconds=-200).timestamp
+        check_time = arrow.now().shift(seconds=-200).int_timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -514,7 +513,7 @@ class TestRecoverStatusChecker(TestCase):
             "trigger_config": {"count": 1, "check_window": 1},
         }
         # 一个周期之前写入的数据
-        check_time = arrow.now().replace(seconds=-300 - 60).timestamp
+        check_time = arrow.now().shift(seconds=-300 - 60).int_timestamp
         cache_key = CHECK_RESULT_CACHE_KEY.get_key(
             strategy_id=1,
             item_id=1,
@@ -544,7 +543,7 @@ class TestRecoverStatusChecker(TestCase):
             "trigger_config": {"count": 1, "check_window": 1},
         }
         # 一个周期之前写入的数据
-        check_time = arrow.now().replace(seconds=-600 - 60).timestamp
+        check_time = arrow.now().shift(seconds=-600 - 60).int_timestamp
         cache_key = CHECK_RESULT_CACHE_KEY.get_key(
             strategy_id=1,
             item_id=1,
@@ -574,7 +573,7 @@ class TestRecoverStatusChecker(TestCase):
             "trigger_config": {"count": 1, "check_window": 1},
         }
         # 恢复期窗口 + 触发器窗口 6个周期之前写入的数据， 此时满足恢复条件
-        check_time = arrow.now().replace(seconds=-300 * 6).timestamp
+        check_time = arrow.now().shift(seconds=-300 * 6).int_timestamp
         cache_key = CHECK_RESULT_CACHE_KEY.get_key(
             strategy_id=1,
             item_id=1,
