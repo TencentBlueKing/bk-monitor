@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import json
 import logging
+import time
 import traceback
 import uuid
 from typing import Dict, List, Optional, Union
@@ -306,6 +307,36 @@ class DataSource(models.Model):
         pass
 
     @classmethod
+    def apply_for_data_id_from_bkdata(cls, data_name: str) -> int:
+        """从计算平台申请data_id"""
+        # 下发配置
+        from metadata.models.data_link.constants import DataLinkResourceStatus
+        from metadata.models.data_link.utils import apply_data_id, get_data_id
+
+        try:
+            apply_data_id(data_name)
+        except BKAPIError as e:
+            logger.error("apply data id from bkdata error: %s", e)
+            raise
+        # NOTE: 因为是同步接口，阻塞请求，间隔请求为3s，最大重试7 次，如果超过7次仍然失败，则抛出异常
+        for i in range(7):
+            try:
+                data = get_data_id(data_name)
+            except BKAPIError as e:
+                logger.error("get data id from bkdata error: %s", e)
+                continue
+            # 如果正常直接返回data_id
+            if data["status"] == DataLinkResourceStatus.OK.value:
+                return data["data_id"]
+            # 如果失败，则抛出异常
+            if data["status"] == DataLinkResourceStatus.FAILED.value:
+                raise BKAPIError(f"apply data id from bkdata failed, status is {data['status']}")
+            # 等待 3s 后重试
+            time.sleep(3)
+
+        raise BKAPIError("apply data id from bkdata timeout")
+
+    @classmethod
     def apply_for_data_id_from_gse(cls, operator):
         # 从GSE接口分配dataid
         try:
@@ -440,7 +471,10 @@ class DataSource(models.Model):
 
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
-            bk_data_id = cls.apply_for_data_id_from_gse(operator)
+            if settings.ENABLE_V2_VM_DATA_LINK:
+                bk_data_id = cls.apply_for_data_id_from_bkdata(data_name)
+            else:
+                bk_data_id = cls.apply_for_data_id_from_gse(operator)
 
         # TODO: 通过空间及类型获取默认管道
         space_type_id = space_type_id if space_type_id else SpaceTypes.ALL.value

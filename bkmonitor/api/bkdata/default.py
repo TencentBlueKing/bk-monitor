@@ -1038,3 +1038,25 @@ class GetResourceSet(DataAccessAPIResource):
 
     action = "/v3/resourcecenter/resource_sets/{resource_set_id}/"
     method = "GET"
+
+
+class ApplyDataLink(DataAccessAPIResource):
+    """申请数据链路"""
+
+    action = "/v4/dab/apply/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        config = serializers.ListField(default=list, label="资源描述")
+
+
+class GetDataLink(DataAccessAPIResource):
+    """获取数据链路"""
+
+    action = "/v4/dab/namespaces/{namespace}/{kind}/{name}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        kind = serializers.CharField(label="资源类型")
+        namespace = serializers.CharField(label="命名空间")
+        name = serializers.CharField(label="资源名称")
