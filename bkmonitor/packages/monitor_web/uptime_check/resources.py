@@ -599,7 +599,7 @@ class GenerateSubConfigResource(Resource):
             return f"'{temp}'"
         return input_string
 
-    def encode_data_with_prefix(self, input_string: str, prefix: str = "base64:") -> str:
+    def encode_data_with_prefix(self, input_string: str, prefix: str = "base64://") -> str:
         """
         对数据进行Base64编码，并添加指定前缀。
         :param input_string: 要编码的原始数据。
@@ -695,8 +695,11 @@ class GenerateSubConfigResource(Resource):
             ]
 
         elif protocol == UptimeCheckTask.Protocol.HTTP:
-            header_dict = {item["key"]: self.encode_data_with_prefix(item["value"])
-                           for item in config.get("headers", []) if item.get("is_enabled")}
+            header_dict = {
+                item["key"]: self.encode_data_with_prefix(item["value"])
+                for item in config.get("headers", [])
+                if item.get("is_enabled")
+            }
 
             get_http_config = GetHTTPConfig(header_dict)
             body = get_http_config.get_body(
