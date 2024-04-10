@@ -42,8 +42,8 @@ type_match_phrase = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 type_match_phrase_query = Dict[str, Dict[str, Dict[str, Any]]]  # pylint: disable=invalid-name
 type_should_list = List[type_match_phrase]  # pylint: disable=invalid-name
 type_should = Dict[str, type_should_list]  # pylint: disable=invalid-name
-type_must_list = List[type_match_phrase]  # pylint: disable=invalid-name
-type_must = Dict[str, type_must_list]  # pylint: disable=invalid-name
+type_filter_list = List[type_match_phrase]  # pylint: disable=invalid-name
+type_filter = Dict[str, type_filter_list]  # pylint: disable=invalid-name
 type_bool = Dict[str, type_should]  # pylint: disable=invalid-name
 type_query_string = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 
@@ -171,24 +171,26 @@ class EsQueryBuilder(object):
         return should_list
 
     @classmethod
-    def build_must(cls, filter_list: type_must_list) -> type_must:
-        return {"must": filter_list}
+    def build_filter(cls, filter_list: type_filter_list) -> type_filter:
+        return {"filter": filter_list}
 
     @classmethod
-    def build_must_list(cls, field: str, value_list: List[Any]) -> type_must_list:
-        must_list: type_must_list = []
+    def build_filter_list(cls, field: str, value_list: List[Any]) -> type_filter_list:
+        filter_list: type_filter_list = []
         for item in value_list:
             match_phrase: type_match_phrase = cls.build_match_phrase(field, item)
-            must_list.append(match_phrase)
-        return must_list
+            filter_list.append(match_phrase)
+        return filter_list
 
     @classmethod
-    def build_must_list_wildcard(cls, field: str, value_list: List[Any], is_contains: bool = False) -> type_must_list:
-        must_list: type_must_list = []
+    def build_filter_list_wildcard(
+        cls, field: str, value_list: List[Any], is_contains: bool = False
+    ) -> type_filter_list:
+        filter_list: type_filter_list = []
         for item in value_list:
             wildcard: type_wildcard = cls.build_wildcard(field=field, value=item, is_contains=is_contains)
-            must_list.append(wildcard)
-        return must_list
+            filter_list.append(wildcard)
+        return filter_list
 
     @classmethod
     def build_match_phrase(cls, field: str, value: Any) -> type_match_phrase:
@@ -432,9 +434,9 @@ class AllContainsMatchPhrase(BoolQueryOperation):
     OPERATOR = "all contains match phrase"
 
     def op(self, field):
-        must_list: type_must_list = EsQueryBuilder.build_must_list(field["field"], field["value"])
-        must: type_must = EsQueryBuilder.build_must(must_list)
-        a_bool: type_bool = EsQueryBuilder.build_bool(must)
+        filter_list: type_filter_list = EsQueryBuilder.build_filter_list(field["field"], field["value"])
+        filters: type_filter = EsQueryBuilder.build_filter(filter_list)
+        a_bool: type_bool = EsQueryBuilder.build_bool(filters)
         self._set_target_value(a_bool)
 
 
@@ -448,11 +450,11 @@ class AllEqWildcard(BoolQueryOperation):
     OPERATOR = "&=~"
 
     def op(self, field):
-        must_list: type_should_list = EsQueryBuilder.build_must_list_wildcard(
+        filter_list: type_should_list = EsQueryBuilder.build_filter_list_wildcard(
             field=field["field"], value_list=field["value"]
         )
-        must: type_must = EsQueryBuilder.build_must(must_list)
-        a_bool: type_bool = EsQueryBuilder.build_bool(must)
+        filters: type_filter = EsQueryBuilder.build_filter(filter_list)
+        a_bool: type_bool = EsQueryBuilder.build_bool(filters)
         self._set_target_value(a_bool)
 
 

@@ -1407,6 +1407,8 @@ OPERATORS = {
     "text": [
         OperatorEnum.CONTAINS_MATCH_PHRASE,
         OperatorEnum.NOT_CONTAINS_MATCH_PHRASE,
+        OperatorEnum.ALL_CONTAINS_MATCH_PHRASE,
+        OperatorEnum.ALL_NOT_CONTAINS_MATCH_PHRASE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
