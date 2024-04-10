@@ -828,6 +828,14 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "filter_params": [{"key": "status.code", "op": "=", "value": ["2"]}],
             "start_time": data["start_time"],
             "end_time": data["end_time"],
+            "fields": [
+                "resource.service.name",
+                "span_name",
+                "trace_id",
+                "events.attributes.exception.type",
+                "events.name",
+                "time",
+            ],
         }
 
         # 分类可以通过两种方式进行查询
@@ -903,9 +911,9 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         for error in errors:
             error_count += 1
             times.add(error["time"])
-            exception_types |= {i.get("attributes", {}).get("exception.type") for i in error["events"]}
+            exception_types |= {i.get("attributes", {}).get("exception.type") for i in error.get("events", [])}
             if not has_exception:
-                has_exception = self.has_events(error["events"])
+                has_exception = self.has_events(error.get("events", []))
         first_time, last_time = self.compare_time(list(times))
         exception_type = self.compare_exception_type(list(exception_types))
         exception_type = exception_type if exception_type else self.UNKNOWN_EXCEPTION_TYPE
@@ -951,7 +959,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
         error_map = {}
 
-        has_event_trace_id = [i["trace_id"] for i in error_spans if i["events"]]
+        has_event_trace_id = [i["trace_id"] for i in error_spans if i.get("events")]
 
         for span in error_spans:
             service = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME)
@@ -960,9 +968,9 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
             endpoint = span[OtlpKey.SPAN_NAME]
 
-            if span["events"]:
+            if span.get("events"):
                 for event in span["events"]:
-                    exception_type = event[OtlpKey.ATTRIBUTES].get(
+                    exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(
                         SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN_EXCEPTION_TYPE
                     )
                     key = (service, endpoint, exception_type)
