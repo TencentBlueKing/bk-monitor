@@ -108,7 +108,7 @@ class ExporterPluginManager(PluginManager):
                 if param["type"] == "switch":
                     if param_value == "true":
                         cmd_args += "{opt_name} ".format(opt_name=param_name)
-                else:
+                elif param_value:
                     cmd_args += "{opt_name} {opt_value} ".format(opt_name=param_name, opt_value=param_value)
 
             elif param_mode == ParamMode.POS_CMD:
@@ -189,7 +189,7 @@ class ExporterPluginManager(PluginManager):
                 if param["type"] == "switch":
                     if param_value == "true":
                         cmd_args += "{opt_name} ".format(opt_name=param_name)
-                else:
+                elif param_value:
                     cmd_args += "{opt_name} {opt_value} ".format(opt_name=param_name, opt_value=param_value)
 
             elif param_mode == ParamMode.POS_CMD:
