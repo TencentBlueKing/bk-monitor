@@ -10,8 +10,6 @@ from constants.strategy import AGG_METHOD_REAL_TIME
 from constants.data_source import DataSourceLabel
 
 
-logger = logging.getLogger("bkmonitor")
-
 OPERATOR_DESC = {
         "gt": ">",
         "gte": ">=",
@@ -94,7 +92,7 @@ def migrate_real_time_strategy(apps, schema_editor):
     迁移存量实时监控策略
     """
 
-    logger.info("开始迁移存量实时监控策略")
+    print("开始迁移存量实时监控策略")
     QueryConfigModel = apps.get_model('bkmonitor', 'QueryConfigModel')
     ItemModel = apps.get_model('bkmonitor', 'ItemModel')
     AlgorithmModel = apps.get_model('bkmonitor', 'AlgorithmModel')
@@ -107,21 +105,22 @@ def migrate_real_time_strategy(apps, schema_editor):
     else:
         algorithm_query = AlgorithmModel.objects.filter(strategy_id__in=strategy_ids)
         item_query = ItemModel.objects.filter(strategy_id__in=strategy_ids)
-    try:
-        algorithms_mapping: Dict[int, List[AlgorithmModel]] = defaultdict(list)
-        for algorithm in algorithm_query:
-            algorithms_mapping[algorithm.strategy_id].append(algorithm)
 
-        items_mapping: Dict[int, List[ItemModel]] = defaultdict(list)
-        for item in item_query:
-            items_mapping[item.strategy_id].append(item)
+    algorithms_mapping: Dict[int, List[AlgorithmModel]] = defaultdict(list)
+    for algorithm in algorithm_query:
+        algorithms_mapping[algorithm.strategy_id].append(algorithm)
 
-        migrated_query_configs = []
-        migrated_items = []
-        for qc in query_configs:
+    items_mapping: Dict[int, List[ItemModel]] = defaultdict(list)
+    for item in item_query:
+        items_mapping[item.strategy_id].append(item)
+
+    migrated_query_configs = []
+    migrated_items = []
+    for qc in query_configs:
+        try:
             data_label = qc.config.get("data_label")
             metric_field = qc.config.get("metric_field")
-            result_table_id = qc.config.get("result_table_id")
+            result_table_id = qc.config.get("result_table_id").split(".")[0]
             metric_id = qc.metric_id.replace(".", ":")
             data_source_label = qc.data_source_label
             # 自定义指标结果表ID带data_id时，将metric_id替换为data_label:metric_field
@@ -129,16 +128,16 @@ def migrate_real_time_strategy(apps, schema_editor):
                 metric_id = f"{data_label}:{metric_field}"
 
             promql = metric_id
-            # 将静态阈值算法拼接到promql中
-            algorithms = algorithms_mapping[qc.strategy_id]
-            if len(algorithms) == 1 and algorithms[0].type == "Threshold" and algorithms[0].config:
-                config = algorithms[0].config
-                promql = config_to_expression(metric_id, config)
-
             # 处理agg_condition转换为对应的PromQL查询字符串
             agg_condition: list = qc.config.get("agg_condition", [])
             if agg_condition:
                 promql = conditions_to_promql(promql, agg_condition)
+
+            # 将静态阈值算法拼接到promql中
+            algorithms = algorithms_mapping[qc.strategy_id]
+            if len(algorithms) == 1 and algorithms[0].type == "Threshold" and algorithms[0].config:
+                config = algorithms[0].config
+                promql = config_to_expression(promql, config)
 
             # 更新QueryConfigModel
             qc.data_source_label = "prometheus"
@@ -156,14 +155,17 @@ def migrate_real_time_strategy(apps, schema_editor):
                 for item in items:
                     item.origin_sql = promql
                     migrated_items.append(item)
-        logger.info("准备执行批量更新操作")
-        QueryConfigModel.objects.bulk_update(migrated_query_configs, ['data_source_label', 'metric_id', 'config'])
-        ItemModel.objects.bulk_update(migrated_items, ['origin_sql'])
-        logger.info(
-            f"批量更新完成，共更新QueryConfigModel记录{len(migrated_query_configs)}条，ItemModel记录{len(migrated_items)}条."
-        )
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error(f"迁移存量实时监控策略过程中发生错误：{e}")
+            print(f"[done] process strategy {qc.strategy_id}")
+        except Exception as exec:  # pylint: disable=broad-except
+            print(f"[X] process strategy {qc.strategy_id} error: {exec}")
+            continue
+
+    print("准备执行批量更新操作")
+    QueryConfigModel.objects.bulk_update(migrated_query_configs, ['data_source_label', 'metric_id', 'config'])
+    ItemModel.objects.bulk_update(migrated_items, ['origin_sql'])
+    print(
+        f"批量更新完成，共更新QueryConfigModel记录{len(migrated_query_configs)}条，ItemModel记录{len(migrated_items)}条."
+    )
 
 
 class Migration(migrations.Migration):
