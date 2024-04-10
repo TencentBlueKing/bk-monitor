@@ -25,9 +25,9 @@
  * IN THE SOFTWARE.
  */
 
-import { registerMap } from 'echarts/core';
+import { echarts } from '../types/monitor-echarts';
 
-registerMap('china', {
+echarts.registerMap?.('china', {
   type: 'FeatureCollection',
   features: [
     {
