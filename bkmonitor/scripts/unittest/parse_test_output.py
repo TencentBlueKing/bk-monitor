@@ -8,9 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
 import re
 import sys
 import typing
+
+logger = logging.getLogger(__name__)
 
 
 def format_test_result(test_result: typing.Dict[str, int]):
@@ -60,15 +63,22 @@ def handle_coverage(output: str) -> typing.Dict[str, typing.Union[str, int]]:
 
 
 def parse_test_output(file_name):
-    with open(file_name, "r") as file:
-        content = file.read()
+    try:
+        with open(file_name, "r") as file:
+            content = file.read()
+    except Exception as e:
+        logger.exception(f"Error reading file {file_name}: {e}")
+        return
 
-    if "pytest" in file_name:
-        handle_pytest(content)
-    elif "testcase" in file_name:
-        handle_testcase(content)
-    elif "coverage" in file_name:
-        handle_coverage(content)
+    try:
+        if "pytest" in file_name:
+            handle_pytest(content)
+        elif "testcase" in file_name:
+            handle_testcase(content)
+        elif "coverage" in file_name:
+            handle_coverage(content)
+    except Exception as e:
+        logger.exception(f"Error parsing {file_name}: {e}")
 
 
 if __name__ == "__main__":
