@@ -26,7 +26,6 @@
     "bk-magic-vue": "2.5.8",
     "dayjs": "^1.11.10",
     "deepmerge": "^4.3.1",
-    "element-ui": "2.7.2",
     "fta-solutions": "workspace:*",
     "html-to-image": "^1.11.11",
     "minimist": "^1.2.8",
