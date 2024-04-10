@@ -34,7 +34,7 @@ component_where_mapping = {
     "messaging": {"key": "messaging_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
 }
 
-PROFILING_DATA_COUNT = "profiling_data_count"
+COLUMN_KEY_PROFILING_DATA_COUNT = "profiling_data_count"
 
 
 class TraceKind:
