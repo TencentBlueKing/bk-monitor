@@ -224,6 +224,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
     e.stopPropagation();
     this.localValue = [];
     this.handleGetMetricTag();
+    this.handleChange();
     this.$nextTick(() => {
       this.getOverflowHideCount();
     });

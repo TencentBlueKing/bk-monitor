@@ -2743,7 +2743,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
                 strategyTarget={this.strategyTarget}
                 multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
-                multipleViewRefleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
               />
             </div>
           </div>

@@ -335,6 +335,10 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   editMode: EditModeType = 'Edit';
   /* 是否为场景智能检测 */
   isMultivariateAnomalyDetection = false;
+  multivariateAnomalyDetectionParams = {
+    metrics: [],
+    refleshKey: ''
+  };
 
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
@@ -921,6 +925,11 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.localAiopsChartType = type;
   }
 
+  handleSceneConfigMetricChange(metrics) {
+    this.multivariateAnomalyDetectionParams.metrics = metrics;
+    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+  }
+
   render() {
     const panelItem = (title: string, content: any, style = {}, titleRight?: any) => (
       <div
@@ -1050,6 +1059,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     metricData={this.metricData}
                     readonly={true}
                     defaultCheckedTarget={this.targetDetail || { target_detail: [] }}
+                    onMetricChange={this.handleSceneConfigMetricChange}
                   ></AiopsMonitorData>
                 ) : (
                   <div class='query-configs-main'>
@@ -1513,6 +1523,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                 aiopsChartType={this.localAiopsChartType}
                 aiopsModelMdList={this.aiopsModelDescMdGetter}
                 strategyTarget={this.detailData?.items?.[0]?.target || []}
+                isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
+                multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
               />
             </div>
           </div>

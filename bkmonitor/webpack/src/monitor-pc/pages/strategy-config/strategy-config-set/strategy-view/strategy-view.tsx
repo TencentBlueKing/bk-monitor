@@ -94,7 +94,6 @@ interface IStrateViewProps {
   /** 策略目标 */
   strategyTarget?: any[];
   multivariateAnomalyDetectionParams?: IMultivariateAnomalyDetectionParams;
-  multipleViewRefleshKey?: string;
 }
 @Component({
   name: 'strategy-view',
@@ -166,8 +165,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   @Prop({ default: false, type: Boolean }) isMultivariateAnomalyDetection: boolean;
   /* 场景智能检测多指标视图参数 */
   @Prop({ default: null, type: Object }) multivariateAnomalyDetectionParams: IMultivariateAnomalyDetectionParams;
-  /* 多指标视图参数刷新动作 */
-  @Prop({ default: '', type: String }) multipleViewRefleshKey: string;
 
   @Ref('tool') toolRef!: StrategyViewTool;
 
@@ -1100,7 +1097,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   <MultipleMetricView
                     metrics={this.multivariateAnomalyDetectionParams.metrics}
                     strategyTarget={this.strategyTarget}
-                    refleshKey={this.multipleViewRefleshKey}
+                    refleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
                   ></MultipleMetricView>
                 ];
               }
