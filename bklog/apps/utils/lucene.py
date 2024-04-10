@@ -380,7 +380,7 @@ class IllegalRangeSyntaxInspector(BaseInspector):
     syntax_error_message = _("非法RANGE语法")
 
     # RANGE语法正则
-    range_re = r":[\s]?[\[]?.*?TO.*"
+    range_re = r":[\s]?[\[]?.*?(?i)TO.*"
 
     def inspect(self):
         try:
