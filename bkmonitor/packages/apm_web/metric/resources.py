@@ -25,6 +25,7 @@ from apm_web.constants import (
     APDEX_VIEW_ITEM_LEN,
     COLLECT_SERVICE_CONFIG_KEY,
     DEFAULT_EMPTY_NUMBER,
+    PROFILING_DATA_COUNT,
     AlertLevel,
     AlertStatus,
     Apdex,
@@ -528,7 +529,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         获取指标数据及服务数据
         只查单个指标
         """
-        if column in ["profiling_data_count"]:
+        if column == PROFILING_DATA_COUNT:
             services = ServiceHandler.list_services(app)
             return {}, {}, services
 
@@ -581,7 +582,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         column = validated_data["column"]
         service_metric_info, component_metric_info, services = self.get_metric_service_data(validated_data, app, column)
 
-        if app.is_enabled_profiling and column in ["profiling_data_count"]:
+        if app.is_enabled_profiling and column == PROFILING_DATA_COUNT:
             profiling_metric_info = QueryTemplate(
                 validated_data["bk_biz_id"], validated_data["app_name"]
             ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
