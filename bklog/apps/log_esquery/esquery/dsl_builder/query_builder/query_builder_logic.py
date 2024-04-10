@@ -247,6 +247,10 @@ class BoolQueryOperation(ABC):
             NotContains.OPERATOR: NotContains,
             ContainsMatchPhrase.OPERATOR: ContainsMatchPhrase,
             NotContainsMatchPhrase.OPERATOR: NotContainsMatchPhrase,
+            AllContainsMatchPhrase.OPERATOR: AllContainsMatchPhrase,
+            AllNotContainsMatchPhrase.OPERATOR: AllNotContainsMatchPhrase,
+            AllEqWildcard.OPERATOR: AllEqWildcard,
+            AllNeWildcard: AllNeWildcard,
         }
         op_target = op_map.get(op, BoolQueryOperation)
         return op_target(bool_dict)
