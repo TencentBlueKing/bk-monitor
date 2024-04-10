@@ -314,7 +314,13 @@
         />
       </div>
     </div>
-    <plugin-dialog-single :dialog="dialog" />
+    <plugin-dialog-single 
+      :dialog="dialog" 
+      @handlePluginAdd="(data) => handlePluginAdd(null, data)" 
+      @handlePluginEdit="handlePluginEdit"
+      @handleSetUpdatePlugin="handleSetUpdatePlugin"
+      @handleHideDialog="handleHideDialog"
+    />
     <plugin-dialog-multiple
       :files="fileArr"
       :show.sync="fileArrShow"

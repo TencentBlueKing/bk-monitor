@@ -50,7 +50,7 @@ import TableFilter from '../../../components/table-filter/table-filter.vue';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import commonPageSizeMixin from '../../../mixins/commonPageSizeMixin';
 import { downFile } from '../../../utils';
-import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
+import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
@@ -2469,9 +2469,10 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         onHideDialog={this.handleDialogChange}
       ></StrategyConfigDialog>,
       <AlarmShieldStrategy
-        is-show-strategy={this.isShowStrategy}
+        isShowStrategy={this.isShowStrategy}
         {...{ on: { 'update:isShowStrategy': val => (this.isShowStrategy = val) } }}
-        strategy-id={this.strategyId}
+        onSuccess={this.handleGetListData}
+        strategyId={this.strategyId}
       ></AlarmShieldStrategy>,
       <TableFilter
         filter-type={this.filterType}

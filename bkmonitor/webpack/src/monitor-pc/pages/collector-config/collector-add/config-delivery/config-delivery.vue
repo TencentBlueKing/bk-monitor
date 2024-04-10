@@ -258,7 +258,6 @@ export default {
         subTitle: this.$t('将回滚本次的所有配置变更和目标机器的内容。回滚只能回滚上一次的状态，并且只能进行一次。'),
         okText: this.$t('确认回滚'),
         confirmFn: () => {
-          // this.$parent.pageLoading = true
           this.loading = true;
           this.showRollBack = false;
           this.hasRunning = true;
