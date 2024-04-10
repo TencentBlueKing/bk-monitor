@@ -66,7 +66,7 @@ def parse_test_output(file_name):
     try:
         with open(file_name, "r") as file:
             content = file.read()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.exception(f"Error reading file {file_name}: {e}")
         return
 
@@ -77,7 +77,7 @@ def parse_test_output(file_name):
             handle_testcase(content)
         elif "coverage" in file_name:
             handle_coverage(content)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.exception(f"Error parsing {file_name}: {e}")
 
 
