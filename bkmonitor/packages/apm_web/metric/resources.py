@@ -1966,12 +1966,24 @@ class ServiceQueryExceptionResource(PageListResource):
                 id="operate",
                 name=_lazy("调用链"),
                 url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
-                + '&search_type=scope&filter_dict={{"service":["{service_name}"],"instance":["{bk_instance_id}"]}}'
-                + '&query_string=status.code:+2+AND+span_name:+"{span_name}"+',
+                + '&search_type=scope'
+                + '&listType=trace'
+                + '&start_tiem={start_time}&end_tiem={end_time}'
+                + '&query=status.code:+2+'
+                + '&conditionList={{"resource.service.name": '
+                + '{{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{service_name}"]}},'
+                + '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{span_name}"]}},'
+                + '"resource.bk.instance.id": {{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{bk_instance_id}"]}}}}',
                 target="blank",
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             ),
         ]
+
+    def add_extra_params(self, params):
+        return {"start_time": int(params["start_time"]) * 1000, "end_time": int(params["end_time"]) * 1000}
 
     def build_filter_params(self, filter_dict):
         result = [{"key": "status.code", "op": "=", "value": ["2"]}]
