@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { random } from 'monitor-common/utils';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
+import { DEFAULT_INTERVAL } from 'monitor-ui/chart-plugins/constants';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
 
 import { MetricDetail } from '../../strategy-config-set-new/typings';
 
@@ -39,6 +41,7 @@ interface IProps {
   metrics?: MetricDetail[];
   strategyTarget?: any[];
   nearNum?: number;
+  refleshKey?: string;
 }
 
 @Component
@@ -47,10 +50,17 @@ export default class MultipleMetricView extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) strategyTarget: any[];
   /* 近多条数据 */
   @Prop({ default: 20, type: Number }) nearNum: number;
+  @Prop({ default: '', type: String }) refleshKey: string;
 
   panels = [];
+  dashboardId = random(10);
 
   created() {
+    this.initPanel();
+  }
+
+  @Watch('refleshKey')
+  handleWatchRefleshKey() {
     this.initPanel();
   }
 
@@ -64,6 +74,7 @@ export default class MultipleMetricView extends tsc<IProps> {
         result_table_id: resultTableId,
         agg_dimension,
         agg_condition,
+        default_dimensions,
         data_type_label: dataTypeLabel,
         metric_field: metricField,
         agg_method: aggMethod,
@@ -96,10 +107,10 @@ export default class MultipleMetricView extends tsc<IProps> {
           display: dataTypeLabel === 'alert'
         }
       ];
-      const params = {
+      const queryConfigs = {
         expression: LETTERS[mIndex] || 'a',
         functions: [],
-        target: [],
+        target: this.strategyTarget || [],
         query_configs: [
           {
             data_source_label: dataSourceLabel,
@@ -107,9 +118,9 @@ export default class MultipleMetricView extends tsc<IProps> {
             data_label,
             metrics: localMetrics,
             table: tableValue(),
-            group_by: agg_dimension,
+            group_by: agg_dimension || default_dimensions || [],
             where: agg_condition?.filter(item => item.key && item.value?.length) || [],
-            interval: agg_interval,
+            interval: agg_interval || DEFAULT_INTERVAL,
             time_field: timeField || 'time',
             filter_dict: {},
             functions,
@@ -117,27 +128,24 @@ export default class MultipleMetricView extends tsc<IProps> {
           }
         ]
       };
-      const dashboardId = random(10);
       return {
-        id: dashboardId,
-        dashboardId,
-        type: 'time-series-forecast',
+        id: this.dashboardId,
+        dashboardId: this.dashboardId,
+        type: 'graph',
         title: metricFieldName,
         subTitle: '',
         options: {
           time_series: {
             type: 'line',
-            only_one_result: true,
+            only_one_result: false,
             custom_timerange: true,
+            noTransformVariables: false,
             nearSeriesNum: this.nearNum
-          },
-          time_series_forecast: {
-            need_hover_style: false
           }
         },
         targets: [
           {
-            data: params,
+            data: queryConfigs,
             alias: '',
             datasource: 'time_series',
             data_type: 'time_series',
@@ -147,15 +155,24 @@ export default class MultipleMetricView extends tsc<IProps> {
       };
     });
     this.panels = datas.map(data => new PanelModel(data as any));
+    echartsConnect(this.dashboardId);
+  }
+
+  destroyed() {
+    echartsDisconnect(this.dashboardId);
   }
 
   render() {
     return (
       <div class='multiple-metric-view-component'>
-        {this.panels.map(panel => (
-          <div key={panel.id}>
+        {this.panels.map((panel, index) => (
+          <div
+            key={index}
+            class='panel-item'
+          >
             <ChartWrapper
               panel={panel}
+              needCheck={false}
               needHoverStryle={false}
             ></ChartWrapper>
           </div>

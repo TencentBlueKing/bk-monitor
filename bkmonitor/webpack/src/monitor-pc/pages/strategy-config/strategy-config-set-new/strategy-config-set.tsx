@@ -51,7 +51,7 @@ import {
 import debouceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 // import StrategyMetricSelector from './components/strategy-metric-selector';
-import { deepClone, getUrlParam, transformDataKey, typeTools } from 'monitor-common/utils/utils';
+import { deepClone, getUrlParam, random, transformDataKey, typeTools } from 'monitor-common/utils/utils';
 
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
@@ -376,7 +376,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   isMultivariateAnomalyDetection = false;
   /* 场景智能检测视图参数 */
   multivariateAnomalyDetectionParams = {
-    metrics: []
+    metrics: [],
+    refleshKey: ''
   };
 
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
@@ -1541,6 +1542,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   handleTargetChange(target) {
     this.target = target;
     this.defaultCheckedTarget.target_detail = target;
+    if (this.isMultivariateAnomalyDetection) {
+      this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+    }
   }
 
   handleMouseDown(e) {
@@ -2422,6 +2426,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    */
   handleSceneConfigMetricChange(metrics) {
     this.multivariateAnomalyDetectionParams.metrics = metrics;
+    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
   }
 
   metricDataContent() {
@@ -2738,6 +2743,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
                 strategyTarget={this.strategyTarget}
                 multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
+                multipleViewRefleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
               />
             </div>
           </div>
