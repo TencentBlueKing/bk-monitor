@@ -317,12 +317,12 @@ export default class Condition extends tsc<{}> {
     if (val !== '' && this.isHaveCompared) this.localValue = [val];
     this.emitInputChange(this.catchTagInputStr);
     this.catchTagInputStr = '';
-    // if (this.localValue.length) {
-    //   this.handleAdditionChange({ value: this.localValue });
-    // }
   }
 
+  /** 清空所有值 */
   handleValueRemoveAll() {
+    // 点击查询按钮后需把失焦回填对象清空 否则没聚焦到输入框直接点清空的时候又会携带失焦对象里的值
+    this.emitInputChange('');
     this.localValue = [];
     this.handleAdditionChange({ value: [] });
   }
