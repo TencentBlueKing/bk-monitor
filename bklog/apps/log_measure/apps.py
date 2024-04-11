@@ -46,8 +46,13 @@ class MeasureConfig(AppConfig):
                     data_name=DJANGO_MONITOR_DATA_NAME, is_enable=True
                 )
             except MonitorReportConfig.DoesNotExist:
-                logger.info(f"f{DJANGO_MONITOR_DATA_NAME} data_name init failed")
+                logger.info(f"{DJANGO_MONITOR_DATA_NAME} data_name init failed")
                 return
+
+            if not settings.BKMONITOR_CUSTOM_PROXY_IP:
+                logger.info("BKMONITOR_CUSTOM_PROXY_IP is empty, skip create reporter")
+                return
+
             reporter = MonitorReporter(
                 data_id=monitor_report_config.data_id,
                 access_token=monitor_report_config.access_token,
