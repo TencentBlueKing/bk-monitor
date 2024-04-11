@@ -4368,6 +4368,7 @@ class TestNoiseReduce(TestCase):
                     "id": 123,
                 }
             ),
+            "dedupe_md5": "68e9f0598d72a4b6de2675d491e5b922",
             "severity": 1,
             "begin_time": int(time.time()),
             "create_time": int(time.time()),
