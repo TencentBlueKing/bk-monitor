@@ -398,7 +398,7 @@ class IllegalRangeSyntaxInspector(BaseInspector):
                         new_match_range_str = "[" + new_match_range_str
                     if not new_match_range_str.endswith("]"):
                         new_match_range_str = new_match_range_str + "]"
-                    start, end = new_match_range_str[1:-1].split("TO")
+                    start, end = new_match_range_str.lower()[1:-1].split("to")
                     start = start.strip()
                     end = end.strip()
                     if not start:
@@ -1127,6 +1127,9 @@ class LuceneRangeChecker(LuceneCheckerBase):
         在最小化子语句中按TO拆分, 检查左边和右边是否缺失边界以及边界符号
         """
         for sub_query in self.sub_query_list:
+            if 'to' in sub_query:
+                self.check_result.error = _("RANGE语法异常, to大小写需转换")
+                return False
             if 'TO' in sub_query:
                 parts = sub_query.split('TO')
                 if len(parts) >= 2 and ":" not in parts[0]:
@@ -1198,6 +1201,9 @@ class LuceneRangeChecker(LuceneCheckerBase):
         fixed_sub_query_list = []
         for sub_query in self.sub_query_list:
             original_sub_query = copy.deepcopy(sub_query)
+            if 'to' in sub_query:
+                original_sub_query = sub_query.replace("to", "TO")
+
             if 'TO' in sub_query:
                 fixed_sub_query_list.append(self._fix_range(sub_query))
             else:
