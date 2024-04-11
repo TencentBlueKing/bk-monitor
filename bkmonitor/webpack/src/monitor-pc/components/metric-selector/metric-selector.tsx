@@ -807,13 +807,15 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       >
         <div class='top'>
           <span class='title'>
-            <span onClick={e => e.stopPropagation()}>
-              <bk-checkbox
-                class='metric-checkbox'
-                value={item.checked}
-                onChange={v => this.handleCheckMetric(item, v)}
-              ></bk-checkbox>
-            </span>
+            {this.multiple && (
+              <span onClick={e => e.stopPropagation()}>
+                <bk-checkbox
+                  class='metric-checkbox'
+                  value={item.checked}
+                  onChange={v => this.handleCheckMetric(item, v)}
+                ></bk-checkbox>
+              </span>
+            )}
             <span>{this.highLightContent(this.search, item.readable_name)}</span>
           </span>
           <span class='subtitle'>{this.highLightContent(this.search, obj.alias)}</span>
