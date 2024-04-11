@@ -417,7 +417,7 @@ export default class App extends tsc<{}> {
     // 跳转
     if (navId === 'grafana') {
       const dashboardCache = getDashboardCache();
-      const dashboardId = dashboardCache[v];
+      const dashboardId = dashboardCache?.[v];
       let path = 'grafana/home';
       if (dashboardId) {
         const list = await getDashboardList().catch(() => []);
