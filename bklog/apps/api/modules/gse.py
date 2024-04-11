@@ -52,14 +52,6 @@ class _GseApi:
     MODULE = _("GSE管控平台")
 
     def __init__(self):
-        self.get_agent_status_raw = DataAPI(
-            method="POST",
-            url=GSE_APIGATEWAY_ROOT_V2 + "get_agent_status",
-            module=self.MODULE,
-            description=_("获取agent状态(原始数据)"),
-            before_request=add_esb_info_before_request,
-            after_request=None,
-        )
         self.query_route = DataAPI(
             method="POST",
             url=GSE_APIGATEWAY_ROOT_V2 + "config_query_route",
