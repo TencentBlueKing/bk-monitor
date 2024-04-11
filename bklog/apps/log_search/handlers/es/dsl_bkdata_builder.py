@@ -449,7 +449,11 @@ class DslCreateSearchTailBodyScenarioLog:
             # 用当前时间往后前5分钟开始查询
             order_use = "desc"
             body_data["query"]["bool"]["filter"][0]["range"] = {
-                "dtEventTimeStamp": {"gte": int(time.time() * 1000) - 300000, "lte": int(time.time() * 1000)}
+                "dtEventTimeStamp": {
+                    "gte": int(time.time() * 1000) - 300000,
+                    "lte": int(time.time() * 1000),
+                    "format": "epoch_millis",
+                }
             }
         elif gse_index:
             body_data["query"]["bool"]["filter"][0]["range"]["gseIndex"] = {
@@ -514,7 +518,7 @@ class DslCreateSearchTailBodyCustomField:
             order_use = "desc"
 
             body_data["query"]["bool"]["filter"].append(
-                {"range": {time_field: {"gte": int(time.time() * 1000) - 300000}}}
+                {"range": {time_field: {"gte": int(time.time() * 1000) - 300000, "format": "epoch_millis"}}}
             )
 
         elif range_field_value:

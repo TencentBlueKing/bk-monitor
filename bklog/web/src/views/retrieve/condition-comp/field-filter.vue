@@ -397,7 +397,8 @@ export default {
               (polymerizable === '1' && !fieldItem.es_doc_values) ||
               (polymerizable === '2' && fieldItem.es_doc_values) ||
               (fieldType === 'number' && !['long', 'integer'].includes(fieldItem.field_type)) ||
-              (fieldType !== 'any' && fieldType !== 'number' && fieldItem.field_type !== fieldType)
+              (fieldType === 'date' && !['date', 'date_nanos'].includes(fieldItem.field_type)) ||
+              (!['any', 'number', 'date'].includes(fieldType) && fieldItem.field_type !== fieldType)
             );
         });
       });

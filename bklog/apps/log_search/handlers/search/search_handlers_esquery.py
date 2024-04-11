@@ -1127,16 +1127,18 @@ class SearchHandler(object):
             self.indices, self.scenario_id, dtEventTimeStamp=self.dtEventTimeStamp, search_type_tag="context"
         ).index
 
-        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-
         record_obj = StorageClusterRecord.objects.none()
 
         if self.dtEventTimeStamp:
-            timestamp_datetime = datetime.datetime.fromtimestamp(int(self.dtEventTimeStamp) / 1000, tz_info)
+            try:
+                timestamp_datetime = arrow.get(int(self.dtEventTimeStamp) / 1000)
+            except Exception:  # pylint: disable=broad-except
+                # 如果不是时间戳，那有可能就是纳秒格式 2024-04-09T09:26:57.123456789Z
+                timestamp_datetime = arrow.get(self.dtEventTimeStamp)
 
             record_obj = (
                 StorageClusterRecord.objects.filter(
-                    index_set_id=int(self.index_set_id), created_at__gt=timestamp_datetime
+                    index_set_id=int(self.index_set_id), created_at__gt=timestamp_datetime.datetime
                 )
                 .order_by("created_at")
                 .first()
