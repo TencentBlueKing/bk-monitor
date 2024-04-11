@@ -55,8 +55,10 @@ class GetHostProcessPortStatusResource(Resource):
             ip, bk_cloud_id = params["bk_target_ip"], params["bk_target_cloud_id"]
 
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        promql_statement = f"system:proc_port:proc_exists{{bk_target_ip='{ip}', " \
-                           f"display_name='{params['display_name']}', bk_cloud_id='{bk_cloud_id}'}}"
+        promql_statement = (
+            f"system:proc_port:proc_exists{{bk_target_ip='{ip}', "
+            f"display_name='{params['display_name']}', bk_cloud_id='{bk_cloud_id}'}}"
+        )
         query_config = {"promql": promql_statement, "interval": 60}
         data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
@@ -202,7 +204,7 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 "type": "link",
                 "need_copy": bool(host.bk_host_innerip),
                 "value": {
-                    "url": urljoin(settings.BK_CC_URL, f"/#/resource/host/{host.bk_host_id}"),
+                    "url": urljoin(settings.BK_CC_URL, f"/#/resource/host/{bk_biz_id}/{host.bk_host_id}"),
                     "value": host.bk_host_innerip,
                 },
                 "children": [
