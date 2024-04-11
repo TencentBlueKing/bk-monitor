@@ -274,7 +274,7 @@ class EtlHandler(object):
         """
         fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
         fmt = fmts.get(time_format)
-        if fmt["name"] in [ISO_8601_TIME_FORMAT_NAME, "ISO8601"] or fmt["es_type"] == "date_nanos":
+        if fmt["name"] in [ISO_8601_TIME_FORMAT_NAME, "ISO8601"]:
             try:
                 epoch_second = arrow.get(data, tzinfo=f"GMT{time_zone}").timestamp
             except Exception:  # pylint: disable=broad-except
