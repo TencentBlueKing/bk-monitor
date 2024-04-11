@@ -50,7 +50,7 @@
     ]
   },
   "devDependencies": {
-    "@blueking/bkmonitor-cli": "3.0.0-beta.6",
+    "@blueking/bkmonitor-cli": "3.0.0-beta.7",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.0",
     "lint-staged": "^15.2.2",
