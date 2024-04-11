@@ -992,7 +992,7 @@ export default {
      * @desc: 获取当前数据指纹所有的责任人
      */
     getUserList() {
-      // this.ownerLoading = true;
+      this.ownerLoading = true;
       const cloneOwnerBase = deepClone(this.ownerBaseList);
       this.$http
         .request('/logClustering/getOwnerList', {
@@ -1010,13 +1010,17 @@ export default {
           }, cloneOwnerBase);
         })
         .finally(() => {
-          // this.ownerLoading = false;
+          this.ownerLoading = false;
         });
     },
     /**
      * @desc: 选中责任人列表里的值
      */
     handleUserSelectChange(v) {
+      if (!v.length) {
+        this.ownerSelect = ['all'];
+        return;
+      }
       const lastSelect = v[v.length - 1];
       if (['no_owner', 'all'].includes(lastSelect)) {
         this.ownerSelect = [lastSelect];
@@ -1028,6 +1032,10 @@ export default {
      * @desc: 选中备注列表里的值 单选永远是最后一个
      */
     handleRemarkSelectChange(v) {
+      if (!v.length) {
+        this.remarkSelect = ['all'];
+        return;
+      }
       this.remarkSelect = [v[v.length - 1]];
     },
     /**
@@ -1073,7 +1081,7 @@ export default {
           disabled: false,
           select: this.ownerSelect,
           selectList: this.ownerList,
-          // loading: this.ownerLoading,
+          loading: this.ownerLoading,
           toggle: this.handleToggleUserSelect,
           isActive
         },
@@ -1093,7 +1101,6 @@ export default {
           disabled: false,
           select: this.remarkSelect,
           selectList: this.remarkList,
-          // loading: this.ownerLoading,
           toggle: this.handleToggleRemarkSelect,
           isActive
         },
@@ -1118,13 +1125,13 @@ export default {
   }
 
   .auto-height {
+    /* stylelint-disable-next-line value-no-vendor-prefix */
+    display: -webkit-box;
     height: auto; /* 设置元素高度为自动 */
     min-height: 20px; /* 根据需要设置最小高度 */
     padding: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* stylelint-disable-next-line property-no-vendor-prefix */
-    display: -webkit-box;
     /* stylelint-disable-next-line property-no-vendor-prefix */
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;

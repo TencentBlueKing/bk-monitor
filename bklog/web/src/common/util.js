@@ -518,6 +518,22 @@ export function daysFormatDate(val) {
 }
 
 /**
+ * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
+ */
+export function formatDateNanos(val) {
+  // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
+  const nanoseconds = val.slice(23, -1);
+
+  // 使用dayjs解析字符串到毫秒 包含时区处理
+  const dateTimeToMilliseconds = dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');
+
+  // 组合dayjs格式化的日期时间到毫秒和独立处理的纳秒部分
+  const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${nanoseconds}`;
+
+  return formattedDateTimeWithNanoseconds;
+}
+
+/**
  * 格式化文件大小
  * @param {Number | String} size
  * @return {String}
@@ -880,6 +896,11 @@ export const parseTableRowData = (
 
   if (isFormatDate && fieldType === 'date') {
     return formatDate(Number(data)) || data || emptyCharacter;
+  }
+
+  // 处理纳秒精度的UTC时间格式
+  if (isFormatDate && fieldType === 'date_nanos') {
+    return formatDateNanos(data) || emptyCharacter;
   }
 
   if (Array.isArray(data)) {

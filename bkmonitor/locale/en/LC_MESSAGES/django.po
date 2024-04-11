@@ -873,9 +873,6 @@ msgstr "Application name (app_name) {} already exists in this business ({})"
 msgid "远程过程调用"
 msgstr "Remote process call"
 
-msgid "数据库"
-msgstr "Database"
-
 msgid "消息队列"
 msgstr "Message Queue"
 
@@ -11734,8 +11731,6 @@ msgstr "Results Table [%s] is not the physical store"
 #, python-format
 msgid "存储[%s]对应的查询引擎不存在"
 msgstr "Storage [%s] corresponding to the query engine absent"
-msgid "关联指标"
-msgstr "Related Metric"
 
 msgid "存储类型"
 msgstr "Storage Type"
@@ -11808,3 +11803,24 @@ msgstr "Datalink BuiltIn"
 
 msgid "集成内置-数据采集告警分派"
 msgstr "Datalink Built - Data Collection Alarm Dispatching"
+
+msgid "序号"
+msgstr "Index"
+
+msgid "是否新增"
+msgstr "Is New Pattern"
+
+msgid "数据指纹"
+msgstr "Data Fingerprint"
+
+msgid "数量"
+msgstr "Quantity"
+
+msgid "占比"
+msgstr "Percentage"
+
+msgid "同比数量"
+msgstr "Year-on-Year Quantity"
+
+msgid "同比变化"
+msgstr "Year-on-Year Change"

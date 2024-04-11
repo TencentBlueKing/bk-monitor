@@ -99,6 +99,33 @@ export default class SearchComp extends tsc<IProps> {
     str: ''
   };
 
+  /** text类型字段类型给到检索参数时的映射 */
+  textMappingKey = {
+    is: 'contains match phrase',
+    'is not': 'not contains match phrase',
+    'and is': 'all contains match phrase',
+    'and is not': 'all not contains match phrase',
+    'is match': '=~',
+    'is not match': '!=~',
+    'and is match': '&=~',
+    'and is not match': '&!=~'
+  };
+
+  /** 所有的包含,非包含情况下的类型操作符字符串 */
+  allContainsStrList = [
+    'contains match phrase',
+    'not contains match phrase',
+    'all contains match phrase',
+    'all not contains match phrase',
+    '=~',
+    '!=~',
+    '&=~',
+    '&!=~'
+  ];
+
+  /** 包含情况下的text类型操作符 */
+  containsStrList = ['contains match phrase', '=~', 'all contains match phrase', '&=~'];
+
   get isCanUseUiType() {
     // 判断当前的检索语句生成的键名和操作符是否相同 不相等的话不能切换表单模式
     return this.inputSearchList.some(v => this.favSearchList.includes(v));
@@ -366,8 +393,18 @@ export default class SearchComp extends tsc<IProps> {
   // 初始化或从外部下钻添加过来的交互下钻过来的条件
   pushCondition(field: string, operator: string, value: any, isInclude: boolean) {
     const findField = this.filterFields.find(item => item.id === field);
-    const operatorItem =
-      findField?.operatorList.find(item => item.operator === operator || item?.wildcard_operator === operator) ?? {}; // 找不到则是ip选择器
+    let findOperatorItem = null;
+    // 字段类型并且是包含, 不包含的情况下才会去匹配当前展示的操作符列表元素
+    if (findField.fieldType === 'text' && !['exists', 'does not exists'].includes(operator)) {
+      const containsItem = findField?.operatorList.find(item => item.operator === 'contains match phrase');
+      const notContainsItem = findField?.operatorList.find(item => item.operator === 'not contains match phrase');
+      findOperatorItem = this.containsStrList.includes(operator) ? containsItem : notContainsItem;
+    } else {
+      findOperatorItem = findField?.operatorList.find(
+        item => item.operator === operator || item?.wildcard_operator === operator
+      );
+    }
+    const operatorItem = findOperatorItem ?? {}; // 找不到则是ip选择器
     // 空字符串切割会时会生成一个带有空字符串的数组 空字符串应该使用空数组
     const inputValueList = value !== '' ? value.toString().split(',') : [];
     // 检查条件列表中是否存在具有相同操作符和字段ID的条件
@@ -375,7 +412,7 @@ export default class SearchComp extends tsc<IProps> {
     // 获取条件列表中的最后一个条件
     const lastCondition = this.conditionList[this.conditionList.length - 1];
     // 检查操作符是否是包含或不包含匹配短语
-    const isContains = ['contains match phrase', 'not contains match phrase'].includes(operator);
+    const isContainsType = this.allContainsStrList.includes(operator);
     // 遍历条件列表
     for (const cIndex in this.conditionList) {
       // 获取当前遍历到的条件
@@ -389,7 +426,7 @@ export default class SearchComp extends tsc<IProps> {
           return;
         }
         // 如果存在具有相同操作符和字段的条件，并且操作符是包含类型
-        if (isExistCondition && isContains) {
+        if (isExistCondition && isContainsType) {
           // 如果最后一个条件的字段与给定的匹配
           if (lastCondition.id === field) {
             // 则将输入值数组添加到最后一个条件的值中
@@ -494,6 +531,13 @@ export default class SearchComp extends tsc<IProps> {
   handleAdditionValueChange(index, additionVal) {
     const { newReplaceObj, isQuery } = additionVal;
     Object.assign(this.conditionList[index], newReplaceObj); // 更新操作符和数据
+    const isTextField = this.conditionList[index].fieldType === 'text';
+    // 判断是否是字段类型, 并且是在有操作符更变的时候才更新
+    if (isTextField && newReplaceObj?.operator) {
+      Object.assign(this.conditionList[index], {
+        operator: this.textMappingKey[newReplaceObj.operator] ?? newReplaceObj.operator
+      });
+    }
     if (this.conditionList[index].isInclude && !this.tagFocusInputObj?.str) {
       this.searchAdditionQuery(isQuery); // 操作需要请求且条件为打开时请求
     }

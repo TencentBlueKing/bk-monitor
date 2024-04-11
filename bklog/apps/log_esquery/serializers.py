@@ -163,6 +163,10 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                         "not contains",
                         "contains match phrase",
                         "not contains match phrase",
+                        "all contains match phrase",
+                        "all not contains match phrase",
+                        "&=~",
+                        "&!=~",
                     ]:
                         # 逗号分隔是存在问题的
                         new_value = value.split(",")

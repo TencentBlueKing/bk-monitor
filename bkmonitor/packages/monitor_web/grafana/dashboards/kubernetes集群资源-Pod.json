@@ -159,12 +159,12 @@
               ],
               "interval":60,
               "interval_unit":"s",
-              "method":"AVG",
+              "method":"SUM",
               "metric_field":"container_cpu_usage_seconds_total",
               "refId":"a",
               "result_table_id":"",
               "result_table_label":"kubernetes",
-              "time_field":"",
+              "time_field":"time",
               "where":[
                 {
                   "key":"bcs_cluster_id",
@@ -212,7 +212,7 @@
               "refId":"b",
               "result_table_id":"",
               "result_table_label":"kubernetes",
-              "time_field":"",
+              "time_field":"time",
               "where":[
                 {
                   "key":"bcs_cluster_id",
@@ -298,12 +298,12 @@
               ],
               "interval":60,
               "interval_unit":"s",
-              "method":"AVG",
+              "method":"SUM",
               "metric_field":"container_cpu_usage_seconds_total",
               "refId":"a",
               "result_table_id":"",
               "result_table_label":"kubernetes",
-              "time_field":"",
+              "time_field":"time",
               "where":[
                 {
                   "key":"bcs_cluster_id",
@@ -1355,23 +1355,13 @@
               "filter_dict":{
 
               },
-              "functions":[
-                {
-                  "id":"rate",
-                  "params":[
-                    {
-                      "id":"window",
-                      "value":"2m"
-                    }
-                  ]
-                }
-              ],
+              "functions":[],
               "group_by":[
                 "pod"
               ],
               "interval":60,
               "interval_unit":"s",
-              "method":"AVG",
+              "method":"SUM",
               "metric_field":"container_memory_working_set_bytes",
               "refId":"a",
               "result_table_id":"",
@@ -1494,23 +1484,13 @@
               "filter_dict":{
 
               },
-              "functions":[
-                {
-                  "id":"rate",
-                  "params":[
-                    {
-                      "id":"window",
-                      "value":"2m"
-                    }
-                  ]
-                }
-              ],
+              "functions":[],
               "group_by":[
                 "pod"
               ],
               "interval":60,
               "interval_unit":"s",
-              "method":"AVG",
+              "method":"SUM",
               "metric_field":"container_memory_working_set_bytes",
               "refId":"a",
               "result_table_id":"",

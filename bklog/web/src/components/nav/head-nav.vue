@@ -210,6 +210,22 @@
           <li>
             <a
               href="javascript:;"
+              @click="handleGoToMyApplication"
+            >
+              {{ $t('我申请的') }}
+            </a>
+          </li>
+          <li>
+            <a
+              href="javascript:;"
+              @click="handleGoToMyReport"
+            >
+              {{ $t('我的订阅') }}
+            </a>
+          </li>
+          <li>
+            <a
+              href="javascript:;"
               @click="handleQuit"
             >
               {{ $t('退出登录') }}
@@ -218,6 +234,16 @@
         </ul>
       </bk-dropdown-menu>
     </div>
+
+    <GlobalDialog
+      v-model="showGlobalDialog"
+      :title="globalDialogTitle"
+    >
+      <iframe
+        :src="targetSrc"
+        style="width: 100%; height: 100%; border: none"
+      ></iframe>
+    </GlobalDialog>
   </nav>
 </template>
 
@@ -228,11 +254,13 @@ import LogVersion from './log-version';
 import { menuArr } from './complete-menu';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import { jsonp } from '@/common/jsonp';
+import GlobalDialog from '@/components/global-dialog';
 
 export default {
   name: 'HeaderNav',
   components: {
-    LogVersion
+    LogVersion,
+    GlobalDialog
   },
   mixins: [navMenuMixin],
   props: {},
@@ -252,7 +280,10 @@ export default {
       languageList: [
         { id: 'zh-cn', name: '中文' },
         { id: 'en', name: 'English' }
-      ]
+      ],
+      showGlobalDialog: false,
+      globalDialogTitle: '',
+      targetSrc: ''
     };
   },
   computed: {
@@ -290,11 +321,21 @@ export default {
       });
     }
   },
+  watch: {
+    $route() {
+      /** 当路由改变时应该把 dialog 关闭掉 */
+      this.showGlobalDialog = false;
+    }
+  },
   async created() {
     this.language = jsCookie.get('blueking_language') || 'zh-cn';
     this.$store.commit('updateMenuList', menuArr);
     await this.getUserInfo();
     setTimeout(() => this.requestMySpaceList(), 100);
+    window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
+  },
+  beforeDestroy() {
+    window.bus.$off('showGlobalDialog', this.handleGoToMyReport);
   },
   methods: {
     async getUserInfo() {
@@ -487,6 +528,30 @@ export default {
       } else if (type === 'feedback') {
         window.open(window.BK_FAQ_URL);
       }
+    },
+    /** 前往 我申请的 */
+    handleGoToMyApplication() {
+      this.showGlobalDialog = false;
+      this.$nextTick(() => {
+        const bizId = this.$store.state.bkBizId;
+        const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
+        const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-applied-report`;
+        this.globalDialogTitle = this.$t('我申请的');
+        this.showGlobalDialog = true;
+        this.targetSrc = targetSrc;
+      });
+    },
+    /** 前往 我的订阅 */
+    handleGoToMyReport() {
+      this.showGlobalDialog = false;
+      this.$nextTick(() => {
+        const bizId = this.$store.state.bkBizId;
+        const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
+        const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-report`;
+        this.globalDialogTitle = this.$t('我的订阅');
+        this.showGlobalDialog = true;
+        this.targetSrc = targetSrc;
+      });
     },
     /** 退出登录 */
     handleQuit() {

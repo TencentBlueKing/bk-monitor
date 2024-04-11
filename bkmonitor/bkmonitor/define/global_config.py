@@ -218,8 +218,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),
         ("METRIC_CACHE_TASK_PERIOD", slz.IntegerField(label="指标缓存任务周期(min)", default=10)),
         ("LAST_MIGRATE_VERSION", slz.CharField(label="最后一次迁移版本", default="")),
-        ("EXTERNAL_APIGW_PUBLIC_KEY", slz.CharField(label="外部APIGW公钥", default="")),
-        ("APIGW_PUBLIC_KEY", slz.CharField(label="APIGW公钥", default="")),
+        # ("EXTERNAL_APIGW_PUBLIC_KEY", slz.CharField(label="外部APIGW公钥", default="")),
+        # ("APIGW_PUBLIC_KEY", slz.CharField(label="APIGW公钥", default="")),
         ("GSE_MANAGERS", slz.ListField(label="GSE平台管理员", default=[])),
         ("OFFICIAL_PLUGINS_MANAGERS", slz.ListField(label="官方插件管理员", default=[])),
         (
@@ -281,6 +281,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
+        ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
     ]
 )
 

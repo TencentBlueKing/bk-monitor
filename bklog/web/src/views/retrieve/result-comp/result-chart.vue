@@ -100,6 +100,7 @@ import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
 import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
 import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
 import { mapGetters } from 'vuex';
+import CancelToken from 'axios/lib/cancel/CancelToken';
 
 export default {
   components: {
@@ -181,6 +182,7 @@ export default {
   watch: {
     chartKey: {
       handler() {
+        this.logChartCancel();
         this.localAddition = this.retrieveParams.addition;
         this.$refs.chartRef && this.$refs.chartRef.handleCloseTimer();
         this.totalCount = 0;
@@ -208,6 +210,8 @@ export default {
     window.bus.$on('openChartLoading', this.openChartLoading);
   },
   methods: {
+    /** 图表请求中断函数 */
+    logChartCancel() {},
     openChartLoading() {
       this.isLoading = true;
     },
@@ -293,10 +297,18 @@ export default {
             index_set_ids: this.unionIndexList
           });
         }
-        const res = await this.$http.request(urlStr, {
-          params: { index_set_id: this.$route.params.indexId },
-          data: queryData
-        });
+        const res = await this.$http.request(
+          urlStr,
+          {
+            params: { index_set_id: this.$route.params.indexId },
+            data: queryData
+          },
+          {
+            cancelToken: new CancelToken(c => {
+              this.logChartCancel = c;
+            })
+          }
+        );
         const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
         const targetArr = originChartData.map(item => {
           this.totalCount = this.totalCount + item.doc_count;

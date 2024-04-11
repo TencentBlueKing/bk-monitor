@@ -162,5 +162,6 @@ export default {
   收藏该组合: 'Favorite this set',
   确认收藏: 'Confirm',
   取消收藏: 'Cancel',
-  查看配置: 'View Configuration'
+  查看配置: 'View Configuration',
+  测试发送: 'Test Send'
 };

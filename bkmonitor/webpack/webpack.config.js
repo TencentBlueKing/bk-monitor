@@ -98,19 +98,19 @@ module.exports = async (baseConfig, { production, app }) => {
         }
       })
     );
-    // pulic
-    config.plugins.push(
-      new CopyPlugin({
-        patterns: [
-          { from: path.resolve(`./public/${app}/`), to: distUrl },
-          { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') }
-        ]
-      })
-    );
     config.plugins.push(new MonitorWebpackPlugin(app));
   }
   const appDirName = transformAppDir(app);
   const appDir = `./src/${appDirName}/`;
+  // pulic
+  config.plugins.push(
+    new CopyPlugin({
+      patterns: [
+        { from: path.resolve(`./public/${app}/`), to: distUrl },
+        { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') }
+      ].filter(Boolean)
+    })
+  );
   return {
     ...config,
     output: {

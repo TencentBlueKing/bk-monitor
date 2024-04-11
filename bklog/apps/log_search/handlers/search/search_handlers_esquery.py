@@ -1256,16 +1256,18 @@ class SearchHandler(object):
             self.indices, self.scenario_id, dtEventTimeStamp=self.dtEventTimeStamp, search_type_tag="context"
         ).index
 
-        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-
         record_obj = StorageClusterRecord.objects.none()
 
         if self.dtEventTimeStamp:
-            timestamp_datetime = datetime.datetime.fromtimestamp(int(self.dtEventTimeStamp) / 1000, tz_info)
+            try:
+                timestamp_datetime = arrow.get(int(self.dtEventTimeStamp) / 1000)
+            except Exception:  # pylint: disable=broad-except
+                # 如果不是时间戳，那有可能就是纳秒格式 2024-04-09T09:26:57.123456789Z
+                timestamp_datetime = arrow.get(self.dtEventTimeStamp)
 
             record_obj = (
                 StorageClusterRecord.objects.filter(
-                    index_set_id=int(self.index_set_id), created_at__gt=timestamp_datetime
+                    index_set_id=int(self.index_set_id), created_at__gt=timestamp_datetime.datetime
                 )
                 .order_by("created_at")
                 .first()
@@ -1999,7 +2001,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
-        if self.scenario_id == Scenario.LOG:
+        elif self.scenario_id == Scenario.LOG:
             for index, item in enumerate(log_list):
                 gseIndex: str = item.get("gseIndex")  # pylint: disable=invalid-name
                 serverIp: str = item.get("serverIp")  # pylint: disable=invalid-name
@@ -2024,7 +2026,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
-        if self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
+        elif self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
             for index, item in enumerate(log_list):
                 _sort_value = item.get(sort_fields[0])
                 check_value = self.search_dict.get(sort_fields[0])
@@ -2034,19 +2036,13 @@ class SearchHandler(object):
                     if _sort_value and str(_sort_value) == str(check_value):
                         _count_start = index
 
-                is_break = True
-
-                for field in target_fields:
-                    _target_value = item.get(field)
-                    if (str(_sort_value) != str(check_value)) or (
-                        _target_value and str(_target_value) != str(self.search_dict.get(field))
-                    ):
-                        is_break = False
+                for field in sort_fields + target_fields:
+                    if str(item.get(field)) != str(self.search_dict.get(field)):
                         break
-
-                if is_break:
+                else:
                     _index = index
                     break
+
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
 
     def _analyze_empty_log(self, log_list: List[Dict[str, Any]]):
