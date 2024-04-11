@@ -127,7 +127,7 @@
             @toggleItem="handleToggleItem"
           />
           <div
-            v-if="indexSetFields.length > 10"
+            v-if="getIsShowIndexSetExpand"
             class="expand-all"
             @click="isShowAllIndexSet = !isShowAllIndexSet"
           >
@@ -330,12 +330,17 @@ export default {
           otherList: []
         }
       );
+      const visibleBuiltLength = this.builtInFields.filter(item => item.filterVisible).length;
+      const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length;
       return {
         // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
-        isShowBuiltExpandBtn: this.builtInFields.length > 10 || !!initHiddenList.length,
+        isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
         // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
         builtInShowFields: this.isShowAllBuiltIn ? [...otherList, ...initHiddenList] : otherList.slice(0, 9)
       };
+    },
+    getIsShowIndexSetExpand() {
+      return this.indexSetFields.filter(item => item.filterVisible).length > 10;
     },
     /** 展示的内置字段 */
     showIndexSetFields() {
@@ -385,6 +390,8 @@ export default {
       this.polymerizable = polymerizable;
       this.fieldType = fieldType;
       this.filterListByCondition();
+      this.isShowAllBuiltIn = false;
+      this.isShowAllIndexSet = false;
     },
     // 按过滤条件对字段进行过滤
     filterListByCondition() {
