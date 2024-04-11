@@ -77,7 +77,7 @@ ddtrace==0.14.1
 
 # other
 pyppeteer==0.2.5
-arrow==0.6.0
+arrow==1.2.3
 six==1.16.0
 requests==2.27.1
 requests_toolbelt==0.10.1
@@ -89,7 +89,7 @@ PyYAML==5.4.1
 PyMySQL==0.6.7
 coreapi==2.3.3
 kafka-python==1.4.6
-babel==2.5.1
+babel==2.11.0
 python-consul==1.1.0
 ipython==7.13.0
 netifaces==0.10.6

@@ -41,10 +41,10 @@ class TimeMatch(object):
         """
         判断是否在时间范围内
         """
-        if self.begin_datetime and data_time.timestamp < self.begin_datetime.timestamp:
+        if self.begin_datetime and data_time.timestamp() < self.begin_datetime.timestamp():
             return False
 
-        if self.end_datetime and data_time.timestamp > self.end_datetime.timestamp:
+        if self.end_datetime and data_time.timestamp() > self.end_datetime.timestamp():
             return False
 
         return True
@@ -68,7 +68,6 @@ class TimeMatch(object):
             return start_time <= now_time or now_time <= end_time
 
     def time_match_left_time(self, current_time):
-
         # 1. 获取当前时间小时/分钟/秒
         now_time = time_tools.localtime(current_time).replace(microsecond=0).time()
 
