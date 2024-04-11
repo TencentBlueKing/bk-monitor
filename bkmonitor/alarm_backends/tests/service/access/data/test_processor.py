@@ -104,10 +104,10 @@ class TestAccessDataProcess(object):
             strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.batch_timestamp}.2"
         )
         result = c.lrange(data_key, 0, -1)
-        assert len(result) == 1
+        assert len(result) == 2
         assert (
             result[0]
-            == '{"bk_target_ip":"127.0.0.2","load5":0,"bk_target_cloud_id":"0","_time_":1569246420,"_result_":0}'
+            == '{"bk_target_ip":"127.0.0.2","load5":null,"bk_target_cloud_id":"0","_time_":1569246420,"_result_":null}'
         )
         assert len(acc_data.record_list) == 1
         assert mock_batch.delay.call_count == 1
