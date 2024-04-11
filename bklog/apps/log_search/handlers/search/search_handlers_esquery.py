@@ -616,7 +616,7 @@ class SearchHandler(object):
             try:
                 return BkLogApi.search(params)
             except ApiResultError as e:
-                raise ApiResultError(_("搜索出错，请检查查询语句是否正确"), code=e.code, errors=e.errors)
+                raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
 
         storage_cluster_ids = {self.storage_cluster_id}
 
