@@ -59,6 +59,8 @@ export interface IFavoriteItem {
   visible_type: visibleType;
   params: object;
   is_active: boolean;
+  is_actives?: boolean[];
+  index_set_names?: string[];
   display_fields: string[];
 }
 
@@ -159,6 +161,14 @@ export default class CollectIndex extends tsc<IProps> {
     return this.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
   }
 
+  get isUnionSearch() {
+    return this.$store.getters.isUnionSearch;
+  }
+
+  get unionIndexList() {
+    return this.$store.state.unionIndexList;
+  }
+
   @Watch('isShowCollect')
   async handleShowCollect(value) {
     if (value) {
@@ -254,11 +264,27 @@ export default class CollectIndex extends tsc<IProps> {
         break;
       case 'share':
         {
+          const { ip_chooser, addition, keyword } = value.params;
+          const params = { indexId: value.index_set_id };
+          const filterQuery = {
+            keyword,
+            addition: JSON.stringify(addition),
+            ip_chooser: JSON.stringify(ip_chooser)
+          };
+          if (value.index_set_type === 'union') {
+            Object.assign(filterQuery, {
+              unionList: JSON.stringify(value.index_set_ids.map((item: number) => String(item)))
+            });
+          }
+          const routeData = {
+            name: 'retrieve',
+            params,
+            query: filterQuery
+          };
           let shareUrl = window.SITE_URL;
           if (!shareUrl.startsWith('/')) shareUrl = `/${shareUrl}`;
           if (!shareUrl.endsWith('/')) shareUrl += '/';
-          const params = encodeURIComponent(JSON.stringify({ ...value.params }));
-          shareUrl = `${window.location.origin + shareUrl}#/retrieve/${value.index_set_id}?spaceUid=${value.space_uid}&retrieveParams=${params}`;
+          shareUrl = `${window.location.origin + shareUrl}${this.$router.resolve(routeData).href}`;
           copyMessage(shareUrl, this.$t('复制成功'));
         }
         break;
@@ -288,6 +314,12 @@ export default class CollectIndex extends tsc<IProps> {
             index_set_id,
             space_uid: this.spaceUid
           };
+          if (this.isUnionSearch) {
+            Object.assign(data, {
+              index_set_ids: this.unionIndexList,
+              index_set_type: 'union'
+            });
+          }
           $http.request('favorite/createFavorite', { data }).then(res => {
             this.showMessagePop(this.$t('创建成功'));
             this.handleSubmitFavoriteData({ isCreate: true, resValue: res.data });

@@ -188,6 +188,10 @@ export default class GroupDialog extends tsc<IProps> {
     return this.$store.state.isEnLanguage ? 140 : 115;
   }
 
+  get isUnionSearch() {
+    return this.$store.getters.isUnionSearch;
+  }
+
   @Watch('selectFavoriteList', { deep: true })
   watchSelectListLength(list) {
     // 监听选择数据的数量 改变全选的check状态
@@ -656,11 +660,16 @@ export default class GroupDialog extends tsc<IProps> {
   }
 
   render() {
+    const indexSetName = row => {
+      const { index_set_name: indexSetName, index_set_names: indexSetNames } = row;
+      return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
+    };
     const expandSlot = {
       default: ({ row }) => (
         <div class='expand-container'>
           <div class='expand-information'>
             <span>{this.$t('索引集')}</span>
+            <span>{indexSetName(row)}</span>
             <span>{row.index_set_name}</span>
           </div>
           <div class='expand-information'>
@@ -823,7 +832,6 @@ export default class GroupDialog extends tsc<IProps> {
         title={this.$t('管理')}
         header-position='left'
         render-directive='if'
-        mask-close={false}
         ext-cls='manage-group'
         width={960}
         position={{ top: this.positionTop }}

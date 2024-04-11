@@ -138,6 +138,7 @@ export default {
     }),
     ...mapState('globals', ['fieldTypeMap'])
   },
+  inject: ['changeShowUnionSource'],
   methods: {
     // 滚动到顶部
     scrollToTop() {
@@ -222,6 +223,7 @@ export default {
         }
         this.openLogDialog(dialogNewParams, event);
       } else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.changeShowUnionSource();
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
@@ -440,6 +442,8 @@ export default {
   }
 
   .render-header {
+    display: inline;
+
     .field-type-icon {
       width: 12px;
       margin: 0 4px 0 0;
@@ -466,6 +470,11 @@ export default {
 
     .timer-formatter {
       transform: translateY(-1px);
+    }
+
+    .lack-index-filed {
+      padding-bottom: 2px;
+      border-bottom: 1px dashed #63656e;
     }
   }
 

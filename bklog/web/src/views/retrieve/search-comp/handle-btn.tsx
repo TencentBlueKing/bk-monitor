@@ -85,6 +85,10 @@ export default class HandleBtn extends tsc<{}> {
     return this.$store.state.spaceUid;
   }
 
+  get unionIndexItemList() {
+    return this.$store.state.unionIndexItemList;
+  }
+
   get isFavoriteUpdate() {
     // 判断当前收藏是否有参数更新
     if (this.tableLoading) return false;
@@ -163,6 +167,8 @@ export default class HandleBtn extends tsc<{}> {
       index_set_id: this.indexId,
       space_uid: this.spaceUid,
       index_set_name: indexItem.index_set_name,
+      index_set_ids: this.unionIndexItemList?.map(item => item.index_set_id) || [],
+      index_set_names: this.unionIndexItemList?.map(item => item.index_set_name) || [],
       display_fields: displayFields,
       visible_type: 'public',
       name: '',
@@ -183,17 +189,14 @@ export default class HandleBtn extends tsc<{}> {
     try {
       this.favoriteUpdateLoading = true;
       const { params, name, group_id, display_fields, visible_type, id } = this.activeFavorite;
-      const { search_fields } = params;
+      const { search_fields: searchFields } = params;
       const {
         params: { ip_chooser, addition, keyword }
       } = this.getRetrieveFavoriteData();
       const fRes = await $http.request('favorite/getSearchFields', {
         data: { keyword }
       });
-      const searchFilterList = fRes.data
-        // eslint-disable-next-line camelcase
-        .filter(v => search_fields.includes(v.name))
-        .map(item => item.name);
+      const searchFilterList = fRes.data.filter(v => searchFields.includes(v.name)).map(item => item.name);
       const data = {
         name,
         group_id,

@@ -508,6 +508,14 @@ export function formatDate(val, isTimzone = true) {
   const time = date.toTimeString().slice(0, 8);
   return `${yyyy}-${mm}-${dd} ${time}`;
 }
+/**
+ * @desc: days时间格式化
+ * @param {String} val
+ * @returns {String}
+ */
+export function daysFormatDate(val) {
+  return dayjs(val).format('YYYY-MM-DD HH:mm:ss');
+}
 
 /**
  * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
@@ -786,17 +794,23 @@ export const isIPv6 = (str = '') => {
   );
 };
 
+/** 是否强制更新现有的表格缓存显示字段 每次需要强制更新只需取反即可 */
+const TABLE_FORCE = true;
+
 // 列表设置刷新本地缓存
 export const getDefaultSettingSelectFiled = (key, filed) => {
+  const tableForceStr = localStorage.getItem('TABLE_FORCE');
+  const parseForce = JSON.parse(tableForceStr);
   const selectObj = JSON.parse(localStorage.getItem('TABLE_SELECT_FILED'));
   const assignObj = {};
-  if (!selectObj) {
+  if (!selectObj || !tableForceStr || parseForce !== TABLE_FORCE) {
     assignObj[key] = filed;
   } else {
     Object.assign(assignObj, selectObj);
     assignObj[key] = selectObj[key] ?? filed;
   }
   localStorage.setItem('TABLE_SELECT_FILED', JSON.stringify(assignObj));
+  localStorage.setItem('TABLE_FORCE', JSON.stringify(TABLE_FORCE));
   return assignObj[key];
 };
 
@@ -940,6 +954,8 @@ export const calculateTableColsWidth = (field, list) => {
   });
   if (firstLoadList[0]) {
     if (['ip', 'serverIp'].includes(field.field_name)) return 124;
+    if (field.field_name === 'dtEventTimeStamp') return 256;
+    if (field.field_name === 'time') return 175;
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
@@ -1077,4 +1093,21 @@ export const blobDownload = (data, fileName = 'default', type = 'text/plain') =>
   downloadElement.click(); // 点击下载
   document.body.removeChild(downloadElement);
   window.URL.revokeObjectURL(href); // 释放掉blob对象
+};
+
+export const xssFilter = str => {
+  return (
+    str?.replace?.(/[&<>"]/gi, function (match) {
+      switch (match) {
+        case '&':
+          return '&amp;';
+        case '<':
+          return '&lt;';
+        case '>':
+          return '&gt;';
+        case '"':
+          return '&quot;';
+      }
+    }) || str
+  );
 };

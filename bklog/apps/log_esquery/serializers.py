@@ -100,7 +100,6 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
 
