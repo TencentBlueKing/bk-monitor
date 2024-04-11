@@ -181,7 +181,7 @@ class SetTemplate(Template):
         host_list = self.fetch_template_host_total(
             template["id"], fields=constants.CommonEnum.SIMPLE_HOST_FIELDS.value
         )["data"]
-        TopoHandler.fill_agent_status(host_list)
+        TopoHandler.fill_agent_status(host_list, self.bk_biz_id)
         result.update(TopoHandler.count_agent_status(host_list))
         result["host_count"] = len(host_list)
         result["node_count"] = len(self.fetch_template_node_total(template["id"])["data"])
@@ -280,7 +280,7 @@ class ServiceTemplate(Template):
         host_list = self.fetch_template_host_total(
             template["id"], fields=constants.CommonEnum.SIMPLE_HOST_FIELDS.value
         )["data"]
-        TopoHandler.fill_agent_status(host_list)
+        TopoHandler.fill_agent_status(host_list, self.bk_biz_id)
         result.update(TopoHandler.count_agent_status(host_list))
         result["host_count"] = len(host_list)
         result["node_count"] = len(self.fetch_template_node_total(template["id"])["data"])
