@@ -315,7 +315,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 return
 
             # 当点数大于阈值时，将数据拆分为多个批量任务
-            if settings.ENABLED_ACCESS_DATA_BATCH_PROCESS and len(points) > settings.ACCESS_DATA_BATCH_PROCESS_SIZE * 2:
+            if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
                 points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
         # 过滤重复数据并实例化
@@ -423,10 +423,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         for index, record in enumerate(points):
             timestamp = record.get("_time_") or record["time"]
             # 当数据点数不足或数据同属一个时间点时，数据点记为同一批次
-            if (
-                (index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp)
-                and index < len(points) - 1
-            ):
+            if (index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp) and index < len(
+                points
+            ) - 1:
                 latest_record_timestamp = timestamp
                 continue
 
@@ -445,7 +444,9 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 将分批数据写入redis
                 sub_task_id = f"{self.batch_timestamp}.{batch_count}"
                 client.lpush(
-                    key.ACCESS_BATCH_DATA_KEY.get_key(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id),
+                    key.ACCESS_BATCH_DATA_KEY.get_key(
+                        strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
+                    ),
                     *[json.dumps(point) for point in batch_points],
                 )
                 key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
@@ -459,7 +460,11 @@ class AccessDataProcess(BaseAccessDataProcess):
         if batch_count > 1:
             self.sub_task_id = f"{self.batch_timestamp}.1"
             self.batch_count = batch_count
-            logger.info("strategy_group_key({}), split {} access data into {} batch tasks".format(self.strategy_group_key, len(points), batch_count))
+            logger.info(
+                "strategy_group_key({}), split {} access data into {} batch tasks".format(
+                    self.strategy_group_key, len(points), batch_count
+                )
+            )
 
         return first_batch_points
 
@@ -567,16 +572,23 @@ class AccessDataProcess(BaseAccessDataProcess):
         exc = super(AccessDataProcess, self).process()
 
         client = key.ACCESS_BATCH_DATA_RESULT_KEY.client
-        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp)
+        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(
+            strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp
+        )
 
         # 如果没有分批任务，直接返回
         if self.batch_count == 1:
             return
 
         # 等待分批任务结果
-        batch_results = [{
-            "sub_task_id": self.sub_task_id, "result": not exc, "error": str(exc), "process_counts": self.process_counts
-        }]
+        batch_results = [
+            {
+                "sub_task_id": self.sub_task_id,
+                "result": not exc,
+                "error": str(exc),
+                "process_counts": self.process_counts,
+            }
+        ]
         while len(batch_results) < self.batch_count and time.time() - start_time < 5 * constants.CONST_MINUTES:
             batch_result = client.brpop(result_key, timeout=1)
             if batch_result:
@@ -737,7 +749,9 @@ class AccessBatchDataProcess(AccessDataProcess):
         exc = super().process()
 
         client = key.ACCESS_BATCH_DATA_RESULT_KEY.client
-        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp)
+        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(
+            strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp
+        )
 
         client.lpush(
             result_key,

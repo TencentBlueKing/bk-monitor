@@ -95,6 +95,7 @@ class TestAccessDataProcess(object):
     def test_pull_batch(self, mock_batch, mock_records, mock_strategy_group, mock_strategy):
         strategy_group_key = "123456789"
         acc_data = AccessDataProcess(strategy_group_key)
+        settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 2
         settings.ACCESS_DATA_BATCH_PROCESS_SIZE = 1
         acc_data.pull()
 
@@ -116,7 +117,13 @@ class TestAccessDataProcess(object):
         p.process()
         assert len(p.record_list) == 1
 
-        result = c.lrange(key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(strategy_group_key=strategy_group_key, timestamp=acc_data.batch_timestamp), 0, -1)
+        result = c.lrange(
+            key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(
+                strategy_group_key=strategy_group_key, timestamp=acc_data.batch_timestamp
+            ),
+            0,
+            -1,
+        )
         assert len(result) == 1
 
     @mock.patch(
