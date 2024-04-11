@@ -975,6 +975,7 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "description": "2006-01-02 15:04:05.000000",
                 "es_format": "strict_date_optional_time_nanos",
                 "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
             {
                 "id": "yyyy-MM-dd+HH:mm:ss",
@@ -1080,6 +1081,7 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "description": "20060102T150405.000000-0700",
                 "es_format": "strict_date_optional_time_nanos",
                 "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
             {
                 "id": "strict_date_time",
@@ -1094,6 +1096,7 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "description": "2006-01-02T15:04:05.000000Z",
                 "es_format": "strict_date_optional_time_nanos",
                 "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
             {
                 "id": "ISO8601",
@@ -1115,6 +1118,7 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "description": "2006-01-02T15:04:05.000000-07:00",
                 "es_format": "strict_date_optional_time_nanos",
                 "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
             {
                 "id": "epoch_micros",
@@ -1122,6 +1126,7 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "description": "1136185445000000",
                 "es_format": "strict_date_optional_time_nanos",
                 "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
             {
                 "id": "epoch_millis",
