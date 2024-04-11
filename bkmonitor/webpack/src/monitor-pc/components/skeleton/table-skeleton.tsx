@@ -93,6 +93,25 @@ const config02 = {
   ]
 };
 
+const config03 = {
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.32, 0.1, 0.07],
+  rowHeights: [20, 36, 36, 36, 36, 36, 36, 36, 36, 36],
+  config: [
+    [
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '81px' },
+      { width: '19px' },
+      { width: '19px' }
+    ],
+    [{ width: '34px' }, 46, 46, 133, 46, 46, 0],
+    [{ width: '34px' }, 46, 92, 107, 46, 46, 0],
+    [{ width: '34px' }, 46, 46, 61, 46, 46, 0]
+  ]
+};
+
 interface IProps {
   type?: number;
 }
@@ -107,6 +126,9 @@ export default class TableSkeleton extends tsc<IProps> {
     }
     if (this.type === 2) {
       return config02;
+    }
+    if (this.type === 3) {
+      return config03;
     }
     return config01;
   }

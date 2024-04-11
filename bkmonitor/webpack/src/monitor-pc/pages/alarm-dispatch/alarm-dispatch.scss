@@ -170,6 +170,12 @@
           height: 0;
           overflow: hidden;
 
+          .item-content-skeleton {
+            padding: 16px 16px 0 16px;
+            border: 1px solid #dcdee5;
+            border-top: 0;
+          }
+
           .bk-table-header-wrapper {
             border-bottom: 1px solid #eaebf0;
           }
