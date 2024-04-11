@@ -42,13 +42,11 @@ import SelectIndexSetInput from './select-index-set-input';
 import EmptyStatus from '@/components/empty-status';
 import './select-index-set.scss';
 
-interface IProps {}
-
 type IndexSetType = 'single' | 'union';
 type ActiveType = 'favorite' | 'history';
 
 @Component
-export default class QueryStatement extends tsc<IProps> {
+export default class QueryStatement extends tsc<{}> {
   @Prop({ type: String, required: true }) indexId: string;
   @Prop({ type: Array, required: true }) indexSetList: Array<any>;
   @Prop({ type: Boolean, required: true }) basicLoading: boolean;

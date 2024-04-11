@@ -22,7 +22,7 @@
 
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Ref, Emit, Prop, Watch } from 'vue-property-decorator';
-import { Input, Popover } from 'bk-magic-vue';
+import { Input } from 'bk-magic-vue';
 import { IFavoriteItem } from '../collect-index';
 import './manage-input.scss';
 
