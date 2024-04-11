@@ -22,15 +22,20 @@ the project delivered to anyone in the future.
 from django.conf import settings
 
 from apps.api.base import DataAPI
-
-from config.domains import BCS_APIGATEWAY_ROOT
 from apps.api.modules.utils import add_esb_info_before_request
+from config.domains import BCS_APIGATEWAY_ROOT
 
 
 def bcs_before_request(params):
     params = add_esb_info_before_request(params)
     params["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
     return params
+
+
+def list_project_after(response):
+    if "results" in response["data"]:
+        response["data"] = response["data"]["results"]
+    return response
 
 
 class _BcsApi:
@@ -45,4 +50,13 @@ class _BcsApi:
             description="根据项目id获取集群信息",
             header_keys=["Authorization"],
             before_request=bcs_before_request,
+        )
+        self.list_project = DataAPI(
+            method="GET",
+            url=f"{bcs_apigateway_host}bcsapi/v4/bcsproject/v1/projects/",
+            module=self.MODULE,
+            description="获取项目列表",
+            before_request=bcs_before_request,
+            after_request=list_project_after,
+            header_keys=["Authorization"],
         )

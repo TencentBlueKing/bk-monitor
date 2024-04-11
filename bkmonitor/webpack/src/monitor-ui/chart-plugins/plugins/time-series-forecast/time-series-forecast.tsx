@@ -259,6 +259,9 @@ export default class TimeSeriesForecast extends LineChart {
         seriesList = seriesList.map((item: any) => ({
           ...item,
           minBase: this.minBase,
+          emphasis: {
+            focus: 'none'
+          },
           data: item.data.map((set: any) => {
             if (set?.length) {
               return [set[0], set[1] !== null ? set[1] + this.minBase : null];
@@ -301,7 +304,7 @@ export default class TimeSeriesForecast extends LineChart {
         // eslint-disable-next-line max-len
         const predictStartTime = Array.isArray(predictStartFirstPoint)
           ? predictStartFirstPoint[0]
-          : predictStartFirstPoint.value[0];
+          : predictStartFirstPoint?.value[0];
         const resultEndTimePoint = findRight(
           seriesList.find(item => item.metricField === '_result_')?.data || [],
           item => {
@@ -581,7 +584,8 @@ export default class TimeSeriesForecast extends LineChart {
           opacity: 0
         },
         areaStyle: {
-          color: '#ECF2FF'
+          color: 'blue',
+          opacity: 0.1
         },
         stack: item.stack,
         symbol: 'none',

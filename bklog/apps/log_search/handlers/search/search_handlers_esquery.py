@@ -1872,7 +1872,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
-        if self.scenario_id == Scenario.LOG:
+        elif self.scenario_id == Scenario.LOG:
             for index, item in enumerate(log_list):
                 gseIndex: str = item.get("gseIndex")  # pylint: disable=invalid-name
                 serverIp: str = item.get("serverIp")  # pylint: disable=invalid-name
@@ -1897,7 +1897,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
-        if self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
+        elif self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
             for index, item in enumerate(log_list):
                 _sort_value = item.get(sort_fields[0])
                 check_value = self.search_dict.get(sort_fields[0])
@@ -1907,19 +1907,13 @@ class SearchHandler(object):
                     if _sort_value and str(_sort_value) == str(check_value):
                         _count_start = index
 
-                is_break = True
-
-                for field in target_fields:
-                    _target_value = item.get(field)
-                    if (str(_sort_value) != str(check_value)) or (
-                        _target_value and str(_target_value) != str(self.search_dict.get(field))
-                    ):
-                        is_break = False
+                for field in sort_fields + target_fields:
+                    if str(item.get(field)) != str(self.search_dict.get(field)):
                         break
-
-                if is_break:
+                else:
                     _index = index
                     break
+
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
 
     def _analyze_empty_log(self, log_list: List[Dict[str, Any]]):

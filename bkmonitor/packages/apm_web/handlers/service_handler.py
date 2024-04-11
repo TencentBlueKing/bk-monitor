@@ -218,6 +218,10 @@ class ServiceHandler:
     @classmethod
     def is_remote_service(cls, bk_biz_id, app_name, node_topo_key) -> bool:
         """判断topo_key是否是远程服务"""
+        # 无node_topo_key，直接返回
+        if not node_topo_key:
+            return False
+
         nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name, topo_key=node_topo_key)
 
         if nodes:

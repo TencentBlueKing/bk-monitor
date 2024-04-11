@@ -990,10 +990,10 @@ HOST_OBJECT = Host(
     operator="test",
     topo_link={
         "module|9": [
-            TopoNode("module", 9),
-            TopoNode("set", 5),
-            TopoNode("test", 2),
-            TopoNode("biz", 2),
+            {"bk_obj_id": "module", "bk_inst_id": 9},
+            {"bk_obj_id": "set", "bk_inst_id": 5},
+            {"bk_obj_id": "test", "bk_inst_id": 2},
+            {"bk_obj_id": "biz", "bk_inst_id": 2},
         ]
     },
 )

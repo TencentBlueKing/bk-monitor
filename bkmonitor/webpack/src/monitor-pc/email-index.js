@@ -31,7 +31,7 @@ import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 import './common/import-email-magicbox-ui';
 
-import './static/assets/css/global.scss';
+import './static/css/old-global.scss';
 import './static/css/reset.scss';
 import './static/css/global.scss';
 
