@@ -899,11 +899,11 @@ class LuceneCheckerBase(object):
             if not self.force_check:
                 self.check_result.legal = True
                 return
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         try:
             self.check_result.legal = self._check()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             self.check_result.fixable = False
             self.check_result.legal = False
             self.check_result.error = _("语法错误")
