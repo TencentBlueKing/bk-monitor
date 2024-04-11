@@ -62,3 +62,9 @@ def test_only_datasource_query_storage(create_and_delete_record):
     # 返回字段匹配
     assert {"data_source", "transfer_cluster", "kafka_config"} == set(output[0].keys())
     assert output[0]["data_source"]["bk_data_id"] == DEFAULT_DATA_ID_ONE
+
+
+def test_query_storage_not_exist(create_and_delete_table_storage, create_and_delete_record):
+    """测试仅有部分链路的场景"""
+    params = {"table_id": f"{DEFAULT_NAME}1"}
+    call_command("query_storage", **params)

@@ -270,7 +270,7 @@ export default {
     // eslint-disable-next-line no-unused-vars
     renderHeaderAliasName(h, { column, $index }) {
       const field = this.getShowTableVisibleFields[$index - 1];
-      const isShowSwitcher = field?.field_type === 'date';
+      const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
