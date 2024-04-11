@@ -1,0 +1,33 @@
+.tag,
+.bk-selector-member {
+  display: flex;
+}
+
+.member-selector-wrap {
+  .bk-user-selector {
+    width: 100%;
+
+    .user-selector-selected {
+      background: none;
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+
+        .only-img {
+          font-size: 16px;
+        }
+      }
+    }
+  }
+
+  &.is-error {
+    .user-selector-container {
+      border-color: #ff5656;
+    }
+  }
+
+  .bk-form-control {
+    background: #fff;
+  }
+}

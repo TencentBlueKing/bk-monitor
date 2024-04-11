@@ -49,7 +49,7 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import { IDutyItem } from '../../duty-arranges/duty-arranges';
 import RotationConfig from '../../rotation/rotation-config';
-import MemberSelector from '../member-selector.vue';
+import MemberSelector from '../member-selector';
 
 import './alarm-group-add.scss';
 
@@ -895,30 +895,6 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               {this.errorsMsg.name && <div class='error-msg'>{this.errorsMsg.name}</div>}
             </div>
           </bk-form-item>
-          {/* <bk-form-item
-            label={this.$t('时区')}
-            required
-            property='name'
-          >
-            <div class='width-508'>
-              <TimezoneSelect
-                value={this.formData.timezone}
-                onChange={v => (this.formData.timezone = v)}
-              ></TimezoneSelect>
-            </div>
-          </bk-form-item> */}
-          {/* <bk-form-item label={this.$t('开启轮值')}>*/}
-          {/*  <div class="input-duty">*/}
-          {/*    <bk-switcher v-model={this.formData.needDuty}*/}
-          {/*      pre-check={this.handleCheckNeedDuty}*/}
-          {/*      theme="primary"></bk-switcher>*/}
-          {/*    <span class="icon-monitor icon-hint"*/}
-          {/*      v-bk-tooltips={{*/}
-          {/*        placements: ['top'],*/}
-          {/*        content: window.i18n.t('轮值功能，可以按不同的时段分配不同的值班成员')*/}
-          {/*      }}></span>*/}
-          {/*  </div>*/}
-          {/* </bk-form-item>*/}
           <bk-form-item
             label={this.$t('通知类型')}
             required

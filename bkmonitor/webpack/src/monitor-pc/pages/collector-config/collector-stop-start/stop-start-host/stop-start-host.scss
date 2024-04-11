@@ -1,0 +1,45 @@
+.collector-host {
+  padding: 30px 60px;
+
+  .empty-data {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 452px;
+    margin-bottom: 20px;
+    color: #979ba5;
+    border: 1px dashed #dcdee5;
+    border-radius: 2px;
+
+    .hint-icon {
+      font-size: 32px;
+      color: #dcdee5;
+    }
+
+    p {
+      margin-top: 12px;
+      line-height: 1;
+    }
+  }
+
+  .bk-button-text[disabled] {
+    color: #c4c6cc;
+  }
+
+  .footer {
+    font-size: 0;
+
+    .bk-button {
+      margin-right: 10px;
+
+      &.is-disabled {
+        color: #fff;
+        background-color: #dcdee5;
+      }
+    }
+  }
+
+  .bk-button-text {
+    padding-left: 0;
+  }
+}
