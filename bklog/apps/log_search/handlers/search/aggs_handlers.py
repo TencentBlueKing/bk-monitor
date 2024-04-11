@@ -480,7 +480,7 @@ class AggsViewAdapter(object):
                                 aggs_all[key][v_kk] += v_vv
                             elif isinstance(v_vv, list):
                                 aggs_all[key][v_kk].extend(v_vv)
-                    except Exception as e:
+                    except Exception as e:  # pylint: disable=broad-except
                         logger.error(f"[union_search_terms error] e={e}")
                         continue
 
