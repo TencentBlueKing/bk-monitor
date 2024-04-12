@@ -343,7 +343,7 @@ export default {
                 directives: [
                   {
                     name: 'bk-tooltips',
-                    value: { content: isLackIndexFields ? unionContent : fieldName }
+                    value: { allowHTML: false, content: isLackIndexFields ? unionContent : fieldName }
                   }
                 ],
                 class: { 'lack-index-filed': isLackIndexFields }
