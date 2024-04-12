@@ -827,6 +827,7 @@ export default {
       if (selectIsUnionSearch) {
         if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
           this.shouldUpdateFields = true;
+          this.initIndexSetChangeFn(this.indexId);
           this.$store.commit('updateUnionIndexList', ids);
           this.catchUnionBeginList = [];
           this.retrieveLog(params);
