@@ -100,7 +100,9 @@ import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
 import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
 import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
 import { mapGetters } from 'vuex';
-import CancelToken from 'axios/lib/cancel/CancelToken';
+import axios from 'axios';
+
+const CancelToken = axios.CancelToken;
 
 export default {
   components: {
@@ -237,8 +239,6 @@ export default {
         this.totalCount = 0;
         // 框选时间范围
         window.bus.$emit('changeTimeByChart', [startTime, endTime], 'customized');
-      } else {
-        // 初始化请求
       }
 
       // 轮循结束

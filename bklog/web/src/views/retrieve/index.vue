@@ -302,10 +302,10 @@ import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import axios from 'axios';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone } from '../../components/monitor-echarts/utils';
-import CancelToken from 'axios/lib/cancel/CancelToken';
 import { updateTimezone } from '../../language/dayjs';
 import dayjs from 'dayjs';
 
+const CancelToken = axios.CancelToken;
 const currentTime = Math.floor(new Date().getTime() / 1000);
 const startTime = currentTime - 15 * 60;
 const endTime = currentTime;
