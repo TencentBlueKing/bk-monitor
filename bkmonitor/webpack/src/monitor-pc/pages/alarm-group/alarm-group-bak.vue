@@ -23,11 +23,6 @@
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 * IN THE SOFTWARE.
 -->
-<!--
- * @Date: 2021-06-14 20:44:18
- * @LastEditTime: 2021-06-15 10:50:24
- * @Description:
--->
 <template>
   <div
     class="alarm-group"

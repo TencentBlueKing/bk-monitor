@@ -42,8 +42,11 @@
     "commit-msg": "node ./bkmonitor/webpack/webpack/verify-commit.js $1"
   },
   "lint-staged": {
-    "src/**/*.(vue|ts|tsx)": [
-      "eslint --ext .js,.tsx,.ts,.vue --cache --fix"
+    "src/**/*.(ts|tsx|js)": [
+      "npx eslint --cache --fix"
+    ],
+    "src/**/*.vue": [
+      "npx eslint --fix --cache"
     ],
     "src/**/*.(vue|scss|css|sass)": [
       "stylelint --cache --fix"
@@ -87,9 +90,11 @@
       "eslint-plugin-prettier": "^5.1.3",
       "eslint-plugin-simple-import-sort": "^12.0.0",
       "eslint-plugin-vue": "^9.22.0",
+      "postcss": "^8.4.38",
       "postcss-html": "^1.6.0",
       "postcss-scss": "^4.0.9",
       "prettier": "^3.2.5",
+      "semver": "^7.6.0",
       "stylelint": "^15.11.0",
       "stylelint-config-recess-order": "^4.6.0",
       "stylelint-config-recommended-vue": "1.5.0",
