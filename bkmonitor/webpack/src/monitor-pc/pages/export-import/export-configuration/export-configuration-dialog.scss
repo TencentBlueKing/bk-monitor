@@ -1,0 +1,96 @@
+.export-configuration-dialog-wrap {
+  position: relative;
+
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 80px;
+    font-size: 20px;
+    color: #313238;
+    border-bottom: 1px solid #d8d8d8;
+
+    img {
+      width: 32px;
+      height: 32px;
+      margin-right: 14px;
+    }
+
+    i {
+      margin-right: 14px;
+      font-size: 32px;
+      color: #ea3636;
+    }
+  }
+
+  .dialog-tips {
+    position: absolute;
+    top: 70px;
+    left: 185px;
+    padding: 0 7px;
+    margin: auto;
+    font-size: 12px;
+    color: #c4c6cc;
+    background: #fff;
+  }
+
+  .tips-err {
+    left: 195px;
+  }
+
+  .dialog-content {
+    height: 140px;
+    padding: 25px 40px 30px 40px;
+    font-size: 12px;
+
+    .column {
+      display: flex;
+      max-width: 340px;
+      max-height: 42px;
+      margin-bottom: 18px;
+      overflow: hidden;
+      word-break: normal;
+      word-wrap: break-word;
+
+      div {
+        width: 50%;
+        white-space: nowrap;
+      }
+    }
+
+    .gray {
+      color: #c4c6cc;
+    }
+
+    .blue {
+      color: #3a84ff;
+    }
+  }
+
+  .dialog-content-err {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 30px;
+    font-size: 14px;
+
+    .btn {
+      color: #3a84ff;
+
+      span {
+        cursor: pointer;
+      }
+    }
+  }
+}
+
+.export-configuration-dialog {
+  .bk-dialog-body {
+    padding: 0;
+  }
+
+  .bk-dialog-tool {
+    display: none;
+  }
+}
