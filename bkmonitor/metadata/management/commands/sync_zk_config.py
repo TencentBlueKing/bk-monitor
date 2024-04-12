@@ -61,7 +61,9 @@ class Command(BaseCommand):
                     "name": name,
                     "report_mode": cls.DEFAULT_STREAM_TO_REPORT_MODEL,
                     cls.DEFAULT_STREAM_TO_REPORT_MODEL: {
-                        "storage_address": [{"ip": mq_cluster.domain_name, "port": mq_cluster.port}]
+                        "storage_address": [{"ip": mq_cluster.domain_name, "port": mq_cluster.port}],
+                        "sasl_username": mq_cluster.username,
+                        "sasl_passwd": mq_cluster.password,
                     },
                 }
             },
@@ -81,7 +83,9 @@ class Command(BaseCommand):
                 "name": name,
                 "report_mode": cls.DEFAULT_STREAM_TO_REPORT_MODEL,
                 cls.DEFAULT_STREAM_TO_REPORT_MODEL: {
-                    "storage_address": [{"ip": mq_cluster.domain_name, "port": mq_cluster.port}]
+                    "storage_address": [{"ip": mq_cluster.domain_name, "port": mq_cluster.port}],
+                    "sasl_username": mq_cluster.username,
+                    "sasl_passwd": mq_cluster.password,
                 },
             },
         }
