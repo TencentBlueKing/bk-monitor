@@ -165,6 +165,10 @@ export default {
     queueStatus: {
       type: Boolean,
       default: true
+    },
+    configWatchBool: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -175,8 +179,7 @@ export default {
       showAsyncExport: false, // 异步下载弹窗
       exportLoading: false,
       fieldsConfigList: [],
-      fieldConfigIsLoading: false,
-      isFiledQuery: false
+      fieldConfigIsLoading: false
     };
   },
   computed: {
@@ -198,7 +201,7 @@ export default {
       isUnionSearch: 'isUnionSearch'
     }),
     watchQueryIndexValue() {
-      return `${this.routeIndexSet}_${this.unionIndexList.join(',')}`;
+      return `${this.routeIndexSet}_${this.configWatchBool}`;
     },
     routeIndexSet() {
       return this.$route.params.indexId;
@@ -208,7 +211,7 @@ export default {
     watchQueryIndexValue: {
       immediate: true,
       handler() {
-        if (this.routeIndexSet) this.routerAndUnionRequestFields();
+        if (this.routeIndexSet) this.requestFiledConfig();
       }
     }
   },
@@ -284,39 +287,6 @@ export default {
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
       this.$refs.fieldsSettingPopper?.instance.show();
-    },
-    /** 请求字段 */
-    async routerAndUnionRequestFields() {
-      if (this.isFiledQuery) return;
-      this.isFiledQuery = true;
-      if (this.isUnionSearch) {
-        try {
-          const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
-          const queryData = {
-            start_time: this.retrieveParams.start_time,
-            end_time: this.retrieveParams.end_time,
-            is_realtime: 'True'
-          };
-          if (this.isUnionSearch) {
-            Object.assign(queryData, {
-              index_set_ids: this.unionIndexList
-            });
-          }
-          return await this.$http.request(urlStr, {
-            params: { index_set_id: this.$route.params.indexId },
-            query: !this.isUnionSearch ? queryData : undefined,
-            data: this.isUnionSearch ? queryData : undefined
-          });
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.requestFiledConfig();
-          this.isFiledQuery = false;
-        }
-      } else {
-        this.isFiledQuery = false;
-        this.requestFiledConfig();
-      }
     }
   }
 };
