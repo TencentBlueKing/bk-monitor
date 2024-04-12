@@ -52,18 +52,18 @@ import { IGraphValueItem } from '../types';
 })
 export default class CheckboxGroup extends Vue {
   // value双向绑定
-  @Model('valueChange', { type: Array }) private value: IGraphValueItem[];
+  @Model('valueChange', { type: Array })  value: IGraphValueItem[];
 
   // 列表
-  @Prop({ default: () => [], type: Array }) private readonly list: any;
+  @Prop({ default: () => [], type: Array })  readonly list: any;
 
   // 选中
-  @Prop({ default: '', type: String }) private readonly active: string;
+  @Prop({ default: '', type: String })  readonly active: string;
 
-  @Prop({ default: false, type: Boolean }) private readonly disabled: boolean;
+  @Prop({ default: false, type: Boolean })  readonly disabled: boolean;
 
   // 本地存储选中值
-  private localValue: IGraphValueItem[] = [];
+  localValue: IGraphValueItem[] = [];
 
   @Emit('valueChange')
   handleValueChange() {
@@ -75,7 +75,7 @@ export default class CheckboxGroup extends Vue {
     this.localValue = v;
   }
 
-  private handleChange(v, ov, item) {
+  handleChange(v, ov, item) {
     if (v) {
       this.localValue.push({
         id: v,
@@ -88,7 +88,7 @@ export default class CheckboxGroup extends Vue {
     this.handleValueChange();
   }
 
-  private isChecked(key) {
+  isChecked(key) {
     return !!this.localValue.find(item => item.id === key);
   }
 }

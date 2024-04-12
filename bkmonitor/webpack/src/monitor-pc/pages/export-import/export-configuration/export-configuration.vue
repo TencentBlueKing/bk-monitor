@@ -67,6 +67,7 @@
       :package-num="packageNum"
       :show.sync="dialogShow"
       :message="message"
+      @retry="handleSubmit"
     />
   </div>
 </template>

@@ -163,7 +163,7 @@ import { getDashboardList } from 'monitor-api/modules/grafana';
 import SpaceSelect from '../../../components/space-select/space-select';
 import { IContentFormData } from '../types';
 
-import selectChart from './select-chart.vue';
+import selectChart from './select-chart';
 /**
  * 添加内容-侧边伸缩栏
  */
@@ -178,15 +178,15 @@ export default class AddContent extends Vue {
   // 侧栏展示状态
   @PropSync('show', { type: Boolean, default: false }) isShow: boolean;
   // 新增/编辑状态
-  @Prop({ default: 'add', type: String }) private readonly type: 'add' | 'edit';
+  @Prop({ default: 'add', type: String })  readonly type: 'add' | 'edit';
   // 编辑传入数据
-  @Prop({ type: Object }) private readonly data: IContentFormData;
+  @Prop({ type: Object })  readonly data: IContentFormData;
   // view: 视图截取  pull: 整屏截取
-  @Prop({ type: String, default: 'view' })  private readonly contentType: 'view' | 'full';
-  @Ref('validateForm') private readonly validateFormRef: any;
+  @Prop({ type: String, default: 'view' })   readonly contentType: 'view' | 'full';
+  @Ref('validateForm')  readonly validateFormRef: any;
   // 表单展示数据
 
-  private formData: IContentFormData = {
+  formData: IContentFormData = {
     contentTitle: '',
     contentDetails: '',
     rowPicturesNum: 2,
@@ -196,7 +196,7 @@ export default class AddContent extends Vue {
     curGrafanaName: ''
   };
 
-  private rules = {
+  rules = {
     contentTitle: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
     contentDetails: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
     rowPicturesNum: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
@@ -216,10 +216,10 @@ export default class AddContent extends Vue {
       { required: true, message: window.i18n.t('必填项'), trigger: 'none' }
     ]
   };
-  private bizIdList = [];
-  private allGrafanaListMap = [];
+  bizIdList = [];
+  allGrafanaListMap = [];
 
-  private grafanaLoading = false;
+  grafanaLoading = false;
 
   get grafanaList() {
     return this.allGrafanaListMap[this.formData.curBizId] || [];
@@ -284,7 +284,7 @@ export default class AddContent extends Vue {
   /**
    * 确认操作
    */
-  private handleConfirm() {
+  handleConfirm() {
     this.validateFormRef.validate().then(() => {
       this.isShow = false;
       this.updateData();
@@ -295,11 +295,11 @@ export default class AddContent extends Vue {
    * 对外派发更新数据事件
    */
   @Emit('change')
-  private updateData() {
+  updateData() {
     return this.formData;
   }
 
-  private getChartList(isCreate = false)  {
+  getChartList(isCreate = false)  {
     // const noPermission = !this.bizIdList.some(item => `${item.id}` === `${this.curBizId}`)
     if (+this.formData.curBizId === -1) return;
     this.grafanaLoading = true;
@@ -318,7 +318,7 @@ export default class AddContent extends Vue {
       });
   }
 
-  private handleBizIdChange(value) {
+  handleBizIdChange(value) {
     if (value.length) {
       this.formData.curBizId = value[0];
       this.getChartList();
