@@ -47,6 +47,7 @@ import * as favorite from './favorite';
 import * as ipChooser from './ip-chooser';
 import * as authorization from './authorization';
 import * as masking from './masking';
+import * as unionSearch from './union-search';
 import * as newReport from './new-report';
 
 const getMyProjectList = {
@@ -100,5 +101,6 @@ export default {
   ipChooser,
   authorization,
   masking,
+  unionSearch,
   newReport
 };

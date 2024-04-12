@@ -93,7 +93,7 @@
                 :retrieve-params="retrieveParams"
                 :field-alias-map="fieldAliasMap"
                 :show-field-alias="showFieldAlias"
-                :visible-length="visibleFields.length"
+                :visible-fields="visibleFields"
                 :statistical-field-data="statisticalFieldsData[item.field_name]"
                 :field-item="item"
                 @toggleItem="handleToggleItem"
@@ -127,7 +127,7 @@
             @toggleItem="handleToggleItem"
           />
           <div
-            v-if="indexSetFields.length > 10"
+            v-if="getIsShowIndexSetExpand"
             class="expand-all"
             @click="isShowAllIndexSet = !isShowAllIndexSet"
           >
@@ -173,6 +173,7 @@ import FieldItem from './field-item';
 import FieldFilterPopover from './field-filter-popover';
 import VueDraggable from 'vuedraggable';
 import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { mapGetters } from 'vuex';
 
 export default {
   components: {
@@ -330,12 +331,17 @@ export default {
           otherList: []
         }
       );
+      const visibleBuiltLength = this.builtInFields.filter(item => item.filterVisible).length;
+      const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length;
       return {
         // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
-        isShowBuiltExpandBtn: this.builtInFields.length > 10 || !!initHiddenList.length,
+        isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
         // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
         builtInShowFields: this.isShowAllBuiltIn ? [...otherList, ...initHiddenList] : otherList.slice(0, 9)
       };
+    },
+    getIsShowIndexSetExpand() {
+      return this.indexSetFields.filter(item => item.filterVisible).length > 10;
     },
     /** 展示的内置字段 */
     showIndexSetFields() {
@@ -355,7 +361,11 @@ export default {
     filedSettingConfigID() {
       // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
-    }
+    },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch'
+    })
   },
   watch: {
     '$route.params.indexId'() {
@@ -385,6 +395,8 @@ export default {
       this.polymerizable = polymerizable;
       this.fieldType = fieldType;
       this.filterListByCondition();
+      this.isShowAllBuiltIn = false;
+      this.isShowAllIndexSet = false;
     },
     // 按过滤条件对字段进行过滤
     filterListByCondition() {
@@ -397,7 +409,8 @@ export default {
               (polymerizable === '1' && !fieldItem.es_doc_values) ||
               (polymerizable === '2' && fieldItem.es_doc_values) ||
               (fieldType === 'number' && !['long', 'integer'].includes(fieldItem.field_type)) ||
-              (fieldType !== 'any' && fieldType !== 'number' && fieldItem.field_type !== fieldType)
+              (fieldType === 'date' && !['date', 'date_nanos'].includes(fieldItem.field_type)) ||
+              (!['any', 'number', 'date'].includes(fieldType) && fieldItem.field_type !== fieldType)
             );
         });
       });
@@ -434,7 +447,14 @@ export default {
       this.$http
         .request('retrieve/postFieldsConfig', {
           params: { index_set_id: this.$route.params.indexId },
-          data: { display_fields: displayFieldNames, sort_list: this.sortList, config_id: this.filedSettingConfigID }
+          data: {
+            display_fields: displayFieldNames,
+            sort_list: this.sortList,
+            config_id: this.filedSettingConfigID,
+            index_set_id: this.$route.params.indexId,
+            index_set_ids: this.unionIndexList,
+            index_set_type: this.isUnionSearch ? 'union' : 'single'
+          }
         })
         .catch(e => {
           console.warn(e);

@@ -1125,8 +1125,8 @@ export default {
   }
 
   .auto-height {
-    /* stylelint-disable-next-line property-no-vendor-prefix */
-    display: box;
+    /* stylelint-disable-next-line value-no-vendor-prefix */
+    display: -webkit-box;
     height: auto; /* 设置元素高度为自动 */
     min-height: 20px; /* 根据需要设置最小高度 */
     padding: 2px;

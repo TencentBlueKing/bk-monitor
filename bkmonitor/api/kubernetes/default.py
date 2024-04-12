@@ -159,7 +159,7 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
     def format_performance_data(performance_data: List):
         data = {}
         overview_data = {}
-        for (key_name, overview, records) in performance_data:
+        for key_name, overview, records in performance_data:
             for item in records:
                 value = item["_result_"]
                 if overview:
@@ -1982,7 +1982,7 @@ class FetchUsageRatio(FetchKubernetesGrafanaMetricRecords):
     @staticmethod
     def format_performance_data(performance_data):
         data = {}
-        for (key_name, records) in performance_data:
+        for key_name, records in performance_data:
             if not records:
                 continue
             value = records[-1]["_result_"]
@@ -2059,7 +2059,6 @@ class FetchUsageRatio(FetchKubernetesGrafanaMetricRecords):
 class FetchK8sBkmMetricbeatEndpointUpResource(CacheResource):
     """获得endpoints采集状态 ."""
 
-    cache_type = CacheType.BCS
     DATA_SOURCE_CLASS = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
 
     class ResourceSerializer(serializers.Serializer):

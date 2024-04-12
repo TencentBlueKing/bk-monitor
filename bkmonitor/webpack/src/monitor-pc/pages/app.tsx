@@ -149,8 +149,6 @@ export default class App extends tsc<{}> {
     list = this.routeList.find(item => item.id === this.navActive)?.children || [];
     // ai 设置 enable_aiops为true 则ai设置不展示 fasle 则ai设置页面展示
     list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops));
-    console.log('list', list);
-
     return list;
   }
   get navRouteList() {
@@ -417,7 +415,7 @@ export default class App extends tsc<{}> {
     // 跳转
     if (navId === 'grafana') {
       const dashboardCache = getDashboardCache();
-      const dashboardId = dashboardCache[v];
+      const dashboardId = dashboardCache?.[v];
       let path = 'grafana/home';
       if (dashboardId) {
         const list = await getDashboardList().catch(() => []);

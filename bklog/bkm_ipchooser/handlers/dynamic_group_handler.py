@@ -70,7 +70,7 @@ class DynamicGroupHandler:
         # TODO: 当动态分组为集群时, 暂不支持
         result["total"] = execute_dynamic_group_result["count"]
         host_list = execute_dynamic_group_result["info"]
-        TopoHandler.fill_agent_status(host_list)
+        TopoHandler.fill_agent_status(host_list, self.bk_biz_id)
         host_list = BaseHandler.format_hosts(host_list, self.bk_biz_id)
         result["data"] = host_list
         return result
@@ -105,7 +105,7 @@ class DynamicGroupHandler:
             "no_request": True,
         }
         hosts = batch_request(func=BkApi.execute_dynamic_group, params=params)
-        TopoHandler.fill_agent_status(hosts)
+        TopoHandler.fill_agent_status(hosts, self.bk_biz_id)
         agent_statistics = TopoHandler.count_agent_status(hosts)
         result.update(agent_statistics)
         return result

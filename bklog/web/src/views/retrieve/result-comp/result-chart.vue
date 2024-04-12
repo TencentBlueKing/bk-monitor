@@ -99,6 +99,8 @@
 import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
 import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
 import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
+import { mapGetters } from 'vuex';
+import CancelToken from 'axios/lib/cancel/CancelToken';
 
 export default {
   components: {
@@ -168,7 +170,11 @@ export default {
     chartKey() {
       this.getInterval();
       return this.$store.state.retrieve.chartKey;
-    }
+    },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch'
+    })
     // chartInterval() {
     //   return this.retrieveParams.interval;
     // },
@@ -176,6 +182,7 @@ export default {
   watch: {
     chartKey: {
       handler() {
+        this.logChartCancel();
         this.localAddition = this.retrieveParams.addition;
         this.$refs.chartRef && this.$refs.chartRef.handleCloseTimer();
         this.totalCount = 0;
@@ -203,6 +210,8 @@ export default {
     window.bus.$on('openChartLoading', this.openChartLoading);
   },
   methods: {
+    /** 图表请求中断函数 */
+    logChartCancel() {},
     openChartLoading() {
       this.isLoading = true;
     },
@@ -273,18 +282,33 @@ export default {
 
       if (!!this.$route.params?.indexId) {
         // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
-        const res = await this.$http.request('retrieve/getLogChartList', {
-          params: { index_set_id: this.$route.params.indexId },
-          data: {
-            ...this.retrieveParams,
-            addition: this.localAddition,
-            time_range: 'customized',
-            interval: this.interval,
-            // 每次轮循的起始时间
-            start_time: this.pollingStartTime,
-            end_time: this.pollingEndTime
+        const urlStr = this.isUnionSearch ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
+        const queryData = {
+          ...this.retrieveParams,
+          addition: this.localAddition,
+          time_range: 'customized',
+          interval: this.interval,
+          // 每次轮循的起始时间
+          start_time: this.pollingStartTime,
+          end_time: this.pollingEndTime
+        };
+        if (this.isUnionSearch) {
+          Object.assign(queryData, {
+            index_set_ids: this.unionIndexList
+          });
+        }
+        const res = await this.$http.request(
+          urlStr,
+          {
+            params: { index_set_id: this.$route.params.indexId },
+            data: queryData
+          },
+          {
+            cancelToken: new CancelToken(c => {
+              this.logChartCancel = c;
+            })
           }
-        });
+        );
         const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
         const targetArr = originChartData.map(item => {
           this.totalCount = this.totalCount + item.doc_count;

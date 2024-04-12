@@ -1,6 +1,6 @@
 packages:
   - 'src/*'
+  - '!packages/*'
   - '!**/bk-iframe/**'
   - '!**/bk-weweb/**'
   - '!**/mermaid/**'
-  - '!packages/cli/**'

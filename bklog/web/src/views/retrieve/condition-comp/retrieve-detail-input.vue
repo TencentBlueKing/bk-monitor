@@ -25,39 +25,40 @@
     v-bk-clickoutside="handleClickOutside"
     class="retrieve-detail-input"
   >
-    <bk-input
-      ref="inputRef"
+    <monaco-detail-input
+      ref="editorElement"
       class="king-input-retrieve"
       data-test-id="dataQuery_input_checkForPhrases"
       :value="value"
-      type="textarea"
       @focus="handleFocus"
       @input="handleInput"
       @blur="handleBlur"
       @keydown="handleKeydown"
-    ></bk-input>
+    />
     <div
       v-if="isKeywordsError"
       class="refresh-keywords"
     >
-      <span class="error-message">{{ $t('当前查询语句有语法错误') }}, </span>
-      <span
-        v-if="keywordIsResolved"
-        @click="handleRefreshKeywords"
-      >
-        <i18n
-          path="点击可进行{0}"
-          class="error-message"
-        >
-          <span>
-            <span class="log-icon icon-refresh-icon"></span>
-            <span class="refresh-btn">{{ $t('自动转换') }}</span>
-          </span>
-        </i18n>
-      </span>
       <div v-if="!!keywordErrorMessage">
-        <span class="error-title">{{ $t('错误原因') }}: </span>
-        <span class="error-message">{{ keywordErrorMessage }}</span>
+        <span>
+          <span class="error-title">{{ $t('语法错误') }}: </span>
+          <span class="error-message">{{ keywordErrorMessage }}</span>
+        </span>
+        <br />
+        <span
+          v-if="keywordIsResolved"
+          @click="handleRefreshKeywords"
+        >
+          <i18n
+            class="error-title"
+            path="你可能想输入：{0} 点击 {1}"
+          >
+            <span class="error-message">{{ resetKeyword }}</span>
+            <span class="flex-align-center">
+              <span class="refresh-btn">{{ $t('替换') }}</span>
+            </span>
+          </i18n>
+        </span>
       </div>
     </div>
     <!-- 搜索提示 -->
@@ -85,10 +86,10 @@
             {{ item }}
           </div>
           <!-- <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
-            <i18n path="筛选包含{0}的结果">
-              <span class="item-callout">{{ item }}</span>
-            </i18n>
-          </div> -->
+              <i18n path="筛选包含{0}的结果">
+                <span class="item-callout">{{ item }}</span>
+              </i18n>
+            </div> -->
         </li>
       </template>
       <!-- 字段对应值 -->
@@ -146,6 +147,29 @@
             </i18n>
           </div>
         </li>
+        <template v-if="showOperator">
+          <template>
+            <li
+              v-for="(item, key) in operatorSelectList"
+              :key="key"
+              class="list-item continue-list-item"
+              @click="handleClickColon(item.operator)"
+            >
+              <div class="item-type-icon">
+                <span class="log-icon icon-equal"></span>
+              </div>
+              <div class="item-text">{{ item.operator }}</div>
+              <div
+                v-bk-overflow-tips="{ placement: 'right' }"
+                class="item-description text-overflow-hidden"
+              >
+                <i18n path="{0}某一值">
+                  <span class="item-callout">{{ item.label }}</span>
+                </i18n>
+              </div>
+            </li>
+          </template>
+        </template>
       </template>
       <!-- AND OR -->
       <template v-if="showContinue">
@@ -189,7 +213,12 @@
 </template>
 
 <script>
+import MonacoDetailInput from '../search-comp/retrieve-detail-input-editor.tsx';
+
 export default {
+  components: {
+    MonacoDetailInput
+  },
   model: {
     event: 'change'
   },
@@ -213,12 +242,15 @@ export default {
     isShowUiType: {
       type: Boolean,
       default: false
+    },
+    totalFields: {
+      type: Array,
+      required: true
     }
   },
   data() {
     return {
-      separator: /AND|OR/, // 区分查询语句条件
-      inputElement: null, // 输入框 dom 元素
+      separator: /AND|OR|and|or/, // 区分查询语句条件
       shouldHandleBlur: true, // blur 时是否触发检索
       showDropdown: false, // 显示下拉
       activeIndex: null, // 下拉列表激活的项目索引
@@ -226,6 +258,7 @@ export default {
       showValue: false, // 显示下拉可选值
       showColon: false, // : :*
       showContinue: false, // AND OR
+      showOperator: false, // = > >= < <=
       isSearchRecord: false,
       isKeywordsError: false, // 语句是否有误
       keywordErrorMessage: '', // 无法修复的语句的原因
@@ -233,12 +266,49 @@ export default {
       resetKeyword: '', // 修复过后的语句
       originFieldList: [], // 所有字段列表 ['name', 'age']
       fieldList: [], // 显示字段列表，['name', 'age']
-      valueList: [] // 字段可能的值 ['"arman"', '"xxx yyy"'] [18, 22]
+      valueList: [], // 字段可能的值 ['"arman"', '"xxx yyy"'] [18, 22]
+      operatorSelectList: [
+        {
+          operator: '>',
+          label: this.$t('大于')
+        },
+        {
+          operator: '<',
+          label: this.$t('小于')
+        },
+        {
+          operator: '>=',
+          label: this.$t('大于或等于')
+        },
+        {
+          operator: '<=',
+          label: this.$t('小于或等于')
+        }
+      ]
     };
   },
   computed: {
     renderDropdown() {
+      if (this.showValue && this.showDropdown && !this.valueList.length) return false;
       return this.showDropdown && (this.showFields || this.showValue || this.showColon || this.showContinue);
+    },
+    /** 获取数字类型的字段name */
+    getNumTypeFieldList() {
+      return this.totalFields
+        .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
+        .map(item => item.field_name);
+    },
+    /** 语法检查需要的字段信息 */
+    getCheckKeywordsFields() {
+      return this.totalFields.map(item => ({
+        field_name: item.field_name,
+        is_analyzed: item.is_analyzed,
+        field_type: item.field_type
+      }));
+    },
+    /** 所有字段的字段名 */
+    totalFieldsNameList() {
+      return this.totalFields.map(item => item.field_name);
     }
   },
   watch: {
@@ -256,7 +326,8 @@ export default {
     },
     dropdownData: {
       handler(val) {
-        this.originFieldList = Object.keys(val);
+        // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
+        this.originFieldList = Object.keys(val).filter(v => this.totalFieldsNameList.includes(v));
         if (this.originFieldList.length && this.showDropdown) {
           // 可能字段接口还没返回用户就 focus 了输入框
           this.calculateDropdown();
@@ -264,9 +335,6 @@ export default {
       },
       deep: true
     }
-  },
-  mounted() {
-    this.inputElement = this.$refs.inputRef.$el.querySelector('textarea');
   },
   methods: {
     handleClickDropdown(e) {
@@ -276,7 +344,7 @@ export default {
       this.clickDropdownTimer = setTimeout(() => {
         this.shouldHandleBlur = true;
       }, 200);
-      this.inputElement.focus();
+      this.$refs.editorElement.focus();
     },
     handleClickOutside() {
       this.showDropdown = false;
@@ -284,7 +352,7 @@ export default {
     handleFocus() {
       this.$emit('isCanSearch', false);
       if (this.isSearchRecord) {
-        this.inputElement.blur();
+        this.$refs.editorElement.blur();
         this.isSearchRecord = false;
         return;
       }
@@ -299,7 +367,7 @@ export default {
         this.inputTimer = setTimeout(this.calculateDropdown, 300);
       }
     },
-    handleKeydown(val, e) {
+    handleKeydown(e) {
       const { code } = e;
       if (code === 'Escape') {
         this.closeDropdown();
@@ -311,6 +379,7 @@ export default {
         if (code === 'NumpadEnter' || code === 'Enter') {
           e.preventDefault();
           this.closeDropdown();
+          this.$emit('retrieve');
         }
         return;
       }
@@ -420,7 +489,10 @@ export default {
       if (keyword === '') keyword = '*';
       try {
         const { data } = await this.$http.request('favorite/checkKeywords', {
-          data: { keyword }
+          data: {
+            keyword,
+            fields: this.getCheckKeywordsFields
+          }
         });
         this.isKeywordsError = !data.is_legal;
         this.keywordIsResolved = data.is_resolved;
@@ -434,7 +506,7 @@ export default {
     },
     closeDropdown() {
       this.showDropdown = false;
-      this.inputElement.blur();
+      this.handleBlur(this.$refs.editorElement.editor.getValue());
     },
 
     // 根据当前输入关键字计算提示内容
@@ -447,7 +519,14 @@ export default {
       const lastFragments = value.split(this.separator);
       const lastFragment = lastFragments[lastFragments.length - 1];
       // 以 name:"arman" OR age:18 为例，还没开始输入字段
-      if (!trimValue || trimValue === '*' || /\s+AND\s+$/.test(value) || /\s+OR\s+$/.test(value)) {
+      if (
+        !trimValue ||
+        trimValue === '*' ||
+        /\s+AND\s+$/.test(value) ||
+        /\s+OR\s+$/.test(value) ||
+        /\s+and\s+$/.test(value) ||
+        /\s+or\s+$/.test(value)
+      ) {
         this.showWhichDropdown('Fields');
         this.fieldList = [...this.originFieldList];
         return;
@@ -460,6 +539,7 @@ export default {
             if (item === inputField) {
               // 完全匹配字段同时和 : :* 选项
               this.showColon = true;
+              this.showOperator = this.isNumTypeField(inputField.trim());
             }
             return true;
           }
@@ -470,10 +550,11 @@ export default {
       // 字段输入完毕【name 】
       if (/^\s*(?<field>[\w.]+)\s*$/.test(lastFragment)) {
         this.showWhichDropdown('Colon');
+        this.showOperator = this.isNumTypeField(lastFragment.trim());
         return;
       }
       // 准备输入值【name:】
-      const confirmField = /^\s*(?<field>[\w.]+)\s*:\s*$/.exec(lastFragment)?.groups.field;
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups.field;
       if (confirmField) {
         const valueMap = this.dropdownData[confirmField];
         if (valueMap) {
@@ -486,7 +567,7 @@ export default {
         return;
       }
       // 正在输入值【age:1】注意后面没有空格，匹配字段对应值
-      const valueResult = /^\s*(?<field>[\w.]+)\s*:\s*(?<value>[\S]+)$/.exec(lastFragment);
+      const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
       if (valueResult) {
         const confirmField = valueResult.groups.field;
         const valueMap = this.dropdownData[confirmField];
@@ -501,7 +582,7 @@ export default {
         return;
       }
       // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
-      if (/^\s*(?<field>[\w.]+)\s*:\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
+      if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
         this.showWhichDropdown('Continue');
         return;
       }
@@ -557,6 +638,7 @@ export default {
         }
       }
       this.showWhichDropdown('Colon');
+      this.showOperator = this.isNumTypeField(field);
     },
     /**
      * 选择 : 或者 :*
@@ -574,7 +656,12 @@ export default {
      */
     handleClickValue(value) {
       // 当前输入值可能的情况 【name:"a】【age:】
-      this.$emit('change', this.value.replace(/:\s*[\S]*$/, `: ${value} `));
+      this.$emit(
+        'change',
+        this.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
+          return `${matchOperator} ${value} `;
+        })
+      );
       this.showWhichDropdown('Continue');
     },
     /**
@@ -585,6 +672,14 @@ export default {
       this.$emit('change', `${this.value + type} `);
       this.showWhichDropdown('Fields');
       this.fieldList = [...this.originFieldList];
+    },
+    /**
+     * @desc: 当前是否是数字类型字段
+     * @param {string} fieldStr 字段名
+     * @returns {boolean}
+     */
+    isNumTypeField(fieldStr = '') {
+      return this.getNumTypeFieldList.includes(fieldStr);
     }
   }
 };
@@ -592,7 +687,7 @@ export default {
 
 <style lang="scss" scoped>
 @import '../../../scss/mixins/scroller';
-/* stylelint-disable no-descending-specificity */
+
 .retrieve-detail-input {
   position: relative;
 
@@ -608,16 +703,9 @@ export default {
       color: #63656e;
     }
 
-    .refresh-btn,
-    .icon-refresh-icon {
+    .refresh-btn {
       color: #3a84ff;
       cursor: pointer;
-    }
-  }
-
-  .king-input-retrieve {
-    :deep(.bk-form-textarea) {
-      resize: vertical;
     }
   }
 
@@ -712,6 +800,7 @@ export default {
 
     /* 值 icon 样式 */
     .value-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
       .item-type-icon {
         color: #02776e;
         background-color: #e6f2f1;
@@ -728,6 +817,7 @@ export default {
 
     /* AND OR icon 样式 */
     .continue-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
       .item-type-icon {
         color: #7800a6;
         background-color: #f2e6f6;
@@ -744,6 +834,7 @@ export default {
 
     /* : :* icon 样式 */
     .colon-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
       .item-type-icon {
         color: #006bb4;
         background-color: #e6f0f8;
@@ -767,6 +858,11 @@ export default {
         color: #979ba5;
       }
     }
+  }
+
+  .flex-align-center {
+    display: inline-flex;
+    align-items: center;
   }
 }
 </style>

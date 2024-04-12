@@ -2,11 +2,11 @@
 import logging
 import typing
 
+from apps.api.modules.bk_node import BKNodeApi
 from bkm_ipchooser import constants, types
 from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.tools import batch_request, topo_tool
-from bkm_ipchooser.tools.gse_tool import GseTool
 from bkm_ipchooser.tools.page_tool import get_pagination_data
 
 logger = logging.getLogger("bkm_ipchooser")
@@ -181,8 +181,28 @@ class TopoHandler:
         return {"total": resp["count"], "data": BaseHandler.format_host_id_infos(resp["info"], tree_node["bk_biz_id"])}
 
     @classmethod
-    def fill_agent_status(cls, cc_hosts):
-        GseTool.get_adapter().fill_agent_status(cc_hosts)
+    def fill_agent_status(cls, cc_hosts, bk_biz_id) -> typing.List[typing.Dict]:
+        if not cc_hosts:
+            return cc_hosts
+
+        host_map = {}
+        for index, cc_host in enumerate(cc_hosts):
+            host_map[cc_host["bk_host_id"]] = index
+        try:
+            scope_list = [{"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(bk_biz_id)}]
+            meta = BaseHandler.get_meta_data(bk_biz_id)
+            host_list = [{"host_id": host["bk_host_id"], "meta": meta} for host in cc_hosts]
+            # 添加no_request参数, 多线程调用时，保证用户信息不漏传
+            request_params = {"no_request": True, "host_list": host_list, "scope_list": scope_list}
+            host_info = BKNodeApi.ipchooser_host_details(request_params)
+            for status in host_info:
+                host_id = status["host_id"]
+                if host_id in host_map:
+                    cc_hosts[host_map[host_id]]["status"] = status["alive"]
+        except KeyError as e:
+            logger.exception("fill_agent_status exception: %s", e)
+
+        return cc_hosts
 
     @classmethod
     def count_agent_status(cls, cc_hosts) -> typing.Dict:
@@ -251,7 +271,7 @@ class TopoHandler:
         hosts = resp["info"]
 
         # TODO: 抽取常用cc查询接口到一个单独的文件，目前components下很多文件都没用，比如：components/cc,cmdb,itsm等
-        TopoHandler.fill_agent_status(hosts)
+        TopoHandler.fill_agent_status(hosts, bk_biz_id)
         TopoHandler.fill_cloud_name(hosts)
 
         return hosts
@@ -312,7 +332,7 @@ class TopoHandler:
         resp = get_pagination_data(BkApi.list_biz_hosts, params, split_params=split_params)
 
         if resp["info"] and return_status:
-            cls.fill_agent_status(resp["info"])
+            cls.fill_agent_status(resp["info"], bk_biz_id)
 
         return resp
 
@@ -351,7 +371,7 @@ class TopoHandler:
         hosts = batch_request.batch_request(func=BkApi.list_biz_hosts, params=params)
         if not hosts:
             return result
-        cls.fill_agent_status(hosts)
+        cls.fill_agent_status(hosts, bk_biz_id)
         result.update(cls.count_agent_status(hosts))
 
         return result

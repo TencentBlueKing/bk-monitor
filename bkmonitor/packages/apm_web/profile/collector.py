@@ -54,7 +54,7 @@ class CollectorHandler:
     """Collector handler for profile"""
 
     @classmethod
-    def send_to_builtin_datasource(cls, profile_id, profile: Profile):
+    def send_to_builtin_datasource(cls, profile_id, service_name, profile: Profile):
         """Send profile to collector"""
         builtin_profile_datasource = api.apm_api.query_builtin_profile_datasource()
 
@@ -89,7 +89,7 @@ class CollectorHandler:
 
         # simulating as pyroscope agent
         params = {
-            "name": app_name,
+            "name": f"{app_name}{{service_name={service_name}}}",
             "from": _get_stamp_by_ns(profile.time_nanos),
             "until": _get_stamp_by_ns(int(profile.time_nanos) + int(profile.duration_nanos)),
             "spyName": "gospy",

@@ -21,13 +21,13 @@ the project delivered to anyone in the future.
 """
 
 import datetime
-from typing import Dict, Any, Tuple, Union
+from typing import Any, Dict, Tuple, Union
+
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import SearchUnKnowTimeFieldType
 
 
 class QueryTimeBuilder(object):
-
     TIME_FIELD_UNIT_RATE_MAP = {
         TimeFieldUnitEnum.SECOND.value: 1,
         TimeFieldUnitEnum.MILLISECOND.value: 1000,
@@ -65,7 +65,7 @@ class QueryTimeBuilder(object):
     @property
     def time_range_dict(self):
         # 返回构建dsl的时间字典
-        if self.time_field_type in ["date"]:
+        if self.time_field_type in ["date", "date_nanos", "conflict"]:
             self._time_range_dict.update(
                 {
                     self.time_field: {
