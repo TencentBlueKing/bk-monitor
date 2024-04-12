@@ -8,7 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import concurrent
 import datetime
+import logging
+from collections import defaultdict
 
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -19,6 +22,8 @@ from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.utils import get_interval, split_by_interval
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource, api
+
+logger = logging.getLogger("apm")
 
 
 class QueryServicesDetailResource(Resource):
@@ -124,16 +129,41 @@ class ListApplicationServicesResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
 
+    @classmethod
+    def batch_query_profile_services_detail(cls, applications):
+        """
+        batch query profile services detail
+        :param applications: 应用集合（queryset）
+        """
+        def inner(res_map, app):
+            services = api.apm_api.query_profile_services_detail(
+                **{"bk_biz_id": app.bk_biz_id, "app_name": app.app_name}
+            )
+            res_map[app.application_id] = services
+
+        service_map = defaultdict(dict)
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [executor.submit(inner, service_map, app) for app in applications]
+            # 打印异常，用于排障
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    logger.exception(
+                        f"[apm] ListApplicationServicesResource batch_query_profile_services_detail error: {e}"
+                    )
+        return service_map
+
     def perform_request(self, data):
         applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
 
         apps = []
         nodata_apps = []
 
+        service_map = self.batch_query_profile_services_detail(applications)
         for application in applications:
-            services = api.apm_api.query_profile_services_detail(
-                **{"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
-            )
+            services = service_map.get(application.application_id, [])
             # 如果曾经发现过 service，都认为是有数据应用
             if len(services) > 0:
                 apps.append(
