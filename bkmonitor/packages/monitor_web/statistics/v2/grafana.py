@@ -192,4 +192,5 @@ class GrafanaCollector(BaseCollector):
             for org_id in org_ids:
                 starred_dashboards = org_id_mapping_star_dashboards[org_id]
                 metric.labels(bk_biz_id=int(self.org_id_mapping_name[org_id]),
-                              bk_biz_name=self.get_biz_name(self.org_id_mapping_name[org_id])).set(len(starred_dashboards))
+                              bk_biz_name=self.get_biz_name(self.org_id_mapping_name[org_id]))\
+                    .set(len(starred_dashboards))
