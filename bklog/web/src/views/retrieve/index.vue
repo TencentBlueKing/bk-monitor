@@ -217,6 +217,7 @@
               :is-init-page="isInitPage"
               :is-thollte-field="isThollteField"
               :finger-search-state="fingerSearchState"
+              :config-watch-bool="configWatchBool"
               @request-table-data="requestTableData"
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
@@ -468,7 +469,9 @@ export default {
         minWidth: 0,
         tag: 'union-source',
         width: 230
-      }
+      },
+      // 字段配置下拉框更新监听 因联合查询的字段设置列表需要先请求字段后才能返回
+      configWatchBool: false
     };
   },
   computed: {
@@ -579,7 +582,6 @@ export default {
       this.resetRetrieveCondition();
       this.resetFavoriteValue();
       this.$store.commit('updateIndexId', val);
-      val && this.requestSearchHistory(val);
       this.clearCondition('*', false);
       this.$refs.searchCompRef?.clearAllCondition();
       this.isSetDefaultTableColumn = false;
@@ -825,6 +827,7 @@ export default {
       if (selectIsUnionSearch) {
         if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
           this.shouldUpdateFields = true;
+          this.initIndexSetChangeFn(this.indexId);
           this.$store.commit('updateUnionIndexList', ids);
           this.catchUnionBeginList = [];
           this.retrieveLog(params);
@@ -1355,7 +1358,6 @@ export default {
           const addition = !!queryParamsStr.addition ? JSON.parse(queryParamsStr?.addition) : undefined;
           const chooserSwitch = Boolean(queryParams.ip_chooser);
           this.$refs.searchCompRef.initConditionList(addition, this.catchIpChooser, chooserSwitch); // 初始化 更新当前添加条件列表
-          // this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
           this.isInitPage = false;
         }
 
@@ -1504,6 +1506,8 @@ export default {
         this.$store.commit('retrieve/updateFiledSettingConfigID', config_id); // 当前配置ID
         this.$nextTick(() => {
           this.$refs.searchCompRef?.initAdditionDefault();
+          // 字段设置下拉列表更新
+          this.configWatchBool = !this.configWatchBool;
         });
       } catch (e) {
         this.ipTopoSwitch = true;
@@ -1514,6 +1518,7 @@ export default {
         this.totalFields.splice(0);
         this.visibleFields.splice(0);
         this.isThollteField = false;
+        this.isInitPage = false;
         throw e;
       }
     },
@@ -1533,10 +1538,7 @@ export default {
         .filter(Boolean);
       this.showShowUnionSource(true);
       this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
-      if (!this.isSetDefaultTableColumn) {
-        this.setDefaultTableColumn();
-      }
-      this.isSetDefaultTableColumn = false;
+      this.setDefaultTableColumn();
     },
     sessionShowFieldObj() {
       // 显示字段缓存
